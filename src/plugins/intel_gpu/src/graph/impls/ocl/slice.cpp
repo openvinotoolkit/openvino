@@ -128,7 +128,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                 compile_time_start[compile_time_axes[axis]] = elts[axis];
             }
 
-            params.start = std::move(compile_time_start);
+            params.compile_time_start = std::move(compile_time_start);
 
         } else {
             params.start_arg_type = kernel_selector::base_params::ArgType::Input;
@@ -145,7 +145,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                 compile_time_step[compile_time_axes[axis]] = step_elts[axis];
             }
 
-            params.step = std::move(compile_time_step);
+            params.compile_time_step = std::move(compile_time_step);
 
         } else {
             params.step_arg_type = kernel_selector::base_params::ArgType::Input;

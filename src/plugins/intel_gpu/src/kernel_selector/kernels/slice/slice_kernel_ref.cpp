@@ -132,8 +132,8 @@ bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
 
 JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    addJitConstantsForAttribute(jit, "SLICE_BEGIN", params.start, params.start_arg_type, params.start_data_type);
-    addJitConstantsForAttribute(jit, "SLICE_STEP", params.step, params.step_arg_type, params.step_data_type);
+    addJitConstantsForAttribute(jit, "SLICE_BEGIN", params.compile_time_start, params.start_arg_type, params.start_data_type);
+    addJitConstantsForAttribute(jit, "SLICE_STEP", params.compile_time_step, params.step_arg_type, params.step_data_type);
     return jit;
 }
 
