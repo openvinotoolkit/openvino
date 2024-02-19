@@ -623,7 +623,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f3c87e408e0>
+    <matplotlib.image.AxesImage at 0x7f476c1d6fd0>
 
 
 
@@ -788,7 +788,7 @@ Get the reading result on the meter picture
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_24_1.png
 
 
-Try it with your meter photos
------------------------------------------------
+Try it with your meter photos!
+------------------------------
 
 

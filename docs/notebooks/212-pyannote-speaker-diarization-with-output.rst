@@ -42,8 +42,6 @@ Table of contents:
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare pipeline <#prepare-pipeline>`__
--  `login to huggingfacehub to get access to pre-trained
-   model <#login-to-huggingfacehub-to-get-access-to-pre-trained-model>`__
 -  `Load test audio file <#load-test-audio-file>`__
 -  `Run inference pipeline <#run-inference-pipeline>`__
 -  `Convert model to OpenVINO Intermediate Representation
@@ -66,18 +64,20 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    googleapis-common-protos 1.62.0 requires protobuf!=3.20.0,!=3.20.1,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0.dev0,>=3.19.5, but you have protobuf 3.20.1 which is incompatible.
     onnx 1.15.0 requires protobuf>=3.20.2, but you have protobuf 3.20.1 which is incompatible.
     paddlepaddle 2.6.0 requires protobuf>=3.20.2; platform_system != "Windows", but you have protobuf 3.20.1 which is incompatible.
     ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.33.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     tensorflow 2.12.0 requires protobuf!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<5.0.0dev,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
+    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 3.20.1 which is incompatible.
 
 
 .. parsed-literal::
@@ -130,14 +130,14 @@ method by providing a path to the directory with pipeline configuration
 or identification from `HuggingFace
 hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
-   **Note**: This tutorial uses a non-official version of model
+   **NOTE**: This tutorial uses a non-official version of model
    ``philschmid/pyannote-speaker-diarization-endpoint``, provided only
    for demo purposes. The original model
    (``pyannote/speaker-diarization``) requires you to accept the model
    license before downloading or using its weights, visit the
    `pyannote/speaker-diarization <https://huggingface.co/pyannote/speaker-diarization>`__
    to read accept the license before you proceed. To use this model, you
-   must be a registered user in 🤗 Hugging Face Hub. You will need to use
+   must be a registered user in Hugging Face Hub. You will need to use
    an access token for the code below to run. For more information on
    access tokens, please refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -148,6 +148,7 @@ hub <https://huggingface.co/pyannote/speaker-diarization>`__.
 
 
    ## login to huggingfacehub to get access to pre-trained model
+
    from huggingface_hub import notebook_login, whoami
 
    try:
@@ -244,7 +245,7 @@ pipeline
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.77 s
+    Diarization pipeline took 15.72 s
 
 
 The result of running the pipeline can be represented as a diagram
@@ -403,7 +404,7 @@ Run speaker diarization with OpenVINO
 
 .. parsed-literal::
 
-    Diarization pipeline took 15.03 s
+    Diarization pipeline took 15.12 s
 
 
 .. code:: ipython3

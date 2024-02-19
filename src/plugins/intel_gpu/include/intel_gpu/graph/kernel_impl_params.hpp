@@ -65,6 +65,9 @@ struct kernel_impl_params {
     std::vector<size_t> output_size;
     std::vector<size_t> img_size;
 
+    std::map<size_t, size_t> in_port_to_shape_info_offset = {};
+    std::map<size_t, size_t> out_port_to_shape_info_offset = {};
+
     kernel_impl_params() : prog(nullptr), dev_type(cldnn::device_type::integrated_gpu), strm(nullptr), desc(nullptr), unique_id(0) {
     }
 

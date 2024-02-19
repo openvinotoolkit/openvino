@@ -10,7 +10,7 @@ from unit_tests.utils.graph import build_graph
 
 
 class TestSoftsign(CommonTFLayerTest):
-    def create_softsign_net(self, shape, ir_version, use_new_frontend):
+    def create_softsign_net(self, shape, ir_version, use_legacy_frontend):
         """
             Tensorflow net                 IR net
 
@@ -26,7 +26,7 @@ class TestSoftsign(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
             input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.nn.softsign(input)
@@ -42,7 +42,7 @@ class TestSoftsign(CommonTFLayerTest):
 
         ref_net = None
 
-        if check_ir_version(10, None, ir_version) and not use_new_frontend:
+        if check_ir_version(10, None, ir_version) and not use_legacy_frontend:
             nodes_attributes = {
                 'input': {'kind': 'op', 'type': 'Parameter'},
                 'input_data': {'shape': shape, 'kind': 'data'},
@@ -71,8 +71,8 @@ class TestSoftsign(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_softsign(self, params, ie_device, precision, ir_version, temp_dir,
-                      use_new_frontend):
+                      use_legacy_frontend):
         self._test(*self.create_softsign_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend),
+                                             use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
