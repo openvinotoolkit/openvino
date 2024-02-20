@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 
 #include <openvino/core/graph_util.hpp>
+
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -209,16 +210,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // Walk over transformed model for special handing of Parameters/Constants/Results
     bool start_split = false;
     unsigned long total_size = 0;
-    unsigned long total_ops_size = 0;
     std::map<std::string, int> pair_checker;
     for (auto&& op : ops) {
         if (ov::op::util::is_constant(op)) {
-            const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
-            total_ops_size += const_byte_size;
+            if (has_all_consumers_unsupported(supported, op)) {
+                remove_op_from_supported(op);
+            }
         }
-    }
-    if (memory_control) {
-        for (auto&& op : ops) {
+        if (memory_control) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                 if (pair_checker.count(assign->get_variable_id()) == 0) {
                     pair_checker[assign->get_variable_id()] = 1;
@@ -264,10 +263,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // Filter ShapeOfs & Broadcast, Broadcast can't be split with the output ops
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
-        if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::v3::Broadcast>(op) ||
-            ov::is_type<ov::op::v1::Broadcast>(op)) &&
+        if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::util::BroadcastBase>(op)) &&
             (supported.count(name) || removed_nodes.count(name))) {
-            // Don't allow cut on ShapeOf
             if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
                 remove_op_from_supported(op);
                 removed_nodes.erase(name);
