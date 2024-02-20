@@ -172,6 +172,7 @@ void max_pool_3d(const Values_t* data,
                  const Shape& pads_end,
                  const size_t indices_offset) {
     validate_max_pool_kernel_params(3, kernel, kernel_strides, kernel_dilations, pads_begin, pads_end);
+
     // helper constants(axes) denoting dimensions in the input data shape and kernel shape
     constexpr size_t data_D = 2, data_H = 3, data_W = 4;
     constexpr size_t kernel_D = 0, kernel_H = 1, kernel_W = 2;

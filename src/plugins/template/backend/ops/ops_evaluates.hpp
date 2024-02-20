@@ -127,9 +127,9 @@ extern template bool evaluate_node<ov::op::v0::ROIPooling>(std::shared_ptr<ov::N
                                                            ov::TensorVector& outputs,
                                                            const ov::TensorVector& inputs);
 
-extern template bool evaluate_node<ov::op::v1::AvgPool>(std::shared_ptr<ov::Node> node,
-                                                        ov::TensorVector& outputs,
-                                                        const ov::TensorVector& inputs);
+extern template bool evaluate_node<ov::op::v14::AvgPool>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v1::BinaryConvolution>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
