@@ -22,7 +22,7 @@ void concat(const std::vector<const std::string*>& args,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
-            size_t);
+            size_t elem_size);
 
 }  // namespace reference
 }  // namespace ov

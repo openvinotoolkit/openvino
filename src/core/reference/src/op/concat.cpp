@@ -17,7 +17,53 @@ std::vector<size_t> calculate_shape_sizes(const std::vector<Shape>& in_shapes) {
     });
     return sizes;
 }
+inline void copy_single_input_elements(const char* arg,
+                                       char* out,
+                                       size_t in_offset,
+                                       size_t out_offset,
+                                       size_t num_of_elements,
+                                       size_t elem_size) {
+    std::memcpy(&out[out_offset * elem_size], &arg[in_offset * elem_size], num_of_elements * elem_size);
+}
+
+inline void copy_single_input_elements(const std::string* arg,
+                                       std::string* out,
+                                       size_t in_offset,
+                                       size_t out_offset,
+                                       size_t num_of_elements,
+                                       size_t elem_size) {
+    const auto src_begin = std::next(arg, in_offset);
+    const auto out_ptr = std::next(out, out_offset);
+    std::copy_n(src_begin, num_of_elements, out_ptr);
+}
 }  // namespace
+
+template <typename T>
+void concat_common(const std::vector<const T*>& args,
+                   T* out,
+                   const std::vector<Shape>& in_shapes,
+                   const Shape& out_shape,
+                   int64_t concatenation_axis,
+                   size_t elem_size) {
+    size_t steps = 1;
+    for (int i = 0; i < concatenation_axis; ++i) {
+        steps *= out_shape[i];
+    }
+
+    const auto& shape_sizes = calculate_shape_sizes(in_shapes);
+
+    size_t out_offset = 0;
+    for (size_t step = 0; step < steps; ++step) {
+        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
+            const size_t size = shape_sizes[in_index] / steps;
+            const size_t in_offset = step * size;
+
+            copy_single_input_elements(args[in_index], out, in_offset, out_offset, size, elem_size);
+
+            out_offset += size;
+        }
+    }
+}
 
 void concat(const std::vector<const char*>& args,
             char* out,
@@ -25,24 +71,7 @@ void concat(const std::vector<const char*>& args,
             const Shape& out_shape,
             int64_t concatenation_axis,
             size_t elem_size) {
-    size_t steps = 1;
-    for (int i = 0; i < concatenation_axis; ++i) {
-        steps *= out_shape[i];
-    }
-
-    const auto& shape_sizes = calculate_shape_sizes(in_shapes);
-
-    size_t out_offset = 0;
-    for (size_t step = 0; step < steps; ++step) {
-        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
-            const size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = step * size;
-
-            std::memcpy(&out[out_offset * elem_size], &args[in_index][in_offset * elem_size], size * elem_size);
-
-            out_offset += size;
-        }
-    }
+    reference::concat_common<char>(args, out, in_shapes, out_shape, concatenation_axis, elem_size);
 }
 
 void concat(const std::vector<const std::string*>& args,
@@ -50,27 +79,8 @@ void concat(const std::vector<const std::string*>& args,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
-            size_t) {
-    size_t steps = 1;
-    for (int i = 0; i < concatenation_axis; ++i) {
-        steps *= out_shape[i];
-    }
-    const auto& shape_sizes = calculate_shape_sizes(in_shapes);
-
-    size_t out_offset = 0;
-    for (size_t step = 0; step < steps; ++step) {
-        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
-            const size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = step * size;
-
-            const auto src_begin = std::next(args[in_index], in_offset);
-            const auto out_ptr = std::next(out, out_offset);
-            std::copy_n(src_begin, size, out_ptr);
-
-            out_offset += size;
-        }
-    }
+            size_t elem_size) {
+    reference::concat_common<std::string>(args, out, in_shapes, out_shape, concatenation_axis, 1);
 }
-
 }  // namespace reference
 }  // namespace ov
