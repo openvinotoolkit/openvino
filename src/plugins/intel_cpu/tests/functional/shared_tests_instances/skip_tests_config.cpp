@@ -208,18 +208,9 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 119648
         R"(.*smoke_LPT/InterpolateTransformation.*)",
         // Issue: 129931
-        R"(smoke_FQLayerDQBias_4D_dynamic/FQLayerDQBias.*)",
-        R"(smoke_FQLayerDQBias_4D_static/FQLayerDQBias.*)",
-        R"(smoke_LPT/ConvolutionTransformation.*)",
-        R"(smoke_LPT/ConvolutionWIthIncorrectWeightsTransformation.*)",
-        R"(smoke_LPT/EliminateFakeQuantizeTransformation.*)",
-        R"(smoke_LPT/FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation.*)",
-        R"(smoke_LPT/FakeQuantizePrecisionSelectionTransformation.*)",
-        R"(smoke_LPT/GroupConvolutionTransformation.*)",
-        R"(smoke_LPT/MatMulTransformation.*)",
-        R"(smoke_LPT/MatMulWithOptimizedConstantFq.*)",
-        R"(smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.*)",
-        R"(smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.*)",
+        R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
+        // Issue: 132494
+        R"(.*smoke_Inverse.*bf16.*)",
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"
@@ -360,6 +351,28 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_Snippets_EnforcePrecision_bf16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAWOTransposeEnforceBF16.*)");
         retVector.emplace_back(R"(.*smoke_Snippets_MHAEnforceBF16.*)");
+    }
+
+    if (ov::with_cpu_x86_avx512_core_amx()) {
+        // Issue: 130463
+        retVector.emplace_back(R"(smoke_Conv_1D_GEMM_BF16/ConvolutionLayerCPUTest.*K\(1\)_S\(1\)_PB\(0\)_PE\(0\).*O=6.*_Fused=Add\(PerChannel\).*)");
+        // Issue: 130466
+        retVector.emplace_back(R"(smoke_Conv_1D_BF16/ConvolutionLayerCPUTest.*IS=\[\].*K\(3\).*S\(2\).*PE\(0\).*D=\(1\).*O=6(3|4).*brgconv_avx512_amx.*)");
+        // Issue: 130467
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(10\.10\.10\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*IS=\[1.*TS=\(\(10\.10\.10\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Amx_.*/MatMulLayerCPUTest.*TS=\(\(55\.12\)\).*bf16.*_primitive=brgemm_avx512_amx.*)");
+        // Issue: 130471
+        retVector.emplace_back(R"(smoke_JIT_AVX512_DW_GroupConv/GroupConvolutionLayerCPUTest.*inFmts=nCdhw16c.*INFERENCE_PRECISION_HINT=bf16.*)");
+        // Issue: 131475
+        retVector.emplace_back(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)");
+    }
+
+    if (ov::with_cpu_x86_avx512_core_fp16()) {
+        // Issue: 130473
+        retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
+        retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
+        retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
     }
 
     return retVector;

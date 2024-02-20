@@ -6,12 +6,12 @@
 
 #include <numeric>
 
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/deprecated.hpp"
+#include "core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
@@ -21,15 +21,16 @@ namespace variadic {
 /// \tparam T   Class of an OpenVINO binary operation (e.g. Add, Minimum, Maximum)
 ///
 /// \return OpenVINO node equivalent of the ONNX operation
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 template <class T>
-inline OutputVector make_ng_variadic_op(
+inline ov::OutputVector make_ng_variadic_op(
     const Node& node,
     const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastType::NUMPY) {
-    const OutputVector ng_inputs{node.get_ng_inputs()};
+    const ov::OutputVector ng_inputs{node.get_ov_inputs()};
 
     // Templated binary operation - Creates Add, Minimum, Maximum, etc.
-    const auto binary_operation = [&auto_broadcast](const Output<ov::Node>& arg0, const Output<ov::Node>& arg1) {
+    const auto binary_operation = [&auto_broadcast](const ov::Output<ov::Node>& arg0,
+                                                    const ov::Output<ov::Node>& arg1) {
         return std::make_shared<T>(arg0, arg1, auto_broadcast);
     };
 
@@ -45,10 +46,8 @@ inline OutputVector make_ng_variadic_op(
 
     return {result};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace variadic
-
-}  // namespace  onnx_import
-
-}  // namespace  ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

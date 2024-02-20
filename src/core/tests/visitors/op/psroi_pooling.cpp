@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, psroi_pooling_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::PSROIPooling>();
+    NodeBuilder::opset().insert<ov::op::v0::PSROIPooling>();
     auto input = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1024, 63, 38});
     auto coords = make_shared<ov::op::v0::Parameter>(element::f32, Shape{300, 5});
 

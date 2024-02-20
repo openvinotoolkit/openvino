@@ -23,6 +23,8 @@ function(add_common_utils ADD_TARGET_NAME)
             EXCLUDED_SOURCE_PATHS
                 ${TARGET_EXCLUDED_SOURCE_PATHS}
             ADD_CLANG_FORMAT
+            DEPENDENCIES
+                openvino_template_plugin
             LINK_LIBRARIES
                 PUBLIC
                     gtest
@@ -31,7 +33,6 @@ function(add_common_utils ADD_TARGET_NAME)
                     ov_models
                     openvino::runtime
                     openvino::runtime::dev
-                    openvino::builders
                 PRIVATE
                     openvino::util
                     openvino::shape_inference
@@ -40,6 +41,7 @@ function(add_common_utils ADD_TARGET_NAME)
                         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
                     PRIVATE
                         "${CMAKE_CURRENT_SOURCE_DIR}/src"
+                        "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
     )
 
     ov_developer_package_export_targets(TARGET ${ADD_TARGET_NAME}
@@ -51,7 +53,7 @@ function(add_common_utils ADD_TARGET_NAME)
 
     # USE_STATIC_IE is passed
     if(ARGN)
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
+        target_link_libraries(${ADD_TARGET_NAME} PRIVATE openvino_runtime_s)
     endif()
 
     ov_build_target_faster(${ADD_TARGET_NAME}

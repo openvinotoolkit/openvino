@@ -33,15 +33,15 @@ void RangeKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData RangeKernelRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    if (!Validate(params, options))
+KernelsData RangeKernelRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params))
         return {};
 
     KernelData kernel_data = KernelData::Default<range_params>(params);
     const auto& prim_params = static_cast<const range_params&>(params);
 
     auto dispatch_data = SetDefault(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit_constants = MakeBaseParamsJitConstants(prim_params);
     auto jit = CreateJit(kernelName, jit_constants, entry_point);
 
@@ -58,7 +58,7 @@ KernelsData RangeKernelRef::GetKernelsData(const Params &params, const optional_
     return {kernel_data};
 }
 
-KernelsPriority RangeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority RangeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -89,8 +89,8 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool RangeKernelRef::Validate(const Params &p, const optional_params &o) const {
-    if (p.GetType() != KernelType::RANGE || o.GetType() != KernelType::RANGE)
+bool RangeKernelRef::Validate(const Params &p) const {
+    if (p.GetType() != KernelType::RANGE)
         return false;
 
     auto &params = dynamic_cast<const range_params&>(p);

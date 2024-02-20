@@ -11,5 +11,9 @@ namespace test {
 TEST_P(TopKLayerTest, Inference) {
     run();
 }
+
+TEST_P(TopK11LayerTest, Inference) {
+    run();
+}
 }  // namespace test
 }  // namespace ov

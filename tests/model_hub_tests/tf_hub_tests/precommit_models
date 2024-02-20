@@ -1,3 +1,4 @@
+mmt/data_cc,https://www.kaggle.com/models/deepmind/mmt/frameworks/tensorFlow1/variations/data-cc/versions/1,skip,CPU plug-in doesn't support Squeeze operation with dynamic rank Operation name object_classification_layer/Squeeze
 vision/embedder/fungi_V2,https://tfhub.dev/svampeatlas/vision/embedder/fungi_V2/1?tf-hub-format=compressed,skip,Model is not available
 movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
 imagenet/resnet_v2_50/feature_vector,https://www.kaggle.com/models/google/resnet-v2/frameworks/tensorFlow2/variations/50-feature-vector/versions/2
@@ -10,6 +11,7 @@ imagenet/mobilenet_v1_100_224/classification,https://www.kaggle.com/models/googl
 magenta/arbitrary-image-stylization-v1-256,https://www.kaggle.com/models/google/arbitrary-image-stylization-v1/frameworks/tensorFlow1/variations/256/versions/2
 small_bert/bert_en_uncased_L-4_H-256_A-4,https://www.kaggle.com/models/tensorflow/bert/frameworks/tensorFlow2/variations/bert-en-uncased-l-4-h-256-a-4/versions/2
 movinet/a5/base/kinetics-600/classification,https://www.kaggle.com/models/google/movinet/frameworks/tensorFlow2/variations/a5-base-kinetics-600-classification/versions/3
+object_detection/mobile_object_localizer_v1,https://www.kaggle.com/models/google/mobile-object-localizer-v1/frameworks/tensorFlow1/variations/object-detection-mobile-object-localizer-v1/versions/1,xfail,128695 - inference results mismatch
 # models with TensorListConcatV2 op
 efficientdet/lite0/detection,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/lite0-detection/versions/1,skip,105671 - extend support for TensorList* ops when element_shape has undefined dimension
 # model with complex tensors and FFT ops
@@ -23,4 +25,4 @@ planet/vision/classifier/planet_v2,https://www.kaggle.com/models/google/planet-v
 # TF1 models in .pb format
 i3d-rgb,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/i3d-rgb-tf/rgb.frozen.pb
 # Model with SentencePiece tokenizer, use openvino-tokenizers package
-universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2,skip, 129480 - Add openvino-tokenizers wheel build to OpenVINO GHA Workflow
+universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2

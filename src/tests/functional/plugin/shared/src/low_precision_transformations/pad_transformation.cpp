@@ -29,7 +29,6 @@ std::string PadTransformation::getTestCaseName(const testing::TestParamInfo<PadT
 }
 
 void PadTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::op::PadMode mode;
@@ -39,7 +38,7 @@ void PadTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::PadFunction::get(
+    function = ov::builder::subgraph::PadFunction::get(
         inputShape,
         netPrecision,
         param.fakeQuantize,

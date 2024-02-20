@@ -38,7 +38,8 @@ Notebook contains the following steps:
 2. Convert models to OpenVINO IR format, using model conversion API.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `login to huggingfacehub to get access to pretrained
@@ -67,12 +68,12 @@ Prerequisites
 **The following is needed only if you want to use the original model. If
 not, you do not have to do anything. Just run the notebook.**
 
-   **Note**: The original model (for example, ``stable-diffusion-v1-4``)
+   **NOTE**: The original model (for example, ``stable-diffusion-v1-4``)
    requires you to accept the model license before downloading or using
    its weights. Visit the `stable-diffusion-v1-4
    card <https://huggingface.co/CompVis/stable-diffusion-v1-4>`__ to
    read and accept the license before you proceed. To use this diffusion
-   model, you must be a registered user in 🤗 Hugging Face Hub. You will
+   model, you must be a registered user in Hugging Face Hub. You will
    need to use an access token for the code below to run. For more
    information on access tokens, refer to `this section of the
    documentation <https://huggingface.co/docs/hub/security-tokens>`__.
@@ -80,7 +81,7 @@ not, you do not have to do anything. Just run the notebook.**
    following code:
 
 .. code:: python
-   :force:
+
 
    ## login to huggingfacehub to get access to pretrained model
 
@@ -1046,7 +1047,7 @@ Select device from dropdown list for running inference using OpenVINO.
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GNA', 'AUTO'), value='CPU')
 
 
 
@@ -1099,7 +1100,7 @@ Now, you can define a text prompt for image generation and run inference
 pipeline. Optionally, you can also change the random generator seed for
 latent state initialization and number of steps.
 
-   **Note**: Consider increasing ``steps`` to get more precise results.
+   **NOTE**: Consider increasing ``steps`` to get more precise results.
    A suggested value is ``50``, but it will take longer time to process.
 
 .. code:: ipython3
@@ -1377,5 +1378,5 @@ Interactive demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

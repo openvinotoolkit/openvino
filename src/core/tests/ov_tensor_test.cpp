@@ -163,26 +163,6 @@ TEST_F(OVTensorTest, operators) {
     ASSERT_TRUE(!t);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-class OVMockAllocatorImpl : public ov::AllocatorImpl {
-public:
-    MOCK_METHOD(void*, allocate, (size_t, size_t), ());
-    MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
-    MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
-};
-
-TEST_F(OVTensorTest, canCreateTensorUsingMockAllocatorImpl) {
-    ov::Shape shape = {1, 2, 3};
-    auto allocator = std::make_shared<OVMockAllocatorImpl>();
-
-    EXPECT_CALL(*allocator, allocate(::testing::_, ::testing::_))
-        .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
-    EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
-
-    { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 struct OVMockAllocator {
     struct Impl {
         MOCK_METHOD(void*, allocate, (size_t, size_t), ());
@@ -568,6 +548,50 @@ TEST_F(OVTensorTest, makeRangeRoiStringTensor) {
     ASSERT_EQ(roi_tensor.get_strides(), t.get_strides());
     ASSERT_EQ(byteStrides(ref_strides, roi_tensor.get_element_type()), roi_tensor.get_strides());
     ASSERT_EQ(roi_tensor.get_element_type(), t.get_element_type());
+}
+
+TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 4}};
+    const ov::Shape newShape({1, 1, 3, 2});
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 2}));
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMaxSizeShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape new_shape({1, 2, 1, 1});
+    const ov::Shape roi_capacity({1, 2, 4, 3});
+
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+
+    roi_tensor.set_shape(new_shape);
+    ASSERT_EQ(roi_tensor.get_shape(), new_shape);
+
+    roi_tensor.set_shape(roi_capacity);
+    ASSERT_EQ(roi_tensor.get_shape(), roi_capacity);
+}
+
+TEST_F(OVTensorTest, setShapeGtMaxOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({0, 0, 0, 0});
+
+    roi_tensor.set_shape(newShape);
+    ASSERT_EQ(roi_tensor.get_shape(), newShape);
+}
+
+TEST_F(OVTensorTest, setMinShapeOnRoiTensor) {
+    ov::Tensor t{ov::element::i32, {1, 3, 6, 5}};
+    ov::Tensor roi_tensor{t, {0, 0, 1, 2}, {1, 2, 5, 5}};
+    const ov::Shape newShape({1, 3, 6, 3});  // ROI coordinate begin + newShape[2] is bigger than t.shape[2]
+
+    ASSERT_EQ(roi_tensor.get_shape(), ov::Shape({1, 2, 4, 3}));
+    ASSERT_THROW(roi_tensor.set_shape(newShape), ov::Exception);
 }
 
 TEST_F(OVTensorTest, cannotSetShapeOnRoiTensor) {

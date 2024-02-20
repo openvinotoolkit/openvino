@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_lpt_models/transpose_after_mat_mul.hpp"
 
@@ -37,7 +35,6 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(const testing::T
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    abs_threshold = 0.6;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -47,7 +44,7 @@ void TransposeAfterMatMulTransformation::SetUp() {
 
     init_input_shapes({ inputShape, inputShape });
 
-    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
+    function = ov::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

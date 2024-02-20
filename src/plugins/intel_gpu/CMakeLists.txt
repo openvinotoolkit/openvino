@@ -8,6 +8,10 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
+if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
@@ -46,10 +50,6 @@ add_subdirectory(src/kernel_selector)
 add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
-
-if(ENABLE_PROXY)
-    set(PLUGIN_DEFAULT_CONFIG "PROXY_CONFIGURATION_ALIAS:GPU;PROXY_CONFIGURATION_PRIORITY:0;PROXY_CONFIGURATION_INTERNAL_NAME:OCL_GPU")
-endif()
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"

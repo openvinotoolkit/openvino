@@ -8,13 +8,13 @@
 #    include <opencv2/imgproc/types_c.h>
 
 #    include <opencv2/imgproc.hpp>
+#    include <random>
 
 #    include "base_reference_test.hpp"
+#    include "functional_test_utils/skip_tests_config.hpp"
 #    include "openvino/core/preprocess/pre_post_process.hpp"
-#    include "ov_models/builders.hpp"
-#    include "shared_test_classes/base/layer_test_utils.hpp"
-#    include "shared_test_classes/single_layer/convert_color_i420.hpp"
-#    include "shared_test_classes/single_layer/convert_color_nv12.hpp"
+#    include "openvino/op/add.hpp"
+#    include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -42,10 +42,24 @@ public:
         CommonReferenceTest::Validate();
         // Less than 2% of deviations with 1 color step. 2% is experimental value
         // For very precise (acceptable) float calculations - 1.4% deviation with G-API/OpenCV is observed
-        LayerTestsDefinitions::NV12TestUtils::ValidateColors(refOutData[0].data<uint8_t>(),
-                                                             actualOutData[0].data<uint8_t>(),
-                                                             refOutData[0].get_size(),
-                                                             0.02);
+        ValidateColors(refOutData[0].data<uint8_t>(), actualOutData[0].data<uint8_t>(), refOutData[0].get_size(), 0.02);
+    }
+
+private:
+    void ValidateColors(const uint8_t* expected,
+                        const uint8_t* actual,
+                        size_t size,
+                        float dev_threshold,
+                        float abs_threshold = 0.01f) {
+        size_t mismatches = 0;
+        for (size_t i = 0; i < size; i++) {
+            if (std::abs(static_cast<float>(expected[i]) - static_cast<float>(actual[i])) > abs_threshold) {
+                mismatches++;
+            }
+        }
+        ASSERT_LT(static_cast<float>(mismatches) / size, dev_threshold)
+            << mismatches << " out of " << size << " color mismatches found which exceeds allowed threshold "
+            << dev_threshold;
     }
 };
 
@@ -205,7 +219,7 @@ TEST_F(PreprocessOpenCVReferenceTest_8U, convert_i420_full_color_range) {
     int b_dim = 255 / b_step + 1;
 
     // Test various possible r/g/b values within dimensions
-    auto ov20_input_yuv = LayerTestsDefinitions::I420TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::I420_SINGLE_PLANE);
 
     auto full_height = height * b_dim;
     auto func_shape = Shape{1, full_height, width, 3};
@@ -239,7 +253,7 @@ TEST_F(PreprocessOpenCVReferenceTest_8U, convert_nv12_full_color_range) {
     int b_dim = 255 / b_step + 1;
 
     // Test various possible r/g/b values within dimensions
-    auto ov20_input_yuv = LayerTestsDefinitions::NV12TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::NV12_SINGLE_PLANE);
 
     auto full_height = height * b_dim;
     auto func_shape = Shape{1, full_height, width, 3};
@@ -316,7 +330,8 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
     Exec();
 }
 
-TEST_F(PreprocessOpenCVReferenceTest_8U, resize_u8_large_picture_linear) {
+// [CVS-132878]
+TEST_F(PreprocessOpenCVReferenceTest_8U, DISABLED_resize_u8_large_picture_linear) {
     const size_t input_height = 50;
     const size_t input_width = 50;
     const size_t func_height = 37;
@@ -389,6 +404,7 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_f32_large_picture_linear) {
     Exec();
 }
 
+// [CVS-132878]
 TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_small) {
     const size_t input_height = 4;
     const size_t input_width = 4;

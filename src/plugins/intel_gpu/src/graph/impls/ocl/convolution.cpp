@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-#include "kernel_base.h"
-#include "convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
-#include "ngraph/validation_util.hpp"
+#include "convolution_inst.h"
+#include "convolution_shape_inference.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "kernel_base.h"
+#include "openvino/core/validation_util.hpp"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -17,7 +18,7 @@ struct convolution_impl : typed_primitive_impl_ocl<convolution> {
     using parent = typed_primitive_impl_ocl<convolution>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::convolution_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
+    using kernel_params_t = kernel_selector::convolution_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::convolution_impl)
 
@@ -60,8 +61,6 @@ public:
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(impl_param,
                                                                                                           primitive->grouped_weights_shape,
                                                                                                           is_shape_agnostic);
-        auto conv_optional_params =
-            get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         if (primitive->deformable_mode) {
             conv_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
@@ -89,33 +88,30 @@ public:
         ov::CoordinateDiff pads_end(primitive->padding_end.begin(), primitive->padding_end.end());
         const auto auto_pad = primitive->auto_pad;
         conv_params.has_explicit_paddings = primitive->auto_pad == ov::op::PadType::EXPLICIT;
+
         if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
             const auto& input_layout = impl_param.get_input_layout();
-            auto spatial_rank = input_layout.get_spatial_rank();
-            std::vector<int32_t> dims;
+            const auto spatial_rank = input_layout.get_spatial_rank();
+
+            ov::PartialShape kernel;
             for (size_t i = 0; i < spatial_rank; i++) {
-                dims.push_back(static_cast<int32_t>(weights_layout.spatial(i)));
+                kernel.emplace_back(weights_layout.spatial(i));
             }
-            ov::Shape kernel(dims.begin(), dims.end());
-            pads_begin.clear();
-            pads_end.clear();
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            ngraph::try_apply_auto_padding(input_layout.get_partial_shape(),
-                                           kernel,
-                                           stride,
-                                           dilation,
-                                           auto_pad,
-                                           pads_end,
-                                           pads_begin);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            // Use any forward convolution to apply padding
+            ov::op::v1::Convolution op;
+            op.set_dilations(dilation);
+            op.set_strides(stride);
+            op.set_auto_pad(auto_pad);
 
-            pads_begin.resize(std::max<size_t>(2, pads_begin.size()), 0);
-            pads_end.resize(std::max<size_t>(2, pads_end.size()), 0);
-        }
-        if (auto_pad == ov::op::PadType::VALID) {
-            pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-            pads_end = ov::CoordinateDiff(pads_end.size(), 0);
+            ov::op::convolution::apply_auto_pad(&op,
+                                                input_layout.get_partial_shape(),
+                                                kernel,
+                                                pads_begin.begin(),
+                                                pads_end.begin());
+        } else if (auto_pad == ov::op::PadType::VALID) {
+            std::fill(pads_begin.begin(), pads_begin.end(), 0);
+            std::fill(pads_end.begin(), pads_end.end(), 0);
         }
 
         uint32_t kx = weights_layout.spatial(0);
@@ -207,11 +203,11 @@ public:
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
             format == format::b_fs_zyx_fsv32)
-            conv_optional_params.allowInputReordering = true;
+            conv_params.allowInputReordering = true;
 
         conv_params.set_dynamic_shape_offsets();
 
-        return {conv_params, conv_optional_params};
+        return conv_params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -248,7 +244,7 @@ public:
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
        auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+       (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

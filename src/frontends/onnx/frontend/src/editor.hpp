@@ -9,8 +9,6 @@
 #include <memory>
 
 #include "editor_types.hpp"
-#include "onnx_import/onnx_importer_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension/holder.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
@@ -19,13 +17,14 @@
 #include "utils/tensor_external_data.hpp"
 
 namespace ov {
-namespace onnx_editor {
+namespace frontend {
+namespace onnx {
 /// \brief A class representing a set of utilities allowing modification of an ONNX model
 ///
 /// \note This class can be used to modify an ONNX model before it gets translated to
 ///       an ov::Model by the frontend->convert method. It lets you modify the
 ///       model's input types and shapes, extract a subgraph and more.
-class ONNX_IMPORTER_API ONNXModelEditor final {
+class ONNXModelEditor final {
 public:
     /// \brief Creates an editor from a model file located on a storage device. The file
     ///        is parsed and loaded into the m_model_proto member variable.
@@ -62,7 +61,7 @@ public:
     ///                    used to modified the ONNX model loaded from a file. This method
     ///                    throws an exception if the model doesn't contain any of
     ///                    the inputs specified in its parameter.
-    void set_input_types(const std::map<std::string, element::Type_t>& input_types);
+    void set_input_types(const std::map<std::string, ov::element::Type_t>& input_types);
 
     /// \brief Modifies the in-memory representation of the model by setting
     ///        custom input shapes for all inputs specified in the provided map.
@@ -300,17 +299,18 @@ public:
     ///
     /// \param output_edge Name of tensor for which element type will be returned.
     ///
-    element::Type_t get_input_type(const std::string& tensor_name) const;
+    ov::element::Type_t get_input_type(const std::string& tensor_name) const;
 
 private:
     void update_mapper_if_needed() const;
 
     const std::string m_model_path;
-    ngraph::onnx_import::detail::MappedMemoryHandles m_mmap_cache;
+    ov::frontend::onnx::detail::MappedMemoryHandles m_mmap_cache;
     frontend::ExtensionHolder m_extensions;
 
     struct Impl;
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
 };
-}  // namespace onnx_editor
+}  // namespace onnx
+}  // namespace frontend
 }  // namespace ov

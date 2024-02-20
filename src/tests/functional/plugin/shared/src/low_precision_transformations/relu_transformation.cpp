@@ -32,7 +32,6 @@ std::string ReluTransformation::getTestCaseName(const testing::TestParamInfo<Rel
 
 
 void ReluTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ReluTestValues testValues;
@@ -40,7 +39,7 @@ void ReluTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
+    function = ov::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ov::pass::InitNodeInfo().run_on_model(function);
 }

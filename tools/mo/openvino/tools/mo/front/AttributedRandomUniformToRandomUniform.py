@@ -11,7 +11,7 @@ from openvino.tools.mo.utils.error import Error
 class AttributedRandomUniformToRandomUniform(FrontReplacementPattern):
     """
     This transformation converts AttributedRandomUniform operation (output shape, min value and max value
-    can be specified as attribute) to RandomUniform operation (Inference Engine semantic).
+    can be specified as attribute) to RandomUniform operation (OpenVINO semantic).
     """
     enabled = True
 

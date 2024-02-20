@@ -24,6 +24,9 @@ class Plugin;
 
 }
 
+class ICompiledModel;
+class IRemoteContext;
+
 /**
  * @interface ICore
  * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
@@ -170,8 +173,6 @@ public:
      */
     virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const = 0;
 
-    virtual bool is_new_api() const = 0;
-
     /**
      * @brief Get a pointer to default shared context object for the specified device.
      * @param device_name  - A name of a device to get create shared context from.
@@ -225,9 +226,10 @@ public:
      * @brief Get only properties that are supported by specified device
      * @param full_device_name Name of a device (can be either virtual or hardware)
      * @param properties Properties that can contains configs that are not supported by device
+     * @param keep_core_property Whether to return core-level properties
      * @return map of properties that are supported by device
      */
-    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties) const = 0;
+    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties, const bool keep_core_property = true) const = 0;
 
     virtual bool device_supports_model_caching(const std::string& device_name) const = 0;
 

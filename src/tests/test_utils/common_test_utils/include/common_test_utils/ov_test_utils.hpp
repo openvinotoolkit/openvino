@@ -71,3 +71,18 @@ std::shared_ptr<ov::op::v0::Constant> create_constant(const std::vector<T>& data
 }
 
 std::shared_ptr<ov::op::v0::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);
+
+namespace ov {
+namespace test {
+namespace utils {
+
+ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& input_tensors);
+
+ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
+                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
+
+bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>&);
+
+}  // namespace utils
+}  // namespace test
+}  // namespace ov

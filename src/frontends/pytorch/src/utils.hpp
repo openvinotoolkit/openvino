@@ -20,6 +20,21 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
+const std::string pytorch_prefix = "[PyTorch Frontend] ";
+
+const std::string& get_pytorch_prefix();
+
+/// \brief Macro to check whether a boolean condition holds.
+/// \param COND Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
+#ifndef PYTORCH_OP_CONVERSION_CHECK
+#    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
+        OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), get_pytorch_prefix(), __VA_ARGS__)
+#endif
+
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
@@ -64,7 +79,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-std::shared_ptr<op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs);
+std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 
 bool is_none_node(const Output<Node>& node);
 
@@ -85,6 +100,12 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
+
+// helper ops
+Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask,
+                         const Output<Node>& value);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
@@ -242,8 +263,17 @@ public:
     virtual bool may_produce_alias(size_t in_index, size_t out_index) const override {
         FRONT_END_NOT_IMPLEMENTED(may_produce_alias);
     }
-    virtual OutputVector inlined_inputs(size_t start_index) const override {
-        FRONT_END_NOT_IMPLEMENTED(inlined_inputs);
+    bool is_input_inlined(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(is_input_inlined);
+    }
+    virtual OutputVector inlined_input(size_t index) const override {
+        FRONT_END_NOT_IMPLEMENTED(inlined_input);
+    }
+    virtual ov::Any get_attribute(const std::string& name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_attribute);
+    }
+    virtual size_t get_named_input(const std::string& name) const override {
+        FRONT_END_NOT_IMPLEMENTED(get_named_input);
     }
 
 private:

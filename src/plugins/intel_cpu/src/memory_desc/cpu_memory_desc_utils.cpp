@@ -2,17 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "cpu_memory.h"
-#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/runtime/itensor.hpp"
-#include "openvino/runtime/so_ptr.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
-
-#include "dnnl_types.h"
-#include <limits>
+#include "cpu_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include <cpu_memory.h>
+#include <vector>
+#include <cpu_memory.h>
+#include <dnnl_types.h>
 #include <numeric>
 #include <vector>
 
