@@ -211,7 +211,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
 
         // Substitute back to get result
         size_t batch_column_idx = b * m_side_squared + column;
-        for(size_t row = 0; row < m_side; ++row) {
+        for (size_t row = 0; row < m_side; ++row) {
             output[batch_column_idx + row * m_side] = X[row];
         }
     });
