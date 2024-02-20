@@ -53,25 +53,23 @@ std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args
 }
 
 template <typename T>
-void evaluate_concat(const Concat* node, TensorVector& outputs, const TensorVector& inputs) {
-    const auto inputs_count = inputs.size();
-    std::vector<Shape> arg_shapes;
-    std::vector<PartialShape> input_shapes;
-    arg_shapes.reserve(inputs_count);
-    input_shapes.reserve(inputs_count);
-
-    std::vector<const T*> arg_bufs(inputs_count);
+std::vector<const T*> get_in_buffers(const TensorVector& inputs) {
+    std::vector<const T*> arg_bufs(inputs.size());
     auto arg_buf = arg_bufs.begin();
     for (auto& input : inputs) {
         *arg_buf = static_cast<const T*>(input.data());
         ++arg_buf;
-        const auto& input_shape = input.get_shape();
-        arg_shapes.emplace_back(input_shape);
-        input_shapes.emplace_back(input_shape);
     }
+    return arg_bufs;
+}
 
-    const auto& out_shape = shape_infer(node, input_shapes).front().to_shape();
-    outputs.front().set_shape(out_shape);
+template <typename T>
+void evaluate_concat(const Concat* node,
+                     TensorVector& outputs,
+                     const TensorVector& inputs,
+                     const std::vector<Shape>& arg_shapes,
+                     const Shape& out_shape) {
+    const auto arg_bufs = get_in_buffers<T>(inputs);
     reference::concat(arg_bufs,
                       static_cast<T*>(outputs.front().data()),
                       arg_shapes,
@@ -84,10 +82,25 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
 
+    const auto inputs_count = inputs.size();
+    std::vector<Shape> arg_shapes;
+    std::vector<PartialShape> input_shapes;
+    arg_shapes.reserve(inputs_count);
+    input_shapes.reserve(inputs_count);
+
+    for (auto& input : inputs) {
+        const auto& input_shape = input.get_shape();
+        arg_shapes.emplace_back(input_shape);
+        input_shapes.emplace_back(input_shape);
+    }
+
+    const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
+    outputs.front().set_shape(out_shape);
+
     if (outputs.front().get_element_type() == ov::element::string) {
-        evaluate_concat<std::string>(this, outputs, inputs);
+        evaluate_concat<std::string>(this, outputs, inputs, arg_shapes, out_shape);
     } else {
-        evaluate_concat<char>(this, outputs, inputs);
+        evaluate_concat<char>(this, outputs, inputs, arg_shapes, out_shape);
     }
 
     return true;
