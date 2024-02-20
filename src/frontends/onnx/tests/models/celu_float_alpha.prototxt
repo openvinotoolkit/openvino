@@ -7,11 +7,11 @@ graph {
     op_type: "Celu"
     attribute {
       name: "alpha"
-      f: 2.0
+      f: 3.0
       type: FLOAT
     }
   }
-  name: "test_celu_float_1"
+  name: "test_celu_float_alpha"
   input {
     name: "X"
     type {
