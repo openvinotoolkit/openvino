@@ -17,6 +17,7 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 
 using namespace ov;
@@ -88,49 +89,7 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     return plan;
 }
 
-bool strided_slices_perform_the_same(std::shared_ptr<ov::op::v1::StridedSlice> lhs,
-                                     std::shared_ptr<ov::op::v1::StridedSlice> rhs) {
-    auto lhs_plan = get_slice_plan(lhs);
-    auto rhs_plan = get_slice_plan(rhs);
-
-    const auto empty_plan = op::util::SlicePlan();
-    if (lhs_plan == empty_plan || rhs_plan == empty_plan)
-        return false;
-    return lhs_plan == rhs_plan;
-}
-
 }  // namespace
-
-bool ov::pass::SharedStridedSliceEraser::run_on_model(const std::shared_ptr<ov::Model>& f) {
-    RUN_ON_FUNCTION_SCOPE(SharedStridedSliceEraser);
-    bool graph_rewritten = false;
-
-    std::map<ov::Output<Node>, std::vector<std::shared_ptr<ov::op::v1::StridedSlice>>> source_to_ss;
-    for (const auto& node : f->get_ordered_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                graph_rewritten |= run_on_model(sub_graph);
-            }
-        }
-        if (auto ss = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node)) {
-            source_to_ss[ss->input_value(0)].push_back(ss);
-        }
-    }
-
-    for (auto& pair : source_to_ss) {
-        if (pair.second.size() < 2)
-            continue;
-        auto root_ss = pair.second[0];
-        for (auto& child_ss : pair.second) {
-            if (root_ss->get_instance_id() != child_ss->get_instance_id() &&
-                strided_slices_perform_the_same(root_ss, child_ss)) {
-                graph_rewritten |= replace_output_update_name(child_ss->output(0), root_ss->output(0));
-            }
-        }
-    }
-    return graph_rewritten;
-}
 
 bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(GroupedStridedSliceOptimizer);
@@ -431,7 +390,7 @@ bool ov::pass::StridedSliceOptimization::run_on_model(const std::shared_ptr<ov::
     if (m_use_shapes) {
         rewritten = UselessSliceEraser().run_on_model(f);
         // Execution of other passes is also needed even if 'rewritten' is already 'true'
-        rewritten = SharedStridedSliceEraser().run_on_model(f) || rewritten;
+        rewritten = SharedOpOptimization().run_on_model(f) || rewritten;
         rewritten = GroupedStridedSliceOptimizer().run_on_model(f) || rewritten;
         rewritten = GroupedSliceToVSplitOptimization().run_on_model(f) || rewritten;
     }
