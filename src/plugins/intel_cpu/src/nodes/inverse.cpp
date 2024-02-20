@@ -39,10 +39,6 @@ bool Inverse::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             errorMessage = "Only Inverse operation from the opset14 is supported by the CPU plugin.";
             return false;
         }
-        if (op->get_input_partial_shape(0).rank().is_dynamic()) {
-            errorMessage = "Inverse operation on the CPU plugin does not support dynamic rank.";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -110,17 +106,15 @@ void Inverse::inverse() {
     const auto* data = getSrcDataAtPortAs<const T>(INPUT_PORT);
     auto* output = getDstDataAtPortAs<T>(OUTPUT_PORT);
 
-    std::vector<T> L(m_side_squared, T{0});
-    std::vector<T> U(m_side_squared, T{0});
-    std::vector<T> P(m_side, T{0});
+    std::vector<T> L(m_side_squared);
+    std::vector<T> U(m_side_squared);
+    std::vector<T> P(m_side);
 
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
         lu_decomposition(data, L, U, P, sign, b);
 
-        for (size_t column = 0; column < m_side; ++column) {
-            lu_solve(output, L, U, P, b, column);
-        }
+        lu_solve(output, L, U, P, b);
 
         if (m_adjoint) {
             // Multiply by det(A) = det(U)
@@ -188,36 +182,38 @@ void Inverse::lu_decomposition(const T* data,
 }
 
 template <typename T>
-void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column) {
-    std::vector<T> B(m_side, T{0});
-    std::vector<T> X(m_side, T{0});
-    std::vector<T> Y(m_side, T{0});
-    B[column] = T{1};
+void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
+    parallel_for(m_side, [&](size_t column) {
+        std::vector<T> X(m_side, T{0});
+        std::vector<T> Y(m_side, T{0});
 
-    // Forward substitution: Ly = Pb - not possible to be parallel
-    for (size_t i = 0; i < m_side; ++i) {
-        Y[i] = B[P[i]];
-        size_t i_idx = i * m_side;
-        for (size_t j = 0; j < i; ++j) {
-            Y[i] = Y[i] - L[i_idx + j] * Y[j];
+        // Forward substitution: Ly = Pb - not possible to be parallel
+        for (size_t i = 0; i < m_side; ++i) {
+            if (P[i] == column) {
+                Y[i] = T{1};
+            }
+            size_t i_idx = i * m_side;
+            for (size_t j = 0; j < i; ++j) {
+                Y[i] = Y[i] - L[i_idx + j] * Y[j];
+            }
         }
-    }
 
-    // Backward substitution: Ux = y - not possible to be parallel
-    for (size_t i = 0; i < m_side; ++i) {
-        size_t i_adj = m_side - i - 1;
-        size_t i_idx = i_adj * m_side;
-        X[i_adj] = Y[i_adj];
-        for (size_t j = i_adj + 1; j < m_side; ++j) {
-            X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
+        // Backward substitution: Ux = y - not possible to be parallel
+        for (size_t i = 0; i < m_side; ++i) {
+            size_t i_adj = m_side - i - 1;
+            size_t i_idx = i_adj * m_side;
+            X[i_adj] = Y[i_adj];
+            for (size_t j = i_adj + 1; j < m_side; ++j) {
+                X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
+            }
+            X[i_adj] = X[i_adj] / U[i_idx + i_adj];
         }
-        X[i_adj] = X[i_adj] / U[i_idx + i_adj];
-    }
 
-    // Substitute back to get result
-    size_t batch_idx = b * m_side_squared;
-    parallel_for(m_side, [&](size_t row) {
-        output[batch_idx + row * m_side + column] = X[row];
+        // Substitute back to get result
+        size_t batch_idx = b * m_side_squared;
+        const auto output_ptr = std::next(output[batch_idx + column], m_side);
+        const auto input_ptr = std::begin(X[0]);
+        std::copy_n(input_ptr, m_side, output_ptr);
     });
 }
 

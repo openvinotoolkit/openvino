@@ -13,7 +13,7 @@ Inverse
 
 **Short description**: *Inverse* operation computes either the inverse or adjoint (conjugate transposes) of one or a batch of square invertible matrices.
 
-**Detailed description**: *Inverse* operation computes the inverse of a square matrix. The operation uses LU decomposition with partial pivoting to compute the inverses. (`LU decomposotion with partial pivoting algorithm <https://arxiv.org/abs/2304.03068>`__)
+**Detailed description**: *Inverse* operation computes the inverse of a square matrix. The operation uses LU decomposition with partial pivoting to compute the inverses.
 
 The inverse matrix A^(-1) of a square matrix A is defined as:
 
@@ -36,6 +36,67 @@ The adjugate matrix adj(A) of a square matrix A is defined as:
 where **A^{-1}** is the matrix inverse of A, and **det(A)** is the determinant of A.
 
 The adjugate matrix exists if and only if the inverse matrix exists.
+
+**Algorithm formulation**:
+
+.. note::
+
+   LU decomposition decomposes matrix A into 2 matrices L and U, where L is the lower triangular matrix with all diagonal elements equal to 1 and U is the upper triangular matrix.
+
+.. math::
+
+   A = L \cdot U
+
+.. note::
+
+   LU decomposition allows to easily obtain determinant of A.
+
+.. math::
+
+   det(A) = det(L) * det(U) = 1 * det(U) (det(L) = 1, since L is a lower triangular matrix with diagonal elements set to 1)
+
+.. note::
+
+   To compute the inverse of A, given its LU decomposition, it is enough to solve multiple linear equations. 
+   Set x to be a i-th column of matrix A^(-1). Set b to be a vector of zeros, except for i-th spot that has a value of one (in other words, b is a i-th column of matrix I).
+   It is easy to notice that the set of x-columns creates the A^(-1) matrix, and the set of b-vectors creates the Identity matrix.
+
+.. math::
+
+   A \cdot A^{-1} = I
+   <=> 
+   A \cdot x = b, x - i-th column of A^{-1}, b - i-th column of I
+   <=>
+   L \cdot U \cdot x = b
+   <=>
+   L \cdot y = b, U \cdot x = y (y = U \cdot x)
+
+Algorithm pseudocode:
+
+1. Start with original matrix A.
+2. Copy initial matrix into matrix U. Initialize matrix L to be the Identity matrix (zero matrix with all diagonal elements set to 1).
+3. Perform LU decomposition with partial pivoting.
+
+   * Repeat this step for each column in the input matrix.
+   * Let *c* be the index of the currently proceseed column.
+   * Find the index of the row with the highest value in a given column - *pivot*.
+   * If *pivot* != *c*, swap the *pivot* and *c* row in L. Repeat for U. Note that this operations flips the sign of the determinant, so this has to be accounted for.
+   * Perform standard Gaussian elimination.
+
+4. To obtain the inverse, solve for each column of A^{-1} as explained above.
+
+   * Solve linear equation Ly = b for y (forward substitution)
+   * Solve linear equation Ux = y for x (backward substitution)
+   * Set x as the corresponding column of the output inverse matrix A^(-1)
+
+5. If adjoint == true, then it is necessary to multiply A^(-1) by its determinant.
+
+   * As explained above, it is enough to compute det(U), since det(U) = det(A).
+   * det(U) is just a multiplication of its diagonal elements.
+   * Account for each row swap in the LU decomposition step - for every row swap, swap the sign of the dereminant.
+   * Multiply all elements of A^(-1) by the determinant to obtain the adjugate matrix.
+
+6. Return the computed matrix.
 
 **Attribute**:
 

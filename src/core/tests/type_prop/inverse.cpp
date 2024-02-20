@@ -33,6 +33,16 @@ TEST_F(TypePropInverseV14Test, input_f64_2x2_constant) {
     EXPECT_EQ(op->get_output_partial_shape(0), (ov::PartialShape{2, 2}));
 }
 
+TEST_F(TypePropInverseV14Test, label_propagation) {
+    auto input_shape = ov::PartialShape{2, 2};
+    set_shape_labels(input_shape, 1234);
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto op = make_op(data, false);
+    EXPECT_EQ(op->get_element_type(), ov::element::f64);
+    EXPECT_EQ(op->get_output_partial_shape(0), (input_shape));
+    EXPECT_EQ(get_shape_labels(op->get_output_partial_shape(0)), get_shape_labels(input_shape));
+}
+
 TEST_F(TypePropInverseV14Test, input_f32_static) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{10, 4, 4});
     const auto op = make_op(data, false);

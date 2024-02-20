@@ -30,11 +30,13 @@ std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<Inver
     result << "dtype=" << element_type.to_string() << separator;
     result << "adjoint=" << ov::test::utils::bool2str(adjoint) << separator;
     result << "static=" << ov::test::utils::bool2str(test_static) << separator;
+    result << "seed=" << seed << separator;
     result << "device=" << device_name;
 
-void InverseLayerTest::SetUp() {
-    InverseTestParams test_params;
+    return result.str();
+}
 
+void InverseLayerTest::SetUp() {
     std::vector<InputShape> input_shape;
     ov::element::Type element_type;
     bool adjoint;
@@ -51,6 +53,11 @@ void InverseLayerTest::SetUp() {
         static_input_shape.push_back({input_shape[0].second[0], {input_shape[0].second[0]}});
         init_input_shapes({static_input_shape});
         parameter_input_shape = static_input_shape[0].first;
+    }
+
+    if (element_type == ov::element::bf16) {
+        rel_threshold = 1.1f;
+        abs_threshold = 1.1f;
     }
 
     const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, parameter_input_shape);

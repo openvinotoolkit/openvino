@@ -58,7 +58,7 @@ private:
     void to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b);
 
     template <typename T>
-    void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b, size_t column);
+    void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b);
 
     template <typename T>
     struct InverseExecute {
