@@ -64,7 +64,7 @@ The granularity of OpenVINO packages may vary for different distribution types. 
 .. image:: _static/images/deployment_simplified.svg
 
 
-- The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API 2.0.
+- The main library ``openvino`` is used by users' C++ applications to link against with. For C language applications, ``openvino_c`` is additionally required for distribution. The library includes OpenVINO API.
 - The "optional" plugin libraries like ``openvino_intel_cpu_plugin`` (matching the ``openvino_.+_plugin`` pattern) are used to provide inference capabilities on specific devices or additional capabilities like :doc:`Hetero Execution <openvino_docs_OV_UG_Hetero_execution>` and :doc:`Multi-Device Execution <openvino_docs_OV_UG_Running_on_multiple_devices>`.
 - The "optional" plugin libraries like ``openvino_ir_frontend`` (matching ``openvino_.+_frontend``) are used to provide capabilities to read models of different file formats such as OpenVINO IR, TensorFlow, ONNX, and PaddlePaddle.
 

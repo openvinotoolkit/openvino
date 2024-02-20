@@ -20,7 +20,7 @@ OpenVINO toolkit offers **APIs for Python, C, and C++** which share most feature
 most comprehensive one), have a common structure, naming convention styles, namespaces,
 and no duplicate structures.
 
-OpenVINO API 2.0 may be described by the following:
+OpenVINO API may be described by the following:
 
 - Preserves input element types and order of dimensions (layouts), and stores tensor names from the
   original models (Model Conversion API).
