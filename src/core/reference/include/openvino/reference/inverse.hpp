@@ -28,9 +28,10 @@ void lu_decomposition(const T* input,
         P[i] = static_cast<T>(i);
         L[i][i] = T{1};
 
-        const auto input_ptr = std::next(input[batch_idx], i * n);
-        const auto output_ptr = std::begin(U[i]);
-        std::copy_n(input_ptr, n, output_ptr);
+        auto batch_i_idx = batch_idx + i * n;
+        for (size_t j = 0; j < n; ++j) {
+            U[i][j] = input[batch_i_idx + j];
+        }
     }
 
     for (size_t k = 0; k < n; ++k) {
@@ -92,10 +93,10 @@ void lu_solve(T* output,
             X[i] /= U[i][i];
         }
 
-        size_t batch_idx = b * n * n;
-        const auto input_ptr = std::begin(X[0]);
-        const auto output_ptr = std::next(output[batch_idx + column], n);
-        std::copy_n(input_ptr, n, output_ptr);
+        size_t batch_column_idx = b * n * n + column;
+        for (size_t row = 0; row < n; ++row) {
+            output[batch_column_idx + row * n] = X[row];
+        }
     }
 }
 

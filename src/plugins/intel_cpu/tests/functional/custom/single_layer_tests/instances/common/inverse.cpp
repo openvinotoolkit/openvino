@@ -29,4 +29,5 @@ const auto params_dynamic = ::testing::Combine(shapes, dtypes, adjoint, test_dyn
 
 INSTANTIATE_TEST_SUITE_P(smoke_InverseStatic, InverseLayerTest, params_static, InverseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_InverseDynamic, InverseLayerTest, params_dynamic, InverseLayerTest::getTestCaseName);
+
 }  // namespace
