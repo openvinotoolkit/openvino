@@ -25,7 +25,7 @@ OutputVector translate_dot(const NodeContext& context) {
     auto tensor2 = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::f32));
 
     auto multiply = context.mark_node(std::make_shared<v1::Multiply>(tensor1, tensor2));
-    auto axes = v0::Constant::create(element::i64, Shape{1}, {0});
+    auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
     auto dot_product = context.mark_node(std::make_shared<v1::ReduceSum>(multiply, axes));
 
     if (!context.input_is_none(2)) {
