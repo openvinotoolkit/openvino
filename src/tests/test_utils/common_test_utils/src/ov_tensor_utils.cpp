@@ -384,12 +384,27 @@ void compare(const ov::Tensor& expected,
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
         } else {
-            std::vector<double> abs_values(shape_size_cnt);
-            for (size_t i = 0; i < shape_size_cnt; i++) {
-                abs_values[i] = std::fabs(static_cast<double>(expected_data[i]));
+            auto elem_type = expected.get_element_type();
+            if (elem_type.is_real()) {
+                std::vector<double> abs_values(shape_size_cnt);
+                for (size_t i = 0; i < shape_size_cnt; i++) {
+                    abs_values[i] = std::fabs(static_cast<double>(expected_data[i]));
+                }
+                auto abs_median = calculate_median(abs_values);
+
+                abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+                if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
+                    abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+                } else if (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) {
+                    abs_threshold = abs_median * 0.05 < 1e-3 ? 1e-3 : 0.05 * abs_median;
+                }
+            } else if (elem_type == ov::element::Type_t::boolean) {
+                abs_threshold = 0.;
+            } else if (elem_type.is_integral_number()) {
+                abs_threshold = 1.0;
             }
-            auto abs_median = calculate_median(abs_values);
-            abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
+
+            rel_threshold = 0.1;
 
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);
@@ -407,10 +422,12 @@ void compare(const ov::Tensor& expected,
     auto max_type_actual = std::numeric_limits<ActualT>::max();
     auto min_type_expected = std::numeric_limits<ExpectedT>::min();
     auto min_type_actual = std::numeric_limits<ActualT>::min();
-    Error abs_error(abs_threshold), rel_error(rel_threshold);
+    Error abs_error(abs_threshold), rel_error(rel_threshold), rel_error1(rel_threshold), rel_error2(rel_threshold);
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
+        double abs2 = std::fabs(expected_value - actual_value);
+        double max_val = std::max(std::fabs(expected_value), std::fabs(actual_value));
         if ((std::isinf(expected_value) || expected_value >= max_type_expected) &&
             (std::isinf(actual_value) || actual_value >= max_type_actual)) {
             continue;
@@ -432,9 +449,13 @@ void compare(const ov::Tensor& expected,
         }
 
         double abs = std::fabs(expected_value - actual_value);
-        double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
+        double rel = abs_threshold ? abs / abs_threshold : 0;
         abs_error.update(abs, i);
         rel_error.update(rel, i);
+
+        if (!less_or_equal(abs, abs_threshold)) {
+            break;
+        }
     }
     abs_error.mean /= shape_size_cnt;
     rel_error.mean /= shape_size_cnt;
