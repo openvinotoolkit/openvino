@@ -56,6 +56,15 @@ public:
 
     bool is_asymmetric() const;
 
+    struct Args {
+        static constexpr const size_t INPUT = 0;
+        static constexpr const size_t WEIGHTS = 1;
+        static constexpr const size_t BIAS = 2;
+        static constexpr const size_t AZP = 3;
+        static constexpr const size_t WZP = 4;
+        static constexpr const size_t COMPENSATION = 5;
+    };
+
 protected:
     int64_t m_groups = -1; // negative value means no groups
     bool m_asymmetric = false;

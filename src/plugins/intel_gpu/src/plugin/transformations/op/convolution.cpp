@@ -48,9 +48,9 @@ Convolution::Convolution(const ov::Output<Node>& data_batch,
     , m_groups(groups)
     , m_asymmetric(true)
     , m_output_type(output_type) {
-    set_argument(3, activations_zero_point);
-    set_argument(4, weights_zero_point);
-    set_argument(5, compensations);
+    set_argument(Args::AZP, activations_zero_point);
+    set_argument(Args::WZP, weights_zero_point);
+    set_argument(Args::COMPENSATION, compensations);
     validate_and_infer_types();
 }
 

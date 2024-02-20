@@ -96,7 +96,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             auto aligned_azp = pad_quantization_parameter(azp, in_shape[channel_idx].get_length(), azp_c_idx, pad_size);
             aligned_azp->set_friendly_name(conv->get_friendly_name() + "_azp");
             ov::copy_runtime_info(azp, aligned_azp);
-            conv->input(3).replace_source_output(aligned_azp);
+            conv->input(op::Convolution::Args::AZP).replace_source_output(aligned_azp);
         }
 
         if (auto wzp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(wzp_m).get_node_shared_ptr())) {
@@ -105,7 +105,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             auto aligned_wzp = pad_quantization_parameter(wzp, out_shape[channel_idx].get_length(), wzp_c_idx, pad_size);
             aligned_wzp->set_friendly_name(conv->get_friendly_name() + "_wzp");
             ov::copy_runtime_info(wzp, aligned_wzp);
-            conv->input(4).replace_source_output(aligned_wzp);
+            conv->input(op::Convolution::Args::WZP).replace_source_output(aligned_wzp);
         }
 
         if (auto cmp = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(cmp_m).get_node_shared_ptr())) {
@@ -114,7 +114,7 @@ BroadcastAndPadZeroPointBuffers::BroadcastAndPadZeroPointBuffers(size_t pad_size
             auto aligned_cmp = pad_quantization_parameter(cmp, out_shape[channel_idx].get_length(), cmp_c_idx, pad_size);
             aligned_cmp->set_friendly_name(conv->get_friendly_name() + "_compensation");
             ov::copy_runtime_info(cmp, aligned_cmp);
-            conv->input(5).replace_source_output(aligned_cmp);
+            conv->input(op::Convolution::Args::COMPENSATION).replace_source_output(aligned_cmp);
         }
 
         return true;

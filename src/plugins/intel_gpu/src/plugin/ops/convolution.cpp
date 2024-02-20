@@ -34,7 +34,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
 
     auto outDims = op->get_output_partial_shape(0);
 
-    cldnn::primitive_id weights = inputs[1].pid;
+    cldnn::primitive_id weights = inputs[op::Convolution::Args::WEIGHTS].pid;
     const uint32_t groups = std::max<int64_t>(op->get_groups(), 1);
     const bool weights_have_group_dim = op->get_groups() > 0;
 
@@ -55,11 +55,11 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
     std::shared_ptr<cldnn::convolution> prim = nullptr;
 
     if (op->is_asymmetric()) {
-        auto azp = inputs[3];
-        auto wzp = inputs[4];
-        auto compensation = inputs[5];
+        auto azp = inputs[op::Convolution::Args::AZP];
+        auto wzp = inputs[op::Convolution::Args::WZP];
+        auto compensation = inputs[op::Convolution::Args::COMPENSATION];
         prim = std::make_shared<cldnn::convolution>(layerName,
-                                                    inputs[0],
+                                                    inputs[op::Convolution::Args::INPUT],
                                                     weights,
                                                     "",
                                                     wzp.pid,
@@ -75,7 +75,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     auto_pad);
     } else {
         prim = std::make_shared<cldnn::convolution>(layerName,
-                                                    inputs[0],
+                                                    inputs[op::Convolution::Args::INPUT],
                                                     weights,
                                                     "",
                                                     groups,
