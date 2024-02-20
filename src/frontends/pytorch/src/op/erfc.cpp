@@ -26,7 +26,7 @@ OutputVector translate_erfc(const NodeContext& context) {
     auto ones = context.mark_node(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f))->output(0);
 
     // align data types of input 'x' and ones
-    align_eltwise_input_types(context, x, ones);
+    align_eltwise_input_types(context, x, ones, false, true);
 
     // apply Erf to the input tensor 'x'
     auto y = context.mark_node(make_shared<v0::Erf>(x));

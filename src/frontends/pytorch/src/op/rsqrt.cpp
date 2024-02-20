@@ -21,7 +21,7 @@ OutputVector translate_rsqrt(const NodeContext& context) {
     auto data = context.get_input(0);
     auto one_const = context.mark_node(v0::Constant::create(element::f32, Shape({}), {1}));
     Output<Node> fake_const_for_type = context.mark_node(v0::Constant::create(element::f32, Shape({}), {.5}));
-    align_eltwise_input_types(context, data, fake_const_for_type);
+    align_eltwise_input_types(context, data, fake_const_for_type, false, true);
     auto one_const_casted = context.mark_node(std::make_shared<v1::ConvertLike>(one_const, data));
     auto sqrt_data = context.mark_node(std::make_shared<v0::Sqrt>(data));
     return {context.mark_node(std::make_shared<v1::Divide>(one_const_casted, sqrt_data))};
