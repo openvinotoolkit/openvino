@@ -6,7 +6,6 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
-#include "jit_snippets_dynamic_emitter.hpp"
 #include "snippets/op/loop.hpp"
 
 namespace ov {
@@ -45,7 +44,7 @@ protected:
     size_t work_amount = 0;
 };
 
-class jit_loop_begin_dynamic_emitter: public jit_loop_begin_emitter, public jit_snippets_dynamic_emitter {
+class jit_loop_begin_dynamic_emitter: public jit_loop_begin_emitter {
 public:
     jit_loop_begin_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const ov::snippets::lowered::ExpressionPtr& expr);
@@ -107,7 +106,7 @@ protected:
     bool evaluate_once = false;
 };
 
-class jit_loop_end_dynamic_emitter: public jit_loop_end_emitter, public jit_snippets_dynamic_emitter {
+class jit_loop_end_dynamic_emitter: public jit_loop_end_emitter {
 public:
     jit_loop_end_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
                                  const ov::snippets::lowered::ExpressionPtr& expr);

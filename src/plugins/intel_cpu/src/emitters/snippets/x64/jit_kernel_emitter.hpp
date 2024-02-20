@@ -7,7 +7,6 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
 #include "jit_container_emitter.hpp"
-#include "jit_snippets_dynamic_emitter.hpp"
 
 
 namespace ov {
@@ -146,7 +145,7 @@ private:
 #endif
 };
 
-class jit_kernel_dynamic_emitter : public jit_kernel_emitter, public jit_snippets_dynamic_emitter {
+class jit_kernel_dynamic_emitter : public jit_kernel_emitter {
 public:
     jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 

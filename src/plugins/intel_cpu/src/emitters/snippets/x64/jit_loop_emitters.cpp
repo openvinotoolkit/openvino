@@ -77,7 +77,7 @@ jit_loop_begin_dynamic_emitter::jit_loop_begin_dynamic_emitter(dnnl::impl::cpu::
 
 void jit_loop_begin_dynamic_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     // Note: the only expected input is the reg_runtime_params_idx
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Invalid inputs size: expected 1 got " + std::to_string(in.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "Invalid inputs size: expected 0 got " + std::to_string(in.size()));
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
@@ -90,8 +90,8 @@ void jit_loop_begin_dynamic_emitter::emit_code(const std::vector<size_t> &in, co
 }
 
 void jit_loop_begin_dynamic_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    Xbyak::Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
     Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(out.back()));
-    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(in.back()));
     Xbyak::Reg64 reg_loop_args_ptr = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
     const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
     h->mov(reg_loop_args_ptr, h->ptr[reg_runtime_params + GET_OFF(loop_args)]);
@@ -206,7 +206,7 @@ void jit_loop_end_dynamic_emitter::validate_arguments(const std::vector<size_t> 
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
     // Note: there must be additional input argument for runtime parameters
     const auto io_size = num_inputs + num_outputs;
-    OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 2, "Invalid number of in arguments: expected ", io_size + 2, " got ", in.size());
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == io_size + 1, "Invalid number of in arguments: expected ", io_size + 1, " got ", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 0, "Invalid number of out arguments: expected ", 0, " got ", out.size());
 }
 
@@ -217,7 +217,7 @@ void jit_loop_end_dynamic_emitter::emit_code(const std::vector<size_t> &in, cons
 }
 
 void jit_loop_end_dynamic_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(in[in.size() - 1]));
+    Xbyak::Reg64 reg_runtime_params = abi_param1;  // defined by jit_kernel_emitter
     Xbyak::Reg64 reg_work_amount = Xbyak::Reg64(static_cast<int>(in[in.size() - 2]));
     Xbyak::Reg64 reg_increments = Xbyak::Reg64(static_cast<int>(aux_gpr_idxs[0]));
     const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);

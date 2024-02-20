@@ -179,10 +179,6 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
         auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
         auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
         const auto& emitter = expression->get_emitter();
-        // Note all DynamicEmitters should have access to the runtime_params argument,
-        // since parameters computed by configurator are stored there.
-        if (std::dynamic_pointer_cast<jit_snippets_dynamic_emitter>(emitter))
-            in_regs.push_back(reg_runtime_params_idx);
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }
 
@@ -337,7 +333,7 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit
     const auto kernel = ov::as_type_ptr<snippets::op::KernelDynamic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "expectes KernelDynamic expression");
 
-    // - Reserve abi_param1, since it wll be used to pass runtime call args to kernel
+    // - Reserve abi_param1, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime args
     // - We cannot assign this register to the body emitters since runtime params MUST be valid during whole execution
     //   for all dynamic emitters
     init_body_regs({reg_runtime_params_idx});
