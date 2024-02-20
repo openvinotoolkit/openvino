@@ -194,11 +194,9 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
 Auto-tuning of Weight Compression Parameters
 ############################################
 
-The important question that may arise is how to find a configuration of weight compression parameters that is best suited to a particular model.
-We provide an `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ 
-for that matter where the weight compression parameters are being searched from the subset of values. To speed up the search we use self-designed 
-validation pipeline that we called `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__ 
-that can quickly evaluate the changes in accuracy of the optimized model compared to the baseline.
+To find the optimal weight compression parameters for a particular model, refer to the `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ , where weight compression parameters are being searched from the subset of values. To speed up the search, a self-designed 
+validation pipeline called `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__ is used. 
+The pipeline can quickly evaluate the changes in the accuracy of the optimized model compared to the baseline.
 
 
 Additional Resources
