@@ -21,6 +21,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
+#include "op/device_subgraph.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -94,7 +95,17 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             final_results.emplace(layer_query_result);
     };
 
+    auto has_subgraph_ops = [](std::shared_ptr<ov::Model>& model) {
+        for (auto& op : model->get_ordered_ops()) {
+            if (ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     ov::SupportedOpsMap supported_ops_temp;
+    ov::SupportedOpsMap supported_ops_temp_1;
     ov::SupportedOpsMap supported_ops_final;
     std::map<std::string, ov::SupportedOpsMap> query_results;
     ov::hetero::SubgraphsMappingInfo mapping_info;
@@ -112,19 +123,38 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         // exception should be raised when allowed
         bool fallback_device = (device_name == device_names.back());
         const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
-        // const auto& default_device = get_device_name();
         auto& device_config = properties_per_device.at(device_name);
-        if (fallback_device && strcmp(device_name.c_str(), "CPU") != 0) {
+        if (fallback_device && device_name.find("CPU") == std::string::npos) {
             // Turn off memory control to get all supported nodes
             device_config[ov::query_model_uses_device_mem.name()] = false;
         }
-        query_results[device_name] = get_core()->query_model(model, device_name, device_config);
-        // Update supported operations map which includes new operations
-        update_supported_ops(supported_ops_temp, query_results[device_name]);
-        // Update supported operations map which includes original operations only
-        update_supported_ops(supported_ops_final, query_results[device_name]);
-        mapping_info =
+        if (!has_subgraph_ops(model)) {
+            query_results[device_name] = get_core()->query_model(model, device_name, device_config);
+            update_supported_ops(supported_ops_temp, query_results[device_name]);
+            update_supported_ops(supported_ops_final, query_results[device_name]);
+            
+            mapping_info =
             ov::hetero::mask_model_subgraphs_by_ops(model, supported_ops_temp, m_cfg.dump_dot_files(), default_device);
+        } else {
+            auto temp_model = model->clone();
+            update_supported_ops(supported_ops_temp_1, supported_ops_temp);
+            for (auto&& node : temp_model->get_ops()) {
+                supported_ops_temp_1.emplace(node->get_friendly_name(), "HETERO-TEMP");
+            }
+            auto mapping_info_temp =
+            ov::hetero::mask_model_subgraphs_by_ops(temp_model, supported_ops_temp_1, false, default_device);
+            for (const auto& op : temp_model->get_ordered_ops()) {
+                if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
+                    if (subgraph->get_affinity() == "HETERO-TEMP") {
+                        query_results[device_name] = get_core()->query_model(subgraph->get_function(), device_name, device_config);
+                        update_supported_ops(supported_ops_temp, query_results[device_name]);
+                        update_supported_ops(supported_ops_final, query_results[device_name]);
+                    }
+                }
+            }
+            mapping_info =
+            ov::hetero::mask_model_subgraphs_by_ops(model, supported_ops_temp, m_cfg.dump_dot_files(), default_device);
+        }
     }
     return {supported_ops_final, mapping_info};
 }
