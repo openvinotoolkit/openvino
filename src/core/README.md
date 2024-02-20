@@ -15,7 +15,6 @@ People from the [openvino-ngraph-maintainers](https://github.com/orgs/openvinoto
 ## Components
 
 OpenVINO Core has the next structure:
- * [builders](./builder) is obsolete component which provides helper methods for operation creations. Please don't use this API, and use public OpenVINO API instead.
  * [dev_api](./dev_api) contains developer API. In order to use this API, you need to link your component against `openvino::runtime::dev`.
  * [docs](./docs) contains developer documentation pages for the component.
  * [include](./include) contains public API. Detailed information about provided API can be found [here](./docs/api_details.md).
