@@ -421,7 +421,6 @@ INSTANTIATE_TEST_SUITE_P(
 
     ReferenceMaxPoolLayerTestV8::getTestCaseName);
 
-
 class ReferenceMaxPoolLayerTestV14 : public testing::TestWithParam<MaxPoolParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
