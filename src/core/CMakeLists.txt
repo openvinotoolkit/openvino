@@ -18,19 +18,16 @@ file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
-# TODO: remove with InferenceEngine::Blob removal
-if(ON)
-    set(MIXED_SRC
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
+set(MIXED_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
 
-    set_property(SOURCE ${MIXED_SRC}
-        APPEND PROPERTY INCLUDE_DIRECTORIES
-            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
-            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/dev_api
-            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include)
-endif()
+set_property(SOURCE ${MIXED_SRC}
+    APPEND PROPERTY INCLUDE_DIRECTORIES
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/dev_api
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

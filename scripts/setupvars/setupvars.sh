@@ -32,8 +32,6 @@ shift
 done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
-    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
-    export ngraph_DIR=$INSTALLDIR/runtime/cmake
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
 
     system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
