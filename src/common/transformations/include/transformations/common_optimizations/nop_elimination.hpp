@@ -22,6 +22,8 @@ class TRANSFORMATIONS_API EliminateSqueeze;
 class TRANSFORMATIONS_API EliminateTranspose;
 class TRANSFORMATIONS_API EliminateNopBroadcast;
 class TRANSFORMATIONS_API NopSliceBeforeGatherElements;
+class TRANSFORMATIONS_API NopStridedSlice;
+class TRANSFORMATIONS_API NopStridedSliceByShape;
 class TRANSFORMATIONS_API NopElimination;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
 
@@ -157,7 +159,29 @@ public:
 };
 
 /**
- * @ingroup ov_transformation_common_api
+ * @ingroup ie_transformation_common_api
+ * @brief NopStridedSlice eliminates Strided Slice in case
+ * tensors were not changed
+ */
+class ov::pass::NopStridedSlice : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopStridedSlice", "0");
+    NopStridedSlice();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief NopStridedSlice eliminates Strided Slice in case
+ * tensors were not changed
+ */
+class ov::pass::NopStridedSliceByShape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("NopStridedSliceByShape", "0");
+    NopStridedSliceByShape();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief PrepareShapeOpsForEliminationAroundBE works on the subgraph like
  *  Reshape/Squeeze/Unsqueeze -> BinaryElementwiseOperation -> Reshape/Squeeze/Unsqueeze
  *  and prepares it for the following optimizations by moving bottom op up through Binary op

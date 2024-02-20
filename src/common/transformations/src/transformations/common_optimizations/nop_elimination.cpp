@@ -33,6 +33,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
@@ -829,6 +830,141 @@ ov::pass::NopSliceBeforeGatherElements::NopSliceBeforeGatherElements() {
     register_matcher(m, matcher_pass_callback);
 }
 
+ov::pass::NopStridedSlice::NopStridedSlice() {
+    MATCHER_SCOPE(NopStridedSlice);
+
+    auto input = pattern::any_input();
+    auto begin_const = pattern::wrap_type<ov::op::v0::Constant>();
+    auto end_const = pattern::wrap_type<ov::op::v0::Constant>();
+    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        if (node == nullptr) {
+            return false;
+        }
+        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
+        // check that all values of the mask is equal 0
+        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
+            if (mask_to_check.empty() || it == mask_to_check.end()) {
+                return true;
+            }
+            return false;
+        };
+        // check that we won't do change dimention rank
+        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
+            !check_mask(strided_slice_node->get_new_axis_mask()) ||
+            !check_mask(strided_slice_node->get_ellipsis_mask())) {
+            return false;
+        }
+        // check that that we will take all values
+        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+            return false;
+        }
+
+        auto align_vectors = [](std::vector<int64_t>& vec_1, std::vector<int64_t>& vec_2) {
+            auto max_size = std::max(vec_1.size(), vec_2.size());
+            while (vec_1.size() < max_size) {
+                vec_1.push_back(0);
+            }
+            while (vec_2.size() < max_size) {
+                vec_2.push_back(0);
+            }
+            return;
+        };
+        auto begin_node = strided_slice_node->get_input_node_shared_ptr(1);
+        if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
+            auto values = begin_constant_node->cast_vector<int64_t>();
+            auto begin_mask = strided_slice_node->get_begin_mask();
+            // align begin_mask and values_vec by length
+            align_vectors(values, begin_mask);
+            for (size_t i = 0; i < begin_mask.size(); ++i) {
+                // if mask == 1 then ignore the begin_mask_value else check
+                // if values[i] == 0 then take whole tensor else take part of a tensor
+                if (!begin_mask[i] && values[i]) {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+
+        auto end_node = strided_slice_node->get_input_node_shared_ptr(2);
+        if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
+            auto values = end_constant_node->cast_vector<int64_t>();
+            auto end_mask = strided_slice_node->get_end_mask();
+            // align end_mask and values_vec by length
+            align_vectors(values, end_mask);
+            for (size_t i = 0; i < end_mask.size(); ++i) {
+                // if mask == 1 then ignore the begin_mask_value else check
+                // if values[i] == max then take whole tensor else take part of a tensor
+                if (!end_mask[i] && values[i] != std::numeric_limits<int64_t>::max()) {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
+        return replace_output_update_name(strided_slice_node->output(0), strided_slice_node->input_value(0));
+    };
+    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
+ov::pass::NopStridedSliceByShape::NopStridedSliceByShape() {
+    MATCHER_SCOPE(NopStridedSliceByShape);
+    auto slice = pattern::wrap_type<op::v8::Slice>();
+
+    auto input = pattern::any_input();
+    auto begin_const = pattern::any_input();
+    auto end_const = pattern::any_input();
+    auto optional_stride_const = pattern::optional<ov::op::v0::Constant>();
+    auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
+
+    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        if (node == nullptr) {
+            return false;
+        }
+        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
+        // check that all values of the mask is equal 0
+        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
+            if (mask_to_check.empty() || it == mask_to_check.end()) {
+                return true;
+            }
+            return false;
+        };
+        // check that we won't do change dimention rank
+        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
+            !check_mask(strided_slice_node->get_new_axis_mask()) ||
+            !check_mask(strided_slice_node->get_ellipsis_mask())) {
+            return false;
+        }
+        // check that that we will take all values
+        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+            return false;
+        }
+
+        if (strided_slice_node->get_input_partial_shape(0).is_static() &&
+            strided_slice_node->get_output_partial_shape(0).is_static()) {
+            if (strided_slice_node->get_input_shape(0) == strided_slice_node->get_output_shape(0)) {
+                return replace_output_update_name(strided_slice_node->output(0), strided_slice_node->input_value(0));
+            }
+        }
+        return false;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
+    register_matcher(m, matcher_pass_callback);
+}
+
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
     auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
@@ -880,6 +1016,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     ADD_MATCHER_FOR_THIS(EliminateEltwise)
     using namespace ov::pass;
     ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+    ADD_MATCHER_FOR_THIS(NopStridedSlice)
 
     // shape-dependent transformations
     if (use_shape_for_elimination) {
@@ -891,6 +1028,7 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateBroadcast)
         ADD_MATCHER_FOR_THIS(EliminateNopBroadcast)
         ADD_MATCHER_FOR_THIS(NopSliceBeforeGatherElements)
+        ADD_MATCHER_FOR_THIS(NopStridedSliceByShape)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }

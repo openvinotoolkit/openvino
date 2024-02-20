@@ -33,6 +33,15 @@ public:
         : Pattern({pattern}, pred),
           optional_types(type_infos){};
 
+    Optional(
+        const std::vector<DiscreteTypeInfo>& type_infos,
+        const pattern::op::ValuePredicate& pred =
+            [](const Output<Node>& output) {
+                return true;
+            })
+        : Pattern({}, pred),
+          optional_types(type_infos){};
+
     bool match_value(pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override;
@@ -69,6 +78,13 @@ std::shared_ptr<Node> optional(const Output<Node>& input) {
     return optional<NodeTypes...>(input, [](const Output<Node>& output) {
         return true;
     });
+}
+
+template <class... NodeTypes>
+std::shared_ptr<Node> optional() {
+    std::vector<DiscreteTypeInfo> optional_type_info_vec;
+    collect_type_info<NodeTypes...>(optional_type_info_vec);
+    return std::make_shared<op::Optional>(optional_type_info_vec);
 }
 
 }  // namespace pattern
