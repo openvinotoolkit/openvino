@@ -16,7 +16,7 @@ set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snipp
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
 else()
-    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/custom/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
 endif()
 
 if(NOT (ARM OR AARCH64))
