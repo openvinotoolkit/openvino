@@ -187,7 +187,7 @@ The following table shows accuracy metric in a data-aware 4-bit weight quantizat
      - 2.6
 
 
-\*Perplexity metric in both tables was measured without Dynamic Quantization feature enabled in the OpenVINO runtime.
+\*Perplexity metric in both tables was measured without the Dynamic Quantization feature enabled in the OpenVINO runtime.
    
 
 
