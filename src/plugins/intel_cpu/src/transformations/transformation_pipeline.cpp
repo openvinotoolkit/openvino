@@ -774,8 +774,8 @@ void Transformations::MainSnippets(void) {
         // Big shapes may lead to perf degradation
         const auto K = *(matmul->get_input_partial_shape(0).rbegin());
         const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-        if ((K.is_static() && K.get_length() > 512) || // heuristic values
-            (N.is_static() && N.get_length() > 256))
+        if ((K.is_static() && K.get_length() > 1024) || // heuristic values
+            (N.is_static() && N.get_length() > 1024))
             return false;
         if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
