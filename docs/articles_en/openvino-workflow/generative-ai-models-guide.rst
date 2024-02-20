@@ -203,10 +203,9 @@ Enabling OpenVINO Runtime Optimizations
 +++++++++++++++++++++++++++++++++++++++
 OpenVINO runtime provides a set of optimizations for more efficient LLM inference. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls and **KV-cache quantization**.
 
-* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see `LLM Weight Compression <weight_compression>`__). 
-  It leads to improvement of the inference latency and throughput of LLMs but can cause some insignificant deviation in the generation accuracy.  The quantization is performed in a
-  group-wise manner and group size is configurable. It means that values in a group share quantization parameters. The rule of thumb here is the larger the group size the 
-  faster the inference but the lower the accuracy. We recommend using the values ``32``, ``64``, or ``128``. To enable  Dynamic quantization, use the corresponding 
+* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see :doc:`LLM Weight Compression <weight_compression>`). 
+  It improves inference latency and throughput of LLMs, though it may cause insignificant deviation in generation accuracy.  Quantization is performed in a
+  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are: ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding 
   inference property as follows:
 
 
