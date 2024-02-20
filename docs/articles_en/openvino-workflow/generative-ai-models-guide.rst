@@ -201,8 +201,7 @@ Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Na
 
 Enabling OpenVINO Runtime Optimizations
 +++++++++++++++++++++++++++++++++++++++
-OpenVINO runtime provides a set of optimizations that allows more efficient inference of LLMs. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls
-and **KV-cache quantization**.
+OpenVINO runtime provides a set of optimizations for more efficient LLM inference. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls and **KV-cache quantization**.
 
 * **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see `LLM Weight Compression <weight_compression>`__). 
   It leads to improvement of the inference latency and throughput of LLMs but can cause some insignificant deviation in the generation accuracy.  The quantization is performed in a
