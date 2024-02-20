@@ -10,6 +10,30 @@
 #include <json_object.h>
 
 namespace cldnn {
+
+SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& node) {
+    SliceKernelRefNeededInputs inputs;
+
+    const auto& node_inputs = node.get_dependencies();
+
+    const bool axes_in_runtime_time =
+        ((node_inputs.size() == InputIndices::kInputsNum) && !node_inputs[InputIndices::kAxes].first->is_constant());
+    const bool start_in_runtime = axes_in_runtime_time || node_inputs[InputIndices::kStart].first->is_dynamic();
+    const bool step_in_runtime = axes_in_runtime_time || node_inputs[InputIndices::kStep].first->is_dynamic();
+
+    inputs.neededIndexes.push_back(InputIndices::kData);
+    if (start_in_runtime)
+        inputs.neededIndexes.push_back(InputIndices::kStart);
+    if (step_in_runtime)
+        inputs.neededIndexes.push_back(InputIndices::kStep);
+    if (axes_in_runtime_time)
+        inputs.neededIndexes.push_back(InputIndices::kAxes);
+
+    // NOTE: stop is never needed as it is passed implicitely via output shape.
+
+    return inputs;
+}
+
 GPU_DEFINE_PRIMITIVE_TYPE_ID(slice)
 
 slice_inst::typed_primitive_inst(network& network, slice_node const& node)
@@ -63,12 +87,12 @@ void slice_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
     auto shape_info_ptr = lock.data();
     size_t offset = 0;
-    for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
-        if (i == 2)
-            continue;
-        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        const auto& node_in_lay = _node->get_input_layout(i);
-        const auto& runtime_in_lay = params.input_layouts[i];
+    const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(*_node);
+
+    for (auto idx : inputs.GetNeededInputIndexes()) {
+        GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << idx << "]" << std::endl;
+        const auto& node_in_lay = _node->get_input_layout(idx);
+        const auto& runtime_in_lay = params.input_layouts[idx];
         fill_shape_info_data(runtime_in_lay, node_in_lay, shape_info_ptr, offset);
     }
     for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
