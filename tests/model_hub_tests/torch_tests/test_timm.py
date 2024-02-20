@@ -78,7 +78,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
                                       "poolformerv2_s12.sail_in1k",
                                       "vit_base_patch8_224.augreg_in21k",
                                       "beit_base_patch16_224.in22k_ft_in22k",
-                                      "sequencer2d_l.in1k"])
+                                      "sequencer2d_l.in1k",
+                                      "gcresnext26ts.ch_in1k"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):
         self.mode = "trace"

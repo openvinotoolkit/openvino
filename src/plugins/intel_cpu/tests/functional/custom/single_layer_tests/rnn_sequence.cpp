@@ -3,7 +3,6 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/rnn_cell.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
@@ -141,10 +140,10 @@ protected:
                 manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }

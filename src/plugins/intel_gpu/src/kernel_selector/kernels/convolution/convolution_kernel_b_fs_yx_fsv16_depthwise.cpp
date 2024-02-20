@@ -38,14 +38,14 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16_depthwise::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p, const optional_params&) const {
+bool ConvolutionKernel_b_fs_yx_fsv16_depthwise::Validate(const Params& p) const {
     const convolution_params& cp = static_cast<const convolution_params&>(p);
 
     if (cp.groups == 1)
@@ -78,7 +78,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_depthwise::S
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     return p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
@@ -124,9 +124,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetJitConstants(const co
     return jit;
 }
 
-KernelsData ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsData(const Params& params,
-                                                                      const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ConvolutionKernel_b_fs_yx_fsv16_depthwise::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
 }  // namespace kernel_selector

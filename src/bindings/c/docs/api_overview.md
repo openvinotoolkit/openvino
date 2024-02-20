@@ -1,4 +1,4 @@
-# Overview of OpenVINO C* API 2.0
+# Overview of OpenVINO C* API
 
 This API provides a simplified interface for OpenVINO functionality that allows to:
 
