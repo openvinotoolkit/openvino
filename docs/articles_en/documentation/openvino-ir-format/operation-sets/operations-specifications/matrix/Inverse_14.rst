@@ -78,7 +78,7 @@ Algorithm pseudocode:
 3. Perform LU decomposition with partial pivoting.
 
    * Repeat this step for each column in the input matrix.
-   * Let *c* be the index of the currently proceseed column.
+   * Let *c* be the index of the currently processed column.
    * Find the index of the row with the highest value in a given column - *pivot*.
    * If *pivot* != *c*, swap the *pivot* and *c* row in L. Repeat for U. Note that this operations flips the sign of the determinant, so this has to be accounted for.
    * Perform standard Gaussian elimination.
