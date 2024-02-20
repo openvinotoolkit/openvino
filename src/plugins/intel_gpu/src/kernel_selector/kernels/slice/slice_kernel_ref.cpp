@@ -68,10 +68,8 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
     } else if (!param_available_now && !axes_available_now) {
         // Generate macros for case where both axes and param are available only in runtime.
         for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
-            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
-                                            name + "_buffer_ptr[axes_ptr[" + std::to_string(i) +
-                                                "] < 0 ? INPUT0_DIMS + axes_ptr[" + std::to_string(i) +
-                                                "] : axes_ptr[" + std::to_string(i) + "] ]"));
+            const std::string axis_i = "SLICE_AXES_BUFFER_VAL(" + std::to_string(i) + ")";
+            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i), name + "_buffer_ptr[" + axis_i + "]"));
         }
     } else {
         OPENVINO_ASSERT(
@@ -164,6 +162,8 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     if (params.compile_time_axes.empty()) {
         const std::string type_str = ovElementTypeToOCLStr(params.axes_data_type);
         jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* axes_ptr,"));
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_VAL(IDX)",
+                                        "axes_ptr[IDX] < 0 ? INPUT0_DIMS + axes_ptr[IDX] : axes_ptr[IDX]"));
     } else {
         jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
     }
