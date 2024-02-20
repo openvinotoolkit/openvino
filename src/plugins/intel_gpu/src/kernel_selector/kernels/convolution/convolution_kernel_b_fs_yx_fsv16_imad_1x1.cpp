@@ -67,8 +67,8 @@ ParamsKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey Convolution_kernel_b_fs_yx_fsv16_imad_1x1::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -128,7 +128,7 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::S
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     const auto& output = p.outputs[0];
@@ -176,8 +176,8 @@ KernelsPriority Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsPriority(co
     return priority;
 }
 
-bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options)) {
+bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::Validate(const Params& params) const {
+    if (!Parent::Validate(params)) {
         return false;
     }
 
@@ -370,24 +370,21 @@ bool Convolution_kernel_b_fs_yx_fsv16_imad_1x1::ValidateAutoTuneParams(const con
     return c_ifm && c_slm && c_lws && c_wa_fb;
 }
 
-KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsData(const Params& params,
-                                                                      const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
 KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetTunedKernelsDataByIndex(const Params & params,
-                                                                                  const optional_params & options,
                                                                                   int autoTuneIndex) const {
     auto conv_params = static_cast<const convolution_params&>(params);
     auto tune_params = GetAutoTuneParams(conv_params, autoTuneIndex);
     if (!ValidateAutoTuneParams(conv_params, tune_params))
         return {};
-    return GetCommonKernelsData(params, options, tune_params.exe_mode, autoTuneIndex);
+    return GetCommonKernelsData(params, tune_params.exe_mode, autoTuneIndex);
 }
 
-KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune(const Params & params,
-                                                                                 const optional_params & options) const {
-    if (!Validate(params, options)) {
+KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune(const Params & params) const {
+    if (!Validate(params)) {
         return {};
     }
     auto& conv_params = static_cast<const convolution_params&>(params);
@@ -398,7 +395,7 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune
         auto tune_params = GetAutoTuneParams(conv_params, static_cast<int>(i));
         if (!ValidateAutoTuneParams(conv_params, tune_params))
             continue;
-        KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

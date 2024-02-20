@@ -4,10 +4,11 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
+#include "ov_models/utils/ov_helpers.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -99,6 +100,18 @@ const std::vector<std::vector<InputShape>> input_shapes_basic = {
     },
 };
 
+void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {
+    auto inputs = function->inputs();
+    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
+    OPENVINO_ASSERT(inputs.size() <= targetInputStaticShapes.size(),
+        "targetInputStaticShapes.size() = ", targetInputStaticShapes.size(), " != inputs.size() = ", inputs.size());
+
+    for (size_t i = 0; i < inputs.size(); i++) {
+        shapes.insert({inputs[i], targetInputStaticShapes[i]});
+    }
+    function->reshape(shapes);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke_GPU_Dynamic,
                          KVCacheTest,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
@@ -153,7 +166,7 @@ class KVCacheTests: public ::testing::Test {
             auto ref_model = model->clone();
             ov::Tensor kv_cache_copy(kv_cache.get_element_type(), kv_cache.get_shape());
             kv_cache.copy_to(kv_cache_copy);
-            ngraph::helpers::resize_function(ref_model, {kv_cache_copy.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
+            resize_function(ref_model, {kv_cache_copy.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
 
             auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
             auto inf_req_ref = compiled_model_ref.create_infer_request();
@@ -347,8 +360,8 @@ class KVCacheTests: public ::testing::Test {
                 inputs.emplace(input3, beam_idx_data);
             }
 
-            ngraph::helpers::resize_function(ref_model, input_shapes);
-            return ngraph::helpers::interpretFunction(ref_model, inputs);
+            resize_function(ref_model, input_shapes);
+            return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {

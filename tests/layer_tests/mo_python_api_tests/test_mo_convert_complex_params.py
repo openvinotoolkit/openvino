@@ -151,33 +151,33 @@ class TestComplexParams(CommonMOConvertTest):
          'params_ref': {'input': "Relu1[3 2]{i32},Relu2[3..10 2..]{i32},Relu3[3 2]{i32}"}},
         {'params_test': {'output': ["Sigmoid_0", "Sigmoid_2"]},
          'params_ref': {'output': "Sigmoid_0,Sigmoid_2"}},
-        {'params_test': {'mean_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]},
+        {'params_test': {'mean_values': {'Input1:0': [0.5,1.3,0.67], 'Input2:0':[4.2, 6.7, 3.15], 'Input3:0':[0.757, 4.6, 7.3]},
                          'compress_to_fp16': True},
-         'params_ref': {'mean_values': "Input1[0.5,1.3,0.67],Input2[4.2,6.7,3.15],Input3[0.757,4.6,7.3]"}},
+         'params_ref': {'mean_values': "Input1:0[0.5,1.3,0.67],Input2:0[4.2,6.7,3.15],Input3:0[0.757,4.6,7.3]"}},
         {'params_test': {
             'mean_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]], 'compress_to_fp16': True},
          'params_ref': {'mean_values': "[0.5,1.3,0.67],[4.2,6.7,3.15],[0.757,4.6,7.3]"}},
-        {'params_test': {'scale_values': {'Input1': [0.5,1.3,0.67], 'Input2':[4.2, 6.7, 3.15], 'Input3':[0.757, 4.6, 7.3]},
+        {'params_test': {'scale_values': {'Input1:0': [0.5,1.3,0.67], 'Input2:0':[4.2, 6.7, 3.15], 'Input3:0':[0.757, 4.6, 7.3]},
                          'compress_to_fp16': True},
-         'params_ref': {'scale_values': "Input1[0.5,1.3,0.67],Input2[4.2,6.7,3.15],Input3[0.757,4.6,7.3]"}},
+         'params_ref': {'scale_values': "Input1:0[0.5,1.3,0.67],Input2:0[4.2,6.7,3.15],Input3:0[0.757,4.6,7.3]"}},
         {'params_test': {
             'scale_values': [[0.5, 1.3, 0.67], [4.2, 6.7, 3.15], [0.757, 4.6, 7.3]], 'compress_to_fp16': True},
          'params_ref': {'scale_values': "[0.5,1.3,0.67],[4.2,6.7,3.15],[0.757,4.6,7.3]"}},
         {'params_test': {
-            'source_layout': {'Input1': Layout("nchw"), 'Input2': "nchw", 'Input3': "nc??"}, 'compress_to_fp16': True},
-         'params_ref': {'source_layout': "Input1(nchw),Input2(nchw),Input3(nc??)"}},
+            'source_layout': {'Input1:0': Layout("nchw"), 'Input2:0': "nchw", 'Input3:0': "nc??"}, 'compress_to_fp16': True},
+         'params_ref': {'source_layout': "Input1:0(nchw),Input2:0(nchw),Input3:0(nc??)"}},
         {'params_test': {
-            'target_layout': {'Input1': Layout("nhwc"), 'Input2': "nhwc", 'Input3': "n??c"}, 'compress_to_fp16': True},
-            'params_ref': {'target_layout': "Input1(nhwc),Input2(nhwc),Input3(n??c)"}},
+            'target_layout': {'Input1:0': Layout("nhwc"), 'Input2:0': "nhwc", 'Input3:0': "n??c"}, 'compress_to_fp16': True},
+            'params_ref': {'target_layout': "Input1:0(nhwc),Input2:0(nhwc),Input3:0(n??c)"}},
         {'params_test': {
-            'layout': {'Input1': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc"),
-                       'Input2': LayoutMap(source_layout="nc??", target_layout=Layout("n??c")),
-                       'Input3': LayoutMap(source_layout="abcd", target_layout="acdb")}, 'compress_to_fp16': True},
-            'params_ref': {'layout': "Input1(nchw->nhwc),Input2(nc??->n??c),Input3(abcd->acdb)"}},
+            'layout': {'Input1:0': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc"),
+                       'Input2:0': LayoutMap(source_layout="nc??", target_layout=Layout("n??c")),
+                       'Input3:0': LayoutMap(source_layout="abcd", target_layout="acdb")}, 'compress_to_fp16': True},
+            'params_ref': {'layout': "Input1:0(nchw->nhwc),Input2:0(nc??->n??c),Input3:0(abcd->acdb)"}},
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
-         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': [np.int32, Type(np.int32), np.int32]},
-         'params_ref': {'input': 'Input1{i32},Input2{i32},Input3{i32}'}},
+         'params_ref': {'input': 'Input1:0{i32},Input2:0{i32},Input3:0{i32}'}},
         {'params_test': {'input': [InputCutInfo(shape=[1], type=np.int32, value=[10]),
                                    InputCutInfo(shape=[1], type=np.int32, value=[20]),
                                    InputCutInfo(shape=[1], type=np.int32, value=[30])]},
@@ -187,7 +187,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend):
+                                 temp_dir, use_legacy_frontend):
         tf_net_path = self.create_tf_model(temp_dir)
 
         test_params = params['params_test']
@@ -206,13 +206,13 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [PartialShape([Dimension(-1), 5, 6]), [-1, 5, 6]],
                          'freeze_placeholder_with_value': 'Input3->[1]'},
 
-         'params_ref': {'input': 'Input1[?,5,6],Input2[?,5,6]',
+         'params_ref': {'input': 'Input1:0[?,5,6],Input2:0[?,5,6]',
                         'freeze_placeholder_with_value': 'Input3->[1]'}},
         {'params_test': {'input': [np.float16, np.float16],
                          'input_shape': [[10, 20], [10, 20]],
                          'freeze_placeholder_with_value': 'Input3->[1]'},
 
-         'params_ref': {'input': 'Input1{f16},Input2{f16}',
+         'params_ref': {'input': 'Input1:0{f16},Input2:0{f16}',
                         'input_shape': "[10,20],[10,20]",
                         'freeze_placeholder_with_value': 'Input3->[1]'}},
 
@@ -221,7 +221,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model_no_concat(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend):
+                                 temp_dir, use_legacy_frontend):
         tf_net_path = self.create_tf_model_no_concat(temp_dir)
 
         test_params = params['params_test']
@@ -283,34 +283,34 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'layout': Layout("nchw"), 'compress_to_fp16': True},
          'params_ref': {'layout': "nchw"}},
         {'params_test': {'input': [3, 2]},
-         'params_ref': {'input': "Input[3 2]"}},
+         'params_ref': {'input': "Input:0[3 2]"}},
         {'params_test': {'input': [Dimension(3,10), 2]},
-         'params_ref': {'input': "Input[3..10 2]"}},
+         'params_ref': {'input': "Input:0[3..10 2]"}},
         {'params_test': {'input': (-1, 10)},
-         'params_ref': {'input': "Input[?,10]"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': PartialShape([-1, 10])},
-         'params_ref': {'input': "Input[?,10]"}},
+         'params_ref': {'input': "Input:0[?,10]"}},
         {'params_test': {'input': np.int32},
-         'params_ref': {'input': "Input{i32}"}},
+         'params_ref': {'input': "Input:0{i32}"}},
         {'params_test': {'input': InputCutInfo(shape=[1], type=np.int32, value=[10])},
-         'params_ref': {'input': "Input[1]{i32}->[10]"}},
+         'params_ref': {'input': "Input:0[1]{i32}->[10]"}},
         {'params_test': {'input': (np.int32, [1, 2, 3])},
-         'params_ref': {'input': "Input[1,2,3]{i32}"}},
+         'params_ref': {'input': "Input:0[1,2,3]{i32}"}},
         {'params_test': {'input_shape': [Dimension(3, 10), 10, -1], 'compress_to_fp16': True},
          'params_ref': {'input_shape': '[3..10,10,?]'}},
         {'params_test': {'input': [Dimension(3, 10), 10, -1]},
-         'params_ref': {'input': 'Input[3..10,10,?]'}},
+         'params_ref': {'input': 'Input:0[3..10,10,?]'}},
         {'params_test': {'input': PartialShape([1, 100, 100, 3]), 'mean_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
-         'params_ref': {'input': "Input[1,100,100,3]", 'mean_values': "[0.5,1.3,0.67]"}},
+         'params_ref': {'input': "Input:0[1,100,100,3]", 'mean_values': "[0.5,1.3,0.67]"}},
         {'params_test': {'input': [1, 100, 100, 3], 'scale_values': [0.5, 1.3, 0.67], 'compress_to_fp16': True},
-         'params_ref': {'input': "Input[1,100,100,3]", 'scale_values': "[0.5,1.3,0.67]"}},
+         'params_ref': {'input': "Input:0[1,100,100,3]", 'scale_values': "[0.5,1.3,0.67]"}},
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_tf_model_single_input_output(self, params, ie_device, precision, ir_version,
-                                                     temp_dir, use_new_frontend):
+                                                     temp_dir, use_legacy_frontend):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
 
         test_params = params['params_test']
@@ -323,7 +323,7 @@ class TestComplexParams(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_clearing_transformation_registry(self, ie_device, precision, ir_version,
-                                                         temp_dir, use_new_frontend):
+                                                         temp_dir, use_legacy_frontend):
         tf_net_path = self.create_tf_model_single_input_output(temp_dir)
         from openvino.tools.mo import convert_model
 

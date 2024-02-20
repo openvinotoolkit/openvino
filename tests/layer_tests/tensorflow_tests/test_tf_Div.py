@@ -9,14 +9,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestDiv(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        assert 'y' in inputs_info
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
         # generate x and y
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(1, 10, y_shape)*np.random.choice([-1,1], y_shape)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['y:0'] = np.random.randint(1, 10, y_shape)*np.random.choice([-1,1], y_shape)
         return inputs_data
 
     def create_div_net(self, input_shape, input_type):
@@ -44,7 +44,7 @@ class TestDiv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_div_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                       use_new_frontend):
+                       use_legacy_frontend):
         self._test(*self.create_div_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

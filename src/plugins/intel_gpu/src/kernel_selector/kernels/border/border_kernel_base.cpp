@@ -75,8 +75,7 @@ void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
-                                                   const optional_params& options) const {
+KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BORDER);
 
     const auto& prim_params =
@@ -87,7 +86,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
     GetUpdateDispatchDataFunc(k_data);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
