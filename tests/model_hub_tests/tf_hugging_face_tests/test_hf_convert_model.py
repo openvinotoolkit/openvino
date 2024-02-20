@@ -1,11 +1,15 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-from models_hub_common.test_convert_model import TestConvertModel
-from transformers import TFAutoModel
-from models_hub_common.utils import get_models_list
 import os
+
+import pytest
+import tensorflow as tf
+from transformers import TFAutoModel
+
+from models_hub_common.test_convert_model import TestConvertModel
+from models_hub_common.utils import get_models_list
+
 
 class TestTFHuggingFace(TestConvertModel):
     def load_model(self, model_name, model_link):
@@ -20,7 +24,17 @@ class TestTFHuggingFace(TestConvertModel):
         if isinstance(outputs, dict):
             post_outputs = {}
             for out_name, out_value in outputs.items():
-                post_outputs[out_name] = out_value.numpy()
+                if isinstance(out_value, tf.Tensor):
+                    post_outputs[out_name] = out_value.numpy()
+                elif isinstance(out_value, tuple):
+                    out_list = []
+                    for out_tensor in out_value:
+                        assert isinstance(out_tensor, tf.Tensor), "Unknown output type in original model {}".format(
+                            type(out_tensor))
+                        out_list.append(out_tensor.numpy())
+                    post_outputs[out_name] = tuple(out_list)
+                else:
+                    raise Exception("Unknown output type in original model {}".format(type(out_value)))
         elif isinstance(outputs, list):
             post_outputs = []
             for out_value in outputs:
@@ -33,13 +47,11 @@ class TestTFHuggingFace(TestConvertModel):
     def prepare_inputs(self, inputs):
         return self.example_input
 
-
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
     @pytest.mark.precommit
     def test_tf_hugging_face_precommit(self, model_name, model_link, mark, reason, ie_device):
         self.run(model_name, '', ie_device)
-
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
