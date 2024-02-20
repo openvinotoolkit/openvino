@@ -7,6 +7,7 @@
 #include <vector>
 
 namespace {
+static constexpr size_t MAX_SUPPORTED_DIM = 5;
 
 std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 #define CASE(TYPE, STR)     \
@@ -65,8 +66,8 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                                             name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
         }
     } else if (!param_available_now && !axes_available_now) {
-        // Generate macros for case where only compile_time_axes is available now.
-        for (size_t i = 0; i < 5; ++i) {
+        // Generate macros for case where both axes and param are available only in runtime.
+        for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
             jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
                                             name + "_buffer_ptr[axes_ptr[" + std::to_string(i) + "]]"));
         }
@@ -139,7 +140,7 @@ bool SliceKernelRef::Validate(const Params &p) const {
     if (params.inputs.empty())
         return false;
 
-    if (params.outputs[0].Dimentions() > 5 || params.inputs[0].Dimentions() > 5)
+    if (params.outputs[0].Dimentions() > MAX_SUPPORTED_DIM || params.inputs[0].Dimentions() > MAX_SUPPORTED_DIM)
         return false;
 
     return true;
