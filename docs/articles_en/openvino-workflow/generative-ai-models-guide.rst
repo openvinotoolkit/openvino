@@ -218,8 +218,8 @@ OpenVINO runtime provides a set of optimizations for more efficient LLM inferenc
 
 
 
-* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps to reduce memory consumption during the inference and improve latency and throughput. KV-cache can be quantized into the following precisions:
-  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used KV-cache quantization is also applied in a group-wise fashion. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if it is defined. 
+* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps reduce memory consumption during inference, improving latency and throughput. KV-cache can be quantized into the following precisions:
+  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined. 
   Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
 
 
