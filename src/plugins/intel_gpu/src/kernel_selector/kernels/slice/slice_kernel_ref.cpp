@@ -69,7 +69,9 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
         // Generate macros for case where both axes and param are available only in runtime.
         for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
             jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
-                                            name + "_buffer_ptr[axes_ptr[" + std::to_string(i) + "]]"));
+                                            name + "_buffer_ptr[axes_ptr[" + std::to_string(i) +
+                                                "] < 0 ? INPUT0_DIMS + axes_ptr[" + std::to_string(i) +
+                                                "] : axes_ptr[" + std::to_string(i) + "] ]"));
         }
     } else {
         OPENVINO_ASSERT(

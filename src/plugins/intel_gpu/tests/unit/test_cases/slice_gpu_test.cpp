@@ -243,6 +243,15 @@ TYPED_TEST(SliceTest, axes_dynamic) {
     this->RunAllTestCasesForParams(params);
 }
 
+TYPED_TEST(SliceTest, negative_axes_dynamic) {
+    SliceTestParams params;
+    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    params.axes = this->template AllocateTensor<int64_t>(
+            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { -4, -3, -2, -1 });
+    params.is_axes_dynamic = true;
+    this->RunAllTestCasesForParams(params);
+}
+
 TYPED_TEST(SliceTest, non_default_static_axes) {
     SliceTestParams params;
         const ov::PartialShape input_shape{ 1, 2, 12, 100 };
