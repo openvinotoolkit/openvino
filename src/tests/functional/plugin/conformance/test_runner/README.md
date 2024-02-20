@@ -59,6 +59,8 @@ Run the following commands in the build directory:
 
 There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
 
+>NOTE: Conformance reports `ov python api` WARNING in case of its absence. `ov python api` is not required to get a conformance results. It is a way to get HASHED conformance IR names after `ov_subgraphs_dumper` tool using (in case of `-s=1`).
+
 ### The conformance pipeline steps:
 
 1. (Optional: Applicable only for Opset Conformance suite) Download models/conformance IR via URL / copy archive to working directory / verify dirs / check list-files.
