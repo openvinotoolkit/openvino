@@ -78,7 +78,7 @@ For data-aware weight compression refer to the following `example <https://githu
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
 
 
-The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup when no dataset is used at optimization step.
+The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup, where no dataset is used at the optimization step.
 The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
 
 .. list-table::
