@@ -8,7 +8,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
