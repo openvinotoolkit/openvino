@@ -93,7 +93,7 @@ Algorithm pseudocode:
 
    * As explained above, it is enough to compute det(U), since det(U) = det(A).
    * det(U) is just a multiplication of its diagonal elements.
-   * Account for each row swap in the LU decomposition step - for every row swap, swap the sign of the dereminant.
+   * Account for each row swap in the LU decomposition step - for every row swap, swap the sign of the determinant.
    * Multiply all elements of A^(-1) by the determinant to obtain the adjugate matrix.
 
 6. Return the computed matrix.
