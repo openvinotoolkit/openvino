@@ -118,9 +118,6 @@ public:
             auto& config = impl_params.prog->get_config();
             auto attr = arg.get_onednn_primitive_attributes();
             auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
-
-            std::shared_ptr<void> dummy = nullptr;
-
             return cldnn::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
         }
     }
