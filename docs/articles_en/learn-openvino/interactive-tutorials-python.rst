@@ -33,9 +33,9 @@ libraries.
 
 
 .. raw:: html
-   
-   <script type="module" crossorigin src="https://openvinotoolkit.github.io/openvino_notebooks/assets/embedded-Re_0vLit.js"></script>
-   <iframe id="notebooks-selector" src="https://openvinotoolkit.github.io/openvino_notebooks/" style="width: 100%; border: none;" title="OpenVINO™ Notebooks - Jupyter notebook tutorials for OpenVINO™"></iframe>
+
+   <script type="module" crossorigin src="https://yatarkan.github.io/openvino_notebooks/assets/embedded-LTBJzmsX.js"></script>
+   <iframe id="notebooks-selector" src="https://yatarkan.github.io/openvino_notebooks/" style="width: 100%; border: none;" title="OpenVINO™ Notebooks - Jupyter notebook tutorials for OpenVINO™"></iframe>
 
 
 Notebooks with |binder logo| and |colab logo| buttons can be run without installing anything.
