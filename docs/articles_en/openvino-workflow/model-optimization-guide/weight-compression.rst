@@ -79,7 +79,7 @@ For data-aware weight compression refer to the following `example <https://githu
 
 
 The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup, where no dataset is used at the optimization step.
-The Perplexity metric is measured on `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
+The Perplexity metric is measured on the `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
 
 .. list-table::
    :widths: 40 55 25 25
