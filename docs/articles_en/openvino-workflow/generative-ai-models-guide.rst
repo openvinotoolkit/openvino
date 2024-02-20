@@ -199,7 +199,7 @@ The model's form matters when an OpenVINO IR model is exported from Optimum-Inte
 This is because stateful and stateless models have a different number of inputs and outputs.
 Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
 
-Enabling OpenVINO runtime optimizations
+Enabling OpenVINO Runtime Optimizations
 +++++++++++++++++++++++++++++++++++++++
 OpenVINO runtime provides a set of optimizations that allows more efficient inference of LLMs. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls
 and **KV-cache quantization**.
