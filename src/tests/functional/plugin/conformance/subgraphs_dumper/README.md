@@ -6,6 +6,15 @@ uniqueness and matching are defined by implementation of twon interface classes:
 * `Matcher` defines the rules for dumping operatons to the cache.
 * `Extractor` defines the rules for extracting subgraphs from the models.
 
+### Single operation matchers:
+* `single op` matches all input & output element types and shape ranks, operation type and attributes.
+* `convolution` is based on `single op` matcher but compares a weights of convolution.
+
+### Subgraphs extractor types:
+* `fused names` extractor dumps any subgraphs were changed by a transformation pipeline.
+* `repeat pattern` extractor finds repeatitions in original model.
+* `read value & assign` extracts stateful graphs.
+
 > NOTE:
 > Please check the following architecture [diagram](./../../../../../../docs/sphinx_setup/_static/images/img/subgraphs_dumper_arch_diaram.png) to get detailed information.
 
@@ -13,10 +22,10 @@ uniqueness and matching are defined by implementation of twon interface classes:
 
 To build the tool, run the following commands: 
 ```
-cmake -DENABLE_FUNCTIONAL_TESTS=ON .
-make ov_subgraphs_dumper
+cmake -DENABLE_FUNCTIONAL_TESTS=ON -DENABLE_TESTS=ON .
+make --jobs=$(nproc --all) ov_subgraphs_dumper
 ```
-The outcome of a build is a `subgrpahsDumper` binary located in the building artifacts folder.
+The outcome of a build is a `ov_subgraphs_dumper` binary located in the building artifacts folder.
 
 ## Run
 The tool takes only one required command-line parameter:    
@@ -28,7 +37,7 @@ The tool takes only one required command-line parameter:
 * `--cache_type` - Optional. Allows extracting Operations, Subgraphs, or both types. The default value is `OP` and `GRAPH`.
 
 Example running command:   
-```subgraphsDumper --input_folders /dir_0/to/models,/dir_1/to/models --output_folder /path/to/dir```
+```ov_subgraphs_dumper --input_folders /dir_0/to/models,/dir_1/to/models --output_folder /path/to/dir```
 
 ## Extraction Algorithm
 1. Recursively search for all models in the provided input folders using enabled OpenVINO frontends.
