@@ -85,31 +85,32 @@ std::string ov::util::get_file_ext(const std::string& s) {
 }
 
 std::string ov::util::get_directory(const std::string& s) {
-    std::string rc = s;
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos ? pos : 1);
-        return rc;
+        return s.substr(0, pos ? pos : 1);
     }
     // Windows-style separator
     pos = s.find_last_of('\\');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
-        return rc;
+        return s.substr(0, pos);
+    } else if (s.empty()) {
+        return {};
+    } else {
+        return {'.'};
     }
-    return rc;
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::wstring ov::util::get_directory(const std::wstring& s) {
-    std::wstring rc = s;
     auto pos = s.find_last_of(ov::util::FileTraits<wchar_t>::file_separator);
     if (pos != std::wstring::npos) {
-        rc = s.substr(0, pos);
-        return rc;
+        return s.substr(0, pos);
+    } else if (s.empty()) {
+        return {};
+    } else {
+        return {L'.'};
     }
-    return rc;
 }
 #endif
 
