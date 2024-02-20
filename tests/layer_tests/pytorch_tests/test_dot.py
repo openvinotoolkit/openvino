@@ -43,8 +43,6 @@ class TestDot(PytorchLayerTest):
     @pytest.mark.parametrize(
         "inputs", [([0, 1, 2, 3, 4], [5, 6, 7, 8, 9]), ([1, 2, 3], [4, 5, 6]), ([1, 1, 1], [1, 1, 1])]
     )
-    #@pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-    #                  reason='Ticket - 122715')
     def test_dot(self, dtype, inputs, ie_device, precision, ir_version):
         self._test(
             *self.create_model(dtype),
