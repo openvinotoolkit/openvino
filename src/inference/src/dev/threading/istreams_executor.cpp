@@ -31,11 +31,8 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
         const auto value = it.second;
         if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
-            if (streams == ov::streams::NUMA) {
+            if (streams == ov::streams::NUMA || streams == ov::streams::AUTO) {
                 _streams = 1;
-            } else if (streams == ov::streams::AUTO) {
-                // bare minimum of streams (that evenly divides available number of cores)
-                _streams = get_default_num_streams();
             } else if (streams.num >= 0) {
                 _streams = streams.num;
             } else {
