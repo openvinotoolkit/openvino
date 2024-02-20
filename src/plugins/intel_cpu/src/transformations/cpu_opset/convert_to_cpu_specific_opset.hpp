@@ -50,8 +50,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
                              type_to_fuse_map{{}},
                              false,
                              false);
-    auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(manager, ov::pass::SymbolicOptimizations, false);
-    symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     manager.run_passes(nGraphFunc);
