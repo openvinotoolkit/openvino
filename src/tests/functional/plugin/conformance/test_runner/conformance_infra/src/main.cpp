@@ -109,7 +109,7 @@ int main(int argc, char* argv[]) {
         ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_config_path.empty()) {
-        ov::test::utils::pluginConfig = ov::test::utils::readPluginConfig(FLAGS_config_path);
+        ov::test::utils::global_plugin_config = ov::test::conformance::read_plugin_config(FLAGS_config_path);
     }
 
     ::testing::InitGoogleTest(&argc, argv);

@@ -8,6 +8,7 @@
 #endif
 
 #include "common_test_utils/postgres_link.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/crash_handler.hpp"
 
 #include "op_impl_check/op_impl_check.hpp"
@@ -123,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(conformance,
                          ::testing::Combine(
                                  ::testing::ValuesIn(createFunctions()),
                                  ::testing::Values(conformance::targetDevice),
-                                 ::testing::Values(utils::pluginConfig)),
+                                 ::testing::Values(utils::global_plugin_config)),
                          OpImplCheckTest::getTestCaseName);
 }   // namespace
 }   // namespace op_conformance

@@ -16,9 +16,11 @@ namespace ov {
 namespace test {
 namespace utils {
 
-ov::AnyMap pluginConfig = {};
+ov::AnyMap global_plugin_config = {};
+std::unordered_set<std::string> available_devices = {};
 
-void register_template_plugin(ov::Core& ov_core) {
+
+void register_template_plugin(ov::Core& ov_core) noexcept {
     auto plugin_path =
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                            std::string(ov::test::utils::TEMPLATE_LIB) + OV_BUILD_POSTFIX);
@@ -26,59 +28,44 @@ void register_template_plugin(ov::Core& ov_core) {
         OPENVINO_THROW("Plugin: " + plugin_path + " does not exists!");
     }
     ov_core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
+    if (!available_devices.count(ov::test::utils::DEVICE_TEMPLATE)) {
+        available_devices.insert(ov::test::utils::DEVICE_TEMPLATE);
+    }
 }
 
 ov::Core create_core(const std::string& target_device) {
     ov::Core ov_core;
+    if (available_devices.empty()) {
+        const auto core_devices = ov_core.get_available_devices();
+        available_devices.insert(core_devices.begin(), core_devices.end());
+    }
+    // Register Template plugin as a reference provider
+    register_template_plugin(ov_core);
 
-    if (!pluginConfig.empty()) {
-        if (!target_device.empty()) {
-            auto properties = ov_core.get_property(target_device, ov::supported_properties);
-            for (auto& property : pluginConfig) {
-                if (std::find(properties.begin(), properties.end(), property.first) == properties.end()) {
+    if (!available_devices.count(target_device)) {
+#ifndef NDEBUG
+        std::cout << "Available devices :" << std::endl;
+        for (const auto& device : available_devices) {
+            std::cout << "    " << device << std::endl;
+        }
+#endif
+        OPENVINO_THROW("No available devices for " + target_device);
+    }
+
+    if (!global_plugin_config.empty()) {
+        if (target_device.empty()) {
+            ov_core.set_property(global_plugin_config);
+        } else {
+            const auto& supported_properties = ov_core.get_property(target_device, ov::supported_properties);
+            for (auto& property : global_plugin_config) {
+                if (std::find(supported_properties.begin(), supported_properties.end(), property.first) == supported_properties.end()) {
                     OPENVINO_THROW("Property " + property.first +
                                    ", which was tryed to set in --config file, is not supported by " + target_device);
                 }
             }
-            ov_core.set_property(target_device, pluginConfig);
-        } else {
-            ov_core.set_property(pluginConfig);
+            ov_core.set_property(target_device, global_plugin_config);
         }
     }
-
-    auto core_registered_devices = PluginCache::get().get_core_registered_devices();
-    if (core_registered_devices.empty()) {
-        PluginCache::get().set_core_registered_devices(ov_core.get_available_devices());
-    }
-
-    // Register Template plugin as a reference provider
-    if (std::find(core_registered_devices.begin(),
-                  core_registered_devices.end(),
-                  std::string(ov::test::utils::DEVICE_TEMPLATE)) == core_registered_devices.end()) {
-        register_template_plugin(ov_core);
-        core_registered_devices.push_back(ov::test::utils::DEVICE_TEMPLATE);
-    }
-
-    if (!target_device.empty()) {
-        auto properties = ov_core.get_property(target_device, ov::supported_properties);
-
-        if (std::find(properties.begin(), properties.end(), ov::available_devices) != properties.end()) {
-            if (std::find_if(core_registered_devices.begin(),
-                             core_registered_devices.end(),
-                             [](const std::string& device) {
-                                 return device.find(std::string(ov::test::utils::DEVICE_TEMPLATE)) != std::string::npos;
-                             }) == core_registered_devices.end())
-                OPENVINO_THROW("No available devices for " + target_device);
-
-#ifndef NDEBUG
-            std::cout << "Available devices :" << std::endl;
-            for (const auto& device : core_registered_devices) {
-                std::cout << "    " << device << std::endl;
-            }
-#endif
-        }
-    }
-
     return ov_core;
 }
 
@@ -100,38 +87,16 @@ PluginCache& PluginCache::get() {
     return instance;
 }
 
-std::shared_ptr<ov::Core> PluginCache::core(const std::string& deviceToCheck) {
+std::shared_ptr<ov::Core> PluginCache::core(const std::string& target_device) {
     std::lock_guard<std::mutex> lock(g_mtx);
     if (disable_plugin_cache) {
-        return std::make_shared<ov::Core>(create_core(deviceToCheck));
+        return std::make_shared<ov::Core>(create_core(target_device));
     }
-
-#ifndef NDEBUG
-    std::cout << "Access PluginCache ov core. OV Core use count: " << ov_core.use_count() << std::endl;
-#endif
-
     if (!ov_core) {
-#ifndef NDEBUG
-        std::cout << "Created ov core." << std::endl;
-#endif
-        ov_core = std::make_shared<ov::Core>(create_core(deviceToCheck));
+        ov_core = std::make_shared<ov::Core>(create_core(target_device));
         assert(0 != ov_core.use_count());
     }
-
     return ov_core;
-}
-
-std::vector<std::string> PluginCache::get_core_registered_devices() {
-    return core_registered_devices;
-}
-
-void PluginCache::set_core_registered_devices(std::vector<std::string> devices) {
-    for (auto& device : devices) {
-        if (std::find(core_registered_devices.begin(), core_registered_devices.end(), device) ==
-            core_registered_devices.end()) {
-            core_registered_devices.push_back(device);
-        }
-    }
 }
 
 void PluginCache::reset() {
