@@ -7,8 +7,6 @@
 #include <numeric>
 #include <random>
 
-#include "ov_models/builders.hpp"
-
 using namespace ov::test;
 
 namespace ov {

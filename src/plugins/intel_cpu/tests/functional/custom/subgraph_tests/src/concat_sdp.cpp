@@ -4,7 +4,6 @@
 #include "openvino/opsets/opset13.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"

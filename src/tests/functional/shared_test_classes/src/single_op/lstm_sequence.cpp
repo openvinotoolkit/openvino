@@ -13,7 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 
 namespace ov {
@@ -167,10 +167,10 @@ void LSTMSequenceTest::SetUp() {
             manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
         manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         manager.run_passes(function);
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, true);
     } else {
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
     }
 }

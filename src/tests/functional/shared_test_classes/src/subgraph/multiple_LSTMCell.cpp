@@ -5,11 +5,11 @@
 #include "shared_test_classes/subgraph/multiple_LSTMCell.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {
@@ -473,7 +473,7 @@ void MultipleLSTMCellTest::apply_low_latency() {
         ov::pass::Manager manager;
         manager.register_pass<pass::LowLatency2>();
         manager.run_passes(function);
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
         compile_model();
     }

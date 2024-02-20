@@ -81,6 +81,8 @@ ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model, cons
 ov::TensorVector infer_on_template(const std::shared_ptr<ov::Model>& model,
                                    const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs);
 
+bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>&);
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

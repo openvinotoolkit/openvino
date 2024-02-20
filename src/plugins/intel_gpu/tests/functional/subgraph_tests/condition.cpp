@@ -6,7 +6,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/reduce.hpp"
 
 #include "openvino/op/parameter.hpp"

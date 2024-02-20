@@ -5,7 +5,6 @@
 #include "shared_test_classes/subgraph/quantized_group_convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {

@@ -7,7 +7,7 @@
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "shared_test_classes/single_op/rnn_sequence.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
@@ -131,10 +131,10 @@ void RNNSequenceTest::SetUp() {
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
         manager.run_passes(function);
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, true);
     } else {
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
     }
 }
