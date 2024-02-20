@@ -207,11 +207,11 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                 // If there is a RankNormalization op after a parameter - we should skip it
                 if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
                     consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
-                // TODO: Add validation pass after control flow pipeline that all consumers have the same layout
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
                         desc = child_input.get_descriptor_ptr();
+                        break;
                     }
                 }
                 etype = expr->get_node()->get_output_element_type(0);
@@ -225,13 +225,8 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                 OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
-        const auto& shape = desc->get_shape();
-        const auto& layout = desc->get_layout();
-        OV_CPU_JIT_EMITTER_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
-        const auto max_dim = *std::max_element(layout.begin(), layout.end());
-        OV_CPU_JIT_EMITTER_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
-        io_shapes.push_back(shape);
-        io_data_layouts.push_back(layout);
+        io_shapes.push_back(desc->get_shape());
+        io_data_layouts.push_back(desc->get_layout());
         io_data_sizes.push_back(etype.size());
     }
     // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)

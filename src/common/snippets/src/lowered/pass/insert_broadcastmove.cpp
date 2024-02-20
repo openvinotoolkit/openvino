@@ -32,17 +32,19 @@ bool InsertBroadcastMove::is_broadcasting_needed(const std::shared_ptr<ov::Node>
 }
 
 std::vector<size_t> InsertBroadcastMove::get_last_dims(const ExpressionPtr& expr) {
-    const auto descriptors = expr->get_input_port_descriptors();
+    const auto& descriptors = expr->get_input_port_descriptors();
     std::vector<size_t> last_dims(descriptors.size());
-    std::transform(descriptors.begin(), descriptors.end(), last_dims.begin(), [](const std::shared_ptr<PortDescriptor>& d){ return d->get_shape().back(); });
+    std::transform(descriptors.begin(), descriptors.end(), last_dims.begin(),
+                   [](const std::shared_ptr<PortDescriptor>& d){
+                        return d->get_shape().size() > 0 ? d->get_shape().back() : 1; });
     return last_dims;
 }
 
-size_t InsertBroadcastMove::get_broadcast_dim(const std::vector<size_t>& last_dims) {
+size_t InsertBroadcastMove::get_max_dim(const std::vector<size_t>& last_dims) {
     // Specially set 0 to distinguish it from scalar or dynamic value (it's max value)
     size_t broadcast_dim = 0;
     for (const auto& last_dim : last_dims) {
-        if (!utils::is_dynamic_vdim(last_dim) && last_dim > broadcast_dim)
+        if (!utils::is_dynamic_value(last_dim) && last_dim > broadcast_dim)
             broadcast_dim = last_dim;
     }
     return broadcast_dim;
@@ -59,15 +61,15 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir, lowered::LinearIR::constExprI
             continue;
 
         const auto last_dims = get_last_dims(expr);
-        const auto broadcasted_dim = get_broadcast_dim(last_dims);
-        if (broadcasted_dim == 0 || utils::is_dynamic_vdim(broadcasted_dim))
+        const auto broadcasted_dim = get_max_dim(last_dims);
+        if (broadcasted_dim == 0)
             continue;
 
         for (size_t i = 0; i < last_dims.size(); i++) {
             const auto& input = expr->get_input_port_connector(i);
             const auto& parent_port = input->get_source();
 
-            if (!utils::is_dynamic_vdim(last_dims[i]) && last_dims[i] != broadcasted_dim && is_broadcasting_needed(parent_port.get_expr()->get_node())) {
+            if (!utils::is_dynamic_value(last_dims[i]) && last_dims[i] != broadcasted_dim && is_broadcasting_needed(parent_port.get_expr()->get_node())) {
                 OPENVINO_ASSERT(last_dims[i] == 1,
                                 "Attempt to broadcast non-1 dimension. Target dim: ", broadcasted_dim, " This dim: ", last_dims[i]);
                 const auto broadcast = std::make_shared<op::BroadcastMove>(node->get_input_source_output(i), broadcasted_dim);

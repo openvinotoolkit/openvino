@@ -55,12 +55,18 @@ inline T div_up(const T a, const U b) {
     return static_cast<T>((a + b - 1) / b);
 }
 
-inline bool is_dynamic_vdim(const VectorDims::value_type& dim) {
-    return dim == IShapeInferSnippets::DYNAMIC_DIMENSION;
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline T get_dynamic_value() {
+    return std::numeric_limits<T>::max();
+}
+
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline bool is_dynamic_value(T value) {
+    return value == get_dynamic_value<T>();
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
-    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_vdim(v); });
+    return std::any_of(shape.cbegin(), shape.cend(), [](size_t v){ return is_dynamic_value(v); });
 }
 
 void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2);

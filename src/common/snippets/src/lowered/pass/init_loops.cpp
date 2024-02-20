@@ -21,8 +21,8 @@ namespace {
 inline int64_t get_stride(size_t dim, const VectorDims& shape) {
     int64_t stride = 1;
     for (size_t i = dim + 1; i < shape.size(); ++i) {
-        if (utils::is_dynamic_vdim(shape[i])) {
-            return LoopPort::DYNAMIC_VALUE;
+        if (utils::is_dynamic_value(shape[i])) {
+            return utils::get_dynamic_value<int64_t>();
         }
         stride *= static_cast<int64_t>(shape[i]);
     }
@@ -51,8 +51,8 @@ inline void init_ptr_increment(LoopPort& loop_port, size_t work_amount) {
         OPENVINO_THROW("Unsupported expression port type!");
     }
     // When we cannot say about broadcasting by last dim
-    if (dim == shape.size() - 1 && utils::is_dynamic_vdim(shape.back())) {
-        loop_port.ptr_increment = LoopPort::DYNAMIC_VALUE;
+    if (dim == shape.size() - 1 && utils::is_dynamic_value(shape.back())) {
+        loop_port.ptr_increment = utils::get_dynamic_value<int64_t>();
     } else if (!(shape[dim] == 1 && work_amount != 1)) {
         loop_port.ptr_increment = get_stride(dim, shape);
     }
@@ -60,8 +60,8 @@ inline void init_ptr_increment(LoopPort& loop_port, size_t work_amount) {
 
 inline void init_finalization_offset(LoopPort& loop_port, size_t work_amount) {
     loop_port.finalization_offset =
-        utils::is_dynamic_vdim(work_amount) || LoopPort::is_dynamic_value(loop_port.ptr_increment) ? LoopPort::DYNAMIC_VALUE
-                                                                                                   : -1 * loop_port.ptr_increment * work_amount;
+        utils::is_dynamic_value(work_amount) || utils::is_dynamic_value(loop_port.ptr_increment) ? utils::get_dynamic_value<int64_t>()
+                                                                                                 : -1 * loop_port.ptr_increment * work_amount;
 }
 
 inline void init_data_size(LoopPort& loop_port) {
@@ -76,9 +76,6 @@ inline void init_data_size(LoopPort& loop_port) {
 }
 
 inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-    if (!utils::is_dynamic_vdim(loop_info->get_work_amount()))
-        return;
-
     size_t work_amount = 1;
     for (const auto& loop_port : loop_info->get_entry_points()) {
         if (loop_port.is_incremented) {
@@ -101,7 +98,8 @@ inline void init_work_amount(const LinearIR::LoopManager::LoopInfoPtr& loop_info
 }  // namespace
 
 void InitLoops::init_loop_info(const LinearIR::LoopManager::LoopInfoPtr& loop_info, bool only_runtime_args) {
-    init_work_amount(loop_info);
+    if (utils::is_dynamic_value(loop_info->get_work_amount()))
+        init_work_amount(loop_info);
 
     const auto work_amount = loop_info->get_work_amount();
 

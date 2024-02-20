@@ -14,12 +14,12 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir, const ExpressionPtr& loop_end_expr) {
+bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR::LoopManagerPtr& loop_manager, const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
 
-    const auto loop_connectors = loop_end_expr->get_input_port_connectors();
+    const auto& loop_connectors = loop_end_expr->get_input_port_connectors();
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -79,11 +79,10 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
     if (resetting_data_indexes.empty())
         return false;
 
-    const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
 
-    // TODO: We have to update LoopEnd and LoopInfo since the both entityies must be valid.
-    //       To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
+    // TODO [74015]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
+    //               To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
     auto loop_entries = loop_info->get_entry_points();
     auto loop_exits = loop_info->get_exit_points();
     auto new_is_incremented = loop_end->get_is_incremented();
@@ -118,11 +117,12 @@ bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir, lowered::
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
     bool modified = false;
 
+    const auto& loop_manager = linear_ir.get_loop_manager();
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<op::LoopEnd>(node)) {
-            modified |= reuse_increments(linear_ir, expr);
+            modified |= reuse_increments(loop_manager, expr);
         }
     }
 

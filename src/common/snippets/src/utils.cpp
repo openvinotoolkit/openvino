@@ -102,9 +102,9 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
 }
 
 void broadcast_merge_dim(size_t& dst, const size_t& d1, const size_t& d2) {
-    if (d1 == d2 || d1 == 1 || utils::is_dynamic_vdim(d2)) {
+    if (d1 == d2 || d1 == 1 || is_dynamic_value(d2)) {
         dst = d2;
-    } else if (d2 == 1 || utils::is_dynamic_vdim(d1)) {
+    } else if (d2 == 1 || is_dynamic_value(d1)) {
         dst = d1;
     } else {
         OPENVINO_THROW("Failed to broadcast dims: ", d1, " and ", d2);
@@ -115,7 +115,7 @@ VectorDims pshape_to_vdims(const PartialShape& pshape) {
     VectorDims result;
     result.reserve(pshape.size());
     for (const auto& d : pshape)
-        result.push_back(d.is_dynamic() ? IShapeInferSnippets::DYNAMIC_DIMENSION : d.get_length());
+        result.push_back(d.is_dynamic() ? get_dynamic_value<VectorDims::value_type>() : d.get_length());
     // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in Snippets
     return result.empty() ? VectorDims {1} : result;
 }
@@ -124,9 +124,8 @@ ov::PartialShape vdims_to_pshape(const VectorDims& vdims) {
     ov::PartialShape result;
     result.reserve(vdims.size());
     for (const auto& v : vdims)
-        result.push_back(v != IShapeInferSnippets::DYNAMIC_DIMENSION ?
-                         Dimension(static_cast<Dimension::value_type>(v)) :
-                         Dimension());
+        result.push_back(!is_dynamic_value(v) ? Dimension(static_cast<Dimension::value_type>(v))
+                                              : Dimension());
     return result;
 }
 

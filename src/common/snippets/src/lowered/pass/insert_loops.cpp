@@ -82,15 +82,14 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
 }
 
 bool InsertLoops::is_loop_dynamic(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
-    if (utils::is_dynamic_vdim(loop_info->get_work_amount()))
-        return true;
+    auto is_loop_port_dynamic = [](const LinearIR::LoopManager::LoopPort& port) {
+        return port.is_dynamic();
+    };
     const auto& entry_points = loop_info->get_entry_points();
     const auto& exit_points = loop_info->get_exit_points();
-    if (std::any_of(entry_points.cbegin(), entry_points.cend(), [](const LinearIR::LoopManager::LoopPort& port) { return port.is_dynamic(); }))
-        return true;
-    if (std::any_of(exit_points.cbegin(), exit_points.cend(), [](const LinearIR::LoopManager::LoopPort& port) { return port.is_dynamic(); }))
-        return true;
-    return false;
+    return utils::is_dynamic_value(loop_info->get_work_amount()) ||
+           std::any_of(entry_points.cbegin(), entry_points.cend(), is_loop_port_dynamic) ||
+           std::any_of(exit_points.cbegin(), exit_points.cend(), is_loop_port_dynamic);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {

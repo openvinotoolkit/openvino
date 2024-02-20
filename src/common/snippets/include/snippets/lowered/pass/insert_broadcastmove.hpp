@@ -25,7 +25,7 @@ private:
     static bool is_broadcasting_supported(const std::shared_ptr<ov::Node>& n);
     static bool is_broadcasting_needed(const std::shared_ptr<ov::Node>& n);
     static std::vector<size_t> get_last_dims(const ExpressionPtr& expr);
-    static size_t get_broadcast_dim(const std::vector<size_t>& last_dims);
+    static size_t get_max_dim(const std::vector<size_t>& last_dims);
 };
 
 } // namespace pass

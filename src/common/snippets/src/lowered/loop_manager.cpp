@@ -206,7 +206,7 @@ bool operator<(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopM
 }
 
 bool LinearIR::LoopManager::LoopPort::is_dynamic() const {
-    return is_dynamic_value(ptr_increment) || is_dynamic_value(finalization_offset);
+    return utils::is_dynamic_value(ptr_increment) || utils::is_dynamic_value(finalization_offset);
 }
 
 std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExpressionMap& expr_map) const {

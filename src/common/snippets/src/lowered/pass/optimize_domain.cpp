@@ -116,7 +116,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                         io_expr;
             const auto& shape = utils::get_preordered_vdims(shape_producing_expr->get_output_port(0));
             OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
-                                        [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
+                                        [](size_t d) { return utils::is_dynamic_value(d); }),
                             "OptimizeDomain pass does not support dynamic shapes");
             input_shapes.emplace_back(shape);
         }
