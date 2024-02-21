@@ -102,11 +102,11 @@ int main(int argc, char* argv[]) {
     ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
-    ov::test::conformance::targetDevice = FLAGS_device.c_str();
+    ov::test::utils::target_device = FLAGS_device.c_str();
     ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
-        ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
+        ov::test::utils::target_plugin_name = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_config_path.empty()) {
         ov::test::utils::global_plugin_config = ov::test::conformance::read_plugin_config(FLAGS_config_path);

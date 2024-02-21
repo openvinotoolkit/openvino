@@ -18,7 +18,14 @@ namespace utils {
 
 ov::AnyMap global_plugin_config = {};
 std::unordered_set<std::string> available_devices = {};
+std::string target_device = "";
+std::string target_plugin_name = "";
 
+void register_plugin(ov::Core& ov_core) noexcept {
+    if (!target_plugin_name.empty()) {
+        ov_core.register_plugin(target_plugin_name, target_device);
+    }
+}
 
 void register_template_plugin(ov::Core& ov_core) noexcept {
     auto plugin_path =
@@ -28,42 +35,42 @@ void register_template_plugin(ov::Core& ov_core) noexcept {
         OPENVINO_THROW("Plugin: " + plugin_path + " does not exists!");
     }
     ov_core.register_plugin(plugin_path, ov::test::utils::DEVICE_TEMPLATE);
-    if (!available_devices.count(ov::test::utils::DEVICE_TEMPLATE)) {
-        available_devices.insert(ov::test::utils::DEVICE_TEMPLATE);
-    }
 }
 
-ov::Core create_core(const std::string& target_device) {
+ov::Core create_core(const std::string& in_target_device) {
     ov::Core ov_core;
+    // Register Template plugin as a reference provider
+    register_plugin(ov_core);
+    register_template_plugin(ov_core);
+
     if (available_devices.empty()) {
         const auto core_devices = ov_core.get_available_devices();
         available_devices.insert(core_devices.begin(), core_devices.end());
     }
-    // Register Template plugin as a reference provider
-    register_template_plugin(ov_core);
 
-    if (!available_devices.count(target_device)) {
+    if (!available_devices.count(target_device) && !in_target_device.empty()) {
 #ifndef NDEBUG
         std::cout << "Available devices :" << std::endl;
         for (const auto& device : available_devices) {
             std::cout << "    " << device << std::endl;
         }
 #endif
-        OPENVINO_THROW("No available devices for " + target_device);
+        OPENVINO_THROW("No available devices for " + in_target_device);
     }
 
     if (!global_plugin_config.empty()) {
-        if (target_device.empty()) {
+        if (in_target_device.empty()) {
             ov_core.set_property(global_plugin_config);
         } else {
             const auto& supported_properties = ov_core.get_property(target_device, ov::supported_properties);
             for (auto& property : global_plugin_config) {
-                if (std::find(supported_properties.begin(), supported_properties.end(), property.first) == supported_properties.end()) {
+                if (std::find(supported_properties.begin(), supported_properties.end(), property.first) ==
+                    supported_properties.end()) {
                     OPENVINO_THROW("Property " + property.first +
                                    ", which was tryed to set in --config file, is not supported by " + target_device);
                 }
             }
-            ov_core.set_property(target_device, global_plugin_config);
+            ov_core.set_property(in_target_device, global_plugin_config);
         }
     }
     return ov_core;

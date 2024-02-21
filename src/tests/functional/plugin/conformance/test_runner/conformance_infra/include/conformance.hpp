@@ -16,8 +16,6 @@
 namespace ov {
 namespace test {
 namespace conformance {
-extern const char* targetDevice;
-extern const char *targetPluginName;
 extern const char* refCachePath;
 
 extern std::vector<std::string> IRFolderPaths;

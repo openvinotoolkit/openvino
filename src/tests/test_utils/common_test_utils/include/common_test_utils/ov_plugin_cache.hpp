@@ -17,14 +17,17 @@ namespace utils {
 
 // global plugin config is set up for conformance
 extern ov::AnyMap global_plugin_config;
+extern std::string target_device;
+extern std::string target_plugin_name;
 extern std::unordered_set<std::string> available_devices;
 
+void register_plugin(ov::Core& ov_core) noexcept;
 void register_template_plugin(ov::Core& ov_core) noexcept;
-ov::Core create_core(const std::string& target_device = "");
+ov::Core create_core(const std::string& in_target_device = target_device);
 
 class PluginCache {
 public:
-    std::shared_ptr<ov::Core> core(const std::string& target_device = "");
+    std::shared_ptr<ov::Core> core(const std::string& in_target_device = target_device);
 
     static PluginCache& get();
     void reset();
