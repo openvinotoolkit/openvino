@@ -1,7 +1,8 @@
 # End-to-end Tests User Documentation
 
-This folder contains E2E test framework code, E2E tests and related materials
-(reference outputs, test data, etc.)
+This folder contains a code to run end-to-end validation of OpenVINO on real models of different frameworks (PyTorch, TensorFlow, and ONNX). Validation steps include conversion of a real model to `ov::Model`, model inference on data samples using OpenVINO, and comparison inference results with a reference results from original framework.
+
+The documentation provides necessary information about environment setup for e2e validation run, adding new model to the validation, and instructions to launch validation. 
 
 ## Basic scripts
 
