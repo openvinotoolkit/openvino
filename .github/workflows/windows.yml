@@ -913,7 +913,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 120
+    timeout-minutes: 90
     defaults:
       run:
         shell: pwsh
