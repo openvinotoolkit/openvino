@@ -49,7 +49,8 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
         jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
     } else {
         const std::string type_str = ovElementTypeToOCLStr(type);
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* " + name + "_buffer_ptr,"));
+        jit.AddConstant(
+            MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* restrict " + name + "_buffer_ptr,"));
     }
 
     if (param_available_now && axes_available_now) {
@@ -161,7 +162,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
 
     if (params.compile_time_axes.empty()) {
         const std::string type_str = ovElementTypeToOCLStr(params.axes_data_type);
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* axes_ptr,"));
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* restrict axes_ptr,"));
         jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_VAL(IDX)",
                                         "axes_ptr[IDX] < 0 ? INPUT0_DIMS + axes_ptr[IDX] : axes_ptr[IDX]"));
     } else {
