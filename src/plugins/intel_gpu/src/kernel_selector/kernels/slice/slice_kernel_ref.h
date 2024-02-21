@@ -12,9 +12,9 @@ namespace kernel_selector {
 struct slice_params: public base_params {
     slice_params() : base_params(KernelType::SLICE) {}
 
-    std::vector<std::int32_t> compile_time_start;
-    std::vector<std::int32_t> compile_time_step;
-    std::vector<std::int32_t> compile_time_axes;
+    std::vector<std::int64_t> compile_time_start;
+    std::vector<std::int64_t> compile_time_step;
+    std::vector<std::int64_t> compile_time_axes;
     ov::element::Type_t start_data_type;
     ov::element::Type_t step_data_type;
     ov::element::Type_t axes_data_type;

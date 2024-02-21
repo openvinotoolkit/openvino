@@ -16,18 +16,18 @@ namespace ocl {
 
 namespace {
 template <typename T, class = typename std::enable_if<std::is_integral<T>::value>::type>
-std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
+std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
     mem_lock<T> lock{node.get_attached_memory_ptr(), stream};
     T* data = lock.data();
-    std::vector<std::int32_t> integer_data;
+    std::vector<std::int64_t> integer_data;
     integer_data.reserve(node.get_output_layout().count());
     for (size_t i = 0; i < node.get_output_layout().count(); i++) {
-        integer_data.emplace_back(static_cast<std::int32_t>(data[i]));
+        integer_data.emplace_back(static_cast<std::int64_t>(data[i]));
     }
     return integer_data;
 }
 
-std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
+std::vector<std::int64_t> extractIntegerData(const data_node& node, const stream& stream) {
     auto dt = node.get_output_layout().data_type;
     switch (dt) {
     case data_types::u8:
@@ -120,7 +120,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
         // Transform compile time axes:
         for (size_t axis = 0; axis < params.compile_time_axes.size(); ++axis) {
-            const auto transformed_axe = params.compile_time_axes[axis] < 0
+            const int64_t transformed_axe = params.compile_time_axes[axis] < 0
                                              ? input_rank + params.compile_time_axes[axis]
                                              : params.compile_time_axes[axis];
             params.compile_time_axes[axis] = transformed_axe;
@@ -141,7 +141,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 private:
     static bool PrepareInput(const slice_node& arg,
                              SliceKernelRefNeededInputs::InputIndices idx,
-                             std::vector<std::int32_t>& out_compile_time_buff,
+                             std::vector<std::int64_t>& out_compile_time_buff,
                              ov::element::Type_t& out_buff_data_type,
                              kernel_selector::MultiDataTensor& out_runtime_inputs) {
         const stream& stream = arg.get_program().get_stream();

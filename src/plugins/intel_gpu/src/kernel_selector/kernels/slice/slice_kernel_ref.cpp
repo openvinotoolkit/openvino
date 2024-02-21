@@ -37,8 +37,8 @@ std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 // - name_DIM0, name_DIM1 ...
 void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              const std::string& name,
-                             const std::vector<std::int32_t>& compile_time_param,
-                             const std::vector<std::int32_t>& compile_time_axes,
+                             const std::vector<std::int64_t>& compile_time_param,
+                             const std::vector<std::int64_t>& compile_time_axes,
                              ov::element::Type_t type) {
     using namespace kernel_selector;
 
