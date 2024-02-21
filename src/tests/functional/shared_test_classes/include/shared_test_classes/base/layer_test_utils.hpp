@@ -15,7 +15,6 @@
 #include "functional_test_utils/summary/environment.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/type/bfloat16.hpp"
-#include "ov_models/pass/convert_prc.hpp"
 
 namespace LayerTestsUtils {
 
