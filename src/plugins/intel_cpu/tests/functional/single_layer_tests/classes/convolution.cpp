@@ -7,9 +7,13 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
+#include <chrono>
 
 using namespace CPUTestUtils;
 using namespace ov::intel_cpu;
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace ov {
 namespace test {
@@ -136,6 +140,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
 }
 
 void ConvolutionLayerCPUTest::SetUp() {
+    auto start_time = Time::now();
     rel_threshold = 1e-4f;
 
     convLayerTestParamsSet basicParamsSet;
@@ -182,6 +187,8 @@ void ConvolutionLayerCPUTest::SetUp() {
                                                             padEnd, dilation, padType, convOutChannels);
 
     function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");
+    auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest SetUp cost time " << duration << " ms" << std::endl;
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
@@ -194,7 +201,7 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
             GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
         }
     }
-
+    auto start_time_1 = Time::now();
     if (!priority.empty()) {
         // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].
         // This convolution test code has already covered brgconv avx2 primitive.
@@ -230,6 +237,9 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         }
     }
 
+    auto duration_1 = std::chrono::duration_cast<ns>(Time::now() - start_time_1).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs 1 cost time " << duration_1 << " ms" << std::endl;
+
 // FIXME: ACL output shape check fails if kernel, stride and padding equal to 1
 // CpuGemm::validate checks that 2nd and 3rd dimention of the input and output shapes are equal and fails (ticket 114201)
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
@@ -239,12 +249,17 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
         GTEST_SKIP() << "Disabled test due to output shape check failed" << std::endl;
     }
 #endif
+    auto start_time_2 = Time::now();
     run();
-
+    auto duration_2 = std::chrono::duration_cast<ns>(Time::now() - start_time_2).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs 2 cost time " << duration_2 << " ms" << std::endl;
+    auto start_time_3 = Time::now();
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
     CheckPluginRelatedResults(compiledModel, "Convolution");
+    auto duration_3 = std::chrono::duration_cast<ns>(Time::now() - start_time_3).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs 3 cost time " << duration_3 << " ms" << std::endl;
 }
 
 const ov::Shape& numOutChannels() {

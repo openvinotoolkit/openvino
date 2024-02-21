@@ -8,6 +8,7 @@
 
 #include <fstream>
 #include <thread>
+#include <chrono>
 
 #ifdef _WIN32
 #include <process.h>
@@ -34,6 +35,8 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace ov {
 namespace test {
@@ -44,6 +47,7 @@ std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
 }
 
 void SubgraphBaseTest::run() {
+    auto start_time = Time::now();
     is_reported = true;
     bool isCurrentTestDisabled = ov::test::utils::current_test_is_disabled();
 
@@ -53,13 +57,20 @@ void SubgraphBaseTest::run() {
     summary.setDeviceName(targetDevice);
     summary.updateOPsStats(function, status, rel_influence_coef);
 
+    auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest run 1 cost time " << duration << " ms" << std::endl;
+
+    auto start_time_2 = Time::now();
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
 
     // in case of crash jump will be made and work will be continued
     auto crashHandler = std::unique_ptr<ov::test::utils::CrashHandler>(new ov::test::utils::CrashHandler());
+    auto duration_2 = std::chrono::duration_cast<ns>(Time::now() - start_time_2).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest run 2 cost time " << duration_2 << " ms" << std::endl;
 
     // place to jump in case of a crash
+    auto start_time_3 = Time::now();
     int jmpRes = 0;
 #ifdef _WIN32
     jmpRes = setjmp(ov::test::utils::env);
@@ -95,6 +106,8 @@ void SubgraphBaseTest::run() {
         summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
+    auto duration_3 = std::chrono::duration_cast<ns>(Time::now() - start_time_3).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest run 3 cost time " << duration_3 << " ms" << std::endl;
 }
 
 void SubgraphBaseTest::serialize() {
