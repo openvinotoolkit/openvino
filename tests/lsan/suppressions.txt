@@ -38,3 +38,4 @@ leak:_pywrap_tensorflow_internal.so
 leak:site-packages/google/protobuf
 leak:thirdparty/protobuf
 leak:thirdparty/protobuf/protobuf
+leak:thirdparty/gtest
