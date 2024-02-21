@@ -13,12 +13,12 @@ public:
     RMSKernelBfyxOpt() : RMSKernelBase("rms_gpu_bfyx_opt") {}
     virtual ~RMSKernelBfyxOpt() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     DispatchData SetDefault(const rms_params& params) const override;
     JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;
     const size_t vec_size = 8;

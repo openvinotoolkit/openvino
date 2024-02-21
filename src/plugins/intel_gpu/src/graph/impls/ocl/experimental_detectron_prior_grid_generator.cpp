@@ -16,8 +16,7 @@ struct experimental_detectron_prior_grid_generator_impl
     using parent = typed_primitive_impl_ocl<experimental_detectron_prior_grid_generator>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::experimental_detectron_prior_grid_generator_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_prior_grid_generator_params,
-                                      kernel_selector::experimental_detectron_prior_grid_generator_optional_params>;
+    using kernel_params_t = kernel_selector::experimental_detectron_prior_grid_generator_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_prior_grid_generator_impl)
 
@@ -35,10 +34,7 @@ struct experimental_detectron_prior_grid_generator_impl
         params.step_x = primitive->stride_x ? primitive->stride_x : static_cast<float>(primitive->image_width) / params.layer_width;
         params.step_y = primitive->stride_y ? primitive->stride_y : static_cast<float>(primitive->image_height) / params.layer_height;
 
-        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_prior_grid_generator_optional_params>(
-                impl_param.get_program());
-
-        return {params, optional_params};
+        return params;
     }
 };
 
