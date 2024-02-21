@@ -193,6 +193,7 @@ INSTANTIATE_TEST_SUITE_P(
                       Shape{},
                       Shape{},
                       Shape{3},
+                      op::RoundingType::FLOOR,
                       op::PadType::EXPLICIT,
                       2),
         MaxPoolParams(Shape{1, 1, 9},
@@ -450,7 +451,7 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const MaxPoolParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
-        const auto max_pool = std::make_shared<op::v8::MaxPool>(in,
+        const auto max_pool = std::make_shared<op::v14::MaxPool>(in,
                                                                 params.m_strides,
                                                                 params.m_dilations,
                                                                 params.m_pads_begin,
@@ -678,19 +679,6 @@ INSTANTIATE_TEST_SUITE_P(
                       element::i32,
                       std::vector<int32_t>{0,  -2, 24, 13, 7,  -5, -4, 4, 21, -18, 81, 20, -15,
                                            37, 23, 41, 18, 42, 8,  32, 9, 57, 58,  29, 3},
-                      std::vector<int32_t>{0, 24, 21, 81, 42, 37, 57, 58, 32},
-                      element::i32,
-                      std::vector<int32_t>{0, 2, 8, 10, 17, 13, 21, 22, 19},
-                      Strides{2, 2},  // strides: 2x2
-                      Strides{1, 1},
-                      Shape{1, 1},  // pads_begin: 1x1
-                      Shape{1, 1},  // pads_end: 1x1
-                      Shape{3, 3},
-                      ov::op::RoundingType::CEIL),
-        MaxPoolParams(Shape{1, 1, 5, 5},
-                      element::i32,
-                      std::vector<int32_t>{0,  -2, 24, 13, 7,  -5, -4, 4, 21, -18, 81, 20, -15,
-                                           37, 23, 41, 18, 42, 8,  32, 9, 57, 58,  29, 3},
                       std::vector<int32_t>{81, 37, 81, 58, 58, 58},
                       element::i32,
                       std::vector<int32_t>{10, 13, 10, 22, 22, 22},
@@ -698,6 +686,19 @@ INSTANTIATE_TEST_SUITE_P(
                       Strides{1, 1},
                       Shape{},
                       Shape{2, 1},  // pads_end: 2x1
+                      Shape{3, 3},
+                      ov::op::RoundingType::FLOOR),
+        MaxPoolParams(Shape{1, 1, 5, 5},
+                      element::i32,
+                      std::vector<int32_t>{0,  -2, 24, 13, 7,  -5, -4, 4, 21, -18, 81, 20, -15,
+                                           37, 23, 41, 18, 42, 8,  32, 9, 57, 58,  29, 3},
+                      std::vector<int32_t>{0, 24, 21, 81, 42, 37, 57, 58, 32},
+                      element::i32,
+                      std::vector<int32_t>{0, 2, 8, 10, 17, 13, 21, 22, 19},
+                      Strides{2, 2},  // strides: 2x2
+                      Strides{1, 1},
+                      Shape{1, 1},  // pads_begin: 1x1
+                      Shape{1, 1},  // pads_end: 1x1
                       Shape{3, 3},
                       ov::op::RoundingType::CEIL),
         MaxPoolParams(Shape{1, 2, 3, 3},

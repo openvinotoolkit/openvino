@@ -122,7 +122,7 @@ std::vector<T> getContinuousIncreasingValue(size_t elementSize, float step) {
 }
 
 template <element::Type_t IN_ET>
-std::vector<AvgPoolParams> generateParamsForAvgPool() {
+std::vector<AvgPoolParams> generateParamsForAvgPoolV1() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<AvgPoolParams> params{
@@ -273,10 +273,10 @@ std::vector<AvgPoolParams> generateParamsForAvgPool() {
     return params;
 }
 
-std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
-    const std::vector<std::vector<AvgPoolParams>> allTypeParams{generateParamsForAvgPool<element::Type_t::f32>(),
-                                                                generateParamsForAvgPool<element::Type_t::f16>(),
-                                                                generateParamsForAvgPool<element::Type_t::bf16>()};
+std::vector<AvgPoolParams> generateCombinedParamsForAvgPoolV1() {
+    const std::vector<std::vector<AvgPoolParams>> allTypeParams{generateParamsForAvgPoolV1<element::Type_t::f32>(),
+                                                                generateParamsForAvgPoolV1<element::Type_t::f16>(),
+                                                                generateParamsForAvgPoolV1<element::Type_t::bf16>()};
 
     std::vector<AvgPoolParams> combinedParams;
 
@@ -288,9 +288,9 @@ std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_With_Hardcoded_Refs,
-                         ReferenceAvgPoolLayerTestV14,
-                         ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
-                         ReferenceAvgPoolLayerTestV14::getTestCaseName);
+                         ReferenceAvgPoolLayerTestV1,
+                         ::testing::ValuesIn(generateCombinedParamsForAvgPoolV1()),
+                         ReferenceAvgPoolLayerTestV1::getTestCaseName);
 
 class ReferenceAvgPoolLayerTestV14 : public testing::TestWithParam<AvgPoolParams>, public CommonReferenceTest {
 public:
@@ -333,14 +333,14 @@ private:
                                                  const op::RoundingType rounding_type,
                                                  const op::PadType pad_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
-        const auto avgPool = std::make_shared<op::v1::AvgPool>(in,
-                                                               strides,
-                                                               pads_begin,
-                                                               pads_end,
-                                                               kernel,
-                                                               exclude_pad,
-                                                               rounding_type,
-                                                               pad_type);
+        const auto avgPool = std::make_shared<op::v14::AvgPool>(in,
+                                                                strides,
+                                                                pads_begin,
+                                                                pads_end,
+                                                                kernel,
+                                                                exclude_pad,
+                                                                rounding_type,
+                                                                pad_type);
         return std::make_shared<Model>(NodeVector{avgPool}, ParameterVector{in});
     }
 };
@@ -349,15 +349,8 @@ TEST_P(ReferenceAvgPoolLayerTestV14, AvgPoolWithHardcodedRefs) {
     Exec();
 }
 
-template <typename T>
-std::vector<T> getContinuousIncreasingValue(size_t elementSize, float step) {
-    std::vector<T> a(elementSize);
-    std::iota(std::begin(a), std::end(a), step);
-    return a;
-}
-
 template <element::Type_t IN_ET>
-std::vector<AvgPoolParams> generateParamsForAvgPool() {
+std::vector<AvgPoolParams> generateParamsForAvgPoolV14() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<AvgPoolParams> params{
@@ -518,26 +511,27 @@ std::vector<AvgPoolParams> generateParamsForAvgPool() {
                       op::RoundingType::CEIL_TORCH,
                       op::PadType::VALID),
         AvgPoolParams(ov::Shape{1, 1, 3, 3},
-                      ov::Shape{1, 1, 3, 3},
+                      ov::Shape{1, 1, 2, 2},
                       IN_ET,
                       IN_ET,
                       getContinuousIncreasingValue<T>(1 * 1 * 3 * 3, 1),
-                      std::vector<T>{1.0f, 2.5f, 0, 5.5f, 7.0f, 0, 0, 0, 0},
+                      //std::vector<T>{1.0f, 2.5f, 0, 5.5f, 7.0f, 0, 0},
+                      std::vector<T>{0, 1.0f, 2, 7.0f},
                       Strides{2, 2},
                       Shape{1, 1},
                       Shape{1, 1},
                       Shape{2, 2},
                       true,
                       op::RoundingType::CEIL_TORCH,
-                      op::PadType::NOTSET),
+                      op::PadType::EXPLICIT),
     };
     return params;
 }
 
-std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
-    const std::vector<std::vector<AvgPoolParams>> allTypeParams{generateParamsForAvgPool<element::Type_t::f32>(),
-                                                                generateParamsForAvgPool<element::Type_t::f16>(),
-                                                                generateParamsForAvgPool<element::Type_t::bf16>()};
+std::vector<AvgPoolParams> generateCombinedParamsForAvgPoolV14() {
+    const std::vector<std::vector<AvgPoolParams>> allTypeParams{generateParamsForAvgPoolV14<element::Type_t::f32>(),
+                                                                generateParamsForAvgPoolV14<element::Type_t::f16>(),
+                                                                generateParamsForAvgPoolV14<element::Type_t::bf16>()};
 
     std::vector<AvgPoolParams> combinedParams;
 
@@ -550,6 +544,6 @@ std::vector<AvgPoolParams> generateCombinedParamsForAvgPool() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_With_Hardcoded_Refs,
                          ReferenceAvgPoolLayerTestV14,
-                         ::testing::ValuesIn(generateCombinedParamsForAvgPool()),
+                         ::testing::ValuesIn(generateCombinedParamsForAvgPoolV14()),
                          ReferenceAvgPoolLayerTestV14::getTestCaseName);
 }  // namespace
