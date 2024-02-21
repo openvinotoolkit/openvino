@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 
@@ -24,7 +25,7 @@ std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLay
     std::vector<int> axes;
     ov::test::utils::OpType opType;
     bool keepDims;
-    utils::ReductionType reductionType;
+    ov::test::utils::ReductionType reductionType;
     ElementType netPrecision, inPrc, outPrc;
     std::vector<InputShape> inputShapes;
 
@@ -145,7 +146,7 @@ void ReduceCPULayerTest::generate_inputs(const std::vector<ov::Shape>& targetInp
     for (size_t i = 0; i < funcInputs.size(); ++i) {
         const auto& funcInput = funcInputs[i];
         ov::Tensor tensor;
-        if (reductionType == ngraph::helpers::ReductionType::Prod) {
+        if (reductionType == ov::test::utils::ReductionType::Prod) {
             ov::test::utils::InputGenerateData in_data;
             in_data.start_from = 5;
             in_data.range = 10;
@@ -224,15 +225,15 @@ const std::vector<ov::test::utils::OpType>& opTypes() {
     return opTypes;
 }
 
-const std::vector<utils::ReductionType>& reductionTypes() {
-    static const std::vector<utils::ReductionType> reductionTypes = {
-            utils::ReductionType::Mean,
-            utils::ReductionType::Max,
-            utils::ReductionType::Sum,
-            utils::ReductionType::Min,
-            utils::ReductionType::Prod,
-            utils::ReductionType::L1,
-            utils::ReductionType::L2,
+const std::vector<ov::test::utils::ReductionType>& reductionTypes() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypes = {
+            ov::test::utils::ReductionType::Mean,
+            ov::test::utils::ReductionType::Max,
+            ov::test::utils::ReductionType::Sum,
+            ov::test::utils::ReductionType::Min,
+            ov::test::utils::ReductionType::Prod,
+            ov::test::utils::ReductionType::L1,
+            ov::test::utils::ReductionType::L2,
     };
     return reductionTypes;
 }
@@ -261,12 +262,12 @@ const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32
     return additionalConfig;
 }
 
-const std::vector<utils::ReductionType>& reductionTypesInt32() {
-    static const std::vector<utils::ReductionType> reductionTypesInt32 = {
-            utils::ReductionType::Sum,
-            utils::ReductionType::Min,
-            utils::ReductionType::Max,
-            utils::ReductionType::L1,
+const std::vector<ov::test::utils::ReductionType>& reductionTypesInt32() {
+    static const std::vector<ov::test::utils::ReductionType> reductionTypesInt32 = {
+            ov::test::utils::ReductionType::Sum,
+            ov::test::utils::ReductionType::Min,
+            ov::test::utils::ReductionType::Max,
+            ov::test::utils::ReductionType::L1,
     };
     return reductionTypesInt32;
 }

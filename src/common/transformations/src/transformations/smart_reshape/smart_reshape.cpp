@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/smart_reshape/broadcast_const_range_replacement.hpp"
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
@@ -26,7 +27,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
     static_manager.register_pass<ov::pass::Proposal1Scales>();
     static_manager.register_pass<ov::pass::Proposal4Scales>();
-    static_manager.register_pass<ov::pass::SharedSqueeze>();
+    static_manager.register_pass<ov::pass::SharedOpOptimization>();
     static_manager.register_pass<ov::pass::SqueezeStridedSlice>();
     static_manager.register_pass<ov::pass::StridedSliceSqueeze>();
     static_manager.register_pass<ov::pass::ReshapeTo1D>();
