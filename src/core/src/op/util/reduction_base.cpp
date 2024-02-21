@@ -4,9 +4,9 @@
 
 #include "openvino/op/util/reduction_base.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "reduce_shape_inference.hpp"
-#include "validation_util.hpp"
 
 ov::op::util::ReductionBase::ReductionBase() = default;
 

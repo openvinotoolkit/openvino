@@ -11,13 +11,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestWhile(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
+        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
         return inputs_data
 
     def create_while_net(self, y_shape, data_type, lower_control_flow):
@@ -60,21 +60,21 @@ class TestWhile(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_while_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestWhileShapeVariant(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
+        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.float32)
         return inputs_data
 
     def create_while_net(self, y_shape, lower_control_flow):
@@ -120,21 +120,21 @@ class TestWhileShapeVariant(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_while_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestWhileWithNestedIf(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        assert 'y' in inputs_info, "Test error: inputs_info must contain `y`"
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        assert 'y:0' in inputs_info, "Test error: inputs_info must contain `y`"
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(1, 10, x_shape).astype(np.int32)
-        inputs_data['y'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
+        inputs_data['x:0'] = np.random.randint(1, 10, x_shape).astype(np.int32)
+        inputs_data['y:0'] = np.random.randint(-50, 50, y_shape).astype(np.int32)
         return inputs_data
 
     def create_while_with_nested_if_net(self, y_shape, data_type, lower_control_flow):
@@ -194,7 +194,7 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_with_nested_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                        use_new_frontend):
+                                        use_legacy_frontend):
         self._test(*self.create_while_with_nested_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

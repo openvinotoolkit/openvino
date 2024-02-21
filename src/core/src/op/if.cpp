@@ -9,9 +9,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/reference/if.hpp"
-#include "validation_util.hpp"
 
 ov::op::v8::If::If() : MultiSubGraphOp(2) {}
 

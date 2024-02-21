@@ -11,13 +11,14 @@
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 class Node::Impl {
 public:
     Impl() = delete;
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
+    Impl(const NodeProto& node_proto, Graph* graph)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
@@ -33,7 +34,7 @@ public:
         }
     }
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
+    Impl(const NodeProto& node_proto,
          Graph* graph,
          const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& subgraphs)
         : m_node_proto{&node_proto},
@@ -48,7 +49,7 @@ public:
     }
 
     const std::vector<Attribute>& attributes() const;
-    ov::OutputVector get_ng_inputs() const;
+    ov::OutputVector get_ov_inputs() const;
 
     const std::string& domain() const;
     const std::string& op_type() const;
@@ -87,13 +88,13 @@ public:
                                                                     T default_value,
                                                                     ov::element::Type type) const;
 
-    const ONNX_NAMESPACE::NodeProto& node_proto() const;
+    const NodeProto& node_proto() const;
     Graph* graph() const;
 
 private:
     Subgraph get_subgraph_from_attribute(const std::string& name) const;
 
-    const ONNX_NAMESPACE::NodeProto* m_node_proto;
+    const NodeProto* m_node_proto;
     std::string m_name;
     std::string m_domain;
     Graph* m_graph;
@@ -104,8 +105,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Subgraph>> m_subgraphs;
 };
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
+const NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
 Graph* Node::Impl::graph() const {
@@ -200,15 +200,13 @@ ov::Any Node::get_attribute_value(const std::string& name) const {
     return get_attribute(name).get_any();
 }
 
-ov::OutputVector Node::Impl::get_ng_inputs() const {
+ov::OutputVector Node::Impl::get_ov_inputs() const {
     ov::OutputVector result;
     for (const auto& name : m_node_proto->input()) {
         if (!name.empty()) {
             result.push_back(m_graph->get_ov_node_from_cache(name));
         } else {
-            OPENVINO_SUPPRESS_DEPRECATED_START
             result.push_back(std::make_shared<NullNode>()->output(0));
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
     }
     return result;
@@ -295,7 +293,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
                                         value);
 }
 
-Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
+Node::Node(const NodeProto& node_proto, Graph* graph)
     : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -307,8 +305,8 @@ Node::Node(const Node& other)
                   delete impl;
               }} {}
 
-ov::OutputVector Node::get_ng_inputs() const {
-    return m_pimpl->get_ng_inputs();
+ov::OutputVector Node::get_ov_inputs() const {
+    return m_pimpl->get_ov_inputs();
 }
 const std::string& Node::domain() const {
     return m_pimpl->domain();
@@ -377,7 +375,6 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     }
     return *found_attr;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {
@@ -638,6 +635,6 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
                                                                              std::move(type));
 }
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

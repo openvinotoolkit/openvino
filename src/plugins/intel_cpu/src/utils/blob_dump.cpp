@@ -3,7 +3,6 @@
 //
 
 #include "blob_dump.h"
-#include "blob_factory.hpp"
 #include <cpu_memory.h>
 #include "dnnl_extension_utils.h"
 #include <nodes/common/cpu_memcpy.h>

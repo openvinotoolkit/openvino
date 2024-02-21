@@ -312,7 +312,6 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 1, 0, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 48, 0, false, true},
     ConfigParams{false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
-    ConfigParams{false, 3, 5, false, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
     ConfigParams{true, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 48, 48, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 6, 6, false, true},
@@ -404,9 +403,6 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     config.insert(ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>()));
     config.insert({ov::hint::model_priority.name(), modelPriority.as<std::string>()});
 
-    if (isNewAPI) {
-        ON_CALL(*core.get(), is_new_api()).WillByDefault(Return(true));
-    }
     metaDevices.push_back({ov::test::utils::DEVICE_CPU,
                            {ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>())},
                            3,

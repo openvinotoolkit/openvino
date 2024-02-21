@@ -66,19 +66,14 @@ public:
 std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
                                             const std::string& layerID,
                                             const Params& params,
-                                            const optional_params& options,
                                             const size_t partID) const {
-    std::string kernelID = layerID;
-
-    if (kernelID.empty() || !options.meaningfulKernelsNames) {
-        kernelID = templateName;
-    }
+    std::string kernelID = templateName;
 
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
     std::replace(kernelID.begin(), kernelID.end(), '/', '_');
 
     // UniqueID = program_id + processing_index + additional weight/reorder tag
-    kernelID += "_" + params.uniqueID + "_" + std::to_string(partID);
+    kernelID += "_" + params.uniqueID + "_" + std::to_string(partID) + "_" + std::to_string(params.stage_id);
 
     // Add "__sa" suffix for shape agnostic kernels
     if (params.is_shape_agnostic)

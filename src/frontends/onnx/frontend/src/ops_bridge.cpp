@@ -113,6 +113,7 @@
 #include "op/mean.hpp"
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
+#include "op/mish.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
@@ -193,8 +194,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
@@ -451,6 +453,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MeanVarianceNormalization", 9, mean_variance_normalization);
     REGISTER_OPERATOR("Min", 1, min);
     REGISTER_OPERATOR("Min", 8, min);
+    REGISTER_OPERATOR("Mish", 1, mish);
     REGISTER_OPERATOR("Mod", 1, mod);
     REGISTER_OPERATOR("Mul", 1, mul);
     REGISTER_OPERATOR("Mul", 7, mul);
@@ -606,6 +609,6 @@ OperatorsBridge::OperatorsBridge() {
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

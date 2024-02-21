@@ -284,8 +284,8 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
     // TODO: We should keep shape consistency for const and expected shape for node.
     //       If it requires reshape operation it should explicitly injected into graph.
     //
-    // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
-    // split group dimension in separate shape dimension. IE use OIHW, but onednn expect GOIHW.
+    // There is a limitation for OV representing of weights for grouped convolutions. OV doesn't
+    // split group dimension in separate shape dimension. OV use OIHW, but onednn expect GOIHW.
     // So we will perform implicit reshape to dst shape.
     //
     // oneDNN doesn't support direct reorders for tensors of different rank. The code below tries to

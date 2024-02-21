@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/add_fake_quantize_fusion.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -85,6 +86,7 @@
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
+#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -111,6 +113,7 @@
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
+#include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
@@ -160,8 +163,13 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
-            return true;
+        if (consumer != nullptr) {
+            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+                return true;
+            }
+            if (is_gather_with_compressed_weights(consumer)) {
+                return true;
+            }
         }
     }
     return false;
@@ -252,7 +260,7 @@ void Transformations::UpToLpt() {
 
     const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
 
-    PreLpt(defaultPrecisions, isLegacyApi);
+    PreLpt(defaultPrecisions);
 
     if (useLpt)
         Lpt(defaultPrecisions);
@@ -264,7 +272,7 @@ void Transformations::CpuSpecificOpSet(void) {
     ConvertToCPUSpecificOpset(model);
 }
 
-void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
+void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
 
     // Decompression handling related transformations must be run separately from common preLPT pipeline
@@ -280,8 +288,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                      ov::element::u4,
                                                      ov::element::i4,
                                                      ov::element::nf4};
-    // Ticket 124834: set fold_subtract_const to false when cpu_convert supports i4/u4/nf4 precisions
-    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, true);
+    CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false);
     CPU_SET_CALLBACK_X64(decompression_handling_manager, [&](const_node_ptr &node) -> bool {
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
@@ -398,6 +405,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_ARM(manager, DecomposeIntegerDivide);
     CPU_REGISTER_PASS_X86(manager, DecomposeIntegerDivide);
 
+    CPU_REGISTER_PASS_COMMON(manager, PermuteSliceAndInterpolation);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
+
     // SpaceToDepth/ DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -425,11 +435,27 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
             std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::ConvertLoopToLSTMSequence,
+        ov::pass::FuseReverseLSTMSequence,
+        ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
             return node::RNN::isSupportedOperation(node, msg);
         },
         ov::pass::RNNCellDecomposition,
         ov::pass::GRUCellDecomposition,
         ov::pass::LSTMCellDecomposition);
+
+    CPU_SET_CALLBACK_COMMON(manager,
+        [](const_node_ptr &node) -> bool {
+            std::string msg;
+            return !node::RNN::isSupportedOperation(node, msg);
+        },
+        ov::pass::LSTMCellFusion);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -454,7 +480,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
-    auto nmsCallback = [isLegacyApi](const_node_ptr &node) -> bool {
+    auto nmsCallback = [](const_node_ptr &node) -> bool {
+        // TODO: remove nmsCallback at all
+        const bool isLegacyApi = false;
         return isLegacyApi ?  false : true;
     };
 
@@ -462,9 +490,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMulticlassNmsToMulticlassNmsIE);
     CPU_SET_CALLBACK_COMMON(manager, nmsCallback, ov::pass::ConvertMatrixNmsToMatrixNmsIE);
     CPU_SET_CALLBACK_X64(manager,
-        [](const_node_ptr &node) -> bool {
+        [this](const_node_ptr &node) -> bool {
             std::string errorMsg;
-            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg);
+            // Current SDPA impl is optimized only for LLM models, so we decompose it for others to avoid perf regression.
+            // Matching the pattern is a little complicated, so we just check if there is any state nodes.
+            return node::ScaledDotProductAttention::isSupportedOperation(node, errorMsg) && model->get_variables().size() > 0;
         },
         ov::pass::ScaledDotProductAttentionDecomposition);
 
@@ -697,7 +727,7 @@ void Transformations::MainSnippets(void) {
     // To avoid sitations when Transpose is not alone node between MatMul and Result,
     // Plugin disables Transpose tokenization on output
     tokenization_config.mha_token_enable_transpose_on_output = (inferencePrecision == ov::element::f32);
-    tokenization_config.concurrency = config.streamExecutorConfig._threadsPerStream;
+    tokenization_config.concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
     // The optimization "SplitDimensionM" depends on target machine (thread count).
@@ -723,50 +753,51 @@ void Transformations::MainSnippets(void) {
         CPU_DISABLE_PASS_X64(snippetsManager, snippets::pass::ExtractReshapesFromMHA);
     }
 
-    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
 #if defined(OPENVINO_ARCH_X86_64)
-        auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
-            const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-            if (!matmul)
-                return false;
-            const auto in_type0 = matmul->get_input_element_type(0);
-            const auto in_type1 = matmul->get_input_element_type(1);
-            if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
-                return true;
-            // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
-            // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
-            if (matmul->get_transpose_a() || matmul->get_transpose_b())
-                return false;
-            // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-            // Big shapes may lead to perf degradation
-            const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-            const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-            if ((K.is_static() && K.get_length() > 512) || // heuristic values
-                (N.is_static() && N.get_length() > 256))
-                return false;
-            if (in_type0 == ov::element::i8)
-                return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
-            if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
-                ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
-                // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
-                // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
-                size_t bf16Factor = 2;
-                if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
-                    return K.is_static() && (K.get_length() % bf16Factor == 0) &&
-                           N.is_static() && (N.get_length() % bf16Factor == 0);
-                }
-                return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
-            }
+    auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
+        const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
+        if (!matmul)
+            return false;
+        const auto in_type0 = matmul->get_input_element_type(0);
+        const auto in_type1 = matmul->get_input_element_type(1);
+        if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::f32)
             return true;
-        };
-        auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-            const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
-            const auto is_unsupported_parallel_work_amount =
-                parallel_work_amount < tokenization_config.concurrency &&
-                !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
-            return is_unsupported_parallel_work_amount;
-        };
+        // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
+        // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
+        if (matmul->get_transpose_a() || matmul->get_transpose_b())
+            return false;
+        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
+        // Big shapes may lead to perf degradation
+        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
+        if ((K.is_static() && K.get_length() > 512) || // heuristic values
+            (N.is_static() && N.get_length() > 256))
+            return false;
+        if (in_type0 == ov::element::i8)
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+        if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
+            ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
+            // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
+            // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
+            size_t bf16Factor = 2;
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                return K.is_static() && (K.get_length() % bf16Factor == 0) &&
+                       N.is_static() && (N.get_length() % bf16Factor == 0);
+            }
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
+        }
+        return true;
+    };
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
+        const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+        const auto is_unsupported_parallel_work_amount =
+            parallel_work_amount < tokenization_config.concurrency &&
+            !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.concurrency);
+        return is_unsupported_parallel_work_amount;
+    };
 #endif // OPENVINO_ARCH_X86_64
+
+    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             // Tranformation callback is called on MatMul0
             if (!is_supported_matmul(n))

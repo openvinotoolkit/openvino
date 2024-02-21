@@ -10,16 +10,16 @@
 
 #include "core/node.hpp"
 
-namespace ngraph {
-namespace onnx_import {
-/// \brief      Function which transforms single ONNX operator to nGraph sub-graph.
-OPENVINO_SUPPRESS_DEPRECATED_START
-using Operator = std::function<ov::OutputVector(const Node&)>;
-OPENVINO_SUPPRESS_DEPRECATED_END
+namespace ov {
+namespace frontend {
+namespace onnx {
+/// \brief      Function which transforms single ONNX operator to OV sub-graph.
+
+using Operator = std::function<OutputVector(const Node&)>;
 
 /// \brief      Map which contains ONNX operators accessible by std::string value as a key.
 using OperatorSet = std::unordered_map<std::string, Operator>;
 
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

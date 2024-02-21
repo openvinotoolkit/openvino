@@ -19,10 +19,6 @@ struct experimental_detectron_roi_feature_extractor_params : public base_params 
     std::size_t number_of_inputs = 0;
 };
 
-struct experimental_detectron_roi_feature_extractor_optional_params : public optional_params {
-    experimental_detectron_roi_feature_extractor_optional_params() : optional_params(KernelType::EXPERIMENTAL_DETECTRON_ROI_FEATURE_EXTRACTOR) {}
-};
-
 class ExperimentalDetectronROIFeatureExtractorRef : public KernelBaseOpenCL {
 public:
     ExperimentalDetectronROIFeatureExtractorRef() : KernelBaseOpenCL("experimental_detectron_roi_feature_extractor_ref") {}
@@ -30,8 +26,8 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
     virtual JitConstants GetJitConstants(const experimental_detectron_roi_feature_extractor_params& params) const;

@@ -6,6 +6,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/bfloat16.hpp"
@@ -23,7 +24,7 @@ using roiPoolingParams = std::tuple<roiPoolingShapes,                // Input sh
                                     float,                           // Spatial scale
                                     utils::ROIPoolingTypes,          // ROIPooling method
                                     ov::element::Type,               // Net precision
-                                    LayerTestsUtils::TargetDevice>;  // Device name
+                                    ov::test::TargetDevice>;  // Device name
 
 using ROIPoolingCPUTestParamsSet = std::tuple<roiPoolingParams,
                                               CPUSpecificParams,
