@@ -109,3 +109,36 @@ class TestMulTypes(PytorchLayerTest):
         self.rhs_shape = rhs_shape
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version, freeze_model=False, trace_model=True)
+
+
+class TestMulBool(PytorchLayerTest):
+    def _prepare_input(self):
+        input_tensor = torch.randint(0, 2, size=(1, 100)).numpy()
+        other_tensor = torch.randint(0, 2, size=(1, 100)).numpy()
+        return (input_tensor, other_tensor)
+
+
+    def create_model(self, lhs_type, rhs_type):
+        class aten_mul(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.lhs_type = lhs_type
+                self.rhs_type = rhs_type
+
+            def forward(self, input_tensor, other_tensor):
+                return torch.mul(input_tensor.to(self.lhs_type), other_tensor.to(self.rhs_type))
+
+        ref_net = None
+
+        return aten_mul(), ref_net, "aten::mul"
+
+    @pytest.mark.parametrize(("lhs_type", "rhs_type"), [
+        (torch.bool, torch.bool),
+        (torch.bool, torch.int32),
+        (torch.int32, torch.bool),
+        (torch.float32, torch.bool),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_mul_bool(self, lhs_type, rhs_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(lhs_type, rhs_type), ie_device, precision, ir_version, use_convert_model=True)

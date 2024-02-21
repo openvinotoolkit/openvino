@@ -24,6 +24,8 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_add_);
+OP_CONVERTER(translate_mul);
+OP_CONVERTER(translate_mul_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_alias_copy);
@@ -497,10 +499,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::min", op::translate_min},
         {"aten::minimum", op::translate_minimum},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::mul_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::multiply_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten::mul", op::translate_mul},
+        {"aten::mul_", op::translate_mul_},
+        {"aten::multiply", op::translate_mul},
+        {"aten::multiply_", op::translate_mul_},
         {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
