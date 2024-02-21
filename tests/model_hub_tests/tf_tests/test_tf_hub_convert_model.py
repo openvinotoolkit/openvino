@@ -62,8 +62,7 @@ class TestTFHubConvertModel(TestConvertModel):
     def get_inputs_info(self, model_obj):
         if type(model_obj) is tf_v1.Graph:
             input_signature = get_input_signature(model_obj)
-        elif isinstance(model_obj, tf.keras.layers.Layer):
-            assert hasattr(model_obj, "input_signature") and model_obj.input_signature is not None, "FW model of type tf.KerasLayer has no input_signature."
+        elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
             input_signature = model_obj.input_signature
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"

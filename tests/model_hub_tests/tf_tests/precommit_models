@@ -32,6 +32,4 @@ distilbert/distilbert-base-multilingual-cased,hf_transformers
 facebook/convnext-tiny-224,hf_transformers
 google/vit-base-patch16-224,hf_transformers
 sentence-transformers/paraphrase-mpnet-base-v2,hf_transformers
-siebert/sentiment-roberta-large-english,hf_transformers
-cardiffnlp/twitter-roberta-base-sentiment-latest,hf_transformers
 facebook/sam-vit-base,hf_transformers
