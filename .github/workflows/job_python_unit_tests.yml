@@ -159,7 +159,7 @@ jobs:
 
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              "$skip_filter"
+              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
