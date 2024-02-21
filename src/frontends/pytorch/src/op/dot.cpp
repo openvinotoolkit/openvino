@@ -19,7 +19,6 @@ OutputVector translate_dot(const NodeContext& context) {
 
     auto tensor1 = context.get_input(0);
     auto tensor2 = context.get_input(1);
-
     align_eltwise_input_types(context, tensor1, tensor2, true);
 
     auto dot_product = context.mark_node(std::make_shared<v0::MatMul>(tensor1, tensor2));
@@ -27,7 +26,6 @@ OutputVector translate_dot(const NodeContext& context) {
     if (!context.input_is_none(2)) {
         context.mutate_input(2, dot_product);
     }
-
     return {dot_product};
 };
 
