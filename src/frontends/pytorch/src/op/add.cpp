@@ -30,8 +30,11 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         PYTORCH_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
 
-    auto left_is_bool = lhs.get_element_type() == ov::element::boolean || (dtype0.is<element::Type>() && dtype0.as<element::Type>() == element::boolean);
-    auto right_is_bool = rhs.get_element_type() == ov::element::boolean || (dtype1.is<element::Type>() && dtype1.as<element::Type>() == element::boolean);
+    auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
+                        (dtype0.is<element::Type>() && dtype0.as<element::Type>() == element::boolean);
+    auto right_is_bool = rhs.get_element_type() == ov::element::boolean ||
+                         (dtype1.is<element::Type>() && dtype1.as<element::Type>() == element::boolean);
+
     if (left_is_bool && right_is_bool) {
         // when types are boolean then add means logical Or operation
         auto logical_or = context.mark_node(std::make_shared<v1::LogicalOr>(lhs, rhs));
