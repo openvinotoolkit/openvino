@@ -15,11 +15,8 @@ OutputVector translate_mv(const NodeContext& context) {
     num_inputs_check(context, 2, 3);  
     // "aten::mv(Tensor input, Tensor vec) -> Tensor"
     
-    // Ensure matrix input is in float32 dtype
-    auto matrix = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), element::f32));
-
-    // Ensure vector input is in float32 dtype
-    auto vector = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::f32));
+    auto matrix = context.get_input(0);
+    auto vector = context.get_input(1);
 
     // Perform matrix-vector multiplication
     auto result = context.mark_node(std::make_shared<v1::MatMul>(matrix, vector));
