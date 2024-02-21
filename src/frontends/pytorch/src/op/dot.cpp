@@ -16,7 +16,7 @@ using namespace ov::op;
 OutputVector translate_dot(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     // "aten::dot(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)"
-    
+
     auto tensor1 = context.get_input(0);
     auto tensor2 = context.get_input(1);
 
