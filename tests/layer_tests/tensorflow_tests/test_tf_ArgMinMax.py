@@ -20,11 +20,11 @@ OPS = {
 
 class TestArgMinMax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['input'] = rng.integers(-8, 8, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = rng.integers(-8, 8, input_shape).astype(self.input_type)
         return inputs_data
 
     def create_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type):

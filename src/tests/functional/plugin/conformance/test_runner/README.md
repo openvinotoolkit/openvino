@@ -41,23 +41,30 @@ Run the following commands in the build directory:
    ```
 2. Build the targets:
    ```
-   make --jobs=$(nproc --all) subgraphsDumper
-   make --jobs=$(nproc --all) conformanceTests
+   make --jobs=$(nproc --all) ov_subgraphs_dumper
+   make --jobs=$(nproc --all) ov_op_conformance_tests
    make --jobs=$(nproc --all) ov_api_conformance_tests
    ```
 3. Build plugins to validate:
    ```
    make --jobs=$(nproc --all) lib_plugin_name
    ```
+4. Install python dependencies to use `run_conformance` script:
+   ```
+   cd /path/to/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary
+   pip3 install -r [requirements.txt](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt)
+   ```
 
 ## How to run using [simple conformance runner](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
 
 There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
 
+>NOTE: Conformance reports `ov python api` WARNING in case of its absence. `ov python api` is not required to get a conformance results. It is a way to get HASHED conformance IR names after `ov_subgraphs_dumper` tool using (in case of `-s=1`).
+
 ### The conformance pipeline steps:
 
 1. (Optional: Applicable only for Opset Conformance suite) Download models/conformance IR via URL / copy archive to working directory / verify dirs / check list-files.
-2. (Optional: Applicable only for Opset Conformance suite) Run `SubgraphDumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
+2. (Optional: Applicable only for Opset Conformance suite) Run `ov_subgraphs_dumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
 3. Run conformance test executable files.
 4. Generate conformance reports.
 

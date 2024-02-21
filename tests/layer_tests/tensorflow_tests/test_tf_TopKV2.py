@@ -12,10 +12,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestTopKV2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, x_shape)
+        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape)
         return inputs_data
 
     def create_topk_v2_net(self, input_shape, input_type, k, sorted, is_first_output, is_second_output):

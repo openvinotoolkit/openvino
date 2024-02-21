@@ -284,6 +284,16 @@ def type_supported_by_tf_fe(input_model):
     return False
 
 
+def is_variable(func_input, captures):
+    import tensorflow as tf
+    if func_input.dtype == tf.resource:
+        return True
+    for capture in captures:
+        if id(func_input) == id(capture[1]):
+            return True
+    return False
+
+
 def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_types, example_input, share_weights):
     input_model = trace_tf_model_if_needed(input_model, placeholder_shapes, placeholder_data_types, example_input)
 
@@ -300,7 +310,7 @@ def create_tf_graph_iterator(input_model, placeholder_shapes, placeholder_data_t
         if hasattr(input_model, 'inputs') and hasattr(input_model, 'structured_input_signature'):
             internal_tensor_names = []
             for func_input in input_model.inputs:
-                if func_input.dtype == tf.resource:
+                if is_variable(func_input, input_model.graph.captures):
                     continue
                 internal_tensor_names.append(func_input.name)
             if len(input_model.structured_input_signature) > 0 and \
