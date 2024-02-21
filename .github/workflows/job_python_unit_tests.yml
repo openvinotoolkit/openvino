@@ -148,15 +148,12 @@ jobs:
       - name: Model Optimizer unit tests
         if: fromJSON(inputs.affected-components).MO.test
         run: |
-          skip_filter=''
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
-          else
-            # Skips under Ticket: 122666
-            skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
           fi
-
+          
+          # Skips under tickets: 133405, 122666
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
               --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
