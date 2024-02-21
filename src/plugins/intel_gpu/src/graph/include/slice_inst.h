@@ -12,19 +12,19 @@ using slice_node = typed_program_node<slice>;
 
 // This class is needed to have one place where decision
 // is made which Slice inputs are used by the kernel on GPU.
-// Please note that unfortnately, the same decison needs to be made
+// Unfortnately, the same decison needs to be made
 // in multiple places, including:
 // - slice_inst::update_shape_info_tensor
 // - slice_impl::get_arguments
 // - slice_impl::create
-// This class was created to encapsulate that logic in single place, as it should be.
-// Please note: the placement of this class is the 'lesser evil'. Normally such logic
-// should be a part of codegen/jitter, which should output some struct about information
-// of what data is needed in runtime, how should be provided, bindings, etc. Unfortunately,
-// it is scattered in mutiple places, where basically similar logic has to be applied.
-// NOTE: This class is implicietly depends on logic inside SliceKernelRef and the kernel
-// itself. If you makeing any changes inside those classes, likely you will needed to update
-// this one - to e.g. provide new parameters.
+// This class was created to encapsulate that logic in single place.
+// NOTE: the placement of this class is the 'lesser evil'. Normally such logic
+// should be a part of codegen/jitter, which should output some struct with information
+// about which data is needed by the kernel, how it should be provided, bindings, etc. 
+// Currently it is scattered in mutiple places, where basically similar logic has to be applied.
+// NOTE: This class implicietly depends on logic inside SliceKernelRef and the kernel
+// itself. If you make any changes of how params are provided to kernel, 
+// likely you will needed to update this one too.
 class SliceKernelRefNeededInputs {
 public:
     enum InputIndices {
