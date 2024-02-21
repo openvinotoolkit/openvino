@@ -16,7 +16,11 @@ _get_node_factory_opset14 = partial(_get_node_factory, "opset14")
 # -------------------------------------------- ops ------------------------------------------------
 @nameable_op
 def convert_promote_types(
-    left_node: NodeInput, right_node: NodeInput, promote_unsafe: bool = False, pytorch_scalar_promotion: bool = False, u64_integer_promotion_target: str = "f32"
+    left_node: NodeInput,
+    right_node: NodeInput,
+    promote_unsafe: bool = False,
+    pytorch_scalar_promotion: bool = False,
+    u64_integer_promotion_target: str = "f32",
 ) -> Node:
     """Return a node performing conversion to common type based on promotion rules.
 
@@ -39,7 +43,10 @@ def convert_promote_types(
 
 
 @nameable_op
-def inverse(data: NodeInput, adjoint: bool = False) -> Node:
+def inverse(
+    data: NodeInput,
+    adjoint: bool = False,
+) -> Node:
     """Return a node with inverse matrices of the input.
 
     :param data: Tensor with matrices to invert. Last two dimensions must be of the same size.
