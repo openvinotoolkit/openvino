@@ -28,7 +28,6 @@ i3d-rgb,https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2
 universal-sentence-encoder-multilingual,https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2
 # Hugging Face Models
 microsoft/deberta-v3-small,hf_transformers
-distilbert/distilbert-base-multilingual-cased,hf_transformers
 facebook/convnext-tiny-224,hf_transformers
 google/vit-base-patch16-224,hf_transformers
 sentence-transformers/paraphrase-mpnet-base-v2,hf_transformers
