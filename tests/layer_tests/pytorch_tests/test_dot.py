@@ -27,7 +27,7 @@ class TestDot(PytorchLayerTest):
                 self.dtype = dtype
 
             def forward(self, tensor1, tensor2):
-                return torch.dot(tensor1, tensor2)
+                return torch.dot(tensor1.to(self.dtype), tensor2.to(self.dtype))
 
         dtype = dtype_map.get(dtype)
         model_class = aten_dot(dtype)
