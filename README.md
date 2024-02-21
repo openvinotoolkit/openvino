@@ -55,7 +55,6 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 
 ### Getting Started
 
-#### Documentation
 Read detailed information on OpenVINO's features, components, and usage in the [OpenVINO Documentation](https://docs.openvino.ai/2023.1/get_started.html).
 
 #### Tutorials
@@ -91,7 +90,7 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
 -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
 
 <details>
-  <summary>More products ### this will be removed </summary>
+  <summary>More products ### this will be removed when we decide on the products to highlight </summary>
 
    **Ecosystem**
 
@@ -110,9 +109,13 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
 
 ### Documentation
 
-#### User documentation
+**User documentation**
 
-The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using binary OpenVINO distribution or your own  OpenVINO version without requiring source code modifications.
+The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO without requiring source code modifications.
+
+**Developer documentation**
+
+[Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
 
 For additional resources and information, you can explore:
 
@@ -122,9 +125,6 @@ For additional resources and information, you can explore:
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
-#### Developer documentation
-
-[Developer documentation](./docs/dev/index.md) contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
 
 ### Supported Hardware
 
