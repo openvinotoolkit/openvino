@@ -6,4 +6,4 @@ tensorflow
 tensorflow-hub
 tensorflow-text
 transformers
-sentence-transformers
+tf-sentence-transformers

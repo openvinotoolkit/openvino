@@ -1,4 +1,4 @@
-name: TensorFlow Hub Models tests
+name: TensorFlow Models tests
 
 on:
   workflow_call:
