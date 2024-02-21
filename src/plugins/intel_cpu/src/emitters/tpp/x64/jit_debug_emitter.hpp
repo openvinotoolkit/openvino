@@ -4,7 +4,6 @@
 
 #pragma once
 #include "jit_tpp_emitter.hpp"
-#include "emitters/plugin/x64/jit_emitter.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -31,11 +30,9 @@ public:
     size_t get_inputs_num() const override { return num_kernel_args - 1; }
 
 protected:
-    using jit_emitter::emit_code;
-
     static void execute_kernel_unary(const DebugTppEmitter* emitter, void *in0, void *out0) {
-        OPENVINO_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
-                        "Unable to execute unary kernel in DebugTppEmitter");
+        OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
+                                  "Unable to execute unary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
         std::cout << emitter->m_source_node->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*)>(emitter->m_execute_function);
@@ -43,8 +40,8 @@ protected:
     }
 
     static void execute_kernel_binary(const DebugTppEmitter* emitter, void* in0, void* in1, void* out0) {
-        OPENVINO_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
-                        "Unable to execute binary kernel in DebugTppEmitter");
+        OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
+                                  "Unable to execute binary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
         std::cout << emitter->m_source_node->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*, void*)>(emitter->m_execute_function);
@@ -56,7 +53,7 @@ protected:
         switch (num_kernel_args) {
             case 2: return reinterpret_cast<const uintptr_t>(execute_kernel_unary);
             case 3: return reinterpret_cast<const uintptr_t>(execute_kernel_binary);
-            default: OPENVINO_THROW("DebugTpp emitter doesn't support emitters with more than two arguments");
+            default: OV_CPU_JIT_EMITTER_THROW("More than two arguments are not supported");
         }
     }
 

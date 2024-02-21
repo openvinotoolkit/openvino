@@ -363,20 +363,21 @@ void Snippet::initOptimalPrimitiveDescriptor() {
                                         pass::EnforcePrecision, element::f32, element::bf16);
     }
 
-#ifdef SNIPPETS_LIBXSMM_TPP
-   SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
-                                   ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
-   // Note: There could be several ConvertConstantsToScalars instances in the pipeline
-   SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
-   SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
-                                   ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
-#endif
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::snippets::pass::PropagatePrecision,
                                     ov::intel_cpu::pass::BrgemmToBrgemmCPU);
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                     ov::intel_cpu::pass::SetBrgemmCPUBlockingParams);
     SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
+
+#ifdef SNIPPETS_LIBXSMM_TPP
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::Before, ov::intel_cpu::pass::BrgemmToBrgemmCPU,
+                                    ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP);
+    // Note: There could be several ConvertConstantsToScalars instances in the pipeline
+    SNIPPETS_REGISTER_PASS_ABSOLUTE(Place::PipelineEnd, ov::intel_cpu::tpp::pass::ScalarToScalarTPP);
+    SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP,
+                                    ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
+#endif
 
 #undef SNIPPETS_REGISTER_PASS
 
@@ -665,6 +666,7 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
 
     auto lowering_config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
 #ifdef SNIPPETS_LIBXSMM_TPP
+    // Note: temporary disabled. Re-enable after ticket 132833 is resolved
     lowering_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::tpp::pass::SetTPPLeadingDim);

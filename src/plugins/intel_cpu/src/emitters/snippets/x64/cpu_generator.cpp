@@ -359,12 +359,8 @@ bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snip
            std::dynamic_pointer_cast<intel_cpu::jit_perf_count_rdtsc_end_emitter>(e);
 #endif
 #ifdef SNIPPETS_LIBXSMM_TPP
-    need |= std::dynamic_pointer_cast<intel_cpu::BrgemmTppEmitter>(e) ||
-            std::dynamic_pointer_cast<intel_cpu::ReferenceUnaryEltwiseTppEmitter>(e) ||
+    need |= std::dynamic_pointer_cast<intel_cpu::ReferenceUnaryEltwiseTppEmitter>(e) ||
             std::dynamic_pointer_cast<intel_cpu::DebugTppEmitter>(e);
-#endif
-#ifdef DEBUG_TPP_EMITTERS
-    need |= std::dynamic_pointer_cast<intel_cpu::EltwiseTppEmitter>(e);
 #endif
     return need;
 }

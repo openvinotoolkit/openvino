@@ -70,7 +70,7 @@ void jit_broadcast_move_emitter::emit_isa(const std::vector<size_t> &in, const s
 
 int32_t jit_scalar_emitter::read_value(const ov::snippets::lowered::ExpressionPtr& expr) {
     const auto n = ov::as_type_ptr<ov::op::v0::Constant>(expr->get_node());
-    OPENVINO_ASSERT(n, "Invalid node passed to ScalarTppEmitter");
+    OV_CPU_JIT_EMITTER_ASSERT(n, "Invalid node, expected op::v0::Constant");
     const auto& precision = n->get_output_element_type(0);
     int32_t res = INT_MIN;
     switch (precision) {

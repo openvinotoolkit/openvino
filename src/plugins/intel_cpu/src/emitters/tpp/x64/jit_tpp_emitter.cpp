@@ -3,8 +3,6 @@
 //
 
 #include "jit_tpp_emitter.hpp"
-
-#include "snippets/lowered/port_connector.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "transformations/snippets/tpp/op/eltwise.hpp"
 
@@ -15,21 +13,16 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
-using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
-using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
-using ExpressionPort = snippets::lowered::ExpressionPort;
-
 VectorDims TppEmitter::get_projected_subtensor(const snippets::lowered::PortDescriptorPtr& desc) {
     auto shape = desc->get_shape();
     auto subtensor = desc->get_subtensor();
-    OPENVINO_ASSERT(!shape.empty() && !subtensor.empty(),
-                    "get_projected_subtensor expects non-empty shape and subtensor");
     // Note: Scalar is a special case, so it's easier to prepend shapes than to handle it explicitly
     if (shape.size() == 1)
         shape.insert(shape.begin(), 1);
     if (subtensor.size() == 1)
         subtensor.insert(subtensor.begin(), 1);
+    OV_CPU_JIT_EMITTER_ASSERT(subtensor.size() <= shape.size() && !subtensor.empty(),
+                              "Invalid subtensor + shape combination");
     auto shape_it = shape.rbegin();
     for (auto sub_it = subtensor.rbegin(); sub_it != subtensor.rend(); sub_it++, shape_it++) {
         *sub_it = std::min(*sub_it, *shape_it);
@@ -44,7 +37,7 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& node = expr->get_node();
     const auto& tpp_mod = std::dynamic_pointer_cast<tpp::modifier::TensorProcessingPrimitive>(node);
-    OPENVINO_ASSERT(tpp_mod, "BinaryEltwiseTppEmitter invoked with invalid node type");
+    OV_CPU_JIT_EMITTER_ASSERT(tpp_mod, "Invoked with invalid node type");
 
     const auto num_ins = node->get_input_size();
     const auto num_outs = node->get_output_size();
@@ -97,15 +90,15 @@ void TppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size
     for (auto reg_idx : out)
         h->uni_vmovq(Xmm(aux_xmm_count++),  Reg64(static_cast<int>(reg_idx)));
 
-    OPENVINO_ASSERT(aux_xmm_count == num_kernel_args, "TPPEmitter: offsets for some inputs/outputs were not set");
-    OPENVINO_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()), "TPPEmitter: too many input/output arguments. More abi params required");
+    OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count == num_kernel_args, "offsets for some inputs/outputs were not set");
+    OV_CPU_JIT_EMITTER_ASSERT(aux_xmm_count < static_cast<int>(abi_params.size()), "too many input/output arguments. More abi params required");
 
     const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
         h->uni_vmovq(reg, xmm);
         if (bytes_offset) h->add(reg, bytes_offset);
     };
     const auto& compiled_kernel = get_compiled_kernel_ptr();
-    OPENVINO_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
+    OV_CPU_JIT_EMITTER_ASSERT(compiled_kernel, "Failed to compile libxsmm_kernel");
 
     h->mov(abi_params[0], compiled_kernel);
     for (int i = 0; i < num_kernel_args; i++)
@@ -136,7 +129,7 @@ libxsmm_datatype TppEmitter::ov_to_xsmm_dtype(ov::element::Type_t elemet_type) {
         case ov::element::Type_t::i8 : return LIBXSMM_DATATYPE_I8;
         case ov::element::Type_t::u8 : return LIBXSMM_DATATYPE_U8;
         default:
-            OPENVINO_THROW("Attempt to convert unsupported ov data type");
+            OV_CPU_JIT_EMITTER_THROW("Attempt to convert unsupported ov data type");
             return LIBXSMM_DATATYPE_IMPLICIT;
     }
 }

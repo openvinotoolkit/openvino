@@ -98,7 +98,8 @@ if(ENABLE_CPU_DEBUG_CAPS)
 endif()
 
 if (ENABLE_SNIPPETS_LIBXSMM_TPP)
-    add_definitions(-DSNIPPETS_LIBXSMM_TPP)
+    # Note: LIBXSMM_DEFAULT_CONFIG needed so libxsmm_config can be included without issues
+    add_definitions(-DSNIPPETS_LIBXSMM_TPP -DLIBXSMM_DEFAULT_CONFIG)
 endif()
 
 set(OV_CPU_WITH_DNNL ON)

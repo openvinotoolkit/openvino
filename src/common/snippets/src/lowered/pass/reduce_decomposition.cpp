@@ -63,8 +63,6 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
     for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& reduce_expr = *expr_it;
         const auto& reduce = ov::as_type_ptr<ov::snippets::op::ReduceBase>(reduce_expr->get_node());
-        // Note: if Reduce can be casted to MemoryAccess, then it was already converted to TPP opset.
-        // we should skip it.
         if (!reduce || std::dynamic_pointer_cast<modifier::MemoryAccess>(reduce_expr->get_node()))
             continue;
 

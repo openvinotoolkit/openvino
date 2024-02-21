@@ -4,17 +4,7 @@
 
 #pragma once
 
-#include <openvino/core/rt_info.hpp>
-
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/expression.hpp"
-
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
-
 #include "jit_tpp_emitter.hpp"
-
-#include <cxxabi.h>
 namespace ov {
 namespace intel_cpu {
 
@@ -35,7 +25,7 @@ protected:
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override;
     static  libxsmm_blasint get_broadcasted_dim(libxsmm_blasint dim0, libxsmm_blasint dim1, std::pair<bool, bool>& bcast_flags);
 };
-//#define DEBUG_TPP_EMITTERS
+
 class UnaryEltwiseTppEmitter : public TppEmitter {
 public:
     UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,

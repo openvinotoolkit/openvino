@@ -6,8 +6,6 @@
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "transformations/snippets/tpp/op/brgemm.hpp"
 
-using namespace Xbyak;
-using namespace dnnl::impl::cpu::x64;
 using jit_generator = dnnl::impl::cpu::x64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
@@ -22,14 +20,13 @@ void BrgemmTppEmitter::validate_subtensors(const VectorDims& in_0, const VectorD
     subtensors_compatible &= in_0[1] == in_1[0] &&
                              in_0[0] == out_0[0] &&
                              in_1[1] == out_0[1];
-    OPENVINO_ASSERT(subtensors_compatible, "BrgemmTppEmitter got incompatible subtensors");
+    OV_CPU_JIT_EMITTER_ASSERT(subtensors_compatible, "Incompatible subtensors");
 }
 
 BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : TppEmitter(h, isa, expr) {
     const auto& brgemm_node = as_type_ptr<intel_cpu::tpp::op::BrgemmTPP>(expr->get_node());
-    OPENVINO_ASSERT(brgemm_node && !brgemm_node->is_dynamic(),
-                    "BrgemmTppEmitter can be constructed only from static BrgemmTPP node");
+    OV_CPU_JIT_EMITTER_ASSERT(brgemm_node && !brgemm_node->is_dynamic(), "Invoked with invalid node type");
 
     const auto& input_0_desc = expr->get_input_port_descriptor(0);
     const auto& input_1_desc = expr->get_input_port_descriptor(1);
@@ -41,15 +38,15 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
 
     auto in_0_prec = ov_to_xsmm_dtype(brgemm_node->get_input_element_type(0));
     auto in_1_prec = ov_to_xsmm_dtype(brgemm_node->get_input_element_type(1));
-    auto comp_prec = in_0_prec == LIBXSMM_DATATYPE_I8 || in_0_prec == LIBXSMM_DATATYPE_U8 ?
-                     LIBXSMM_DATATYPE_I32 :
-                     LIBXSMM_DATATYPE_F32;
-    auto out_0_prec = comp_prec == LIBXSMM_DATATYPE_I32 ?
+    exec_dtype = in_0_prec == LIBXSMM_DATATYPE_I8 || in_0_prec == LIBXSMM_DATATYPE_U8 ?
+                  LIBXSMM_DATATYPE_I32 :
+                  LIBXSMM_DATATYPE_F32;
+    auto out_0_prec = exec_dtype == LIBXSMM_DATATYPE_I32 ?
                       LIBXSMM_DATATYPE_I32 :
                       LIBXSMM_DATATYPE_F32;
 
     const auto beta = brgemm_node->get_beta();
-    OPENVINO_ASSERT(beta == 0 || beta == 1, "BrgemmTppEmitter detected unsupported beta value: " + std::to_string(beta));
+    OV_CPU_JIT_EMITTER_ASSERT(beta == 0 || beta == 1, "Detected unsupported beta value: " + std::to_string(beta));
 
     const auto& subtensor_in0 = input_0_desc->get_subtensor();
     const auto& subtensor_in1 = input_1_desc->get_subtensor();
@@ -63,10 +60,10 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     const bool is_f32_gemm = in_0_prec == in_1_prec && in_0_prec == LIBXSMM_DATATYPE_F32;
     const bool is_bf16_gemm =  in_0_prec == in_1_prec && in_0_prec == LIBXSMM_DATATYPE_BF16;
     const bool is_i8_gemm = in_0_prec == LIBXSMM_DATATYPE_U8 || in_0_prec == LIBXSMM_DATATYPE_I8;
-    OPENVINO_ASSERT(is_f32_gemm ||
-                    (is_bf16_gemm && K % 2 == 0) ||
-                    (is_i8_gemm && K % 4 == 0),
-                    "Unsupported parameter combination for BrgemmTpp kernel configuration");
+    OV_CPU_JIT_EMITTER_ASSERT(is_f32_gemm ||
+                              (is_bf16_gemm && K % 2 == 0) ||
+                              (is_i8_gemm && K % 4 == 0),
+                              "Unsupported parameter combination for kernel configuration");
 
     m_compile_flags = is_f32_gemm ?
                       LIBXSMM_GEMM_FLAGS('N', 'N') :
@@ -89,7 +86,7 @@ BrgemmTppEmitter::BrgemmTppEmitter(jit_generator* h, cpu_isa_t isa, const Expres
     m_shape = libxsmm_create_gemm_shape(N, M, K,
                                         io_strides[1], io_strides[0], io_strides[2],
                                         in_1_prec, in_0_prec, out_0_prec,
-                                        comp_prec);
+                                        exec_dtype);
     m_prefetching_flags = LIBXSMM_GEMM_PREFETCH_NONE;
 }
 
@@ -99,8 +96,8 @@ std::set<std::vector<element::Type>> BrgemmTppEmitter::get_supported_precisions(
 }
 
 void BrgemmTppEmitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OPENVINO_ASSERT(in.size() == 2, "BrgemmTPPEmitter expects 2 input regs, got" + std::to_string(in.size()));
-    OPENVINO_ASSERT(out.size() == 1, "BrgemmTPPEmitter expects 1 output reg, got" + std::to_string(out.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got" + std::to_string(in.size()));
+    OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got" + std::to_string(out.size()));
 }
 
 const uintptr_t BrgemmTppEmitter::get_compiled_kernel_ptr() const {

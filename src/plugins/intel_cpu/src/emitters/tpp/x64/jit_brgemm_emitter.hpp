@@ -4,7 +4,6 @@
 
 #pragma once
 #include "jit_tpp_emitter.hpp"
-#include "libxsmm.h"
 
 namespace ov {
 namespace intel_cpu {

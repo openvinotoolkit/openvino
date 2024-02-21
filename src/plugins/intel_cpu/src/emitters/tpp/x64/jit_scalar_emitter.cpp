@@ -20,7 +20,7 @@ ScalarTppEmitter::ScalarTppEmitter(jit_generator* h, cpu_isa_t isa, const ov::sn
 
 void ScalarTppEmitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     const auto it = entry_map_.find("scalar_tpp");
-    OPENVINO_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
+    OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
     const auto& out_reg = Reg64(static_cast<int>(out[0]));
     h->mov(out_reg, p_table);
     h->add(out_reg, (*it).second.off);
