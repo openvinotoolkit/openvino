@@ -74,8 +74,8 @@ def test_convert_promote_types_default_attrs(lhs, rhs, expected_output_type):
     rhs_param = ops.parameter(*rhs)
     op = ops.convert_promote_types(lhs_param, rhs_param)
     attrs = op.get_attributes()
-    assert attrs.get("promote_unsafe") == False
-    assert attrs.get("pytorch_scalar_promotion") == False
+    assert attrs.get("promote_unsafe") is False
+    assert attrs.get("pytorch_scalar_promotion") is False
     assert attrs.get("u64_integer_promotion_target") == "f32"
     assert op.get_output_size() == 2
     assert op.get_type_name() == "ConvertPromoteTypes"
