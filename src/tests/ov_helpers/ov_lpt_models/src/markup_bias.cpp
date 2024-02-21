@@ -4,7 +4,6 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/markup_bias.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {

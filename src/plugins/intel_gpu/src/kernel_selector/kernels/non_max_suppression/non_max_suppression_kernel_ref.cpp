@@ -181,8 +181,8 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
     return jit;
 }
 
-bool NonMaxSuppressionKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::NON_MAX_SUPPRESSION || o.GetType() != KernelType::NON_MAX_SUPPRESSION) {
+bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::NON_MAX_SUPPRESSION) {
         return false;
     }
 
@@ -256,8 +256,8 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
     }
 }
 
-KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -282,7 +282,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     // Build clKernelData.
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(orgParams, static_cast<int>(i));
-        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, i);
         auto cldnn_jit = GetJitConstants(orgParams);
         cldnn_jit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
 
@@ -315,7 +315,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params, con
     return {kd};
 }
 
-KernelsPriority NonMaxSuppressionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority NonMaxSuppressionKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

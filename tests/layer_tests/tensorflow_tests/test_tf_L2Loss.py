@@ -28,11 +28,11 @@ class TestL2Loss(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_l2_loss_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend):
+                           use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104863')
-        if not use_new_frontend:
+        if not use_legacy_frontend:
             pytest.skip("L2Loss is not supported by legacy FE.")
         self._test(*self.create_l2_loss_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestMaxPoolWithArgmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-5, 5, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = np.random.randint(-5, 5, input_shape).astype(self.input_type)
         return inputs_data
 
     def create_max_pool_with_argmax_net(self, input_shape, ksize, strides, input_type, padding, targmax,
@@ -68,10 +68,10 @@ class TestMaxPoolWithArgmax(CommonTFLayerTest):
     def test_max_pool_with_argmax_basic(self, params, input_type, padding, targmax,
                                         include_batch_in_index, with_second_output,
                                         ie_device, precision, ir_version, temp_dir,
-                                        use_new_frontend):
+                                        use_legacy_frontend):
         self._test(
             *self.create_max_pool_with_argmax_net(**params, input_type=input_type, padding=padding, targmax=targmax,
                                                   include_batch_in_index=include_batch_in_index,
                                                   with_second_output=with_second_output),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)
