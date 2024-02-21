@@ -9,7 +9,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

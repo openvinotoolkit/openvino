@@ -4,7 +4,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
