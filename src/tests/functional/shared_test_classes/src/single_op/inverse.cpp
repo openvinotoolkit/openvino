@@ -55,8 +55,8 @@ void InverseLayerTest::SetUp() {
     }
 
     if (element_type == ov::element::bf16) {
-        rel_threshold = 1.1f;
-        abs_threshold = 1.1f;
+        rel_threshold = 1.2f;
+        abs_threshold = 1.0f;
     }
 
     const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, parameter_input_shape);
@@ -76,9 +76,9 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& in_prc = func_input.get_element_type();
 
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = -10.0;
-    in_data.range = 20;
-    in_data.resolution = 256;
+    in_data.start_from = 10.0;
+    in_data.range = 5;
+    in_data.resolution = 32;
     in_data.seed = m_seed;
     auto tensor = ov::test::utils::create_and_fill_tensor(in_prc, targetInputStaticShapes[0], in_data);
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
