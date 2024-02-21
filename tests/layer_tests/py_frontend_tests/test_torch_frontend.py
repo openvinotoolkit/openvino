@@ -258,6 +258,36 @@ def test_so_extension():
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "CustomElu", "Result"]
 
+def test_framework_map_macros():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class Relu(torch.nn.Module):
+        def __init__(self):
+            super(Relu, self).__init__()
+
+        def forward(self, x):
+            return torch.nn.functional.relu(x)
+
+    model = Relu()
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Relu", "Result"]
+
+    fe.add_extension(get_builtin_extensions_path())
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "ReluCustom", "Result"]
+
 
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder

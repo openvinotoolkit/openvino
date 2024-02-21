@@ -23,8 +23,10 @@ class TestONNXExtensions(CommonMOConvertTest):
 
         shape = [2, 3, 4]
 
-        input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
-        output = helper.make_tensor_value_info('output', TensorProto.FLOAT, shape)
+        input = helper.make_tensor_value_info(
+            'input', TensorProto.FLOAT, shape)
+        output = helper.make_tensor_value_info(
+            'output', TensorProto.FLOAT, shape)
 
         node_def = onnx.helper.make_node(
             'LeakyRelu',
@@ -121,7 +123,7 @@ class TestONNXExtensions(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_onnx_mo_convert_extensions(self, params, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                        temp_dir, use_legacy_frontend):
         onnx_net_path = self.create_onnx_model(temp_dir)
 
         test_params = params['params_test']
@@ -129,10 +131,11 @@ class TestONNXExtensions(CommonMOConvertTest):
         test_params.update({'use_convert_model_from_mo': True})
         self._test_by_ref_graph(temp_dir, test_params, params['ref_graph'])
 
+
 class TestPyTorchExtensions(CommonMOConvertTest):
     def create_model(self, tmp_dir):
         import torch
-        
+
         class CosModel(torch.nn.Module):
             def __init__(self):
                 super(CosModel, self).__init__()
@@ -159,7 +162,7 @@ class TestPyTorchExtensions(CommonMOConvertTest):
 
         return OpExtension("Sin", "aten::cos")
 
-    def create_ref_graph1():
+    def create_ref_graph():
         shape = PartialShape.dynamic()
         param = ov.opset14.parameter(shape, dtype=ov.Type.dynamic)
         param.get_output_tensor(0).set_names({"x"})
@@ -171,17 +174,81 @@ class TestPyTorchExtensions(CommonMOConvertTest):
 
     test_data = [
         {'params_test': {'extension': create_custom_extension_cos_to_sin()},
-         'ref_graph': create_ref_graph1()},
+         'ref_graph': create_ref_graph()},
         {'params_test': {'extension': create_custom_op_extension_cos_to_sin()},
-         'ref_graph': create_ref_graph1()},
+         'ref_graph': create_ref_graph()},
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_pt_mo_convert_extensions(self, params, ie_device, precision, ir_version,
-                                   temp_dir, use_legacy_frontend):
+                                      temp_dir, use_legacy_frontend):
         model = self.create_model(temp_dir)
+
+        test_params = params['params_test']
+        test_params.update({'input_model': model})
+        self._test_by_ref_graph(temp_dir, test_params, params['ref_graph'])
+
+
+class TestTfExtensions(CommonMOConvertTest):
+    def create_keras_model(self, temp_dir):
+        import tensorflow as tf
+
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        input_name = "Input1"
+        input_shape = [1, 2, 3]
+
+        x = tf.keras.Input(shape=input_shape, name=input_name)
+        y = tf.cos(x)
+        keras_net = tf.keras.Model(inputs=[x], outputs=[y])
+        tf.keras.backend.clear_session()
+
+        return keras_net
+
+    def create_custom_extension_cos_to_sin():
+        from openvino.frontend import ConversionExtension
+        from openvino.frontend import NodeContext
+        import openvino.runtime.opset14 as ops
+
+        def custom_converter(node: NodeContext):
+            input = node.get_input(0)
+            sin = ops.sin(input)
+            return sin.outputs()
+
+        return ConversionExtension("Cos", custom_converter)
+
+    def create_custom_op_extension_cos_to_sin():
+        from openvino.frontend import OpExtension
+
+        return OpExtension("Sin", "Cos")
+
+    def create_ref_graph():
+        shape = PartialShape([-1, 1, 2, 3])
+        param = ov.opset14.parameter(shape, dtype=np.float32)
+        param.get_output_tensor(0).set_names({"Input1"})
+        y = ov.opset14.sin(param)
+        y.get_output_tensor(0).set_names({"tf.math.cos/Cos:0"})
+
+        parameter_list = [param]
+
+        return Model([y], parameter_list, "test")
+
+    test_data = [
+        {'params_test': {'extension': create_custom_extension_cos_to_sin()},
+         'ref_graph': create_ref_graph()},
+        {'params_test': {'extension': create_custom_op_extension_cos_to_sin()},
+         'ref_graph': create_ref_graph()},
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf_mo_convert_extensions(self, params, ie_device, precision, ir_version,
+                                      temp_dir, use_legacy_frontend):
+        model = self.create_keras_model(temp_dir)
 
         test_params = params['params_test']
         test_params.update({'input_model': model})
