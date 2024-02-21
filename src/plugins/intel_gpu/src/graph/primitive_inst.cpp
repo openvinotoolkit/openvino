@@ -704,7 +704,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 if (from_pool) {
                     std::string mem_info = "_ibuf" + std::to_string(i) + ":from_pool";
                 } else {
-                    std::string mem_info = "_ibuf" + std::to_string(i) + ":from_pool";
+                    std::string mem_info = "_ibuf" + std::to_string(i) + ":new_alloc";
                 }
             }
         }
