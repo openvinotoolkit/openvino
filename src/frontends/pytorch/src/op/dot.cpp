@@ -4,8 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/matmul.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,13 +17,13 @@ using namespace ov::op;
 OutputVector translate_dot(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     // "aten::dot(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)"
+    
+    auto tensor1 = context.get_input(0);
+    auto tensor2 = context.get_input(1);
 
-    auto tensor1 = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), element::f32));
-    auto tensor2 = context.mark_node(std::make_shared<v0::Convert>(context.get_input(1), element::f32));
+    align_eltwise_input_types(context, tensor1, tensor2, true);
 
-    auto multiply = context.mark_node(std::make_shared<v1::Multiply>(tensor1, tensor2));
-    auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
-    auto dot_product = context.mark_node(std::make_shared<v1::ReduceSum>(multiply, axes));
+    auto dot_product = context.mark_node(std::make_shared<v0::MatMul>(tensor1, tensor2));
 
     if (!context.input_is_none(2)) {
         context.mutate_input(2, dot_product);
