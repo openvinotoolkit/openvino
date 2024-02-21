@@ -13,17 +13,26 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
+
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
-from tf_hub_tests.utils import type_map, load_graph, get_input_signature, get_output_signature
+from models_hub_common.utils import get_models_list, is_hf_link
+from tf_tests.utils import type_map, load_graph, get_input_signature, get_output_signature
 
 
 class TestTFHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.model_dir = tempfile.TemporaryDirectory()
 
-    def load_model(self, model_name, model_link):
+    def load_model(self, model_name, model_link: str):
+        if is_hf_link(model_link):
+            library_type = model_link[3:]
+            if library_type == "transformers":
+                from transformers import TFAutoModel
+                return TFAutoModel.from_pretrained(model_name)
+            elif library_type == "sentence-transformers":
+                from sentence_transformers import SentenceTransformer
+                return SentenceTransformer(model_name)
         if 'storage.openvinotoolkit.org' in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
@@ -53,12 +62,15 @@ class TestTFHubConvertModel(TestConvertModel):
     def get_inputs_info(self, model_obj):
         if type(model_obj) is tf_v1.Graph:
             input_signature = get_input_signature(model_obj)
+        elif isinstance(model_obj, tf.keras.layers.Layer):
+            assert hasattr(model_obj, "input_signature") and model_obj.input_signature is not None, "FW model of type tf.KerasLayer has no input_signature."
+            input_signature = model_obj.input_signature
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
 
         inputs_info = []
-        for input_name, input_info in input_signature:
+        for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
             input_shape = []
             try:
                 if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
@@ -103,6 +115,29 @@ class TestTFHubConvertModel(TestConvertModel):
             for ind, output_name in enumerate(output_names):
                 output_dict[output_name] = tf_output[ind]
             return output_dict
+        elif isinstance(model_obj, tf.keras.layers.Layer):
+            outputs = model_obj(inputs)
+            if isinstance(outputs, dict):
+                post_outputs = {}
+                for out_name, out_value in outputs.items():
+                    if isinstance(out_value, tf.Tensor):
+                        post_outputs[out_name] = out_value.numpy()
+                    elif isinstance(out_value, tuple):
+                        out_list = []
+                        for out_tensor in out_value:
+                            assert isinstance(out_tensor, tf.Tensor), "Unknown output type in original model {}".format(
+                                type(out_tensor))
+                            out_list.append(out_tensor.numpy())
+                        post_outputs[out_name] = tuple(out_list)
+                    else:
+                        raise Exception("Unknown output type in original model {}".format(type(out_value)))
+            elif isinstance(outputs, list):
+                post_outputs = []
+                for out_value in outputs:
+                    post_outputs.append(out_value.numpy())
+            else:
+                post_outputs = [outputs.numpy()]
+            return post_outputs
 
         # repack input dictionary to tensorflow constants
         tf_inputs = {}

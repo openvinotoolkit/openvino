@@ -5,12 +5,21 @@ import itertools
 import os
 import shutil
 import time
+import sys
 
 import numpy as np
 from models_hub_common.constants import test_device
 
+def is_tf_hub_link(link: str):
+    return "www.kaggle.com" in link or "tfhub.dev" in link
+
+def is_hf_link(link: str):
+    return link.startswith("hf_")
 
 def get_models_list(file_name: str):
+    scope = "all"
+    if "--scope" in sys.argv and len(sys.argv) >= sys.argv.index("--scope") + 1:
+        scope = sys.argv[sys.argv.index("--scope") + 1]
     models = []
     with open(file_name) as f:
         for model_info in f:
@@ -21,16 +30,26 @@ def get_models_list(file_name: str):
             mark = None
             reason = None
             model_link = None
-            assert len(model_info.split(',')) == 1 or len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
+            assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
                 "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
-            if len(model_info.split(',')) == 1:
-                model_name = model_info
             if len(model_info.split(',')) == 2:
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
                 assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
-            models.append((model_name, model_link, mark, reason))
+            if scope == "all":
+                models.append((model_name, model_link, mark, reason))
+            elif scope == "hf":
+                if is_hf_link(model_link):
+                    models.append((model_name, model_link, mark, reason))
+            elif scope == "tf_hub":
+                if is_tf_hub_link(model_link):
+                    models.append((model_name, model_link, mark, reason))
+            elif scope == "others":
+                if not is_hf_link(model_link) and not is_tf_hub_link(model_link):
+                    models.append((model_name, model_link, mark, reason))
+            else:
+                raise Exception("Unknown scope {}. Please select one of [all, hf, tf_hub, others].".format(scope))
 
     return models
 
