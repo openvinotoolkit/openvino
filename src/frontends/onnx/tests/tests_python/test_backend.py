@@ -53,7 +53,6 @@ from tests import (
     xfail_issue_99955,
     xfail_issue_99957,
     xfail_issue_99958,
-    xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
@@ -464,10 +463,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_99958,
         "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
-        xfail_issue_99959,
-        "OnnxBackendNodeModelTest.test_mish_cpu",
     ),
     (
         xfail_issue_99960,

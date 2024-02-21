@@ -138,15 +138,15 @@ void UniqueCountKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     auto kernel_data = KernelData::Default<unique_count_params>(params);
     const auto& kernel_params = dynamic_cast<const unique_count_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
-    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params);
     const auto jit_constants = GetJitConstants(kernel_params);
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
@@ -189,8 +189,8 @@ ParamsKey UniqueCountKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueCountKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE_COUNT || options.GetType() != KernelType::UNIQUE_COUNT) {
+bool UniqueCountKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::UNIQUE_COUNT) {
         return false;
     }
 
@@ -249,15 +249,15 @@ void UniqueGatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     auto kernel_data = KernelData::Default<unique_gather_params>(params);
     const auto& kernel_params = dynamic_cast<const unique_gather_params&>(*kernel_data.params);
     const auto dispatch_data = SetDefault(kernel_params);
-    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params, options);
+    const auto entry_point = GetEntryPoint(kernelName, kernel_params.layerID, params);
     const auto jit_constants = GetJitConstants(kernel_params);
     const auto jit = CreateJit(kernelName, jit_constants, entry_point);
     auto& kernel = kernel_data.kernels.front();
@@ -295,8 +295,8 @@ ParamsKey UniqueGatherKernelRef::GetSupportedKey() const {
     return key;
 }
 
-bool UniqueGatherKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (params.GetType() != KernelType::UNIQUE_GATHER || options.GetType() != KernelType::UNIQUE_GATHER) {
+bool UniqueGatherKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::UNIQUE_GATHER) {
         return false;
     }
 

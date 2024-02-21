@@ -8,13 +8,13 @@
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
-using ngraph::helpers::is_tensor_iterator_exist;
+using ov::test::utils::is_tensor_iterator_exist;
 
 std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
     std::vector<InputShape> shapes;
