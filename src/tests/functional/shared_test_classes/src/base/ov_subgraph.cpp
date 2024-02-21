@@ -35,9 +35,6 @@
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::nanoseconds ns;
-
 namespace ov {
 namespace test {
 

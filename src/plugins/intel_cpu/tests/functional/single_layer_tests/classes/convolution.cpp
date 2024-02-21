@@ -194,6 +194,7 @@ void ConvolutionLayerCPUTest::SetUp() {
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
+    auto start_time_0 = Time::now();
     if (!inFmts.empty() && (inFmts.front() == nwc || inFmts.front() == nhwc || inFmts.front() == ndhwc) && selectedType.find("jit_sse") != std::string::npos) {
         auto inpChannels = function->get_parameters().front()->get_partial_shape()[1].get_length();
         auto outChannels = function->get_output_partial_shape(0)[1].get_length();
@@ -201,6 +202,9 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
             GTEST_SKIP() << "Disabled test due to the sse41 convolution kernel does not support tails for nspc layout." << std::endl;
         }
     }
+    auto duration_0 = std::chrono::duration_cast<ns>(Time::now() - start_time_0).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs 0 cost time " << duration_0 << " ms" << std::endl;
+
     auto start_time_1 = Time::now();
     if (!priority.empty()) {
         // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].

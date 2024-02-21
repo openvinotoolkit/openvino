@@ -9,6 +9,10 @@
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
+#include <chrono>
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace ov {
 namespace test {
@@ -46,10 +50,13 @@ protected:
     void init_input_shapes(const std::vector<InputShape>& shapes);
 
     void TearDown() override {
+        auto start_time = Time::now();
         if (this->HasFailure() && !is_reported) {
             summary.setDeviceName(targetDevice);
             summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::FAILED, rel_influence_coef);
         }
+        auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
+        std::cout << "ConvolutionLayerCPUTest TearDown cost time " << duration << " ms" << std::endl;
     }
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();
