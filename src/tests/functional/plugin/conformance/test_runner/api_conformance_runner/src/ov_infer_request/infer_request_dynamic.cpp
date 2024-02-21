@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_1, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 4, 20, 20}},
                                     {{2, 4, 20, 20}, {2, 4, 20, 20}}}),
-                                ::testing::Values(targetDevice),
+                                ::testing::Values(ov::test::utils::target_device),
                                 ::testing::Values(ov::AnyMap({}))),
                         OVInferRequestDynamicTests::getTestCaseName);
 
@@ -72,7 +72,7 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_2, OVInferRequestDynamicTests,
                                 ::testing::Values(std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>>{
                                     {{1, 4, 20, 20}, {1, 2, 20, 40}},
                                     {{2, 4, 20, 20}, {2, 2, 20, 40}}}),
-                                ::testing::Values(targetDevice),
+                                ::testing::Values(ov::test::utils::target_device),
                                 ::testing::Values(ov::AnyMap({}))),
                         OVInferRequestDynamicTests::getTestCaseName);
 }  // namespace

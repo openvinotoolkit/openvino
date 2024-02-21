@@ -48,7 +48,7 @@ ov::Core create_core(const std::string& in_target_device) {
         available_devices.insert(core_devices.begin(), core_devices.end());
     }
 
-    if (!available_devices.count(target_device) && !in_target_device.empty()) {
+    if (!available_devices.count(in_target_device) && !in_target_device.empty()) {
 #ifndef NDEBUG
         std::cout << "Available devices :" << std::endl;
         for (const auto& device : available_devices) {
@@ -62,12 +62,13 @@ ov::Core create_core(const std::string& in_target_device) {
         if (in_target_device.empty()) {
             ov_core.set_property(global_plugin_config);
         } else {
-            const auto& supported_properties = ov_core.get_property(target_device, ov::supported_properties);
+            const auto& supported_properties = ov_core.get_property(in_target_device, ov::supported_properties);
             for (auto& property : global_plugin_config) {
                 if (std::find(supported_properties.begin(), supported_properties.end(), property.first) ==
                     supported_properties.end()) {
                     OPENVINO_THROW("Property " + property.first +
-                                   ", which was tryed to set in --config file, is not supported by " + target_device);
+                                   ", which was tryed to set in --config file, is not supported by " +
+                                   in_target_device);
                 }
             }
             ov_core.set_property(in_target_device, global_plugin_config);
