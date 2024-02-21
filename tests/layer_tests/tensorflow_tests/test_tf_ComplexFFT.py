@@ -71,10 +71,10 @@ class TestComplexFFT(CommonTFLayerTest):
     @pytest.mark.parametrize("input_shape, shift_roll, axis_roll", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                          'aarch64',
                                                                                          'arm64', 'ARM64'],
-                       reason='Ticket - 126314')
+                       reason='Ticket - 126314, 132699')
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
                                ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
