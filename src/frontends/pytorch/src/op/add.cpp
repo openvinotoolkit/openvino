@@ -7,6 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
@@ -28,6 +29,16 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         // Case when two lists gets concatenated
         PYTORCH_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
+
+    if (lhs.get_element_type() == element::boolean && rhs.get_element_type() == element::boolean) {
+        // when types are boolean then add means logical Or operation
+        auto logical_or = context.mark_node(std::make_shared<v1::LogicalOr>(lhs, rhs));
+        if (inplace)
+            context.mutate_input(0, logical_or);
+
+        return {logical_or};
+    }
+
     if (inplace) {
         if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
             rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
