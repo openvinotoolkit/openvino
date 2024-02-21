@@ -118,7 +118,6 @@ jobs:
           #Initialize pdm environment
             pdm venv create --name for-test ${{ env.PYTHON_VERSION }}
             pdm use --venv for-test
-            #pdm use -v ${{ env.PYTHON_VERSION }}
             pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo
           fi
 
