@@ -1,4 +1,4 @@
-# E2E OSS tests
+# End-to-end Tests User Documentation
 
 This folder contains E2E test framework code, E2E tests and related materials
 (reference outputs, test data, etc.)
