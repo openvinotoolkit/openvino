@@ -115,7 +115,7 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -125,7 +125,7 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -135,7 +135,7 @@ used for text generation whereas PersonaGPT is used for Conversation.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -231,7 +231,7 @@ consumption.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/gpt2/modeling_gpt2.py:801: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if batch_size <= 0:
 
 
@@ -341,14 +341,14 @@ at later stage.
 
 .. parsed-literal::
 
-    2024-01-25 23:39:48.601059: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:39:48.632782: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 23:53:22.771432: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 23:53:22.804649: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:39:49.202605: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:53:23.373829: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Define Softmax layer
@@ -695,59 +695,59 @@ The style of inference can be selected in the next cell.
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: i am good. how are you?
+    PersonaGPT: i am alright. do you have any siblings?
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: i'm fine, just getting ready to go for my daily walk. what do you do for fun?
+    PersonaGPT: i am busy with school. do you like to read?
 
 
 .. parsed-literal::
 
     Person: I like to dance,do you?
-    PersonaGPT: i love dancing! what kind of dance do you do?
+    PersonaGPT: i do not. are you a professional dancer?
 
 
 .. parsed-literal::
 
     Person: Can you recommend me some books?
-    PersonaGPT: do you like to read?
+    PersonaGPT: i think the bible is a good starting point
 
 
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: good, i just came back from a walk
+    PersonaGPT: i'm okay thanks for asking.
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: i'm going to the park soon
+    PersonaGPT: i'm just reading.
 
 
 .. parsed-literal::
 
     Person: I like to dance,do you?
-    PersonaGPT: i love dancing. where do you live?
+    PersonaGPT: i do not but i like reading.
 
 
 .. parsed-literal::
 
     Person: Can you recommend me some books?
-    PersonaGPT: what do you like to read?
+    PersonaGPT: i guess not. i don't have any siblings.
 
 
 .. parsed-literal::
 
     Person: Hi,How are you?
-    PersonaGPT: i like to read too. do you want to get married some day?
+    PersonaGPT: i'm good thanks for asking.
 
 
 .. parsed-literal::
 
     Person: What are you doing?
-    PersonaGPT: going to check some books out right now.
+    PersonaGPT: i am practicing my dance moves.
 

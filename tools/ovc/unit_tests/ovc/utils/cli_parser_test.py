@@ -12,7 +12,7 @@ from openvino.runtime import PartialShape
 
 from openvino.tools.ovc.cli_parser import _InputCutInfo
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, \
-    readable_file_or_object, get_all_cli_parser, get_mo_convert_params, parse_inputs, get_model_name_from_args
+     get_all_cli_parser, get_mo_convert_params, parse_inputs, get_model_name_from_args
 from openvino.tools.ovc.convert_impl import pack_params_to_args_namespace, arguments_post_parsing, args_to_argv
 from openvino.tools.ovc.error import Error
 from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
@@ -340,13 +340,6 @@ class PathCheckerFunctions(unittest.TestCase):
             shutil.rmtree(os.path.dirname(__class__.NOT_WRITABLE_SUB_DIR), ignore_errors=True)
         if os.path.exists(__class__.EXISTING_FILE):
             os.remove(__class__.EXISTING_FILE)
-
-    def test_readable_file(self):
-        self.assertEqual(__class__.EXISTING_FILE, readable_file_or_object(__class__.EXISTING_FILE))
-
-    def test_non_readable_file(self):
-        with self.assertRaises(Error) as cm:
-            readable_file_or_object(__class__.NOT_EXISTING_FILE)
 
 
 class TestPackParamsToArgsNamespace(unittest.TestCase):

@@ -17,14 +17,14 @@
 
 using namespace ov;
 using namespace ov::op;
+using ov::CoordinateDiff;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
-Shape get_kernel_shape(const Node& node) {
-    const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
+ov::Shape get_kernel_shape(const Node& node) {
+    const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
@@ -38,7 +38,7 @@ namespace {
 /// \return     The attribute default value.
 ///
 std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
@@ -69,11 +69,11 @@ std::vector<std::size_t> get_attribute_value(const Node& node,
 }
 }  // namespace
 
-Strides get_strides(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_strides(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "strides", kernel_rank);
 }
 
-Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "dilations", kernel_rank);
 }
 
@@ -126,17 +126,17 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 }
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "The rank of node must be static in order to calculate pads");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
     return get_pads(node, data_spatial_dims);
 }
 
-void calculate_auto_pads(const Shape& data_shape,
-                         const Shape& filter_shape,
-                         const Strides& strides,
-                         const Strides& dilations,
+void calculate_auto_pads(const ov::Shape& data_shape,
+                         const ov::Shape& filter_shape,
+                         const ov::Strides& strides,
+                         const ov::Strides& dilations,
                          const ov::op::PadType& pad_type,
                          CoordinateDiff& padding_below,
                          CoordinateDiff& padding_above) {
@@ -164,9 +164,9 @@ void calculate_auto_pads(const Shape& data_shape,
 }
 
 Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups) {
-    const auto zero_node = v0::Constant::create(ov::element::i64, Shape(), {0});
-    const auto split_lengths = v0::Constant::create(ov::element::i64, Shape{2}, {1, -1});
-    const auto groups_node = v0::Constant::create(ov::element::i64, Shape{1}, {groups});
+    const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape(), {0});
+    const auto split_lengths = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});
+    const auto groups_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {groups});
 
     const auto filters_shape = std::make_shared<v3::ShapeOf>(filters);
     const auto splitted_shape = std::make_shared<v1::VariadicSplit>(filters_shape, zero_node, split_lengths);
@@ -180,7 +180,6 @@ Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t g
     return reshaped_filters;
 }
 }  // namespace convpool
-}  // namespace onnx_import
-}  // namespace ngraph
-
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

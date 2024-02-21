@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSoftmax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'logits' in inputs_info
-        logits_shape = inputs_info['logits']
+        assert 'logits:0' in inputs_info
+        logits_shape = inputs_info['logits:0']
         inputs_data = {}
-        inputs_data['logits'] = np.random.randint(-5, 5, logits_shape).astype(np.float32)
+        inputs_data['logits:0'] = np.random.randint(-5, 5, logits_shape).astype(np.float32)
 
         return inputs_data
 
@@ -39,7 +39,7 @@ class TestSoftmax(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_softmax_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend):
+                           use_legacy_frontend):
         self._test(*self.create_softmax_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

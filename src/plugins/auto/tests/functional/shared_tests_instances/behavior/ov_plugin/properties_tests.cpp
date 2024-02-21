@@ -4,7 +4,6 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 
-#include "ie_plugin_config.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
@@ -115,7 +114,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiSetAndCompileModelBehaviorTestsThrow,
                          OVSetUnsupportPropCompileModelWithoutConfigTests::getTestCaseName);
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoOVGetMetricPropsTest, OVGetMetricPropsTest, ::testing::Values("MULTI", "AUTO"));

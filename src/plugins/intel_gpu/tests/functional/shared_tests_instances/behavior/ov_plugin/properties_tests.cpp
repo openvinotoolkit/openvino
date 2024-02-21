@@ -7,7 +7,6 @@
 #include <openvino/runtime/auto/properties.hpp>
 #include <thread>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
@@ -48,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
                          ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU")));
 
 // //
-// // IE Class GetMetric
+// // OV Class GetMetric
 // //
 
 INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
@@ -68,12 +67,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
                         { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         ::testing::Combine(::testing::Values("HETERO", "BATCH"),
-                                            ::testing::Values(ov::AnyMap({}))),
-                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
@@ -683,7 +676,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),
         ov::intel_gpu::execution_units_count.name(),
-        ov::intel_gpu::driver_version.name(),
         ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
     };
@@ -701,8 +693,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ASSERT_TRUE(std::find(caching_properties.begin(), caching_properties.end(), property_name) !=
                     caching_properties.end());
     }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -730,7 +720,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair("GPU", "1")));
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,

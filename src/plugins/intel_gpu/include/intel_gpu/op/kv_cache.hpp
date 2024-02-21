@@ -51,9 +51,12 @@ public:
     void set_concat_axis(int64_t axis) { m_concat_axis = axis; }
     void set_gather_axis(int64_t axis) { m_gather_axis = axis; }
 
+    bool get_indirect() const { return m_indirect; }
+
 private:
     int64_t m_concat_axis;
     int64_t m_gather_axis;
+    bool m_indirect = false;
     ov::element::Type m_output_type;
 };
 

@@ -60,7 +60,6 @@ xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape infere
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
 xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
-xfail_issue_99959 = xfail_test(reason="Mish function is not supported")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
 xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
 xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")

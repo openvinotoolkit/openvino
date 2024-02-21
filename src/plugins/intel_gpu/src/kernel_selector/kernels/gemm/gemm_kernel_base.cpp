@@ -178,7 +178,38 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("TRANSPOSE_INPUT0", params.transpose_input0),
         MakeJitConstant("TRANSPOSE_INPUT1", params.transpose_input1),
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
+        MakeJitConstant("INDIRECT_INPUT0", params.indirect_input0),
+        MakeJitConstant("INDIRECT_INPUT1", params.indirect_input1),
+        MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
+
+    auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
+        auto output_dims_order = GetDimsOrder(output_order_idx);
+
+        switch (output_dims_order.at(target_idx)) {
+            case 'b':
+                return "OUTPUT_BATCH_NUM";
+            case 'f':
+                return "OUTPUT_FEATURE_NUM";
+            case 'w':
+                return "OUTPUT_SIZE_W";
+            case 'z':
+                return "OUTPUT_SIZE_Z";
+            case 'y':
+                return "OUTPUT_SIZE_Y";
+            case 'x':
+                return "OUTPUT_SIZE_X";
+            default:
+                return "";
+        }
+    };
+    if (params.indirect_input0 || params.indirect_input1) {
+        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.inputs[params.inputs.size() - 1]));
+    }
+
+    if (params.inputs.size() == 4 || (!params.indirect_input0 && !params.indirect_input1 && params.inputs.size() == 3)) {
+        jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
+    }
 
     jit.AddConstants({
         MakeJitConstant("TRANSPOSE_X_LAST", 0),
@@ -186,7 +217,10 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("TRANSPOSE_OTHER", 2),
         MakeJitConstant("INPUT0_DIMS_ORDER", GetDimsOrder(params.input0_order)),
         MakeJitConstant("INPUT1_DIMS_ORDER", GetDimsOrder(params.input1_order)),
-        MakeJitConstant("MATMUL_AXIS", static_cast<char>(std::toupper(GetDimsOrder(params.input0_order).at(10)))),
+        MakeJitConstant("TR_OUTPUT_SIZE_Z", get_output_size(params.output_order, 6)),
+        MakeJitConstant("TR_OUTPUT_SIZE_W", get_output_size(params.output_order, 4)),
+        MakeJitConstant("TR_OUTPUT_FEATURE_NUM", get_output_size(params.output_order, 2)),
+        MakeJitConstant("TR_OUTPUT_BATCH_NUM", get_output_size(params.output_order, 0)),
     });
 
     return jit;
@@ -217,9 +251,8 @@ void GemmKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
-                                                 const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -229,7 +262,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<gemm_params>(params);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -254,7 +287,7 @@ JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, 
     return {};
 }
 
-bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
+bool GemmKernelBase::Validate(const Params& p) const {
     const gemm_params& params = static_cast<const gemm_params&>(p);
 
     if (params.GetType() != KernelType::GEMM) {

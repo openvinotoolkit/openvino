@@ -15,7 +15,6 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -204,6 +203,7 @@ void CompileModelCacheTestBase::TearDown() {
     } catch (...) {
        // do nothing
     }
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -310,6 +310,7 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -371,6 +372,7 @@ void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -482,6 +484,7 @@ void CompileModelLoadFromCacheTest::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -591,6 +594,7 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
     weights_vector.clear();
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -702,6 +706,7 @@ void CompiledKernelsCacheTest::SetUp() {
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 

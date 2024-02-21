@@ -75,18 +75,18 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
 }
 
 void EmbeddingSegmentsSum::prepareParams() {
-    EmbeddingBagSum::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
+    EmbeddingBagSum::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
 }
 
 void EmbeddingSegmentsSum::initFromInputs() {
-    indices_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
+    indices_ = getSrcDataAtPortAs<const int>(INDICES_IDX);
     indicesSize_ = getParentEdgeAt(INDICES_IDX)->getMemory().getShape().getElementsCount();
 
-    segmentIds_ = reinterpret_cast<const int *>(getParentEdgeAt(SEGMENT_ID_IDX)->getMemoryPtr()->getData());
+    segmentIds_ = getSrcDataAtPortAs<const int>(SEGMENT_ID_IDX);
     lastNumSegments_ = getNumSegments();
 
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
-        defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->getData());
+        defaultIndices_ = getSrcDataAtPortAs<const int>(DEFAULT_INDEX_IDX);
     }
 }
 
@@ -119,7 +119,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex, const int*& indices, size
 }
 
 int32_t EmbeddingSegmentsSum::getNumSegments() const {
-    return reinterpret_cast<const int32_t *>(getParentEdgesAtPort(NUM_SEGMENTS_IDX)[0]->getMemory().getData())[0];
+    return getParentEdgeAt(NUM_SEGMENTS_IDX)->getMemory().getDataAs<const int32_t>()[0];
 }
 
 bool EmbeddingSegmentsSum::needShapeInfer() const {
@@ -143,14 +143,14 @@ bool EmbeddingSegmentsSum::isExecutable() const {
 }
 
 void EmbeddingSegmentsSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
+        weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
-                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
+                                       inputMem.getStaticDims(), getDstMemoryAtPort(0));
 }
 
 bool EmbeddingSegmentsSum::created() const {

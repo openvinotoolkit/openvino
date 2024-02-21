@@ -5,9 +5,9 @@
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
-#include "validation_util.hpp"
 
 using MultiSubGraphOp = ov::op::util::MultiSubGraphOp;
 

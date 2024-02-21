@@ -17,7 +17,7 @@ class TopKNormalizer(BackReplacementPattern):
     with values is not added if the node has attribute 'remove_values_output' which is set to True for Caffe models
     where ArgMax does not have separate output with values.
 
-    TODO this pass should be removed when IE supports 0D tensors.
+    TODO this pass should be removed when OV supports 0D tensors.
     """
     enabled = True
 

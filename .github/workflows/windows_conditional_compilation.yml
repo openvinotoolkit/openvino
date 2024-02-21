@@ -58,6 +58,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
       SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
@@ -104,12 +105,16 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       - name: Install python dependencies
         run: |
@@ -143,6 +148,7 @@ jobs:
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" `
             -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_CXX_STANDARD=20 `
             -DENABLE_TESTS=ON `
             -DENABLE_CPPLINT=OFF `
             -DENABLE_NCC_STYLE=OFF `
@@ -273,6 +279,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
@@ -312,7 +319,7 @@ jobs:
           self-hosted-runner: 'false'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.5.4"
 

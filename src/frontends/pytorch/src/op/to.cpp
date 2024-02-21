@@ -54,7 +54,7 @@ OutputVector translate_to(const NodeContext& context) {
             return {context.get_input(0)};
         }
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
 
     // We ignore both non_blocking and copy inputs since non_blocking argument is used
@@ -79,6 +79,16 @@ OutputVector translate_to(const NodeContext& context) {
         cast = context.mark_node(std::make_shared<v1::ConvertLike>(context.get_input(0), context.get_input(1)));
     }
     return {cast};
+}
+
+OutputVector translate_to_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto data = context.get_input(0);
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        data = context.mark_node(std::make_shared<v0::Convert>(context.get_input(0), dtype));
+    }
+    return {data};
 }
 
 }  // namespace op

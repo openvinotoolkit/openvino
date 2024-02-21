@@ -16,7 +16,6 @@ class TestTFEye(CommonTFLayerTest):
             inputs_dict[input] = np.zeros(inputs_dict[input]).astype(self.eye_output_type_param)
         return inputs_dict
 
-
     def create_tf_eye_net(self, num_rows, num_columns, batch_shape, output_type):
         tf.compat.v1.reset_default_graph()
 
@@ -28,7 +27,8 @@ class TestTFEye(CommonTFLayerTest):
                 eye = tf.eye(num_rows=num_rows, num_columns=num_columns, batch_shape=batch_shape)
             else:
                 self.eye_output_type_param = output_type
-                eye = tf.eye(num_rows=num_rows, num_columns=num_columns, batch_shape=batch_shape, dtype=tf.as_dtype(output_type))
+                eye = tf.eye(num_rows=num_rows, num_columns=num_columns, batch_shape=batch_shape,
+                             dtype=tf.as_dtype(output_type))
 
             # Dummy Add layer to prevent fully const network
             input_zero = tf.compat.v1.placeholder(tf.as_dtype(self.eye_output_type_param), [1], 'Input')
@@ -53,10 +53,12 @@ class TestTFEye(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        if not use_legacy_frontend:
+            pytest.xfail(reason="132517: MatrixDiagV3 needs to be supported")
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_tf_eye_net(**params), ie_device,
                    precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
                    **params)
