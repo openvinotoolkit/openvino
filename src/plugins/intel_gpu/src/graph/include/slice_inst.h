@@ -20,10 +20,10 @@ using slice_node = typed_program_node<slice>;
 // This class was created to encapsulate that logic in single place.
 // NOTE: the placement of this class is the 'lesser evil'. Normally such logic
 // should be a part of codegen/jitter, which should output some struct with information
-// about which data is needed by the kernel, how it should be provided, bindings, etc. 
+// about which data is needed by the kernel, how it should be provided, bindings, etc.
 // Currently it is scattered in mutiple places, where basically similar logic has to be applied.
 // NOTE: This class implicietly depends on logic inside SliceKernelRef and the kernel
-// itself. If you make any changes of how params are provided to kernel, 
+// itself. If you make any changes of how params are provided to kernel,
 // likely you will needed to update this one too.
 class SliceKernelRefNeededInputs {
 public:
