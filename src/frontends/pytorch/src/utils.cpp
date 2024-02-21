@@ -398,19 +398,24 @@ void align_eltwise_input_types(const NodeContext& context,
     auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
     auto out_type = context.get_output_type(0);
+    ov::Output<ov::Node> tmp_lhs = lhs;
+    ov::Output<ov::Node> tmp_rhs = rhs;
     if (is_lhs_python_scalar && !is_rhs_python_scalar) {
-        lhs = context.mark_node(std::make_shared<ov::op::v1::Reshape>(lhs, const_1, false));
-        rhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(rhs, const_0));
+        tmp_lhs = context.mark_node(std::make_shared<ov::op::v1::Reshape>(lhs, const_1, false));
+        tmp_rhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(rhs, const_0));
     } else if (!is_lhs_python_scalar && is_rhs_python_scalar) {
-        rhs = context.mark_node(std::make_shared<ov::op::v1::Reshape>(rhs, const_1, false));
-        lhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(lhs, const_0));
+        tmp_rhs = context.mark_node(std::make_shared<ov::op::v1::Reshape>(rhs, const_1, false));
+        tmp_lhs = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(lhs, const_0));
     }
 
-    auto at = context.mark_node(std::make_shared<ov::op::v14::ConvertPromoteTypes>(lhs, rhs, true, true, element::f32));
+    auto at = context.mark_node(
+        std::make_shared<ov::op::v14::ConvertPromoteTypes>(tmp_lhs, tmp_rhs, true, true, element::f32));
     auto dst_type = at->get_output_element_type(0);
     if (dst_type.is_dynamic()) {
-        lhs = at->output(0);
-        rhs = at->output(1);
+        // Add ConvertLike on original node to not remove changes to shape done to differentiate between tensors and
+        // scalars.
+        lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(lhs, at->output(0)));
+        rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(rhs, at->output(1)));
     } else {
         // Cast to destination type
         if (dst_type != lhs_type) {
@@ -419,12 +424,6 @@ void align_eltwise_input_types(const NodeContext& context,
         if (dst_type != rhs_type) {
             rhs = context.mark_node(std::make_shared<opset10::Convert>(rhs, dst_type));
         }
-    }
-
-    if (is_lhs_python_scalar && !is_rhs_python_scalar) {
-        rhs = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(rhs, const_0));
-    } else if (!is_lhs_python_scalar && is_rhs_python_scalar) {
-        lhs = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(lhs, const_0));
     }
     return;
 }
