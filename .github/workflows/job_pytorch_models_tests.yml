@@ -38,6 +38,7 @@ jobs:
         run: if [ "$(id -u)" -eq 0 ]; then apt update && apt --assume-yes install sudo; fi
 
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: |
           if [ "$(id -u)" -eq 0 ]; then
             echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries

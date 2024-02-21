@@ -57,10 +57,10 @@ class TestArgMinMax(CommonTFLayerTest):
     @pytest.mark.parametrize("op_type", ['tf.raw_ops.ArgMax', 'tf.raw_ops.ArgMin'])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
-                                                                                         'aarch64',
-                                                                                         'arm64', 'ARM64'],
-                       reason='Ticket - 126314')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
     def test_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         params = dict(input_shape=input_shape, dimension=dimension)
         self._test(*self.create_argmin_max_net(**params, input_type=input_type,

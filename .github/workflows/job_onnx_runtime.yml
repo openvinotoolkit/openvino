@@ -41,6 +41,7 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package

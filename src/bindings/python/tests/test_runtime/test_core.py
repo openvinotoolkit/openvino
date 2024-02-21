@@ -347,6 +347,7 @@ def test_unload_plugin(device):
 
 @pytest.mark.template_extension()
 @pytest.mark.dynamic_library()
+@pytest.mark.xfail(condition=sys.platform == "darwin", reason="Ticket - 132696")
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)
