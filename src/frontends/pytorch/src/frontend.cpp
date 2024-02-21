@@ -6,7 +6,6 @@
 
 #include "input_model.hpp"
 #include "op_table.hpp"
-#include "openvino/core/op_extension.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/pytorch/extension/conversion.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
