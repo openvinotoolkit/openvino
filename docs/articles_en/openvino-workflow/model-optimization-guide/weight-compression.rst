@@ -54,9 +54,9 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
     * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
 
-  * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all Fully-Connected and Embedding layers including first and last layer in the model. 
+  * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all Fully-Connected and Embedding layers, including the first and last layers in the model. 
 
-  * ``awq`` - boolean parameter that enables AWQ method for more accurate INT4 weight quantization. Especially helpful when weights of all the layers quantized to 4 bits. The method is not friendly to Dynamic Quantization of activations. Requires dataset.
+  * ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight quantization. Especially helpful when the weights of all the layers are quantized to 4 bits. The method can sometimes result in reduced accuracy when used with Dynamic Quantization of activations. Requires dataset.
 
 
 The example below shows data-free 4-bit weight quantization applied on top of OpenVINO IR:
