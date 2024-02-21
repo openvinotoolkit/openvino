@@ -483,7 +483,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
-        {"aten::mv", op::translate_mv<opset10::mv>},
+        {"aten::mv", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::maximum", op::translate_maximum},
         {"aten::max_pool1d", op::quantizable_op<op::translate_max_poolnd>},
         {"aten::max_pool1d_with_indices", op::quantizable_op<op::translate_max_poolnd>},
