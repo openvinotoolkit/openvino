@@ -71,6 +71,7 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 
 Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html).
 
+
 ### Products Powered by OpenVINO
 
 #### OpenVINO Ecosystem
@@ -90,7 +91,7 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
 -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
 
 <details>
-  <summary>More products</summary>
+  <summary>More products ### this will be removed </summary>
 
    **Ecosystem**
 
@@ -126,56 +127,6 @@ For additional resources and information, you can explore:
 [Developer documentation](./docs/dev/index.md) contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
 
 ### Supported Hardware
-
-The OpenVINO™ Runtime can infer models on different hardware devices. This section provides the list of supported devices.
-
-<table>
-    <thead>
-        <tr>
-            <th>Device</th>
-            <th>Plugin</th>
-            <th>Library</th>
-            <th>Short Description</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td rowspan=2>CPU</td>
-            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">Intel CPU</a></tb>
-            <td><b><i><a href="./src/plugins/intel_cpu">openvino_intel_cpu_plugin</a></i></b></td>
-            <td>Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), Intel® Advanced Matrix Extensions (Intel® AMX), Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE)</td>
-        </tr>
-        <tr>
-            <td> <a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">ARM CPU</a></tb>
-            <td><b><i><a href="./src/plugins/intel_cpu">openvino_arm_cpu_plugin</a></i></b></td>
-            <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon
-        </tr>
-        <tr>
-            <td>GPU</td>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
-            <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
-            <td>Intel® Processor Graphics including Intel® HD Graphics and Intel® Iris® Graphics, Intel® Arc™ A-Series Graphics, Intel® Data Center GPU Flex Series, Intel® Data Center GPU Max Series</td>
-        </tr>
-        <tr>
-            <td></td>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
-            <td><b><i><a href="./src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
-            <td>Auto batch plugin performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user</td>
-        </tr>
-        <tr>
-            <td></td>
-            <td><a href="https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
-            <td><b><i><a href="./src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
-            <td>Heterogeneous execution enables automatic inference splitting between several devices</td>
-        </tr>
-        <tr>
-            <td>NPU</td>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_NPU.html">Intel NPU</a></td>
-            <td><b><i></i></b></td>
-            <td></td>
-        </tr>
-    </tbody>
-</table>
 
 Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html) and [compatibility details](https://docs.openvino.ai/2023.1/compatibility_and_support.html) for more information.
 
