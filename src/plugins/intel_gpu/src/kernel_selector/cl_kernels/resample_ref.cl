@@ -4,6 +4,10 @@
 
 #include "include/fetch_utils.cl"
 
+#ifdef RTE_OUTPUT
+    #define TO_OUTPUT_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
+#endif
+
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 {
 #if defined(NEAREST_ROUND_PREFER_FLOOR)
@@ -159,7 +163,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     #undef oy
     #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
+    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
