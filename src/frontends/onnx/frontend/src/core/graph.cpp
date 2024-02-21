@@ -21,6 +21,7 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/node_context.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
 
 using namespace ov;
@@ -311,6 +312,34 @@ std::shared_ptr<ov::Model> Graph::create_model() {
 std::shared_ptr<ov::Model> Graph::decode() {
     decode_to_framework_nodes();
     auto function = create_model();
+    if (m_extensions.telemetry) {
+        std::set<std::string> unsupported_operations;
+        std::set<std::string> failures;
+        for (const auto& node : function->get_ordered_ops()) {
+            if (const auto& fw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node)) {
+                const auto& attrs = fw_node->get_attrs();
+                auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
+                if (unsupported_operations.count(node_name) > 0) {
+                    continue;
+                }
+                unsupported_operations.insert(node_name);
+            } else if (const auto& fw_node = std::dynamic_pointer_cast<frontend::NotSupportedONNXNode>(node)) {
+                const auto& attrs = fw_node->get_attrs();
+                const auto node_fail = attrs.find(frontend::NotSupportedONNXNode::failed_conversion_key);
+                if (node_fail == attrs.end() || failures.count(node_fail->second) > 0) {
+                    continue;
+                }
+                failures.insert(node_fail->second);
+            }
+            for (const auto& op : unsupported_operations) {
+                m_extensions.telemetry->send_event("error_cause", "onnx_" + op);
+            }
+            for (const auto& str : failures) {
+                m_extensions.telemetry->send_event("error_info",
+                                                   ov::util::filter_lines_by_prefix(str, "[ONNX Frontend] "));
+            }
+        }
+    }
     auto& rt_info = function->get_rt_info();
     rt_info[ONNX_GRAPH_RT_ATTRIBUTE] = shared_from_this();
     return function;

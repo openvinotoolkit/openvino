@@ -12,7 +12,7 @@ namespace onnx_error {
 namespace detail {
 std::string get_error_msg_prefix(const ov::frontend::onnx::Node& node) {
     std::stringstream ss;
-    ss << "While validating ONNX node '" << node << "'";
+    ss << "[ONNX Frontend] Node '" << node << "'";
     return ss.str();
 }
 }  // namespace detail
