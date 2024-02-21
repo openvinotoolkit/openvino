@@ -15,6 +15,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API StridedSliceSqueeze;
 class TRANSFORMATIONS_API SqueezeStridedSlice;
+class TRANSFORMATIONS_API SharedSqueeze;
 
 }  // namespace pass
 }  // namespace ov
@@ -41,4 +42,16 @@ class ov::pass::SqueezeStridedSlice : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SqueezeStridedSlice", "0");
     SqueezeStridedSlice();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief SharedSqueeze transformation looks for shared Squeezes and leaves only one Squeeze reconnecting all the
+ * outputs to it
+ */
+
+class ov::pass::SharedSqueeze : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("SharedSqueeze", "0");
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
