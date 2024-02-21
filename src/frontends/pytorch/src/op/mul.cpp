@@ -22,7 +22,6 @@ OutputVector translate_mul_common(const NodeContext& context, bool inplace) {
 
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean || (lhs_dtype.is<element::Type>() && lhs_dtype.as<element::Type>() == element::boolean);
     auto right_is_bool = rhs.get_element_type() == ov::element::boolean || (rhs_dtype.is<element::Type>() && rhs_dtype.as<element::Type>() == element::boolean);
-    
     if (left_is_bool && right_is_bool) {
         // if input types are boolean then aten::mul meand logical Add operation
         if (inplace)
