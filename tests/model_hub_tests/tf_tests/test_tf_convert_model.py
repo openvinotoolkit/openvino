@@ -128,15 +128,16 @@ class TestTFHubConvertModel(TestConvertModel):
 
     def teardown_method(self):
         # remove all downloaded files for TF Hub models
-        for file_name in os.listdir(tf_hub_cache_dir):
-            file_path = os.path.join(tf_hub_cache_dir, file_name)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                pass
+        if os.path.exists(tf_hub_cache_dir):
+            for file_name in os.listdir(tf_hub_cache_dir):
+                file_path = os.path.join(tf_hub_cache_dir, file_name)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    pass
         # deallocate memory after each test case
         gc.collect()
 
