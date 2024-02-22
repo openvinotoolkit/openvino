@@ -49,7 +49,7 @@
 #include "snippets/pass/manager.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include <openvino/pass/serialize.hpp>
+#include "openvino/pass/serialize.hpp"
 
 #include <algorithm>
 #include <memory>

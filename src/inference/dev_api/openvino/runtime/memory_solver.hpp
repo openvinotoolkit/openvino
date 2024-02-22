@@ -4,8 +4,9 @@
 
 /**
  * @brief The header provides a declaration of MemorySolver utility class
- * @file
+ * @file openvino/runtime/memory_solver.hpp
  */
+
 #pragma once
 
 #include <stdint.h>

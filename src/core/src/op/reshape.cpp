@@ -62,10 +62,14 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
         outputs[0].set_shape(output_shape);
     }
 
-    ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
-                           static_cast<char*>(outputs[0].data()),
-                           inputs[0].get_shape(),
-                           inputs[0].get_element_type().size());
+    if (inputs[0].get_element_type() == ov::element::string) {
+        ov::reference::reshape(inputs[0].data<std::string>(), outputs[0].data<std::string>(), inputs[0].get_shape());
+    } else {
+        ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
+                               static_cast<char*>(outputs[0].data()),
+                               inputs[0].get_shape(),
+                               inputs[0].get_element_type().size());
+    }
     return true;
 }
 

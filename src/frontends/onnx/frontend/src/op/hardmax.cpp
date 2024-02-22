@@ -5,6 +5,7 @@
 #include "op/hardmax.hpp"
 
 #include "exceptions.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -14,7 +15,6 @@
 #include "openvino/op/topk.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
-#include "validation_util.hpp"
 
 using namespace ov::op;
 using ov::Shape;

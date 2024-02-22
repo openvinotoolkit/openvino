@@ -52,3 +52,17 @@ jobs:
       - name: Pylint-OVC
         run: pylint -d C,R,W openvino/tools/ovc
         working-directory: tools/ovc
+
+  Overall_Status:
+    name: ci/gha_overall_status_ovc
+    needs: [Pylint-UT]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

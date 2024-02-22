@@ -22,18 +22,13 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/pp.hpp"
 
-namespace InferenceEngine {
-
-class IPluginWrapper;
-class IExtension;
-
-}  // namespace InferenceEngine
-
 namespace ov {
+
+class ICompiledModel;
 
 /**
  * @defgroup ov_dev_api OpenVINO Plugin API
- * @brief Defines Inference Engine Plugin API which can be used in plugin development
+ * @brief Defines OpenVINO Plugin API which can be used in plugin development
  *
  * @{
  * @defgroup ov_dev_api_plugin_api Plugin base classes
@@ -212,12 +207,6 @@ public:
     std::shared_ptr<ov::ICore> get_core() const;
 
     /**
-     * @brief Provides an information about used API
-     * @return true if new API is used
-     */
-    bool is_new_api() const;
-
-    /**
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
@@ -229,13 +218,10 @@ protected:
     IPlugin();
 
 private:
-    friend ::InferenceEngine::IPluginWrapper;
-
     std::string m_plugin_name;                                           //!< A device name that plugins enables
     std::weak_ptr<ov::ICore> m_core;                                     //!< A pointer to ICore interface
     std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
     ov::Version m_version;                                               //!< Member contains plugin version
-    bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
 /**
@@ -262,7 +248,7 @@ using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
  * @ingroup ov_dev_api_plugin_api
  */
 #ifndef OV_CREATE_PLUGIN
-#    define OV_CREATE_PLUGIN CreatePluginEngine
+#    define OV_CREATE_PLUGIN create_plugin_engine
 #endif
 
 /**

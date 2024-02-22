@@ -157,10 +157,10 @@ protected:
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }

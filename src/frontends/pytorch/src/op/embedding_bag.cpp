@@ -21,7 +21,7 @@ OutputVector translate_embedding_bag(const NodeContext& context) {
     num_inputs_check(context, 9, 9);
     // we have only EmbeddingBagSum case support, check it before translation
     auto mode = context.const_input<int64_t>(4);
-    FRONT_END_OP_CONVERSION_CHECK(mode == 0, "Only sum mode supported for aten::embedding_bag translation");
+    PYTORCH_OP_CONVERSION_CHECK(mode == 0, "Only sum mode supported for aten::embedding_bag translation");
     auto weight = context.get_input(0);
     auto indices = context.get_input(1);
     indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i32));
@@ -44,7 +44,7 @@ OutputVector translate_embedding_bag(const NodeContext& context) {
         auto offsets = context.get_input(2);
         offsets = context.mark_node(std::make_shared<ov::op::v0::Convert>(offsets, element::i32));
         auto include_last_offset = context.const_input<bool>(7);
-        FRONT_END_OP_CONVERSION_CHECK(!include_last_offset, "Inclusion last offset is not supported");
+        PYTORCH_OP_CONVERSION_CHECK(!include_last_offset, "Inclusion last offset is not supported");
         // no per_sample_wights
         if (context.input_is_none(6)) {
             result = context.mark_node(std::make_shared<ov::op::v3::EmbeddingBagOffsetsSum>(weight, indices, offsets));

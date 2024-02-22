@@ -14,7 +14,7 @@ class TestRsqrt(CommonTFLayerTest):
             inputs_dict[input] = np.random.randint(1, 256, inputs_dict[input]).astype(np.float32)
         return inputs_dict
 
-    def create_rsqrt_net(self, shape, ir_version, use_new_frontend):
+    def create_rsqrt_net(self, shape, ir_version, use_legacy_frontend):
         """
             Tensorflow net                 IR net
 
@@ -30,7 +30,7 @@ class TestRsqrt(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
 
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
+            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
             input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
 
             tf.math.rsqrt(input, name='Operation')
@@ -54,11 +54,11 @@ class TestRsqrt(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_rsqrt_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                             use_new_frontend):
+                             use_legacy_frontend):
         self._test(*self.create_rsqrt_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
+                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data = [dict(shape=[1]),
                  pytest.param(dict(shape=[1, 224]), marks=pytest.mark.precommit_tf_fe),
@@ -68,8 +68,8 @@ class TestRsqrt(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_rsqrt(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_rsqrt_net(**params, ir_version=ir_version,
-                                          use_new_frontend=use_new_frontend),
+                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

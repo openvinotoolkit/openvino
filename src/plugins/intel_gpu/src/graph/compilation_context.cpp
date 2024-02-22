@@ -28,8 +28,8 @@ public:
         futures.emplace_back(promise->get_future());
 
         if (_task_keys.find(key) == _task_keys.end()) {
-            _task_keys.insert(key);
             if (_task_executor != nullptr) {
+                _task_keys.insert(key);
                 _task_executor->run([task, promise] {
                     task();
                     promise->set_value();

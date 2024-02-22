@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_models/utils/ov_helpers.hpp"
-
 #include <cstring>
 #include <memory>
 #include <queue>
@@ -13,6 +11,7 @@
 #include "common_test_utils/specialize_function.hpp"
 #include "common_test_utils/test_enums.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -20,234 +19,6 @@
 
 namespace ngraph {
 namespace helpers {
-
-ov::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
-    ov::OutputVector outs;
-    std::for_each(nodes.begin(), nodes.end(), [&outs](const std::shared_ptr<ov::Node>& n) {
-        for (const auto& out_p : n->outputs()) {
-            outs.push_back(out_p);
-        }
-    });
-    return outs;
-}
-
-std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
-    const std::shared_ptr<ov::Model>& function,
-    const std::vector<std::vector<std::uint8_t>>& inputs,
-    const std::vector<ov::element::Type>& inputTypes) {
-    auto backend = ov::runtime::Backend::create();
-
-    const auto& parameters = function->get_parameters();
-    const auto& parametersNumber = parameters.size();
-    const auto& inputsNumber = inputs.size();
-    OPENVINO_ASSERT(parametersNumber == inputsNumber,
-                    "Got function (",
-                    function->get_friendly_name(),
-                    ") with ",
-                    parametersNumber,
-                    " parameters, but ",
-                    inputsNumber,
-                    " input blobs");
-    if (!inputTypes.empty()) {
-        OPENVINO_ASSERT(inputTypes.size() == inputsNumber,
-                        "Got function (",
-                        function->get_friendly_name(),
-                        ") with ",
-                        inputsNumber,
-                        " inputs, but ",
-                        inputTypes.size(),
-                        " types");
-    }
-
-    ov::TensorVector inputTensors(parametersNumber);
-    for (size_t i = 0; i < parametersNumber; ++i) {
-        const auto& parameter = parameters[i];
-        const auto& parameterIndex = function->get_parameter_index(parameter);
-        const auto& parameterShape = parameter->get_shape();
-        const auto& parameterType = parameter->get_element_type();
-        const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
-
-        auto input = inputs[parameterIndex];
-        const auto inType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
-
-        if (inType != ov::element::undefined && inType != parameterType) {
-            input = ngraph::helpers::convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
-        }
-
-        const auto& inputSize = input.size();
-        OPENVINO_ASSERT(parameterSize == inputSize,
-                        "Got parameter (",
-                        parameter->get_friendly_name(),
-                        ") of size ",
-                        parameterSize,
-                        " bytes, but corresponding input with index ",
-                        parameterIndex,
-                        " has ",
-                        inputSize,
-                        " bytes");
-
-        auto tensor = backend->create_tensor(parameterType, parameterShape);
-        std::memcpy(tensor.data(), input.data(), parameterSize);
-        inputTensors[i] = tensor;
-    }
-
-    const auto& results = function->get_results();
-    ov::TensorVector outputTensors(results.size());
-    for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
-    }
-
-    auto handle = backend->compile(function);
-    handle->call_with_validate(outputTensors, inputTensors);
-    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
-    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
-        auto& output = outputs[resultIndex];
-        output.first = results[resultIndex]->get_element_type();
-        const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize((shape_size(outputTensor.get_shape()) * outputTensor.get_element_type().bitwidth() + 7) >>
-                             3);
-        std::memcpy(output.second.data(), outputTensors[resultIndex].data(), output.second.size());
-    }
-
-    return outputs;
-}
-
-std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& function,
-                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
-    auto backend = ov::runtime::Backend::create();
-
-    const auto& funcInputs = function->inputs();
-    const auto& funcInputsNumber = funcInputs.size();
-    const auto& inputsNumber = inputs.size();
-    OPENVINO_ASSERT(funcInputsNumber == inputsNumber,
-                    "Got function (",
-                    function->get_friendly_name(),
-                    ") with ",
-                    funcInputsNumber,
-                    " parameters, but ",
-                    inputsNumber,
-                    " input blobs");
-
-    ov::TensorVector inputTensors(funcInputsNumber);
-    for (size_t i = 0; i < funcInputsNumber; ++i) {
-        const auto& input = funcInputs[i];
-        const auto& inputShape = input.get_shape();
-        const auto& inputType = input.get_element_type();
-        const auto& inputSize = shape_size(inputShape) * inputType.size();
-
-        auto inputIt =
-            std::find_if(inputs.begin(), inputs.end(), [&input](std::pair<std::shared_ptr<ov::Node>, ov::Tensor> elem) {
-                return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
-            });
-        if (inputIt == inputs.end()) {
-            throw std::runtime_error("Parameter: " + input.get_node_shared_ptr()->get_friendly_name() +
-                                     " was not find in input parameters");
-        }
-        auto inputTensor = inputIt->second;
-
-        const auto& inputTensorSize = inputTensor.get_byte_size();
-        OPENVINO_ASSERT(inputSize == inputTensorSize,
-                        "Got parameter (",
-                        input.get_node_shared_ptr()->get_friendly_name(),
-                        ") of size ",
-                        inputSize,
-                        " bytes, but corresponding input ",
-                        " has ",
-                        inputTensorSize,
-                        " bytes");
-
-        auto tensor = backend->create_tensor(inputType, inputShape);
-        inputTensor.copy_to(tensor);
-        inputTensors[i] = tensor;
-    }
-
-    const auto& results = function->get_results();
-    ov::TensorVector outputTensors(results.size());
-    for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
-    }
-
-    auto handle = backend->compile(function);
-    handle->call_with_validate(outputTensors, inputTensors);
-
-    return outputTensors;
-}
-
-std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
-                                        const std::vector<std::vector<std::uint8_t>>& inputs,
-                                        const std::vector<ov::element::Type>& inputTypes) {
-    const auto& parameters = function->get_parameters();
-    const auto& parametersNumber = parameters.size();
-    const auto& inputsNumber = inputs.size();
-    OPENVINO_ASSERT(parametersNumber == inputsNumber,
-                    "Got function (",
-                    function->get_friendly_name(),
-                    ") with ",
-                    parametersNumber,
-                    " parameters, but ",
-                    inputsNumber,
-                    " input blobs");
-    if (!inputTypes.empty()) {
-        OPENVINO_ASSERT(inputTypes.size() == inputsNumber,
-                        "Got function (",
-                        function->get_friendly_name(),
-                        ") with ",
-                        inputsNumber,
-                        " inputs, but ",
-                        inputTypes.size(),
-                        " types");
-    }
-
-    std::vector<ov::element::Type> paramElementTypes;
-    std::vector<ov::PartialShape> paramShapes;
-    std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
-    vecTmpConvertedInputs.reserve(inputs.size());
-
-    std::vector<void*> inBuffers;
-    inBuffers.reserve(inputs.size());
-
-    for (size_t i = 0; i < parametersNumber; ++i) {
-        const auto& param = parameters[i];
-        paramElementTypes.emplace_back(param->get_element_type());
-        paramShapes.emplace_back(param->get_shape());
-        auto parameterIndex = function->get_parameter_index(param);
-        auto& input = inputs[parameterIndex];
-
-        const auto inpType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
-
-        if (inpType != ov::element::undefined && inpType != paramElementTypes.back()) {
-            vecTmpConvertedInputs.emplace_back(
-                convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
-            inBuffers.push_back(vecTmpConvertedInputs.back().data());
-        } else {
-            // const_cast added to satisfy specialize_function interface
-            // which requires inputs as std::vector<void *>
-            inBuffers.push_back(const_cast<std::uint8_t*>(input.data()));
-        }
-    }
-
-    const auto& foldedFunc = ov::test::utils::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    ov::pass::ConstantFolding().run_on_model(foldedFunc);
-    for (const auto& op : foldedFunc->get_ops()) {
-        OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
-                        "Function was not fully folded to constant state!\n",
-                        "At least one non constant node with type ",
-                        op->get_type_name(),
-                        " present in function.");
-    }
-    return foldedFunc;
-}
-
-bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func) {
-    const auto& ops = func->get_ops();
-    for (const auto& node : ops) {
-        const auto& ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(node);
-        if (ti) {
-            return true;
-        }
-    }
-    return false;
-}
 
 namespace {
 template <int Bitwidth,
@@ -476,7 +247,6 @@ std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t>& 
     }
 }
 
-}  // namespace
 std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
                                                  const ov::element::Type_t& fromPrecision,
                                                  const ov::element::Type_t& toPrecision,
@@ -536,17 +306,148 @@ std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>
     }
 }
 
-void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {
-    auto inputs = function->inputs();
-    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
-    if (inputs.size() > targetInputStaticShapes.size()) {
-        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) +
-                                 " != inputs.size() = " + std::to_string(inputs.size()));
+}  // namespace
+
+std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
+    const std::shared_ptr<ov::Model>& function,
+    const std::vector<std::vector<std::uint8_t>>& inputs,
+    const std::vector<ov::element::Type>& inputTypes) {
+    auto backend = ov::runtime::Backend::create();
+
+    const auto& parameters = function->get_parameters();
+    const auto& parametersNumber = parameters.size();
+    const auto& inputsNumber = inputs.size();
+    OPENVINO_ASSERT(parametersNumber == inputsNumber,
+                    "Got function (",
+                    function->get_friendly_name(),
+                    ") with ",
+                    parametersNumber,
+                    " parameters, but ",
+                    inputsNumber,
+                    " input blobs");
+    if (!inputTypes.empty()) {
+        OPENVINO_ASSERT(inputTypes.size() == inputsNumber,
+                        "Got function (",
+                        function->get_friendly_name(),
+                        ") with ",
+                        inputsNumber,
+                        " inputs, but ",
+                        inputTypes.size(),
+                        " types");
     }
-    for (size_t i = 0; i < inputs.size(); i++) {
-        shapes.insert({inputs[i], targetInputStaticShapes[i]});
+
+    ov::TensorVector inputTensors(parametersNumber);
+    for (size_t i = 0; i < parametersNumber; ++i) {
+        const auto& parameter = parameters[i];
+        const auto& parameterIndex = function->get_parameter_index(parameter);
+        const auto& parameterShape = parameter->get_shape();
+        const auto& parameterType = parameter->get_element_type();
+        const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
+
+        auto input = inputs[parameterIndex];
+        const auto inType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
+
+        if (inType != ov::element::undefined && inType != parameterType) {
+            input = ngraph::helpers::convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
+        }
+
+        const auto& inputSize = input.size();
+        OPENVINO_ASSERT(parameterSize == inputSize,
+                        "Got parameter (",
+                        parameter->get_friendly_name(),
+                        ") of size ",
+                        parameterSize,
+                        " bytes, but corresponding input with index ",
+                        parameterIndex,
+                        " has ",
+                        inputSize,
+                        " bytes");
+
+        auto tensor = backend->create_tensor(parameterType, parameterShape);
+        std::memcpy(tensor.data(), input.data(), parameterSize);
+        inputTensors[i] = tensor;
     }
-    function->reshape(shapes);
+
+    const auto& results = function->get_results();
+    ov::TensorVector outputTensors(results.size());
+    for (size_t i = 0; i < results.size(); ++i) {
+        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
+    }
+
+    auto handle = backend->compile(function);
+    handle->call_with_validate(outputTensors, inputTensors);
+    std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> outputs(results.size());
+    for (size_t resultIndex = 0; resultIndex < results.size(); resultIndex++) {
+        auto& output = outputs[resultIndex];
+        output.first = results[resultIndex]->get_element_type();
+        const auto& outputTensor = outputTensors[resultIndex];
+        output.second.resize((shape_size(outputTensor.get_shape()) * outputTensor.get_element_type().bitwidth() + 7) >>
+                             3);
+        std::memcpy(output.second.data(), outputTensors[resultIndex].data(), output.second.size());
+    }
+
+    return outputs;
+}
+
+std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& function,
+                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
+    auto backend = ov::runtime::Backend::create();
+
+    const auto& funcInputs = function->inputs();
+    const auto& funcInputsNumber = funcInputs.size();
+    const auto& inputsNumber = inputs.size();
+    OPENVINO_ASSERT(funcInputsNumber == inputsNumber,
+                    "Got function (",
+                    function->get_friendly_name(),
+                    ") with ",
+                    funcInputsNumber,
+                    " parameters, but ",
+                    inputsNumber,
+                    " input blobs");
+
+    ov::TensorVector inputTensors(funcInputsNumber);
+    for (size_t i = 0; i < funcInputsNumber; ++i) {
+        const auto& input = funcInputs[i];
+        const auto& inputShape = input.get_shape();
+        const auto& inputType = input.get_element_type();
+        const auto& inputSize = shape_size(inputShape) * inputType.size();
+
+        auto inputIt =
+            std::find_if(inputs.begin(), inputs.end(), [&input](std::pair<std::shared_ptr<ov::Node>, ov::Tensor> elem) {
+                return elem.first->get_friendly_name() == input.get_node_shared_ptr()->get_friendly_name();
+            });
+        if (inputIt == inputs.end()) {
+            throw std::runtime_error("Parameter: " + input.get_node_shared_ptr()->get_friendly_name() +
+                                     " was not find in input parameters");
+        }
+        auto inputTensor = inputIt->second;
+
+        const auto& inputTensorSize = inputTensor.get_byte_size();
+        OPENVINO_ASSERT(inputSize == inputTensorSize,
+                        "Got parameter (",
+                        input.get_node_shared_ptr()->get_friendly_name(),
+                        ") of size ",
+                        inputSize,
+                        " bytes, but corresponding input ",
+                        " has ",
+                        inputTensorSize,
+                        " bytes");
+
+        auto tensor = backend->create_tensor(inputType, inputShape);
+        inputTensor.copy_to(tensor);
+        inputTensors[i] = tensor;
+    }
+
+    const auto& results = function->get_results();
+    ov::TensorVector outputTensors(results.size());
+    for (size_t i = 0; i < results.size(); ++i) {
+        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
+    }
+
+    auto handle = backend->compile(function);
+    handle->call_with_validate(outputTensors, inputTensors);
+
+    return outputTensors;
 }
 
 }  // namespace helpers

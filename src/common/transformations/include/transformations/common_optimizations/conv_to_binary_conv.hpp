@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvToBinaryConv;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation converts Convolution to BinaryConvolution under following conditions:
  *  - first input to Convolution is a FakeQuantize with levels==2 with output low,high being either (0, 1) or (-1, 1)
  *  - second input (weights) is a constant with values -1 or 1

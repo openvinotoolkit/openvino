@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/reduce_base_transformation.hpp"
-
 #include <memory>
 
+#include "openvino/core/validation_util.hpp"
+#include "openvino/util/log.hpp"
+
 #include "low_precision/network_helper.hpp"
-#include "validation_util.hpp"
+#include "low_precision/reduce_base_transformation.hpp"
 
 namespace ov {
 namespace pass {
@@ -28,7 +29,9 @@ bool ReduceBaseTransformation::transform(TransformationContext& context, ov::pas
 
     // updatePrecision depends on type and parameters of the reduce
     const bool updatePrecision = getUpdatePrecision(reduce);
-    moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+    const auto newOperation = moveDequantizationAfter(context, reduce, dequantization, updatePrecision);
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
