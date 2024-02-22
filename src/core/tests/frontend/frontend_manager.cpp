@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -305,6 +306,81 @@ TEST(FrontEndExceptionTest, frontend_initialization_error_throw_info) {
         FAIL() << "Not expected exception type.";
     }
     FAIL() << "Test is expected to throw an exception.";
+}
+
+TEST(FrontEndExceptionTest, create_general_error) {
+    constexpr int line = 341;
+    constexpr char test_file[] = "test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string msg = "msg example";
+    const std::string exp_error_msg =
+        "Check 'value != 0' failed at test_file.cpp:341:\nFrontEnd API failed with GeneralFailure:\nmsg example\n";
+
+    OV_EXPECT_THROW(GeneralFailure::create(test_file, line, check_string, {}, msg), GeneralFailure, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(GeneralFailure::create({test_file, line, check_string}, {}, msg), GeneralFailure, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(FrontEndExceptionTest, create_initialization_failure) {
+    constexpr int line = 341;
+    constexpr char test_file[] = "test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string msg = "msg example";
+    const std::string exp_error_msg = "Check 'value != 0' failed at test_file.cpp:341:\nFrontEnd API failed with "
+                                      "InitializationFailure:\nmsg example\n";
+
+    OV_EXPECT_THROW(InitializationFailure::create(test_file, line, check_string, {}, msg), InitializationFailure, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(InitializationFailure::create({test_file, line, check_string}, {}, msg), InitializationFailure, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(FrontEndExceptionTest, create_op_validation_failure) {
+    constexpr int line = 341;
+    constexpr char test_file[] = "test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string msg = "msg example";
+    const std::string exp_error_msg =
+        "Check 'value != 0' failed at test_file.cpp:341:\nFrontEnd API failed with OpValidationFailure:\nmsg example\n";
+
+    OV_EXPECT_THROW(OpValidationFailure::create(test_file, line, check_string, {}, msg), OpValidationFailure, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(OpValidationFailure::create({test_file, line, check_string}, {}, msg), OpValidationFailure, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(FrontEndExceptionTest, create_op_conversion_failure) {
+    constexpr int line = 341;
+    constexpr char test_file[] = "test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string msg = "msg example";
+    const std::string exp_error_msg =
+        "Check 'value != 0' failed at test_file.cpp:341:\nFrontEnd API failed with OpConversionFailure:\nmsg example\n";
+
+    OV_EXPECT_THROW(OpConversionFailure::create(test_file, line, check_string, {}, msg), OpConversionFailure, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(OpConversionFailure::create({test_file, line, check_string}, {}, msg), OpConversionFailure, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST(FrontEndExceptionTest, create_not_implemented_failure) {
+    constexpr int line = 341;
+    constexpr char test_file[] = "test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string msg = "msg example";
+    const std::string exp_error_msg = "Check 'value != 0' failed at test_file.cpp:341:\nFrontEnd API failed with "
+                                      "NotImplementedFailure:\nmsg example\n";
+
+    OV_EXPECT_THROW(NotImplementedFailure::create(test_file, line, check_string, {}, msg), NotImplementedFailure, exp_error_msg);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(NotImplementedFailure::create({test_file, line, check_string}, {}, msg), NotImplementedFailure, exp_error_msg);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 // FrontEndManager exception safety
