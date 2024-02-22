@@ -57,6 +57,8 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
+      CXX: clang++
+      CC: clang
 
     steps:
       - name: Set apt retries
@@ -100,8 +102,8 @@ jobs:
           
           # use clang as a default compiler
           apt --assume-yes install clang lld
-          update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
-          update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
+          # update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
+          # update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
           # update-alternatives --install /usr/bin/lld lld /usr/bin/clang++ 100
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -146,6 +148,8 @@ jobs:
         run: |
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
           export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
+          export CC=clang
+          export CXX=clang++
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \
