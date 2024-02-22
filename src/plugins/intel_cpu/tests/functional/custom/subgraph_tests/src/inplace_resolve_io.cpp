@@ -90,17 +90,14 @@ public:
                 ov::op::v0::Constant::create(precision, {1, hidden_size * 3}, B),  // B [num_directions, 3 * hidden_size]
                 hidden_size, op::RecurrentSequenceDirection::FORWARD);
 
-        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rnnseq->outputs()[1], soft_max}, 0);  // Ho [batch_size, num_directions, hidden_size]
-        auto result_0 = std::make_shared<ov::op::v0::Result>(concat);
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rnnseq->outputs()[1], soft_max}, 0);
+        auto result_0 = std::make_shared<ov::op::v0::Result>(concat);  // Ho [batch_size, num_directions, hidden_size]
 
         auto reshape_param_1 = ov::op::v0::Constant::create(ov::element::i32, {1}, {1});
         auto reshape_1 = std::make_shared<ov::op::v0::Squeeze>(rnnseq->outputs()[0], reshape_param_1);  // Y [batch_size, num_directions, seq_len, hidden_size]
         auto result_1 = std::make_shared<ov::op::v0::Result>(reshape_1);
 
         function = std::make_shared<ov::Model>(ov::ResultVector{result_0, result_1}, params, "Subgraph0");
-
-        ov::pass::Serialize serializer("Subgraph0.xml", "Subgraph0.bin");
-        serializer.run_on_model(function);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -172,7 +169,7 @@ class SoftmaxAddReshapeOutputSubgraphTest : public InplaceResolveIOTestBase {
                     |         |
                  Result0   Result1
 
-expect edge Reshape1->Result1 to be referenced by its upstreams, instead of referencing to its upstreams.
+expect edge Reshape0->Result1 to be referenced by its upstreams, instead of referencing to its upstreams.
 */
 protected:
     void SetUp() override {
@@ -188,18 +185,14 @@ protected:
         auto soft_max = std::make_shared<ov::op::v1::Softmax>(params.front(), softmax_axis);
 
         auto add_const = ov::op::v0::Constant::create(precision, {1}, std::vector<float>({1.0f}));
-        auto add_0 = ov::test::utils::make_eltwise(soft_max, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add_0 = ov::test::utils::make_eltwise(soft_max, add_const, ov::test::utils::EltwiseTypes::ADD);
         auto result_0 = std::make_shared<ov::op::v0::Result>(add_0);    // dummy output
 
         auto reshape_param_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto reshape_0 = std::make_shared<ov::op::v0::Unsqueeze>(soft_max, reshape_param_0);
         auto result_1 = std::make_shared<ov::op::v0::Result>(reshape_0);    // target output
 
-        ov::ResultVector results = {result_0, result_1};
-        function = std::make_shared<ov::Model>(results, params, "Subgraph1");
-
-        ov::pass::Serialize serializer("Subgraph1.xml", "Subgraph1.bin");
-        serializer.run_on_model(function);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result_0, result_1}, params, "Subgraph1");
     }
 };
 
@@ -240,7 +233,7 @@ public:
         auto soft_max = std::make_shared<ov::op::v1::Softmax>(params.front(), softmax_axis);
 
         auto add_const = ov::op::v0::Constant::create(precision, {1}, std::vector<float>({1.0f}));
-        auto add_0 = ov::test::utils::make_eltwise(soft_max, add_const, ngraph::helpers::EltwiseTypes::ADD);
+        auto add_0 = ov::test::utils::make_eltwise(soft_max, add_const, ov::test::utils::EltwiseTypes::ADD);
         auto result_0 = std::make_shared<ov::op::v0::Result>(add_0);    // dummy output
 
         auto reshape_param_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
@@ -251,11 +244,7 @@ public:
         auto reshape_1 = std::make_shared<ov::op::v0::Unsqueeze>(reshape_0, reshape_param_1);
         auto result_1 = std::make_shared<ov::op::v0::Result>(reshape_1);    // target output
 
-        ov::ResultVector results = {result_0, result_1, result_2};
-        function = std::make_shared<ov::Model>(results, params, "Subgraph2");
-
-        ov::pass::Serialize serializer("Subgraph2.xml", "Subgraph2.bin");
-        serializer.run_on_model(function);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result_0, result_1, result_2}, params, "Subgraph2");
     }
 };
 
@@ -290,11 +279,7 @@ protected:
         auto reshape_0 = std::make_shared<ov::op::v0::Unsqueeze>(params.front(), reshape_param_0);
         auto result_0 = std::make_shared<ov::op::v0::Result>(reshape_0);    // target output
 
-        ov::ResultVector results = {result_0};
-        function = std::make_shared<ov::Model>(results, params, "Subgraph3");
-
-        ov::pass::Serialize serializer("Subgraph3.xml", "Subgraph3.bin");
-        serializer.run_on_model(function);
+        function = std::make_shared<ov::Model>(ov::ResultVector{result_0}, params, "Subgraph3");
     }
 };
 
