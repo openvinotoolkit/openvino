@@ -55,15 +55,10 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
@@ -108,7 +103,7 @@ jobs:
           apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
           apt --assume-yes install gcc g++ python3-pip python3-venv python3-dev
           # generic dependencies
-          apt --assume-yes install cmake ccache ninja-build fdupes patchelf
+          apt --assume-yes install cmake ninja-build fdupes patchelf
 
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
@@ -186,8 +181,6 @@ jobs:
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
@@ -196,9 +189,6 @@ jobs:
 
       - name: Cmake - Build
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel
-
-      - name: Show ccache stats
-        run: ccache --show-stats
 
       - name: Cmake - Install
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel --target install
