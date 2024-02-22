@@ -85,17 +85,20 @@ bool ScatterNDUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs
     const auto& updates_shape = updates.get_shape();
     output.set_shape(data_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v3_ScatterNDUpdate_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i32, i64, u32, u64),
-                      scatter_nd_update::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      updates,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      updates_shape);
+    return IF_TYPE_OF_CONVERT_TENSORS(v3_ScatterNDUpdate_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
+                                      scatter_nd_update::Evaluate,
+                                      data.get_element_type(),
+                                      data,
+                                      indices,
+                                      updates,
+                                      output,
+                                      data_shape,
+                                      indices_shape,
+                                      updates_shape);
 }
 
 bool ScatterNDUpdate::has_evaluate() const {
