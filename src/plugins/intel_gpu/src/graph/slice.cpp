@@ -7,6 +7,7 @@
 #include "openvino/op/slice.hpp"
 #include "slice_shape_inference.hpp"
 #include <sstream>
+#include "openvino/util/log.hpp"
 #include <json_object.h>
 
 namespace cldnn {
@@ -43,20 +44,33 @@ layout slice_inst::calc_output_layout(slice_node const& node, kernel_impl_params
     return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
-template<typename ShapeType>
+template <typename ShapeType>
 inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, const kernel_impl_params& impl_param) {
     std::vector<ShapeType> input_shapes{impl_param.input_layouts[0].get<ShapeType>()};
     std::unordered_map<size_t, ov::Tensor> const_data;
-    const auto shape_len = input_shapes.back().rank().get_length();
     for (std::size_t i = 1; i < impl_param.input_layouts.size(); i++) {
-        const ov::PartialShape input_shape{static_cast<ov::Dimension::value_type>(shape_len)};
-        input_shapes.push_back(input_shape);
+        // NOTE: This code effectively makes a reshape operation on tensors start,
+        // stop, step and axes. The specification of Slice operator clearly says
+        // that those tensors are 1D tensors - and this is what is expected
+        // in shape_infer(). However, people in tests and other places,
+        // put 4D tensors instead of 1D(e.g. [4,1,1,1] instead of [4]).
+        // At the time of writing this comment - the hack for such situation
+        // was already there. Becasue of that, here I am added a
+        // WARNING instead of assert - hopefully this code will be fixed
+        // after all tests are fixed(and possibly transformations as well).
+        ov::PartialShape input_shape = ov::PartialShape::dynamic(1);
         if (impl_param.memory_deps.find(i) != impl_param.memory_deps.end()) {
             auto gpu_mem = impl_param.memory_deps.at(i);
+            if (gpu_mem->get_layout().get_rank() > 1)
+                OPENVINO_WARN << "Some of the start, stop, step or axes tensor is not 1D tensor!";
+            input_shape = {static_cast<ov::Dimension::value_type>(gpu_mem->count())};
             cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
-            const_data.emplace(i, make_tensor(layout {input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format },
-                gpu_mem_lock.data()));
+            const_data.emplace(
+                i,
+                make_tensor(layout{input_shape, gpu_mem->get_layout().data_type, gpu_mem->get_layout().format},
+                            gpu_mem_lock.data()));
         }
+        input_shapes.push_back(input_shape);
     }
     ov::op::v8::Slice op;
     auto output_shapes = shape_infer(&op, input_shapes, ov::make_tensor_accessor(const_data));
@@ -67,7 +81,6 @@ inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, co
     }
     return output_layouts;
 }
-
 
 std::string slice_inst::to_string(slice_node const& node) {
     auto node_info = node.desc_to_json();
