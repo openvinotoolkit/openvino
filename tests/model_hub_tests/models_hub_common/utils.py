@@ -19,15 +19,15 @@ def is_hf_link(link: str):
     return link.startswith("hf_")
 
 
-def get_models_list(dir: str, mark: str):
+def get_models_list_in_dir(dir: str, mark: str):
     models_list = []
     for file_name in os.listdir(dir):
         if file_name.startswith(mark):
-            models_list += get_models_list_from_one_file(os.path.join(dir, file_name))
+            models_list += get_models_list(os.path.join(dir, file_name))
     return models_list
 
 
-def get_models_list_from_one_file(file_name: str):
+def get_models_list(file_name: str):
     scope = "all"
     if "--scope" in sys.argv and len(sys.argv) >= sys.argv.index("--scope") + 1:
         scope = sys.argv[sys.argv.index("--scope") + 1]
