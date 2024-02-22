@@ -136,7 +136,9 @@ TEST_P(OVBasicPropertiesTestsP, GetMetricThrowUnsupported) {
 
 TEST_P(OVBasicPropertiesTestsP, SetConfigAllThrows) {
     ov::Core core;
+#if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
     ov::test::utils::register_template_plugin(core);
+#endif  // !OPENVINO_STATIC_LIBRARY && !USE_STATIC_IE
     OV_ASSERT_NO_THROW(core.set_property({{"unsupported_key", "4"}}));
     ASSERT_ANY_THROW(core.get_versions(target_device));
 }
@@ -420,7 +422,7 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTests, ChangeCorrectProperties) {
 
             std::string expect_value = property_item.second.as<std::string>();
             std::string actual_value = actual_property_value.as<std::string>();
-            EXPECT_EQ(actual_value, expect_value) << "Peoperty is changed in wrong way";
+            EXPECT_EQ(actual_value, expect_value) << "Property changed incorrectly";
         }
     }
 }
@@ -510,7 +512,7 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorre
         ASSERT_FALSE(actual_property_value.empty());
 
         ov::element::Type actual_value = actual_property_value.as<ov::element::Type>();
-        ASSERT_EQ(actual_value, type) << "Peoperty is changed in wrong way";
+        ASSERT_EQ(actual_value, type) << "Property changed incorrectly";
 
         std::cout << "Supported precision: " << type << std::endl;
         any_supported = true;

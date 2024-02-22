@@ -39,9 +39,12 @@ void register_template_plugin(ov::Core& ov_core) noexcept {
 
 ov::Core create_core(const std::string& in_target_device) {
     ov::Core ov_core;
-    // Register Template plugin as a reference provider
+
+#if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
     register_plugin(ov_core);
+    // Register Template plugin as a reference provider
     register_template_plugin(ov_core);
+#endif  // !OPENVINO_STATIC_LIBRARY && !USE_STATIC_IE
 
     if (available_devices.empty()) {
         const auto core_devices = ov_core.get_available_devices();
