@@ -168,12 +168,7 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
             auto& prev = node.get_dependency(0);
             cldnn::primitive_id rotate_reorder_id = prev.id() + "_rotate_reorder";
             auto grouped = weights_params->get_grouped();
-            auto layout = weights_params->get_input_layout();
-
-            // Chage format if input format is not weights format.
-            if (!cldnn::format::is_weights_format(layout.format))
-                layout = layout.convert_to_weights_layout(grouped);
-
+            auto layout = weights_params->get_input_layout().convert_to_weights_layout(grouped);
             auto rotate_weights_params = std::make_shared<WeightsReorderParams>(layout, layout, true, grouped);
             auto rotate_prim = std::make_shared<cldnn::reorder>(rotate_reorder_id, prev.id(), rotate_weights_params);
             auto& rotate_node = prog.get_or_create(rotate_prim);
