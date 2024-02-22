@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API NonZeroHorizontalFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief NonZeroHorizontalFusion transformation makes horizontal fusion for equal NonZero layers
  */
 class ov::pass::NonZeroHorizontalFusion : public ov::pass::MatcherPass {

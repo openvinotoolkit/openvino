@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
@@ -39,9 +37,6 @@ std::string MatMulWithOptimizedConstantFq::getTestCaseName(
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    rel_threshold = 0.01;
-    abs_threshold = 2.1;
-
     ov::element::Type precision;
     std::pair<ov::PartialShape, ov::PartialShape> shapes;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertDetectionOutput8ToDetectionOutput1;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertDetectionOutput8ToDetectionOutput1 converts v8::DetectionOutput
  * into v0::DetectionOutput.
  */

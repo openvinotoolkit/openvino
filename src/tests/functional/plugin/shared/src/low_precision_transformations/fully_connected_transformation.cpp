@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/mat_mul.hpp"
 
@@ -37,8 +35,6 @@ std::string FullyConnectedTransformation::getTestCaseName(const testing::TestPar
 }
 
 void FullyConnectedTransformation::SetUp() {
-    abs_threshold = 0.6;
-
     ov::element::Type precision;
     MatMulShapes shapes;
     ov::pass::low_precision::LayerTransformation::Params params;

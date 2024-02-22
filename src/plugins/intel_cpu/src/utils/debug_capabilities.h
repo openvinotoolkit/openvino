@@ -47,7 +47,9 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
+class Graph;
 class IMemory;
+
 class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
@@ -96,6 +98,7 @@ std::ostream & operator<<(std::ostream & os, const PortConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
+std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
 std::ostream & operator<<(std::ostream & os, const Shape& shape);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const IMemory& mem);
