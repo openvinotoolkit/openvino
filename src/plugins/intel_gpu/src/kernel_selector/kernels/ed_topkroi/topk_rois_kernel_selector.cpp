@@ -17,9 +17,8 @@ experimental_detectron_topk_rois_kernel_selector::experimental_detectron_topk_ro
     Attach<ExperimentalDetectronTopKROIRef>();
 }
 
-KernelsData experimental_detectron_topk_rois_kernel_selector::GetBestKernels(const Params &params,
-                                                                             const optional_params &options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS);
+KernelsData experimental_detectron_topk_rois_kernel_selector::GetBestKernels(const Params &params) const {
+    return GetNaiveBestKernel(params, KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS);
 }
 
 } // namespace kernel_selector

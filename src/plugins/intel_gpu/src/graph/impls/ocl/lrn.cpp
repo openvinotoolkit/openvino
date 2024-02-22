@@ -15,7 +15,7 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
     using parent = typed_primitive_impl_ocl<lrn>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::lrn_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::lrn_params, kernel_selector::lrn_optional_params>;
+    using kernel_params_t = kernel_selector::lrn_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::lrn_impl)
 
@@ -26,7 +26,6 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lrn>();
         auto params = get_default_params<kernel_selector::lrn_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::lrn_optional_params>(impl_param.get_program());
 
         params.alpha = primitive->alpha;
         params.beta = primitive->beta;
@@ -37,7 +36,7 @@ struct lrn_impl : typed_primitive_impl_ocl<lrn> {
                                   ? kernel_selector::lrn_mode::WITHIN_CHANNEL
                                   : kernel_selector::lrn_mode::ACROSS_CHANNEL;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

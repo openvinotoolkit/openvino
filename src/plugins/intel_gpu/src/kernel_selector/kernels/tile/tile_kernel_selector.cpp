@@ -9,7 +9,7 @@ namespace kernel_selector {
 
 tile_kernel_selector::tile_kernel_selector() { Attach<TileKernelRef>(); }
 
-KernelsData tile_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::TILE);
+KernelsData tile_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::TILE);
 }
 }  // namespace kernel_selector

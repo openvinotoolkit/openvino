@@ -203,6 +203,7 @@ void CompileModelCacheTestBase::TearDown() {
     } catch (...) {
        // do nothing
     }
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -309,6 +310,7 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -370,6 +372,7 @@ void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -481,6 +484,7 @@ void CompileModelLoadFromCacheTest::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -590,6 +594,7 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
     weights_vector.clear();
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -701,6 +706,7 @@ void CompiledKernelsCacheTest::SetUp() {
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -711,7 +717,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         auto execNet = core->compile_model(function, targetDevice, configuration);
         execNet = {};
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::util::directory_exists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
@@ -719,10 +725,10 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         }
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
-        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
+        ASSERT_FALSE(ov::util::directory_exists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (ov::test::utils::directoryExists(cache_path)) {
+        if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
                 ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
@@ -746,7 +752,7 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         }
 
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::util::directory_exists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Load 2nd CNNNetwork
         auto execNet2 = core->compile_model(function, targetDevice, configuration);
         execNet2 = {};
@@ -761,10 +767,10 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
 
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
-        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
+        ASSERT_FALSE(ov::util::directory_exists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (ov::test::utils::directoryExists(cache_path)) {
+        if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
                 ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
@@ -790,7 +796,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             auto execNet = core->compile_model(function, targetDevice, configuration);
             execNet = {};
             // Check that directory with cached kernels exists after loading network
-            ASSERT_TRUE(ov::test::utils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
@@ -798,10 +804,10 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             }
             // Remove directory and check that it doesn't exist anymore
             ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
-            ASSERT_FALSE(ov::test::utils::directoryExists(cache_path_w));
+            ASSERT_FALSE(ov::util::directory_exists(cache_path_w));
         } catch (std::exception& ex) {
             // Cleanup in case of any exception
-            if (ov::test::utils::directoryExists(cache_path_w)) {
+            if (ov::util::directory_exists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
                     ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);
