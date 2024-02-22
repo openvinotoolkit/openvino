@@ -140,8 +140,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // avoid recursive auto-batching
     device_config_no_auto_batch[ov::hint::allow_auto_batching.name()] = false;
 
-    std::set<std::string> batched_inputs;
-    std::set<std::string> batched_outputs;
+    std::set<std::size_t> batched_inputs;
+    std::set<std::size_t> batched_outputs;
     // check that the auto-batching is applicable in general
     try {
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
@@ -172,8 +172,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
-                batched_inputs.insert(
-                    ov::op::util::get_ie_output_name(params[input_id]->output(0)));  // batched dim for the input
+                size_t port_hash = ov::util::hash_combine(
+                    std::vector<size_t>{std::hash<const ov::Node*>()(params[input_id]->output(0).get_node()),
+                                        std::hash<size_t>()(params[input_id]->output(0).get_index())});
+                batched_inputs.insert(port_hash);  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -191,8 +193,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 if (shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
                 const auto& node = output->input_value(0);
-                batched_outputs.insert(
-                    ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+                size_t port_hash = ov::util::hash_combine(
+                    std::vector<size_t>{std::hash<const ov::Node*>()(output->input_value(0).get_node()),
+                                        std::hash<size_t>()(output->input_value(0).get_index())});
+                batched_outputs.insert(port_hash);
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -269,7 +273,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
             for (auto& input : inputs) {
                 auto input_shape = input.get_shape();
-                if (batched_inputs.find(ov::op::util::get_ie_output_name(input)) != batched_inputs.end()) {
+                size_t port_hash =
+                    ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(input.get_node()),
+                                                               std::hash<size_t>()(input.get_index())});
+                if (batched_inputs.find(port_hash) != batched_inputs.end()) {
                     input_shape[0] = meta_device.device_batch_size;
                 }
                 partial_shapes.insert({input, ov::PartialShape(input_shape)});

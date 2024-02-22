@@ -7,21 +7,22 @@
 
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace autobatch_plugin {
 
 inline ov::SoPtr<ov::ITensor> create_shared_tensor_on_batched_tensor(ov::SoPtr<ov::ITensor> batched_tensor,
-                                                                     std::string name,
-                                                                     const std::set<std::string>& batched_names,
+                                                                     std::size_t port,
+                                                                     const std::set<std::size_t>& batched_ports,
                                                                      size_t batch_id,
                                                                      size_t batch_num) {
     auto ptr = static_cast<uint8_t*>(batched_tensor->data());
     auto size_per_batch = batched_tensor->get_byte_size() / batch_num;
     auto batched_shape = batched_tensor->get_shape();
     // for performance reason (copy avoidance) current impl of the auto-batching supports only batching by 0th dim
-    if (batched_names.count(name)) {
+    if (batched_ports.count(port)) {
         batched_shape[0] = 1;
         return {ov::make_tensor(batched_tensor->get_element_type(), batched_shape, ptr + size_per_batch * batch_id),
                 batched_tensor._so};
@@ -35,8 +36,8 @@ SyncInferRequest::SyncInferRequest(
     const std::shared_ptr<ov::autobatch_plugin::CompiledModel::WorkerInferRequest>& worker_request,
     int batch_id,
     int num_batch,
-    const std::set<std::string>& batched_inputs,
-    const std::set<std::string>& batched_outputs)
+    const std::set<std::size_t>& batched_inputs,
+    const std::set<std::size_t>& batched_outputs)
     : ov::ISyncInferRequest(compiled_model),
       m_batched_request_wrapper(worker_request),
       m_batch_id(batch_id),
@@ -49,16 +50,17 @@ size_t SyncInferRequest::get_batch_size() const {
     return m_batch_size;
 }
 
-void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string>& batched_inputs,
-                                                      const std::set<std::string>& batched_outputs) {
+void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t>& batched_inputs,
+                                                      const std::set<std::size_t>& batched_outputs) {
     for (const auto& it : get_inputs()) {
-        auto name = ov::op::util::get_ie_output_name(it);
+        size_t port_hash = ov::util::hash_combine(
+            std::vector<size_t>{std::hash<const ov::Node*>()(it.get_node()), std::hash<size_t>()(it.get_index())});
         ov::SoPtr<ov::ITensor> res;
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(name),
+                                                     std::move(port_hash),
                                                      batched_inputs,
                                                      m_batch_id,
                                                      m_batch_size);
@@ -66,13 +68,14 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::string
     }
 
     for (const auto& it : get_outputs()) {
-        auto name = ov::op::util::get_ie_output_name(it.get_node_shared_ptr()->input_value(0));
+        size_t port_hash = ov::util::hash_combine(
+            std::vector<size_t>{std::hash<const ov::Node*>()(it.get_node()), std::hash<size_t>()(it.get_index())});
         ov::SoPtr<ov::ITensor> res;
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(name),
+                                                     std::move(port_hash),
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
