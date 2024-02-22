@@ -114,7 +114,7 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params) c
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
 
     return { kd };
 }

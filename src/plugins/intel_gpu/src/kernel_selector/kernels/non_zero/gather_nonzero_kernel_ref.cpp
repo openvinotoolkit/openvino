@@ -105,7 +105,7 @@ KernelsData GatherNonzeroKernelRef::GetKernelsData(const Params& params) const {
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

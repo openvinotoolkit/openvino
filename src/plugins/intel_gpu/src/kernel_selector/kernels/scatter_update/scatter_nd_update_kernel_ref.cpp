@@ -222,7 +222,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const
         clKernelData& kernel = kd.kernels[i];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     }
 
     return {kd};

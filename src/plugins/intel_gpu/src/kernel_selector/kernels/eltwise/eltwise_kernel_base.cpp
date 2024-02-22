@@ -757,7 +757,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params) const 
 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    bool is_dynamic = newParams.has_dynamic_tensors();
+    bool is_dynamic = newParams.is_shape_agnostic;
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,

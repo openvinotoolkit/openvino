@@ -271,7 +271,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p) const {
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     params.inputs[0].is_dynamic());
+                     params.is_shape_agnostic);
 
     return {kd};
 }

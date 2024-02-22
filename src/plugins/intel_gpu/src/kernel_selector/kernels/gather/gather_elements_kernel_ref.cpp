@@ -178,7 +178,7 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params) const 
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     return { kd };
 }
 

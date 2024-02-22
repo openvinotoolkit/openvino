@@ -104,7 +104,7 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params) const {
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     prim_params.outputs[0].is_dynamic());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }

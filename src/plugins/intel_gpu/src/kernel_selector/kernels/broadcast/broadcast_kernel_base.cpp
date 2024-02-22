@@ -146,7 +146,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params) cons
                      1,
                      0,
                      1,
-                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }
