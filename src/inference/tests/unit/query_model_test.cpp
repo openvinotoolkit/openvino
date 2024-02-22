@@ -494,3 +494,29 @@ TEST_F(GetSupportedNodesTest, FusedNameReduceL2Test) {
         },
         {});  // Check that constant axis is removed from supported
 }
+
+TEST_F(GetSupportedNodesTest, AssignReadValueTest) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 512});
+        const ov::op::util::VariableInfo variable_info{ov::Shape{1, 512}, ov::element::f32, "v0"};
+        auto variable = std::make_shared<ov::op::util::Variable>(variable_info);
+        auto read_value = std::make_shared<ov::op::v6::ReadValue>(param, variable);
+        auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
+        auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        m_function =
+            std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, ov::ParameterVector{param});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            // Assign is supported, but ReadValue is not
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v6::Assign>(op);
+        },
+        {});
+}
