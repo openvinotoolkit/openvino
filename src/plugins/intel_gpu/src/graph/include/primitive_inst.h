@@ -271,8 +271,7 @@ public:
                                        bool reset_mem = true,
                                        bool is_output_buffer = false,
                                        memory* curr_memory = nullptr,
-                                       bool runtime_alloc = false,
-                                       bool* from_pool = nullptr);
+                                       bool runtime_alloc = false);
 
     std::vector<memory::ptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -380,9 +379,8 @@ protected:
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
-                                              bool runtime_alloc = false,
-                                              bool* from_pool = nullptr);
-    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true, bool* from_pool = nullptr);
+                                              bool runtime_alloc = false);
+    memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
     static std::vector<primitive_inst*> build_exec_deps(
         std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;

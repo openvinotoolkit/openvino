@@ -120,11 +120,8 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                   uint32_t network_id,
                                                   const std::set<primitive_id>& restrictions,
                                                   allocation_type type,
-                                                  bool reset,
-                                                  bool* from_pool) {
+                                                  bool reset) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
-    if (from_pool)
-        *from_pool = false;
     while (it != _non_padded_pool.end()) {
         if (it->second._network_id == network_id &&
             it->second._type == type &&
@@ -135,8 +132,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
             !has_conflict(it->second._users, restrictions, network_id)) {
             it->second._users.insert(memory_user(id, network_id));
             auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
-            if (from_pool)
-                *from_pool = true;
+            GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
             return ret_mem;
         } else {
             ++it;
@@ -156,12 +152,8 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                               const primitive_id& id,
                                               uint32_t network_id,
                                               const std::set<primitive_id>& restrictions,
-                                              allocation_type type,
-                                              bool* from_pool) {
+                                              allocation_type type) {
     auto first_level_cache = _padded_pool.find(layout);
-    if (from_pool)
-        *from_pool = false;
-
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
             if (rec_list._network_id == network_id &&
@@ -176,8 +168,7 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 !has_conflict(rec_list._users, restrictions, network_id)) {
                 rec_list._users.insert({id, network_id});
                 auto ret_mem = _engine->reinterpret_buffer(*(rec_list._memory), layout);
-                if (from_pool)
-                    *from_pool = false;
+                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
             }
         }
@@ -209,6 +200,7 @@ memory::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
             if (!has_conflict(it->second._users, {}, network_id)) {
                 it->second._users.insert(memory_user(id, network_id));
                 auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
+                GPU_DEBUG_CODE(ret_mem->from_memory_pool = true);
                 return ret_mem;
             }
         }
@@ -232,29 +224,28 @@ memory::ptr memory_pool::get_memory(const layout& layout,
                                     const std::set<primitive_id>& restrictions,
                                     allocation_type type,
                                     bool reusable_across_network,
-                                    bool reset,
-                                    bool* from_pool) {
+                                    bool reset) {
     bool do_reuse = reusable_across_network;
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_memory_reuse) {
         do_reuse = false;
     }
-    if (from_pool)
-        *from_pool = false;
     if (do_reuse) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
-            return get_from_non_padded_pool(layout, id, network_id, restrictions, type, reset, from_pool);
+            return get_from_non_padded_pool(layout, id, network_id, restrictions, type, reset);
         } else if (!layout.format.is_image()) {
             // padded buffers
-            return get_from_padded_pool(layout, id, network_id, restrictions, type, from_pool);
+            return get_from_padded_pool(layout, id, network_id, restrictions, type);
         } else {
             // images (reuse not yet implemented)
-            return alloc_memory(layout, type, reset);
+            auto mem = alloc_memory(layout, type, reset);
+            return mem;
         }
     } else {
-        return alloc_memory(layout, type, reset);
+        auto mem = alloc_memory(layout, type, reset);
+        return mem;
     }
 }
 
