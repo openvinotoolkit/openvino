@@ -191,9 +191,9 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 }
 
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-const auto expected_precision_for_performance_mode = ov::element::f16;
+    const auto expected_precision_for_performance_mode = ov::element::f16;
 #else
-const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
 #endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
