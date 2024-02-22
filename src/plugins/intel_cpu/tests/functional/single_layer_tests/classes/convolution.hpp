@@ -12,8 +12,12 @@
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/fusing_test_utils.hpp"
+#include <chrono>
 
 using namespace CPUTestUtils;
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 namespace ov {
 namespace test {
@@ -43,7 +47,7 @@ protected:
     ov::Shape kernel, dilation;
     ov::Shape stride;
     std::vector<ptrdiff_t> padBegin, padEnd;
-
+    Time::time_point _start_time;
     void checkBiasFusing(ov::CompiledModel &execNet) const;
     std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
                                               ov::ParameterVector &params,

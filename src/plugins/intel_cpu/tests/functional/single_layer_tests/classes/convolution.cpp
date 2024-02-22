@@ -7,13 +7,9 @@
 #include "gtest/gtest.h"
 #include "test_utils/cpu_test_utils.hpp"
 #include "utils/general_utils.h"
-#include <chrono>
 
 using namespace CPUTestUtils;
 using namespace ov::intel_cpu;
-
-typedef std::chrono::high_resolution_clock Time;
-typedef std::chrono::nanoseconds ns;
 
 namespace ov {
 namespace test {
@@ -140,6 +136,7 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
 }
 
 void ConvolutionLayerCPUTest::SetUp() {
+    _start_time = Time::now();
     auto start_time = Time::now();
     rel_threshold = 1e-4f;
 
@@ -192,6 +189,9 @@ void ConvolutionLayerCPUTest::SetUp() {
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
+    auto duration = std::chrono::duration_cast<ns>(Time::now() - _start_time).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs start cost time " << duration << " ms" << std::endl;
+
     // Skip tests for sse41 convolution where ic or oc cannot be exactly divided by the block size,
     // since tails processing for sse41 nspc layout is not supported yet (see 52736).
     auto start_time_0 = Time::now();
@@ -264,6 +264,9 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
     auto duration_3 = std::chrono::duration_cast<ns>(Time::now() - start_time_3).count() * 0.000001;
     std::cout << "ConvolutionLayerCPUTest CompareWithRefs 3 cost time " << duration_3 << " ms" << std::endl;
+
+    auto duration_4 = std::chrono::duration_cast<ns>(Time::now() - _start_time).count() * 0.000001;
+    std::cout << "ConvolutionLayerCPUTest CompareWithRefs end cost time " << duration_4 << " ms" << std::endl;
 }
 
 const ov::Shape& numOutChannels() {
