@@ -174,9 +174,12 @@ inline void disallow_pooling_start_in_padding(const Strides& stride,
                             std::any_of(pads_end.begin(), pads_end.end(), [](size_t i) {
                                 return i != 0;
                             });
-    if (is_padding && (stride[i] * dim.get_length() > data_dim->get_length() + pads_begin[i] + pads_end[i])) {
+
+    const auto last_pooling_start_index = (dim.get_length() - 1) * stride[i];
+    // Check if the last pooling operation starts in the padding area
+    if (is_padding && (last_pooling_start_index > data_dim->get_length() + pads_begin[i] - 1)) {
         dim = dim - 1;
-    }
+}
 }
 
 template <class TDim, class TContainer>
