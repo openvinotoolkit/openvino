@@ -118,17 +118,20 @@ bool evaluate(const util::TopKBase* const node, TensorVector& outputs, const Ten
     }
 
     using namespace ov::element;
-    return IF_TYPE_OF(topk_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
-                      topk::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      outputs[1],
-                      output_shape,
-                      axis,
-                      (node->get_mode() == ov::op::TopKMode::MAX),
-                      node->get_sort_type());
+    return IF_TYPE_OF_CONVERT_TENSORS(topk_evaluate,
+                                      node,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      topk::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      outputs[1],
+                                      output_shape,
+                                      axis,
+                                      (node->get_mode() == ov::op::TopKMode::MAX),
+                                      node->get_sort_type());
 }
 }  // namespace
 }  // namespace topk

@@ -99,18 +99,21 @@ bool Select::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& else_input = inputs[2];
 
     using namespace ov::element;
-    return IF_TYPE_OF(v1_Select_evaluate,
-                      OV_PP_ET_LIST(boolean, bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
-                      select::Evaluate,
-                      then_input.get_element_type(),
-                      cond_input,
-                      then_input,
-                      else_input,
-                      output,
-                      cond_input.get_shape(),
-                      then_input.get_shape(),
-                      else_input.get_shape(),
-                      m_auto_broadcast);
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_Select_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64),
+                                      select::Evaluate,
+                                      then_input.get_element_type(),
+                                      cond_input,
+                                      then_input,
+                                      else_input,
+                                      output,
+                                      cond_input.get_shape(),
+                                      then_input.get_shape(),
+                                      else_input.get_shape(),
+                                      m_auto_broadcast);
 }
 
 bool Select::evaluate_lower(TensorVector& output_values) const {
