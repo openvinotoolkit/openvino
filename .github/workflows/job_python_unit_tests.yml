@@ -39,6 +39,7 @@ jobs:
       PDM_PROJECT: ${{ github.workspace }}/install/tests/pyopenvino
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
@@ -165,18 +166,15 @@ jobs:
       - name: Model Optimizer unit tests
         if: fromJSON(inputs.affected-components).MO.test
         run: |
-          skip_filter=''
-          if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
-          else
-            # Skips under Ticket: 122666
-            skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
           fi
           
+          # Skips under tickets: 133405, 122666
           ${PYTHON_RUN_TESTS_PREFIX} pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              "$skip_filter"
+              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
@@ -318,7 +316,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' }}
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
         run: ${PYTHON_RUN_TESTS_PREFIX} pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
