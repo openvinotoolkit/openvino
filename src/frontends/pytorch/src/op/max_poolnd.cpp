@@ -3,7 +3,18 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
@@ -42,8 +53,23 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
         rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
     }
 
-    return {context.mark_node(
-        std::make_shared<v14::MaxPool>(context.get_input(0), strides, dilations, pads, pads, kernel, rounding_type))};
+    auto res = context.mark_node(std::make_shared<v14::MaxPool>(context.get_input(0),
+                                                                strides,
+                                                                dilations,
+                                                                pads,
+                                                                pads,
+                                                                kernel,
+                                                                rounding_type,
+                                                                PadType::EXPLICIT,
+                                                                element::i64,
+                                                                2));
+    if (context.get_output_size() == 2) {
+        auto out1 = res->output(0);
+        auto out2 = res->output(1);
+        return {std::move(out1), std::move(out2)};
+    } else {
+        return {res};
+    }
 };
 
 OutputVector translate_max_poolnd_fx(const NodeContext& context) {

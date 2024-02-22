@@ -51,7 +51,7 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     // The corner case of Average Pooling with ceil_mode on
     // PyTorch allows sliding window go off bound, which leads to this accommodation.
     // More detail on https://github.com/pytorch/pytorch/issues/57178
-    //if (count_include_pad) {
+    // if (count_include_pad) {
     //    auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     //    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input));
     //    auto zero_i32 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
@@ -63,8 +63,8 @@ OutputVector translate_avg_poolnd(const NodeContext& context) {
     //    auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero_i32, pads_diff));
     //    auto padding = context.mark_node(
     //        std::make_shared<v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pad_values)}, 0));
-    //    input = context.mark_node(std::make_shared<v1::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
-    //    pads = Shape(pads.size(), 0);
+    //    input = context.mark_node(std::make_shared<v1::Pad>(input, padding, padding, zero,
+    //    ov::op::PadMode::CONSTANT)); pads = Shape(pads.size(), 0);
     //}
 
     return {context.mark_node(
