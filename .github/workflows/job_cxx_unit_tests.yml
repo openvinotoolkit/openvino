@@ -73,9 +73,13 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+          if [[ "${{ inputs.sanitizer-name }}" != "" ]]; then            
+            apt update && apt --assume-yes install clang lld
+          fi
 
       - name: Fetch Sanitizer Suppression Lists
         if: inputs.sanitizer-name
