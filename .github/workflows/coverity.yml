@@ -1,5 +1,6 @@
 name: Coverity (Ubuntu 20.04, Python 3.11)
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       openvinoRef:
