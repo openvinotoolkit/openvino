@@ -454,6 +454,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
 #endif
 
     pluginRegistry[dev_name] = desc;
+    std::cout << "pluginRegitstry push back " << dev_name << std::endl;
     add_mutex(dev_name);
 }
 
@@ -475,6 +476,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         }
 #else
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
+        std::cout << "register compile_time_plugin for deviceName=" << deviceName << std::endl;
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{pluginPath, config};
