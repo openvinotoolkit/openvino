@@ -68,18 +68,21 @@ bool MatMul::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(out_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(v0_MatMul_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
-                      matmul::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      inputs[1],
-                      outputs[0],
-                      inputs[0].get_shape(),
-                      inputs[1].get_shape(),
-                      out_shape,
-                      m_transpose_a,
-                      m_transpose_b);
+    return IF_TYPE_OF_CONVERT_TENSORS(v0_MatMul_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      matmul::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      inputs[1],
+                                      outputs[0],
+                                      inputs[0].get_shape(),
+                                      inputs[1].get_shape(),
+                                      out_shape,
+                                      m_transpose_a,
+                                      m_transpose_b);
 }
 
 bool MatMul::has_evaluate() const {

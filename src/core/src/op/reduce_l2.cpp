@@ -47,13 +47,16 @@ bool ReduceL2::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;
-    return IF_TYPE_OF(v4_ReduceL2_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32),
-                      reduce_l2::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      reduction_axes);
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_ReduceL2_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      reduce_l2::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      reduction_axes);
 }
 
 bool ReduceL2::has_evaluate() const {
