@@ -121,6 +121,13 @@ jobs:
             tar xvf coverity_tool.tgz && rm coverity_tool.tgz
           popd
 
+      - name: Configure Coverity
+        run: |
+          mkdir -p ${BUILD_DIR}/coverity/conf
+          ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${BUILD_DIR}/coverity/conf/c.xml --template --compiler cc --comptype gcc
+          ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${BUILD_DIR}/coverity/conf/c.xml --template --compiler c++ --comptype g++
+          ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${BUILD_DIR}/coverity/conf/c.xml --clang
+
       - name: Cmake build - OpenVINO with Coverity
         run: |
            ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int \
@@ -135,21 +142,29 @@ jobs:
             tar -C ${BUILD_DIR} -czvf openvino.tgz cov-int
           popd
 
-      - name: Submit artefacts
-        run: |
-          apt-get update && apt-get install -y curl
-          pushd ${BUILD_DIR}
-            curl --form token=${{ secrets.COVERITY_TOKEN }} \
-              --form email=${{ secrets.COVERITY_USER }} \
-              --form file=@openvino.tgz \
-              --form version="${{ github.sha }}" \
-              --form description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
-              https://scan.coverity.com/builds?project=openvino
-          popd
+#      - name: Submit artefacts
+#        run: |
+#          apt-get update && apt-get install -y curl
+#          pushd ${BUILD_DIR}
+#            curl --form token=${{ secrets.COVERITY_TOKEN }} \
+#              --form email=${{ secrets.COVERITY_USER }} \
+#              --form file=@openvino.tgz \
+#              --form version="${{ github.sha }}" \
+#              --form description="https://github.com/openvinotoolkit/openvino/runs/${{ github.run_number }}" \
+#              https://scan.coverity.com/builds?project=openvino
+#          popd
 
       - name: Show Coverity configure logs
         continue-on-error: true
         run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-configure -c ${COVERITY_TOOL_DIR}/cov-analysis-linux64-2023.6.2/config/coverity_config.xml -lscc text
+
+      - name: Upload build artefacts
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverity_build_artefacts
+          path: ${{ env.BUILD_DIR }}/openvino.tgz
+          if-no-files-found: 'error'
 
       - name: Upload Coverity logs
         uses: actions/upload-artifact@v3
