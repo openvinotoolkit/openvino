@@ -941,14 +941,23 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     auto start_time = Time::now();
     std::vector<std::string> devices;
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
+    double is_hidden_device_time = 0.0;
+    double get_metric_time = 0.0;
 
     for (auto&& deviceName : get_registered_devices()) {
         std::vector<std::string> devicesIDs;
         // Skip hidden devices
+        auto start_time_1 = Time::now();
         if (is_hidden_device(deviceName))
             continue;
+        auto duration_1 = std::chrono::duration_cast<ns>(Time::now() - start_time_1).count() * 0.000001;
+        is_hidden_device_time += duration_1;
+
         try {
+            auto start_time_2 = Time::now();
             const ov::Any p = GetMetric(deviceName, propertyName);
+            auto duration_2 = std::chrono::duration_cast<ns>(Time::now() - start_time_2).count() * 0.000001;
+            get_metric_time += duration_2;
             devicesIDs = p.as<std::vector<std::string>>();
         } catch (const InferenceEngine::Exception&) {
             // plugin is not created by e.g. invalid env
@@ -977,6 +986,8 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     }
     auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
     std::cout << "get_available_devices cost time " << duration << " ms" << std::endl;
+    std::cout << "get_available_devices is_hidden_device_time cost time " << is_hidden_device_time << " ms" << std::endl;
+    std::cout << "get_available_devices get_metric_time cost time " << get_metric_time << " ms" << std::endl;
 
     return devices;
 }
