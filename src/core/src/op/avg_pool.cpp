@@ -168,23 +168,6 @@ void AvgPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
-bool AvgPool::has_evaluate() const {
-    OV_OP_SCOPE(v14_MaxPool_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::i8:
-    case element::i32:
-    case element::i64:
-    case element::u8:
-    case element::u32:
-    case element::u64:
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
-}
-
 const ov::Shape& AvgPool::get_kernel() const {
     return m_kernel;
 }
