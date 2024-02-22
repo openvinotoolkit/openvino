@@ -56,7 +56,7 @@ Basic Usage
       .. note::
 
          If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the
-         :doc:`Benchmark Python Tool <benchmark_tool>` is available,
+         :doc:`Benchmark Python Tool <benchmark-tool>` is available,
          and you should follow the usage instructions on that page instead.
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,

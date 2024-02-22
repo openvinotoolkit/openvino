@@ -87,5 +87,5 @@ The applications include:
 Additional Resources
 ####################
 
-* :doc:`Get Started with Samples <openvino_docs_../get-started_../get-started_demos>`
+* :doc:`Get Started with Samples <openvino-samples/get-started-demos>`
 * :doc:`OpenVINO Runtime User Guide <../openvino-workflow/running-inference>`

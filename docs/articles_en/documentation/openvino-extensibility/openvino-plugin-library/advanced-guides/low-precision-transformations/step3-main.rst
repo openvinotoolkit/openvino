@@ -1,4 +1,4 @@
-.. {#../low-precision-transformations_step3_main}
+.. {#step3-main/step3_main}
 
 Step 3. Main Transformations
 ============================
@@ -13,78 +13,78 @@ Step 3. Main Transformations
    :maxdepth: 1
    :hidden:
 
-   AddTransformation <../low-precision-transformations_AddTransformation>
-   AvgPoolTransformation <../low-precision-transformations_AvgPoolTransformation>
-   BatchToSpaceTransformation <../low-precision-transformations_BatchToSpaceTransformation>
-   ClampTransformation <../low-precision-transformations_ClampTransformation>
-   ConcatTransformation <../low-precision-transformations_ConcatTransformation>
-   ConvolutionTransformation <../low-precision-transformations_ConvolutionTransformation>
-   ConvolutionBackpropDataTransformation <../low-precision-transformations_ConvolutionBackpropDataTransformation>
-   DepthToSpaceTransformation <../low-precision-transformations_DepthToSpaceTransformation>
-   FakeQuantizeDecompositionTransformation <../low-precision-transformations_FakeQuantizeDecompositionTransformation>
-   FakeQuantizeTransformation <../low-precision-transformations_FakeQuantizeTransformation>
-   InterpolateTransformation <../low-precision-transformations_InterpolateTransformation>
-   GroupConvolutionTransformation <../low-precision-transformations_GroupConvolutionTransformation>
-   GatherTransformation <../low-precision-transformations_GatherTransformation>
-   MatMulTransformation <../low-precision-transformations_MatMulTransformation>
-   MaxPoolTransformation <../low-precision-transformations_MaxPoolTransformation>
-   MultiplyPartialTransformation <../low-precision-transformations_MultiplyPartialTransformation>
-   MVNTransformation <../low-precision-transformations_MVNTransformation>
-   NormalizeL2Transformation <../low-precision-transformations_NormalizeL2Transformation>
-   PadTransformation<../low-precision-transformations_PadTransformation>
-   PReluTransformation <../low-precision-transformations_PReluTransformation>
-   ReduceMaxTransformation <../low-precision-transformations_ReduceMaxTransformation>
-   ReduceMeanTransformation <../low-precision-transformations_ReduceMeanTransformation>
-   ReduceMinTransformation <../low-precision-transformations_ReduceMinTransformation>
-   ReduceSumTransformation <../low-precision-transformations_ReduceSumTransformation>
-   ReluTransformation <../low-precision-transformations_ReluTransformation>
-   ReshapeTransformation <../low-precision-transformations_ReshapeTransformation>
-   SpaceToBatchTransformation <../low-precision-transformations_SpaceToBatchTransformation>
-   SqueezeTransformation <../low-precision-transformations_SqueezeTransformation>
-   ShuffleChannelsTransformation <../low-precision-transformations_ShuffleChannelsTransformation>
-   SplitTransformation <../low-precision-transformations_SplitTransformation>
-   StridedSliceTransformation <../low-precision-transformations_StridedSliceTransformation>
-   TransposeTransformation <../low-precision-transformations_TransposeTransformation>
-   UnsqueezeTransformation <../low-precision-transformations_UnsqueezeTransformation>
-   VariadicSplitTransformation <../low-precision-transformations_VariadicSplitTransformation>
+   AddTransformation <step3-main/arithmetic/add>
+   AvgPoolTransformation <step3-main/pooling/avg-pool>
+   BatchToSpaceTransformation <step3-main/shape/batch-to-space>
+   ClampTransformation <step3-main/activation/clamp>
+   ConcatTransformation <step3-main/movement/concat>
+   ConvolutionTransformation <step3-main/convolution/convolution>
+   ConvolutionBackpropDataTransformation <step3-main/convolution/convolution-backprop-data>
+   DepthToSpaceTransformation <step3-main/movement-depth-to-space>
+   FakeQuantizeDecompositionTransformation <step4-cleanup/fake-quantize-decomposition>
+   FakeQuantizeTransformation <step3-main/quantization/fake-quantize>
+   InterpolateTransformation <step3-main/image/interpolate>
+   GroupConvolutionTransformation <step3-main/convolution/group-convolution>
+   GatherTransformation <step3-main/movement/gather>
+   MatMulTransformation <step3-main/matrix/mat-mul>
+   MaxPoolTransformation <step3-main/pooling/max-pool>
+   MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>
+   MVNTransformation <step3-main/normalization/mvn>
+   NormalizeL2Transformation <step3-main/normalization/normalize-l2>
+   PadTransformation<step3-main/movement/pad>
+   PReluTransformation <step3-main/activation/prelu>
+   ReduceMaxTransformation <step3-main/reduction/reduce-max>
+   ReduceMeanTransformation <step3-main/reduction/reduce-mean>
+   ReduceMinTransformation <step3-main/reduction/reduce-min>
+   ReduceSumTransformation <step3-main/reduction/reduce-sum>
+   ReluTransformation <step3-main/activation/relu>
+   ReshapeTransformation <step3-main/shape/reshape>
+   SpaceToBatchTransformation <step3-main/shape/space-to-batch>
+   SqueezeTransformation <step3-main/shape/squeeze>
+   ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>
+   SplitTransformation <step3-main/movement/split>
+   StridedSliceTransformation <step3-main/movement/strided-slice>
+   TransposeTransformation <step3-main/movement/transpose>
+   UnsqueezeTransformation <step3-main/shape/unsqueeze>
+   VariadicSplitTransformation <step3-main/movement/variadic-split>
 
 
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
    
-* :doc:`AddTransformation <../low-precision-transformations_AddTransformation>` 
-* :doc:`AvgPoolTransformation <../low-precision-transformations_AvgPoolTransformation>` 
-* :doc:`BatchToSpaceTransformation <../low-precision-transformations_BatchToSpaceTransformation>` 
-* :doc:`ClampTransformation <../low-precision-transformations_ClampTransformation>` 
-* :doc:`ConcatTransformation <../low-precision-transformations_ConcatTransformation>` 
-* :doc:`ConvolutionTransformation <../low-precision-transformations_ConvolutionTransformation>` 
-* :doc:`ConvolutionBackpropDataTransformation <../low-precision-transformations_ConvolutionBackpropDataTransformation>` 
-* :doc:`DepthToSpaceTransformation <../low-precision-transformations_DepthToSpaceTransformation>` 
-* :doc:`FakeQuantizeDecompositionTransformation <../low-precision-transformations_FakeQuantizeDecompositionTransformation>` 
-* :doc:`FakeQuantizeTransformation <../low-precision-transformations_FakeQuantizeTransformation>` 
-* :doc:`InterpolateTransformation <../low-precision-transformations_InterpolateTransformation>` 
-* :doc:`GroupConvolutionTransformation <../low-precision-transformations_GroupConvolutionTransformation>` 
-* :doc:`GatherTransformation <../low-precision-transformations_GatherTransformation>` 
-* :doc:`MatMulTransformation <../low-precision-transformations_MatMulTransformation>` 
-* :doc:`MaxPoolTransformation <../low-precision-transformations_MaxPoolTransformation>` 
-* :doc:`MultiplyPartialTransformation <../low-precision-transformations_MultiplyPartialTransformation>` 
-* :doc:`MVNTransformation <../low-precision-transformations_MVNTransformation>` 
-* :doc:`NormalizeL2Transformation <../low-precision-transformations_NormalizeL2Transformation>` 
-* :doc:`PadTransformation<../low-precision-transformations_PadTransformation>`
-* :doc:`PReluTransformation <../low-precision-transformations_PReluTransformation>` 
-* :doc:`ReduceMaxTransformation <../low-precision-transformations_ReduceMaxTransformation>` 
-* :doc:`ReduceMeanTransformation <../low-precision-transformations_ReduceMeanTransformation>` 
-* :doc:`ReduceMinTransformation <../low-precision-transformations_ReduceMinTransformation>` 
-* :doc:`ReduceSumTransformation <../low-precision-transformations_ReduceSumTransformation>` 
-* :doc:`ReluTransformation <../low-precision-transformations_ReluTransformation>` 
-* :doc:`ReshapeTransformation <../low-precision-transformations_ReshapeTransformation>` 
-* :doc:`SpaceToBatchTransformation <../low-precision-transformations_SpaceToBatchTransformation>` 
-* :doc:`SqueezeTransformation <../low-precision-transformations_SqueezeTransformation>` 
-* :doc:`ShuffleChannelsTransformation <../low-precision-transformations_ShuffleChannelsTransformation>` 
-* :doc:`SplitTransformation <../low-precision-transformations_SplitTransformation>` 
-* :doc:`StridedSliceTransformation <../low-precision-transformations_StridedSliceTransformation>` 
-* :doc:`TransposeTransformation <../low-precision-transformations_TransposeTransformation>` 
-* :doc:`UnsqueezeTransformation <../low-precision-transformations_UnsqueezeTransformation>` 
-* :doc:`VariadicSplitTransformation <../low-precision-transformations_VariadicSplitTransformation>` 
+* :doc:`AddTransformation <step3-main/arithmetic/add>` 
+* :doc:`AvgPoolTransformation <step3-main/pooling/avg-pool>` 
+* :doc:`BatchToSpaceTransformation <step3-main/shape/batch-to-space>` 
+* :doc:`ClampTransformation <step3-main/activation/clamp>` 
+* :doc:`ConcatTransformation <step3-main/movement/concat>` 
+* :doc:`ConvolutionTransformation <step3-main/convolution/convolution>` 
+* :doc:`ConvolutionBackpropDataTransformation <step3-main/convolution/convolution-backprop-data>` 
+* :doc:`DepthToSpaceTransformation <step3-main/movement/depth-to-space>` 
+* :doc:`FakeQuantizeDecompositionTransformation <step4-cleanup/fake-quantize-decomposition>` 
+* :doc:`FakeQuantizeTransformation <step3-main/quantization/fake-quantize>` 
+* :doc:`InterpolateTransformation <step3-main/image/interpolate>` 
+* :doc:`GroupConvolutionTransformation <step3-main/convolution/group-convolution>` 
+* :doc:`GatherTransformation <step3-main/movement/gather>` 
+* :doc:`MatMulTransformation <step3-main/matrix/mat-mul>` 
+* :doc:`MaxPoolTransformation <step3-main/pooling/max-pool>` 
+* :doc:`MultiplyPartialTransformation <step3-main/arithmetic/multiply-partial>` 
+* :doc:`MVNTransformation <step3-main/normalization/mvn>` 
+* :doc:`NormalizeL2Transformation <step3-main/normalization/normalize-l2>` 
+* :doc:`PadTransformation<step3-main/movement/pad>`
+* :doc:`PReluTransformation <step3-main/activation/prelu>` 
+* :doc:`ReduceMaxTransformation <step3-main/reduction/reduce-max>` 
+* :doc:`ReduceMeanTransformation <step3-main/reduction/reduce-mean>` 
+* :doc:`ReduceMinTransformation <step3-main/reduction/reduce-min>` 
+* :doc:`ReduceSumTransformation <step3-main/reduction/reduce-sum>` 
+* :doc:`ReluTransformation <step3-main/activation/relu>` 
+* :doc:`ReshapeTransformation <step3-main/shape/reshape>` 
+* :doc:`SpaceToBatchTransformation <step3-main/shape/space-to-batch>` 
+* :doc:`SqueezeTransformation <step3-main/shape/squeeze>` 
+* :doc:`ShuffleChannelsTransformation <step3-main/movement/shuffle-channels>` 
+* :doc:`SplitTransformation <step3-main/movement/split>` 
+* :doc:`StridedSliceTransformation <step3-main/movement/strided-slice>` 
+* :doc:`TransposeTransformation <step3-main/movement/transpose>` 
+* :doc:`UnsqueezeTransformation <step3-main/shape/unsqueeze>` 
+* :doc:`VariadicSplitTransformation <step3-main/movement/variadic-split>` 
 
 Let's explore some main transformations on the example model. Original model:
 

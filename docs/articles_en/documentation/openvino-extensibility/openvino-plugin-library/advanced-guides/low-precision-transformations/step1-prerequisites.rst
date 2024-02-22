@@ -12,13 +12,13 @@ Step 1. Prerequisites Transformations
    :maxdepth: 1
    :hidden:
 
-   PullReshapeThroughDequantization <../low-precision-transformations_PullReshapeThroughDequantization>
-   PullTransposeThroughDequantization <../low-precision-transformations_PullTransposeThroughDequantization>
-   LinOpSequenceFusion <../low-precision-transformations_LinOpSequenceFusion>
+   PullReshapeThroughDequantization <step1-prerequisites/pull-reshape-through-dequantization>
+   PullTransposeThroughDequantization <step1-prerequisites/pull-transpose-through-dequantization>
+   LinOpSequenceFusion <step1-prerequisites/lin-op-sequence-fusion>
 
 Prerequisites transformations are optional. The transformations prepare a model before running other low precision transformations. The transformations do not operate with dequantization operations or update precisions. Prerequisites transformations include:
 
-* :doc:`PullReshapeThroughDequantization <../low-precision-transformations_PullReshapeThroughDequantization>`
-* :doc:`PullTransposeThroughDequantization <../low-precision-transformations_PullTransposeThroughDequantization>`
-* :doc:`LinOpSequenceFusion <../low-precision-transformations_LinOpSequenceFusion>`
+* :doc:`PullReshapeThroughDequantization <step1-prerequisites/lin-op-sequence-fusion>`
+* :doc:`PullTransposeThroughDequantization <step1-prerequisites/pull-transpose-through-dequantization>`
+* :doc:`LinOpSequenceFusion <step1-prerequisites/lin-op-sequence-fusion>`
 

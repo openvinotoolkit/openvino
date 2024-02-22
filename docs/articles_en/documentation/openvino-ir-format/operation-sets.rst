@@ -70,7 +70,7 @@ Two or more opsets may refer to the same operation.
 That means an operation is kept unchanged from one operation set to another.
 
 The description of each operation has a ``Versioned name`` field.
-For example, the `ReLU` entry point in :doc:`opset1 <operation-sets/available-opsets1>` refers to :doc:`ReLU-1 <operation-sets/operations-specifications/activation/relu-1>` as the versioned name.
+For example, the `ReLU` entry point in :doc:`opset1 <operation-sets/available-opsets/opset1>` refers to :doc:`ReLU-1 <operation-sets/operations-specifications/activation/relu-1>` as the versioned name.
 Meanwhile, `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single :doc:`description <operation-sets/operations-specifications/activation/relu-1>`, which means that ``opset1`` and ``opset2`` share the same operation ``ReLU``.
 
 To differentiate versions of the same operation type such as ``ReLU``, the ``-N`` suffix is used in a versioned name of the operation.

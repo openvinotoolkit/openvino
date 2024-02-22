@@ -12,20 +12,20 @@ Step 4. Cleanup Transformations
    :maxdepth: 1
    :hidden:
 
-   EliminateFakeQuantizeTransformation <../low-precision-transformations_EliminateFakeQuantizeTransformation>
-   FoldConvertTransformation <../low-precision-transformations_FoldConvertTransformation>
-   FoldFakeQuantizeTransformation <../low-precision-transformations_FoldFakeQuantizeTransformation>
-   FuseConvertTransformation <../low-precision-transformations_FuseConvertTransformation>
-   FuseMultiplyToFakeQuantizeTransformation <../low-precision-transformations_FuseMultiplyToFakeQuantizeTransformation>
-   FuseSubtractToFakeQuantizeTransformation <../low-precision-transformations_FuseSubtractToFakeQuantizeTransformation>
-   MultiplyToGroupConvolutionTransformation <../low-precision-transformations_MultiplyToGroupConvolutionTransformation>
+   EliminateFakeQuantizeTransformation <step4-cleanup/eliminate-fake-quantize>
+   FoldConvertTransformation <step4-cleanup/fold-convert>
+   FoldFakeQuantizeTransformation <step3-main/quantization/fold-fake-quantize>
+   FuseConvertTransformation <step4-cleanup/fuse-convert>
+   FuseMultiplyToFakeQuantizeTransformation <step4-cleanup/fuse-multiply-to-fake-quantize>
+   FuseSubtractToFakeQuantizeTransformation <step4-cleanup/fuse-subtract-to-fake-quantize>
+   MultiplyToGroupConvolutionTransformation <step4-cleanup/multiply-to-group-convolution>
 
 
-* :doc:`EliminateFakeQuantizeTransformation <../low-precision-transformations_EliminateFakeQuantizeTransformation>`
-* :doc:`FoldConvertTransformation <../low-precision-transformations_FoldConvertTransformation>`
-* :doc:`FoldFakeQuantizeTransformation <../low-precision-transformations_FoldFakeQuantizeTransformation>`
-* :doc:`FuseConvertTransformation <../low-precision-transformations_FuseConvertTransformation>`
-* :doc:`FuseMultiplyToFakeQuantizeTransformation <../low-precision-transformations_FuseMultiplyToFakeQuantizeTransformation>`
-* :doc:`FuseSubtractToFakeQuantizeTransformation <../low-precision-transformations_FuseSubtractToFakeQuantizeTransformation>`
-* :doc:`MultiplyToGroupConvolutionTransformation <../low-precision-transformations_MultiplyToGroupConvolutionTransformation>`
+* :doc:`EliminateFakeQuantizeTransformation <step4-cleanup/eliminate-fake-quantize>`
+* :doc:`FoldConvertTransformation <step4-cleanup/fold-convert>`
+* :doc:`FoldFakeQuantizeTransformation <step3-main/quantization/fold-fake-quantize>`
+* :doc:`FuseConvertTransformation <step4-cleanup/fuse-convert>`
+* :doc:`FuseMultiplyToFakeQuantizeTransformation <step4-cleanup/fuse-multiply-to-fake-quantize>`
+* :doc:`FuseSubtractToFakeQuantizeTransformation <step4-cleanup/fuse-subtract-to-fake-quantize>`
+* :doc:`MultiplyToGroupConvolutionTransformation <step4-cleanup/multiply-to-group-convolution>`
 
