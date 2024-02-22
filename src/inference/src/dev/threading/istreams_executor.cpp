@@ -31,7 +31,9 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
         const auto value = it.second;
         if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
-            if (streams == ov::streams::NUMA || streams == ov::streams::AUTO) {
+            if (streams == ov::streams::NUMA) {
+                _streams = get_num_numa_nodes();
+            } else if (streams == ov::streams::AUTO) {
                 _streams = 1;
             } else if (streams.num >= 0) {
                 _streams = streams.num;
@@ -120,7 +122,9 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
                         : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-        if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
+        if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
+            num_cores = proc_type_table[0][ALL_PROC];
+        } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
             num_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
