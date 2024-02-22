@@ -995,7 +995,7 @@ void ScaledDotProductAttention::createPrimitive() {
         } else {
 #ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
-#else
+#elif defined(OPENVINO_ARCH_X86_64)
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
 #endif
         }
