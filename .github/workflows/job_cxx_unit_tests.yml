@@ -36,6 +36,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      CC: clang
+      CXX: clang++
     steps:
       - name: Set apt retries
         if: runner.os == 'Linux'
