@@ -2017,7 +2017,7 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            OPENVINO_ASSERT(false, "[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
         }
     }
 

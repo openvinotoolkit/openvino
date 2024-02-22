@@ -24,7 +24,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         if (desc->output_partial_shape.size() != 0) {
             return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
         } else {
-            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+            OPENVINO_ASSERT(false, "[GPU] Output shape is not provided");
         }
     }
 
@@ -110,7 +110,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
                 break;
             }
             default:
-                OPENVINO_ASSERT("Unsupported reshape mode");
+                OPENVINO_ASSERT(false, "Unsupported reshape mode");
         }
     };
 

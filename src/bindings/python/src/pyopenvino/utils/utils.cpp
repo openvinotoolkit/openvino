@@ -324,7 +324,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                     detected_type = type;
                     return;
                 }
-                OPENVINO_ASSERT("Incorrect attribute. Mixed types in the list are not allowed.");
+                OPENVINO_ASSERT(false, "Incorrect attribute. Mixed types in the list are not allowed.");
             };
             if (py::isinstance<py::str>(it)) {
                 check_type(PY_TYPE::STR);
