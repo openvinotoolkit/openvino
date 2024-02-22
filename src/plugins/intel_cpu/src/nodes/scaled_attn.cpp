@@ -131,7 +131,8 @@ struct MHAKernel {
         auto q_len = query.size(2);
         auto head_size = query.size(3);
         auto kv_len = present_key.size(2);
-
+        auto Hk = present_key.size(1);
+        size_t h_each_group_len = H / Hk;
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
@@ -150,7 +151,7 @@ struct MHAKernel {
                 if (auto_causal)
                     ncausal = kv_len - q_len + m + 1;
                 for (size_t n = 0; n < ncausal; n++) {
-                    auto* k = &present_key.at<T>({b, h, n, 0}, true);
+                    auto* k = &present_key.at<T>({b, h / h_each_group_len, n, 0}, true);
                     attn_score[n] = dot_product(q, k, head_size, k_stride_s) * d_scale;
 
                     // apply alibi tensor
@@ -181,7 +182,7 @@ struct MHAKernel {
                 // linearly combine value
                 word_vec.assign(head_size, 0.0f);
                 for (size_t n = 0; n < ncausal; n++) {
-                    auto* v = &present_value.at<T>({b, h, n, 0}, true);
+                    auto* v = &present_value.at<T>({b, h / h_each_group_len, n, 0}, true);
                     accumulate(word_vec.data(), v, head_size, attn_score[n]);
                 }
 
@@ -272,7 +273,14 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true, in_type};
 
         auto builder = [](const brgemmKey& key) -> std::shared_ptr<BrgemmKernel> {
-            return std::make_shared<BrgemmKernel>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed, key.in_type);
+            return std::make_shared<BrgemmKernel>(key.M,
+                                                  key.N,
+                                                  key.K,
+                                                  key.lda,
+                                                  key.ldb,
+                                                  key.ldc,
+                                                  key.b_transposed,
+                                                  key.in_type);
         };
 
         auto cache = this->context->getParamsCache();
@@ -329,48 +337,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             fp32_out.resize<float>({B, H, q_len, head_size});
         }
         return;
-    }
-
-    void prepare_fp32_prim(dnnl::stream strm,
-                           PlainTensor& query,
-                           PlainTensor& present_key,
-                           PlainTensor& present_value,
-                           size_t B,
-                           size_t H,
-                           size_t Hk,
-                           size_t q_len,
-                           size_t kv_len,
-                           size_t S,
-                           bool has_out_transpose) {
-        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
-        dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, query.get_strides<dnnl::memory::dim>());
-        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}),
-                                    qkv_dt,
-                                    present_key.get_strides<dnnl::memory::dim>());
-        if (cur_q_md == q_md && cur_k_md == k_md)
-            return;
-
-        q_md = cur_q_md;
-        k_md = cur_k_md;
-        dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
-        k_md = k_md.permute_axes({0, 1, 3, 2});
-        auto qk_pd = dnnl::matmul::primitive_desc(strm.get_engine(), q_md, k_md, attn_md);
-        qk_prim = dnnl::matmul(qk_pd);
-
-        weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
-        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}),
-                                  qkv_dt,
-                                  present_value.get_strides<dnnl::memory::dim>());
-        out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
-        if (has_out_transpose)
-            out_md = out_md.permute_axes({0, 2, 1, 3});
-        auto wv_pd = dnnl::matmul::primitive_desc(strm.get_engine(), weight_md, v_md, out_md);
-        wv_prim = dnnl::matmul(wv_pd);
-
-        if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
-            attn_score = dnnl::memory(attn_md, strm.get_engine());
-            attn_weight = dnnl::memory(weight_md, strm.get_engine());
-        }
     }
 
     void execute_brgemm(PlainTensor& query,
@@ -478,20 +444,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         });
     }
 
-    void exec_qk(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
-        dnnl::memory q(q_md, strm.get_engine(), query.ptr<T>());
-        dnnl::memory k(k_md, strm.get_engine(), present_key.ptr<T>());
-        qk_prim.execute(strm, {{DNNL_ARG_SRC, q},
-                               {DNNL_ARG_WEIGHTS, k},
-                               {DNNL_ARG_DST, attn_score}});
-    }
-
-    void exec_kv(dnnl::stream strm, PlainTensor& present_value, PlainTensor& output_emb) {
-        dnnl::memory v(v_md, strm.get_engine(), present_value.ptr<T>());
-        dnnl::memory out(out_md, strm.get_engine(), output_emb.ptr<T>());
-        wv_prim.execute(strm, {{DNNL_ARG_SRC, attn_weight}, {DNNL_ARG_WEIGHTS, v}, {DNNL_ARG_DST, out}});
-    }
-
     PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
     void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
@@ -516,12 +468,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     bool has_out_transpose,
                     bool auto_causal,
                     float d_scale = 0.0f) {
-        // auto B = query.size(0);
-        // auto H = query.size(1);
-        // auto q_len = query.size(2);
         auto head_size = query.size(3);
-        // auto Hk = present_key.size(1);
-        // auto kv_len = present_key.size(2);
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
@@ -535,38 +482,6 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                        has_out_transpose,
                        auto_causal,
                        d_scale);
-        // prepare_fp32_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
-        // exec_qk(strm, query, present_key);
-
-        // PlainTensor score;
-        // score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        // PlainTensor weight;
-        // weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
-        // // softmax
-        // parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t m) {
-        //     // apply attention mask & sofmax
-        //     auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-        //     uint8_t* attn_mask_ptr = nullptr;
-        //     auto attn_mask_stride = 0;
-        //     if (attention_mask) {
-        //         attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
-        //         if (attention_mask.size(2) > 1)
-        //             attn_mask_stride = attention_mask.stride(2) * sizeof(T);
-        //     }
-        //     attn_softmax(&score.at<float>({b, h, m, 0}),
-        //                  &weight.at<T>({b, h, m, 0}),
-        //                  d_scale,
-        //                  alibi_mask ? &alibi_mask.at<float>({b, h, m, 0}, true) : nullptr,
-        //                  attn_mask_ptr + m * attn_mask_stride,
-        //                  causal_mask ? &causal_mask.at<uint8_t>({b, h, m, 0}, true) : nullptr,
-        //                  select_nfltmax_at_0,
-        //                  ncausal,
-        //                  kv_len,
-        //                  precision_of<T>::value,
-        //                  precision_of<T>::value);
-        // });
-
-        // exec_kv(strm, present_value, output_emb);
     }
 };
 
@@ -987,7 +902,7 @@ void ScaledDotProductAttention::createPrimitive() {
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
-        std::shared_ptr<Executor> executor;
+        std::shared_ptr<Executor> executor = nullptr;
         if (rtPrecision == ov::element::bf16) {
 #ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
@@ -997,6 +912,8 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+#else
+            executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
 #endif
         }
         return executor;
@@ -1005,7 +922,7 @@ void ScaledDotProductAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("ScaleDotAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
