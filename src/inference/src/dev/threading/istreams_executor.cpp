@@ -321,10 +321,13 @@ void IStreamsExecutor::Config::update_executor_config() {
     // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
     int num_streams = 0;
     _threads = 0;
+    _sub_streams = 0;
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
         if (_streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
             num_streams += _streams_info_table[i][NUMBER_OF_STREAMS];
             _threads += _streams_info_table[i][NUMBER_OF_STREAMS] * _streams_info_table[i][THREADS_PER_STREAM];
+        } else if (_streams_info_table[i][NUMBER_OF_STREAMS] == -1) {
+            _sub_streams += 1;
         }
     }
     _threads_per_stream = _streams_info_table[0][THREADS_PER_STREAM];
