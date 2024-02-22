@@ -17,7 +17,7 @@ import tensorflow_text  # do not delete, needed for text models
 from models_hub_common.constants import tf_hub_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list, is_hf_link
-from tf_tests.utils import type_map, load_graph, get_input_signature, get_output_signature
+from utils import type_map, load_graph, get_input_signature, get_output_signature
 
 
 class TestTFHubConvertModel(TestConvertModel):
