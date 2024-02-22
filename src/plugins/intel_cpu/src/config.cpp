@@ -107,11 +107,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
                     break;
                 case ov::Affinity::CORE: {
-#    if (defined(__APPLE__) || defined(_WIN32))
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-#    else
                     threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
-#    endif
                 } break;
                 case ov::Affinity::NUMA:
                     threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
@@ -274,14 +270,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                         inferencePrecision = ov::element::bf16;
                     }
                 } else if (prec == ov::element::f16) {
-#    if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-#    elif defined(OV_CPU_ARM_ENABLE_FP16)
+#elif defined(OV_CPU_ARM_ENABLE_FP16)
                     // TODO: add runtime FP16 feature support check for ARM
                     inferencePrecision = ov::element::f16;
-#    endif
+#endif
                 } else if (prec == ov::element::f32) {
                     inferencePrecision = ov::element::f32;
                 } else {
@@ -372,15 +368,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-#    if defined(OV_CPU_ARM_ENABLE_FP16)
+#if defined(OV_CPU_ARM_ENABLE_FP16)
             // fp16 precision is used as default precision on ARM for non-convolution networks
             // fp16 ACL convolution is slower than fp32
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
-#    else
+#else
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
-#    endif
+#endif
         } else {
             inferencePrecision = ov::element::f32;
         }

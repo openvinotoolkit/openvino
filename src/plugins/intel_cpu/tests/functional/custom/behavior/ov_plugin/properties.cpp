@@ -132,6 +132,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
+    ov::Core ie;
 #if defined(__APPLE__)
     ov::Affinity value = ov::Affinity::CORE;
     auto defaultBindThreadParameter = ov::Affinity::NONE;
@@ -189,11 +190,11 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
     ASSERT_EQ(false, value);
 }
 
-#    if defined(OV_CPU_ARM_ENABLE_FP16)
-    const auto expected_precision_for_performance_mode = ov::element::f16;
-#    else
-    const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#    endif
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+const auto expected_precision_for_performance_mode = ov::element::f16;
+#else
+const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
+#endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
@@ -351,17 +352,17 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
 
-#    if defined(OPENVINO_ARCH_X86_64)
+#if defined(OPENVINO_ARCH_X86_64)
     ASSERT_EQ(value.as<std::string>(), "intel64");
-#    elif defined(OPENVINO_ARCH_X86)
+#elif defined(OPENVINO_ARCH_X86)
     ASSERT_EQ(value.as<std::string>(), "ia32");
-#    elif defined(OPENVINO_ARCH_ARM)
+#elif defined(OPENVINO_ARCH_ARM)
     ASSERT_EQ(value.as<std::string>(), "armhf");
-#    elif defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM64)
     ASSERT_EQ(value.as<std::string>(), "arm64");
-#    elif defined(OPENVINO_ARCH_RISCV64)
+#elif defined(OPENVINO_ARCH_RISCV64)
     ASSERT_EQ(value.as<std::string>(), "riscv");
-#    endif
+#endif
 }
 
 } // namespace
