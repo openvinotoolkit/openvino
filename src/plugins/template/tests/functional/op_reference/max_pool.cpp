@@ -452,15 +452,15 @@ private:
     static std::shared_ptr<Model> CreateFunction(const MaxPoolParams& params) {
         const auto in = std::make_shared<op::v0::Parameter>(params.m_input_type, params.m_input_shape);
         const auto max_pool = std::make_shared<op::v14::MaxPool>(in,
-                                                                params.m_strides,
-                                                                params.m_dilations,
-                                                                params.m_pads_begin,
-                                                                params.m_pads_end,
-                                                                params.m_kernel,
-                                                                params.m_rounding_type,
-                                                                params.m_pad_type,
-                                                                params.m_indices_type,
-                                                                params.m_axis);
+                                                                 params.m_strides,
+                                                                 params.m_dilations,
+                                                                 params.m_pads_begin,
+                                                                 params.m_pads_end,
+                                                                 params.m_kernel,
+                                                                 params.m_rounding_type,
+                                                                 params.m_pad_type,
+                                                                 params.m_indices_type,
+                                                                 params.m_axis);
         return std::make_shared<ov::Model>(max_pool, ParameterVector{in});
     }
 };

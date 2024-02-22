@@ -149,7 +149,7 @@ AvgPool::AvgPool(const Output<Node>& arg,
 }
 
 bool AvgPool::visit_attributes(AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v41_AvgPool_visit_attributes);
+    OV_OP_SCOPE(v14_AvgPool_visit_attributes);
     visitor.on_attribute("kernel", m_kernel);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -166,6 +166,23 @@ void AvgPool::validate_and_infer_types() {
     const auto output_shapes =
         shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
     set_output_type(0, get_input_element_type(0), output_shapes.front());
+}
+
+bool AvgPool::has_evaluate() const {
+    OV_OP_SCOPE(v14_MaxPool_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case element::i8:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
 }
 
 const ov::Shape& AvgPool::get_kernel() const {
