@@ -73,8 +73,7 @@ This operation uses LU decomposition with partial pivoting to compute the invers
 
 .. math::
 
-   A \cdot x = b \iff \L \cdot U \cdot x = b
-   L \cdot y = b, U \cdot x = y (y = U \cdot x)
+   A \cdot x = b \iff L \cdot U \cdot x = b \iff L \cdot y = b, U \cdot x = y
 
 Algorithm pseudocode:
 
@@ -85,7 +84,7 @@ Algorithm pseudocode:
    * Repeat this step for each column in the input matrix.
    * Let *c* be the index of the currently processed column.
    * Find the index of the row with the highest value in a given column - *pivot*.
-   * If *pivot* != *c*, swap the *pivot* and *c* row in :math:`L`. Repeat for :math:`U`. Note that this operation flips the sign of the determinant, so this has to be accounted for.
+   * If :math:`pivot \neq c`, swap the *pivot* and *c* row in :math:`L`. Repeat for :math:`U`. Note that this operation flips the sign of the determinant, so this has to be accounted for.
    * Perform standard Gaussian elimination.
 
 4. To obtain the inverse, solve for each column of :math:`A^{-1}` as explained above.
