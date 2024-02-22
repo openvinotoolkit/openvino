@@ -10,7 +10,6 @@
 
 #include "shared_test_classes/base/utils/compare_results.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
-#include "shared_test_classes/base/layer_test_utils.hpp"
 
 namespace ov {
 namespace test {

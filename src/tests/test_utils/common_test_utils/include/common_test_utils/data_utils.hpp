@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"

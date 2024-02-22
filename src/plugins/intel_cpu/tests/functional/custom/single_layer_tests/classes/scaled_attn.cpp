@@ -8,6 +8,7 @@
 #include "openvino/opsets/opset13.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 

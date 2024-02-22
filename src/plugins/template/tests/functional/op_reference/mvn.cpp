@@ -7,7 +7,8 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ov;
 using namespace reference_tests;

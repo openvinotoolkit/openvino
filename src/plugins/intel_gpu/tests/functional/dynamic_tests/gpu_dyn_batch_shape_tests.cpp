@@ -4,7 +4,6 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"

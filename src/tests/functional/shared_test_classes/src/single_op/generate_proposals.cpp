@@ -3,8 +3,8 @@
 //
 
 #include "shared_test_classes/single_op/generate_proposals.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
