@@ -232,15 +232,15 @@ void EltwiseLayerCPUTest::SetUp() {
     function = makeNgraphFunction(netType, parameters, eltwise, "Eltwise");
 }
 
-std::string EltwiseLayerCPUTest::getPrimitiveType(const ngraph::helpers::EltwiseTypes& eltwise_type,
+std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
                                                   const ov::element::Type_t& element_type,
                                                   const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((eltwise_type == ngraph::helpers::EltwiseTypes::ADD) ||
-       (eltwise_type == ngraph::helpers::EltwiseTypes::MULTIPLY) ||
-       (eltwise_type == ngraph::helpers::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == ngraph::helpers::EltwiseTypes::DIVIDE)) {
+    if ((eltwise_type == utils::EltwiseTypes::ADD) ||
+       (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
+       (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
+       (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
         return "jit";
     }
 #endif

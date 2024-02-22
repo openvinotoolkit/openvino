@@ -134,16 +134,16 @@ void ActivationLayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
 }
 
-std::string ActivationLayerCPUTest::getPrimitiveType(const ngraph::helpers::ActivationTypes& activation_type,
+std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationTypes& activation_type,
                                                      const ov::element::Type_t& element_type,
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((element_type == ov::element::f32) && (activation_type == ngraph::helpers::ActivationTypes::Relu)) {
+    if ((element_type == ov::element::f32) && (activation_type == utils::ActivationTypes::Relu)) {
         return "jit";
     }
 
-    if (activation_type == ngraph::helpers::ActivationTypes::Mish) {
+    if (activation_type == utils::ActivationTypes::Mish) {
         // operation is decomposed and executed by different kernels
         return "";
     }
