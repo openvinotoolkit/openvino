@@ -3,11 +3,11 @@
 
 import numpy as np
 import pytest
-import tensorflow as tf
-from common.tf_layer_test_class import CommonTFLayerTest
+import pytorch
+from pytorch_layer_test_class import PytorchLayerTest
 
 
-class TestAtan2(CommonTFLayerTest):
+class TestAtan2(PytorchLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'y' in inputs_info
         assert 'x' in inputs_info
