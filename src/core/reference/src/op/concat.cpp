@@ -45,11 +45,7 @@ void concat_common(const std::vector<const T*>& args,
                    const Shape& out_shape,
                    int64_t concatenation_axis,
                    size_t elem_size) {
-    size_t steps = 1;
-    for (int i = 0; i < concatenation_axis; ++i) {
-        steps *= out_shape[i];
-    }
-
+    const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
     const auto& shape_sizes = calculate_shape_sizes(in_shapes);
 
     size_t out_offset = 0;
