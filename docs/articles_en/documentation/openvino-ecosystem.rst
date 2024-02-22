@@ -12,9 +12,9 @@ OpenVINO™ Ecosystem Overview
    :maxdepth: 1
    :hidden:
 
-   ote_../documentation
-   datumaro_../documentation
-   ovsa_../get-started
+   openvino-ecosystem/openvino-training-extension
+   openvino-ecosystem/datumaro
+   openvino-ecosystem/openvino-security-add-on
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
@@ -24,7 +24,7 @@ OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, pro
 
 A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
 
-More ../about-openvino/additional-resources:
+More resources:
 
 * :doc:`Documentation <../openvino-workflow/model-optimization-guide/compressing-models-during-training>`  
 * `GitHub <https://github.com/openvinotoolkit/nncf>`__  
@@ -38,7 +38,7 @@ A convenient environment to train Deep Learning models and convert them using th
 
 More ../about-openvino/additional-resources:
 
-* :doc:`Overview <ote_../documentation>`
+* :doc:`Overview <openvino-ecosystem/openvino-training-extension`
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/../get-started/introduction.html>`__
 
@@ -57,7 +57,7 @@ A framework and CLI tool to build, transform, and analyze datasets.
 
 More ../about-openvino/additional-resources:
  
-* :doc:`Overview <datumaro_../documentation>`
+* :doc:`Overview <openvino-ecosystem/datumaro>`
 * `PyPI <https://pypi.org/project/datumaro/>`__  
 * `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
 * `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ 

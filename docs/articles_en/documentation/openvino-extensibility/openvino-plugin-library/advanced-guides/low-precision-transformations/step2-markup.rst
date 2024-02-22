@@ -75,11 +75,11 @@ This step defines the optimal ``FakeQuantize`` decomposition precisions for the 
 
 Common markup transformations can be decomposed into simpler utility markup transformations. The order of Markup utility transformations is not important:
 
-* :doc:`CreateAttribute <../low-precision-transformations_CreateAttribute>`
-* :doc:`CreatePrecisionsDependentAttribute <../low-precision-transformations_CreatePrecisionsDependentAttribute>`
-* :doc:`PropagateThroughPrecisionPreserved <../low-precision-transformations_PropagateThroughPrecisionPreserved>`
-* :doc:`PropagateToInput <../low-precision-transformations_PropagateToInput>`
-* :doc:`UpdateSharedPrecisionPreserved <../low-precision-transformations_UpdateSharedPrecisionPreserved>`
+* :doc:`CreateAttribute <step2-markup/create-attribute>`
+* :doc:`CreatePrecisionsDependentAttribute <step2-markup/create-precisions-dependent-attribute>`
+* :doc:`PropagateThroughPrecisionPreserved <step2-markup/propagate-through-precision-preserved>`
+* :doc:`PropagateToInput <step2-markup/propagate_to_input>`
+* :doc:`UpdateSharedPrecisionPreserved <step2-markup/update-shared-precision-preserved>`
 
 Let's explore all transformations and their relations in detail, using one and the same model:
 

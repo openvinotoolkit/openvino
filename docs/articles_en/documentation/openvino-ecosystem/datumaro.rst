@@ -15,7 +15,7 @@ transformations. To achieve the web-scale training, this further aims to merge m
 heterogeneous datasets through comparator and merger. Datumaro is integrated into Geti™, OpenVINO™
 Training Extensions, and CVAT for the ease of data preparation. Datumaro is open-sourced and
 available on `GitHub <https://github.com/openvinotoolkit/datumaro>`__.
-Refer to the official `../../documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ to learn more.
+Refer to the official `documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ to learn more.
 Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree/develop/notebooks>`__ for the real Datumaro practices.
 
 Detailed Workflow
@@ -44,7 +44,7 @@ Detailed Workflow
       annotations. Please see `SplitTask` for the task-specific split.
 
 6. Export the cleaned and unified dataset for follow-up workflows such as model training.
-Go to :doc:`OpenVINO™ Training Extensions <ote_../../documentation>`.
+Go to :doc:`OpenVINO™ Training Extensions <openvino-training-extension`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 

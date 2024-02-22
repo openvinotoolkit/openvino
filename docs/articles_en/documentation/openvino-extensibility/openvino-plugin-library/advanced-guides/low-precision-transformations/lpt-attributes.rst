@@ -13,12 +13,12 @@ Attributes
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <../low-precision-transformations_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <../low-precision-transformations_IntervalsAlignment>   
-   PrecisionPreserved <../low-precision-transformations_PrecisionPreserved>
-   Precisions <../low-precision-transformations_Precisions>
-   QuantizationAlignment <../low-precision-transformations_QuantizationAlignment>
-   QuantizationGranularity <../low-precision-transformations_QuantizationGranularity>
+   AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>
+   IntervalsAlignment <lpt-attributes/intervals-alignment>  
+   PrecisionPreserved <lpt-attributes/precision-preserved>
+   Precisions <lpt-attributes/precisions>
+   QuantizationAlignment <lpt-attributes/quantization-alignment>
+   QuantizationGranularity <lpt-attributes/quantization-granularity>
 
 Introduction
 ############
@@ -30,27 +30,27 @@ Introduction
       - Target
       - Required
       - Mutable
-    * - :doc:`AvgPoolPrecisionPreserved <../low-precision-transformations_AvgPoolPrecisionPreserved>`
+    * - :doc:`AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>`
       - Precision
       - No
       - Yes
-    * - :doc:`IntervalsAlignment <../low-precision-transformations_IntervalsAlignment>`
+    * - :doc:`IntervalsAlignment <lpt-attributes/intervals-alignment>`
       - Quantization interval
       - Yes
       - Yes
-    * - :doc:`PrecisionPreserved <../low-precision-transformations_PrecisionPreserved>`
+    * - :doc:`PrecisionPreserved <lpt-attributes/precision-preserved>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`Precisions <../low-precision-transformations_Precisions>`
+    * - :doc:`Precisions <lpt-attributes/precisions>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`QuantizationAlignment <../low-precision-transformations_QuantizationAlignment>`
+    * - :doc:`QuantizationAlignment <lpt-attributes/quantization-alignment>`
       - Quantization granularity
       - Yes
       - Yes
-    * - :doc:`QuantizationGranularity <../low-precision-transformations_QuantizationGranularity>`
+    * - :doc:`QuantizationGranularity <lpt-attributes/quantization-granularity>`
       - Quantization granularity
       - Yes
       - No 

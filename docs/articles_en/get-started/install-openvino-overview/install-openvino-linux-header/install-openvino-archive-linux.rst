@@ -299,7 +299,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started_demos>` for step-by-step instructions
+      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
       on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
