@@ -25,8 +25,8 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-OutputVector translate_atan2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Atan2"});
+OutputVector translate_angle_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"Angle"});
     auto complex = node.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
