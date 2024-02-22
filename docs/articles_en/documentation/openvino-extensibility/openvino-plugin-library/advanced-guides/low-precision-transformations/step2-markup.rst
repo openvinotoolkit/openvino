@@ -78,7 +78,7 @@ Common markup transformations can be decomposed into simpler utility markup tran
 * :doc:`CreateAttribute <step2-markup/create-attribute>`
 * :doc:`CreatePrecisionsDependentAttribute <step2-markup/create-precisions-dependent-attribute>`
 * :doc:`PropagateThroughPrecisionPreserved <step2-markup/propagate-through-precision-preserved>`
-* :doc:`PropagateToInput <step2-markup/propagate_to_input>`
+* :doc:`PropagateToInput <step2-markup/propagate-to-input>`
 * :doc:`UpdateSharedPrecisionPreserved <step2-markup/update-shared-precision-preserved>`
 
 Let's explore all transformations and their relations in detail, using one and the same model:

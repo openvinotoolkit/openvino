@@ -36,9 +36,9 @@ More resources:
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
 
-More ../about-openvino/additional-resources:
+More resources:
 
-* :doc:`Overview <openvino-ecosystem/openvino-training-extension`
+* :doc:`Overview <openvino-ecosystem/openvino-training-extensions>`
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
 * `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/../get-started/introduction.html>`__
 
@@ -46,16 +46,16 @@ More ../about-openvino/additional-resources:
 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
 
-More ../about-openvino/additional-resources:
+More resources:
 
-* :doc:`Documentation <ovsa_../get-started>`
+* :doc:`Documentation <openvino-ecosystem/openvino-security-add-on>`
 * `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
 
 **Dataset Management Framework (Datumaro)**
 
 A framework and CLI tool to build, transform, and analyze datasets.
 
-More ../about-openvino/additional-resources:
+More resources:
  
 * :doc:`Overview <openvino-ecosystem/datumaro>`
 * `PyPI <https://pypi.org/project/datumaro/>`__  

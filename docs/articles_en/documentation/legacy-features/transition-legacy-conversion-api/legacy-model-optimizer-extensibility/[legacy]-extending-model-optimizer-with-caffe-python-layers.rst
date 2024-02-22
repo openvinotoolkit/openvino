@@ -107,6 +107,6 @@ Additional Resources
 ====================
 
 * :doc:`Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <../legacy-model-optimizer-extensibility_Model_Optimizer_Ports_Connections>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <[legacy]-graph-traversal-and-modification>`
 * :doc:`Model Optimizer Extensions <[legacy]-model-optimizer-extensions>`
 

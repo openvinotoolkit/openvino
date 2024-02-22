@@ -44,7 +44,7 @@ Detailed Workflow
       annotations. Please see `SplitTask` for the task-specific split.
 
 6. Export the cleaned and unified dataset for follow-up workflows such as model training.
-Go to :doc:`OpenVINO™ Training Extensions <openvino-training-extension`.
+Go to :doc:`OpenVINO™ Training Extensions <openvino-training-extensions>`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 

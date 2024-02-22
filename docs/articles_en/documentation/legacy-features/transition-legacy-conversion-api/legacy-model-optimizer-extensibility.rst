@@ -123,7 +123,7 @@ Operations Attributes Extracting
 The next step is to parse framework-dependent operation representation saved in a node attribute and update the node
 attributes with the operation specific attributes. There are three options to do this.
 
-1.  The extractor extension approach (recommended way to extract attributes for an operation). Explained in details in the :doc:`Operation Extractor <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions_Model_Optimizer_Extractor>` article.
+1.  The extractor extension approach (recommended way to extract attributes for an operation). Explained in details in the :doc:`Operation Extractor <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-optimizer-extractor>` article.
 2.  The legacy approach with a built-in extractor. The ``mo/front/<FRAMEWORK>/extractor.py`` file (for example, the one for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an operation to trigger the extracting function for and the value is the function. The function has one parameter – a node to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be removed in future versions of Model Optimizer.
 
 The extractors execution order is the following:
@@ -141,7 +141,7 @@ operation-specific attributes needed for Model Optimizer. However, from this ste
 need the original representation of the operation/model and just uses Model Optimizer representation (there are some
 peculiar cases in which Model Optimizer still uses the ``pb`` attribute, covered in this
 article partially). A detailed list of common node attributes and their values is provided in the
-:doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions_Model_Optimizer_Operation>` article.
+:doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-model-optimizer-operation>` article.
 
 Front Phase
 ###########
@@ -219,7 +219,7 @@ each node in the graph, according to the topological order. Each node of the gra
 with a shape inference function, which is a function with one parameter – an instance of the ``Node`` class. The ``infer``
 attribute is usually set in the operation extractor or when a node is added in some transformation using the Model
 Optimizer operation class inherited from the ``mo.pos.Op`` class. For more information on how to specify a shape inference function,
-refer to the :doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions_Model_Optimizer_Operation>` and :doc:`Operation Extractor <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions_Model_Optimizer_Extractor>` articles.
+refer to the :doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-model-optimizer-operation>` and :doc:`Operation Extractor <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-optimizer-extractor>` articles.
 
 A shape inference function should calculate an operation (node) output shape(s) based on input shape(s) and operation
 (node) attribute(s) and update ``shape`` and optionally ``value`` attributes of the corresponding data node(s). A simplified
@@ -312,7 +312,7 @@ steps:
 2. Performs type inference of graph operations similar to the shape inference. Inferred data types are saved to a port attributes in the IR.
 3. Performs topological sort of the graph and changes ``id`` attribute of all operation nodes to be sequential integer values starting from 0.
 4. Saves all Constants values to the ``.bin`` file. Constants with the same value are shared among different operations.
-5. Generates an ``.xml`` file defining a graph structure. The information about operation inputs and outputs are prepared uniformly for all operations regardless of their type. A list of attributes to be saved to the ``.xml`` file is defined with the ``backend_attrs()`` or ``supported_attrs()`` of the ``Op`` class used for a graph node instantiation. For more information on how the operation attributes are saved to XML, refer to the function ``prepare_emit_ir()`` in the ``mo/pipeline/common.py`` file and :doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions_Model_Optimizer_Operation>` article.
+5. Generates an ``.xml`` file defining a graph structure. The information about operation inputs and outputs are prepared uniformly for all operations regardless of their type. A list of attributes to be saved to the ``.xml`` file is defined with the ``backend_attrs()`` or ``supported_attrs()`` of the ``Op`` class used for a graph node instantiation. For more information on how the operation attributes are saved to XML, refer to the function ``prepare_emit_ir()`` in the ``mo/pipeline/common.py`` file and :doc:`Model Optimizer Operation <legacy-model-optimizer-extensibility/[legacy]-model-optimizer-extensions/[legacy]-model-optimizer-operation>` article.
 
 ====================
 Additional Resources

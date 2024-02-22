@@ -12,7 +12,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Lite Model <../../../../../openvino-workflow/model-preparation/convert-model-tensorflow_Lite>` article.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Lite Model <../../../../../openvino-workflow/model-preparation/convert-model-tensorflow-lite>` article.
 
 To convert a TensorFlow Lite model, use the ``mo`` script and specify the path to the input ``.tflite`` model file:
 
@@ -29,7 +29,7 @@ TensorFlow Lite models are supported via FrontEnd API. You may skip conversion t
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../../../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Supported TensorFlow Lite Models
 ###################################

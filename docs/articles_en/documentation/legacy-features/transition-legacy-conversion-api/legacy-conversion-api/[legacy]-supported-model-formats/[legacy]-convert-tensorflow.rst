@@ -311,7 +311,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../../../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
@@ -331,7 +331,7 @@ In this document, you learned:
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
 
 * :doc:`Convert TensorFlow EfficientDet Models <[legacy]-conversion-tutorials/convert-tensorflow-efficient-det>`
 * :doc:`Convert TensorFlow FaceNet Models <[legacy]-conversion-tutorials/convert-tensorflow-face-net>`

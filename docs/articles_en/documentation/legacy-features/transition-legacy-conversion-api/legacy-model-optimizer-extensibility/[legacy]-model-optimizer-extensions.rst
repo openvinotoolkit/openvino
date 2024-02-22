@@ -57,6 +57,6 @@ Additional Resources
 ====================
 
 * :doc:`Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <../legacy-model-optimizer-extensibility_Model_Optimizer_Ports_Connections>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <[legacy]-graph-traversal-and-modification>`
 * :doc:`Extending Model Optimizer with Caffe Python Layers <[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 
