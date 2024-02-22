@@ -61,6 +61,8 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 #undef SEARCH_WORD_2
 #undef SEARCH_WORD
 
+    if (res & (jit | any))
+        res = static_cast<impl_desc_type> (res & ~any);
     return res;
 }
 

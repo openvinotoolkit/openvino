@@ -48,6 +48,8 @@ public:
 
     bool canFuseBias() const;
     bool canBeExecutedInInt8() const override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
+
 
 protected:
     AttrPtr initPrimitiveAttr() override;
