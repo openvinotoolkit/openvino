@@ -139,7 +139,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     };
 
-    auto chec_pairs = [](std::map<std::string, int> pair_checker) {
+    auto check_pairs = [](std::map<std::string, int> pair_checker) {
         return std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<std::string, int>& val) {
             return val.second == 2;
         });
@@ -159,7 +159,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
-    if (!chec_pairs(pair_checker)) {
+    if (!check_pairs(pair_checker)) {
         for (auto& op : ops) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                 if (pair_checker[assign->get_variable_id()] == 1) {
