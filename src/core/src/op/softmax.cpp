@@ -68,14 +68,17 @@ bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto& input_shape = inputs[0].get_shape();
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v1_Softmax_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64),
-                      softmax::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      input_shape,
-                      AxisSet{m_axis});
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_Softmax_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, f64),
+                                      softmax::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      input_shape,
+                                      AxisSet{m_axis});
 }
 
 bool Softmax::has_evaluate() const {
@@ -143,14 +146,17 @@ bool Softmax::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v8_Softmax_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64),
-                      softmax::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      input_shape,
-                      AxisSet{axis});
+    return IF_TYPE_OF_CONVERT_TENSORS(v8_Softmax_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, f64),
+                                      softmax::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      input_shape,
+                                      AxisSet{axis});
 }
 
 bool Softmax::has_evaluate() const {

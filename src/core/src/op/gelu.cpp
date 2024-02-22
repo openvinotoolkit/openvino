@@ -104,14 +104,17 @@ bool Gelu::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v7_Gelu_evaluate,
-                      OV_PP_ET_LIST(f16, f32),
-                      gelu::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      m_approximation_mode,
-                      count);
+    return IF_TYPE_OF_CONVERT_TENSORS(v7_Gelu_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      gelu::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      m_approximation_mode,
+                                      count);
 }
 
 bool Gelu::has_evaluate() const {

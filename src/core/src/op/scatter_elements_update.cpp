@@ -143,7 +143,8 @@ private:
     };
 };
 namespace {
-bool evaluate(TensorVector& outputs,
+bool evaluate(const op::util::ScatterElementsUpdateBase* node,
+              TensorVector& outputs,
               const TensorVector& inputs,
               const int64_t axis,
               const op::v12::ScatterElementsUpdate::Reduction reduction,
@@ -160,19 +161,22 @@ bool evaluate(TensorVector& outputs,
     output.set_shape(data_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(scatter_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i16, i32, i64, u32, u64),
-                      scatter_elements_update::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      updates,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      axis,
-                      reduction,
-                      use_init_value);
+    return IF_TYPE_OF_CONVERT_TENSORS(scatter_evaluate,
+                                      node,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
+                                      scatter_elements_update::Evaluate,
+                                      data.get_element_type(),
+                                      data,
+                                      indices,
+                                      updates,
+                                      output,
+                                      data_shape,
+                                      indices_shape,
+                                      axis,
+                                      reduction,
+                                      use_init_value);
 }
 }  // namespace
 }  // namespace scatter_elements_update
@@ -181,12 +185,22 @@ bool op::v3::ScatterElementsUpdate::evaluate(TensorVector& outputs, const Tensor
     OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
     constexpr auto reduction = op::v12::ScatterElementsUpdate::Reduction::NONE;
     constexpr auto use_init_value = false;
-    return scatter_elements_update::evaluate(outputs, inputs, get_normalized_axis(inputs), reduction, use_init_value);
+    return scatter_elements_update::evaluate(this,
+                                             outputs,
+                                             inputs,
+                                             get_normalized_axis(inputs),
+                                             reduction,
+                                             use_init_value);
 }
 
 bool op::v12::ScatterElementsUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v12_ScatterElementsUpdate_evaluate);
-    return scatter_elements_update::evaluate(outputs, inputs, get_normalized_axis(inputs), m_reduction, m_use_init_val);
+    return scatter_elements_update::evaluate(this,
+                                             outputs,
+                                             inputs,
+                                             get_normalized_axis(inputs),
+                                             m_reduction,
+                                             m_use_init_val);
 }
 
 template <>

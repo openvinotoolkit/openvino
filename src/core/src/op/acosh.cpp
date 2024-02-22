@@ -41,13 +41,16 @@ bool ov::op::v3::Acosh::evaluate(TensorVector& outputs, const TensorVector& inpu
     outputs[0].set_shape(inputs[0].get_shape());
 
     using namespace ov::element;
-    return IF_TYPE_OF(v3_Acosh_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
-                      acosh::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      shape_size(inputs[0].get_shape()));
+    return IF_TYPE_OF_CONVERT_TENSORS(v3_Acosh_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      acosh::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      shape_size(inputs[0].get_shape()));
 }
 
 bool ov::op::v3::Acosh::has_evaluate() const {
