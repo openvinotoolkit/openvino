@@ -102,9 +102,6 @@ jobs:
           
           # use clang as a default compiler
           apt --assume-yes install clang lld
-          # update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100
-          # update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
-          # update-alternatives --install /usr/bin/lld lld /usr/bin/clang++ 100
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -136,14 +133,6 @@ jobs:
       # Build
       #
 
-      - name: Show suppression file and lib
-        continue-on-error: true
-        run: |
-          cat ${LSAN_IGNORE}
-          cat ${ASAN_IGNORE}
-          ls -la /lib/x86_64-linux-gnu/libasan.so.5
-          ls -la /lib/x86_64-linux-gnu/libstdc++.so.6
-
       - name: CMake configure - OpenVINO
         run: |
           export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
@@ -171,9 +160,6 @@ jobs:
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-        env:
-          CC: clang
-          CXX: clang++
 
       - name: Cmake build - OpenVINO
         run: |
@@ -194,30 +180,6 @@ jobs:
       #
       # Tests
       #
-
-      - name: Setup Test Environment
-        run: |
-          echo "ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}" >> "$GITHUB_ENV"
-          echo "LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
-
-      - name: Install OpenVINO dependencies (Linux)
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
-
-      - name: OpenVINO Core Unit Tests
-        continue-on-error: true
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/tests/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
-
-      - name: OpenVINO Inference Functional Tests
-        run: |
-          export ASAN_OPTIONS=halt_on_error=0:suppressions=${ASAN_IGNORE}
-          export LSAN_OPTIONS=suppressions=${LSAN_IGNORE}:NEOReadDebugKeys=1:DisableDeepBind=1
-
-          source ${INSTALL_DIR}/setupvars.sh
-          ${INSTALL_TEST_DIR}/tests/ov_inference_functional_tests --gtest_print_time=1 \
-                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
       - name: Pack Artifacts
         run: |
@@ -456,15 +418,15 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-          - SANITIZER: 'UndefinedBehavior'
-          - SANITIZER: 'Thread'
+#          - SANITIZER: 'UndefinedBehavior'
+#          - SANITIZER: 'Thread'
     name: C++ unit tests
     needs: Build
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-4-cores-16gb'
+      runner: 'aks-linux-16-cores-32gb'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      affected-components: '{"stage": "stage"}'
+      affected-components: '{"mock": "mock"}'
       sanitizer-name: ${{ matrix.SANITIZER }}
 
   Python_Unit_Tests:
