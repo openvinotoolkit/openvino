@@ -132,20 +132,16 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
-    ov::Core ie;
-    ov::Affinity value = ov::Affinity::NONE;
-
-#if (defined(__APPLE__) || defined(_WIN32))
-    auto numaNodes = ov::get_available_numa_nodes();
-    auto coreTypes = ov::get_available_cores_types();
+#if defined(__APPLE__)
+    ov::Affinity value = ov::Affinity::CORE;
     auto defaultBindThreadParameter = ov::Affinity::NONE;
-    if (coreTypes.size() > 1) {
-        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
-    } else if (numaNodes.size() > 1) {
-        defaultBindThreadParameter = ov::Affinity::NUMA;
-    }
 #else
+    ov::Affinity value = ov::Affinity::NUMA;
+#    if defined(_WIN32)
+    auto defaultBindThreadParameter = ov::Affinity::NONE;
+#    else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+#    endif
     auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -154,10 +150,15 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
 
-    const ov::Affinity affinity = defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
+    const ov::Affinity affinity =
+        defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+#if defined(__APPLE__)
+    ASSERT_EQ(ov::Affinity::NUMA, value);
+#else
     ASSERT_EQ(affinity, value);
+#endif
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
@@ -167,12 +168,20 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+#if defined(__APPLE__)
+    ASSERT_EQ(false, value);
+#else
     ASSERT_EQ(true, value);
+#endif
 
     affinity = ov::Affinity::HYBRID_AWARE;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+#if defined(__APPLE__)
+    ASSERT_EQ(false, value);
+#else
     ASSERT_EQ(true, value);
+#endif
 
     affinity = ov::Affinity::NUMA;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
@@ -180,11 +189,11 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
     ASSERT_EQ(false, value);
 }
 
-#if defined(OV_CPU_ARM_ENABLE_FP16)
+#    if defined(OV_CPU_ARM_ENABLE_FP16)
     const auto expected_precision_for_performance_mode = ov::element::f16;
-#else
+#    else
     const auto expected_precision_for_performance_mode = ov::with_cpu_x86_bfloat16() ? ov::element::bf16 : ov::element::f32;
-#endif
+#    endif
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
@@ -342,17 +351,17 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
 
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
 
-#if defined(OPENVINO_ARCH_X86_64)
+#    if defined(OPENVINO_ARCH_X86_64)
     ASSERT_EQ(value.as<std::string>(), "intel64");
-#elif defined(OPENVINO_ARCH_X86)
+#    elif defined(OPENVINO_ARCH_X86)
     ASSERT_EQ(value.as<std::string>(), "ia32");
-#elif defined(OPENVINO_ARCH_ARM)
+#    elif defined(OPENVINO_ARCH_ARM)
     ASSERT_EQ(value.as<std::string>(), "armhf");
-#elif defined(OPENVINO_ARCH_ARM64)
+#    elif defined(OPENVINO_ARCH_ARM64)
     ASSERT_EQ(value.as<std::string>(), "arm64");
-#elif defined(OPENVINO_ARCH_RISCV64)
+#    elif defined(OPENVINO_ARCH_RISCV64)
     ASSERT_EQ(value.as<std::string>(), "riscv");
-#endif
+#    endif
 }
 
 } // namespace
