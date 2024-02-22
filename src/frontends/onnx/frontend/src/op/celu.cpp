@@ -14,17 +14,14 @@
 #include "utils/common.hpp"
 
 using namespace ov::op;
-using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace ov {
 namespace frontend {
 namespace onnx {
 namespace op {
 namespace set_1 {
 ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
-    double alpha = node.get_attribute_value<float>("alpha", 1.0);
-    auto alpha_node = v0::Constant::create(element::f32, ov::Shape{}, {alpha});
+    auto alpha_node = node.get_attribute_as_constant<float>("alpha", 1.0f);
     auto x_celu = node.get_ov_inputs().at(0);
     x_celu = std::make_shared<v0::Convert>(x_celu, element::f32);
 
@@ -38,4 +35,3 @@ ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
-OPENVINO_SUPPRESS_DEPRECATED_END
