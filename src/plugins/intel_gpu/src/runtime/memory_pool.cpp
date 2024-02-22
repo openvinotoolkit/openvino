@@ -240,12 +240,10 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             return get_from_padded_pool(layout, id, network_id, restrictions, type);
         } else {
             // images (reuse not yet implemented)
-            auto mem = alloc_memory(layout, type, reset);
-            return mem;
+            return alloc_memory(layout, type, reset);
         }
     } else {
-        auto mem = alloc_memory(layout, type, reset);
-        return mem;
+        return alloc_memory(layout, type, reset);
     }
 }
 

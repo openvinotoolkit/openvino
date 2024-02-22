@@ -682,10 +682,12 @@ event::ptr primitive_inst::realloc_if_needed() {
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return ev;
+        GPU_DEBUG_CODE(std::string memalloc_info = "");
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
                 // can reuse
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+               GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
@@ -698,13 +700,11 @@ event::ptr primitive_inst::realloc_if_needed() {
                     _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
+                GPU_DEBUG_CODE(memalloc_info +=
+                               (((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") +
+                                (_intermediates_memory[i]->from_memory_pool ? "from_pool" : "new_alloc")));
             }
         }
-        GPU_DEBUG_CODE(std::string memalloc_info = "");
-        GPU_DEBUG_CODE(for (size_t imem_idx = 0; imem_idx < _intermediates_memory.size(); ++imem_idx) {
-            memalloc_info += (((_intermediates_memory.size() > 1) ? ("i" + to_string(imem_idx) + ":") : "") +
-                              (_outputs[imem_idx]->from_memory_pool ? "from_pool" : "new_alloc"));
-        })
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
     }
     return ev;
