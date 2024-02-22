@@ -179,7 +179,7 @@ inline void disallow_pooling_start_in_padding(const Strides& stride,
     // Check if the last pooling operation starts in the padding area
     if (is_padding && (last_pooling_start_index > data_dim->get_length() + pads_begin[i] - 1)) {
         dim = dim - 1;
-}
+    }
 }
 
 template <class TDim, class TContainer>
