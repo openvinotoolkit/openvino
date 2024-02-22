@@ -16,13 +16,6 @@ struct swiglu_params : public base_params {
     int32_t split_length;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// swiglu_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct swiglu_optional_params : optional_params {
-    swiglu_optional_params() : optional_params(KernelType::SWIGLU) {}
-};
-
 class SwiGLUKernelRef : public KernelBaseOpenCL {
 public:
     SwiGLUKernelRef() : KernelBaseOpenCL("swiglu_gpu_ref") {}
@@ -30,13 +23,13 @@ public:
 
     virtual JitConstants GetJitConstants(const swiglu_params& params) const;
     virtual CommonDispatchData SetDefault(const swiglu_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     Datatype GetAccumulatorType(const swiglu_params& params) const;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

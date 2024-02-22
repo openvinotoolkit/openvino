@@ -244,7 +244,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // create
-            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
                 struct ConvolutionInstantiator {
                     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
                         const MemoryArgs& memory,
@@ -252,11 +255,18 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const ExecutorContext::CPtr context,
                         std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
                         ConvAttrs convAttrs{attrs.withBias};
-                        return DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
+                        auto primitive =
+                            DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
                             memory,
                             convAttrs,
                             context,
                             shareAgnosticData);
+
+                        if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
+                            // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
+                            return nullptr;
+                        }
+                        return primitive;
                     }
                 };
 

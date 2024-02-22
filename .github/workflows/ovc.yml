@@ -55,7 +55,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ovc
-    needs: [Smart_CI, Pylint-UT]
+    needs: [Pylint-UT]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

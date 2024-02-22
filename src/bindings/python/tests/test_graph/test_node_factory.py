@@ -100,6 +100,7 @@ def test_node_factory_validate_missing_arguments():
 
 @pytest.mark.template_extension()
 @pytest.mark.dynamic_library()
+@pytest.mark.xfail(condition=platform == "darwin", reason="Ticket - 132696")
 def test_extension_added_from_library():
     if platform == "win32":
         library_path = "openvino_template_extension.dll"

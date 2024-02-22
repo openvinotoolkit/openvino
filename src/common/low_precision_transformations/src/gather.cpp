@@ -5,6 +5,8 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "low_precision/gather.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
@@ -118,7 +120,9 @@ bool GatherTransformation::transform(TransformationContext& context, ov::pass::p
         replace_node(dequantization.subtractConstant, newConstant);
     }
 
-    moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, gather, NetworkHelper::getDequantization(gather, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

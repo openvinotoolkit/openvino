@@ -12,18 +12,18 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestFusedBatchNorm(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
-        x_shape = inputs_info['x']
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape)
-        scale_shape = inputs_info['scale']
-        inputs_data['scale'] = np.random.randint(-10, 10, scale_shape)
-        offset_shape = inputs_info['offset']
-        inputs_data['offset'] = np.random.randint(-10, 10, offset_shape)
-        if 'mean' in inputs_info:
-            mean_shape = inputs_info['mean']
-            inputs_data['mean'] = np.random.randint(-10, 10, mean_shape)
-        if 'variance' in inputs_info:
-            variance_shape = inputs_info['variance']
-            inputs_data['variance'] = np.random.randint(0, 10, variance_shape)
+        x_shape = inputs_info['x:0']
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape)
+        scale_shape = inputs_info['scale:0']
+        inputs_data['scale:0'] = np.random.randint(-10, 10, scale_shape)
+        offset_shape = inputs_info['offset:0']
+        inputs_data['offset:0'] = np.random.randint(-10, 10, offset_shape)
+        if 'mean:0' in inputs_info:
+            mean_shape = inputs_info['mean:0']
+            inputs_data['mean:0'] = np.random.randint(-10, 10, mean_shape)
+        if 'variance:0' in inputs_info:
+            variance_shape = inputs_info['variance:0']
+            inputs_data['variance:0'] = np.random.randint(0, 10, variance_shape)
         return inputs_data
 
     def create_fused_batch_norm_net(self, x_shape, epsilon, exponential_avg_factor, data_format, is_training,
@@ -106,7 +106,7 @@ class TestFusedBatchNorm(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_fused_batch_norm_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend):
+                                    use_legacy_frontend):
         self._test(*self.create_fused_batch_norm_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

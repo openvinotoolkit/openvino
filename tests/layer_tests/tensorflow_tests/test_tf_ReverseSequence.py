@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestReverseSequence(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        assert 'seq_lengths' in inputs_info
-        input_shape = inputs_info['input']
-        seq_lengths_shape = inputs_info['seq_lengths']
+        assert 'input:0' in inputs_info
+        assert 'seq_lengths:0' in inputs_info
+        input_shape = inputs_info['input:0']
+        seq_lengths_shape = inputs_info['seq_lengths:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
-        inputs_data['seq_lengths'] = np.random.randint(0, self.max_seq_length + 1, seq_lengths_shape).astype(
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
+        inputs_data['seq_lengths:0'] = np.random.randint(0, self.max_seq_length + 1, seq_lengths_shape).astype(
             self.seq_lengths_type)
         return inputs_data
 
@@ -47,7 +47,7 @@ class TestReverseSequence(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_reverse_sequence_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_new_frontend):
+                                    use_legacy_frontend):
         self._test(*self.create_reverse_sequence_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
