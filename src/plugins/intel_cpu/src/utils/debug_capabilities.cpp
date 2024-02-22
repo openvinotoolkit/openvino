@@ -44,7 +44,7 @@ namespace {
 
 DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, const char* name) {
     // check ENV
-    const char* p_filters = std::getenv("OV_CPU_DEBUG_LOG");
+    const char* p_filters = "-";//std::getenv("OV_CPU_DEBUG_LOG");
     if (!p_filters) {
         enabled = false;
         return;

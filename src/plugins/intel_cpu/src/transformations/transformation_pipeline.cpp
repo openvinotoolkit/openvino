@@ -317,14 +317,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        if (hasHardwareSupport(ov::element::f16)) {
-            if (inferencePrecision != ov::element::f16) {
+        if (!hasHardwareSupport(ov::element::f16) ||
+            (hasHardwareSupport(ov::element::f16) && inferencePrecision != ov::element::f16)) {
                 map.insert({ov::element::f16, ov::element::f32});
-            }
-            return map;
         }
-#endif
+#else
         map.insert({ov::element::f16, ov::element::f32});
+#endif
         return map;
     };
 

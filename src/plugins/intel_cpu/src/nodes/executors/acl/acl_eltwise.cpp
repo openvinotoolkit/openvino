@@ -4,6 +4,7 @@
 
 #include "acl_eltwise.hpp"
 #include "acl_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -94,6 +95,10 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseHswish:
             if (!(checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                           "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
@@ -103,6 +108,10 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
             if (!(checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                           "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
@@ -113,6 +122,10 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                           "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
@@ -123,6 +136,10 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                           "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
@@ -134,6 +151,10 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                           "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
@@ -149,20 +170,29 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                   checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) ||
                   checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) ||
                   checkPrecision({ov::element::f32, ov::element::f32}, ov::element::u8))) {
+                std::string srcPrec;
+                for (size_t i = 0; i < srcDescs.size(); i++) srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+                DEBUG_LOG(algToString(eltwiseAttrs.algorithm), ": provided combination of src precisions: [", srcPrec,
+                          "] and dst precision: ", dstDescs[0]->getPrecision().to_string(), " is not supported");
                 return false;
             }
             break;
         default:
+            DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
             return false;
     }
 
     for (const auto & srcDesc : srcDescs) {
-        if (getAclDataLayoutByMemoryDesc(srcDesc) == arm_compute::DataLayout::UNKNOWN)
+        if (getAclDataLayoutByMemoryDesc(srcDesc) == arm_compute::DataLayout::UNKNOWN) {
+            DEBUG_LOG("src descriptor layout is unknown");
             return false;
+        }
     }
     for (const auto & dstDesc : dstDescs) {
-        if (getAclDataLayoutByMemoryDesc(dstDesc) == arm_compute::DataLayout::UNKNOWN)
+        if (getAclDataLayoutByMemoryDesc(dstDesc) == arm_compute::DataLayout::UNKNOWN) {
+            DEBUG_LOG("dst descriptor layout is unknown");
             return false;
+        }
     }
 
     return true;
