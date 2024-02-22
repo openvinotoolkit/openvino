@@ -193,9 +193,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 if (shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
                 const auto& node = output->input_value(0);
-                size_t port_hash = ov::util::hash_combine(
-                    std::vector<size_t>{std::hash<const ov::Node*>()(output->input_value(0).get_node()),
-                                        std::hash<size_t>()(output->input_value(0).get_index())});
+                size_t port_hash =
+                    ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(node.get_node()),
+                                                               std::hash<size_t>()(node.get_index())});
                 batched_outputs.insert(port_hash);
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
