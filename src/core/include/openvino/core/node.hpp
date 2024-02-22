@@ -534,16 +534,19 @@ public:
                                     std::pair<const Node*, const std::vector<TShape>*>&& ctx,
                                     const std::string& explanation);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const Node* node,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const Node* node,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
     template <class TShape>
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    std::pair<const Node*, const std::vector<TShape>*>&& ctx,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 "
+        "release") static void create(const CheckLocInfo& check_loc_info,
+                                      std::pair<const Node*, const std::vector<TShape>*>&& ctx,
+                                      const std::string& explanation);
 
 protected:
     explicit NodeValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}

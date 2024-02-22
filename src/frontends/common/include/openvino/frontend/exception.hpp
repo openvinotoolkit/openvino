@@ -20,10 +20,13 @@ public:
                                     const std::string& context_info,
                                     const std::string& explanation);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
 protected:
     explicit GeneralFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -36,10 +39,13 @@ public:
                                     const char* check_string,
                                     const std::string& context_info,
                                     const std::string& explanation);
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
 protected:
     explicit InitializationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -53,10 +59,13 @@ public:
                                     const std::string& context_info,
                                     const std::string& explanation);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
 protected:
     explicit OpValidationFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -70,10 +79,13 @@ public:
                                     const std::string& context_info,
                                     const std::string& explanation);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
 protected:
     explicit OpConversionFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
@@ -87,10 +99,13 @@ public:
                                     const std::string& context_info,
                                     const std::string& explanation);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in the 2024.0 release")
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
-                                    const std::string& context_info,
-                                    const std::string& explanation);
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
 protected:
     explicit NotImplementedFailure(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
