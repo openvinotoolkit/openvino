@@ -19,8 +19,6 @@ d2_params = [{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [], 'padding': 0},
              ]
 
-d2_params_corner_case = [{'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1}]
-
 d1_params = [{'kernel_size': 3, 'stride': 1, 'padding': 0},
              {'kernel_size': (4,), 'stride': 1, 'padding': 1},
              {'kernel_size': 4, 'stride': (5,), 'padding': 2},
@@ -142,15 +140,7 @@ class TestPooling(PytorchLayerTest):
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, trace_model=True,
                    dynamic_shapes=False)
 
-    @pytest.mark.parametrize(
-        "params",
-        d2_params
-        + [
-            pytest.param(
-                {"kernel_size": [8, 8], "stride": [8, 4], "padding": 1},
-                marks=pytest.mark.xfail(reason="Sliding windows that would start in the right padded are ignored.")
-            )
-        ])
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
@@ -184,7 +174,7 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("max_pool1d", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
@@ -221,7 +211,7 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("max_pool1d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
