@@ -81,13 +81,13 @@ public:
         params.input = this->template AllocateTensor<TypeParam>(
             input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
         params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 0, 1, 0 });
+            ov::PartialShape{ 4 }, format::bfyx, { 1, 0, 1, 0 });
         params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 120, 5, 2, 1 });
+            ov::PartialShape{ 4 }, format::bfyx, { 120, 5, 2, 1 });
         params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 10, 1, 1, 1 });
+            ov::PartialShape{ 4 }, format::bfyx, { 10, 1, 1, 1 });
         params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { -1, -2, -3, -4 });
+            ov::PartialShape{ 4 }, format::bfyx, { -1, -2, -3, -4 });
         params.wanted_output = this->template AllocateTensor<TypeParam>(
             ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
                 1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
@@ -276,11 +276,11 @@ TYPED_TEST(SliceTest, bfyx_negative_step) {
     params.input = this->template AllocateTensor<TypeParam>(
         input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
     params.start = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 0, 1, 5, 90 });
+        ov::PartialShape{ 4 }, format::bfyx, { 0, 1, 5, 90 });
     params.stop = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, 0, 0, 10 });
+        ov::PartialShape{ 4 }, format::bfyx, { 1, 0, 0, 10 });
     params.step = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 4, 1, 1, 1 }, format::bfyx, { 1, -1, -1, -10 });
+        ov::PartialShape{ 4 }, format::bfyx, { 1, -1, -1, -10 });
     params.wanted_output = this->template AllocateTensor<TypeParam>(
         ov::PartialShape{ 1, 1, 5, 8 }, format::bfyx, { 
             1789, 1779, 1769, 1759, 1749, 1739, 1729, 1719,
@@ -299,11 +299,11 @@ TYPED_TEST(SliceTest, bfzyx) {
     params.input = this->template AllocateTensor<TypeParam>(
         input_shape, format::bfzyx, helpers::GenInput<TypeParam>(input_shape));
     params.start = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 0, 0, 0, 0, 0 });
+        ov::PartialShape{ 5 }, format::bfzyx, { 0, 0, 0, 0, 0 });
     params.stop = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 1, 2, 2, 2, 2 });
+        ov::PartialShape{ 5 }, format::bfzyx, { 1, 2, 2, 2, 2 });
     params.step = this->template AllocateTensor<int64_t>(
-        ov::PartialShape{ 5, 1, 1, 1 }, format::bfzyx, { 1, 1, 1, 1, 1 });
+        ov::PartialShape{ 5 }, format::bfzyx, { 1, 1, 1, 1, 1 });
     params.wanted_output = this->template AllocateTensor<TypeParam>(
         ov::PartialShape{ 1, 2, 2, 2, 2 }, format::bfzyx, { 
             0,   1,   5,   6,   60,  61,  65,  66,
