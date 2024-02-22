@@ -821,7 +821,7 @@ $(document).ready(function () {
 
           // Text
           const textContainer = document.createElement('p');
-          textContainer.style.color = item.fontColor;
+          textContainer.style.color = '#666';
           textContainer.style.margin = 0;
           textContainer.style.padding = 0;
           textContainer.style.fontSize = '0.6rem';
@@ -838,40 +838,39 @@ $(document).ready(function () {
       }
     };
 
-    // ====================================================
-
     function getChartOptions(title, containerId) {
         return {
             responsive: true,
+            indexAxis: 'y',
             maintainAspectRatio: false,
-            legend: {display: false},
             title: {
                 display: false,
                 text: title
             },
             scales: {
-                xAxes: [{
+                x: {
                     ticks: {
                         beginAtZero: true
                     }
-                }],
-                yAxes: [{
+                },
+                y: {
                     ticks: {
-                        display: false, //this will remove only the label
+                        display: false,
                         beginAtZero: true
                     }
-                }]
+                  }
             },
             plugins: {
+                legend: {
+                    display: false
+                },
                 htmlLegend: {
-                // ID of the container to put the legend in
                     containerID: containerId,
                 }
             }
         }
     }
 
-    // params: string[], Datasets[]
     function getChartDataNew(labels, datasets) {
         return {
             labels: labels,
@@ -948,24 +947,13 @@ $(document).ready(function () {
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
             var groupUnit = model[0];
-            if (kpi === 'throughput') {
-                var throughputData = Graph.getDatabyKPI(model, kpi);
+            if (kpi === 'throughput' || kpi === 'latency') {
+                var kpiData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
-                    config.datasets[index].data = throughputData.map(tData => tData[prec]);
+                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
                 });
-                return config;
-                //to fix
-                // return removeEmptyLabel(config);
-            }
-            else if(kpi === 'latency'){
-                var latencyData = Graph.getDatabyKPI(model, kpi);
-                var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
-                precisions.forEach((prec, index) => {
-                    config.datasets[index].data = latencyData.map(tData => tData[prec]); 
-                });
-                return config;
-                // return removeEmptyLabel(config);
+                return removeEmptyLabel(config);
             }
             var config = Graph.getGraphConfig(kpi, groupUnit);
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
@@ -1040,7 +1028,6 @@ $(document).ready(function () {
         sorted.forEach((index)=>{
             config.datasets.splice(index,1);
         })
-        console.log(config);
         return config;
     }
 
@@ -1062,7 +1049,7 @@ $(document).ready(function () {
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
             new Chart(context, {
-            type: 'horizontalBar',
+            type: 'bar',
             data: getChartDataNew(labels, datasets),
             options: getChartOptions(chartTitle, containerId),
             plugins: [htmlLegendPlugin]
