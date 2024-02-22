@@ -11,31 +11,26 @@
  </div>
 
 ## Contents:
- - [What is OpenVINO?](#what-is-openvino-toolkit)
  - [Getting Started](#getting-started)
     - [Tutorials](#tutorials)
  - [Installation](#installation)
  - [Products Powered by OpenVINO](#products-povered-by-openvino)
  - [Documentation](#documentation)
- - [Supported Hardware](#system-requirements)
- - [Building OpenVINO](#building-openvino)
- - [Contributing](#contributing)
- - [Getting Support](#getting-support)
+ - [Contribution and Support](#contribution-and-support)
  - [License](#license)
- - [Telemetry](#telemetry)
 
-## What is OpenVINO toolkit?
 
 OpenVINO™ is an open-source toolkit for simple and efficient deployment of various deep-learning models.
 
 - Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and other common tasks.
 - Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
-- Reduce resource demands and efficiently deploy on a range of Intel® platforms from edge to cloud.
-
-OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVINO™ Runtime], as well as CPU, GPU, NPU, auto batch and heterogeneous plugins to accelerate deep learning inference on Intel® CPUs and Intel® Processor Graphics.
+- Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
+- Contribute to the enhancement of deep learning performance across various domains.
 
 <details>
   <summary>List of Components</summary>
+
+a component is....
 
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
@@ -52,10 +47,9 @@ OpenVINO includes several components: [OpenVINO Model Converter (OVC)], [OpenVIN
 
 </details>
 
-
 ### Getting Started
 
-Read detailed information on OpenVINO's features, components, and usage in the [OpenVINO Documentation](https://docs.openvino.ai/2023.1/get_started.html).
+Explore [OpenVINO Quickstart example](https://docs.openvino.ai/2023.3/notebooks/201-vision-monodepth-with-output.html) to get started.
 
 #### Tutorials
 Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
@@ -70,6 +64,7 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 
 Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html).
 
+Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html) and [compatibility details](https://docs.openvino.ai/2023.1/compatibility_and_support.html) for more information.
 
 ### Products Powered by OpenVINO
 
@@ -111,13 +106,14 @@ Get your OpenVINO installation command with just a few clicks. [Go to the instal
 
 **User documentation**
 
-The latest documentation for OpenVINO™ Toolkit is available [here](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO without requiring source code modifications.
+The latest documentation for OpenVINO™ Toolkit is available at [docs.openvino.ai](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO.
 
 **Developer documentation**
 
 [Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
+See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
 
-For additional resources and information, you can explore:
+For additional resources, you can read:
 
 * [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html)
@@ -125,38 +121,23 @@ For additional resources and information, you can explore:
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
-
-### Supported Hardware
-
-Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html) and [compatibility details](https://docs.openvino.ai/2023.1/compatibility_and_support.html) for more information.
-
-
-### Building OpenVINO
-
-See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
-
-### Contributing
+### Contribution and Support
 
 Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
+If you'd like to be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
 
 For detailed guidelines, see [CONTRIBUTING](./CONTRIBUTING.md). Your contributions are greatly appreciated!
 
-If you'd like to be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
-
-
-### Getting Support
-
 To report questions, issues, and suggestions, use:
-
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
-
 
 ### License
 OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
-### Telemetry
+**Telemetry**
+
 OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. [Learn more](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html).
 You can opt-out at any time by running the command:
 
