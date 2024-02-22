@@ -60,7 +60,6 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
-    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -575,11 +574,6 @@ tests_expected_to_fail = [
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-    ),
-    (
-        skip_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
         xfail_issue_101965,
