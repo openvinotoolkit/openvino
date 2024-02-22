@@ -18,8 +18,7 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 #
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(OpenVINODeveloperPackage REQUIRED
-                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
+    find_package(OpenVINODeveloperPackage REQUIRED)
 
     # we assume that OpenVINODeveloperPackage is generated in OpenVINO build tree
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")

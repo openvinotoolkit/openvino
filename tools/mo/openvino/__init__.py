@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 
-# API 2.0
+# OpenVINO API
 try:
     # Import all public modules
     from openvino import runtime as runtime
