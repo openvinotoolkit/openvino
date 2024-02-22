@@ -6,11 +6,15 @@
 #
 
 import paddle
-from paddle import fluid
 import numpy as np
 import sys
 import os
 from save_model import saveModel
+
+if paddle.__version__ >= '2.6.0':
+    import paddle.base as fluid
+else:
+    from paddle import fluid
 
 paddle.enable_static()
 inp_blob1 = np.random.randn(1, 1, 224, 224).astype(np.float32)

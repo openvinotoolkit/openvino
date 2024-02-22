@@ -2,12 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import paddle
-from paddle import fluid
 import numpy as np
 import os
 import sys
 from save_model import saveModel
 
+if paddle.__version__ >= '2.6.0':
+    import paddle.base as fluid
+else:
+    from paddle import fluid
 
 paddle.enable_static()
 

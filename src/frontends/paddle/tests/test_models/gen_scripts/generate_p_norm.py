@@ -9,7 +9,11 @@ import sys
 
 import numpy as np
 import paddle
-from paddle.fluid.layer_helper import LayerHelper
+
+if paddle.__version__ >= '2.6.0':
+    from paddle.base.layer_helper import LayerHelper
+else:
+    from paddle.fluid.layer_helper import LayerHelper
 
 from save_model import saveModel
 

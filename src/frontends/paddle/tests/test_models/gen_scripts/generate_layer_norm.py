@@ -5,10 +5,14 @@
 # layer_norm paddle model generator
 #
 import numpy as np
-from paddle.fluid import param_attr
 from save_model import saveModel
 import paddle
 import sys
+
+if paddle.__version__ >= '2.6.0':
+    from paddle.base import param_attr
+else:
+    from paddle.fluid import param_attr
 
 data_type = 'float32'
 

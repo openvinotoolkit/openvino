@@ -50,6 +50,7 @@ def build_slice(starts, ends, steps) -> list:
     outs = []
     for st, ed, step in zip(starts, ends, steps):
         outs.append(slice(st, ed, step))
+    outs = tuple(outs)
     return outs
 
 
@@ -64,7 +65,10 @@ def main():
     value = np.array([0]).astype(dtype)
 
     def set_value1(x, value):
-        x[1:2, 0:4:2, 2:4] = value
+        if paddle.__version__ < "2.6.0":
+            x[1:2, 0:4:2, 2:4] = value
+        else:
+            x = paddle.static.setitem(x, (1, slice(0, 4, 2), slice(2, 4)), value)
         return x
 
     paddle_set_value("set_value1", data, value, set_value1, dtype)
@@ -75,7 +79,10 @@ def main():
     value = np.random.random((3, 3, 1)).astype(dtype)
 
     def set_value2(x, value):
-        x[2:5] = value
+        if paddle.__version__ < "2.6.0":
+            x[2:5] = value
+        else:
+            x = paddle.static.setitem(x, (slice(2, 5),), value)    
         return x
 
     paddle_set_value("set_value2", data, value, set_value2, dtype)
@@ -86,7 +93,10 @@ def main():
     value = np.random.randint(0, 2, (10, 2, 3)).astype(dtype)
 
     def set_value3(x, value):
-        x[:, :, 1:4] = value
+        if paddle.__version__ < "2.6.0":
+            x[:, :, 1:4] = value
+        else:
+            x = paddle.static.setitem(x, (slice(None), slice(None), slice(1, 4)), value)
         return x
 
     paddle_set_value("set_value3", data, value, set_value3, dtype)
@@ -100,7 +110,10 @@ def main():
     steps = generate_data([1, 1, 1], np.int64)
 
     def set_value4(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value4", data, value, set_value4, dtype, starts, ends, steps)
@@ -114,7 +127,10 @@ def main():
     steps = generate_data([1], np.int64)
 
     def set_value5(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
@@ -161,7 +177,10 @@ def main():
     steps = generate_data([1], np.int64)
 
     def set_value7(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value_dynamic2", data, value, set_value7, dtype, starts, ends, steps, is_dynamic=True)
