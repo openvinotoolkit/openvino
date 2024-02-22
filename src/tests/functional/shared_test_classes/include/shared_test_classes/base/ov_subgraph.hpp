@@ -38,6 +38,7 @@ public:
     virtual void import_export();
 
 protected:
+    Time::time_point _start_time;
     virtual void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
     virtual void compile_model();
     virtual void infer();
@@ -57,6 +58,9 @@ protected:
         }
         auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
         std::cout << "ConvolutionLayerCPUTest TearDown cost time " << duration << " ms" << std::endl;
+
+        auto duration_1 = std::chrono::duration_cast<ns>(Time::now() - _start_time).count() * 0.000001;
+        std::cout << "ConvolutionLayerCPUTest finish cost time " << duration_1 << " ms" << std::endl;
     }
 
     std::shared_ptr<ov::Core> core = ov::test::utils::PluginCache::get().core();

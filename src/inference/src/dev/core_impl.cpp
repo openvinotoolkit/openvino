@@ -38,6 +38,10 @@
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
 #endif
+#include <chrono>
+
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::nanoseconds ns;
 
 ov::ICore::~ICore() = default;
 
@@ -934,6 +938,7 @@ bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 }
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
+    auto start_time = Time::now();
     std::vector<std::string> devices;
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
 
@@ -970,6 +975,8 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
             devices.push_back(deviceName);
         }
     }
+    auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
+    std::cout << "get_available_devices cost time " << duration << " ms" << std::endl;
 
     return devices;
 }

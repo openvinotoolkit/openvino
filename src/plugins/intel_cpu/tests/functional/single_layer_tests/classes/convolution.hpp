@@ -47,7 +47,6 @@ protected:
     ov::Shape kernel, dilation;
     ov::Shape stride;
     std::vector<ptrdiff_t> padBegin, padEnd;
-    Time::time_point _start_time;
     void checkBiasFusing(ov::CompiledModel &execNet) const;
     std::shared_ptr<ov::Node> modifyGraph(const ov::element::Type &ngPrc,
                                               ov::ParameterVector &params,
