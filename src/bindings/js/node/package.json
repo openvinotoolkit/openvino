@@ -1,6 +1,6 @@
 {
   "name": "openvino-node",
-  "version": "2024.0.0-14428.dev20240212",
+  "version": "2024.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
   "repository": {
     "url": "https://github.com/openvinotoolkit/openvino.git",
@@ -42,7 +42,7 @@
   },
   "binary": {
     "module_path": "./bin/",
-    "remote_path": "./repositories/openvino/build_artifacts/test/{platform}/",
+    "remote_path": "./repositories/openvino/nodejs_bindings/{version}/{platform}/",
     "package_name": "openvino_nodejs_bindings_{platform}_{version}_{arch}.tgz",
     "host": "https://storage.openvinotoolkit.org"
   }
