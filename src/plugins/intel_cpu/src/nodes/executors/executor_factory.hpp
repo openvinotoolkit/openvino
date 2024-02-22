@@ -113,7 +113,7 @@ public:
                            return impl.get().requiresFallback(config);
                        });
 
-        const size_t implId = select(memory);
+        const size_t implId = select(memory, 0);
         const auto& impl = m_suitableImplementations[implId].get();
         DEBUG_LOG("Preconfiguring executor: ", impl.name());
 
@@ -146,17 +146,27 @@ public:
      *
      */
     ExecutorPtr make(MemoryArgs& memory) {
-        const size_t implId = select(memory);
-        const auto& impl = m_suitableImplementations[implId].get();
-        if (m_implementationRequiresFallback[implId]) {
-            executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
-            if (auto fallbackConfig = impl.requiresFallback(config)) {
-                return fallback<Attrs, NodeT>(config, *fallbackConfig, memory, m_context, impl.name());
+        auto createExec = [this](MemoryArgs& memory, size_t implId) -> ExecutorPtr {
+            const auto& impl = m_suitableImplementations[implId].get();
+            if (m_implementationRequiresFallback[implId]) {
+                executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
+                if (auto fallbackConfig = impl.requiresFallback(config)) {
+                    return fallback<Attrs, NodeT>(config, *fallbackConfig, memory, m_context, impl.name());
+                }
             }
-        }
+            const auto executor = create(impl, memory, m_context);
+            if (!executor->update(memory)) {
+                return nullptr;
+            }
+            return executor;
+        };
 
-        const auto executor = create(impl, memory, m_context);
-        executor->update(memory);
+        auto implId = select(memory, 0);
+        auto executor = createExec(memory, implId);
+        while (!executor) {
+            implId = select(memory, ++implId);
+            executor = createExec(memory, implId);
+        }
         return executor;
     }
 
@@ -222,9 +232,14 @@ private:
         return suitableImplementations;
     }
 
-    size_t select(const MemoryArgs& memory) const {
+    size_t select(const MemoryArgs& memory, const size_t startIdx) const {
+        OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
+            "Failed to find an implementation since start indx: ", startIdx,
+            " is out of range of the suitable implementations array: ", m_suitableImplementations.size());
+        auto startIt = m_suitableImplementations.begin();
+        std::advance(startIt, startIdx);
         const auto selectedImplementation =
-            std::find_if(m_suitableImplementations.begin(),
+            std::find_if(startIt,
                          m_suitableImplementations.end(),
                          [&memory](const std::reference_wrapper<const ExecutorImplementation<Attrs>> implementation) {
                              return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(memory);
