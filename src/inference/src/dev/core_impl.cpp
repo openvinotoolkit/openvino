@@ -943,8 +943,13 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     const std::string propertyName = METRIC_KEY(AVAILABLE_DEVICES);
     double is_hidden_device_time = 0.0;
     double get_metric_time = 0.0;
-
-    for (auto&& deviceName : get_registered_devices()) {
+    double push_time = 0.0;
+    double loop_time = 0.0;
+    auto start_time_00 = Time::now();
+    auto registered_devices = get_registered_devices();
+    auto duration_00 = std::chrono::duration_cast<ns>(Time::now() - start_time_00).count() * 0.000001;
+    auto start_time_0 = Time::now();
+    for (auto&& deviceName : registered_devices) {
         std::vector<std::string> devicesIDs;
         // Skip hidden devices
         auto start_time_1 = Time::now();
@@ -952,30 +957,35 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
             continue;
         auto duration_1 = std::chrono::duration_cast<ns>(Time::now() - start_time_1).count() * 0.000001;
         is_hidden_device_time += duration_1;
-
+        auto start_time_2 = Time::now();
         try {
-            auto start_time_2 = Time::now();
             const ov::Any p = GetMetric(deviceName, propertyName);
-            auto duration_2 = std::chrono::duration_cast<ns>(Time::now() - start_time_2).count() * 0.000001;
-            get_metric_time += duration_2;
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (const InferenceEngine::Exception&) {
+        } catch (const InferenceEngine::Exception& ex) {
+            std::cout << " catch exception1:" << ex.what() << std::endl;
             // plugin is not created by e.g. invalid env
         } catch (const ov::Exception&) {
+            std::cout << " catch exception2" << std::endl;
             // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
+            std::cout << " catch exception3" << std::endl;
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
+            std::cout << " catch exception4" << std::endl;
             OPENVINO_THROW("An exception is thrown while trying to create the ",
                            deviceName,
                            " device and call GetMetric: ",
                            ex.what());
         } catch (...) {
+            std::cout << " catch exception5" << std::endl;
             OPENVINO_THROW("Unknown exception is thrown while trying to create the ",
                            deviceName,
                            " device and call GetMetric");
         }
+        auto duration_2 = std::chrono::duration_cast<ns>(Time::now() - start_time_2).count() * 0.000001;
+        get_metric_time += duration_2;
 
+        auto start_time_3 = Time::now();
         if (devicesIDs.size() > 1) {
             for (auto&& deviceID : devicesIDs) {
                 devices.push_back(deviceName + '.' + deviceID);
@@ -983,11 +993,24 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         } else if (!devicesIDs.empty()) {
             devices.push_back(deviceName);
         }
+        auto duration_3 = std::chrono::duration_cast<ns>(Time::now() - start_time_3).count() * 0.000001;
+        push_time += duration_3;
+        auto duration_4 = std::chrono::duration_cast<ns>(Time::now() - start_time_1).count() * 0.000001;
+        loop_time += duration_4;
+        std::cout << "devicesID2 size=" << devicesIDs.size() << " deviceName=" << deviceName << " get_metric cost time "
+                  << duration_2 << " is_hidden_device cost time " << duration_1 << " push_time=" << duration_3
+                  << " loop_time=" << duration_4 << std::endl;
     }
+    auto duration_0 = std::chrono::duration_cast<ns>(Time::now() - start_time_0).count() * 0.000001;
+
     auto duration = std::chrono::duration_cast<ns>(Time::now() - start_time).count() * 0.000001;
     std::cout << "get_available_devices cost time " << duration << " ms" << std::endl;
     std::cout << "get_available_devices is_hidden_device_time cost time " << is_hidden_device_time << " ms" << std::endl;
     std::cout << "get_available_devices get_metric_time cost time " << get_metric_time << " ms" << std::endl;
+    std::cout << "get_available_devices push_time cost time " << push_time << " ms" << std::endl;
+    std::cout << "get_available_devices loop_time cost time " << loop_time << " ms" << std::endl;
+    std::cout << "get_available_devices get_registered_devices cost time " << duration_00 << " ms" << std::endl;
+    std::cout << "get_available_devices for cost time " << duration_0 << " ms" << std::endl;
 
     return devices;
 }
