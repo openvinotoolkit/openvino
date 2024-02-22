@@ -2072,14 +2072,16 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    int64_t curr_iter = -1;
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
 #ifdef GPU_DEBUG_CONFIG
+    int64_t curr_iter = -1;
+    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
         curr_iter = get_network().get_current_iteration_num();
-#endif
     }
     GPU_DEBUG_IF(debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+#else
+    {
+#endif
         instrumentation::perf_counter_key key {
                 _network.get_input_layouts(),
                 _impl_params->input_layouts,
