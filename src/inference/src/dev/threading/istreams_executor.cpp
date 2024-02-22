@@ -119,22 +119,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
                         ? proc_type_table[0][ALL_PROC]
                         : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
 
-    // additional latency-case logic for hybrid processors:
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-        if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
-            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-            const bool big_only = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] / 2);
-            // selecting the preferred core type
-            if (big_only) {
-                streamConfig._thread_preferred_core_type = IStreamsExecutor::Config::PreferredCoreType::BIG;
-                const int hyper_threading_threshold =
-                    2;  // min #cores, for which the hyper-threading becomes useful for the latency case
-                // additionally selecting the #cores to use in the "Big-only" case
-                num_cores = (proc_type_table[0][MAIN_CORE_PROC] <= hyper_threading_threshold)
-                                ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC]
-                                : proc_type_table[0][MAIN_CORE_PROC];
-            }
-        } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
+        if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
             num_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
