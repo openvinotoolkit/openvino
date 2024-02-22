@@ -135,7 +135,11 @@ using ExecutorFactoryLegacyCPtr = std::shared_ptr<const ExecutorFactoryLegacy>;
 
 class Executor {
 public:
-    virtual void update(const MemoryArgs& memory) {}
+    // returns false if the stage has failed and the executor must be rejected
+    virtual bool update(const MemoryArgs& memory) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'update' method is not implemented by executor");
+        return false;
+    }
     virtual void execute() const {}
     // dnnl_fullyconnected 3D workaround version
     virtual void execute(const MemoryArgs& memory) {
