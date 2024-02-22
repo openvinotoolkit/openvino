@@ -53,7 +53,6 @@ from tests import (
     xfail_issue_99955,
     xfail_issue_99957,
     xfail_issue_99958,
-    xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
@@ -61,7 +60,6 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
-    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -466,10 +464,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
     ),
     (
-        xfail_issue_99959,
-        "OnnxBackendNodeModelTest.test_mish_cpu",
-    ),
-    (
         xfail_issue_99960,
         "OnnxBackendNodeModelTest.test_mvn_expanded_ver18_cpu",
     ),
@@ -580,11 +574,6 @@ tests_expected_to_fail = [
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-    ),
-    (
-        skip_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
         xfail_issue_101965,

@@ -202,6 +202,10 @@ The following are limitations of the current AUTO Batching implementations:
 - When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.
 - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
 
+.. note::
+   ``BATCH`` device supports GPU by default, but GPU still may not trigger ``auto_batch`` in ``tput`` mode if model or GPU memory size are not allowed. Which means it is required to check ``supported_properties`` of GPU ``tput`` mode ``compiled_model`` before doing any actions (set/get) with ``ov::auto_batch_timeout`` property.<br/>
+   To make sure ``BATCH`` device supports GPU by default, ``ov::model`` is required for ``core.compile_model``. A string of model file path to ``core.compile_model`` will be passed to GPU Plugin directly due to performance consideration and without involving ``BATCH``.
+
 
 Testing Performance with Benchmark_app
 ######################################
