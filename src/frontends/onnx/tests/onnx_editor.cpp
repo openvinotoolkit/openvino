@@ -9,9 +9,7 @@
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
-#include "editor.hpp"
 #include "gtest/gtest.h"
-#include "onnx_test_util.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/op/constant.hpp"
 
@@ -25,15 +23,15 @@ namespace {
 using InputTypePred = std::function<bool(const std::shared_ptr<ov::Node>)>;
 
 // A higher order factory function that produces predicates bound to a particular element type
-InputTypePred element_type_is(const element::Type et) {
+InputTypePred element_type_is(const ov::element::Type et) {
     return [et](const std::shared_ptr<ov::Node> input) {
         return input->get_element_type() == et;
     };
 }
 
-std::shared_ptr<op::v0::Parameter> find_input(const ParameterVector& inputs, const std::string& name) {
+std::shared_ptr<op::v0::Parameter> find_input(const ov::ParameterVector& inputs, const std::string& name) {
     const auto input_pos =
-        std::find_if(std::begin(inputs), std::end(inputs), [&name](const ParameterVector::value_type i) {
+        std::find_if(std::begin(inputs), std::end(inputs), [&name](const ov::ParameterVector::value_type i) {
             return i->get_friendly_name() == name;
         });
 
@@ -46,21 +44,21 @@ OPENVINO_TEST(onnx_editor, types__single_input_type_substitution) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_abc.onnx", &front_end);
 
-    input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::i64);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::i64);
 
     const auto model = front_end->convert(input_model);
     const auto graph_inputs = model->get_parameters();
 
     const auto float_inputs_count =
-        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
+        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(ov::element::f32));
 
     const auto integer_inputs_count =
-        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i64));
+        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(ov::element::i64));
 
     EXPECT_EQ(float_inputs_count, 0);
     EXPECT_EQ(integer_inputs_count, 3);
 
-    EXPECT_EQ(find_input(graph_inputs, "A")->get_element_type(), element::i64);
+    EXPECT_EQ(find_input(graph_inputs, "A")->get_element_type(), ov::element::i64);
 }
 
 OPENVINO_TEST(onnx_editor, types__all_inputs_type_substitution) {
@@ -68,19 +66,19 @@ OPENVINO_TEST(onnx_editor, types__all_inputs_type_substitution) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_abc.onnx", &front_end);
 
-    input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::i8);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("B"), element::i8);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("C"), element::i8);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::i8);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("B"), ov::element::i8);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("C"), ov::element::i8);
 
     const auto model = front_end->convert(input_model);
 
     const auto graph_inputs = model->get_parameters();
 
     const auto float_inputs_count =
-        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::f32));
+        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(ov::element::f32));
 
     const auto integer_inputs_count =
-        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i8));
+        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(ov::element::i8));
 
     EXPECT_EQ(float_inputs_count, 0);
     EXPECT_EQ(integer_inputs_count, 3);
@@ -90,7 +88,7 @@ OPENVINO_TEST(onnx_editor, types__missing_type_in_input_descriptor) {
     auto input_model = load_model("model_editor/invalid_input_no_type.onnx");
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
-    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::f32),
+    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::f32),
                  ov::Exception);
 }
 
@@ -98,14 +96,14 @@ OPENVINO_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor) {
     auto input_model = load_model("model_editor/invalid_input_no_tensor_type.onnx");
 
     // input A doesn't have the "tensor_type" field in the model
-    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::f32),
+    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::f32),
                  ov::Exception);
 }
 
 OPENVINO_TEST(onnx_editor, types__unsupported_data_type_passed) {
     auto input_model = load_model("model_editor/add_abc.onnx");
 
-    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::dynamic),
+    EXPECT_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::dynamic),
                  ov::Exception);
 }
 
@@ -121,19 +119,19 @@ OPENVINO_TEST(onnx_editor, types__elem_type_missing_in_input) {
     auto input_model = load_model("model_editor/elem_type_missing_in_input.onnx", &front_end);
 
     // the "elem_type" is missing in the model but it should be possible to set the type anyway
-    EXPECT_NO_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), element::i64));
+    EXPECT_NO_THROW(input_model->set_element_type(input_model->get_place_by_tensor_name("A"), ov::element::i64));
 
     const auto model = front_end->convert(input_model);
 
     const auto graph_inputs = model->get_parameters();
 
     const auto integer_inputs_count =
-        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(element::i64));
+        std::count_if(std::begin(graph_inputs), std::end(graph_inputs), element_type_is(ov::element::i64));
 
     EXPECT_EQ(integer_inputs_count, 2);
 
     const auto function_result = model->get_result();
-    EXPECT_EQ(function_result->get_element_type(), element::i64);
+    EXPECT_EQ(function_result->get_element_type(), ov::element::i64);
 }
 
 OPENVINO_TEST(onnx_editor, shapes__modify_single_input) {
@@ -729,8 +727,8 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_to_invalid) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/add_1D_invalid.onnx", &front_end);
     std::map<std::string, std::shared_ptr<ov::op::v0::Constant>> in_vals;
-    // in_vals.emplace("A", ov::op::v0::Constant::create(element::i64, Shape{2}, {4, 2}));
-    // in_vals.emplace("B", ov::op::v0::Constant::create(element::i64, Shape{2}, {1, 3}));
+    // in_vals.emplace("A", ov::op::v0::Constant::create( ov::element::i64, Shape{2}, {4, 2}));
+    // in_vals.emplace("B", ov::op::v0::Constant::create( ov::element::i64, Shape{2}, {1, 3}));
     // editor.set_input_values(in_vals);
 
     auto place = input_model->get_place_by_operation_name_and_input_port("add_node", 0);
@@ -800,12 +798,12 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_change_shape_type) {
     auto input_model = load_model("model_editor/add_1D.onnx", &front_end);
 
     auto place = input_model->get_place_by_tensor_name("A");
-    input_model->set_element_type(place, element::i8);
+    input_model->set_element_type(place, ov::element::i8);
     input_model->set_partial_shape(place, Shape{2, 1});
     input_model->set_tensor_value(place, std::vector<int8_t>{-1, 1}.data());
 
     place = input_model->get_place_by_tensor_name("B");
-    input_model->set_element_type(place, element::i8);
+    input_model->set_element_type(place, ov::element::i8);
     input_model->set_partial_shape(place, Shape{2, 1});
     input_model->set_tensor_value(place, std::vector<int8_t>{-2, 2}.data());
 
@@ -819,12 +817,12 @@ OPENVINO_TEST(onnx_editor, values__append_two_initializers_mixed_types) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("gather_elements_float_3D_axis_2.onnx", &front_end);
     auto place = input_model->get_place_by_tensor_name("data");
-    input_model->set_element_type(place, element::i16);
+    input_model->set_element_type(place, ov::element::i16);
     input_model->set_partial_shape(place, Shape{2, 2, 2});
     input_model->set_tensor_value(place, std::vector<int16_t>{1, 2, 3, 4, 5, 6, 7, 8}.data());
 
     place = input_model->get_place_by_tensor_name("indices");
-    input_model->set_element_type(place, element::i32);
+    input_model->set_element_type(place, ov::element::i32);
     input_model->set_partial_shape(place, Shape{2, 2, 1});
     input_model->set_tensor_value(place, std::vector<int32_t>{0, 1, 0, 1}.data());
 
@@ -1004,10 +1002,10 @@ OPENVINO_TEST(onnx_editor, add_output) {
 
 OPENVINO_TEST(onnx_editor, get_tensor_element_type) {
     auto input_model = load_model("model_editor/subgraph_extraction_tests.onnx");
-    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in1")), element::f32);
-    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in2")), element::f32);
-    input_model->set_element_type(input_model->get_place_by_tensor_name("in3"), element::f16);
-    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in3")), element::f16);
+    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in1")), ov::element::f32);
+    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in2")), ov::element::f32);
+    input_model->set_element_type(input_model->get_place_by_tensor_name("in3"), ov::element::f16);
+    EXPECT_EQ(input_model->get_element_type(input_model->get_place_by_tensor_name("in3")), ov::element::f16);
     EXPECT_THROW(input_model->get_element_type(nullptr), ov::Exception);
 }
 

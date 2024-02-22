@@ -25,6 +25,10 @@ void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_
     }
 }
 
+const std::string& get_pytorch_prefix() {
+    return pytorch_prefix;
+}
+
 Output<Node> make_optional_bias(const Output<Node>& base_op,
                                 const NodeContext& context,
                                 int bias_input_idx,
@@ -94,6 +98,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
 
     auto new_kernel_shape =
         make_shared<opset10::Concat>(OutputVector{groups_const, c_out_value, neg_1_const, remaining_shape}, 0);
+    auto res = make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
     context.mark_nodes({axis_0,
                         groups_const,
                         kernel_shape,
@@ -105,8 +110,9 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
                         stop,
                         step,
                         remaining_shape,
-                        new_kernel_shape});
-    return make_shared<opset10::Reshape>(kernel, new_kernel_shape, false);
+                        new_kernel_shape,
+                        res});
+    return res;
 }
 
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
@@ -344,7 +350,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
-std::shared_ptr<ov::op::util::FrameworkNode> make_list_construct(const ov::OutputVector& inputs) {
+std::shared_ptr<ov::Node> make_list_construct(const ov::OutputVector& inputs) {
     auto list_construct = std::make_shared<::ov::op::util::FrameworkNode>(inputs, inputs.size());
     ov::op::util::FrameworkNodeAttrs attrs;
     attrs.set_type_name("PTFrameworkNode");
@@ -573,6 +579,16 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
     copy_runtime_info(from, to);
     if (!additional_rt_info_src.empty())
         copy_runtime_info(additional_rt_info_src, to);
+}
+
+// helper ops
+Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask,
+                         const Output<Node>& value) {
+    auto _value = rg.make<opset10::ConvertLike>(value, data);
+    auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
+    return rg.make<opset10::Select>(bool_mask, _value, data);
 }
 
 }  // namespace pytorch

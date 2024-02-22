@@ -10,10 +10,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestExpandDims(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
     def create_expand_dims_net(self, input_shape, axis):
@@ -36,7 +36,7 @@ class TestExpandDims(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
-    def test_expand_dims_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_expand_dims_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_expand_dims_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

@@ -37,11 +37,4 @@ struct convolution_params : public weight_bias_zero_point_params {
     ParamsKey GetParamsKey() const override;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// convolution_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct convolution_optional_params : weight_bias_optional_params {
-    convolution_optional_params() : weight_bias_optional_params(KernelType::CONVOLUTION) {}
-};
-
 }  // namespace kernel_selector

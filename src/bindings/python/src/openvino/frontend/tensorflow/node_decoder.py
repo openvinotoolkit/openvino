@@ -15,7 +15,7 @@ def tf_type_to_ov_type(tf_type_int):
     if tf_type.name == "variant":
         return Type.dynamic
     if tf_type.name == "string":
-        return "DT_STRING"
+        return Type.string
     numpy_type = tf_type.as_numpy_dtype
     try:
         ret_type = Type(numpy_type)
@@ -26,18 +26,33 @@ def tf_type_to_ov_type(tf_type_int):
 
 def tf_attr_to_numpy(attr):
     attr_type = attr.WhichOneof("value")
+    # described in https://www.tensorflow.org/api_docs/python/tf/compat/v1/AttrValue
     if attr_type == "func":
         return attr.func.name
-    if attr_type == "s":
-        return attr.s.decode("utf-8")
-    if attr_type == "f":
+    elif attr_type == "s":
+        try:
+            return attr.s.decode("utf-8")
+        except UnicodeDecodeError:
+            return attr.s
+    elif attr_type == "f":
         return np.float32(attr.f)
-    if attr_type == "type":
+    elif attr_type == "type":
         return tf_type_to_ov_type(attr.type)
-    if attr_type == "list":
+    elif attr_type == "list":
         list_value = attr.list
-        return list(list_value.ListFields()[0][1])
-    if attr_type is None:
+        fields = list_value.ListFields()
+        if fields and len(fields) > 0 and len(fields[0]) > 1:
+            return list(fields[0][1])
+        else:
+            return None
+    elif attr_type == "shape":
+        tf_shape = attr.shape
+        if tf_shape.unknown_rank:
+            return PartialShape.dynamic()
+        shape_dims = tf_shape.dim
+        shape = [dim.size for dim in shape_dims]
+        return PartialShape(shape)
+    elif attr_type is None:
         return None
     return getattr(attr, attr.WhichOneof("value"))
 
@@ -80,7 +95,7 @@ class TFGraphNodeDecoder(DecoderBase):
                     dtype = tensor_dtype.as_numpy_dtype
                     # no copy of content
                     self.m_parsed_content = (np.frombuffer(value.tensor_content,
-                              dtype=dtype).reshape(shape))
+                                                           dtype=dtype).reshape(shape))
                 else:
                     # TODO: remove copy of content for cases when tensor value is not in tensor_content field, ticket: 114797
                     self.m_parsed_content = tf.make_ndarray(value)
@@ -139,6 +154,9 @@ class TFGraphNodeDecoder(DecoderBase):
                 if self.m_inner_graph:
                     return OVAny(PartialShape.dynamic())
                 variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                if variable_value is None:
+                    # variable can be not found if this is Hash table
+                    return OVAny(PartialShape.dynamic())
                 return OVAny(PartialShape(list(variable_value.shape)))
             return OVAny(PartialShape(shape))
         if name == "dtype":
@@ -146,6 +164,9 @@ class TFGraphNodeDecoder(DecoderBase):
             if tf.dtypes.DType(type_num).name == "resource":
                 if not self.m_inner_graph:
                     variable_value = TFGraphNodeDecoder.get_variable(self.m_operation)
+                    if variable_value is None:
+                        # variable can be not found if this is Hash table
+                        return OVAny(Type.dynamic)
                     return OVAny(tf_type_to_ov_type(variable_value.dtype))
                 else:
                     return OVAny(Type.undefined)
@@ -153,7 +174,7 @@ class TFGraphNodeDecoder(DecoderBase):
 
         if name == "value":
             if self.m_data_type == 'string':
-                return OVAny(self.m_parsed_content)
+                return OVAny(Tensor(self.m_parsed_content))
             if self.m_parsed_content.size == 1:
                 if isinstance(self.m_parsed_content, np.ndarray):
                     return OVAny(Tensor(self.m_parsed_content))

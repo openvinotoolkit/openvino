@@ -1,19 +1,31 @@
 {
-  "name": "openvinojs-node",
-  "version": "2023.3-preview",
+  "name": "openvino-node",
+  "version": "2024.0.0",
   "description": "OpenVINO™ utils for using from Node.js environment",
+  "repository": {
+    "url": "https://github.com/openvinotoolkit/openvino.git",
+    "type": "git"
+  },
   "license": "Apache-2.0",
   "main": "./dist/index.js",
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
   "types": "./types/index.d.ts",
   "scripts": {
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
     "test": "node --test ./tests/",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "postinstall": "npm run install_runtime && npm run build",
+    "download_runtime": "node ./scripts/download_runtime.js",
+    "install_runtime": "npm run download_runtime -- --ignore-if-exists"
   },
   "devDependencies": {
-    "@types/node": "^20.5.0",
+    "@types/node": "^20.5.1",
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
     "eslint": "^8.49.0",
@@ -21,6 +33,17 @@
     "typescript": "^5.0.4"
   },
   "engines": {
-    "node": ">=18.16.0"
+    "node": ">=20.5.1"
+  },
+  "dependencies": {
+    "gunzip-maybe": "^1.4.2",
+    "https-proxy-agent": "^7.0.2",
+    "tar-fs": "^3.0.4"
+  },
+  "binary": {
+    "module_path": "./bin/",
+    "remote_path": "./repositories/openvino/nodejs_bindings/{version}/{platform}/",
+    "package_name": "openvino_nodejs_bindings_{platform}_{version}_{arch}.tgz",
+    "host": "https://storage.openvinotoolkit.org"
   }
 }

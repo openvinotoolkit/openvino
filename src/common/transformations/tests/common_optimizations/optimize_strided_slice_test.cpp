@@ -21,7 +21,6 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -368,7 +367,20 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test_use_shapes_false) {
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<pass::ConstantFolding>();
     }
-    // No SharedStridedSliceEraser transformation if use_shapes == false
+    {
+        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+
+        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
+        std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
+        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+
+        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss1}, 0);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
+    }
 }
 
 TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test_use_shapes_false) {
@@ -408,7 +420,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_default_axes) {
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -440,7 +451,7 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_axes_const_sorted_full) {
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
+        manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 3, 5});
@@ -471,7 +482,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_all_const) {
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -525,7 +535,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_sorted_le
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -567,7 +576,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_unsorted)
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -610,7 +618,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_axes_const_negative_
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -643,7 +650,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_dyn_shape_axes_const
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -687,7 +693,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_sss_params_static_shape_axes_co
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -730,7 +735,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_dyn_rank_axes_const_positive) {
         auto slice = std::make_shared<opset8::Slice>(data, begin, end, step, axes);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin, end, step});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>();
     }
     {
@@ -805,7 +809,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         auto slice = std::make_shared<opset8::Slice>(shape_of_data, begin, end, step, axes);
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin});
 
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>(true);
         manager.register_pass<pass::ConstantFolding>();
     }
@@ -848,7 +851,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_begin_param_shape_of_use_shapes
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data, begin});
 
         manager.register_pass<pass::ConstantFolding>();
-        manager.register_pass<ov::pass::SliceToStridedSlice>(false);
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<pass::ConstantFolding>();
     }
@@ -951,7 +953,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_true) {
         auto slice = std::make_shared<opset8::Slice>(relu, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(true);
         manager.register_pass<ov::pass::StridedSliceOptimization>(true);
         manager.register_pass<pass::ConstantFolding>();
     }
@@ -991,7 +992,6 @@ TEST_F(TransformationTestsF, SliceToStridedSlice_slice_all_use_shapes_false) {
         auto slice = std::make_shared<opset8::Slice>(relu, begin, end, step);
 
         model = std::make_shared<ov::Model>(NodeVector{slice}, ParameterVector{data});
-        manager.register_pass<ov::pass::SliceToStridedSlice>(false);
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<pass::ConstantFolding>();
     }

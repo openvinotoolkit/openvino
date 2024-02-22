@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "ov_models/utils/ov_helpers.hpp"
 
 #include <cstring>
 #include <memory>
@@ -10,9 +8,10 @@
 #include <vector>
 
 #include "backend.hpp"
+#include "common_test_utils/specialize_function.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ngraph/specialize_function.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -21,15 +20,293 @@
 namespace ngraph {
 namespace helpers {
 
-ov::OutputVector convert2OutputVector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
-    ov::OutputVector outs;
-    std::for_each(nodes.begin(), nodes.end(), [&outs](const std::shared_ptr<ov::Node>& n) {
-        for (const auto& out_p : n->outputs()) {
-            outs.push_back(out_p);
-        }
-    });
-    return outs;
+namespace {
+template <int Bitwidth,
+          typename Value,
+          typename In,
+          typename std::enable_if<std::is_unsigned<Value>::value, bool>::type = true>
+Value fix_sign(In v) {
+    return v;
 }
+template <int Bitwidth,
+          typename Value,
+          typename In,
+          typename std::enable_if<std::is_signed<Value>::value, bool>::type = true>
+Value fix_sign(In v) {
+    constexpr unsigned sign_bit = 1u << (Bitwidth - 1);
+    const bool is_negative_number = v & sign_bit;
+    return is_negative_number ? v | 0xFFF0 : v;
+}
+
+template <int Bitwidth, typename Value>
+class LowPrecisionWrapper {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecisionWrapper(uint8_t* data, int position) : data(data), position(position) {}
+
+    operator Value() const {
+        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
+    }
+
+    LowPrecisionWrapper& operator=(Value v) {
+        uint8_t masked_value = v & value_mask;
+        *data &= ~(value_mask << (position * bitwidth));
+        *data |= masked_value << (position * bitwidth);
+        return *this;
+    }
+
+private:
+    int position{elements_in_byte - 1};
+    uint8_t* data;
+};
+
+template <int Bitwidth, typename Value>
+class LowPrecisionWrapperToConst {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecisionWrapperToConst(const uint8_t* data, int position) : data(data), position(position) {}
+
+    operator Value() const {
+        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
+    }
+
+private:
+    int position{elements_in_byte - 1};
+    const uint8_t* data;
+};
+
+template <int Bitwidth, typename Value>
+class LowPrecistionRange {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecistionRange(uint8_t* data) : data(data) {}
+
+    LowPrecisionWrapper<Bitwidth, Value> operator[](size_t index) const {
+        const ptrdiff_t byte_offset = index / elements_in_byte;
+        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
+        return {data + byte_offset, bit_position};
+    }
+
+    uint8_t* data;
+};
+
+template <int Bitwidth, typename Value>
+class LowPrecistionConstRange {
+public:
+    static constexpr int bitwidth = Bitwidth;
+    static constexpr int elements_in_byte = 8 / bitwidth;
+
+    LowPrecistionConstRange(const uint8_t* data) : data(data) {}
+
+    LowPrecisionWrapperToConst<Bitwidth, Value> operator[](size_t index) const {
+        const ptrdiff_t byte_offset = index / elements_in_byte;
+        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
+        return {data + byte_offset, bit_position};
+    }
+
+    const uint8_t* data;
+};
+
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
+                                  bool>::type = true>
+const ov::fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
+    return reinterpret_cast<const ov::fundamental_type_for<FromType>*>(data);
+}
+
+template <ov::element::Type_t FromType,
+          typename std::enable_if<FromType != ov::element::Type_t::u1 && FromType != ov::element::Type_t::u4 &&
+                                      FromType != ov::element::Type_t::i4,
+                                  bool>::type = true>
+ov::fundamental_type_for<FromType>* cast_to(uint8_t* data) {
+    return reinterpret_cast<ov::fundamental_type_for<FromType>*>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
+LowPrecistionConstRange<1, uint8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<1, uint8_t>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u1, bool>::type = true>
+LowPrecistionRange<1, uint8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<1, uint8_t>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
+LowPrecistionConstRange<4, uint8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<4, uint8_t>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::u4, bool>::type = true>
+LowPrecistionRange<4, uint8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<4, uint8_t>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
+LowPrecistionConstRange<4, int8_t> cast_to(const uint8_t* data) {
+    return LowPrecistionConstRange<4, int8_t>(data);
+}
+
+template <ov::element::Type_t FromType, typename std::enable_if<FromType == ov::element::Type_t::i4, bool>::type = true>
+LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
+    return LowPrecistionRange<4, int8_t>(data);
+}
+
+template <ov::element::Type_t FromType, ov::element::Type_t ToType>
+std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buffer, const size_t elementsCount) {
+    using fromPrec = ov::fundamental_type_for<FromType>;
+    using toPrec = ov::fundamental_type_for<ToType>;
+
+    const size_t min_buffer_size = [&] {
+        ov::element::Type from_type(FromType);
+        if (from_type.bitwidth() >= 8) {
+            return elementsCount * sizeof(fromPrec);
+        }
+        return from_type.bitwidth() * elementsCount / 8;
+    }();
+
+    OPENVINO_ASSERT(buffer.size() >= min_buffer_size, "avoid buffer overflow");
+
+    constexpr auto elementSize = sizeof(toPrec);
+    std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
+
+    auto src = cast_to<FromType>(buffer.data());
+    auto dst = cast_to<ToType>(convertedData.data());
+    for (size_t i = 0; i < elementsCount; i++) {
+        dst[i] = static_cast<toPrec>(src[i]);
+    }
+    return convertedData;
+}
+
+template <ov::element::Type_t FromType>
+std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t>& output,
+                                               const ov::element::Type_t& toPrecision,
+                                               const size_t elementsCount) {
+    switch (toPrecision) {
+    case ov::element::Type_t::boolean: {
+        return convertPrecision<FromType, ov::element::Type_t::boolean>(output, elementsCount);
+    }
+    case ov::element::Type_t::bf16: {
+        return convertPrecision<FromType, ov::element::Type_t::bf16>(output, elementsCount);
+    }
+    case ov::element::Type_t::f16: {
+        return convertPrecision<FromType, ov::element::Type_t::f16>(output, elementsCount);
+    }
+    case ov::element::Type_t::f32: {
+        return convertPrecision<FromType, ov::element::Type_t::f32>(output, elementsCount);
+    }
+    case ov::element::Type_t::f64: {
+        return convertPrecision<FromType, ov::element::Type_t::f64>(output, elementsCount);
+    }
+    case ov::element::Type_t::i4: {
+        return convertPrecision<FromType, ov::element::Type_t::i4>(output, elementsCount);
+    }
+    case ov::element::Type_t::i8: {
+        return convertPrecision<FromType, ov::element::Type_t::i8>(output, elementsCount);
+    }
+    case ov::element::Type_t::i16: {
+        return convertPrecision<FromType, ov::element::Type_t::i16>(output, elementsCount);
+    }
+    case ov::element::Type_t::i32: {
+        return convertPrecision<FromType, ov::element::Type_t::i32>(output, elementsCount);
+    }
+    case ov::element::Type_t::i64: {
+        return convertPrecision<FromType, ov::element::Type_t::i64>(output, elementsCount);
+    }
+    case ov::element::Type_t::u1: {
+        return convertPrecision<FromType, ov::element::Type_t::u1>(output, elementsCount);
+    }
+    case ov::element::Type_t::u4: {
+        return convertPrecision<FromType, ov::element::Type_t::u4>(output, elementsCount);
+    }
+    case ov::element::Type_t::u8: {
+        return convertPrecision<FromType, ov::element::Type_t::u8>(output, elementsCount);
+    }
+    case ov::element::Type_t::u16: {
+        return convertPrecision<FromType, ov::element::Type_t::u16>(output, elementsCount);
+    }
+    case ov::element::Type_t::u32: {
+        return convertPrecision<FromType, ov::element::Type_t::u32>(output, elementsCount);
+    }
+    case ov::element::Type_t::u64: {
+        return convertPrecision<FromType, ov::element::Type_t::u64>(output, elementsCount);
+    }
+    default:
+        throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
+                                 ov::element::Type(FromType).get_type_name() +
+                                 " to: " + ov::element::Type(toPrecision).get_type_name());
+    }
+}
+
+std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
+                                                 const ov::element::Type_t& fromPrecision,
+                                                 const ov::element::Type_t& toPrecision,
+                                                 const size_t elementsCount) {
+    switch (fromPrecision) {
+    case ov::element::Type_t::boolean: {
+        return convertPrecisionFrom<ov::element::Type_t::boolean>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::bf16: {
+        return convertPrecisionFrom<ov::element::Type_t::bf16>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::f16: {
+        return convertPrecisionFrom<ov::element::Type_t::f16>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::f32: {
+        return convertPrecisionFrom<ov::element::Type_t::f32>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::f64: {
+        return convertPrecisionFrom<ov::element::Type_t::f64>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::i4: {
+        return convertPrecisionFrom<ov::element::Type_t::i4>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::i8: {
+        return convertPrecisionFrom<ov::element::Type_t::i8>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::i16: {
+        return convertPrecisionFrom<ov::element::Type_t::i16>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::i32: {
+        return convertPrecisionFrom<ov::element::Type_t::i32>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::i64: {
+        return convertPrecisionFrom<ov::element::Type_t::i64>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u1: {
+        return convertPrecisionFrom<ov::element::Type_t::u1>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u4: {
+        return convertPrecisionFrom<ov::element::Type_t::u4>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u8: {
+        return convertPrecisionFrom<ov::element::Type_t::u8>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u16: {
+        return convertPrecisionFrom<ov::element::Type_t::u16>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u32: {
+        return convertPrecisionFrom<ov::element::Type_t::u32>(output, toPrecision, elementsCount);
+    }
+    case ov::element::Type_t::u64: {
+        return convertPrecisionFrom<ov::element::Type_t::u64>(output, toPrecision, elementsCount);
+    }
+    default:
+        throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
+                                 ov::element::Type(fromPrecision).get_type_name() + " precision");
+    }
+}
+
+}  // namespace
 
 std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreterFunction(
     const std::shared_ptr<ov::Model>& function,
@@ -68,9 +345,9 @@ std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>> interpreter
         const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
 
         auto input = inputs[parameterIndex];
-        const auto inType = inputTypes.empty() ? element::undefined : inputTypes[i];
+        const auto inType = inputTypes.empty() ? ov::element::undefined : inputTypes[i];
 
-        if (inType != element::undefined && inType != parameterType) {
+        if (inType != ov::element::undefined && inType != parameterType) {
             input = ngraph::helpers::convertOutputPrecision(input, inType, parameterType, shape_size(parameterShape));
         }
 
@@ -171,384 +448,6 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<ov::Model>& func
     handle->call_with_validate(outputTensors, inputTensors);
 
     return outputTensors;
-}
-
-std::shared_ptr<ov::Model> foldFunction(const std::shared_ptr<ov::Model>& function,
-                                        const std::vector<std::vector<std::uint8_t>>& inputs,
-                                        const std::vector<ov::element::Type>& inputTypes) {
-    const auto& parameters = function->get_parameters();
-    const auto& parametersNumber = parameters.size();
-    const auto& inputsNumber = inputs.size();
-    OPENVINO_ASSERT(parametersNumber == inputsNumber,
-                    "Got function (",
-                    function->get_friendly_name(),
-                    ") with ",
-                    parametersNumber,
-                    " parameters, but ",
-                    inputsNumber,
-                    " input blobs");
-    if (!inputTypes.empty()) {
-        OPENVINO_ASSERT(inputTypes.size() == inputsNumber,
-                        "Got function (",
-                        function->get_friendly_name(),
-                        ") with ",
-                        inputsNumber,
-                        " inputs, but ",
-                        inputTypes.size(),
-                        " types");
-    }
-
-    std::vector<element::Type> paramElementTypes;
-    std::vector<PartialShape> paramShapes;
-    std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
-    vecTmpConvertedInputs.reserve(inputs.size());
-
-    std::vector<void*> inBuffers;
-    inBuffers.reserve(inputs.size());
-
-    for (size_t i = 0; i < parametersNumber; ++i) {
-        const auto& param = parameters[i];
-        paramElementTypes.emplace_back(param->get_element_type());
-        paramShapes.emplace_back(param->get_shape());
-        auto parameterIndex = function->get_parameter_index(param);
-        auto& input = inputs[parameterIndex];
-
-        const auto inpType = inputTypes.empty() ? element::undefined : inputTypes[i];
-
-        if (inpType != element::undefined && inpType != paramElementTypes.back()) {
-            vecTmpConvertedInputs.emplace_back(
-                convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
-            inBuffers.push_back(vecTmpConvertedInputs.back().data());
-        } else {
-            // const_cast added to satisfy specialize_function interface
-            // which requires inputs as std::vector<void *>
-            inBuffers.push_back(const_cast<std::uint8_t*>(input.data()));
-        }
-    }
-
-    NGRAPH_SUPPRESS_DEPRECATED_START;
-    const auto& foldedFunc = ngraph::specialize_function(function, paramElementTypes, paramShapes, inBuffers);
-    NGRAPH_SUPPRESS_DEPRECATED_END;
-    ov::pass::ConstantFolding().run_on_model(foldedFunc);
-    for (const auto& op : foldedFunc->get_ops()) {
-        OPENVINO_ASSERT(ov::op::util::is_constant(op) || ov::op::util::is_output(op) || ov::op::util::is_parameter(op),
-                        "Function was not fully folded to constant state!\n",
-                        "At least one non constant node with type ",
-                        op->get_type_name(),
-                        " present in function.");
-    }
-    return foldedFunc;
-}
-
-bool is_tensor_iterator_exist(const std::shared_ptr<ov::Model>& func) {
-    const auto& ops = func->get_ops();
-    for (const auto& node : ops) {
-        const auto& ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(node);
-        if (ti) {
-            return true;
-        }
-    }
-    return false;
-}
-
-namespace {
-template <int Bitwidth,
-          typename Value,
-          typename In,
-          typename std::enable_if<std::is_unsigned<Value>::value, bool>::type = true>
-Value fix_sign(In v) {
-    return v;
-}
-template <int Bitwidth,
-          typename Value,
-          typename In,
-          typename std::enable_if<std::is_signed<Value>::value, bool>::type = true>
-Value fix_sign(In v) {
-    constexpr unsigned sign_bit = 1u << (Bitwidth - 1);
-    const bool is_negative_number = v & sign_bit;
-    return is_negative_number ? v | 0xFFF0 : v;
-}
-
-template <int Bitwidth, typename Value>
-class LowPrecisionWrapper {
-public:
-    static constexpr int bitwidth = Bitwidth;
-    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
-    static constexpr int elements_in_byte = 8 / bitwidth;
-
-    LowPrecisionWrapper(uint8_t* data, int position) : data(data), position(position) {}
-
-    operator Value() const {
-        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
-    }
-
-    LowPrecisionWrapper& operator=(Value v) {
-        uint8_t masked_value = v & value_mask;
-        *data &= ~(value_mask << (position * bitwidth));
-        *data |= masked_value << (position * bitwidth);
-        return *this;
-    }
-
-private:
-    int position{elements_in_byte - 1};
-    uint8_t* data;
-};
-
-template <int Bitwidth, typename Value>
-class LowPrecisionWrapperToConst {
-public:
-    static constexpr int bitwidth = Bitwidth;
-    static constexpr uint8_t value_mask = (1u << bitwidth) - 1u;
-    static constexpr int elements_in_byte = 8 / bitwidth;
-
-    LowPrecisionWrapperToConst(const uint8_t* data, int position) : data(data), position(position) {}
-
-    operator Value() const {
-        return fix_sign<Bitwidth, Value>(((*data) >> (position * bitwidth)) & value_mask);
-    }
-
-private:
-    int position{elements_in_byte - 1};
-    const uint8_t* data;
-};
-
-template <int Bitwidth, typename Value>
-class LowPrecistionRange {
-public:
-    static constexpr int bitwidth = Bitwidth;
-    static constexpr int elements_in_byte = 8 / bitwidth;
-
-    LowPrecistionRange(uint8_t* data) : data(data) {}
-
-    LowPrecisionWrapper<Bitwidth, Value> operator[](size_t index) const {
-        const ptrdiff_t byte_offset = index / elements_in_byte;
-        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
-        return {data + byte_offset, bit_position};
-    }
-
-    uint8_t* data;
-};
-
-template <int Bitwidth, typename Value>
-class LowPrecistionConstRange {
-public:
-    static constexpr int bitwidth = Bitwidth;
-    static constexpr int elements_in_byte = 8 / bitwidth;
-
-    LowPrecistionConstRange(const uint8_t* data) : data(data) {}
-
-    LowPrecisionWrapperToConst<Bitwidth, Value> operator[](size_t index) const {
-        const ptrdiff_t byte_offset = index / elements_in_byte;
-        const int bit_position = elements_in_byte - 1 - (index % elements_in_byte);
-        return {data + byte_offset, bit_position};
-    }
-
-    const uint8_t* data;
-};
-
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
-                                  bool>::type = true>
-const fundamental_type_for<FromType>* cast_to(const uint8_t* data) {
-    return reinterpret_cast<const fundamental_type_for<FromType>*>(data);
-}
-
-template <element::Type_t FromType,
-          typename std::enable_if<FromType != element::Type_t::u1 && FromType != element::Type_t::u4 &&
-                                      FromType != element::Type_t::i4,
-                                  bool>::type = true>
-fundamental_type_for<FromType>* cast_to(uint8_t* data) {
-    return reinterpret_cast<fundamental_type_for<FromType>*>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
-LowPrecistionConstRange<1, uint8_t> cast_to(const uint8_t* data) {
-    return LowPrecistionConstRange<1, uint8_t>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u1, bool>::type = true>
-LowPrecistionRange<1, uint8_t> cast_to(uint8_t* data) {
-    return LowPrecistionRange<1, uint8_t>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
-LowPrecistionConstRange<4, uint8_t> cast_to(const uint8_t* data) {
-    return LowPrecistionConstRange<4, uint8_t>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::u4, bool>::type = true>
-LowPrecistionRange<4, uint8_t> cast_to(uint8_t* data) {
-    return LowPrecistionRange<4, uint8_t>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
-LowPrecistionConstRange<4, int8_t> cast_to(const uint8_t* data) {
-    return LowPrecistionConstRange<4, int8_t>(data);
-}
-
-template <element::Type_t FromType, typename std::enable_if<FromType == element::Type_t::i4, bool>::type = true>
-LowPrecistionRange<4, int8_t> cast_to(uint8_t* data) {
-    return LowPrecistionRange<4, int8_t>(data);
-}
-
-template <element::Type_t FromType, element::Type_t ToType>
-std::vector<std::uint8_t> convertPrecision(const std::vector<std::uint8_t>& buffer, const size_t elementsCount) {
-    using fromPrec = fundamental_type_for<FromType>;
-    using toPrec = fundamental_type_for<ToType>;
-
-    const size_t min_buffer_size = [&] {
-        element::Type from_type(FromType);
-        if (from_type.bitwidth() >= 8) {
-            return elementsCount * sizeof(fromPrec);
-        }
-        return from_type.bitwidth() * elementsCount / 8;
-    }();
-
-    OPENVINO_ASSERT(buffer.size() >= min_buffer_size, "avoid buffer overflow");
-
-    constexpr auto elementSize = sizeof(toPrec);
-    std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
-
-    auto src = cast_to<FromType>(buffer.data());
-    auto dst = cast_to<ToType>(convertedData.data());
-    for (size_t i = 0; i < elementsCount; i++) {
-        dst[i] = static_cast<toPrec>(src[i]);
-    }
-    return convertedData;
-}
-
-template <element::Type_t FromType>
-std::vector<std::uint8_t> convertPrecisionFrom(const std::vector<std::uint8_t>& output,
-                                               const element::Type_t& toPrecision,
-                                               const size_t elementsCount) {
-    switch (toPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecision<FromType, element::Type_t::boolean>(output, elementsCount);
-    }
-    case element::Type_t::bf16: {
-        return convertPrecision<FromType, element::Type_t::bf16>(output, elementsCount);
-    }
-    case element::Type_t::f16: {
-        return convertPrecision<FromType, element::Type_t::f16>(output, elementsCount);
-    }
-    case element::Type_t::f32: {
-        return convertPrecision<FromType, element::Type_t::f32>(output, elementsCount);
-    }
-    case element::Type_t::f64: {
-        return convertPrecision<FromType, element::Type_t::f64>(output, elementsCount);
-    }
-    case element::Type_t::i4: {
-        return convertPrecision<FromType, element::Type_t::i4>(output, elementsCount);
-    }
-    case element::Type_t::i8: {
-        return convertPrecision<FromType, element::Type_t::i8>(output, elementsCount);
-    }
-    case element::Type_t::i16: {
-        return convertPrecision<FromType, element::Type_t::i16>(output, elementsCount);
-    }
-    case element::Type_t::i32: {
-        return convertPrecision<FromType, element::Type_t::i32>(output, elementsCount);
-    }
-    case element::Type_t::i64: {
-        return convertPrecision<FromType, element::Type_t::i64>(output, elementsCount);
-    }
-    case element::Type_t::u1: {
-        return convertPrecision<FromType, element::Type_t::u1>(output, elementsCount);
-    }
-    case element::Type_t::u4: {
-        return convertPrecision<FromType, element::Type_t::u4>(output, elementsCount);
-    }
-    case element::Type_t::u8: {
-        return convertPrecision<FromType, element::Type_t::u8>(output, elementsCount);
-    }
-    case element::Type_t::u16: {
-        return convertPrecision<FromType, element::Type_t::u16>(output, elementsCount);
-    }
-    case element::Type_t::u32: {
-        return convertPrecision<FromType, element::Type_t::u32>(output, elementsCount);
-    }
-    case element::Type_t::u64: {
-        return convertPrecision<FromType, element::Type_t::u64>(output, elementsCount);
-    }
-    default:
-        throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(FromType).get_type_name() +
-                                 " to: " + element::Type(toPrecision).get_type_name());
-    }
-}
-
-}  // namespace
-std::vector<std::uint8_t> convertOutputPrecision(const std::vector<std::uint8_t>& output,
-                                                 const element::Type_t& fromPrecision,
-                                                 const element::Type_t& toPrecision,
-                                                 const size_t elementsCount) {
-    switch (fromPrecision) {
-    case element::Type_t::boolean: {
-        return convertPrecisionFrom<element::Type_t::boolean>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::bf16: {
-        return convertPrecisionFrom<element::Type_t::bf16>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::f16: {
-        return convertPrecisionFrom<element::Type_t::f16>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::f32: {
-        return convertPrecisionFrom<element::Type_t::f32>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::f64: {
-        return convertPrecisionFrom<element::Type_t::f64>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::i4: {
-        return convertPrecisionFrom<element::Type_t::i4>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::i8: {
-        return convertPrecisionFrom<element::Type_t::i8>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::i16: {
-        return convertPrecisionFrom<element::Type_t::i16>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::i32: {
-        return convertPrecisionFrom<element::Type_t::i32>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::i64: {
-        return convertPrecisionFrom<element::Type_t::i64>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u1: {
-        return convertPrecisionFrom<element::Type_t::u1>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u4: {
-        return convertPrecisionFrom<element::Type_t::u4>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u8: {
-        return convertPrecisionFrom<element::Type_t::u8>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u16: {
-        return convertPrecisionFrom<element::Type_t::u16>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u32: {
-        return convertPrecisionFrom<element::Type_t::u32>(output, toPrecision, elementsCount);
-    }
-    case element::Type_t::u64: {
-        return convertPrecisionFrom<element::Type_t::u64>(output, toPrecision, elementsCount);
-    }
-    default:
-        throw std::runtime_error(std::string("convertOutputPrecision can't convert from: ") +
-                                 element::Type(fromPrecision).get_type_name() + " precision");
-    }
-}
-
-void resize_function(std::shared_ptr<ov::Model> function, const std::vector<ov::Shape>& targetInputStaticShapes) {
-    auto inputs = function->inputs();
-    std::map<ov::Output<ov::Node>, ov::PartialShape> shapes;
-    if (inputs.size() > targetInputStaticShapes.size()) {
-        throw std::runtime_error("targetInputStaticShapes.size() = " + std::to_string(targetInputStaticShapes.size()) +
-                                 " != inputs.size() = " + std::to_string(inputs.size()));
-    }
-    for (size_t i = 0; i < inputs.size(); i++) {
-        shapes.insert({inputs[i], targetInputStaticShapes[i]});
-    }
-    function->reshape(shapes);
 }
 
 }  // namespace helpers

@@ -40,7 +40,6 @@ std::string StridedSliceTransformation::getTestCaseName(const testing::TestParam
 }
 
 void StridedSliceTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -49,7 +48,7 @@ void StridedSliceTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::StridedSliceFunction::getOriginal(
+    function = ov::builder::subgraph::StridedSliceFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantize,

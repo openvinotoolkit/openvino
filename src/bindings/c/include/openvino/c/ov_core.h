@@ -129,7 +129,7 @@ ov_core_free(ov_core_t* core);
 /**
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
  * For IR format (*.bin):
@@ -150,7 +150,7 @@ ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bi
 /**
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats, path is unicode.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
  * For IR format (*.bin):
@@ -172,30 +172,9 @@ ov_core_read_model_unicode(const ov_core_t* core,
 #endif
 
 /**
- * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
- * @ingroup ov_core_c_api
- * @deprecated Use ov_core_read_model_from_memory_buffer instead.
- * @param core A pointer to the ie_core_t instance.
- * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, string is null-terminated.
- * @param weights Shared pointer to a constant tensor with weights.
- * @param model A pointer to the newly created model.
- * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
- * @note Created model object shares the weights with the @p weights object.
- * Thus, do not create @p weights on temporary data that can be freed later, since the model
- * constant data will point to an invalid memory.
- * @return Status code of the operation: OK(0) for success.
- */
-OPENVINO_C_API(OPENVINO_DEPRECATED(
-    "This API is deprecated and will be replaced by ov_core_read_model_from_memory_buffer") ov_status_e)
-ov_core_read_model_from_memory(const ov_core_t* core,
-                               const char* model_str,
-                               const ov_tensor_t* weights,
-                               ov_model_t** model);
-
-/**
  * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats with models string size.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format, support model string containing
  * several null chars.
  * @param str_len The length of model string.
@@ -219,7 +198,7 @@ ov_core_read_model_from_memory_buffer(const ov_core_t* core,
  * Users can create as many compiled models as they need and use
  * them simultaneously (up to the limitation of the hardware resources).
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model Model object acquired from Core::read_model.
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
@@ -241,7 +220,7 @@ ov_core_compile_model(const ov_core_t* core,
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
@@ -264,7 +243,7 @@ ov_core_compile_model_from_file(const ov_core_t* core,
  * This can be more efficient than using the ov_core_read_model_from_XXX + ov_core_compile_model flow,
  * especially for cases when caching is enabled and a cached model is available.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param model_path Path to a model.
  * @param device_name Name of a device to load a model to.
  * @param property_args_size How many properties args will be passed, each property contains 2 args: key and value.
@@ -286,7 +265,7 @@ ov_core_compile_model_from_file_unicode(const ov_core_t* core,
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param device_name Name of a device.
  * @param ... variadic paramaters The format is <char* property_key, char* property_value>.
  * Supported property key please see ov_property.h.
@@ -299,7 +278,7 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
  * @brief Gets properties related to device behaviour.
  * The method extracts information that can be set via the set_property method.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param device_name  Name of a device to get a property value.
  * @param property_key  Property key.
  * @param property_value A pointer to property value with string format.
@@ -311,7 +290,7 @@ ov_core_get_property(const ov_core_t* core, const char* device_name, const char*
 /**
  * @brief Returns devices available for inference.
  * @ingroup ov_core_c_api
- * @param core A pointer to the ie_core_t instance.
+ * @param core A pointer to the ov_core_t instance.
  * @param devices A pointer to the ov_available_devices_t instance.
  * Core objects go over all registered plugins and ask about available devices.
  * @return Status code of the operation: OK(0) for success.
@@ -361,7 +340,7 @@ ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_na
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
  * @ingroup ov_core_c_api
- * @param versions A pointer to the ie_core_versions to free memory.
+ * @param versions A pointer to the ov_core_version_list_t to free memory.
  */
 OPENVINO_C_API(void)
 ov_core_versions_free(ov_core_version_list_t* versions);

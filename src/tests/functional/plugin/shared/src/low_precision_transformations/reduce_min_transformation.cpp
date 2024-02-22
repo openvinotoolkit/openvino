@@ -30,7 +30,6 @@ std::string ReduceMinTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceMinTransformation::SetUp() {
-    abs_threshold = 0.1;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -39,11 +38,11 @@ void ReduceMinTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMin>(
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceMin>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

@@ -1,15 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "infer_request.hpp"
+#include "node/include/infer_request.hpp"
 
 #include <mutex>
-#include <random>
 
-#include "addon.hpp"
-#include "compiled_model.hpp"
-#include "node_output.hpp"
-#include "tensor.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/compiled_model.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
+#include "node/include/node_output.hpp"
+#include "node/include/tensor.hpp"
 
 namespace {
 std::mutex infer_mutex;
@@ -171,7 +172,7 @@ Napi::Value InferRequestWrap::infer_dispatch(const Napi::CallbackInfo& info) {
 }
 
 void InferRequestWrap::infer(const Napi::Array& inputs) {
-    for (size_t i = 0; i < inputs.Length(); ++i) {
+    for (uint32_t i = 0; i < inputs.Length(); ++i) {
         auto tensor = value_to_tensor(inputs[i], _infer_request, i);
         _infer_request.set_input_tensor(i, tensor);
     }
@@ -181,7 +182,7 @@ void InferRequestWrap::infer(const Napi::Array& inputs) {
 void InferRequestWrap::infer(const Napi::Object& inputs) {
     const auto& keys = inputs.GetPropertyNames();
 
-    for (size_t i = 0; i < keys.Length(); ++i) {
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
         auto input_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
         auto value = inputs.Get(input_name);
         auto tensor = value_to_tensor(value, _infer_request, input_name);
@@ -194,7 +195,6 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
     delete context;
@@ -228,7 +228,7 @@ void performInferenceThread(TsfnContext* context) {
         for (const auto& [key, tensor] : res) {
             outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
         }
-        context->deferred.Resolve({outputs_obj});
+        context->deferred.Resolve(outputs_obj);
     };
 
     context->tsfn.BlockingCall(context, callback);

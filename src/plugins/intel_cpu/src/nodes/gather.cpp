@@ -2,17 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gather.h"
+
+#include <openvino/op/gather.hpp>
+#include <openvino/op/constant.hpp>
+
 #include <string>
 #include <vector>
 
 #include "openvino/core/parallel.hpp"
-#include "gather.h"
-#include "openvino/opsets/opset1.hpp"
+#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
+#include "common/cpu_convert.h"
 #include "utils/general_utils.h"
 #include "kernels/x64/gather_uni_kernel.hpp"
 #include <partitioned_mem_mgr.h>
 #include "shape_inference/custom/gather.hpp"
+#include "utils/ngraph_utils.hpp"
+#include "snippets/utils.hpp"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/except.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -24,6 +34,9 @@ namespace node {
 
 bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
+        if (op->get_output_element_type(0) == element::string) {
+            return false;
+        }
         if (!one_of(op->get_type_info(),
                 ov::op::v7::Gather::get_type_info_static(),
                 ov::op::v8::Gather::get_type_info_static())) {
@@ -130,10 +143,19 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+
+    canOptimizeCompressedEmbedding = false;
+    if ((decompressionSubtractPtr != nullptr) && (decompressionMultiplyPtr != nullptr)) {
+        if (dataPrecision != ov::element::u8 || !isAxisInputConst || inputShapes[GATHER_DATA].getRank() != 2u) {
+            OPENVINO_THROW("Compression gather doesn't support demanded precisions, axis, data rank");
+        }
+        canOptimizeCompressedEmbedding = true;
+    }
+
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
-                         {{LayoutType::ncsp, dataPrecision}},
+                         {{LayoutType::ncsp, canOptimizeCompressedEmbedding ? ov::element::f32 : dataPrecision}},
                          ref_any);
 
     // Let's check for the special inPlace memory use case
@@ -254,19 +276,23 @@ bool Gather::needPrepareParams() const {
     }
     bool result = inputShapesModified();
     if (!isAxisInputConst)
-        result = result || axis != (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
+        result = result || axis != (getSrcDataAtPortAs<const int32_t>(GATHER_AXIS))[0];
     return result;
 }
 
 void Gather::prepareParams() {
-    auto dataMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR(" has not allocated input data memory.");
-    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
     if (!idxMemPtr || !idxMemPtr->isAllocated())
         THROW_ERROR(" has not allocated input indices memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
+
+    if (canOptimizeCompressedEmbedding) {
+        return;
+    }
 
     // short 1D vector fast execution impl (typical in shape infer subgraph)
     canOptimize1DCase = false;
@@ -281,7 +307,7 @@ void Gather::prepareParams() {
     }
 
     if (!isAxisInputConst) {
-        axis = (reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_AXIS)->getMemoryPtr()->getData()))[0];
+        axis = (getSrcDataAtPortAs<const int32_t>(GATHER_AXIS))[0];
         if (axis < 0)
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
@@ -330,15 +356,21 @@ void Gather::execute(dnnl::stream strm) {
         return;
     }
 
+    if (canOptimizeCompressedEmbedding) {
+        execCompressedCase();
+        return;
+    }
+
     if (canOptimize1DCase) {
         exec1DCase();
         return;
     }
+
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+        const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
+        const void* srcData = getSrcDataAtPort(GATHER_DATA);
+        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -397,11 +429,15 @@ void Gather::executeDynamicImpl(dnnl::stream strm) {
         exec1DCase();
         return;
     }
+    if (canOptimizeCompressedEmbedding) {
+        execCompressedCase();
+        return;
+    }
 #if defined(OPENVINO_ARCH_X86_64)
     if (jitKernel && jitKernel->isSupportedConfiguration(afterAxisSize)) {
-        const void* srcIndices = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData();
-        const void* srcData = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData();
-        uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+        const void* srcIndices = getSrcDataAtPort(GATHER_INDICES);
+        const void* srcData = getSrcDataAtPort(GATHER_DATA);
+        uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
 
         const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
 
@@ -526,9 +562,9 @@ void Gather::initShortParams(threadExecParams& p, const uint64_t start) {
 }
 
 void Gather::execReference() {
-    const int32_t* srcIndices = reinterpret_cast<const int32_t*>(getParentEdgeAt(GATHER_INDICES)->getMemoryPtr()->getData());
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
+    uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
@@ -580,6 +616,46 @@ void Gather::exec1DCase() {
     }
 }
 
+void Gather::execCompressedCase() {
+    DEBUG_LOG(getName(), " execCompressedCase");
+    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+
+    const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
+    const auto* pidx = idxMemPtr->getDataAs<int32_t>();
+
+    const auto* zp = decompressionSubtractPtr->getDataAs<float>();
+    const auto* scale = decompressionMultiplyPtr->getDataAs<float>();
+
+    auto* pdst = getDstDataAtPortAs<float>(0);
+
+    const auto& idxDims = idxMemPtr->getStaticDims();
+    const auto batch = idxDims[0];
+    const auto seqLen = idxDims[1];
+
+    auto axisDim = srcMemPtr->getStaticDims()[0];
+    auto feaDim = srcMemPtr->getStaticDims()[1];
+
+    parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
+        auto dstIdx = b * seqLen + s;
+        auto ii = pidx[dstIdx];
+        if (ii < 0) {
+            if (reverseIndexing)
+                ii += axisDim;
+            else
+                ii = axisDim;
+        }
+
+        auto* src = psrc + ii * feaDim;
+        auto* dst = pdst + dstIdx * feaDim;
+        auto& deq_zp = zp[ii];
+        auto& deq_scale = scale[ii];
+        for (size_t k = 0; k < feaDim; k++) {
+            dst[k] = (static_cast<float>(src[k]) - deq_zp) * deq_scale;
+        }
+    });
+}
+
 bool Gather::created() const {
     return getType() == Type::Gather;
 }
@@ -606,7 +682,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                     "Gather node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimention");
-    auto baseMemMngr = getParentEdgesAtPort(inplaceInpIndx).front()->getMemory().getMemoryMngr();
+    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
@@ -621,6 +697,25 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
         auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
 
         childEdge->reuse(newMem);
+    }
+}
+
+void Gather::fuseDecompressionMultiply(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionMultiplyPtr);
+}
+
+void Gather::fuseDecompressionSubtract(const MemoryCPtr& memory) {
+    fuseDecompressionConstant(memory, decompressionSubtractPtr);
+}
+
+void Gather::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr) {
+    const auto decompression_prc = ov::element::f32;
+    if (memory->getDesc().getPrecision() == decompression_prc) {
+        decompressionValuesPtr = memory;
+    } else {
+        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
+        decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
+        decompressionValuesPtr->load(*memory);
     }
 }
 

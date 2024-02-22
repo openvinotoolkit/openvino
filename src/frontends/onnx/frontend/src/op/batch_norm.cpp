@@ -7,25 +7,25 @@
 #include <cstdint>
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "openvino/op/batch_norm.hpp"
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 // This version supports ONNX BatchNormalization-1 and BatchNormalization-6
-OutputVector batch_norm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
-    Output<ov::Node> mean;
-    Output<ov::Node> var;
+    ov::Output<ov::Node> mean;
+    ov::Output<ov::Node> var;
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
 
@@ -55,8 +55,8 @@ OutputVector batch_norm(const Node& node) {
 
 namespace set_7 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
-OutputVector batch_norm(const Node& node) {
-    OutputVector inputs{node.get_ng_inputs()};
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto scale = inputs.at(1);
     auto bias = inputs.at(2);
@@ -73,10 +73,7 @@ OutputVector batch_norm(const Node& node) {
 }
 
 }  // namespace set_7
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

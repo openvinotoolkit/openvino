@@ -28,8 +28,6 @@ std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const test
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
-    abs_threshold = 4;
-    rel_threshold = 2778;
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::PartialShape inputShape;
     ov::element::Type netPrecision;
@@ -39,7 +37,7 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         testValues.fqOnData,

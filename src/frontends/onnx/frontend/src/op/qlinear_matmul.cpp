@@ -4,23 +4,21 @@
 
 #include "op/qlinear_matmul.hpp"
 
-#include <cstddef>
-#include <memory>
-#include <vector>
-
 #include "dequantize_linear.hpp"
 #include "matmul.hpp"
 #include "openvino/op/convert.hpp"
 #include "quantize_linear.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector qlinear_matmul(const Node& node) {
-    const OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector qlinear_matmul(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& a = inputs.at(0);
     const auto& a_scale = reshape::interpret_as_scalar(inputs.at(1));
@@ -34,13 +32,13 @@ OutputVector qlinear_matmul(const Node& node) {
     const auto& dequnatize_a =
         set_13::detail::dequantize_linear(a,
                                           a_scale,
-                                          std::make_shared<ov::op::v0::Convert>(a_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(a_zero_point, ov::element::f32),
                                           1,
                                           node);
     const auto& dequnatize_b =
         set_13::detail::dequantize_linear(b,
                                           b_scale,
-                                          std::make_shared<ov::op::v0::Convert>(b_zero_point, element::f32),
+                                          std::make_shared<v0::Convert>(b_zero_point, ov::element::f32),
                                           1,
                                           node);
 
@@ -52,6 +50,6 @@ OutputVector qlinear_matmul(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -34,7 +34,7 @@ static std::function<bool(ov::Output<ov::Node>)> constant_value(const float targ
     };
 }
 
-RMSFusion::RMSFusion() {
+RMSFusion::RMSFusion(uint64_t max_work_group_size) {
     using namespace ov::pass::pattern;
 
     // Detect RMS decomposition pattern
@@ -82,6 +82,20 @@ RMSFusion::RMSFusion() {
         }
 
         const auto& gamma_node = pattern_map.at(gamma).get_node_shared_ptr();
+        const auto& gamma_shape = gamma_node->get_output_partial_shape(0).to_shape();
+
+        const auto& mean_node = pattern_map.at(mean).get_node_shared_ptr();
+        const auto & axes = pattern_map.at(mean_axes).get_node_shared_ptr();
+        auto axes_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(axes);
+        auto axes_val = axes_constant->cast_vector<int64_t>();
+        // allow last dimension only
+        if ((axes_val[0] != -1) && (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1)))
+            return false;
+
+        const int32_t vec_size = 8;
+        if (static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(max_work_group_size))
+            return false;
+
         auto output_type = m.get_match_root()->get_output_element_type(0);
 
         auto rms = std::make_shared<op::RMS>(x_output,

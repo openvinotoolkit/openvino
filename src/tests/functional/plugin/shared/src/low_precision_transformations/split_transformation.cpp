@@ -30,7 +30,6 @@ std::string SplitTransformation::getTestCaseName(const testing::TestParamInfo<Sp
 
 
 void SplitTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -39,7 +38,7 @@ void SplitTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::SplitFunction::getOriginal(
+    function = ov::builder::subgraph::SplitFunction::getOriginal(
         precision,
         inputShape,
         param.fakeQuantize,

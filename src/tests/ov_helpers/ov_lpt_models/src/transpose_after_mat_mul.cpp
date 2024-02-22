@@ -7,12 +7,11 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
     std::shared_ptr<ov::Model> TransposeAfterMatMulFunction::getOriginal(
@@ -46,4 +45,4 @@ namespace subgraph {
     }
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

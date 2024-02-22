@@ -17,16 +17,16 @@
 using namespace ov;
 using namespace ov::op;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace utils {
-OPENVINO_SUPPRESS_DEPRECATED_START
+
 ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
     : m_keep_dims{node.get_attribute_value<std::int64_t>("keepdims", 1)},
-      m_input_node{node.get_ng_inputs().at(0)},
+      m_input_node{node.get_ov_inputs().at(0)},
       m_axis{node.get_attribute_value<std::int64_t>("axis", 0)},
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_max() const {
     return make_topk_subgraph(v11::TopK::Mode::MAX);
@@ -37,7 +37,7 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_arg_min() const {
 }
 
 std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode mode) const {
-    const auto k_node = v0::Constant::create(element::i64, Shape{}, {1});
+    const auto k_node = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     if (m_select_last_index == 1) {
         // Example (ArgMin):
@@ -64,27 +64,28 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         // res_index = dims_on_axis - topk->output(1) = 6 - 3 = 3
         // result = res_index - 1 = 3 - 1 = 2
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
         const int64_t normalized_axis =
-            ov::normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::util::normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
 
-        const auto axis_node = v0::Constant::create(element::i64, Shape{1}, {normalized_axis});
+        const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<v1::Reverse>(m_input_node, axis_node, v1::Reverse::Mode::INDEX);
 
         const auto topk = std::make_shared<v11::TopK>(reverse, k_node, normalized_axis, mode, v1::TopK::SortType::NONE);
 
         const auto data_shape = std::make_shared<v0::ShapeOf>(m_input_node);
         const auto dims_on_axis =
-            std::make_shared<v1::Gather>(data_shape, axis_node, v0::Constant::create(element::i64, Shape{}, {0}));
+            std::make_shared<v1::Gather>(data_shape,
+                                         axis_node,
+                                         v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
 
         const auto res_index =
-            std::make_shared<v1::Subtract>(dims_on_axis, std::make_shared<v0::Convert>(topk->output(1), element::i64));
+            std::make_shared<v1::Subtract>(dims_on_axis,
+                                           std::make_shared<v0::Convert>(topk->output(1), ov::element::i64));
         const auto result =
-            std::make_shared<v1::Subtract>(res_index, v0::Constant::create(element::i64, Shape{1}, {1}));
+            std::make_shared<v1::Subtract>(res_index, v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
 
         if (m_keep_dims == 0) {
-            const auto axis_to_remove = v0::Constant::create(element::u64, Shape{}, {topk->get_axis()});
+            const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
             return std::make_shared<v0::Squeeze>(result, axis_to_remove);
         }
@@ -94,10 +95,10 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
 
     const auto topk = std::make_shared<v11::TopK>(m_input_node, k_node, m_axis, mode, v11::TopK::SortType::NONE);
 
-    const auto result = std::make_shared<v0::Convert>(topk->output(1), element::i64);
+    const auto result = std::make_shared<v0::Convert>(topk->output(1), ov::element::i64);
 
     if (m_keep_dims == 0) {
-        const auto axis_to_remove = v0::Constant::create(element::u64, Shape{}, {topk->get_axis()});
+        const auto axis_to_remove = v0::Constant::create(ov::element::u64, ov::Shape{}, {topk->get_axis()});
 
         return std::make_shared<v0::Squeeze>(result, axis_to_remove);
     }
@@ -105,5 +106,6 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
     return result;
 }
 }  // namespace utils
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

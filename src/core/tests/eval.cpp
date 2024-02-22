@@ -14,7 +14,6 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/shape.hpp"
@@ -92,53 +91,6 @@ std::vector<T> read_vector(const ov::Tensor& tv) {
     for (size_t i = 0; i < expected.size(); ++i) {                      \
         ASSERT_FLOAT_EQ(expected[i], result[i]) << "at index: " << i;   \
     }
-
-TEST(eval, max_eval_parameter) {
-    auto p = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(p);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    EXPECT_FALSE(result.first);
-    EXPECT_EQ(result.second, numeric_limits<uint64_t>::max());
-}
-
-TEST(eval, max_eval_constant) {
-    auto c = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {27});
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(c);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_TRUE(result.first);
-    EXPECT_EQ(result.second, 27);
-}
-
-TEST(eval, max_eval_minimum_constant) {
-    auto c = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{}, {27});
-    auto p = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
-    auto m = make_shared<op::v1::Minimum>(c, p);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto result = ngraph::maximum_value(m);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_TRUE(result.first);
-    EXPECT_EQ(result.second, 27);
-}
-
-TEST(eval, max_eval_reduce_min) {
-    auto concat = make_shared<op::v0::Convert>(
-        make_shared<op::v0::Concat>(OutputVector{make_shared<op::v0::Parameter>(element::i64, Shape{4}),
-                                                 make_shared<op::v0::Constant>(element::i64, Shape{4}, 37)},
-                                    0),
-        element::i32);
-    auto reduce = make_shared<op::v0::Convert>(
-        make_shared<op::v1::ReduceMin>(concat, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
-        element::i64);
-    auto squeezes = make_shared<op::v0::Squeeze>(
-        make_shared<op::v0::Unsqueeze>(reduce, make_shared<op::v0::Constant>(element::i32, Shape{1}, 0)),
-        make_shared<op::v0::Constant>(element::i64, Shape{1}, 0));
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    EXPECT_EQ(ngraph::maximum_value(squeezes).second, 37);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
 
 TEST(eval, evaluate_shape_of) {
     auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1});
@@ -2736,7 +2688,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_scale_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E4M3 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e4m3);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3237,6 +3189,68 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e4m3_scale_1) {
     EXPECT_THAT(read_vector<bfloat16>(result), Pointwise(FloatEq(), input_data));
 }
 
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_str_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e4m3");
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(
+        read_vector<float>(result),
+        Pointwise(FloatEq(), std::vector<float>{0.f,         0.1015625f, 0.203125f, 0.3125f,   0.40625f, 0.5f,
+                                                0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
+                                                -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
+                                                -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_default_type_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(
+        read_vector<float>(result),
+        Pointwise(FloatEq(), std::vector<float>{0.f,         0.1015625f, 0.203125f, 0.3125f,   0.40625f, 0.5f,
+                                                0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
+                                                -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
+                                                -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
+}
+
 ///////////////////////////////////// FakeConvert f8e5m2
 TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     using namespace testing;
@@ -3252,7 +3266,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3283,7 +3297,7 @@ TEST(eval, evaluate_fake_convert_f16_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3313,7 +3327,7 @@ TEST(eval, evaluate_fake_convert_bf16_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3343,7 +3357,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3370,7 +3384,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1_small) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.0f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3397,7 +3411,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_small_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3424,7 +3438,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3452,7 +3466,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3483,7 +3497,7 @@ TEST(eval, evaluate_fake_convert_f16_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3514,7 +3528,7 @@ TEST(eval, evaluate_fake_convert_bf16_to_f8e5m2_scale_shift_big) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {scale_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 * scale_val});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3543,7 +3557,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_big_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3610,7 +3624,7 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3674,7 +3688,7 @@ TEST(eval, evaluate_fake_convert_f16_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3738,7 +3752,7 @@ TEST(eval, evaluate_fake_convert_bf16_matching_f8_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
 
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
@@ -3772,7 +3786,7 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
     auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3784,6 +3798,39 @@ TEST(eval, evaluate_fake_convert_f32_matching_f8e4m3_to_f8e5m2_scale_1) {
     EXPECT_EQ(result.get_element_type(), et);
     EXPECT_EQ(result.get_shape(), data_shape);
     EXPECT_THAT(read_vector<float>(result), Pointwise(FloatEq(), output_data));
+}
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1_str_ctor) {
+    using namespace testing;
+    constexpr auto et = element::f32;
+
+    std::vector<float> input_data{0.0f,  0.1f,  0.2f,  0.3f,  0.4f,  0.5f,  0.6f,  0.7f,  0.8f,  0.9f,  1.f,
+                                  -0.0f, -0.1f, -0.2f, -0.3f, -0.4f, -0.5f, -0.6f, -0.7f, -0.8f, -0.9f, -1.f};
+
+    const auto data_shape = Shape{input_data.size()};
+
+    auto data = make_shared<ov::op::v0::Parameter>(et, data_shape);
+
+    auto scale = op::v0::Constant::create(et, Shape{1}, {1.f});
+    auto shift = op::v0::Constant::create(et, Shape{1}, {0.f});
+
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<et>(data_shape, input_data)};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+
+    EXPECT_EQ(result.get_element_type(), et);
+    EXPECT_EQ(result.get_shape(), data_shape);
+    EXPECT_THAT(read_vector<float>(result),
+                Pointwise(FloatEq(),
+                          std::vector<float>{0.f,   0.09375f, 0.1875f, 0.3125f, 0.375f,    0.5f,     0.625f,   0.75f,
+                                             0.75f, 0.875f,   1.f,     -0.f,    -0.09375f, -0.1875f, -0.3125f, -0.375f,
+                                             -0.5f, -0.625f,  -0.75f,  -0.75f,  -0.875f,   -1.f}));
 }
 
 TEST(eval, evaluate_f8e5m2_const_from_f32) {
@@ -3885,7 +3932,7 @@ TEST(eval, evaluate_fake_convert_f32_seq_to_f8e5m2_scale_shift) {
     auto scale = op::v0::Constant::create(et, Shape{1}, {fp8::MAX_F8E5M2 / max_input_val});
     auto shift = op::v0::Constant::create(et, Shape{1}, {5.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -3948,7 +3995,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_4x3_scale_big) {
                                            fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
     auto shift = op::v0::Constant::create(et, Shape{4, 1}, {0.f, 0.f, 0.f, 0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -4007,7 +4054,7 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_3x4_scale_big) {
                                            fp8::MAX_F8E5M2 / (fp8::MAX_F8E5M2 * 4.f)});
     auto shift = op::v0::Constant::create(et, Shape{1, 4}, {0.f, 0.f, 0.f, 0.f});
 
-    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, "f8e5m2");
+    auto op = make_shared<op::v13::FakeConvert>(transposed_data, scale, shift, ov::element::f8e5m2);
     auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
 
     auto result = ov::Tensor();
@@ -4063,4 +4110,164 @@ TEST(eval, invalid_shape) {
     auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>({1, 3}, {1.0f, 1.0f, 1.0f}),
                                       make_tensor<element::Type_t::f32>({1, 3}, {7.0f, 6.0f, 1.0f})};
     ASSERT_THROW(model->evaluate(out_vector, in_vector), ov::Exception);
+}
+
+TEST(eval, evaluate_gather_string_basic) {
+    std::vector<std::string> input_values = {"Abc", "x", "1234", "...."};
+    std::vector<std::string> out_expected{"x", "...."};
+    std::vector<int32_t> indices_val{1, 3};
+
+    const auto data_shape = Shape{input_values.size()};
+    const auto exp_out_shape = Shape{out_expected.size()};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto indices = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{indices_val.size()}, indices_val);
+    auto axis = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{1}, {0});
+    auto op = make_shared<op::v8::Gather>(data, indices, axis, 0);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), exp_out_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(out_expected, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_reshape_string_1D_to_2D) {
+    std::vector<std::string> input_values = {"A", "B c", "d.Ef", " G h,i;", "JK ", "l,m,n,", " \0", " "};
+    std::vector<size_t> target_shape_val{2, 4};
+    auto target_shape = Shape(target_shape_val);
+    bool has_special_zero = false;
+
+    const auto data_shape = Shape{input_values.size()};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto target_shape_node =
+        ov::op::v0::Constant::create(element::i64, Shape{target_shape_val.size()}, target_shape_val);
+    auto op = make_shared<op::v1::Reshape>(data, target_shape_node, has_special_zero);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, target_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), target_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(input_values, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_reshape_string_2D_to_1D) {
+    std::vector<std::string> input_values = {"A", "B c", "d.Ef", " G h,i;", "JK ", "l,m,n,", " \0", " "};
+    std::vector<size_t> target_shape_val{input_values.size()};
+    const auto target_shape = Shape(target_shape_val);
+    bool has_special_zero = false;
+
+    const auto data_shape = Shape{4, 2};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto target_shape_node =
+        ov::op::v0::Constant::create(element::i64, Shape{target_shape_val.size()}, target_shape_val);
+    auto op = make_shared<op::v1::Reshape>(data, target_shape_node, has_special_zero);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, target_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), target_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(input_values, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_reshape_string_3D_to_2D) {
+    std::vector<std::string> input_values = {"A", "B c", "d.Ef", " G h,i;", "JK ", "l,m,n,", " \0", " "};
+    std::vector<size_t> target_shape_val{2, 4};
+    auto target_shape = Shape(target_shape_val);
+    bool has_special_zero = false;
+
+    const auto data_shape = Shape{2, 2, 2};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto target_shape_node =
+        ov::op::v0::Constant::create(element::i64, Shape{target_shape_val.size()}, target_shape_val);
+    auto op = make_shared<op::v1::Reshape>(data, target_shape_node, has_special_zero);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, target_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), target_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(input_values, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_reshape_string_2D_to_4D) {
+    std::vector<std::string> input_values = {"A", "B c", "d.Ef", " G h,i;", "JK ", "l,m,n,", " \0", " "};
+    std::vector<size_t> target_shape_val{2, 1, 2, 2};
+    auto target_shape = Shape(target_shape_val);
+    bool has_special_zero = false;
+
+    const auto data_shape = Shape{4, 2};
+    auto data = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto target_shape_node =
+        ov::op::v0::Constant::create(element::i64, Shape{target_shape_val.size()}, target_shape_val);
+    auto op = make_shared<op::v1::Reshape>(data, target_shape_node, has_special_zero);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data});
+
+    auto result = ov::Tensor(element::string, target_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor = ov::Tensor(element::string, data_shape, input_values.data());
+    auto in_vector = ov::TensorVector{in_tensor};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), target_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(input_values, result_const.get_value_strings());
+}
+
+TEST(eval, evaluate_concat_string_basic) {
+    std::vector<std::string> input_values_a = {"Abc", "x"};
+    std::vector<std::string> input_values_b = {"1234", "...."};
+
+    std::vector<std::string> out_expected{"Abc", "x", "1234", "...."};
+
+    const auto data_shape = Shape{1, 2};
+    const auto exp_out_shape = Shape{2, 2};
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::string, data_shape);
+
+    auto axis = 0;
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, axis);
+    auto model = make_shared<ov::Model>(OutputVector{op}, ParameterVector{data_a, data_b});
+
+    auto result = ov::Tensor(element::string, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::string, data_shape, input_values_a.data());
+    auto in_tensor_b = ov::Tensor(element::string, data_shape, input_values_b.data());
+
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    EXPECT_EQ(result.get_element_type(), element::string);
+    EXPECT_EQ(result.get_shape(), exp_out_shape);
+
+    const auto result_const = ov::op::v0::Constant(out_vector.at(0));
+    EXPECT_EQ(out_expected, result_const.get_value_strings());
 }
