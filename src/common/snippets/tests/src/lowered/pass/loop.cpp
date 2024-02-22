@@ -65,7 +65,8 @@ static void validate(const LinearIR& linear_ir, const ref_map& reference) {
     size_t loop_num = 0;
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
-        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(node);
+        ASSERT_TRUE(!ov::is_type<ov::snippets::op::LoopBeginDynamic>(node) && !ov::is_type<ov::snippets::op::LoopEndDynamic>(node));
+        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEndStatic>(node);
         if (!loop_end)
             continue;
         ASSERT_GT(reference.count(loop_num), 0);

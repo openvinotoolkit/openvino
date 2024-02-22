@@ -6,6 +6,7 @@
 
 #include "pass.hpp"
 
+#include "snippets/op/loop.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
 namespace ov {
@@ -21,10 +22,10 @@ namespace pass {
 class InsertLoops : public Pass {
 public:
     OPENVINO_RTTI("InsertLoops", "Pass")
-    InsertLoops();
+    InsertLoops() = default;
     bool run(LinearIR& linear_ir) override;
 private:
-    static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id, bool has_outer_loop);
+    static void insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id);
 };
 
 } // namespace pass
