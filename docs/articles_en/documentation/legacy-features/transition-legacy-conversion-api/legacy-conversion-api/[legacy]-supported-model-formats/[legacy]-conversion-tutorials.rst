@@ -41,14 +41,14 @@
 
 .. danger::
 
-   The code described in the ../../../../../learn-openvino/interactive-tutorials-python has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
+   The code described in the tutorials has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
    This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../learn-openvino/interactive-tutorials-python <../../../../../learn-openvino/interactive-tutorials-python>`.
 
-This section provides a set of ../../../../../learn-openvino/interactive-tutorials-python that demonstrate conversion methods for specific
+This section provides a set of tutorials that demonstrate conversion methods for specific
 TensorFlow, ONNX, and PyTorch models. Note that these instructions do not cover all use
 cases and may not reflect your particular needs.
-Before studying the ../../../../../learn-openvino/interactive-tutorials-python, try to convert the model out-of-the-box by specifying only the
+Before studying the tutorials, try to convert the model out-of-the-box by specifying only the
 ``--input_model`` parameter in the command line.
 
 .. note::

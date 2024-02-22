@@ -19,7 +19,7 @@ Linux
 
 To use a GPU device for OpenVINO inference, you must install OpenCL runtime packages.
 
-If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `../../documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
+If you are using a discrete GPU (for example Arc 770), you must also be using a supported Linux kernel as per `documentation. <https://dgpu-docs.intel.com/driver/kernel-driver-types.html>`__ 
 
 - For Arc GPU, kernel 6.2 or higher is recommended. 
 - For Max and Flex GPU, or Arc with kernel version lower than 6.2, you must also install the ``intel-i915-dkms`` and ``xpu-smi`` kernel modules as described in the installation ../../documentation for `Max/Flex <https://dgpu-docs.intel.com/driver/installation.html>`__ or `Arc. <https://dgpu-docs.intel.com/driver/client/overview.html>`__
@@ -87,13 +87,13 @@ To check if the driver has been installed:
 1. Type **device manager** in the **Search Windows** field and press Enter. **Device Manager** will open.
 2. Click the drop-down arrow to display **Display Adapters**. You can see the adapter that is installed in your computer: 
 
-   .. image:: ../../../../_static/images/DeviceManager.PNG
+   .. image:: ../../_static/images/DeviceManager.PNG
       :width: 400
 
 3. Right-click on the adapter name and select **Properties**.
 4. Click the **Driver** tab to view the driver version.
 
-   .. image:: ../../../../_static/images/DeviceDriverVersion.svg
+   .. image:: ../../_static/images/DeviceDriverVersion.svg
       :width: 400
 
 Your device driver has been updated and is now ready to use your GPU.

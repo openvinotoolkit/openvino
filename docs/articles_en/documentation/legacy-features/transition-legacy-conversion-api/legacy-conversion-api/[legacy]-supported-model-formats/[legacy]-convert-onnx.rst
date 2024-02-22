@@ -54,12 +54,12 @@ There are no ONNX-specific parameters, so only framework-agnostic parameters are
 Supported ONNX Layers
 #####################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../../../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific ONNX models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific ONNX models. Here are some examples:
 
 * :doc:`Convert ONNX Faster R-CNN Model <[legacy]-conversion-tutorials/convert-onnx-faster-r-cnn>`
 * :doc:`Convert ONNX GPT-2 Model <[legacy]-conversion-tutorials/convert-onnx-gpt-2>`

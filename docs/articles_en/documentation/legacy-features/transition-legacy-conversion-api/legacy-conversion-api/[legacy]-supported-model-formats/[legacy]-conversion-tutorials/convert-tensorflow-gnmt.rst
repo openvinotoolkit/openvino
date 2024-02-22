@@ -12,7 +12,7 @@ Converting a TensorFlow GNMT Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
    
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
@@ -313,5 +313,5 @@ Running GNMT IR
       result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <api/ie_python_api/api>` guide.
+For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <../../../../../../api/ie_python_api/api>` guide.
 

@@ -173,7 +173,7 @@ Learn more about OpenVINO and use it in your own application by trying out some 
 Get started with Python
 +++++++++++++++++++++++
 
-.. image:: ../../_static/images/../../get-started_with_python.gif
+.. image:: ../../_static/images/get_started_with_python.gif
   :width: 400
 
 Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
@@ -187,7 +187,7 @@ Visit the :doc:`Tutorials <../../learn-openvino/interactive-tutorials-python>` p
 Get started with C++
 ++++++++++++++++++++
 
-.. image:: ../../_static/images/../../get-started_with_cpp.jpg
+.. image:: ../../_static/images/get_started_with_cpp.jpg
   :width: 400
 
 

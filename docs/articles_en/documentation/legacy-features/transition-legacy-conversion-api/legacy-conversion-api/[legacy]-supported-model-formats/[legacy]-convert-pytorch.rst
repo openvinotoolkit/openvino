@@ -105,7 +105,7 @@ To export a PyTorch model, you need to obtain the model as an instance of ``torc
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
 
 * :doc:`Convert PyTorch BERT-NER Model <[legacy]-conversion-tutorials/convert-pytorch-bert-ner>`
 * :doc:`Convert PyTorch RCAN Model <[legacy]-conversion-tutorials/convert-pytorch-rcan>`

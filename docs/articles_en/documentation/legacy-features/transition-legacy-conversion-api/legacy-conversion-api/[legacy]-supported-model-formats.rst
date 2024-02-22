@@ -16,9 +16,9 @@
    Converting a TensorFlow Model <[legacy]-supported-model-formats/[legacy]-convert-tensorflow>
    Converting an ONNX Model <[legacy]-supported-model-formats/[legacy]-convert-onnx>
    Converting a PyTorch Model <[legacy]-supported-model-formats/[legacy]-convert-pytorch>
-   Converting a TensorFlow Lite Model <[legacy]-supported-model-formats/[legacy]-convert-tensorflow_Lite>
+   Converting a TensorFlow Lite Model <[legacy]-supported-model-formats/[legacy]-convert-tensorflow-lite>
    Converting a PaddlePaddle Model <[legacy]-supported-model-formats/[legacy]-convert-paddle>
-   Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../learn-openvino/interactive-tutorials-python>
+   Model Conversion Tutorials <[legacy]-supported-model-formats/[legacy]-conversion-tutorials>
 
 .. meta::
    :description: Learn about supported model formats and the methods used to convert, read, and compile them in OpenVINO™.
@@ -304,7 +304,7 @@ Here are code examples of how to use these methods with different model formats:
                  mo --input_model <INPUT_MODEL>.tflite
 
               For details on the conversion, refer to the
-              :doc:`article <[legacy]-supported-model-formats/[legacy]-convert-tensorflow_Lite>`.
+              :doc:`article <[legacy]-supported-model-formats/[legacy]-convert-tensorflow-lite>`.
 
    .. tab-item:: ONNX
       :sync: onnx

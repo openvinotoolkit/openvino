@@ -126,7 +126,7 @@ When you convert certain PaddlePaddle models, you may need to set the ``example_
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../../../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
@@ -136,6 +136,6 @@ The model conversion API displays explanatory messages for typographical errors,
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific PaddlePaddle models.
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
 
 
