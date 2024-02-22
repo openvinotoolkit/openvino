@@ -138,8 +138,12 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Affinity value = ov::Affinity::CORE;
     auto defaultBindThreadParameter = ov::Affinity::NONE;
 #else
-    ov::Affinity value = ov::Affinity::NONE;
+    ov::Affinity value = ov::Affinity::NUMA;
+#    if defined(_WIN32)
+    auto defaultBindThreadParameter = ov::Affinity::NONE;
+#    else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+#    endif
     auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
