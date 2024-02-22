@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov {
@@ -32,20 +31,14 @@ public:
     explicit VariableValue(const ov::Tensor& value);
 
     /// \brief Constructor for VariableValue.
-    /// \deprecated This method is deprecated and will be removed in 2024.0 release. Please use method with ov::Tensor
-    /// instead
     /// \param value Data for Variable.
     /// \param reset The current state of the reset flag.
     VariableValue(const ov::Tensor& value, bool reset);
 
     /// \brief Returns the current stored data.
-    /// \deprecated This method is deprecated and will be removed in 2024.0 release. Please use method with ov::Tensor
-    /// instead
     const ov::Tensor& get_state() const;
 
     /// \brief Sets new values for Variable.
-    /// \deprecated This method is deprecated and will be removed in 2024.0 release. Please use method with ov::Tensor
-    /// instead
     /// \param value New data for Variable.
     void set_state(const ov::Tensor& value);
 

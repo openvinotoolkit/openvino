@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API MVNFusionWithConstantsInside;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MVNFusion transformation replaces group of
  * operations: (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) to MVN op.
  */
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MVNFusion transformation replaces group of
  * operations: gamma * (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) + beta to MVN
  * op.
@@ -45,7 +45,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MVNFusion transformation replaces various sub-graphs with a MVN op.
  */
 class ov::pass::MVNFusion : public ov::pass::GraphRewrite {

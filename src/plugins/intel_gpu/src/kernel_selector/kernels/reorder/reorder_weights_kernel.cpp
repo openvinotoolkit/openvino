@@ -26,12 +26,12 @@ ParamsKey ReorderWeightsKernel::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ReorderWeightsKernel::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsKernel::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderWeightsKernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsKernel::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

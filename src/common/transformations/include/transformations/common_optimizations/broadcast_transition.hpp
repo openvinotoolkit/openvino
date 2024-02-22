@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API BroadcastTransition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief BroadcastTransition transformation moves broadcast through binary eltwise operation
  */
 class ov::pass::BroadcastTransition : public ov::pass::MatcherPass {

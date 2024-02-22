@@ -332,53 +332,58 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static std::vector<impl_desc_type> priorities = {
-        impl_desc_type::unknown,
-        impl_desc_type::dw_acl,
-        impl_desc_type::winograd_acl,
-        impl_desc_type::gemm_acl,
-        impl_desc_type::acl,
-        impl_desc_type::brgconv_avx512_amx_1x1,
-        impl_desc_type::brgconv_avx512_amx,
-        impl_desc_type::jit_avx512_amx_dw,
-        impl_desc_type::jit_avx512_amx_1x1,
-        impl_desc_type::jit_avx512_amx,
-        impl_desc_type::brgconv_avx512_1x1,
-        impl_desc_type::brgconv_avx512,
-        impl_desc_type::jit_uni_dw,
-        impl_desc_type::jit_uni_1x1,
-        impl_desc_type::jit_uni,
-        impl_desc_type::jit_avx512_dw,
-        impl_desc_type::jit_avx512_1x1,
-        impl_desc_type::jit_avx512,
-        impl_desc_type::brgconv_avx2_1x1,
-        impl_desc_type::brgconv_avx2,
-        impl_desc_type::jit_avx2_dw,
-        impl_desc_type::jit_avx2_1x1,
-        impl_desc_type::jit_avx2,
-        impl_desc_type::jit_avx_dw,
-        impl_desc_type::jit_avx_1x1,
-        impl_desc_type::jit_avx,
-        impl_desc_type::jit_sse42_dw,
-        impl_desc_type::jit_sse42_1x1,
-        impl_desc_type::jit_sse42,
-        impl_desc_type::gemm_any,
-        impl_desc_type::gemm_blas,
-        impl_desc_type::gemm_avx512,
-        impl_desc_type::gemm_avx2,
-        impl_desc_type::gemm_avx,
-        impl_desc_type::gemm_sse42,
-        impl_desc_type::jit_gemm,
-        impl_desc_type::ref_any,
-        impl_desc_type::ref,
-    };
+    static const auto priorities = [] {
+        std::vector<impl_desc_type> priorities = {
+            impl_desc_type::unknown,
+            impl_desc_type::dw_acl,
+            impl_desc_type::winograd_acl,
+            impl_desc_type::gemm_acl,
+            impl_desc_type::acl,
+            impl_desc_type::brgconv_avx512_amx_1x1,
+            impl_desc_type::brgconv_avx512_amx,
+            impl_desc_type::jit_avx512_amx_dw,
+            impl_desc_type::jit_avx512_amx_1x1,
+            impl_desc_type::jit_avx512_amx,
+            impl_desc_type::brgconv_avx512_1x1,
+            impl_desc_type::brgconv_avx512,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
+            impl_desc_type::jit_avx512_dw,
+            impl_desc_type::jit_avx512_1x1,
+            impl_desc_type::jit_avx512,
+            impl_desc_type::brgconv_avx2_1x1,
+            impl_desc_type::brgconv_avx2,
+            impl_desc_type::jit_avx2_dw,
+            impl_desc_type::jit_avx2_1x1,
+            impl_desc_type::jit_avx2,
+            impl_desc_type::jit_avx_dw,
+            impl_desc_type::jit_avx_1x1,
+            impl_desc_type::jit_avx,
+            impl_desc_type::jit_sse42_dw,
+            impl_desc_type::jit_sse42_1x1,
+            impl_desc_type::jit_sse42,
+            impl_desc_type::gemm_any,
+            impl_desc_type::gemm_blas,
+            impl_desc_type::gemm_avx512,
+            impl_desc_type::gemm_avx2,
+            impl_desc_type::gemm_avx,
+            impl_desc_type::gemm_sse42,
+            impl_desc_type::jit_gemm,
+            impl_desc_type::ref_any,
+            impl_desc_type::ref,
+        };
+        if (!isBrgConvAvailable()) {
+            priorities.erase(std::remove_if(priorities.begin(),
+                                            priorities.end(),
+                                            [](impl_desc_type type) {
+                                                return type & impl_desc_type::brgconv;
+                                            }),
+                             priorities.end());
+        }
 
-    priorities.erase(std::remove_if(priorities.begin(),
-                                    priorities.end(),
-                                    [](impl_desc_type type) {
-                                        return !isBrgConvAvailable() && (type & impl_desc_type::brgconv);
-                                    }),
-                     priorities.end());
+        return priorities;
+    }();
 
     return priorities;
 }
@@ -561,7 +566,6 @@ void Convolution::getSupportedDescriptors() {
         outputDataType = memory::data_type::f32;
         eltwisePrecision = ov::element::f32;
     }
-
     SetPostOpsAndZeroPoints(attrs);
 
     if (!one_of(ndims, 3, 4, 5))
@@ -1647,6 +1651,7 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
             inputZeroPointType = zpType::PerChannel;
     }
     // Only enable per-tensor zero point on avx512-amx and avx512-core-vnni, avx2_vnni_2.
+    // avx2_vnni is not enabled per-tensor z because of perf regression brgconv with per-tensor zpcompared with jit per-channel zp
     // If zero point is pertensor, both legacy zp and stock zp
     // would be passed into conv node. The conv node would determine how to create
     // post-ops attribute and prioritize to choose final onednn kernel.

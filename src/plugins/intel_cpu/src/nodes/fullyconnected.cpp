@@ -201,15 +201,16 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
               "%, use sparse weights = ",
               sparseRate >= minSparseRate);
 
-    return sparseRate < minSparseRate;
+    return sparseRate >= minSparseRate;
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.withBias = getOriginalInputsNumber() == 3;
     attrs.dequantizationScales = getDQScales();
-    attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(DATA_ID)->getParent(),
+    attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
+    attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
@@ -286,27 +287,11 @@ ov::element::Type FullyConnected::getRuntimePrecision() const {
 }
 
 void FullyConnected::fuseDecompressionMultiply(const MemoryCPtr& memory) {
-    fuseDecompressionConstant(memory, attrs.decompressionMultiplyPtr);
+    attrs.decompressionMultiplyPtr = memory;
 }
 
 void FullyConnected::fuseDecompressionSubtract(const MemoryCPtr& memory) {
-    fuseDecompressionConstant(memory, attrs.decompressionSubtractPtr);
-}
-
-void FullyConnected::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr) {
-    const auto decompression_prc = ov::element::f32;
-    if (memory->getDesc().getPrecision() == decompression_prc) {
-        decompressionValuesPtr = memory;
-    } else {
-        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
-        decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
-        const auto elementsCount = memory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        cpu_convert(memory->getData(),
-                    decompressionValuesPtr->getData(),
-                    DnnlExtensionUtils::DataTypeToElementType(memory->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
-    }
+    attrs.decompressionSubtractPtr = memory;
 }
 
 }  // namespace node

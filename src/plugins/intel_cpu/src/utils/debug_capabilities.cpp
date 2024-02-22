@@ -8,6 +8,7 @@
 #include "debug_capabilities.h"
 #include "node.h"
 #include "edge.h"
+#include "graph.h"
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
@@ -17,7 +18,7 @@
 #include "memory_desc/cpu_memory_desc.h"
 #include "oneapi/dnnl/dnnl.hpp"
 #include "onednn/iml_type_mapper.h"
-
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include <memory>
 
 namespace dnnl {
@@ -162,7 +163,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     const char * comma = "";
     auto node_id = [](Node & node) {
         auto id = node.getName();
-        if (id.size() > 20)
+        if (id.size() > 50)
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
         return id;
     };
@@ -213,7 +214,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << getData(ptr);
+                                << "&" << getData(ptr);
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -289,22 +290,24 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     comma = "";
     for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
         // find the Parent edge connecting to port
+        os << comma;
+        const char * sep2 = "";
         for (const auto & e : node.getParentEdges()) {
             auto edge = e.lock();
             if (!edge) continue;
             if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
-            os << comma;
+            os << sep2;
             os << node_id(*edge->getParent());
             auto ptr = edge->getMemoryPtr();
             if (ptr) {
-                os << "_" << getData(ptr);
+                os << "&" << getData(ptr);
             }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
-            comma = ",";
-            break;
+            sep2 = "|"; // show all edges at single port(usually indicating bugs)
         }
+        comma = ",";
     }
 
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
@@ -383,6 +386,16 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 }
 std::ostream & operator<<(std::ostream & os, const Shape& shape) {
     os << shape.toString();
+    return os;
+}
+
+// Print complex data structures in a textualized form to the console is an efficient way to investigate them
+std::ostream & operator<<(std::ostream & os, const Graph& g) {
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    for (auto &graphNode : g.GetNodes()) {
+        std::cout << *graphNode << std::endl;
+    }
+    os << "};" << std::endl;
     return os;
 }
 
@@ -538,7 +551,11 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         }
     }
     os << prefix << "}\n";
-
+    os << prefix << "fp16_compress disabled Ngraph nodes:\n";
+    for (const auto& op : f.get_ordered_ops()) {
+        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+            os << "\t" << tag << op->get_friendly_name() << "\n";
+    }
     return os;
 }
 

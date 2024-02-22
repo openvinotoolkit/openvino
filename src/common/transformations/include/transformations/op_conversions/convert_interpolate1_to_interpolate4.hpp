@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API ConvertInterpolate1ToInterpolate4;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertInterpolate1ToInterpolate4 covert v0:interpolate into v4::Interpolate.
  */
 class ov::pass::ConvertInterpolate1ToInterpolate4 : public ov::pass::MatcherPass {

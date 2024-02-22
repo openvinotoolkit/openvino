@@ -52,6 +52,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::intel_cpu::denormals_optimization.name()),
         RW_property(ov::log::level.name()),
         RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RW_property(ov::hint::dynamic_quantization_group_size.name()),
+        RW_property(ov::hint::kv_cache_precision.name()),
     };
 
     ov::Core ie;
@@ -197,12 +199,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(value, forcedPrecision);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto forced_precision_deprecated = ov::element::f32;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forced_precision_deprecated)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision_deprecated);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {

@@ -31,10 +31,7 @@ Napi::Function InferRequestWrap::get_class(Napi::Env env) {
                            InstanceMethod("getInputTensor", &InferRequestWrap::get_input_tensor),
                            InstanceMethod("getOutputTensor", &InferRequestWrap::get_output_tensor),
                            InstanceMethod("infer", &InferRequestWrap::infer_dispatch),
-    //    128760
-#ifndef _WIN32
                            InstanceMethod("inferAsync", &InferRequestWrap::infer_async),
-#endif
                            InstanceMethod("getCompiledModel", &InferRequestWrap::get_compiled_model),
                        });
 }
@@ -198,8 +195,6 @@ void InferRequestWrap::infer(const Napi::Object& inputs) {
 Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info) {
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
-// 128760
-#ifndef _WIN32
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
     context->native_thread.join();
     delete context;
@@ -233,7 +228,7 @@ void performInferenceThread(TsfnContext* context) {
         for (const auto& [key, tensor] : res) {
             outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
         }
-        context->deferred.Resolve({outputs_obj});
+        context->deferred.Resolve(outputs_obj);
     };
 
     context->tsfn.BlockingCall(context, callback);
@@ -261,4 +256,3 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     context->native_thread = std::thread(performInferenceThread, context);
     return context->deferred.Promise();
 }
-#endif

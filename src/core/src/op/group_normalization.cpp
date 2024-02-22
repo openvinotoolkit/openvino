@@ -7,7 +7,7 @@
 #include "group_normalization_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v12::GroupNormalization::GroupNormalization() : m_num_groups{0}, m_epsilon{0} {}

@@ -5,9 +5,9 @@
 #pragma once
 
 #include "openvino/core/axis_vector.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

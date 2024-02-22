@@ -25,8 +25,6 @@
 #include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 
-using namespace InferenceEngine;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -246,7 +244,10 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return true;
             },
             // create
-            [](const FCAttrs& attrs, const PostOps& postOps, const MemoryArgs& memory, ExecutorContext::CPtr context) {
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
                 struct ConvolutionInstantiator {
                     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
                         const MemoryArgs& memory,

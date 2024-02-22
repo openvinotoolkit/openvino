@@ -403,9 +403,6 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     config.insert(ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>()));
     config.insert({ov::hint::model_priority.name(), modelPriority.as<std::string>()});
 
-    if (isNewAPI) {
-        ON_CALL(*core.get(), is_new_api()).WillByDefault(Return(true));
-    }
     metaDevices.push_back({ov::test::utils::DEVICE_CPU,
                            {ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>())},
                            3,

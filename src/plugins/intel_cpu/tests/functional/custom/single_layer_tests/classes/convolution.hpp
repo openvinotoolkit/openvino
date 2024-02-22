@@ -6,7 +6,6 @@
 
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "openvino/core/visibility.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/convolution.hpp"
 #include "utils/convolution_params.hpp"
@@ -25,7 +24,7 @@ typedef std::tuple<
         ElementType,     // Input precision
         ElementType,     // Output precision
         InputShape,      // Input shape
-        LayerTestsUtils::TargetDevice   // Device name
+        ov::test::TargetDevice   // Device name
 > convLayerTestParamsSet;
 
 typedef std::tuple<

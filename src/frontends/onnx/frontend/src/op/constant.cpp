@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,11 @@
 #include "openvino/op/constant.hpp"
 
 using namespace ov::op;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace {
 template <typename T>
@@ -38,7 +39,7 @@ std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<
 template <typename T>
 std::shared_ptr<v0::Constant> make_dense_tensor_as_constant(const std::vector<int64_t>& indices,
                                                             const Tensor& values_tensor,
-                                                            const Shape& shape) {
+                                                            const ov::Shape& shape) {
     auto values = values_tensor.get_data<T>();
     auto dense_vector = get_dense_vector<T>(values, indices, shape_size(shape));
     return v0::Constant::create(values_tensor.get_ov_type(), shape, dense_vector);
@@ -46,7 +47,7 @@ std::shared_ptr<v0::Constant> make_dense_tensor_as_constant(const std::vector<in
 
 std::shared_ptr<v0::Constant> get_dense_tensor_as_constant(const std::vector<int64_t>& absolute_indices,
                                                            const Tensor& values_tensor,
-                                                           const Shape& shape) {
+                                                           const ov::Shape& shape) {
     switch (values_tensor.get_ov_type()) {
     case ov::element::boolean:
         return make_dense_tensor_as_constant<char>(absolute_indices, values_tensor, shape);
@@ -79,7 +80,7 @@ std::shared_ptr<v0::Constant> get_dense_tensor_as_constant(const std::vector<int
     }
 }
 
-std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const Shape& shape, const size_t& nnz) {
+std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const ov::Shape& shape, const size_t& nnz) {
     auto rank = shape.size();
     auto indices = indices_tensor.get_data<int64_t>();
     auto indices_shape = indices_tensor.get_shape();
@@ -106,7 +107,7 @@ std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const Sh
 }  // namespace
 
 namespace set_1 {
-ov::OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
@@ -114,7 +115,7 @@ ov::OutputVector constant(const onnx_import::Node& node) {
 }  // namespace set_1
 
 namespace set_13 {
-ov::OutputVector constant(const onnx_import::Node& node) {
+ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
                             "The Constant op expects exactly one attribute."
@@ -137,7 +138,7 @@ ov::OutputVector constant(const onnx_import::Node& node) {
         auto sparse_tensor = attribute.get_sparse_tensor();
         const Tensor& values_tensor = sparse_tensor.get_values();
         const Tensor& indices_tensor = sparse_tensor.get_indices();
-        const Shape& shape = sparse_tensor.get_shape();
+        const ov::Shape& shape = sparse_tensor.get_shape();
         auto rank = shape.size();
         // NNZ - the number of non-zero values in the sparse-tensor
         auto nnz = values_tensor.get_shape().at(0);
@@ -184,6 +185,6 @@ ov::OutputVector constant(const onnx_import::Node& node) {
 }
 }  // namespace set_13
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

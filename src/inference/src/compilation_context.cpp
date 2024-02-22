@@ -11,7 +11,6 @@
 #    include <unistd.h>
 #endif
 
-#include "cpp/ie_cnn_network.h"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -38,18 +37,6 @@ static int32_t as_int32_t(T v) {
 }
 
 }  // namespace ov
-
-namespace {
-
-uint64_t calculate_td(const InferenceEngine::TensorDesc& td, uint64_t _seed) {
-    uint64_t seed = _seed;
-
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
-    return seed;
-}
-
-}  // namespace
 
 namespace ov {
 
@@ -99,23 +86,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
             std::stringstream strm;
             rtMapData.second.print(strm);
             seed = ov::hash_combine(seed, strm.str());
-        }
-    }
-
-    // 4. Legacy part if CNNNetwork is used with new Plugin API
-    for (auto&& input : model->inputs()) {
-        auto& rt_info = input.get_rt_info();
-
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
-        }
-    }
-    for (auto&& output : model->outputs()) {
-        auto& rt_info = output.get_rt_info();
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
         }
     }
 
@@ -184,10 +154,7 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
-
-    if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
-    }
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
 
     pugi::xml_node compiledBlobNode = document.document_element();
     header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");

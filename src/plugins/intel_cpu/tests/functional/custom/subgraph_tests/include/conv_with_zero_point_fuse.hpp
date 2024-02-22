@@ -8,7 +8,6 @@
 #include <tuple>
 #include <vector>
 
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 

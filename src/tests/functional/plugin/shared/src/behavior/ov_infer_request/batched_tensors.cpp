@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "openvino/opsets/opset8.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "behavior/ov_infer_request/batched_tensors.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include <chrono>
@@ -39,7 +39,7 @@ void OVInferRequestBatchedTests::TearDown() {
     if (m_need_reset_core) {
         ie->set_property({ov::cache_dir()});
         ie.reset();
-        PluginCache::get().reset();
+        ov::test::utils::PluginCache::get().reset();
         ov::test::utils::removeFilesWithExt(m_cache_dir, "blob");
         ov::test::utils::removeDir(m_cache_dir);
     }
