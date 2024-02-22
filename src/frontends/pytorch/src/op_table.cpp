@@ -40,6 +40,7 @@ OP_CONVERTER(translate_argmax);
 OP_CONVERTER(translate_argmin);
 OP_CONVERTER(translate_as_strided);
 OP_CONVERTER(translate_as_tensor);
+OP_CONVERTER(translate_atan2);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
@@ -332,6 +333,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::asinh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Asinh>>},
         {"aten::atan", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>},
         {"aten::atan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atan>>},
+        {"aten::atan2", op::translate_atan2},
         {"aten::atanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
         {"aten::avg_pool1d", op::quantizable_op<op::translate_avg_poolnd>},
