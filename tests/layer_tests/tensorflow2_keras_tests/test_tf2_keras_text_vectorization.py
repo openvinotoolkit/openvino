@@ -39,7 +39,8 @@ class TestTextVectorization(CommonTF2LayerTest):
     @pytest.mark.parametrize('vocabulary', [['hello', 'there', 'OpenVINO', 'check', 'привет', 'ОПЕНВИНО']])
     @pytest.mark.parametrize('output_mode', ['int'])
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
-    @pytest.mark.precommit
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.xfail(reason='132692 - Add support of TextVectorization')
     @pytest.mark.nightly
     def test_text_vectorization(self, input_shape, vocabulary, output_mode, output_sequence_length, ie_device,
                                 precision, ir_version, temp_dir, use_legacy_frontend):
