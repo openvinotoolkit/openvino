@@ -123,7 +123,7 @@ def graph_has_ops(graph, op_types:list) -> bool:
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
-    "int": OVType.i64,
+    "int": OVType.i32,
     "bool": OVType.boolean,
     "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,

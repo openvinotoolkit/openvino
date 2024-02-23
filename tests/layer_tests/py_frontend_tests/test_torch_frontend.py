@@ -444,7 +444,11 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
     else:
         pt_out_type = pt_out.dtype
         pt_out_shape = pt_out.size()
-    assert pt_to_ov_type_map.get(str(pt_out_type)) == om.get_output_element_type(0)
+    pt_out_type = pt_to_ov_type_map.get(str(pt_out_type))
+    ov_out_type = om.get_output_element_type(0)
+    if pt_out_type == Type.i64 and ov_out_type == Type.i32 and "int" in [l_t, r_t]:
+        pytest.xfail("Pytorch int-like scalar in OV is converted to i32 instead of i64, mismatch is expected.")
+    assert pt_out_type == ov_out_type
     assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)
 
 
