@@ -18,13 +18,11 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
-            ov_models
             unit_test_utils
         ADD_CPPLINT
         DEPENDENCIES
             openvino_template_extension
             mock_engine
-            ov_models
         LABELS
             OV UNIT MULTI AUTO
 )

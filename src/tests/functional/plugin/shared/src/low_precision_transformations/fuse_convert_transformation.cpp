@@ -12,7 +12,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 
-#include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/fuse_convert.hpp"
 
 namespace LayerTestsDefinitions {

@@ -62,7 +62,7 @@ ov_add_target(
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
-                ov_models
+                ov_models   # TODO (vurusovs): delete after migration of NVidia and NPU
                 ov_lpt_models
                 sharedTestClasses
             PRIVATE

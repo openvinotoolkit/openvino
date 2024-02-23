@@ -4,6 +4,4 @@
 
 // TODO (vurusovs): delete after migration of NVidia and NPU
 
-#pragma once
-
-#include "common_test_utils/data_utils.hpp"
+#include "ov_models/preprocess/preprocess_builders.hpp"

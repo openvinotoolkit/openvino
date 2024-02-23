@@ -11,7 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {

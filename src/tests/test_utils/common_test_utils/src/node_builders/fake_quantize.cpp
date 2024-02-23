@@ -4,10 +4,10 @@
 
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "ov_models/utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
