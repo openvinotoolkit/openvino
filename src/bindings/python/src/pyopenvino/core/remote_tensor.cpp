@@ -16,21 +16,51 @@ void regclass_RemoteTensor(py::module m) {
                                                                               "RemoteTensor",
                                                                               py::base<ov::Tensor>());
 
-    cls.def("get_device_name", [](RemoteTensorWrapper& self) {
-        return self.tensor.get_device_name();
-    });
+    cls.def(
+        "get_device_name",
+        [](RemoteTensorWrapper& self) {
+            return self.tensor.get_device_name();
+        },
+        R"(
+        Returns name of a device on which the tensor is allocated.
 
-    cls.def("get_params", [](RemoteTensorWrapper& self) {
-        return self.tensor.get_params();
-    });
+        :return: A device name string in fully specified format `<device_name>[.<device_id>[.<tile_id>]]`.
+        :rtype: str
+    )");
 
-    cls.def("copy_to", [](RemoteTensorWrapper& self, py::object& dst) {
-        Common::utils::raise_not_implemented();
-    });
+    cls.def(
+        "get_params",
+        [](RemoteTensorWrapper& self) {
+            return self.tensor.get_params();
+        },
+        R"(
+        Returns a dict of device-specific parameters required for low-level
+        operations with the underlying tensor.
+        Parameters include device/context/surface/buffer handles, access flags, etc.
+        Content of the returned dict depends on remote execution context that is
+        currently set on the device (working scenario).
 
-    cls.def_property_readonly("data", [](RemoteTensorWrapper& self) {
-        Common::utils::raise_not_implemented();
-    });
+        :return: A dictionary of device-specific parameters.
+        :rtype: dict
+    )");
+
+    cls.def(
+        "copy_to",
+        [](RemoteTensorWrapper& self, py::object& dst) {
+            Common::utils::raise_not_implemented();
+        },
+        R"(
+        This method is not implemented.
+    )");
+
+    cls.def_property_readonly(
+        "data",
+        [](RemoteTensorWrapper& self) {
+            Common::utils::raise_not_implemented();
+        },
+        R"(
+        This property is not implemented.
+    )");
 
     cls.def_property(
         "bytes_data",
@@ -39,7 +69,10 @@ void regclass_RemoteTensor(py::module m) {
         },
         [](RemoteTensorWrapper& self, py::object& other) {
             Common::utils::raise_not_implemented();
-        });
+        },
+        R"(
+        This property is not implemented.
+    )");
 
     cls.def_property(
         "str_data",
@@ -48,7 +81,10 @@ void regclass_RemoteTensor(py::module m) {
         },
         [](RemoteTensorWrapper& self, py::object& other) {
             Common::utils::raise_not_implemented();
-        });
+        },
+        R"(
+        This property is not implemented.
+    )");
 
     cls.def("__repr__", [](const RemoteTensorWrapper& self) {
         std::stringstream ss;
@@ -64,17 +100,38 @@ void regclass_VASurfaceTensor(py::module m) {
         m,
         "VASurfaceTensor");
 
-    cls.def_property_readonly("surface_id", [](VASurfaceTensorWrapper& self) {
-        return self.surface_id();
-    });
+    cls.def_property_readonly(
+        "surface_id",
+        [](VASurfaceTensorWrapper& self) {
+            return self.surface_id();
+        },
+        R"(
+        Returns ID of underlying video decoder surface.
 
-    cls.def_property_readonly("plane_id", [](VASurfaceTensorWrapper& self) {
-        return self.plane_id();
-    });
+        :return: VASurfaceID of the tensor.
+        :rtype: int
+    )");
 
-    cls.def_property_readonly("data", [](VASurfaceTensorWrapper& self) {
-        Common::utils::raise_not_implemented();
-    });
+    cls.def_property_readonly(
+        "plane_id",
+        [](VASurfaceTensorWrapper& self) {
+            return self.plane_id();
+        },
+        R"(
+        Returns plane ID of underlying video decoder surface.
+
+        :return: Plane ID of underlying video decoder surface.
+        :rtype: int
+    )");
+
+    cls.def_property_readonly(
+        "data",
+        [](VASurfaceTensorWrapper& self) {
+            Common::utils::raise_not_implemented();
+        },
+        R"(
+        This property is not implemented.
+    )");
 
     cls.def("__repr__", [](const VASurfaceTensorWrapper& self) {
         std::stringstream ss;
