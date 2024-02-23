@@ -124,7 +124,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_convert_model.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --scope hf
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'precommit'}}
+          TYPE: ${{ inputs.event == 'schedule' && 'precommit' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: TensorFlow Other Tests (OMZ) - TF FE
@@ -132,7 +132,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_convert_model.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --scope others
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'precommit'}}
+          TYPE: ${{ inputs.event == 'schedule' && 'precommit' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
