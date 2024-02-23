@@ -261,7 +261,7 @@ core.add_extension("openvino_template_extension.so");
 {
 //! [frontend_extension_framework_map_macro_add_extension]
 ov::Core core;
-core.add_extension(ov::frontend::OpExtension<CustomOp>());
+core.add_extension(ov::OpExtension<CustomOp>());
 //! [frontend_extension_framework_map_macro_add_extension]
 }
 return 0;

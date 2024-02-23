@@ -50,7 +50,7 @@ class that works well if all the following conditions are satisfied:
 
 .. note::
 
-   ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. 
+   ``OpExtension`` class is currently available for ONNX, TensorFlow and PyTorch frontends. 
    PaddlePaddle frontend has named inputs and outputs for operation (not indexed) 
    therefore OpExtension mapping is not applicable for this case.
 
