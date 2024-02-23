@@ -8,9 +8,9 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestDot(PytorchLayerTest):
-    def _prepare_input(self):
-        return (self.inputs[0].to(self.dtype1).numpy(),
-                self.inputs[1].to(self.dtype2).numpy())
+    def _prepare_input(self, inputs, dtype1, dtype2):
+        return (torch.tensor(inputs[0]).to(dtype1).numpy(),
+                torch.tensor(inputs[1]).to(dtype2).numpy())
 
     def create_model(self, dtype1, dtype2):
 
