@@ -11,18 +11,22 @@ comes to generative models, OpenVINO supports:
 
 * Conversion, optimization and inference for text, image and audio generative models, for
   example, Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL, etc.
-* Int8 weight compression for text generation models.
-* Storage format reduction (fp16 precision for non-compressed models and int8 for compressed
-  models).
+* 8-bit and 4-bit weight compression including compression of Embedding layers.
+* Storage format reduction (fp16 precision for non-compressed models and int8/int4 for compressed
+  models), including GPTQ models from Hugging Face.
 * Inference on CPU and GPU platforms, including integrated Intel® Processor Graphics,
   discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series.
+* Fused inference primitives, for example, Scaled Dot Product Attention, Rotary Positional Embedding,
+  Group Query Attention, Mixture of Experts, etc.
+* In-place KV-cache, Dynamic quantization, KV-cache quantization and encapsulation.
+* Dynamic beam size configuration, Speculative sampling.
 
 
 OpenVINO offers two main paths for Generative AI use cases:
 
 * Using OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through
   the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
-* Using OpenVINO native APIs (Python and C++) with custom pipeline code.
+* Using OpenVINO native APIs (Python and C++) with `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 
 In both cases, OpenVINO runtime and tools are used, the difference is mostly in the preferred
@@ -144,15 +148,18 @@ also available for CLI interface as the ``--int8`` option.
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression,
-which is supported by OpenVINO. It can be applied to Optimum objects as follows:
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ also provides 4-bit weight compression with ``OVWeightQuantizationConfig`` class to control weight quantization parameters.
 
 .. code-block:: python
 
-    from nncf import compress_weights, CompressWeightsMode
+    from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
+    import nncf
 
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False)
-    model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
+    model = OVModelForCausalLM.from_pretrained(
+        model_id,
+        export=True,
+        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+    )
 
 
 The optimized model can be saved as usual with a call to ``save_pretrained()``.
@@ -191,6 +198,42 @@ Model usage remains the same for stateful and stateless models with the Optimum-
 The model's form matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
 This is because stateful and stateless models have a different number of inputs and outputs.
 Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
+
+Enabling OpenVINO Runtime Optimizations
++++++++++++++++++++++++++++++++++++++++
+OpenVINO runtime provides a set of optimizations for more efficient LLM inference. This includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls and **KV-cache quantization**.
+
+* **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see :doc:`LLM Weight Compression <weight_compression>`).
+  It improves inference latency and throughput of LLMs, though it may cause insignificant deviation in generation accuracy.  Quantization is performed in a
+  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are: ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding
+  inference property as follows:
+
+
+.. code-block:: python
+
+    model = OVModelForCausalLM.from_pretrained(
+        model_path,
+        ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
+    )
+
+
+
+* **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs. This helps reduce memory consumption during inference, improving latency and throughput. KV-cache can be quantized into the following precisions:
+  ``u8``, ``bf16``, ``f16``.  If ``u8`` is used, KV-cache quantization is also applied in a group-wise manner. Thus, it can use ``DYNAMIC_QUANTIZATION_GROUP_SIZE`` value if defined.
+  Otherwise, the group size ``32`` is used by default. KV-cache quantization can be enabled as follows:
+
+
+.. code-block:: python
+
+    model = OVModelForCausalLM.from_pretrained(
+        model_path,
+        ov_config={"KV_CACHE_PRECISION": "u8", "DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
+    )
+
+
+.. note::
+
+  Currently, both Dynamic quantization and KV-cache quantization are available for CPU device.
 
 
 Working with Models Tuned with LoRA
