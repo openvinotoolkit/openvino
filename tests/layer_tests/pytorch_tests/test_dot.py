@@ -11,6 +11,7 @@ class TestDot(PytorchLayerTest):
     def _prepare_input(self):
         return (self.inputs[0].to(self.dtype1).numpy(),
                 self.inputs[1].to(self.dtype2).numpy())
+
     def create_model(self, dtype1, dtype2):
 
         class aten_dot(torch.nn.Module):
