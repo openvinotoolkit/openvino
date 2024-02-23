@@ -75,6 +75,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/setup_pip_cache/action.yml
             src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
           sparse-checkout-cone-mode: false
           path: 'openvino'
