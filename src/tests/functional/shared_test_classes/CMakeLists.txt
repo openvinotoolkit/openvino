@@ -19,6 +19,7 @@ ov_add_target(
         LINK_LIBRARIES
             PRIVATE
                 func_test_utils
+                ov_models
 )
 
 ov_build_target_faster(${TARGET_NAME}
