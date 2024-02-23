@@ -7,7 +7,6 @@
 
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
