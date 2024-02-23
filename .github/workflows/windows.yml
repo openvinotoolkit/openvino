@@ -913,7 +913,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [ Build, Smart_CI ]
-    timeout-minutes: 70
+    timeout-minutes: 90
     defaults:
       run:
         shell: pwsh
@@ -977,7 +977,7 @@ jobs:
         run: |
           . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*
-        timeout-minutes: 60
+        timeout-minutes: 90
 
       - name: Save tests execution time
         uses: actions/cache/save@v4
