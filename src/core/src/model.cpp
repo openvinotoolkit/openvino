@@ -241,7 +241,6 @@ void ov::Model::validate_nodes_and_infer_types() const {
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) == m_variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
-
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
