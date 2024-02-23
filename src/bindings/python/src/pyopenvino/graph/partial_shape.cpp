@@ -39,7 +39,7 @@ void regclass_graph_PartialShape(py::module m) {
                        Construct a PartialShape with the given rank and all dimensions are dynamic.
 
                        :param rank: The rank of the PartialShape. This is the number of dimensions in the shape.
-                       :type rank: ov::Dimension
+                       :type rank: openvino.Dimension
                        :return: A PartialShape with the given rank (or undefined rank if not provided), and all dimensions are dynamic.
                     )");
 
