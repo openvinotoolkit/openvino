@@ -55,14 +55,14 @@ inline std::vector<layout> slice_inst::calc_output_layouts(const slice_node&, co
         // in shape_infer(). However, people in tests and other places,
         // put 4D tensors instead of 1D(e.g. [4,1,1,1] instead of [4]).
         // At the time of writing this comment - the hack for such situation
-        // was already there. Becasue of that, here I am added a
-        // WARNING instead of assert - hopefully this code will be fixed
-        // after all tests are fixed(and possibly transformations as well).
+        // was already there, so adding an ASSERT will effectively make
+        // some tests and graph transformations fail.
+        // There should be some kind of warning to the user about it, but AFAIK
+        // we don't have warning logs that could be enabled/disabled without
+        // affecting performance...
         ov::PartialShape input_shape = ov::PartialShape::dynamic(1);
         if (impl_param.memory_deps.find(i) != impl_param.memory_deps.end()) {
             auto gpu_mem = impl_param.memory_deps.at(i);
-            if (gpu_mem->get_layout().get_rank() > 1)
-                OPENVINO_WARN << "Some of the start, stop, step or axes tensor is not 1D tensor!";
             input_shape = {static_cast<ov::Dimension::value_type>(gpu_mem->count())};
             cldnn::mem_lock<uint8_t, mem_lock_type::read> gpu_mem_lock(gpu_mem, impl_param.get_stream());
             const_data.emplace(
