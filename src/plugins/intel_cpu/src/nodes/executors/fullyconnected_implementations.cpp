@@ -9,8 +9,6 @@
 #include "debug_messages.hpp"
 #include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
-#include "nodes/executors/convolution_config.hpp"
-#include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
@@ -55,26 +53,6 @@ static const TypeMapping dnnlFCTypeMapping {
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                           pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
-};
-
-static const MappingNotation dnnlConvolutionMappingNotation {
-    ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST
-};
-
-static const TypeMapping dnnlConvolutionTypeMapping {
-    // {src, wei, bia, dst}                        pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},    pt(bypass(), bypass(), use<3>(), use<3>())},
-    {{_f16, _f16, _any, _f16 | _f32},              pt(bypass(), bypass(), use<3>(), use<3>())},
-    // integer precision outputs are not supported for float precision inputs
-    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, pt(bypass(), bypass(), use<0>(), use<0>())},
-    // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any | _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any | _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
-    // quantization configuration
-    {{_u8 | _i8, _i8, _any, _any},                 pt(bypass(), bypass(), use<3>(), use<3>())},
-    // @todo should we fallback to _fxx instead of _f32 (currenly legacy logic is replicated)
-    {{_any, _any, _any, _any},                     pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
 };
 // clang-format on
 
@@ -182,102 +160,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const ExecutorContext::CPtr context) {
                 return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
             })
-        OV_CPU_INSTANCE_X64(
-            "convolution_1x1_dnnl",
-            ExecutorType::Dnnl,
-            OperationType::Convolution,
-            ShapeTolerance::Dependant,
-            // supports
-            [](const FCConfig& config) -> bool {
-                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                auto getOffset0 = [](const MemoryDescPtr& desc) {
-                    DnnlMemoryDescCPtr dnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(desc);
-                    dnnl::impl::memory_desc_wrapper wrapped(dnnlDesc->getDnnlDesc().get());
-                    return wrapped.offset0();
-                };
-
-                VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
-                VERIFY(srcType(config) == ov::element::f32, UNSUPPORTED_SRC_PRECISIONS);
-                // disable rank=4:
-                // if layout is nhwc:
-                //   A matrix: N * IC * H * W --> N * (IC*H*W), the M, N', K of matrix multiply will be:
-                //   M = 1, K = (IC*H*W), when M = 1 it should not be efficient since acts as a vector multiply
-                // if layout is nchw/nChw16c: brg1x1 not support. Although jit supports, it should have similar
-                //   problems with the above.
-                VERIFY(one_of(srcRank(config), 2u, 3u), UNSUPPORTED_SRC_RANK);
-                VERIFY(weiRank(config) == 2, UNSUPPORTED_WEI_RANK);
-                // brg convolution does not support stride
-                VERIFY(getOffset0(config.descs.at(ARG_DST)) == 0, UNSUPPORTED_DST_STRIDES);
-                return true;
-            },
-            // requiresFallback
-            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
-                // @todo use dnnlConvolutionLayoutConfig after one is implemented
-                return requiresFallbackCommon(config,
-                                              dnnlConvolutionTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlFCMappingNotation);
-            },
-            // acceptsShapes
-            [](const MemoryArgs& memory) -> bool {
-                const auto inRank = memory.at(ARG_SRC)->getShape().getRank();
-                const auto& inDims = memory.at(ARG_SRC)->getShape().getDims();
-                const auto& weightDims = memory.at(ARG_WEI)->getShape().getDims();
-                // for original inner product semantics:
-                //  when input is 2D tensor -> M in oneDNN will map to widthInConv
-                //  when input is 3D tensor -> M in oneDNN will map to widthInConv*minibatch
-                // currently nwc mapping in brg::
-                //  when input is 2D tensor -> widthInConv will map to 'w', 'n' will be 1
-                //  when input is 3D tensor -> widthInConv will map to 'w', 'n' will be minibatch
-                Dim widthInConv = inDims[inRank - 2];
-                Dim K = inDims[inRank - 1];
-                Dim N = weightDims[0];
-
-                const auto& weightsSize = memory.at(ARG_WEI)->getDesc().getCurrentMemSize();
-                // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input
-                // activation shapes. As a consuquence, peak memory consumption in LLM can be decreased.
-                VERIFY(weightsSize < (16 * 1 << 20), " weights size is to big");
-                VERIFY(widthInConv >= 2 && widthInConv <= 3136 && K >= 96 && K <= 4096 && N >= 96 && N <= K * 4,
-                       HEURISTICS_MISMATCH);
-
-                return true;
-            },
-            // create
-            [](const FCAttrs& attrs,
-               const PostOps& postOps,
-               const MemoryArgs& memory,
-               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
-                struct ConvolutionInstantiator {
-                    std::shared_ptr<DnnlConvolutionPrimitive> operator()(
-                        const MemoryArgs& memory,
-                        const FCAttrs& attrs,
-                        const ExecutorContext::CPtr context,
-                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
-                        ConvAttrs convAttrs{attrs.withBias};
-                        auto primitive =
-                            DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
-                            memory,
-                            convAttrs,
-                            context,
-                            shareAgnosticData);
-
-                        if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
-                            // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
-                            return nullptr;
-                        }
-                        return primitive;
-                    }
-                };
-
-                return std::make_shared<
-                    DnnlFCExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
-                    attrs,
-                    postOps,
-                    memory,
-                    context,
-                    false);
-            })
         OV_CPU_INSTANCE_DNNL(
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
@@ -292,7 +174,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return requiresFallbackCommon(config,
                                               dnnlFCTypeMapping,
                                               dnnlFCLayoutConfig,
-                                              dnnlConvolutionMappingNotation);
+                                              dnnlFCMappingNotation);
             },
             // acceptsShapes
             [](const MemoryArgs& memory) -> bool {
