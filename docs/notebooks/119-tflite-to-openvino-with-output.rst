@@ -124,7 +124,7 @@ using ``ov.save_model`` function, reducing loading time for next
 running. By default, model weights are compressed to FP16 during
 serialization by ``ov.save_model``. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 For TensorFlow Lite models support, refer to this
 `tutorial <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
 
@@ -239,7 +239,7 @@ Estimate Model Performance
 --------------------------
 
 `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
 

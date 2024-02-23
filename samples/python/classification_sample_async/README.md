@@ -12,7 +12,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | ---------------------------| -----------------------------------------------------------------------------------------------------------------|
 | Validated Models           | [alexnet](https://docs.openvino.ai/2023.3/omz_models_model_alexnet.html)                                         |
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                        |
-| Supported devices          | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)              |
+| Supported devices          | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)              |
 | Other language realization | [C++](https://docs.openvino.ai/2023.3/openvino_sample_image_classification_async.html)                           |
 
 The following Python API is used in the application:

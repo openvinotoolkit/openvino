@@ -14,7 +14,7 @@ For more detailed information on how this sample works, check the dedicated [art
 |                                | [face-detection-0200](https://docs.openvino.ai/nightly/omz_models_model_face_detection_0200.html)                        |
 | Model Format                   | OpenVINO™ toolkit Intermediate Representation                                                                            |
 |                                | (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                        |
-| Supported devices              | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                      |
+| Supported devices              | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)                      |
 | Other language realization     | [Python](https://docs.openvino.ai/2023.3/openvino_sample_sync_benchmark.html)                                            |
 
 The following C++ API is used in the application:

@@ -10,7 +10,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | ----------------------------| ------------------------------------------------------------------------------------------------------------|
 | Validated Models            | LeNet                                                                                                       |
 | Model Format                | Model weights file (\*.bin)                                                                                 |
-| Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)         |
+| Supported devices           | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)         |
 | Other language realization  | [C++](https://docs.openvino.ai/2023.3/openvino_sample_model_creation.html)                                  |
 
 The following OpenVINO Python API is used in the application:

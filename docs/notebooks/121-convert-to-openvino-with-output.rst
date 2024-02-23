@@ -73,7 +73,7 @@ These model formats can be read, compiled, and converted to OpenVINO IR,
 either automatically or explicitly.
 
 For more details, refer to `Model
-Preparation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Preparation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 documentation.
 
 .. code:: ipython3
@@ -668,7 +668,7 @@ Model conversion API supports passing original framework Python object
 directly. More details can be found in
 `PyTorch <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__,
 `TensorFlow <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__,
-`PaddlePaddle <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+`PaddlePaddle <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
 frameworks conversion guides.
 
 .. code:: ipython3

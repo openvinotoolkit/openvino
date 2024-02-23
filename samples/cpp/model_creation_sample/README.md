@@ -13,7 +13,7 @@ For more detailed information on how this sample works, check the dedicated [art
 | Validated Models            | LeNet                                                                                                                          |
 | Model Format                | model weights file (\*.bin)                                                                                                    |
 | Validated images            | single-channel ``MNIST ubyte`` images                                                                                          |
-| Supported devices           | [All](https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html)                            |
+| Supported devices           | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)                            |
 | Other language realization  | [Python](https://docs.openvino.ai/2023.3/openvino_sample_model_creation.html)                                                  |
 
 The following C++ API is used in the application:

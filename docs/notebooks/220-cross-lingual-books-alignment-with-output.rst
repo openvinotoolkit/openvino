@@ -935,7 +935,7 @@ advance and fill it in as the inference requests are executed.
 Let’s compare the models and plot the results.
 
    **NOTE**: To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+   Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 
 .. code:: ipython3
 
