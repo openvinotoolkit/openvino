@@ -51,20 +51,7 @@ runs:
         PIP_CACHE_DIR: ${{ inputs.self-hosted-runner == 'true' && inputs.pip-cache-path || '' }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' }}
-      name: Setup pip variables (cache and install path)
-      shell: bash
-      run: |
-        PIP_VER=$(python3 -c "import pip; print(pip.__version__)")
-        echo "Using pip version: ${PIP_VER}"
-        echo "PIP_CACHE_DIR=${{ inputs.pip-cache-path }}/${PIP_VER}" >> $GITHUB_ENV
-        echo "PIP_INSTALL_PATH=$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" >> $GITHUB_ENV
-
-    - if: ${{ inputs.show-cache-info == 'true' }}
-      name: Get pip cache info
-      shell: bash
-      run: |
-        echo "Cache size: "
-        du -h -d2 ${{ env.PIP_CACHE_DIR }}
-        echo "Cache info: "
-        python3 -m pip cache info
-      continue-on-error: true
+      name: Setup pip cache
+      uses: ./.github/actions/setup_pip_cache
+      with:
+        show-cache-info: ${{ inputs.show-cache-info }}
