@@ -955,10 +955,12 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         std::vector<std::string> devicesIDs;
         // Skip hidden devices
         auto start_time_1 = Time::now();
-        if (is_hidden_device(deviceName)) {
-            std::cout << "deviceName:" << deviceName << " is hidden device" << std::endl;
+        // if (is_hidden_device(deviceName)) {
+        //     std::cout << "deviceName:" << deviceName << " is hidden device" << std::endl;
+        //     continue;
+        // }
+        if (is_hidden_device(deviceName))
             continue;
-        }
         auto duration_1 = std::chrono::duration_cast<ns>(Time::now() - start_time_1).count() * 0.000001;
         is_hidden_device_time += duration_1;
         auto start_time_2 = Time::now();
