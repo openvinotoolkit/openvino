@@ -360,14 +360,14 @@ class Graph {
                     chartTitle: 'Value',
                     iconClass: 'value-icon',
                     unit: units.valueUnit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `INT8` }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
                     iconClass: 'efficiency-icon',
                     unit: units.efficiencyUnit,
-                    datasets: [{ data: null, color: '#E96115', label: `INT8` }],
+                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
                 };
             default:
                 return {};
