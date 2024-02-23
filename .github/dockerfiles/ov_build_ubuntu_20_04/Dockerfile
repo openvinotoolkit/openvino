@@ -10,14 +10,24 @@ RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
+        curl
         # Install git
-        git ca-certificates \
+        git \
+        ca-certificates \
         # Install Python
         python3.11-dev \
+        python3.11-venv \
         # For Java API
         default-jdk \
         && \
     rm -rf /var/lib/apt/lists/*
+
+# Setup pip
+RUN curl https://bootstrap.pypa.io/get-pip.py | python3.8  - --no-cache-dir pip==24.0 && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.0
+
+# Link python3 to python3.11
+RUN rm -f /usr/bin/python3 && ln -s /usr/bin/python3.11 /usr/bin/python3
 
 # Install build dependencies
 COPY install_build_dependencies.sh /install_build_dependencies.sh
