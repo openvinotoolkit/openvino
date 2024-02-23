@@ -53,7 +53,7 @@ jobs:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/ov_build/ubuntu_20_04:init
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -80,14 +80,6 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Install git
-        run: |
-          apt-get update
-          apt-get install --assume-yes --no-install-recommends git ca-certificates
-
       - name: Clone OpenVINO
         uses: actions/checkout@v4
         with:
@@ -109,28 +101,14 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      #
-      # Dependencies
-      #
-
-      - name: Install build dependencies
-        run: |
-          bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
-
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
         with:
           version: "v0.7.5"
 
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
+      - name: Setup pip cache
+        uses: ./openvino/.github/actions/setup_pip_cache
         with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
           show-cache-info: 'true'
 
       - name: Install python dependencies
