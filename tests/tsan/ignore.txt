@@ -1,0 +1,3 @@
+called_from_lib:*thirdparty*
+called_from_lib:*protobuf*
+called_from_lib:*protoc*
