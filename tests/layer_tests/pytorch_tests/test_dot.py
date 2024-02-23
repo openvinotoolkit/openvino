@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 import pytest
 import torch
 
@@ -8,9 +9,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestDot(PytorchLayerTest):
     def _prepare_input(self):
-        return [torch.tensor(self.inputs[0], dtype=self.dtype1),
-                torch.tensor(self.inputs[1], dtype=self.dtype2)]
-
+        return (self.inputs[0].to(self.dtype1).numpy(),
+                self.inputs[1].to(self.dtype2).numpy())
     def create_model(self, dtype1, dtype2):
 
         class aten_dot(torch.nn.Module):
