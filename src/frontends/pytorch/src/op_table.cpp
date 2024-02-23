@@ -403,6 +403,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::expand", op::translate_expand},
         {"aten::expand_as", op::translate_expand_as},
         {"aten::expm1", op::translate_expm1},
+        {"aten::expm1_", op::inplace_op<op::translate_expm1>},
         {"aten::eye", op::translate_eye},
         {"aten::fake_quantize_per_channel_affine", op::translate_fake_quantize_per_channel_affine},
         {"aten::fake_quantize_per_tensor_affine", op::translate_fake_quantize_per_tensor_affine},
