@@ -4,7 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
@@ -20,15 +20,10 @@ OutputVector translate_expm1(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     // aten::expm1(Tensor self) -> Tensor
     // aten::expm1(Tensor self, Tensor out) -> out Tensor
-    auto input = context.get_input(0);
-    auto input_dtype = input.get_element_type();
 
-    if (input_dtype.is_dynamic() || !input_dtype.is_real()) {
-        input = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
-    }
-
-    auto exp = context.mark_node(std::make_shared<v0::Exp>(input));
-    auto const_1 = context.mark_node(v0::Constant::create(input.get_element_type(), Shape{}, {1}));
+    auto exp = translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Exp>(context)[0];
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    const_1 = context.mark_node(std::make_shared<v1::ConvertLike>(const_1, exp));
     auto expm1 = context.mark_node(std::make_shared<v1::Subtract>(exp, const_1));
 
     if (!context.input_is_none(1)) {
