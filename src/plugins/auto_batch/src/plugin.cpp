@@ -172,10 +172,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
-                size_t port_hash = ov::util::hash_combine(
-                    std::vector<size_t>{std::hash<const ov::Node*>()(params[input_id]->output(0).get_node()),
-                                        std::hash<size_t>()(params[input_id]->output(0).get_index())});
-                batched_inputs.insert(port_hash);  // batched dim for the input
+                batched_inputs.insert(params[input_id]->output(0).get_index());  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -193,10 +190,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 if (shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
                 const auto& node = output->input_value(0);
-                size_t port_hash =
-                    ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(node.get_node()),
-                                                               std::hash<size_t>()(node.get_index())});
-                batched_outputs.insert(port_hash);
+                batched_outputs.insert(node.get_index());
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -273,10 +267,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
             for (auto& input : inputs) {
                 auto input_shape = input.get_shape();
-                size_t port_hash =
-                    ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(input.get_node()),
-                                                               std::hash<size_t>()(input.get_index())});
-                if (batched_inputs.find(port_hash) != batched_inputs.end()) {
+                if (batched_inputs.find(input.get_index()) != batched_inputs.end()) {
                     input_shape[0] = meta_device.device_batch_size;
                 }
                 partial_shapes.insert({input, ov::PartialShape(input_shape)});

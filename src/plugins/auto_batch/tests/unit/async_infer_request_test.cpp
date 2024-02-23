@@ -9,7 +9,6 @@
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
-#include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
@@ -125,10 +124,7 @@ public:
         std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
         for (auto& input : inputs) {
             auto input_shape = input.get_shape();
-            size_t port_hash =
-                ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(input.get_node()),
-                                                           std::hash<size_t>()(input.get_index())});
-            if (m_batched_inputs.find(port_hash) != m_batched_inputs.end()) {
+            if (m_batched_inputs.find(input.get_index()) != m_batched_inputs.end()) {
                 input_shape[0] = m_batch_size;
             }
             partial_shapes.insert({input, ov::PartialShape(input_shape)});
@@ -233,18 +229,13 @@ public:
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
-            size_t port_hash = ov::util::hash_combine(
-                std::vector<size_t>{std::hash<const ov::Node*>()(params[i]->output(0).get_node()),
-                                    std::hash<size_t>()(params[i]->output(0).get_index())});
-            m_batched_inputs.insert(port_hash);
+            m_batched_inputs.insert(params[i]->output(0).get_index());
         }
         const auto& results = model->get_results();
         for (size_t i = 0; i < results.size(); i++) {
             const auto& output = results[i];
             const auto& node = output->input_value(0);
-            size_t port_hash = ov::util::hash_combine(std::vector<size_t>{std::hash<const ov::Node*>()(node.get_node()),
-                                                                          std::hash<size_t>()(node.get_index())});
-            m_batched_outputs.insert(port_hash);
+            m_batched_outputs.insert(node.get_index());
         }
     }
 };

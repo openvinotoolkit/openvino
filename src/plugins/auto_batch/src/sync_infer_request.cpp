@@ -53,14 +53,12 @@ size_t SyncInferRequest::get_batch_size() const {
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t>& batched_inputs,
                                                       const std::set<std::size_t>& batched_outputs) {
     for (const auto& it : get_inputs()) {
-        size_t port_hash = ov::util::hash_combine(
-            std::vector<size_t>{std::hash<const ov::Node*>()(it.get_node()), std::hash<size_t>()(it.get_index())});
         ov::SoPtr<ov::ITensor> res;
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(port_hash),
+                                                     std::move(it.get_index()),
                                                      batched_inputs,
                                                      m_batch_id,
                                                      m_batch_size);
@@ -68,14 +66,12 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t
     }
 
     for (const auto& it : get_outputs()) {
-        size_t port_hash = ov::util::hash_combine(
-            std::vector<size_t>{std::hash<const ov::Node*>()(it.get_node()), std::hash<size_t>()(it.get_index())});
         ov::SoPtr<ov::ITensor> res;
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(port_hash),
+                                                     std::move(it.get_index()),
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
