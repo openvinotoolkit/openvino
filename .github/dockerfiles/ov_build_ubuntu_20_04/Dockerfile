@@ -10,7 +10,7 @@ RUN apt-get update && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
-        curl
+        curl \
         # Install git
         git \
         ca-certificates \
