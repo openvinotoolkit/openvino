@@ -62,7 +62,7 @@ size_t store_emitter_params::hash() const {
 }
 
 static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = false) {
-    if (!one_of(byte_size, 64u, 32u, 16u))
+    if (one_of(byte_size % 16, 1u, 2u, 3u))
         return 1;
     if (mayiuse(cpu::x64::avx512_core) && is_fill)
         return 1;
