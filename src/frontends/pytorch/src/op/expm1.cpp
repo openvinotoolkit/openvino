@@ -21,7 +21,9 @@ OutputVector translate_expm1(const NodeContext& context) {
     // aten::expm1(Tensor self) -> Tensor
     // aten::expm1(Tensor self, Tensor out) -> out Tensor
 
-    auto exp = translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Exp>(context)[0];
+    auto exp_vector = translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Exp>(context);
+    PYTORCH_OP_CONVERSION_CHECK(exp_vector.size() == 1, "Expected exactly one element in the vector. Got: ", exp_vector.size());
+    auto exp = exp_vector[0];
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     const_1 = context.mark_node(std::make_shared<v1::ConvertLike>(const_1, exp));
     auto expm1 = context.mark_node(std::make_shared<v1::Subtract>(exp, const_1));
