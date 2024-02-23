@@ -7,7 +7,9 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
 RUN apt-get update && \
     apt-get install --assume-yes --no-install-recommends software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         # Install git
