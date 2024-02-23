@@ -1,3 +1,9 @@
 called_from_lib:*thirdparty*
+race:*thirdparty*
+thread:*thirdparty*
 called_from_lib:*protobuf*
+race:*protobuf*
+thread:*protobuf*
 called_from_lib:*protoc*
+race:*protoc*
+thread:*protoc*
