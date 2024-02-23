@@ -86,7 +86,7 @@ KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params) const {
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.has_dynamic_tensors());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }

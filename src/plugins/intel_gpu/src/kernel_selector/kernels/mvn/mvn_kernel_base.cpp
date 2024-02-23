@@ -90,7 +90,7 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params) const {
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }
