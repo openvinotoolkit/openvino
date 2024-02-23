@@ -2,8 +2,6 @@ FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
 
 USER root
 
-ARG OPENVINO_ROOT="../../../.."
-
 # Set apt retries
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
@@ -19,6 +17,6 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
-COPY ${OPENVINO_ROOT}/install_build_dependencies.sh /install_build_dependencies.sh
+COPY install_build_dependencies.sh /install_build_dependencies.sh
 RUN /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
