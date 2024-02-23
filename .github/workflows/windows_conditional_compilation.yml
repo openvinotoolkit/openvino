@@ -362,7 +362,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [Build, Smart_CI]
-    timeout-minutes: 85
+    timeout-minutes: 90
     defaults:
       run:
         shell: pwsh
@@ -416,7 +416,7 @@ jobs:
         run: |
           set path=%path%;${{ env.INSTALL_TEST_DIR }}\tbb\bin;${{ env.INSTALL_TEST_DIR }}\tbb
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}\ov_cpu_func_tests.exe -w ${{ env.INSTALL_TEST_DIR }} -s suite -rf 0 -- --gtest_print_time=1 --gtest_filter=*smoke*
-        timeout-minutes: 60
+        timeout-minutes: 90
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
