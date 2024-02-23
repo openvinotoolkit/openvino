@@ -142,7 +142,7 @@
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/torch_tests/**/*']
+        '!tests/model_hub_tests/pytorch/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
