@@ -189,7 +189,7 @@ JitConstants EltwiseKernel_blocked_opt::MakeLoadJitConstants(const eltwise_param
             else if (DataTensor::ChannelsCount(params.inputs[input_idx].GetLayout()) == 5)
                 default_indexing_str = "b, (f_block * " + toCodeString(vec_size) +"), z, y, x";
             else
-                OPENVINO_ASSERT(false, "MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
+                OPENVINO_THROW("MakeLoadJit : Unexpected dimension for eltwise optimized kernel.");
 
             // Generate Jit
             switch (input.mode) {
@@ -439,7 +439,7 @@ static inline int GetInnerBatchBlockSize(const DataTensor& tensor) {
     case DataLayout::bs_fs_zyx_bsv32_fsv16:
         return 32;
     default:
-        OPENVINO_ASSERT(false, "GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_THROW("GetInnerBatchBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;
@@ -465,7 +465,7 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     case DataLayout::bs_fs_zyx_bsv16_fsv32:
         return 32;
     default:
-        OPENVINO_ASSERT(false, "GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
+        OPENVINO_THROW("GetInnerFeatureBlockSize : Unexpected format for eltwise_blocked_optimized kernel.");
     }
 
     return 1;
