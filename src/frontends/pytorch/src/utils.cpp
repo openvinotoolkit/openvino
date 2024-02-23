@@ -379,6 +379,11 @@ Any simplified_type_interpret(Any type) {
         if (tensor.element_type.is<element::Type>()) {
             return tensor.element_type;
         }
+    } else if (type.is<type::PyScalar>()) {
+        auto scalar = type.as<type::PyScalar>();
+        if (scalar.element_type.is<element::Type>()) {
+            return scalar.element_type;
+        }
     }
 
     return type;
