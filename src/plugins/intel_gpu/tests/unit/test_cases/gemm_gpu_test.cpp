@@ -692,6 +692,151 @@ public:
         }
     }
 
+    void test_transpose_indirect(bool is_caching_test, bool indirect_input0 = false, bool indirect_input1 = false) {
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        const unsigned long BATCH_SIZE = 19;
+        const unsigned long M_SIZE = 37;
+        const unsigned long K_SIZE = 23;
+        const unsigned long N_SIZE = 29;
+
+        auto fill_mem = [&](cldnn::memory_ptr mem, std::vector<float>& data) {
+            cldnn::mem_lock<float> mem_ptr(mem, get_test_stream());
+            auto&& l = mem->get_layout();
+            auto data_idx = 0;
+            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
+                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
+                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+                            auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
+                            auto buffer_idx = l.get_linear_offset(tensor_coord);
+                            mem_ptr[buffer_idx] = data[data_idx++];
+                        }
+                    }
+                }
+            }
+        };
+
+        auto& engine = get_test_engine();
+        ov::Shape beam_table_shape;
+
+        ov::Shape input0_shape = { BATCH_SIZE, K_SIZE, 1, M_SIZE };
+        ov::Shape input1_shape = { BATCH_SIZE, 1, N_SIZE, K_SIZE };
+        std::vector<int64_t> input0_order = { 0, 2, 3, 1 };
+        std::vector<int64_t> input1_order = { 0, 1, 3, 2 };
+        if (indirect_input0)
+            beam_table_shape = { BATCH_SIZE, K_SIZE, 1, 1 };
+        else if (indirect_input1)
+            beam_table_shape = { BATCH_SIZE, 1, 1, K_SIZE };
+
+        cldnn::layout input0_layout = layout{ov::PartialShape::dynamic(input0_shape.size()), data_types::f32, format::bfyx};
+        cldnn::layout input1_layout = layout{ov::PartialShape::dynamic(input1_shape.size()), data_types::f32, format::bfyx};
+
+        auto beam_table_layout = layout{ov::PartialShape::dynamic(beam_table_shape.size()), data_types::i32, format::bfyx};
+        auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f32, format::bfyx});
+        auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f32, format::bfyx});
+        auto beam_table_mem = engine.allocate_memory(layout{ov::PartialShape(beam_table_shape), data_types::i32, format::bfyx});
+
+        auto input_0_data = rg.generate_random_1d<float>(ov::shape_size(input0_shape), -2, 2);
+        auto input_1_data = rg.generate_random_1d<float>(ov::shape_size(input1_shape), -2, 2);
+        auto beam_table_data = rg.generate_random_1d<int32_t>(ov::shape_size(beam_table_shape), 0, BATCH_SIZE - 1, 1);
+
+        fill_mem(input0_mem, input_0_data);
+        fill_mem(input1_mem, input_1_data);
+        set_values(beam_table_mem, beam_table_data);
+
+        topology topology;
+        topology.add(input_layout("input0", input0_layout),
+                     input_layout("input1", input1_layout),
+                     input_layout("beam_table", beam_table_layout),
+                     gemm("gemm", { input_info("input0"), input_info("input1") }, input_info("beam_table"), data_types::f32, input0_order, input1_order, {}, indirect_input0, indirect_input1)
+            );
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input0", input0_mem);
+        network->set_input_data("input1", input1_mem);
+        network->set_input_data("beam_table", beam_table_mem);
+
+        auto inst = network->get_primitive("gemm");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+
+        auto outputs = network->execute();
+
+        auto output_mem = outputs.at("gemm").get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        ov::Shape ref_input0_shape = { BATCH_SIZE, 1, M_SIZE, K_SIZE };
+        ov::Shape ref_input1_shape = { BATCH_SIZE, 1, K_SIZE, N_SIZE };
+        ov::Shape ref_output_shape = { BATCH_SIZE, 1, M_SIZE, N_SIZE };
+
+        std::vector<float> ref_out_data;
+        ref_out_data.resize(ov::shape_size(ref_output_shape));
+
+        std::vector<float> ref_input_0_data(input_0_data.size());
+        std::vector<float> ref_input_1_data(input_1_data.size());
+
+        ov::reference::transpose((const char *)(input_0_data.data()),
+                                 (char *)(ref_input_0_data.data()),
+                                 input0_shape,
+                                 sizeof(float),
+                                 input0_order,
+                                 ref_input0_shape);
+
+        ov::reference::transpose((const char *)(input_1_data.data()),
+                                 (char *)(ref_input_1_data.data()),
+                                 input1_shape,
+                                 sizeof(float),
+                                 input1_order,
+                                 ref_input1_shape);
+
+        if (indirect_input0) {
+            std::vector<float> ref_input_0_data_tmp = ref_input_0_data;
+            const size_t b_pitch = M_SIZE * K_SIZE;
+            for (size_t b = 0; b < BATCH_SIZE; b++) {
+                for (size_t m = 0; m < M_SIZE; m++) {
+                    for (size_t k = 0; k < K_SIZE; k++) {
+                        const size_t b_new = beam_table_data[b * K_SIZE + k];
+                        ref_input_0_data[b * b_pitch + m * K_SIZE + k] = ref_input_0_data_tmp[b_new * b_pitch + m * K_SIZE + k];
+                    }
+                }
+            }
+        }
+
+        if (indirect_input1) {
+            std::vector<float> ref_input_1_data_tmp = ref_input_1_data;
+            const size_t b_pitch = N_SIZE * K_SIZE;
+            for (size_t b = 0; b < BATCH_SIZE; b++) {
+                for (size_t k = 0; k < K_SIZE; k++) {
+                    for (size_t n = 0; n < N_SIZE; n++) {
+                        const size_t b_new = beam_table_data[b * K_SIZE + k];
+                        ref_input_1_data[b * b_pitch + k * N_SIZE + n] = ref_input_1_data_tmp[b_new * b_pitch + k * N_SIZE + n];
+                    }
+                }
+            }
+        }
+
+        ov::reference::matmul<float>(ref_input_0_data.data(),
+                                     ref_input_1_data.data(),
+                                     ref_out_data.data(),
+                                     ref_input0_shape,
+                                     ref_input1_shape,
+                                     ref_output_shape,
+                                     false,
+                                     false);
+
+        ASSERT_EQ(output_ptr.size(), ref_out_data.size());
+
+        const auto abs_error = 0.0001;
+        for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
+            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
+        }
+    }
+
     void test_transpose_matmul(size_t num_dims, bool is_input_dynamic, bool is_caching_test) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
@@ -723,6 +868,7 @@ public:
         ov::Shape input1_shape;
         std::vector<int64_t> input0_order;
         std::vector<int64_t> input1_order;
+        ov::Shape beam_table_shape;
         cldnn::layout input0_layout;
         cldnn::layout input1_layout;
 
@@ -842,7 +988,7 @@ public:
 
         const auto abs_error = 0.0001;
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
-            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error);
+            ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
         }
     }
 
@@ -914,7 +1060,6 @@ public:
             input0_layout = layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx};
             input1_layout = layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx};
         }
-    
         auto input0_mem = engine.allocate_memory(layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx});
         auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx});
 
@@ -1070,6 +1215,14 @@ TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d) {
 
 TEST_F(gemm_gpu_tests, transpose_matmul_static_4d) {
     this->test_transpose_matmul(4, false, false);
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_in0_indirect) {
+    this->test_transpose_indirect(false, true, false);
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_in1_indirect) {
+    this->test_transpose_indirect(false, false, true);
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_transpose_dynamic_1d) {

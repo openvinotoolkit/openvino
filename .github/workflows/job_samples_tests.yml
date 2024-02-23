@@ -32,6 +32,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
@@ -124,7 +125,6 @@ jobs:
           source ${INSTALL_DIR}/setupvars.sh
 
           PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests \
-            --env_conf $INSTALL_TEST_DIR/smoke_tests/env_config.yml \
             --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results

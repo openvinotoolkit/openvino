@@ -11,17 +11,17 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestCropAndResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'image' in inputs_info, "Test error: inputs_info must contain `image`"
+        assert 'image:0' in inputs_info, "Test error: inputs_info must contain `image`"
         inputs_data = {}
-        image_shape = inputs_info['image']
-        inputs_data['image'] = np.random.randint(-10, 10, image_shape).astype(np.float32)
+        image_shape = inputs_info['image:0']
+        inputs_data['image:0'] = np.random.randint(-10, 10, image_shape).astype(np.float32)
 
-        if 'boxes' in inputs_info:
-            boxes_shape = inputs_info['boxes']
-            inputs_data['boxes'] = np.random.randint(0, 1.2, boxes_shape).astype(np.float32)
-        if 'box_ind' in inputs_info:
-            box_ind_shape = inputs_info['box_ind']
-            inputs_data['box_ind'] = np.random.randint(0, image_shape[0], box_ind_shape).astype(np.int32)
+        if 'boxes:0' in inputs_info:
+            boxes_shape = inputs_info['boxes:0']
+            inputs_data['boxes:0'] = np.random.randint(0, 1.2, boxes_shape).astype(np.float32)
+        if 'box_ind:0' in inputs_info:
+            box_ind_shape = inputs_info['box_ind:0']
+            inputs_data['box_ind:0'] = np.random.randint(0, image_shape[0], box_ind_shape).astype(np.int32)
 
         return inputs_data
 
@@ -58,7 +58,7 @@ class TestCropAndResize(CommonTFLayerTest):
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_crop_and_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                   use_new_frontend):
+                                   use_legacy_frontend):
         self._test(*self.create_crop_and_resize_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

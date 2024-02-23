@@ -16,13 +16,6 @@ struct bucketize_params : base_params {
 };
 
 /**
- * Bucketize reference kernel optional parameters.
- */
-struct bucketize_optional_params : optional_params {
-    bucketize_optional_params() : optional_params(KernelType::BUCKETIZE) {}
-};
-
-/**
  * Reference kernel for Bucketize.
  */
 class BucketizeKernelRef : public KernelBaseOpenCL {
@@ -30,9 +23,9 @@ public:
     BucketizeKernelRef() : KernelBaseOpenCL{"bucketize_ref"} {}
 
 private:
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const bucketize_params& kernel_params) const;
 };
 

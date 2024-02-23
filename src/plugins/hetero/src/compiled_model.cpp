@@ -248,13 +248,21 @@ void ov::hetero::CompiledModel::set_property(const ov::AnyMap& properties) {
 
 std::shared_ptr<const ov::Model> ov::hetero::CompiledModel::get_runtime_model() const {
     std::vector<std::shared_ptr<ov::Model>> rt_models;
+    std::vector<std::shared_ptr<void>> shared_objects;
     // Collect runtime subgraphs
-    for (size_t i = 0; i < m_compiled_submodels.size(); i++) {
-        rt_models.push_back(m_compiled_submodels.at(i).compiled_model->get_runtime_model()->clone());
+    rt_models.reserve(m_compiled_submodels.size());
+    shared_objects.reserve(m_compiled_submodels.size());
+    for (auto& compiled_submodel : m_compiled_submodels) {
+        rt_models.push_back(compiled_submodel.compiled_model->get_runtime_model()->clone());
+        shared_objects.push_back(compiled_submodel.compiled_model._so);
     }
     ov::hetero::merge_submodels(rt_models, m_mapping_info._submodels_input_to_prev_output);
     auto& runtime_graph = rt_models[0];
     OPENVINO_ASSERT(runtime_graph->inputs().size() == inputs().size());
+    auto merged_shared_object = std::make_shared<std::vector<std::shared_ptr<void>>>(std::move(shared_objects));
+    set_model_shared_object(
+        *runtime_graph,
+        std::shared_ptr<void>(std::move(merged_shared_object), reinterpret_cast<void*>(merged_shared_object.get())));
     return runtime_graph;
 }
 

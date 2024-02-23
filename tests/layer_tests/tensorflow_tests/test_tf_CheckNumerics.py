@@ -14,13 +14,13 @@ OPS = {
 
 class TestCheckNumerics(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
-        assert 'y' in inputs_info
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        assert 'y:0' in inputs_info
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(-10, 10, y_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['y:0'] = np.random.randint(-10, 10, y_shape).astype(self.input_type)
         return inputs_data
 
     def create_check_numerics_net(self, input_shape, input_type, op):
@@ -46,8 +46,8 @@ class TestCheckNumerics(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_check_numerics_basic(self, input_shape, input_type, op, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend):
+                                  use_legacy_frontend):
         params = dict(input_shape=input_shape, input_type=input_type, op=OPS[op])
         self._test(*self.create_check_numerics_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

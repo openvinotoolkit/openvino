@@ -27,13 +27,12 @@ ParamsKey GenerateProposalsRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&, const optional_params&) const {
+KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool GenerateProposalsRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GENERATE_PROPOSALS
-        || o.GetType() != KernelType::GENERATE_PROPOSALS) {
+bool GenerateProposalsRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GENERATE_PROPOSALS) {
         return false;
     }
 
@@ -106,8 +105,8 @@ void GenerateProposalsRef::SetKernelArguments(
     }
 }
 
-KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GenerateProposalsRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -136,7 +135,7 @@ KernelsData GenerateProposalsRef::GetKernelsData(const Params& params, const opt
 
     for (size_t i = 0; i < kKernelsNum; ++i) {
         const auto dispatchData = SetDefault(new_params, i);
-        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options, i);
+        const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, i);
         auto cldnn_jit = MakeBaseParamsJitConstants(new_params);
 
         cldnn_jit.AddConstant(MakeJitConstant("GENERATE_PROPOSALS_STAGE_" + std::to_string(i), "true"));

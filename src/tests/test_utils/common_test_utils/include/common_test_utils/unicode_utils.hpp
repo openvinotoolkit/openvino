@@ -146,22 +146,6 @@ inline int removeDir(std::wstring path) {
     return result;
 }
 
-inline bool directoryExists(const std::wstring& path) {
-#    ifdef _WIN32
-    struct _stat64i32 sb;
-    if (_wstat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-#    else
-    struct stat sb;
-    if (stat(ov::util::wstring_to_string(path).c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-#    endif
-
-    return false;
-}
-
 extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
 }  // namespace utils

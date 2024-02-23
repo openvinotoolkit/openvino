@@ -11,6 +11,7 @@
 #include <pyopenvino/core/tensor.hpp>
 
 #include "common.hpp"
+#include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -230,6 +231,36 @@ void regclass_Core(py::module m) {
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
         )");
+
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const RemoteContextWrapper& context,
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.compile_model(model, context.context, _properties);
+        },
+        py::arg("model"),
+        py::arg("context"),
+        py::arg("properties"));
+
+    cls.def(
+        "create_context",
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            return RemoteContextWrapper(self.create_context(device_name, _properties));
+        },
+        py::arg("device_name"),
+        py::arg("properties"));
+
+    cls.def(
+        "get_default_context",
+        [](ov::Core& self, const std::string& device_name) {
+            return RemoteContextWrapper(self.get_default_context(device_name));
+        },
+        py::arg("device_name"));
 
     cls.def("get_versions",
             &ov::Core::get_versions,

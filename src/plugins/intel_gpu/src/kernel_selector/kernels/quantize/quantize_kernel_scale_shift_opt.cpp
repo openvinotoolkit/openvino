@@ -114,7 +114,7 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
     return jit;
 }
 
-bool QuantizeKernelScaleShift::Validate(const Params& p, const optional_params&) const {
+bool QuantizeKernelScaleShift::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 9)
         return false;
@@ -122,7 +122,7 @@ bool QuantizeKernelScaleShift::Validate(const Params& p, const optional_params&)
     return true;
 }
 
-KernelsPriority QuantizeKernelScaleShift::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority QuantizeKernelScaleShift::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

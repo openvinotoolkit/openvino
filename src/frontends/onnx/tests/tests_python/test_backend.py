@@ -53,7 +53,6 @@ from tests import (
     xfail_issue_99955,
     xfail_issue_99957,
     xfail_issue_99958,
-    xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
@@ -61,7 +60,6 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
-    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -363,6 +361,25 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_cpu",  # ticket: 81976
         "OnnxBackendNodeModelTest.test_sce_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",  # ticket: 81976
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis0_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_2d_axis_negative_2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis0_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis1_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis2_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_1_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_2_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_3d_axis_negative_3_epsilon_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis0_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis3_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_1_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_2_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_3_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_4d_axis_negative_4_cpu",  # ticket: 90649
+        "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_cpu",  # ticket: 90649
     ),
     (
         xfail_issue_81976,  # SoftmaxCrossEntropyLoss operator
@@ -445,10 +462,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_99958,
         "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
-        xfail_issue_99959,
-        "OnnxBackendNodeModelTest.test_mish_cpu",
     ),
     (
         xfail_issue_99960,
@@ -561,11 +574,6 @@ tests_expected_to_fail = [
         xfail_issue_99973,
         "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-    ),
-    (
-        skip_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
     ),
     (
         xfail_issue_101965,

@@ -8,11 +8,12 @@
 #include <memory>
 #include <string>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -42,7 +43,9 @@ bool ReluTransformation::transform(TransformationContext& context, ov::pass::pat
 
     relu = NetworkHelper::separateInStandaloneBranch(relu, defaultPrecisions);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, defaultPrecisions, 0);
-    moveDequantizationAfter(context, relu, dequantization);
+    const auto newOperation = moveDequantizationAfter(context, relu, dequantization);
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
