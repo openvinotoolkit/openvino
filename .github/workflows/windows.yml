@@ -302,7 +302,6 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
-            .github/actions/setup_pip_cache/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -533,7 +532,6 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
-            .github/actions/setup_pip_cache/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -954,7 +952,6 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
-            .github/actions/setup_pip_cache/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
