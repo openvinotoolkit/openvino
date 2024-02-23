@@ -38,9 +38,12 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
 
     jitters[ov::snippets::op::Scalar::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::BroadcastMove::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::Kernel::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopBegin::get_type_info_static()] = dummy_functor;
-    jitters[ov::snippets::op::LoopEnd::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::KernelDynamic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::KernelStatic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopBeginDynamic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopBeginStatic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopEndDynamic::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::LoopEndStatic::get_type_info_static()] = dummy_functor;
 #ifdef SNIPPETS_DEBUG_CAPS
     jitters[ov::snippets::op::PerfCountBegin::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::PerfCountEnd::get_type_info_static()] = dummy_functor;

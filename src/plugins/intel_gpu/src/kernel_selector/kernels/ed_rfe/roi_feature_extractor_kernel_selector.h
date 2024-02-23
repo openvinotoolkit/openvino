@@ -14,6 +14,6 @@ public:
     experimental_detectron_roi_feature_extractor_kernel_selector();
     ~experimental_detectron_roi_feature_extractor_kernel_selector() = default;
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 }  // namespace kernel_selector

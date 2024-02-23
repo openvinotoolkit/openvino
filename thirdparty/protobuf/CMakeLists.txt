@@ -24,6 +24,9 @@ set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
 
+# some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
+unset(HAVE_ZLIB CACHE)
+
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR
     (APPLE AND (HOST_X86_64 AND AARCH64)) OR

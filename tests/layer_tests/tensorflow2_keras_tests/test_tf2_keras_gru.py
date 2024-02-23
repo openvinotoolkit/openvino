@@ -56,10 +56,10 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     def test_keras_gru_with_bias_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                         use_new_frontend):
+                                         use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_without_bias = [
         dict(input_names=["x"], input_shapes=[[2, 2, 7]], input_type=tf.float32, units=1,
@@ -77,10 +77,10 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_gru_without_bias_float32(self, params, ie_device, precision, temp_dir,
-                                            ir_version, use_new_frontend):
+                                            ir_version, use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_different_flags = [
         dict(input_names=["x"], input_shapes=[[2, 3, 2]], input_type=tf.float32, units=1,
@@ -104,10 +104,10 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_gru_flags_float32(self, params, ie_device, precision, temp_dir, ir_version,
-                                     use_new_frontend):
+                                     use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_zero_recurrent_dropout = [
         dict(input_names=["x"], input_shapes=[[8, 2, 3]], input_type=tf.float32, units=3,
@@ -130,7 +130,7 @@ class TestKerasGru(CommonTF2LayerTest):
     @pytest.mark.xfail(reason="50176")
     def test_keras_gru_flags_zero_recurrent_dropout_float32(self, params, ie_device, precision,
                                                             temp_dir, ir_version,
-                                                            use_new_frontend):
+                                                            use_legacy_frontend):
         self._test(*self.create_keras_gru_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)

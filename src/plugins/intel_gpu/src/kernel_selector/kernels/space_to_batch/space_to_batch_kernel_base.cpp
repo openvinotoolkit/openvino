@@ -8,9 +8,8 @@
 
 namespace kernel_selector {
 
-bool SpaceToBatchKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SPACE_TO_BATCH ||
-        o.GetType() != KernelType::SPACE_TO_BATCH) {
+bool SpaceToBatchKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SPACE_TO_BATCH) {
         return false;
     }
 
@@ -26,7 +25,7 @@ bool SpaceToBatchKernelBase::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_params& params, const optional_params&) const {
+CommonDispatchData SpaceToBatchKernelBase::SetDefault(const space_to_batch_params& params) const {
     const auto& out = params.outputs[0];
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -98,16 +97,16 @@ JitConstants SpaceToBatchKernelBase::GetJitConstants(const space_to_batch_params
     return jit;
 }
 
-KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<space_to_batch_params>(params);
     space_to_batch_params& newParams = *static_cast<space_to_batch_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
-    auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -115,7 +114,7 @@ KernelsData SpaceToBatchKernelBase::GetCommonKernelsData(const Params& params, c
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
 
     return { kd };
 }

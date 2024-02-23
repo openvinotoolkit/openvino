@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
+
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-
-#include <cstdlib>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 
@@ -157,10 +159,10 @@ protected:
                 manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
             manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
             manager.run_passes(function);
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }
