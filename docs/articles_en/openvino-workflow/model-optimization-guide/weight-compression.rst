@@ -7,9 +7,9 @@ Weight Compression
 Enhancing Model Efficiency with Weight Compression
 ##################################################################
 
-Weight compression aims to reduce the memory footprint of a model. It can also lead to significant performance improvement for large memory-bound models, such as Large Language Models (LLMs). LLMs and other models, which require extensive memory to store the weights during inference, can benefit from weight compression in the following ways: 
+Weight compression aims to reduce the memory footprint of a model. It can also lead to significant performance improvement for large memory-bound models, such as Large Language Models (LLMs). LLMs and other models, which require extensive memory to store the weights during inference, can benefit from weight compression in the following ways:
 
-- enabling the inference of exceptionally large models that cannot be accommodated in the memory of the device; 
+- enabling the inference of exceptionally large models that cannot be accommodated in the memory of the device;
 - improving the inference performance of the models by reducing the latency of the memory access when computing the operations with weights, for example, Linear layers.
 
 Currently, `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__ provides weight quantization to 8 and 4-bit integer data types as a compression method primarily designed to optimize LLMs. The main difference between weights compression and full model quantization is that activations remain floating-point in the case of weight compression, resulting in better accuracy. Weight compression for LLMs provides a solid inference performance improvement which is on par with the performance of the full model quantization. In addition, weight compression is data-free and does not require a calibration dataset, making it easy to use.
@@ -25,7 +25,7 @@ The code snippet below shows how to do 8-bit quantization of the model weights r
 
    .. tab-item:: OpenVINO
       :sync: openvino
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
          :language: python
          :fragment: [compression_8bit]
@@ -54,6 +54,10 @@ Now, the model is ready for compilation and inference. It can be also saved into
 
     * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
 
+  * ``all_layers`` - boolean parameter that enables INT4 weight quantization of all Fully-Connected and Embedding layers, including the first and last layers in the model.
+
+  * ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight quantization. Especially helpful when the weights of all the layers are quantized to 4 bits. The method can sometimes result in reduced accuracy when used with Dynamic Quantization of activations. Requires dataset.
+
 
 The example below shows data-free 4-bit weight quantization applied on top of OpenVINO IR:
 
@@ -61,20 +65,21 @@ The example below shows data-free 4-bit weight quantization applied on top of Op
 
    .. tab-item:: OpenVINO
       :sync: openvino
-      
+
       .. doxygensnippet:: docs/optimization_guide/nncf/code/weight_compression_openvino.py
          :language: python
          :fragment: [compression_4bit]
 
-For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__.
+For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
 
 .. note::
 
-   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized 
+   OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
 
 
-The table below shows examples of Text Generation models with different optimization settings:
+The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup, where no dataset is used at the optimization step.
+The Perplexity metric is measured on the `Lambada OpenAI dataset <https://github.com/openai/gpt-2/issues/131#issuecomment-497136199>`__.
 
 .. list-table::
    :widths: 40 55 25 25
@@ -82,7 +87,7 @@ The table below shows examples of Text Generation models with different optimiza
 
    * - Model
      - Optimization
-     - Perplexity
+     - Perplexity\*
      - Model Size (Gb)
    * - databricks/dolly-v2-3b
      - FP32
@@ -144,13 +149,63 @@ The table below shows examples of Text Generation models with different optimiza
      - INT4_SYM,group_size=64,ratio=0.8
      - 2.98
      - 8.0
-   
+
+
+The following table shows accuracy metric in a data-aware 4-bit weight quantization setup measured on the `Wikitext dataset <https://arxiv.org/pdf/1609.07843.pdf>`__.
+
+.. list-table::
+   :widths: 40 55 25 25
+   :header-rows: 1
+
+   * - Model
+     - Optimization
+     - Word perplexity\*
+     - Model Size (Gb)
+   * - meta-llama/llama-7b-chat-hf
+     - FP32
+     - 11.57
+     - 12.61
+   * - meta-llama/llama-7b-chat-hf
+     - INT4_SYM,group_size=128,ratio=1.0,awq=True
+     - 12.34
+     - 2.6
+   * - stabilityai_stablelm-3b-4e1t
+     - FP32
+     - 10.17
+     - 10.41
+   * - stabilityai_stablelm-3b-4e1t
+     - INT4_SYM,group_size=64,ratio=1.0,awq=True
+     - 10.89
+     - 2.6
+   * - HuggingFaceH4/zephyr-7b-beta
+     - FP32
+     - 9.82
+     - 13.99
+   * - HuggingFaceH4/zephyr-7b-beta
+     - INT4_SYM,group_size=128,ratio=1.0
+     - 10.32
+     - 2.6
+
+
+\*Perplexity metric in both tables was measured without the Dynamic Quantization feature enabled in the OpenVINO runtime.
+
+
+
+Auto-tuning of Weight Compression Parameters
+############################################
+
+To find the optimal weight compression parameters for a particular model, refer to the `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__ , where weight compression parameters are being searched from the subset of values. To speed up the search, a self-designed
+validation pipeline called `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__ is used.
+The pipeline can quickly evaluate the changes in the accuracy of the optimized model compared to the baseline.
+
 
 Additional Resources
 ####################
 
-- `Data-aware weight compression <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino>`__
+- `Data-aware Weight Compression Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__
+- `Tune Weight Compression Parameters Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
+- `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`
-- `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 
