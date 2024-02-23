@@ -38,10 +38,10 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
-#          - SANITIZER: 'UndefinedBehavior'
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-#          - SANITIZER: 'Thread'
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+          - SANITIZER: 'UndefinedBehavior'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+          - SANITIZER: 'Thread'
+            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -279,7 +279,7 @@ jobs:
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: Build
-    timeout-minutes: 60
+    timeout-minutes: 100
     runs-on: 'aks-linux-16-cores-32gb'
     container:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
@@ -292,8 +292,8 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-    #          - SANITIZER: 'UndefinedBehavior'
-    #          - SANITIZER: 'Thread'
+          - SANITIZER: 'UndefinedBehavior'
+          - SANITIZER: 'Thread'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -302,7 +302,6 @@ jobs:
       CXX: clang++
     steps:
       - name: Set apt retries
-        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
