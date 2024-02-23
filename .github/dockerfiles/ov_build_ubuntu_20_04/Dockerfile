@@ -5,13 +5,13 @@ USER root
 # Set apt retries
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
-RUN apt-get update && \
+RUN add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         # Install git
         git ca-certificates && \
         # Install Python
         python3.11-dev \
-        python3.11-venv \
         # For Java API
         default-jdk \
     rm -rf /var/lib/apt/lists/*
