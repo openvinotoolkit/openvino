@@ -927,15 +927,20 @@ bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
     // Alias hides the device
     for (auto&& it : pluginRegistry) {
         auto it_priority = it.second.defaultConfig.find(ov::proxy::alias_for.name());
-        if (it.first == device_name || it_priority == it.second.defaultConfig.end())
+        if (it.first == device_name || it_priority == it.second.defaultConfig.end()){
+            std::cout << "device_name:" << device_name << " has no priority" << std::endl;
             continue;
+        }
         auto devices = it_priority->second.as<std::vector<std::string>>();
         for (const auto& dev : devices) {
-            if (dev == device_name)
+            if (dev == device_name){
+                std::cout << "device_name:" << device_name << " is hidden device" << std::endl;
                 return true;
+            }
         }
     }
 #endif
+    std::cout << "device_name:" << device_name << " is not hidden device" << std::endl;
     return false;
 }
 
@@ -970,8 +975,8 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
         } catch (const InferenceEngine::Exception& ex) {
             std::cout << " catch exception1:" << ex.what() << std::endl;
             // plugin is not created by e.g. invalid env
-        } catch (const ov::Exception&) {
-            std::cout << " catch exception2" << std::endl;
+        } catch (const ov::Exception& ex) {
+            std::cout << " catch exception2:" << ex.what() << std::endl;
             // plugin is not created by e.g. invalid env
         } catch (const std::runtime_error&) {
             std::cout << " catch exception3" << std::endl;
