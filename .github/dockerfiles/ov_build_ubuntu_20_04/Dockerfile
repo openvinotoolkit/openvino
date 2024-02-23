@@ -15,6 +15,7 @@ RUN apt-get update && \
         git \
         ca-certificates \
         # Install Python
+        python3-distutils \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
