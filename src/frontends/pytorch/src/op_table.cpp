@@ -125,7 +125,6 @@ OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
 OP_CONVERTER(translate_max);
-OP_CONVERTER(translate_mv);
 OP_CONVERTER(translate_max_dim);
 OP_CONVERTER(translate_maximum);
 OP_CONVERTER(translate_max_poolnd);
