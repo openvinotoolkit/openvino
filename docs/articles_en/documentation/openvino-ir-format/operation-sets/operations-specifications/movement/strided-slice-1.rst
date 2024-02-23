@@ -14,6 +14,87 @@ StridedSlice
 
 **Short description**: *StridedSlice* extracts a strided slice of a tensor.
 
+**Detailed description**: The *StridedSlice* extracts a slice from a given tensor based on computed indexes from the inputs: begin, end and stride, for each dimension.
+
+The operation takes in inputs with the following properties:
+
+    - The N-dimensional input tensor to slice.
+    - begin, end and stride inputs - 1D lists of integers of the same length M.
+    - begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask inputs - bitmasks, 1D lists of integers (0 or 1). Each mask can have an unique length. ellipsis_mask can have up to one occurence of the value 1.
+    - new_axis_mask, shrink_axis_mask, ellipsis_mask are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
+
+The basic slicing operation accumulates output elements as follows:
+
+    - Operation iterates over the values of begin, end and stride. At every step, the operation uses the i-th element of begin, end and stride to perform the slicing.
+    - Let slicing_index = begin[i]. This value determines the first index to start slicing. This sliced element is added to the output.
+    - If begin[i] == end[i], only a single element is added to the output. The corresponding output dimension is then equal to 1 (in other words, the dimension is kept). 
+    - At each step, the slicing_index is incremented by the value of stride[i] and as long as the slicing_index < end[i], the element corresponding to the slicing_index is added to the output.
+    - Whenever slicing_index >= end[i], the slicing stops, and the corresponding element is not added to the output.
+
+Note that the basic slicing operation N = M, as no masks are used.
+Above description assumes that begin[i] <= end[i] and stride[i] > 0, and that begin[i] >=0 and end[i] >= 0.
+
+Note: Negative values in begin and end
+    Negative values represent indexing from the back, ie. the value of -1 represents the last element of the input dimension. In practice, negative values are automatically inremented by the size of the dimension. For example, if data = [0, 1, 2, 3], size(data) = 4, and begin(i) = -1 for some i, this value will be modified to be begin(i) = -1 + 4 = 3. 
+
+Note: Indexing in reverse
+    If begin[i] > end[i], and stride[i] < 0, the indexing will happen in reverse. At each step, the value of stride[i] will be subtracted from the slicing_index. As long as the slicing_index > end[i], the corresponding element is added to the output. Whenever slicing_index <= end[i], the slicing stops. Note that when slicing in reverse, it is impossible to select the first element, as that would require end[i] = -1, which has a different meaning.
+
+Note: Value out-of-bounds
+    If a value in begin or end is out of bounds for the corresponding dimension, it is silently clamped. In other words:
+
+    - If begin[i] > dim, begin[i] = dim - 1, and if end[i] > dim, end[i] = dim. This allows to slice the last element.
+    - If slicing in reverse: if begin[i] > dim, begin[i] = dim, and if end[i] > dim, end[i] = dim - 1.
+
+The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended with zeros.
+
+During the i-th slicing step:
+
+    - If the begin_mask[i] is set to one, the value of begin[i] is set to 0 (dim - 1 if slicing in reverse).
+    - If the end_mask[i] is set to one, the value of end[i] is set to dim (0 if slicing in reverse - note that this does not allow to slice inclusively with the first value).
+    - If the new_axis_mask[i] is set to one, the values of begin[i], end[i] and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step.
+    - If the shrink_axis_mask[i] is set to one, the values of begin[i] MUST EQUAL end[i] (Note that this would normally result in a size 1 dimension), and the stride[i] value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining.
+    - If the ellipsis_mask[i] is set to one, the begin[i], end[i] and stride[i] ARE IGNORED, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is dim - (M - new_axes - 1).
+
+
+To illustrate this behavior, consider the following examples:
+
+data = [0, 1, 2, 3]
+shape(data) = (4)
+
+Assume we would like to slice a part of this tensor, such that we get every second value, staring from the first one. The way to do it with this operation is:
+
+let begin = [0], end = [4] (number of elements, end is exclusive similarly to for loops in python, it is a stop condition), stride = [2].
+
+The operation will return values [0, 2].
+
+Assume we would like to select all values except for last one:
+
+let begin = [0], end = [3], stride = [1].
+
+Then the operation will return values [0, 1, 2]. The last value is not returned as upon iterator reaching the value >= end, the operation is terminated.
+
+Assume we would like to select all values starting from 3rd one.
+
+Let begin = [3], end = [4], stride = [1]
+
+With that in mind, the previous example, starting from 3rd element, assuming unknown amount of elements, can be equivalently written as
+
+begin = [3], end = [-1], stride = [1]
+
+Let begin[4], end = [0], stride = [-1]  (clamped to 3????)
+
+Returns ???
+
+Note 4: if begin [5] (4????) then expected value might be different, but it is the same since begin is clamped
+
+The length of begin, end, stride arrays must be equal to the rank of the input data.
+
+So for example, data = [[0, 1, 2, 3]] has a shape (1, 4) - rank 2, therefore begin [b1, b2], end [e1, e2], stride [s1, s2].
+data = [[[0, 1], [2, 3]]] has a shape (1, 2, 2) - rank 3, therefore begin [b1, b2, b3] end [e1, e2, e3], stride [s1, s2, s3].
+
+The operation accepts bit mask attributes to override the assigned values of begin, end, stride. The length of a bitmask should either be equal to the rank of the input (4D input should receive 4 element input bit mask) or should be broadcastable (??? Repeats and is cut off??)
+
 **Attributes**
 
 * *begin_mask*
