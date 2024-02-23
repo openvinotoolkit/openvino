@@ -17,6 +17,7 @@ RUN apt-get update && \
         # Install Python
         python3.11-dev \
         python3.11-venv \
+        python3.11-distutils \
         # For Java API
         default-jdk \
         && \
