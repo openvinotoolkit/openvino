@@ -8,6 +8,7 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 RUN apt-get update && \
     apt-get install --assume-yes --no-install-recommends software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
+    apt policy python3.11 python3.11-dev && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         # Install git
