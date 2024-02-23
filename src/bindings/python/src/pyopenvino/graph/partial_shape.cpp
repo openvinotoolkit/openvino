@@ -34,6 +34,20 @@ void regclass_graph_PartialShape(py::module m) {
 
     shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
 
+    shape.def_static(
+        "dynamic",
+        [](int64_t rank) {
+            return ov::PartialShape::dynamic(ov::Dimension(rank));
+        },
+        py::arg("rank"),
+        R"(
+        Construct a PartialShape with the given rank and all dimensions (if any) dynamic.
+
+        :param rank: The rank of the PartialShape. This is the number of dimensions in the shape.
+        :type rank: int
+        :return: A PartialShape with the given rank, and all dimensions (if any) dynamic.
+     )");
+
     shape.def_property_readonly("is_dynamic",
                                 &ov::PartialShape::is_dynamic,
                                 R"(
