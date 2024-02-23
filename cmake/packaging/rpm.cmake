@@ -75,6 +75,7 @@ macro(ov_cpack_settings)
         2023.1.0
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
+        2024.0
         )
 
     find_host_program(rpmlint_PROGRAM NAMES rpmlint DOC "Path to rpmlint")
@@ -175,6 +176,15 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_GPU_PACKAGE_NAME "libopenvino-intel-gpu-plugin-${cpack_name_ver}")
         _ov_add_package(plugin_packages gpu)
         set(gpu_copyright "generic")
+    endif()
+
+    # intel-npu
+    if(ENABLE_INTEL_NPU OR BUILD_npu OR BUILD_vpux-plugin OR BUILD_applications.ai.vpu-accelerators.vpux-plugin)
+        set(CPACK_COMPONENT_NPU_DESCRIPTION "Intel® Neural Processing Unit inference plugin")
+        set(CPACK_RPM_NPU_PACKAGE_REQUIRES "${core_package}")
+        set(CPACK_RPM_NPU_PACKAGE_NAME "libopenvino-intel-npu-plugin-${cpack_name_ver}")
+        _ov_add_package(plugin_packages npu)
+        set(npu_copyright "generic")
     endif()
 
     #

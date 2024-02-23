@@ -24,12 +24,12 @@ struct MVNExecutorDesc {
 
 const std::vector<MVNExecutorDesc>& getMVNExecutorsList();
 
-class MVNExecutorFactory : public ExecutorFactory {
+class MVNExecutorFactory : public ExecutorFactoryLegacy {
 public:
     MVNExecutorFactory(const MVNAttrs& mvnAttrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                       const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getMVNExecutorsList()) {
             if (desc.builder->isSupported(mvnAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);

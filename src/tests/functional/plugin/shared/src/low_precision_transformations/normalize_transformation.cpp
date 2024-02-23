@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/normalize_l2.hpp"
@@ -43,9 +41,6 @@ std::string NormalizeL2Transformation::getTestCaseName(const testing::TestParamI
 }
 
 void NormalizeL2Transformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
-
     std::pair<ov::PartialShape, ov::Shape> shapes;
     ov::element::Type precision;
     std::vector<uint64_t> axes;
@@ -55,7 +50,7 @@ void NormalizeL2Transformation::SetUp() {
 
     init_input_shapes(shapes.first);
 
-    function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+    function = ov::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
         shapes,
         ov::element::u8,

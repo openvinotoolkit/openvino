@@ -17,7 +17,7 @@ namespace cldnn {
 /// ONNX order: iofz
 /// Caffe order: ifoz
 /// pyTorch order: izof
-/// IE order: fizo
+/// OV order: fizo
 enum class lstm_weights_order {
     iofz,
     ifoz,
@@ -138,8 +138,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
         if (!cell.empty())
             ret.push_back(cell);
         return ret;

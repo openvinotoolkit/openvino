@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,10 +13,10 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
-                                   const ov::Shape& indicesShape,
-                                   const element::Type& indicesType,
-                                   const std::size_t batchDims) {
+std::shared_ptr<ov::Node> makeGatherND(const ov::Output<ov::Node>& dataNode,
+                                       const ov::Shape& indicesShape,
+                                       const ov::element::Type& indicesType,
+                                       const std::size_t batchDims) {
     const auto indices = [&] {
         const auto& dataShape = dataNode.get_shape();
         const auto indicesCount =
@@ -26,7 +26,7 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
         const auto maxDim = *std::max_element(begin(dataShape), end(dataShape));
 
         auto indicesValues =
-            NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
+            NGraphFunctions::Utils::generateVector<ov::element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
         auto indicesData = indicesValues.data();
         for (int i = 0; i < indicesCount; i++) {
             for (int dim = 0; dim < sliceRank; dim++) {
@@ -43,10 +43,10 @@ std::shared_ptr<Node> makeGatherND(const ov::Output<Node>& dataNode,
     return gatherNdNode;
 }
 
-std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
-                                    const ov::Shape& indicesShape,
-                                    const element::Type& indicesType,
-                                    const std::size_t batchDims) {
+std::shared_ptr<ov::Node> makeGatherND8(const ov::Output<ov::Node>& dataNode,
+                                        const ov::Shape& indicesShape,
+                                        const ov::element::Type& indicesType,
+                                        const std::size_t batchDims) {
     const auto indices = [&] {
         const auto& dataShape = dataNode.get_shape();
         const auto indicesCount =
@@ -56,7 +56,7 @@ std::shared_ptr<Node> makeGatherND8(const ov::Output<Node>& dataNode,
         const auto maxDim = *std::max_element(begin(dataShape), end(dataShape));
 
         auto indicesValues =
-            NGraphFunctions::Utils::generateVector<element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
+            NGraphFunctions::Utils::generateVector<ov::element::Type_t::i32>(indicesCount * sliceRank, maxDim, 0);
         auto indicesData = indicesValues.data();
         for (int i = 0; i < indicesCount; i++) {
             for (int dim = 0; dim < sliceRank; dim++) {

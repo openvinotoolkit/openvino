@@ -10,7 +10,6 @@
 #include <string>
 
 #include "transformations/init_node_info.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
@@ -38,9 +37,6 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
 */
 
 void ConcatWithSplitTransformation::SetUp() {
-    abs_threshold = 0.1;
-    rel_threshold = 4.2;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;
@@ -52,7 +48,7 @@ void ConcatWithSplitTransformation::SetUp() {
     inputShape1[1] = inputShape1[1].get_length() / numSplit;
     init_input_shapes({ inputShape1, inputShapes });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
         netPrecision,
         inputShapes,
         param.fqOnData1,

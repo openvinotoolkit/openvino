@@ -6,15 +6,11 @@
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
-
-using namespace ngraph;
 
 namespace ov {
 namespace test {
@@ -124,9 +120,6 @@ void MemoryLSTMCellTest::SetUp() {
     auto out_unsqueeze = tensor_iterator->get_iter_value(unsqueeze_o, -1);
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
-
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
 
     auto cell_memory_write = std::make_shared<ov::op::v6::Assign>(out_cell, var_cell);
     auto hidden_memory_write = std::make_shared<ov::op::v6::Assign>(out_hidden, var_hidden);
@@ -274,9 +267,6 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto out_unsqueeze = tensor_iterator->get_iter_value(unsqueeze_o, -1);
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
-
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
 
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));

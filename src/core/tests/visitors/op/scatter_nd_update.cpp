@@ -12,7 +12,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, scatter_nd_update) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::ScatterNDUpdate>();
+    NodeBuilder::opset().insert<ov::op::v3::ScatterNDUpdate>();
 
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1000, 256, 10, 15});
     auto indices = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{25, 125, 3});

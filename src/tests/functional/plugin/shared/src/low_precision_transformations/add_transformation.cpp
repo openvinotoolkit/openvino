@@ -11,7 +11,6 @@
 
 #include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/add.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -52,8 +51,6 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
 }
 
 void AddTransformation::SetUp() {
-    abs_threshold = 1.1;
-    rel_threshold = 3;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     AddTestValues param;
@@ -66,7 +63,7 @@ void AddTransformation::SetUp() {
     }
     init_input_shapes({ inputShape, inputShape2 });
 
-    function = ngraph::builder::subgraph::AddFunction::getOriginal(
+    function = ov::builder::subgraph::AddFunction::getOriginal(
         precision, inputShape, param.broadcast,
         param.fakeQuantize1, param.fakeQuantize2);
 

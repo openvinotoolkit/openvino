@@ -28,8 +28,6 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 }
 
 void MultiplyWithOneParentTransformation::SetUp() {
-    rel_threshold = 0.01f;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -38,7 +36,7 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
+    function = ov::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

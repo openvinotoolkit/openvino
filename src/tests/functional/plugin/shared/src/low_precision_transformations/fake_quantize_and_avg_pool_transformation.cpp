@@ -20,24 +20,22 @@ std::string FakeQuantizeAndAvgPoolTransformation::getTestCaseName(const testing:
     ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShapes, targetDevice, params, fakeQuantize) = obj.param;
 
     return get_test_case_name_by_params(precision, inputShapes, targetDevice, params);
 }
 
 void FakeQuantizeAndAvgPoolTransformation::SetUp() {
-    rel_threshold = 0.5f;
-    abs_threshold = 1.0;
     ov::element::Type precision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, fakeQuantize) = this->GetParam();
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
+    function = ov::builder::subgraph::AvgPoolFunction::getOriginal(
         precision,
         inputShape,
         fakeQuantize);

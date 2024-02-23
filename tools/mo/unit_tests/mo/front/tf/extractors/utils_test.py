@@ -190,7 +190,7 @@ class TensorContentParsing(unittest.TestCase):
         })
         tf_dtype = pb_tensor.dtype
         shape = int64_array([1])
-        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that Inference Engine ' \
+        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that OpenVINO ' \
                           'does not support string literals, so the string constant should be eliminated from the ' \
                           'graph.'
         ref_val = np.array([b'\x1f\x00\x1e\x00\x02\x00\xc3\x9f\x1d\x00\x02'])
@@ -205,7 +205,7 @@ class TensorContentParsing(unittest.TestCase):
             'string_val': [b'\377\330\377\377\330\377'],
         })
         shape = int64_array([])
-        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that Inference Engine ' \
+        warning_message = 'ERROR:root:Failed to parse a tensor with Unicode characters. Note that OpenVINO ' \
                           'does not support string literals, so the string constant should be eliminated from the ' \
                           'graph.'
         with self.assertLogs(log.getLogger(), level="ERROR") as cm:

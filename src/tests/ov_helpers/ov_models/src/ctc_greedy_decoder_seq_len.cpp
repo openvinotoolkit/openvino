@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,16 +13,16 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
-                                                     const ov::Output<Node>& sequenceLengthData,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
+                                                     const ov::Output<ov::Node>& sequenceLengthData,
                                                      int32_t blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision) {
+                                                     const ov::element::Type& idxPrecision) {
     const auto blankIndexNode = [&] {
-        if (idxPrecision == element::i32) {
+        if (idxPrecision == ov::element::i32) {
             const auto blankIdxDataI32 = std::vector<int32_t>{blankIndex};
             return ov::test::utils::deprecated::make_constant(idxPrecision, {1}, blankIdxDataI32);
-        } else if (idxPrecision == element::i64) {
+        } else if (idxPrecision == ov::element::i64) {
             const auto blankIdxDataI64 = std::vector<int64_t>{blankIndex};
             return ov::test::utils::deprecated::make_constant(idxPrecision, {1}, blankIdxDataI64);
         }
@@ -37,18 +37,18 @@ std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inp
                                                                 idxPrecision);
 }
 
-std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<Node>& inputData,
+std::shared_ptr<ov::Node> makeCTCGreedyDecoderSeqLen(const ov::Output<ov::Node>& inputData,
                                                      int32_t blankIndex,
                                                      bool mergeRepeated,
-                                                     const element::Type& idxPrecision) {
+                                                     const ov::element::Type& idxPrecision) {
     const auto sequenceLengthData = [&] {
         const size_t N = inputData.get_shape().at(0);
         const size_t T = inputData.get_shape().at(1);
 
-        if (idxPrecision == element::i32) {
+        if (idxPrecision == ov::element::i32) {
             const auto sequenceLengthI32 = std::vector<int32_t>(N, T);
             return ov::test::utils::deprecated::make_constant(idxPrecision, {N}, sequenceLengthI32);
-        } else if (idxPrecision == element::i64) {
+        } else if (idxPrecision == ov::element::i64) {
             const auto sequenceLengthI64 = std::vector<int64_t>(N, T);
             return ov::test::utils::deprecated::make_constant(idxPrecision, {N}, sequenceLengthI64);
         }

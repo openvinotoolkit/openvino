@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,16 +11,11 @@
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-using namespace ngraph;
-
 namespace LayerTestsDefinitions {
 
-typedef std::tuple <
-    element::Type,
-    PartialShape,
-    std::string,
-    ngraph::builder::subgraph::DequantizationOperations,
-    bool> FuseConvertTransformationParams;
+typedef std::
+    tuple<ov::element::Type, ov::PartialShape, std::string, ov::builder::subgraph::DequantizationOperations, bool>
+        FuseConvertTransformationParams;
 
 class FuseConvertTransformation :
         public testing::WithParamInterface<FuseConvertTransformationParams>,

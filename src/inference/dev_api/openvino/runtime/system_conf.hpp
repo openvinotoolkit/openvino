@@ -155,28 +155,28 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
  * @brief      Checks whether cpu_mapping Available
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is CPU mapping is available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool is_cpu_map_available();
 
 /**
  * @brief      Get number of numa nodes
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     Number of numa nodes
  */
 OPENVINO_RUNTIME_API int get_num_numa_nodes();
 
 /**
  * @brief      Get number of sockets
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     Number of sockets
  */
 OPENVINO_RUNTIME_API int get_num_sockets();
 
 /**
  * @brief      Returns a table of number of processor types on Linux/Windows
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  * The following are two example of processor type table.
  *  1. Processor table of two socket CPUs XEON server
@@ -192,11 +192,18 @@ OPENVINO_RUNTIME_API int get_num_sockets();
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
 
 /**
+ * @brief      Returns the socket ID in cpu mapping table of the currently running thread.
+ * @ingroup    ov_dev_api_system_conf
+ * @return     socket ID in cpu mapping
+ */
+OPENVINO_RUNTIME_API int get_current_socket_id();
+
+/**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU
  * resources. The difference from get_proc_type_table: This is used to get the configuration of current machine. For
  * example, GPU plugin occupies all Pcores, there is only one type core in proc_type_table from get_proc_type_table().
  * If user wants to get the real configuration of this machine which should be got from get_org_proc_type_table.
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  */
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
@@ -243,7 +250,7 @@ enum ProcessorUseStatus {
 
 /**
  * @brief      Get and reserve available cpu ids
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @param[in]  streams_info_table streams information table.
  * @param[in]  stream_processors processors grouped in stream which is used in core binding in cpu streams executor
  * @param[in]  cpu_status set cpu status
@@ -254,7 +261,7 @@ OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<i
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @param[in]  cpu_ids cpus in cpu_mapping.
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
@@ -262,7 +269,7 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const in
 
 /**
  * @brief      Get socket id by current numa node id
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @param[in]  numa_node_id numa node id
  * @return     socket id
  */
@@ -271,7 +278,7 @@ OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
 /**
  * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like
  * numactl), while the original socket id is the original id before filtering
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @param[in]  socket_id socket id
  * @return     socket id
  */
@@ -280,7 +287,7 @@ OPENVINO_RUNTIME_API int get_org_socket_id(int socket_id);
 /**
  * @brief      Get original numa node id by current numa node id, the input numa node id is recalculated after filtering
  * (like numactl), while the original numa node id is the original id before filtering
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @param[in]  numa_node_id numa node id
  * @return     numa node id
  */

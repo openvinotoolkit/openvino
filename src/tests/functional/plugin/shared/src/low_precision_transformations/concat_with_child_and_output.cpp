@@ -10,7 +10,6 @@
 #include <string>
 
 #include "transformations/init_node_info.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
@@ -42,9 +41,6 @@ std::string ConcatWithChildAndOutputTransformation::getTestCaseName(const testin
 */
 
 void ConcatWithChildAndOutputTransformation::SetUp() {
-    rel_threshold = 5;
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShapes;
     ConcatWithChildAndOutputTransformationParam param;
@@ -53,7 +49,7 @@ void ConcatWithChildAndOutputTransformation::SetUp() {
 
     init_input_shapes({ inputShapes, inputShapes });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithChildAndOutput(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
 }
 

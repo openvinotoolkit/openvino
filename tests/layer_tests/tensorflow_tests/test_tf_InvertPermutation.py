@@ -9,11 +9,11 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestInvertPermutation(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         rng = np.random.default_rng()
         inputs_data = {}
-        inputs_data['x'] = rng.permutation(x_shape[0]).astype(self.input_type)
+        inputs_data['x:0'] = rng.permutation(x_shape[0]).astype(self.input_type)
         return inputs_data
 
     def create_invert_permutation_net(self, input_shape, input_type):
@@ -38,7 +38,7 @@ class TestInvertPermutation(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_invert_permutation_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_invert_permutation_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

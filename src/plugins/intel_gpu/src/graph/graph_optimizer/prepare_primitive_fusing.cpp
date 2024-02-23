@@ -72,7 +72,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
                     return;
                 if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
                     return;
-                if (prev.first->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
+                if (prev.first->as<reshape>().get_input_layout() == node.get_output_layout()) {
                     p.add_optimized_primitive_info(prev.first->id());
                     p.add_optimized_primitive_info(node.id());
                     p.extract_and_remove(*prev.first);
@@ -86,7 +86,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            auto input_lay = node.input().get_output_layout();
+            auto input_lay = node.get_input_layout();
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place())
@@ -513,6 +513,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
+            auto gemm_prim = node.get_primitive();
+            for (size_t idx = 0; idx < gemm_prim->output_order.size(); ++idx) {
+                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_order[idx]);
+                if (idx != output_order_idx) {
+                    does_support_fusings = false;
+                    break;
+                }
+            }
+
             return does_support_fusings;
         };
 
@@ -552,6 +561,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
+            // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
                   !_lo.get_optimization_attributes().use_onednn_impls) ||

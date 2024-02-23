@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API SoftmaxFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftmaxFusion transformation replaces following graphs:
  *
  *            +---------------+

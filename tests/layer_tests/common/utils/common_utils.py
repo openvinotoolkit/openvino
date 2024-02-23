@@ -3,6 +3,7 @@
 
 import logging
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -48,14 +49,39 @@ def generate_ir(coverage=False, **kwargs):
 
 
 def generate_ir_python_api(coverage=False, **kwargs):
-    from openvino.runtime import serialize
-    from openvino.tools.mo import convert_model
+    out_dir = kwargs['output_dir'] + os.sep + "model.xml"
+    if 'use_legacy_frontend' in kwargs and kwargs['use_legacy_frontend']:
+        from openvino.runtime import serialize
+        from openvino.tools.mo import convert_model
 
-    out_dir = kwargs['output_dir'] + os.sep + kwargs['model_name'] + ".xml"
+        ov_model = convert_model(**kwargs)
+        serialize(ov_model, out_dir)
+    else:
+        from openvino import convert_model, save_model
+        try:
+            # noinspection PyUnresolvedReferences
+            import openvino_tokenizers  # do not delete, needed for validation of OpenVINO tokenizers extensions
+        except:
+            # TODO 132908: add build OpenVINO Tokenizers in GHA for MacOS and ARM64
+            # TODO 132909: add build OpenVINO Tokenizers in Jenkins for layer_ubuntu20_release tests
+            assert platform.system() in ('Linux', 'Darwin') or platform.machine() in ('arm', 'armv7l',
+                                                                                      'aarch64',
+                                                                                      'arm64', 'ARM64')
+            # CI Jenkins job and ARM64 has no openvino_tokenizers available
+            pass
 
-    # TODO: Remove usage of legacy params from layer tests and switch to convert_model from tools.ovc
-    ov_model = convert_model(**kwargs)
-    serialize(ov_model, out_dir)
+        # cleanup parameters for convert
+        if 'output_dir' in kwargs:
+            del kwargs['output_dir']
+
+        compress_to_fp16 = False
+        if 'compress_to_fp16' in kwargs:
+            # TODO 132871: fix error with no tensor name in case of compression
+            # compress_to_fp16 = kwargs['compress_to_fp16']
+            del kwargs['compress_to_fp16']
+
+        ov_model = convert_model(**kwargs)
+        save_model(ov_model, out_dir, compress_to_fp16)
 
     return 0, ""
 
@@ -98,7 +124,20 @@ def allclose(cur_array, ref_array, atol, rtol):
     :param rtol: relative tolerance (threshold for relative difference)
     :return: bool value means that values of tensors are equal with tolerance or not
     """
+    try:
+        # a scalar case of string type
+        # need to repack TF output to python string
+        if isinstance(ref_array, bytes):
+            ref_array = np.array(str(ref_array, 'utf-8'))
+    except:
+        pass
+
     if cur_array.dtype.type == str or cur_array.dtype.type == np.str_:
+        # TF can represent string tensors in different format: array of bytestreams
+        # so we have to align formats of both string tensors, for example, to unicode
+        if cur_array.dtype.type != ref_array.dtype.type:
+            cur_array = cur_array.astype('U')
+            ref_array = ref_array.astype('U')
         return np.array_equal(cur_array, ref_array)
     elif cur_array.dtype == bool:
         abs_diff = np.absolute(cur_array ^ ref_array)

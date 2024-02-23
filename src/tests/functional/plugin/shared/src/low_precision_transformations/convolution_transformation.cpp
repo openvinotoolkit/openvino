@@ -11,9 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/fake_quantize_and_convolution.hpp"
 
@@ -36,9 +34,6 @@ std::string ConvolutionTransformation::getTestCaseName(const testing::TestParamI
 }
 
 void ConvolutionTransformation::SetUp() {
-    rel_threshold = 1.0e+10;
-    abs_threshold = 1.4;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -47,7 +42,7 @@ void ConvolutionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
+    function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         // TODO: pass from test parameters

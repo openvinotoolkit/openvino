@@ -20,11 +20,11 @@ OPS = {
 
 class TestArgMinMax(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['input'] = rng.integers(-8, 8, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = rng.integers(-8, 8, input_shape).astype(self.input_type)
         return inputs_data
 
     def create_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type):
@@ -61,9 +61,9 @@ class TestArgMinMax(CommonTFLayerTest):
                                                                                          'aarch64',
                                                                                          'arm64', 'ARM64'],
                        reason='Ticket - 126314')
-    def test_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_argmin_max_net(self, input_shape, dimension, input_type, output_type, op_type, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         params = dict(input_shape=input_shape, dimension=dimension)
         self._test(*self.create_argmin_max_net(**params, input_type=input_type,
                                                output_type=output_type, op_type=OPS[op_type]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

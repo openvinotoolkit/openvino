@@ -3,6 +3,7 @@
 
 #pragma once
 #include <napi.h>
+
 #include <thread>
 
 #include "openvino/runtime/infer_request.hpp"

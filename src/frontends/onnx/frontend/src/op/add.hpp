@@ -4,26 +4,24 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
 namespace set_6 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_6
 
 namespace set_7 {
-OutputVector add(const Node& node);
+ov::OutputVector add(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_7
 
@@ -34,10 +32,7 @@ using set_7::add;
 namespace set_14 {
 using set_13::add;
 }  // namespace set_14
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

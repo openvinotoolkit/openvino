@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
@@ -36,8 +36,8 @@ struct ReadValueAssignParams {
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::string m_variable_id;
 };
 
@@ -245,8 +245,8 @@ struct MemoryTestParams {
     ov::Shape m_output_shape;
     ov::element::Type m_input_type;
     ov::element::Type m_output_type;
-    ov::runtime::Tensor m_input_data;
-    ov::runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::vector<std::string> m_variable_id;
     size_t m_count_runs;
     size_t m_reset_on_run;

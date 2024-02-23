@@ -4,6 +4,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
 #include "ov_models/utils/ov_helpers.hpp"
@@ -255,7 +256,9 @@ class KVCacheTests: public ::testing::Test {
                                                 bool fuse_cache_reorder,
                                                 bool build_state_initializer,
                                                 size_t batch = 1,
-                                                ov::element::Type model_element_type = ov::element::f16) {
+                                                int64_t concat_axis = 2,
+                                                ov::element::Type model_element_type = ov::element::f16,
+                                                size_t num_iter = 10) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -290,6 +293,7 @@ class KVCacheTests: public ::testing::Test {
                                                       n_heads,
                                                       n_features,
                                                       element_type,
+                                                      concat_axis,
                                                       stateful,
                                                       fuse_cache_reorder,
                                                       build_state_initializer && stateful);
@@ -297,6 +301,7 @@ class KVCacheTests: public ::testing::Test {
                                                           n_heads,
                                                           n_features,
                                                           element_type,
+                                                          concat_axis,
                                                           !stateful,
                                                           fuse_cache_reorder,
                                                           build_state_initializer && !stateful);
@@ -344,7 +349,7 @@ class KVCacheTests: public ::testing::Test {
             }
 
             ngraph::helpers::resize_function(ref_model, input_shapes);
-            return ngraph::helpers::interpretFunction(ref_model, inputs);
+            return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {
@@ -411,10 +416,9 @@ class KVCacheTests: public ::testing::Test {
             }
 
             const size_t input_tokens = 1;
-            const size_t niters = 10;
             const ov::Shape new_token_size = {batch, input_tokens, n_heads, n_features};
             size_t context_length = cache_size + input_tokens;
-            for (size_t i = 0; i < niters; i++, context_length += input_tokens) {
+            for (size_t i = 0; i < num_iter; i++, context_length += input_tokens) {
                 ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
                 auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
                 auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
@@ -458,8 +462,8 @@ TEST_F(KVCacheTests, smoke_multipleIterations_cached) {
     this->test_smoke_multipleIterations(true);
 }
 
-TEST_F(KVCacheTests, smoke_multipleIterations_stateful_no_gather_no_initializer) {
-    this->test_smoke_multipleIterations_stateful(false, false, false);
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_no_gather_no_initializer_concat_neg_axis) {
+    this->test_smoke_multipleIterations_stateful(false, false, false, 1, -2);
 }
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_no_gather_no_initializer_cached) {
@@ -475,10 +479,15 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_c
 }
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_f32) {
-    this->test_smoke_multipleIterations_stateful(false, true, true, 1, ov::element::f32);
+    this->test_smoke_multipleIterations_stateful(false, true, true, 1, 2, ov::element::f32);
 }
+
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_3) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 3);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_same_shape_after_reset) {
+    this->test_smoke_multipleIterations_stateful(false, false, false, 1, 2, ov::element::f16, 0);
 }
 
 } // namespace

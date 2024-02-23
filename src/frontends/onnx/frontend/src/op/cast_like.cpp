@@ -8,19 +8,19 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-OutputVector cast_like(const Node& node) {
-    auto inputs = node.get_ng_inputs();
+ov::OutputVector cast_like(const ov::frontend::onnx::Node& node) {
+    auto inputs = node.get_ov_inputs();
     return {std::make_shared<v1::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

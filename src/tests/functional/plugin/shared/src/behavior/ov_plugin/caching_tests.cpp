@@ -15,9 +15,6 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -51,7 +48,7 @@ static std::shared_ptr<ov::Model> simple_function_multiply(ov::element::Type typ
     res->set_friendly_name("res");
 
     // Create nGraph function
-    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
+    auto func = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
     func->set_friendly_name("function");
     return func;
 }
@@ -75,7 +72,7 @@ static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, s
 }
 
 ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape) {
-    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+    return [fun, inputShape](ov::element::Type type, std::size_t batchSize) {
         auto shape = inputShape;
         shape[0] = batchSize;
         return fun(shape, type);
@@ -132,7 +129,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions(
 
 std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
-    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
+    res.push_back(ovModelWithName { [](ov::element::Type type, size_t batchSize) {
         return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
@@ -175,7 +172,7 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
-    return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
+    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void CompileModelCacheTestBase::SetUp() {
@@ -206,6 +203,7 @@ void CompileModelCacheTestBase::TearDown() {
     } catch (...) {
        // do nothing
     }
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -312,6 +310,7 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -373,6 +372,7 @@ void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -484,6 +484,7 @@ void CompileModelLoadFromCacheTest::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -593,6 +594,7 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
     weights_vector.clear();
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -704,6 +706,7 @@ void CompiledKernelsCacheTest::SetUp() {
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 

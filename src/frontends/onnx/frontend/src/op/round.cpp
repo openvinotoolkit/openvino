@@ -7,24 +7,20 @@
 
 #include "op/round.hpp"
 
-#include <memory>
+#include "openvino/op/round.hpp"
 
-#include "default_opset.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector round(const Node& node) {
-    return {std::make_shared<default_opset::Round>(node.get_ng_inputs().at(0),
-                                                   default_opset::Round::RoundMode::HALF_TO_EVEN)};
+ov::OutputVector round(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<v5::Round>(node.get_ov_inputs().at(0), v5::Round::RoundMode::HALF_TO_EVEN)};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

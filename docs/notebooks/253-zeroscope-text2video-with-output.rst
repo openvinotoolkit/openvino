@@ -1,6 +1,29 @@
 Video generation with ZeroScope and OpenVINO
 ============================================
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
+
+-  `Install and import required
+   packages <#install-and-import-required-packages>`__
+-  `Load the model <#load-the-model>`__
+-  `Convert the model <#convert-the-model>`__
+
+   -  `Define the conversion
+      function <#define-the-conversion-function>`__
+   -  `UNet <#unet>`__
+   -  `VAE <#vae>`__
+   -  `Text encoder <#text-encoder>`__
+
+-  `Build a pipeline <#build-a-pipeline>`__
+-  `Inference with OpenVINO <#inference-with-openvino>`__
+
+   -  `Select inference device <#select-inference-device>`__
+   -  `Define a prompt <#define-a-prompt>`__
+   -  `Video generation <#video-generation>`__
+
+-  `Interactive demo <#interactive-demo>`__
+
 The ZeroScope model is a free and open-source text-to-video model that
 can generate realistic and engaging videos from text descriptions. It is
 based on the
@@ -25,31 +48,12 @@ various videos, from simple animations to complex scenes. It is still
 under development, but it has the potential to revolutionize the way we
 create and consume video content.
 
-Both versions of the ZeroScope model are available on Hugging Face:
-
-- `ZeroScope_v2 576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__
-- `ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
+Both versions of the ZeroScope model are available on Hugging Face: -
+`ZeroScope_v2
+576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__ -
+`ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
 
 We will use the first one.
-
-**Table of contents:**
----
-
-- 1. `Install and import required packages <#install-and-import-required-packages>`__
-- 2. `Load the model <#load-the-model>`__
-- 3. `Convert the model <#convert-the-model>`__
-
-  - 3.1. `Define the conversion function <#define-the-conversion-function>`__
-  - 3.2. `UNet <#unet>`__
-  - 3.3. `VAE <#vae>`__
-  - 3.4. `Text encoder <#text-encoder>`__
-
-- 4. `Build a pipeline <#build-a-pipeline>`__
-- 5. `Inference with OpenVINO <#inference-with-openvino>`__
-
-  - 5.1. `Select inference device <#select-inference-device>`__
-  - 5.2. `Define a prompt <#define-a-prompt>`__
-  - 5.3. `Video generation <#video-generation>`__
 
 .. container:: alert alert-block alert-warning
 
@@ -59,6 +63,8 @@ We will use the first one.
 
 Install and import required packages
 ------------------------------------
+
+
 
 To work with text-to-video synthesis model, we will use Hugging Face’s
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. It
@@ -109,6 +115,8 @@ reducing values below to reduce the memory consumption.
 Load the model
 --------------
 
+
+
 The model is loaded from HuggingFace using ``.from_pretrained`` method
 of ``diffusers.DiffusionPipeline``.
 
@@ -148,6 +156,8 @@ of ``diffusers.DiffusionPipeline``.
 Convert the model
 -----------------
 
+
+
 The architecture for generating videos from text comprises three
 distinct sub-networks: one for extracting text features, another for
 translating text features into the video latent space using a diffusion
@@ -164,6 +174,8 @@ noise video.
 
 Define the conversion function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Model components are PyTorch modules, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -194,6 +206,8 @@ function to serialize the result of conversion.
 UNet
 ~~~~
 
+
+
 Text-to-video generation pipeline main component is a conditional 3D
 UNet model that takes a noisy sample, conditional state, and a timestep
 and returns a sample shaped output.
@@ -219,6 +233,8 @@ and returns a sample shaped output.
 
 VAE
 ~~~
+
+
 
 Variational autoencoder (VAE) uses UNet output to decode latents to
 visual representations. Our VAE model has KL loss for encoding images
@@ -249,6 +265,8 @@ inference, we need only decoder part.
 Text encoder
 ~~~~~~~~~~~~
 
+
+
 Text encoder is used to encode the input prompt to tensor. Default
 tensor length is 77.
 
@@ -265,6 +283,8 @@ tensor length is 77.
 
 Build a pipeline
 ----------------
+
+
 
 .. code:: ipython3
 
@@ -732,12 +752,16 @@ Build a pipeline
 Inference with OpenVINO
 -----------------------
 
+
+
 .. code:: ipython3
 
     core = ov.Core()
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -757,7 +781,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=2, options=('CPU', 'GNA', 'AUTO'), value='AUTO')
 
 
 
@@ -808,6 +832,8 @@ tokenizer and scheduler.
 Define a prompt
 ~~~~~~~~~~~~~~~
 
+
+
 .. code:: ipython3
 
     prompt = "A panda eating bamboo on a rock."
@@ -818,6 +844,8 @@ Let’s generate a video for our prompt. For full list of arguments, see
 
 Video generation
 ~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -849,6 +877,8 @@ Video generation
 
 Interactive demo
 ----------------
+
+
 
 .. code:: ipython3
 

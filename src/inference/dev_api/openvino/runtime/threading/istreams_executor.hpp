@@ -22,31 +22,6 @@ namespace ov {
 namespace threading {
 
 /**
- * @brief Number of streams in Performance-core(big core)
- */
-static constexpr Property<size_t, PropertyMutability::RW> big_core_streams{"BIG_CORE_STREAMS"};
-
-/**
- * @brief Number of streams in Efficient-core(small core) on hybrid cores machine
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_streams{"SMALL_CORE_STREAMS"};
-
-/**
- * @brief Number of threads per stream in big cores
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_big{"THREADS_PER_STREAM_BIG"};
-
-/**
- * @brief Number of threads per stream in small cores on hybrid cores machine
- */
-static constexpr Property<size_t, PropertyMutability::RW> threads_per_stream_small{"THREADS_PER_STREAM_SMALL"};
-
-/**
- * @brief Small core start offset when binding cpu cores
- */
-static constexpr Property<size_t, PropertyMutability::RW> small_core_offset{"SMALL_CORE_OFFSET"};
-
-/**
  * @interface IStreamsExecutor
  * @ingroup ov_dev_api_threading
  * @brief Interface for Streams Task Executor. This executor groups worker threads into so-called `streams`.
@@ -80,6 +55,91 @@ public:
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
+    public:
+        enum PreferredCoreType {
+            ANY,
+            LITTLE,
+            BIG,
+            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
+                         // (for large #streams)
+        };
+
+    private:
+        std::string _name;            //!< Used by `ITT` to name executor threads
+        int _streams = 1;             //!< Number of streams.
+        int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
+        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
+                                                                         //!< No binding by default
+        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
+                                                                         //!< thread binded to cores with defined step
+        int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
+                                       //!< starting from offset
+        int _threads = 0;              //!< Number of threads distributed between streams.
+                                       //!< Reserved. Should not be used.
+        PreferredCoreType _thread_preferred_core_type =
+            PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
+                                     //!< Core type priority: physical PCore, ECore, logical PCore
+        std::vector<std::vector<int>> _streams_info_table = {};
+        std::vector<std::vector<int>> _stream_processor_ids;
+        bool _cpu_reservation = false;
+
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information,
+         *        streams_info_table must be present in the configuration
+         */
+        void reserve_cpu_threads();
+
+         /**
+         * @brief Modify _streams_info_table and related configuration according to configuration
+         */
+        void update_executor_config();
+
+        /**
+         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
+         *        that is, only create one thread with TBB
+         */
+        void set_config_zero_stream();
+
+    public:
+        /**
+         * @brief      A constructor with arguments
+         *
+         * @param[in]  name                     The executor name
+         * @param[in]  streams                  @copybrief Config::_streams
+         * @param[in]  threadsPerStream         @copybrief Config::_threads_per_stream
+         * @param[in]  threadBindingType        @copybrief Config::_threadBindingType
+         * @param[in]  threadBindingStep        @copybrief Config::_threadBindingStep
+         * @param[in]  threadBindingOffset      @copybrief Config::_threadBindingOffset
+         * @param[in]  threads                  @copybrief Config::_threads
+         * @param[in]  threadPreferredCoreType  @copybrief Config::_thread_preferred_core_type
+         * @param[in]  streamsInfoTable         @copybrief Config::_streams_info_table
+         * @param[in]  cpuReservation           @copybrief Config::_cpu_reservation
+         */
+        Config(std::string name = "StreamsExecutor",
+               int streams = 1,
+               int threadsPerStream = 0,
+               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
+               int threadBindingStep = 1,
+               int threadBindingOffset = 0,
+               int threads = 0,
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
+               std::vector<std::vector<int>> streamsInfoTable = {},
+               bool cpuReservation = false)
+            : _name{name},
+              _streams{streams},
+              _threads_per_stream{threadsPerStream},
+              _threadBindingType{threadBindingType},
+              _threadBindingStep{threadBindingStep},
+              _threadBindingOffset{threadBindingOffset},
+              _threads{threads},
+              _thread_preferred_core_type(threadPreferredCoreType),
+              _streams_info_table{streamsInfoTable},
+              _cpu_reservation{cpuReservation} {
+            update_executor_config();
+        }
+
+        // These APIs which includes set_property and get_property can not be removed until they will never be called by
+        // other plugins such as NV plugin.
         /**
          * @brief Sets configuration
          * @param properties map of properties
@@ -100,105 +160,64 @@ public:
          */
         ov::Any get_property(const std::string& key) const;
 
+        std::string get_name() const {
+            return _name;
+        }
+        int get_streams() const {
+            return _streams;
+        }
+        int get_threads() const {
+            return _threads;
+        }
+        int get_threads_per_stream() const {
+            return _threads_per_stream;
+        }
+        bool get_cpu_reservation() const {
+            return _cpu_reservation;
+        }
+        std::vector<std::vector<int>> get_streams_info_table() const {
+            return _streams_info_table;
+        }
+        std::vector<std::vector<int>> get_stream_processor_ids() const {
+            return _stream_processor_ids;
+        }
+        ThreadBindingType get_thread_binding_type() const {
+            return _threadBindingType;
+        }
+        int get_thread_binding_step() const {
+            return _threadBindingStep;
+        }
+        int get_thread_binding_offset() const {
+            return _threadBindingOffset;
+        }
+        bool operator==(const Config& config) {
+            if (_name == config._name && _streams == config._streams &&
+                _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
+                _thread_preferred_core_type == config._thread_preferred_core_type) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         /**
          * @brief Create appropriate multithreaded configuration
          *        filing unconfigured values from initial configuration using hardware properties
          * @param initial Inital configuration
-         * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
-         *       whether the executor should be configured for floating point intensive work (as opposite to int8
-         * intensive)
          * @return configured values
          */
-        static Config make_default_multi_threaded(const Config& initial, const bool fp_intesive = true);
-        static int get_default_num_streams(
-            const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
-        static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
-        static void update_hybrid_custom_threads(Config& config);
+        static Config make_default_multi_threaded(const Config& initial);
+
+        static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
+
+        /**
+         * @brief Get and reserve cpu ids based on configuration and hardware information
+         *        streams_info_table must be present in the configuration
+         * @param initial Inital configuration
+         * @return configured values
+         */
+        // It will be removed when other plugins will no longer call it.
         static Config reserve_cpu_threads(const Config& initial);
-
-        std::string _name;          //!< Used by `ITT` to name executor threads
-        int _streams = 1;           //!< Number of streams.
-        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
-                                                                         //!< No binding by default
-        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
-        int _threadBindingOffset = 0;       //!< In case of @ref CORES binding offset type thread binded to cores
-                                            //!< starting from offset
-        int _threads = 0;                   //!< Number of threads distributed between streams.
-                                            //!< Reserved. Should not be used.
-        int _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
-        int _threads_per_stream_big = 0;    //!< Threads per stream in big cores
-        int _threads_per_stream_small = 0;  //!< Threads per stream in small cores
-        int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
-        bool _enable_hyper_thread = true;   //!< enable hyper thread
-        int _plugin_task = NOT_USED;
-        enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
-        enum PreferredCoreType {
-            ANY,
-            LITTLE,
-            BIG,
-            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
-                         // (for large #streams)
-        } _threadPreferredCoreType =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
-
-        std::vector<std::vector<int>> _streams_info_table = {};
-        std::vector<std::vector<int>> _stream_processor_ids;
-        bool _cpu_reservation = false;
-        bool _streams_changed = false;
-
-        /**
-         * @brief      A constructor with arguments
-         *
-         * @param[in]  name                 The executor name
-         * @param[in]  streams              @copybrief Config::_streams
-         * @param[in]  threadsPerStream     @copybrief Config::_threadsPerStream
-         * @param[in]  threadBindingType    @copybrief Config::_threadBindingType
-         * @param[in]  threadBindingStep    @copybrief Config::_threadBindingStep
-         * @param[in]  threadBindingOffset  @copybrief Config::_threadBindingOffset
-         * @param[in]  threads              @copybrief Config::_threads
-         * @param[in]  threadPreferBigCores @copybrief Config::_threadPreferBigCores
-         */
-        Config(std::string name = "StreamsExecutor",
-               int streams = 1,
-               int threadsPerStream = 0,
-               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1,
-               int threadBindingOffset = 0,
-               int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuReservation = false)
-            : _name{name},
-              _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType),
-              _streams_info_table{streamsInfoTable},
-              _cpu_reservation{cpuReservation} {}
-
-        /**
-         * @brief Modify _streams_info_table and related configuration according to user-specified parameters, bind
-         * threads to cpu cores if cpu_pinning is true.
-         * @param stream_nums Number of streams specified by user
-         * @param threads_per_stream Number of threads per stream specified by user
-         * @param core_type Cpu type (Big/Little/Any) specified by user
-         * @param cpu_pinning Whether to bind the threads to cpu cores
-         */
-        void update_executor_config(int stream_nums,
-                                    int threads_per_stream,
-                                    PreferredCoreType core_type,
-                                    bool cpu_pinning);
-        /**
-         * @brief Set _streams_info_table and _cpu_reservation in cpu streams executor config when nstreams = 0,
-         *        that is, only create one thread with TBB
-         */
-        void set_config_zero_stream();
     };
 
     /**
