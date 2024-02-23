@@ -11,7 +11,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         # Install git
-        git ca-certificates && \
+        git ca-certificates \
         # Install Python
         python3.11-dev \
         # For Java API
