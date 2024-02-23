@@ -141,6 +141,8 @@ class TestTFHubConvertModel(TestConvertModel):
     def teardown_method(self):
         # remove all downloaded files for TF Hub models
         self.clean_dir(tf_hub_cache_dir)
+
+        # remove all downloaded files for HF models
         self.clean_dir(hf_cache_dir)
 
         # deallocate memory after each test case
