@@ -27,6 +27,8 @@
 
 namespace ov {
 class Model;
+class CompiledModel;
+class ICompiledModel;
 
 std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
@@ -42,9 +44,11 @@ class ModelAccessor;
  */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
+    friend class ov::CompiledModel;
+    friend class ov::ICompiledModel;
     friend std::shared_ptr<Model> clone_ov_model(const Model& func,
                                                  std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
-    std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
+    std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
