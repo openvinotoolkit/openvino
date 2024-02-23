@@ -20,6 +20,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "transformations/resolve_names_collisions.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 #include "transforms.hpp"
 #include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
@@ -220,6 +221,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     // Second pass of AlignTypesRemoval after all converting transformations
     manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
+    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 
