@@ -276,397 +276,268 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-#  Debian_Packages:
-#    name: Debian Packages
-#    needs: Build
-#    uses: ./.github/workflows/job_debian_packages.yml
-#    with:
-#      runner: 'aks-linux-4-cores-16gb'
-#      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-
-  Samples:
-    needs: Build
-    uses: ./.github/workflows/job_samples_tests.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
+  CXX_Unit_Tests:
+    name: C++ unit tests
+    timeout-minutes: 60
+    runs-on: 'aks-linux-16-cores-32gb'
+    container:
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      affected-components: '{"stage": "stage"}'
-
-#  JS_API:
-#    name: OpenVINO JS API
-#    needs: Build
-#    uses: ./.github/workflows/job_openvino_js.yml
-#    with:
-#      runner: 'aks-linux-4-cores-16gb'
-#      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
-
-  Conformance:
-    needs: Build
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04-8-cores
-    strategy:
-      max-parallel: 2
-      fail-fast: false
-      matrix:
-        include:
-          # 'OP' for Opset, 'API' for API
-          - TEST_TYPE: 'OP'
-          - TEST_TYPE: 'API'
-    env:
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
-      CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
-      TEST_DEVICE: 'CPU'
-
-    steps:
-      - name: Create Directories
-        run: |
-          mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
-
-      #
-      # Dependencies
-      #
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-          pushd ${INSTALL_TEST_DIR}
-            tar -xzf openvino_tests.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          should-setup-pip-paths: 'false'
-          self-hosted-runner: 'false'
-
-      - name: Install Dependencies
-        run: |
-          sudo -E ${INSTALL_DIR}/install_dependencies/install_openvino_dependencies.sh -c=core -y
-
-          python3 -m pip install -r ${CONFORMANCE_TOOLS_DIR}/requirements.txt
-
-      #
-      # Tests
-      #
-
-      - name: Conformance Tests
-        run: |
-          source ${INSTALL_DIR}/setupvars.sh
-
-          python3 ${CONFORMANCE_TOOLS_DIR}/run_conformance.py -ov=${INSTALL_DIR}/tests \
-            -d=${TEST_DEVICE} \
-            -t=${{ matrix.TEST_TYPE }} \
-            -w=${CONFORMANCE_ARTIFACTS_DIR} \
-            --cache_path=${CONFORMANCE_TOOLS_DIR}/github/cache/${TEST_DEVICE}/test_cache_${{ matrix.TEST_TYPE }}.lst \
-            -f=${CONFORMANCE_TOOLS_DIR}/github/skip_configs/${TEST_DEVICE}/expected_failures_${{ matrix.TEST_TYPE }}.csv
-
-      - name: Pack Conformance Artifacts
-        if: ${{ always() }}
-        run: |
-          pushd ${CONFORMANCE_ARTIFACTS_DIR}
-            tar -czvf ${CONFORMANCE_ARTIFACTS_DIR}/conformance_artifacts.tar.gz *
-          popd
-
-      - name: Upload Conformance Artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
-          path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
-          if-no-files-found: 'error'
-
-  ONNX_Models:
-    name: ONNX Models Tests
-    needs: Build
-    uses: ./.github/workflows/job_onnx_models_tests.yml
-    with:
-      runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
-
-  CXX_Unit_Tests:
     strategy:
       max-parallel: 3
       fail-fast: false
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-#          - SANITIZER: 'UndefinedBehavior'
-#          - SANITIZER: 'Thread'
-    name: C++ unit tests
-    needs: Build
-    uses: ./.github/workflows/job_cxx_unit_tests.yml
-    with:
-      runner: 'aks-linux-16-cores-32gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      affected-components: '{"mock": "mock"}'
-      sanitizer-name: ${{ matrix.SANITIZER }}
-
-  Python_Unit_Tests:
-    name: Python unit tests
-    needs: Build
-    uses: ./.github/workflows/job_python_unit_tests.yml
-    with:
-      runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
-      affected-components: '{"stage": "stage"}'
-
-  CPU_Functional_Tests:
-    name: CPU functional tests
-    needs: Build
-    uses: ./.github/workflows/job_cpu_functional_tests.yml
-    with:
-      runner: 'aks-linux-8-cores-32gb'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-  #   volumes:
-  #     - /mount:/mount
-  TensorFlow_Hub_Models_Tests:
-    name: TensorFlow Hub Models tests
-    needs: [ Build, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
-    with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
-
-  # TODO: Switch back to self-hosted runners
-  # container:
-  #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-  #   volumes:
-  #     - /mount:/mount
-  PyTorch_Models_Tests:
-    name: PyTorch Models tests
-    needs: [ Build, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_pytorch_models_tests.yml
-    with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
-
-  NVIDIA_Plugin:
-    name: NVIDIA plugin
-    needs: Build
-    timeout-minutes: 15
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-16-cores-32gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu20.04
-      volumes:
-        - /mount:/mount
+    #          - SANITIZER: 'UndefinedBehavior'
+    #          - SANITIZER: 'Thread'
     env:
-      CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
-      INSTALL_DIR: /__w/openvino/openvino/install
-      OPENVINO_DEVELOPER_PACKAGE: /__w/openvino/openvino/install/developer_package
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
-      DEBIAN_FRONTEND: 'noninteractive'
-
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      CC: clang
+      CXX: clang++
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
-      - name: Fetch install_build_dependencies.sh
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tests package
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_TEST_DIR }}
+
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
+
+          echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/asan/suppressions.supp" >> "$GITHUB_ENV"
+          echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd $INSTALL_DIR
+            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
+          popd
+          pushd $INSTALL_TEST_DIR
+            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
+          popd
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+          apt update && apt --assume-yes install clang lld
+
+      - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
-            install_build_dependencies.sh
+            tests/lsan/suppressions.txt
+            tests/asan/suppressions.supp
           sparse-checkout-cone-mode: false
-          path: ${{ env.OPENVINO_REPO }}
-
-      - name: Install Prerequisites
-        run: apt update && apt install -y git ca-certificates
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_developer_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_developer_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
+          path: 'openvino'
 
       #
-      # Dependencies
+      # Tests
       #
 
-      - name: Install build dependencies
-        run: |
-          ${OPENVINO_REPO}/install_build_dependencies.sh
-          apt -y --no-install-recommends install software-properties-common curl
-
-      - name: Install CUDA
-        run: |
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-          mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-
-          apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-          add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-          apt update
-          apt install -y \
-            libcudnn8=8.9.4.*-1+cuda11.8 \
-            libcudnn8-dev=8.9.4.*-1+cuda11.8 \
-            libcudnn8-samples=8.9.4.*-1+cuda11.8 \
-            cuda-runtime-11-8 \
-            cuda-11-8 \
-            libcutensor1=1.6.1.5-1 \
-            libcutensor-dev=1.6.1.5-1 \
-            cuda-drivers=520.61.05-1
-
-      #
-      # Build
-      #
-
-      - name: Cmake & Build - NVIDIA Plugin
+      - name: OpenVINO Core Unit Tests
+        if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          cmake \
-            -DOpenVINODeveloperPackage_DIR=${OPENVINO_DEVELOPER_PACKAGE}/cmake \
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
-            -B ${NVIDIA_BUILD_DIR}
-          cmake --build ${NVIDIA_BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose -- ov_nvidia_func_tests ov_nvidia_unit_tests
+          ${INSTALL_TEST_DIR}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
-  Openvino_tokenizers:
-    name: OpenVINO tokenizers extension
-    needs: Build
-    timeout-minutes: 25
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount:/mount
-    env:
-      INSTALL_DIR: /__w/openvino/openvino/install
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
-      OPENVINO_TOKENIZERS_REPO: /__w/openvino/openvino/openvino_contrib/modules/custom_operations
-      EXTENSION_BUILD_DIR: /__w/openvino/openvino/openvino_tokenizers
-
-    steps:
-      - name: checkout action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python
-            install_build_dependencies.sh
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'false'
-
-      - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
-        with:
-          repository: 'openvinotoolkit/openvino_contrib'
-          path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd ${INSTALL_DIR}
-            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
-          popd
-
-      #
-      # Dependencies
-      #
-
-      - name: Install build dependencies
-        run: ./install_build_dependencies.sh
-
-      - name: Install python dependencies
-        run: |
-          # wheel packaging
-          python3 -m pip install -r ${OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
-
-      #
-      # Build
-      #
-
-      - name: Build tokenizers wheel
+      - name: OpenVINO Inference Functional Tests
+        if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
-        env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
-          CMAKE_BUILD_PARALLEL_LEVEL: '4'
-          CMAKE_GENERATOR: 'Unix Makefiles'
+          ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
 
-      #
-      # Upload build artifacts
-      #
+      - name: OpenVINO Inference Unit Tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_inference_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceUnit.xml
 
-      - name: Upload openvino tokenizers wheel
-        if: ${{ always() }}
+      - name: Low Precision Transformations Tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${INSTALL_TEST_DIR}/ov_lp_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-LpTransformations.xml
+
+      - name: OpenVINO Conditional compilation tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_conditional_compilation_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ConditionalCompilation.xml
+
+      - name: IR frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_ir_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-IRFrontend.xml
+
+      - name: PaddlePaddle frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/paddle_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-PaddleTests.xml
+
+      - name: ONNX frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_onnx_frontend_tests --gtest_print_time=1 \
+                --gtest_filter=-*IE_GPU* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ONNXFrontend.xml
+
+      - name: TensorFlow Common frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_tensorflow_common_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowCommonFrontend.xml
+
+      - name: TensorFlow frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${INSTALL_TEST_DIR}/ov_tensorflow_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowFrontend.xml
+
+      - name: TensorFlow Lite frontend tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TensorFlowLiteFrontend.xml
+
+      - name: Transformations func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+
+          ${INSTALL_TEST_DIR}/ov_transformations_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-Transformations.xml
+
+      - name: Common test utils tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_util_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CommonUtilTests.xml
+
+      - name: Snippets func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_snippets_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-SnippetsFuncTests.xml
+
+      - name: CPU plugin unit tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_cpu_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUUnitTests.xml
+
+      - name: ov_subgraphs_dumper_tests tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_subgraphs_dumper_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_subgraphs_dumper_tests.xml
+
+      - name: Template OpImpl tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_op_conformance_tests --gtest_print_time=1 --device=TEMPLATE --gtest_filter=*OpImpl*\
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpImplTests.xml
+
+      - name: AUTO unit tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_unit_tests --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_unit_tests.xml
+
+      - name: AUTO func Tests
+        if: always()
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 \
+                --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
+
+      - name: Template plugin func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_template_func_tests --gtest_print_time=1 \
+                --gtest_filter=*smoke* \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-TemplateFuncTests.xml
+
+      - name: OpenVINO C API tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_capi_test --gtest_print_time=1 \
+                --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OpenVINOCAPITests.xml
+
+      - name: AutoBatch unit tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_batch_unit_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_unit_tests.xml
+
+      - name: AutoBatch func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_auto_batch_func_tests --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-ov_auto_batch_func_tests.xml
+
+      - name: Proxy Plugin func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVProxyTests.xml
+
+      - name: Hetero unit tests
+        if: always()
+        run: |
+          source ${{ env.INSTALL_DIR }}/setupvars.sh
+          ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
+
+      - name: Hetero func tests
+        if: always()
+        run: |
+          source ${INSTALL_DIR}/setupvars.sh
+          ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
+
+      - name: Upload Test Results
         uses: actions/upload-artifact@v3
+        if: ${{ !cancelled() }}
         with:
-          name: openvino_tokenizers_wheel
-          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
-          if-no-files-found: 'error'
-
+          name: test-results-cpp
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'
