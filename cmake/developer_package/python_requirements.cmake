@@ -64,14 +64,17 @@ endfunction()
 # ov_check_pip_packages(REQUIREMENTS_FILE <requirements.txt file>
 #                       RESULT_VAR <result var name>
 #                      [WARNING_MESSAGE <message>]
-#                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>])
+#                      [MESSAGE_MODE <WARNING | FATAL_ERROR | TRACE>]
+#                      [PDM_PROJECT] <pyproject.pdm file>)
 #
 function(ov_check_pip_packages)
     find_host_package(Python3 QUIET COMPONENTS Interpreter)
+    find_program(PDM_FOUND pdm)
 
     set(oneValueOptionalArgs
         MESSAGE_MODE            # Set the type of message: { FATAL_ERROR | WARNING | ... }
         WARNING_MESSAGE         # callback message
+        PDM_PROJECT             # path to pyproject.toml
         )
     set(oneValueRequiredArgs
         REQUIREMENTS_FILE       # File with requirement-specifiers to check
@@ -95,6 +98,29 @@ function(ov_check_pip_packages)
 
     if(ARG_UNPARSED_ARGUMENTS)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
+    endif()
+
+    message(STATUS "LOOOOOL ${ARG_PDM_PROJECT}")
+
+    if(NOT ${ARG_PDM_PROJECT} STREQUAL "")
+        if(PDM_FOUND)
+            execute_process(
+                COMMAND ${Python3_EXECUTABLE} -c "
+from check_python_requirements import check_python_requirements_pdm ;
+check_python_requirements_pdm('${ARG_PDM_PROJECT}') ;
+                            "
+                            WORKING_DIRECTORY "${OpenVINODeveloperScripts_DIR}"
+                            RESULT_VARIABLE EXIT_CODE
+                            OUTPUT_VARIABLE OUTPUT_TEXT
+                            ERROR_VARIABLE ERROR_TEXT)
+        endif()
+        message(STATUS " ${EXIT_CODE} ${OUTPUT_TEXT} ${ERROR_TEXT}")
+        if(EXIT_CODE EQUAL 0)
+            set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
+        else()
+            set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
+            message(${ARG_MESSAGE_MODE} "Python requirement file ${ARG_PDM_PROJECT} is not installed, ${ARG_WARNING_MESSAGE}")
+        endif()
     endif()
 
     if(Python3_Interpreter_FOUND)

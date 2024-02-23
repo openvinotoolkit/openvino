@@ -152,7 +152,8 @@ endif()
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
 ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
                       RESULT_VAR ENABLE_WHEEL_DEFAULT
-                      MESSAGE_MODE WARNING)
+                      MESSAGE_MODE WARNING
+                      PDM_PROJECT "${OpenVINOPython_SOURCE_DIR}/pyproject.toml")
 
 if(LINUX)
     find_host_program(patchelf_program
