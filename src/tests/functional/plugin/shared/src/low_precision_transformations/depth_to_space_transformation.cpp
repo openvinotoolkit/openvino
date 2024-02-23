@@ -13,7 +13,6 @@
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
-#include "ov_models/pass/convert_prc.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"

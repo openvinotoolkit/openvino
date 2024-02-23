@@ -9,7 +9,7 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"

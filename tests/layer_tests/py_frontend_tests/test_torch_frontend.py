@@ -4,7 +4,7 @@
 
 import torch
 import numpy as np
-from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext, OpExtension
+from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino.runtime import PartialShape, Type
 import openvino.runtime.opset10 as ops
 
@@ -227,7 +227,7 @@ def get_builtin_extensions_path():
     raise RuntimeError("Unable to find test_builtin_extensions")
 
 
-def test_op_extension():
+def test_so_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     class Elu(torch.nn.Module):
@@ -257,6 +257,100 @@ def test_op_extension():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "CustomElu", "Result"]
+
+def test_framework_map_macros():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class Relu(torch.nn.Module):
+        def __init__(self):
+            super(Relu, self).__init__()
+
+        def forward(self, x):
+            return torch.nn.functional.relu(x)
+
+    model = Relu()
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Relu", "Result"]
+
+    fe.add_extension(get_builtin_extensions_path())
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "ReluCustom", "Result"]
+
+
+def test_op_extension():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch import OpExtension
+
+    class CosModel(torch.nn.Module):
+        def __init__(self):
+            super(CosModel, self).__init__()
+
+        def forward(self, x):
+            return torch.cos(x.to(torch.float32))
+
+    model = CosModel()
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Cos", "Result"]
+
+    fe.add_extension(OpExtension("Sin", "aten::cos"))
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Sin", "Result"]
+
+
+def test_op_extension_generic():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend import OpExtension
+
+    class CosModel(torch.nn.Module):
+        def __init__(self):
+            super(CosModel, self).__init__()
+
+        def forward(self, x):
+            return torch.cos(x.to(torch.float32))
+
+    model = CosModel()
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Cos", "Result"]
+
+    fe.add_extension(OpExtension("Sin", "aten::cos"))
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Sin", "Result"]
 
 
 def test_pytorch_telemetry():
@@ -318,20 +412,24 @@ def test_shared_consts_reused():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
     model = ShareWeghtsConvAndShareLinearModel()
-    decoder = TorchScriptPythonDecoder(model, example_input=(torch.rand(model.INPUT_SIZE),))
+    decoder = TorchScriptPythonDecoder(
+        model, example_input=(torch.rand(model.INPUT_SIZE),))
     fe_manager = FrontEndManager()
     fe = fe_manager.load_by_framework("pytorch")
     im = fe.load(decoder)
     om = fe.convert(im)
-    const_names = ["self.conv.weight", "self.linear.weight", "self.linear.bias"]
+    const_names = ["self.conv.weight",
+                   "self.linear.weight", "self.linear.bias"]
     # self.conv.bias is not reused because of ConstantFolding
     for n in om.get_ops():
         if "Constant" in n.get_type_name():
             for name in n.output(0).names:
                 if name in const_names:
                     const_names.remove(name)
-                    assert len(n.output(0).get_target_inputs()) == 2, f"Constant {n} is not reused"
-    assert len(const_names) == 0, f"Not all constants were found: {const_names}"
+                    assert len(n.output(0).get_target_inputs()
+                               ) == 2, f"Constant {n} is not reused"
+    assert len(
+        const_names) == 0, f"Not all constants were found: {const_names}"
 
 
 class TestModel1(torch.nn.Module):
@@ -377,4 +475,5 @@ def test_output_tuple_names():
     fe = fe_manager.load_by_framework("pytorch")
     im = fe.load(decoder)
     om = fe.convert(im)
-    assert len(om.outputs[0].names) == 0 and len(om.outputs[1].names) == 0, "Output tuple names must be empty"
+    assert len(om.outputs[0].names) == 0 and len(
+        om.outputs[1].names) == 0, "Output tuple names must be empty"
