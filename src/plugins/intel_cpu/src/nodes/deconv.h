@@ -89,7 +89,7 @@ private:
     size_t IC = 0;
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims int8WeightDims;
+    VectorDims weightDims;
     VectorDims expectedBiasDims {};
 
     bool useACL = false;
