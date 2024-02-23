@@ -5,7 +5,7 @@
 #include "custom/subgraph_tests/include/fuse_transpose_reorder.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# TODO (vurusovs): delete after migration of NVidia and NPU
+
 set(TARGET_NAME ov_models)
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
