@@ -6,8 +6,6 @@ set(TARGET_NAME ov_proxy_plugin_tests)
 
 set(DEPENDENCIES
     mock_engine
-    openvino::runtime
-    func_test_utils
 )
 
 set(COMPILE_DEFINITIONS "CI_BUILD_NUMBER=\"mock_version\"")
@@ -36,7 +34,7 @@ ov_add_test_target(
             openvino::runtime::dev
             gtest
             gtest_main
-            func_test_utils
+            common_test_utils
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT PROXY
