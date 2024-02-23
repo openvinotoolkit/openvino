@@ -2,16 +2,10 @@ name: OVC
 on:
   merge_group:
   push:
-    paths:
-      - 'tools/ovc/**'
-      - '.github/workflows/ovc.yml'
     branches:
       - 'master'
       - 'releases/**'
   pull_request:
-    paths:
-      - 'tools/ovc/**'
-      - '.github/workflows/ovc.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
