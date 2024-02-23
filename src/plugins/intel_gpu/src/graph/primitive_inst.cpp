@@ -610,6 +610,31 @@ event::ptr primitive_inst::realloc_if_needed() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << _max_output_layout_count
                                <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
+
+        // Shape-of layers do not propagate parents' events for better performance.
+        // The below logic prevents RAW hazard without additional synchronization.
+        auto queue_type = get_network().get_stream().get_queue_type();
+        if (queue_type == QueueTypes::out_of_order) {
+            for (auto& dep : _exec_deps) {
+                if (dep->get_node().is_type<shape_of>()) {
+                    std::function<void(const primitive_inst*, size_t)> add_to_runtime_mem_deps = [&, this](const primitive_inst* prim, size_t curr_dist) {
+                        const size_t max_distance = 2;
+                        if (curr_dist == max_distance)
+                            return;
+                        if (!prim->can_be_optimized())
+                            curr_dist += 1;
+                        _runtime_memory_dependencies.insert(prim->id());
+                        for (auto& dep : prim->_exec_deps) {
+                            add_to_runtime_mem_deps(dep, curr_dist);
+                        }
+                    };
+
+                    for (auto& ddep : dep->_exec_deps) {
+                        add_to_runtime_mem_deps(ddep, 0);
+                    }
+                }
+            }
+        }
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
         GPU_DEBUG_CODE(std::string memalloc_info = "");
         GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
