@@ -7,6 +7,7 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "ov_models/preprocess/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace CPUTestUtils;
 

@@ -7,6 +7,8 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "common_test_utils/node_builders/gru_cell.hpp"
+#include "openvino/pass/manager.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
