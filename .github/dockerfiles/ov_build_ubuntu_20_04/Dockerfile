@@ -5,7 +5,9 @@ USER root
 # Set apt retries
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
-RUN add-apt-repository ppa:deadsnakes/ppa && \
+RUN apt-get update && \
+    apt-get install --assume-yes --no-install-recommends software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         # Install git
@@ -14,6 +16,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && \
         python3.11-dev \
         # For Java API
         default-jdk \
+        && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
