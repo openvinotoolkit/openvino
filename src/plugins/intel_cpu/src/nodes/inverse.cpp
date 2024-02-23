@@ -11,9 +11,6 @@
 #include "openvino/op/inverse.hpp"
 #include "utils/bfloat16.hpp"
 
-// Parallel LU decomposition algorithm with partial pivoting
-// Based on the lectures by Prof. Dr. Thomas Huckle, Parallel Numerics
-
 namespace ov {
 namespace intel_cpu {
 namespace node {
