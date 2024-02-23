@@ -103,7 +103,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
 
     if (pool_aux_gpr_idxs.size() < get_aux_gprs_count()) {
-        OPENVINO_THROW("Failed to allocate required number of gpr registers");
+        OPENVINO_THROW("Failed to allocate required number of gpr registers. Pool size: " +
+            std::to_string(pool_aux_gpr_idxs.size()) + ", required size: " + std::to_string(get_aux_gprs_count()));
     }
 
     using namespace Xbyak_aarch64::util;
