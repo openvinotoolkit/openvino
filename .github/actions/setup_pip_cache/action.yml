@@ -1,6 +1,9 @@
 name: 'Setup pip cache'
 description: 'Sets up pip cache usage'
 inputs:
+  pip-cache-path:
+    description: 'Path on share where the pip cache is stored'
+    required: false
   show-cache-info:
     description: 'If the action should show the share space occupied by cache'
     required: false

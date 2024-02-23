@@ -51,7 +51,16 @@ runs:
         PIP_CACHE_DIR: ${{ inputs.self-hosted-runner == 'true' && inputs.pip-cache-path || '' }}
 
     - if: ${{ inputs.should-setup-pip-paths == 'true' }}
-      name: Setup pip cache
-      uses: ./.github/actions/setup_pip_cache
+      name: Checkout setup_pip_cache action
+      uses: actions/checkout@v4
       with:
+        sparse-checkout: .github/actions/setup_pip_cache
+        sparse-checkout-cone-mode: false
+        path: ./pip_cache
+
+    - if: ${{ inputs.should-setup-pip-paths == 'true' }}
+      name: Setup pip cache
+      uses: ./pip_cache/.github/actions/setup_pip_cache
+      with:
+        pip-cache-path: ${{ inputs.pip-cache-path }}
         show-cache-info: ${{ inputs.show-cache-info }}
