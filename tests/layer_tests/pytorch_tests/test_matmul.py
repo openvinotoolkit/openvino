@@ -3,35 +3,40 @@ import pytest
 import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
-class TestMVOperation(PytorchLayerTest):
+class TestMatMulOperation(PytorchLayerTest):
     def _prepare_input(self, matrix, vector):
-        matrix_input = np.array(matrix).astype(np.float32)
-        vector_input = np.array(vector).astype(np.float32)
+        matrix_input = torch.tensor(matrix, dtype=torch.float32)
+        vector_input = torch.tensor(vector, dtype=torch.float32)
         return [matrix_input, vector_input]
 
     def create_model(self, matrix, vector):
-        class CustomMVOperation(torch.nn.Module):
+        class CustomMatMulOperation(torch.nn.Module):
             def forward(self, matrix, vector):
-                return torch.mv(matrix, vector)  # Using torch.mv for matrix-vector multiplication
+                return torch.matmul(matrix, vector)
 
-        model_class = CustomMVOperation()
+        model_class = CustomMatMulOperation()
         ref_net = None
-        return model_class, ref_net, "aten::mv"
+        return model_class, ref_net, "aten::mm"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("matrix, vector", [
-        (np.array([[1, 2], [3, 4]]), np.array([5, 6])),
-        (np.array([[0, 0], [0, 0]]), np.array([1, 2])),
-        (np.array([[1, 2, 3], [4, 5, 6]]), np.array([0, 1, 0])),
-        (np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), np.array([2, 3, 4])),
-        # Add more test cases as needed
+    @pytest.mark.parametrize("matrix, vector, dtype, device", [
+        (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64, 'cuda:0'),
+        (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32, 'cpu'),
+       
     ])
-    def test_mv_operation(self, matrix, vector, ie_device, precision, ir_version):
+    def test_matmul_operation(self, matrix, vector, dtype, device, ie_device, precision, ir_version):
+        matrix_input = torch.tensor(matrix, dtype=torch.float32)
+        vector_input = torch.tensor(vector, dtype=torch.float32)
+
+        
+        matrix_input = matrix_input.to(dtype=dtype, device=device)
+        vector_input = vector_input.to(dtype=dtype, device=device)
+
         self._test(
-            *self.create_model(matrix, vector),
+            *self.create_model(matrix_input, vector_input),
             ie_device,
             precision,
             ir_version,
-            kwargs_to_prepare_input={"matrix": matrix, "vector": vector}
+            kwargs_to_prepare_input={"matrix": matrix_input, "vector": vector_input}
         )
