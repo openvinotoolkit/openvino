@@ -247,7 +247,7 @@ Use either of the following methods to delete the files:
 Additional Resources
 ####################
 
-* :ref:`Troubleshooting Guide for OpenVINO Installation & Configuration <troubleshooting guide for install>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_install_guides_overview>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
