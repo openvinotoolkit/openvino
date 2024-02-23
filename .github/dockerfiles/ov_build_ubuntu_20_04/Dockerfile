@@ -22,12 +22,14 @@ RUN apt-get update && \
         && \
     rm -rf /var/lib/apt/lists/*
 
-# Setup pip
-RUN curl https://bootstrap.pypa.io/get-pip.py | python3.8  - --no-cache-dir pip==24.0 && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==24.0
-
 # Link python3 to python3.11
 RUN rm -f /usr/bin/python3 && ln -s /usr/bin/python3.11 /usr/bin/python3
+
+# Setup pip
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.8 get-pip.py  --no-cache-dir pip==24.0 && \
+    python3.11 get-pip.py --no-cache-dir pip==24.0 && \
+    rm -f get-pip.py
 
 # Install build dependencies
 COPY install_build_dependencies.sh /install_build_dependencies.sh
