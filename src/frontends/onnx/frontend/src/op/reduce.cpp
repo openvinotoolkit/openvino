@@ -94,7 +94,9 @@ template <typename OpType>
 std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
                                                const ov::Output<ov::Node>& ng_input,
                                                bool axes_as_attr = true,
-                                               const std::pair<int64_t, int64_t>& axes_range = {-std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max()}) {
+                                               const std::pair<int64_t, int64_t>& axes_range = {
+                                               -std::numeric_limits<int64_t>::max(),
+                                               std::numeric_limits<int64_t>::max()}) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
     const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
@@ -165,11 +167,13 @@ namespace set_11 {
 ov::OutputVector reduce_l2(const Node& node) {
     if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
         auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
-        return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
+        return {
+            make_ng_reduction_op<v4::ReduceL2>(node,
+            node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
     }
     return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
     }
-} // namespace set_11
+}  // namespace set_11
 
 namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
@@ -178,10 +182,10 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }  // namespace set_13
 
 namespace set_18 {
-    ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
+ov::OutputVector reduce_l2(const ov::frontend::onnx::Node& node) {
     return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
 }
-} // namespace set_18
+}  // namespace set_18
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
