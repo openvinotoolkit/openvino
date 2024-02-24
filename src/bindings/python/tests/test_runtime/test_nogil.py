@@ -53,7 +53,7 @@ def check_gil_released_safe(func, is_assign=False, args=[]):  # noqa: B006
 device = os.environ.get("TEST_DEVICE") if os.environ.get(
     "TEST_DEVICE") else "CPU"
 core = Core()
-core.set_property({ov.properties.enable_profiling: "YES"})
+core.set_property({ov.properties.enable_profiling: True})
 param = ops.parameter([224, 224])
 model = Model(ops.relu(param), [param])
 compiled_model = core.compile_model(model, device)

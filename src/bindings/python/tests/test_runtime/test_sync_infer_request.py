@@ -89,7 +89,7 @@ def test_get_profiling_info(device):
     softmax = ops.softmax(param, 1, name="fc_out")
     model = Model([softmax], [param], "test_model")
 
-    core.set_property(device, {ov.properties.enable_profiling: "YES"})
+    core.set_property(device, {ov.properties.enable_profiling: True})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()
