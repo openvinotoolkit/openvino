@@ -270,6 +270,15 @@ TYPED_TEST(SliceTest, input_axes_dynamic) {
     this->RunAllTestCasesForParams(params);
 }
 
+TYPED_TEST(SliceTest, input_step_axes_dynamic) {
+    SliceTestParams params;
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
+    params.is_input_dynamic = true;
+    params.is_step_dynamic = true;
+    params.is_axes_dynamic = true;
+    this->RunAllTestCasesForParams(params);
+}
+
 TYPED_TEST(SliceTest, bfyx_negative_step) {
     SliceTestParams params;
     const ov::PartialShape input_shape{ 1, 2, 12, 100 };

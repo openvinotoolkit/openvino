@@ -17,17 +17,17 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
 
     const auto& node_inputs = node.get_dependencies();
 
-    const bool axes_in_runtime_time =
+    const bool axes_in_runtime =
         ((node_inputs.size() == InputIndices::kInputsNum) && !node_inputs[InputIndices::kAxes].first->is_constant());
-    const bool start_in_runtime = axes_in_runtime_time || node_inputs[InputIndices::kStart].first->is_dynamic();
-    const bool step_in_runtime = axes_in_runtime_time || node_inputs[InputIndices::kStep].first->is_dynamic();
+    const bool start_in_runtime = node_inputs[InputIndices::kStart].first->is_dynamic();
+    const bool step_in_runtime = node_inputs[InputIndices::kStep].first->is_dynamic();
 
     inputs.neededIndexes.push_back(InputIndices::kData);
     if (start_in_runtime)
         inputs.neededIndexes.push_back(InputIndices::kStart);
     if (step_in_runtime)
         inputs.neededIndexes.push_back(InputIndices::kStep);
-    if (axes_in_runtime_time)
+    if (axes_in_runtime)
         inputs.neededIndexes.push_back(InputIndices::kAxes);
 
     // NOTE: stop is never needed as it is passed implicitely via output shape.
