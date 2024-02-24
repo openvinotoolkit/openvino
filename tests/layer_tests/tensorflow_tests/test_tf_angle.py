@@ -18,7 +18,7 @@ class TestAngle(CommonTFLayerTest):
         inputs_data['x'] = np.random.rand(*x_shape).astype(self.input_type) - np.random.rand(*x_shape).astype(self.input_type)
         return inputs_data
 
-    def create_atan2_net(self, input_shape, input_type):
+    def create_angle_net(self, input_shape, input_type):
         self.input_type = input_type
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
