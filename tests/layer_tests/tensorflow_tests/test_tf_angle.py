@@ -7,7 +7,7 @@ import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
-class TestAtan2(CommonTFLayerTest):
+class TestAngle(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'y' in inputs_info
         assert 'x' in inputs_info
