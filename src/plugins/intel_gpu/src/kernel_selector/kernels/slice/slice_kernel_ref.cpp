@@ -8,6 +8,7 @@
 
 namespace {
 static constexpr size_t MAX_SUPPORTED_DIM = 5;
+static constexpr char JIT_AXES_BUFF_SIZE_NAME[] = "AXES_BUFFER_SIZE";
 
 std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 #define CASE(TYPE, STR)     \
@@ -34,34 +35,39 @@ std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
 
 // Generates macros:
 // - name_BUFFER
-// - name_DIM0, name_DIM1 ...
+// - name_VAL0, name_VAL1 ...
 void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              const std::string& name,
                              const std::vector<std::int64_t>& compile_time_param,
-                             const std::vector<std::int64_t>& compile_time_axes,
                              ov::element::Type_t type,
-                             int64_t default_value) {
+                             const std::function<std::string(std::string, size_t)>& dynamic_access_decorator) {
     using namespace kernel_selector;
+    const std::string BUFF_CONST_NAME = name + "_BUFFER";
+    const std::string BUFF_PTR_NAME = name + "_buffer_ptr";
+    const auto jit_name_decorator = [](std::string name, size_t i) {
+        return name + "_VAL" + std::to_string(i);
+    };
+
     if (compile_time_param.empty()) {
+        // Dynamic param:
         const std::string type_str = ovElementTypeToOCLStr(type);
         jit.AddConstant(
-            MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* restrict " + name + "_buffer_ptr,"));
+            MakeJitConstant(BUFF_CONST_NAME, "__global const " + type_str + "* restrict " + BUFF_PTR_NAME + ","));
 
         for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
             const std::string i_str = std::to_string(i);
-            const std::string jit_name = name + "_DIM" + i_str;
-            jit.AddConstant(MakeJitConstant(jit_name, name + "_buffer_ptr[" + i_str + "]"));
+            const std::string jit_name = jit_name_decorator(name, i);
+            const std::string access_str = dynamic_access_decorator(BUFF_PTR_NAME, i);
+            jit.AddConstant(
+                MakeJitConstant(jit_name, i_str + " < " + JIT_AXES_BUFF_SIZE_NAME + " ? (" + access_str + ") : -1"));
         }
     } else {
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-        for (size_t i = 0; i < compile_time_param.size(); ++i) {
-            const std::string jit_name = name + "_DIM" + std::to_string(i);
-            jit.AddConstant(MakeJitConstant(jit_name, compile_time_param[i]));
-        }
-
-        for (size_t i = compile_time_param.size(); i < MAX_SUPPORTED_DIM; ++i) {
-            const std::string jit_name = name + "_DIM" + std::to_string(i);
-            jit.AddConstant(MakeJitConstant(jit_name, 0));
+        // Static param:
+        jit.AddConstant(MakeJitConstant(BUFF_CONST_NAME, ""));
+        for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
+            const std::string jit_name = jit_name_decorator(name, i);
+            const int64_t val = i < compile_time_param.size() ? compile_time_param[i] : -1;
+            jit.AddConstant(MakeJitConstant(jit_name, val));
         }
     }
 }
@@ -136,53 +142,29 @@ bool SliceKernelRef::Validate(const Params &p) const {
 
 JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    addJitConstantsForParam(jit,
-                            "SLICE_BEGIN",
-                            params.compile_time_start,
-                            params.compile_time_axes,
-                            params.start_data_type,
-                            0);
-    addJitConstantsForParam(jit,
-                            "SLICE_STEP",
-                            params.compile_time_step,
-                            params.compile_time_axes,
-                            params.step_data_type,
-                            1);
 
-    // Compile axes constants:
+    // Define axes size as constant:
     if (params.compile_time_axes.empty()) {
         kernel_selector::DimensionAccessHelper dims(params.inputs.back());
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_SIZE",
+        jit.AddConstant(MakeJitConstant(JIT_AXES_BUFF_SIZE_NAME,
                                         toVectorMulString({dims.b(), dims.f(), dims.x(), dims.y(), dims.z()})));
     } else {
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_SIZE", params.compile_time_axes.size()));
+        jit.AddConstant(MakeJitConstant(JIT_AXES_BUFF_SIZE_NAME, params.compile_time_axes.size()));
     }
 
-    if (params.compile_time_axes.empty()) {
-        const std::string type_str = ovElementTypeToOCLStr(params.axes_data_type);
-        jit.AddConstant(
-            MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* restrict axes_buffer_ptr,"));
+    // Prepare axes, start and step params:
+    const auto axes_decorator = [](std::string name, size_t i) {
+        const std::string i_str = std::to_string(i);
+        return name + "[" + i_str + "] < 0 ? INPUT0_DIMS + " + name + "[" + i_str + "] : " + name + "[" + i_str + "]";
+    };
+    addJitConstantsForParam(jit, "AXES", params.compile_time_axes, params.axes_data_type, axes_decorator);
 
-        for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
-            const std::string i_str = std::to_string(i);
-            const std::string jit_name = "SLICE_AXES_DIM" + i_str;
-            const std::string val = i_str + " < SLICE_AXES_BUFFER_SIZE ? (axes_buffer_ptr[" + i_str +
-                                    "] < 0 ? INPUT0_DIMS + axes_buffer_ptr[" + i_str + "] : axes_buffer_ptr[" + i_str +
-                                    "]) : 0";
-            jit.AddConstant(MakeJitConstant(jit_name, val));
-        }
-    } else {
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
-        for (size_t i = 0; i < params.compile_time_axes.size(); ++i) {
-            const std::string jit_name = "SLICE_AXES_DIM" + std::to_string(i);
-            jit.AddConstant(MakeJitConstant(jit_name, params.compile_time_axes[i]));
-        }
+    const auto default_decorator = [](std::string name, size_t i) {
+        return name + "[" + std::to_string(i) + "]";
+    };
+    addJitConstantsForParam(jit, "START", params.compile_time_start, params.start_data_type, default_decorator);
+    addJitConstantsForParam(jit, "STEP", params.compile_time_step, params.step_data_type, default_decorator);
 
-        for (size_t i = params.compile_time_axes.size(); i < MAX_SUPPORTED_DIM; ++i) {
-            const std::string jit_name = "SLICE_AXES_DIM" + std::to_string(i);
-            jit.AddConstant(MakeJitConstant(jit_name, 0));
-        }
-    }
     return jit;
 }
 

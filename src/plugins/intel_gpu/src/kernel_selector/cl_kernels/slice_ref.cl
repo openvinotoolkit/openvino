@@ -7,39 +7,33 @@
 #define BRING_INTO_RANGE(VAL, MAX) \
     clamp((long)VAL < 0l ? (long)VAL + (long)MAX : (long)VAL, 0l, (long)MAX-1l);
 
+#if INPUT0_DIMS < 5
+#define LOAD_BUFFER(in_prefix, out_name)  \
+    long out_name[INPUT0_DIMS];           \
+    out_name[0] = in_prefix##_VAL0;       \
+    out_name[1] = in_prefix##_VAL1;       \
+    out_name[2] = in_prefix##_VAL2;       \
+    out_name[3] = in_prefix##_VAL3;
+#else
+#define LOAD_BUFFER(in_prefix, out_name)  \
+    long out_name[INPUT0_DIMS];           \
+    out_name[0] = in_prefix##_VAL0;       \
+    out_name[1] = in_prefix##_VAL1;       \
+    out_name[2] = in_prefix##_VAL2;       \
+    out_name[3] = in_prefix##_VAL3;       \
+    out_name[4] = in_prefix##_VAL4;
+#endif
+
 KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG 
                   const __global INPUT0_TYPE* restrict input,
-                  SLICE_BEGIN_BUFFER
-                  SLICE_STEP_BUFFER
-                  SLICE_AXES_BUFFER
+                  START_BUFFER
+                  STEP_BUFFER
+                  AXES_BUFFER
                   __global OUTPUT_TYPE* restrict output)
 {
-    long axes[INPUT0_DIMS];
-    axes[0] = SLICE_AXES_DIM0;
-    axes[1] = SLICE_AXES_DIM1;
-    axes[2] = SLICE_AXES_DIM2;
-    axes[3] = SLICE_AXES_DIM3;
-#if INPUT0_DIMS == 5
-    axes[4] = SLICE_AXES_DIM4;
-#endif
-
-    long slice_step_init[INPUT0_DIMS];
-    slice_step_init[0] = SLICE_STEP_DIM0;
-    slice_step_init[1] = SLICE_STEP_DIM1;
-    slice_step_init[2] = SLICE_STEP_DIM2;
-    slice_step_init[3] = SLICE_STEP_DIM3;
-#if INPUT0_DIMS == 5
-    slice_step_init[4] = SLICE_STEP_DIM4;
-#endif
-
-    long slice_start_init[INPUT0_DIMS];
-    slice_start_init[0] = SLICE_BEGIN_DIM0;
-    slice_start_init[1] = SLICE_BEGIN_DIM1;
-    slice_start_init[2] = SLICE_BEGIN_DIM2;
-    slice_start_init[3] = SLICE_BEGIN_DIM3;
-#if INPUT0_DIMS == 5
-    slice_start_init[4] = SLICE_BEGIN_DIM4;
-#endif
+    LOAD_BUFFER(START, start_buff);
+    LOAD_BUFFER(STEP, step_buff);
+    LOAD_BUFFER(AXES, axes_buff);
 
     long slice_step[INPUT0_DIMS];
     long slice_start[INPUT0_DIMS];
@@ -50,10 +44,10 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     }
 
     #pragma unroll
-    for(int i = 0; i < SLICE_AXES_BUFFER_SIZE; ++i) {
-        const long axis = axes[i];
-        slice_step[axis] = slice_step_init[i];
-        slice_start[axis] = slice_start_init[i];
+    for(int i = 0; i < AXES_BUFFER_SIZE; ++i) {
+        const long axis = axes_buff[i];
+        slice_step[axis] = step_buff[i];
+        slice_start[axis] = start_buff[i];
     }
 
     const long output_dim0 = get_global_id(0);
@@ -94,4 +88,5 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
 }
 
+#undef LOAD_BUFFER;
 #undef BRING_INTO_RANGE;
