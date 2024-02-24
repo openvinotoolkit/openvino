@@ -41,6 +41,6 @@ class TestAngle(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_angle(self, params, ie_device, precision, ir_version, temp_dir,
                                use_new_frontend, use_old_api):
-        self._test(*self.create_atan2_net(**params),
+        self._test(*self.create_angle_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
