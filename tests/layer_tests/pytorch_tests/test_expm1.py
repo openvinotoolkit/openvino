@@ -34,11 +34,11 @@ class TestExpm1(PytorchLayerTest):
                     self.forward = self.forward_default
 
             def forward_default(self, x):
-                return torch.expm1(x.to(self.dtype)).type(torch.float32)
+                return torch.expm1(x.to(self.dtype)).to(torch.float32)
 
             def forward_out(self, x, y):
                 y = y.to(torch.float32)
-                return torch.expm1(x.to(self.dtype), out=y), y
+                return torch.expm1(x.to(self.dtype), out=y).to(torch.float32), y
 
         model_class = aten_expm1(mode, dtype)
 
