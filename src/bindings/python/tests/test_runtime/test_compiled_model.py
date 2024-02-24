@@ -34,7 +34,7 @@ def test_get_runtime_model(device):
 def test_export_import(device):
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, ov.properties.device.capabilities):
+    if ov.properties.device.Capability.EXPORT_IMPORT not in core.get_property(device, ov.properties.device.capabilities):
         pytest.skip(
             f"{core.get_property(device, ov.properties.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
@@ -55,7 +55,7 @@ def test_export_import_advanced(device):
 
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, ov.properties.device.capabilities):
+    if ov.properties.device.Capability.EXPORT_IMPORT not in core.get_property(device, ov.properties.device.capabilities):
         pytest.skip(
             f"{core.get_property(device, ov.properties.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
