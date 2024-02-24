@@ -76,18 +76,18 @@ public:
     }
 
     template<typename TypeParam>
-    void FillWithBasicBfyxPositiveStepData(SliceTestParams& params) {
-            const ov::PartialShape input_shape{ 1, 2, 12, 100 };
+    void FillWithBasicBfyxPositiveStepAxesLessThanRankData(SliceTestParams& params) {
+        const ov::PartialShape input_shape{ 1, 2, 12, 100 };
         params.input = this->template AllocateTensor<TypeParam>(
             input_shape, format::bfyx, helpers::GenInput<TypeParam>(input_shape));
         params.start = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4 }, format::bfyx, { 1, 0, 1, 0 });
+            ov::PartialShape{ 3 }, format::bfyx, { 1, 1, 0 });
         params.stop = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4 }, format::bfyx, { 120, 5, 2, 1 });
+            ov::PartialShape{ 3 }, format::bfyx, { 2, 120, 5 });
         params.step = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4 }, format::bfyx, { 10, 1, 1, 1 });
+            ov::PartialShape{ 3 }, format::bfyx, { 1, 10, 1 });
         params.axes = this->template AllocateTensor<int64_t>(
-            ov::PartialShape{ 4 }, format::bfyx, { -1, -2, -3, -4 });
+            ov::PartialShape{ 3 }, format::bfyx, { 1, 3, 2 });
         params.wanted_output = this->template AllocateTensor<TypeParam>(
             ov::PartialShape{ 1, 1, 5, 10 }, format::bfyx, { 
                 1201, 1211, 1221, 1231, 1241, 1251, 1261, 1271, 1281, 1291,
@@ -177,20 +177,20 @@ TYPED_TEST_SUITE(SliceTest, DataTypes);
 
 TYPED_TEST(SliceTest, bfyx_positive_step) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, bfyx_positive_step_all_static_caching) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_caching_test = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, bfyx_positive_step_all_dynamic_caching) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_input_dynamic = true;
     params.is_start_dynamic = true;
     params.is_step_dynamic = true;
@@ -202,28 +202,28 @@ TYPED_TEST(SliceTest, bfyx_positive_step_all_dynamic_caching) {
 
 TYPED_TEST(SliceTest, input_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_input_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, stop_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_stop_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, step_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_step_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, stop_step_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_step_dynamic = true;
     params.is_stop_dynamic = true;
     this->RunAllTestCasesForParams(params);
@@ -231,7 +231,7 @@ TYPED_TEST(SliceTest, stop_step_dynamic) {
 
 TYPED_TEST(SliceTest, input_stop_step_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_input_dynamic = true;
     params.is_step_dynamic = true;
     params.is_stop_dynamic = true;
@@ -240,14 +240,14 @@ TYPED_TEST(SliceTest, input_stop_step_dynamic) {
 
 TYPED_TEST(SliceTest, start_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_start_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, input_start_stop_step_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_input_dynamic = true;
     params.is_start_dynamic = true;
     params.is_step_dynamic = true;
@@ -257,14 +257,14 @@ TYPED_TEST(SliceTest, input_start_stop_step_dynamic) {
 
 TYPED_TEST(SliceTest, axes_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_axes_dynamic = true;
     this->RunAllTestCasesForParams(params);
 }
 
 TYPED_TEST(SliceTest, input_axes_dynamic) {
     SliceTestParams params;
-    this->template FillWithBasicBfyxPositiveStepData<TypeParam>(params);
+    this->template FillWithBasicBfyxPositiveStepAxesLessThanRankData<TypeParam>(params);
     params.is_input_dynamic = true;
     params.is_axes_dynamic = true;
     this->RunAllTestCasesForParams(params);

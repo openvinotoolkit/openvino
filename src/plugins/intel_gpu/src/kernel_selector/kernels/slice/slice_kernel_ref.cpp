@@ -39,43 +39,30 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              const std::string& name,
                              const std::vector<std::int64_t>& compile_time_param,
                              const std::vector<std::int64_t>& compile_time_axes,
-                             ov::element::Type_t type) {
+                             ov::element::Type_t type,
+                             int64_t default_value) {
     using namespace kernel_selector;
-
-    const bool param_available_now = !compile_time_param.empty();
-    const bool axes_available_now = !compile_time_axes.empty();
-
-    if (param_available_now) {
-        jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
-    } else {
+    if (compile_time_param.empty()) {
         const std::string type_str = ovElementTypeToOCLStr(type);
         jit.AddConstant(
             MakeJitConstant(name + "_BUFFER", "__global const " + type_str + "* restrict " + name + "_buffer_ptr,"));
-    }
 
-    if (param_available_now && axes_available_now) {
-        // Generate macros for compile_time_param available now and compile_time_axes available now.
-        OPENVINO_ASSERT(compile_time_param.size() == compile_time_axes.size());
-        for (size_t i = 0; i < compile_time_axes.size(); ++i) {
-            jit.AddConstant(
-                MakeJitConstant(name + "_DIM" + std::to_string(i), compile_time_param[compile_time_axes[i]]));
-        }
-    } else if (!param_available_now && axes_available_now) {
-        // Generate macros for case where only compile_time_axes is available now.
-        for (size_t i = 0; i < compile_time_axes.size(); ++i) {
-            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i),
-                                            name + "_buffer_ptr[" + std::to_string(compile_time_axes[i]) + "]"));
-        }
-    } else if (!param_available_now && !axes_available_now) {
-        // Generate macros for case where both axes and param are available only in runtime.
         for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
-            const std::string axis_i = "SLICE_AXES_BUFFER_VAL(" + std::to_string(i) + ")";
-            jit.AddConstant(MakeJitConstant(name + "_DIM" + std::to_string(i), name + "_buffer_ptr[" + axis_i + "]"));
+            const std::string i_str = std::to_string(i);
+            const std::string jit_name = name + "_DIM" + i_str;
+            jit.AddConstant(MakeJitConstant(jit_name, name + "_buffer_ptr[" + i_str + "]"));
         }
     } else {
-        OPENVINO_ASSERT(
-            false,
-            "[SliceKernelRef]: Situation where param is available now and axes not - shouldn't be possible...");
+        jit.AddConstant(MakeJitConstant(name + "_BUFFER", ""));
+        for (size_t i = 0; i < compile_time_param.size(); ++i) {
+            const std::string jit_name = name + "_DIM" + std::to_string(i);
+            jit.AddConstant(MakeJitConstant(jit_name, compile_time_param[i]));
+        }
+
+        for (size_t i = compile_time_param.size(); i < MAX_SUPPORTED_DIM; ++i) {
+            const std::string jit_name = name + "_DIM" + std::to_string(i);
+            jit.AddConstant(MakeJitConstant(jit_name, 0));
+        }
     }
 }
 
@@ -153,20 +140,48 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params& params) const {
                             "SLICE_BEGIN",
                             params.compile_time_start,
                             params.compile_time_axes,
-                            params.start_data_type);
+                            params.start_data_type,
+                            0);
     addJitConstantsForParam(jit,
                             "SLICE_STEP",
                             params.compile_time_step,
                             params.compile_time_axes,
-                            params.step_data_type);
+                            params.step_data_type,
+                            1);
+
+    // Compile axes constants:
+    if (params.compile_time_axes.empty()) {
+        kernel_selector::DimensionAccessHelper dims(params.inputs.back());
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_SIZE",
+                                        toVectorMulString({dims.b(), dims.f(), dims.x(), dims.y(), dims.z()})));
+    } else {
+        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_SIZE", params.compile_time_axes.size()));
+    }
 
     if (params.compile_time_axes.empty()) {
         const std::string type_str = ovElementTypeToOCLStr(params.axes_data_type);
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* restrict axes_ptr,"));
-        jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER_VAL(IDX)",
-                                        "axes_ptr[IDX] < 0 ? INPUT0_DIMS + axes_ptr[IDX] : axes_ptr[IDX]"));
+        jit.AddConstant(
+            MakeJitConstant("SLICE_AXES_BUFFER", "__global const " + type_str + "* restrict axes_buffer_ptr,"));
+
+        for (size_t i = 0; i < MAX_SUPPORTED_DIM; ++i) {
+            const std::string i_str = std::to_string(i);
+            const std::string jit_name = "SLICE_AXES_DIM" + i_str;
+            const std::string val = i_str + " < SLICE_AXES_BUFFER_SIZE ? (axes_buffer_ptr[" + i_str +
+                                    "] < 0 ? INPUT0_DIMS + axes_buffer_ptr[" + i_str + "] : axes_buffer_ptr[" + i_str +
+                                    "]) : 0";
+            jit.AddConstant(MakeJitConstant(jit_name, val));
+        }
     } else {
         jit.AddConstant(MakeJitConstant("SLICE_AXES_BUFFER", ""));
+        for (size_t i = 0; i < params.compile_time_axes.size(); ++i) {
+            const std::string jit_name = "SLICE_AXES_DIM" + std::to_string(i);
+            jit.AddConstant(MakeJitConstant(jit_name, params.compile_time_axes[i]));
+        }
+
+        for (size_t i = params.compile_time_axes.size(); i < MAX_SUPPORTED_DIM; ++i) {
+            const std::string jit_name = "SLICE_AXES_DIM" + std::to_string(i);
+            jit.AddConstant(MakeJitConstant(jit_name, 0));
+        }
     }
     return jit;
 }
