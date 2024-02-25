@@ -30,6 +30,8 @@ std::string MulConvFusion::getTestCaseName(const testing::TestParamInfo<MulConvF
 }
 
 void MulConvFusion::SetUp() {
+    abs_threshold = 0.4;
+
     ov::NodeTypeInfo conv_type;
     ov::Shape input_shape, weights_shape, const_shape;
     ov::element::Type precision;

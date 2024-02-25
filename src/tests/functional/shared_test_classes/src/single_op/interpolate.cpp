@@ -63,6 +63,8 @@ std::string InterpolateLayerTest::getTestCaseName(const testing::TestParamInfo<I
 }
 
 void InterpolateLayerTest::SetUp() {
+    rel_threshold = 0.27;
+
     InterpolateSpecificParams interpolate_params;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;

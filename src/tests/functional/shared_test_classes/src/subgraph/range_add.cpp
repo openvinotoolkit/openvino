@@ -32,6 +32,10 @@ void RangeAddSubgraphTest::SetUp() {
     float start, stop, step;
     std::tie(start, stop, step, element_type, targetDevice) = GetParam();
 
+    if (element_type == ov::element::f16) {
+        rel_threshold = 0.012;
+    }
+
     auto startConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, start);
     auto stopConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, stop);
     auto stepConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, step);

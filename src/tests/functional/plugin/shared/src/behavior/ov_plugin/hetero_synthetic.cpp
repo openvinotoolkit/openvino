@@ -47,6 +47,10 @@ std::string OVHeteroSyntheticTest::getTestCaseName(const ::testing::TestParamInf
 }
 
 void OVHeteroSyntheticTest::SetUp() {
+    // TODO: previous behavior: has to be fixed
+    abs_threshold = std::numeric_limits<double>::max();
+    rel_threshold = std::numeric_limits<double>::max();
+
     auto& param = GetParam();
     targetDevice = "HETERO:";
     int num = std::get<Plugin>(param).size() - 1;

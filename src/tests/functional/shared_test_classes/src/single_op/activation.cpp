@@ -206,6 +206,10 @@ void ActivationLayerTest::SetUp() {
     auto activationType = activationDecl.first;
     auto constants_value = activationDecl.second;
 
+    if (activationType == ActivationTypes::SoftPlus) {
+        rel_threshold = 1.6;
+    }
+
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
     param->set_friendly_name("Input");
 

@@ -73,8 +73,8 @@ protected:
 
     std::function<void(const std::exception& exp)> callback_exception = nullptr;
 
-    constexpr static const double disable_threshold = std::numeric_limits<double>::max();
-    double abs_threshold = disable_threshold, rel_threshold = disable_threshold;
+    constexpr static const double default_threshold = 0.01;
+    double abs_threshold = default_threshold, rel_threshold = default_threshold;
 
     ov::test::utils::OpSummary& summary = ov::test::utils::OpSummary::getInstance();
     bool is_report_stages = false;

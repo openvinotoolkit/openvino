@@ -91,6 +91,11 @@ protected:
         bool withQuantization;
         std::tie(inputShapes, secondaryInputType, inputPrecisions, eltwiseOpTypes, withQuantization, targetDevice) = this->GetParam();
 
+        if (std::any_of(inputPrecisions.begin(), inputPrecisions.end(), [](ElementType& type) { return type == ElementType::i32; })) {
+            abs_threshold = 2.f;
+            rel_threshold = 0.5f;
+        }
+
         init_input_shapes(inputShapes);
 
         ov::ParameterVector paramVec;

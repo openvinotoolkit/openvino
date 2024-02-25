@@ -66,6 +66,16 @@ void RNNSequenceTest::SetUp() {
     std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, WRBType,
             model_type, targetDevice) = this->GetParam();
 
+    if ((mode == SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST) ||
+        (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST) ||
+        (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM) ||
+        (mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) ||
+        (mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_PARAM) ||
+        (mode == SequenceTestsMode::PURE_SEQ)) {
+        // TODO: previous behavior: has to be fixed
+        abs_threshold = std::numeric_limits<double>::max();
+    }
+
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
     std::vector<ov::Shape> input_shapes = {
             {{batch, seq_lengths, input_size}, {batch, num_directions, hidden_size}, {batch},

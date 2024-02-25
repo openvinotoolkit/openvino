@@ -77,6 +77,12 @@ void EltwiseLayerTest::SetUp() {
     EltwiseTypes eltwise_type;
     Config additional_config;
     std::tie(shapes, eltwise_type, secondary_input_type, op_type, model_type, inType, outType, targetDevice, configuration) = this->GetParam();
+
+    if (model_type == ElementType::i32) {
+        abs_threshold = 1.f;
+        rel_threshold = 0.1f;
+    }
+
     init_input_shapes(shapes);
 
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};

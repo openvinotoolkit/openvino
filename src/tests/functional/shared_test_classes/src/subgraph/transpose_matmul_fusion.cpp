@@ -12,6 +12,8 @@ std::string TransposeMatMulFusion::getTestCaseName(const testing::TestParamInfo<
 }
 
 void TransposeMatMulFusion::SetUp() {
+    abs_threshold = 0.022f;
+
     targetDevice = GetParam();
 
     ov::PartialShape shape1{1, 3, 128, 64};

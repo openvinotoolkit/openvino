@@ -41,6 +41,8 @@ std::string QuantConvBackpropDataLayerTest::getTestCaseName(const testing::TestP
 }
 
 void QuantConvBackpropDataLayerTest::SetUp() {
+    abs_threshold = 0.018;
+
     quantConvBackpropDataSpecificParams groupConvBackpropDataParams;
     ov::Shape inputShape;
     ov::element::Type element_type = ov::element::undefined;

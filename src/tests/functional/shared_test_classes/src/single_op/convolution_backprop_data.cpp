@@ -60,6 +60,11 @@ void ConvolutionBackpropDataLayerTest::SetUp() {
     ov::Shape output_shape;
     ov::element::Type model_type;
     std::tie(convBackpropDataParams, model_type, shapes, output_shape, targetDevice) = this->GetParam();
+
+    if (model_type == ov::element::f16) {
+        abs_threshold = 4.f;
+    }
+
     init_input_shapes(shapes);
 
     ov::op::PadType pad_type;

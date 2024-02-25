@@ -426,52 +426,57 @@ void compare(const ov::Tensor& expected,
     auto max_type_actual = std::numeric_limits<ActualT>::max();
     auto min_type_expected = std::numeric_limits<ExpectedT>::min();
     auto min_type_actual = std::numeric_limits<ActualT>::min();
-    Error abs_error(abs_threshold), rel_error(rel_threshold);
-    for (size_t i = 0; i < shape_size_cnt; ++i) {
+    double abs_value = 0.0;
+    double rel_value = 0.0;
+    size_t i = 0;
+    for (; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
+
         if ((std::isinf(expected_value) || expected_value >= max_type_expected) &&
             (std::isinf(actual_value) || actual_value >= max_type_actual)) {
             continue;
-        } else if ((std::isinf(expected_value) || expected_value <= min_type_expected) &&
-                   (std::isinf(actual_value) || actual_value <= min_type_actual)) {
+        }
+
+        if ((std::isinf(expected_value) || expected_value <= min_type_expected) &&
+            (std::isinf(actual_value) || actual_value <= min_type_actual)) {
             continue;
         }
+
         if (std::isnan(expected_value) && std::isnan(actual_value))
             continue;
+
         if (std::isnan(expected_value)) {
             std::ostringstream out_stream;
             out_stream << "Expected value is NAN but Actual value is not on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
+
         if (std::isnan(actual_value)) {
             std::ostringstream out_stream;
             out_stream << "Actual value is NAN but Expected value is not on coordinate: " << i;
             throw std::runtime_error(out_stream.str());
         }
 
-        double abs = std::fabs(expected_value - actual_value);
-        double rel = 0;
-        if (expected_value == 0 || actual_value == 0) {
-            rel = (std::abs(expected_value) >= 1 || std::abs(actual_value) >= 1) ? (abs * 1e-2) : abs;
-        } else if (!std::isinf(expected_value)) {
-            rel = (abs / std::fabs(expected_value));
+        abs_value = std::abs(expected_value - actual_value);
+
+        rel_value = 0;
+        if ((expected_value != 0) && (actual_value != 0)) {
+            rel_value =
+                abs_value / ((expected_value > actual_value) ? std::fabs(actual_value) : std::fabs(expected_value));
         }
 
-        abs_error.update(abs, i);
-        rel_error.update(rel, i);
+        if ((rel_value > rel_threshold) || (abs_value > abs_threshold)) {
+            break;
+        }
     }
-    abs_error.mean /= shape_size_cnt;
-    rel_error.mean /= shape_size_cnt;
 
-    if (!(less_or_equal(abs_error.max, abs_threshold) || less_or_equal(rel_error.mean, rel_threshold))) {
+    if ((rel_value > rel_threshold) || (abs_value > abs_threshold)) {
         std::ostringstream out_stream;
-        out_stream << "abs_max < abs_threshold && rel_max < rel_threshold"
-                   << "\n\t abs_max: " << abs_error.max << "\n\t\t coordinate " << abs_error.max_coordinate
-                   << "; abs errors count " << abs_error.count << "; abs mean " << abs_error.mean << "; abs threshold "
-                   << abs_threshold << "\n\t rel_max: " << rel_error.max << "\n\t\t coordinate "
-                   << rel_error.max_coordinate << "; rel errors count " << rel_error.count << "; rel mean "
-                   << rel_error.mean << "; rel threshold " << rel_threshold;
+        out_stream << (rel_value > rel_threshold ? "rel_value > rel_threshold" : "")
+                   << (abs_value > abs_threshold ? "abs_value > abs_value" : "") << "\n\t abs: " << abs_value
+                   << "\n\t\t coordinate " << i << "; abs threshold " << abs_threshold << "\n\t rel: " << rel_value
+                   << "\n\t\t coordinate " << i << "; rel threshold " << rel_threshold;
         throw std::runtime_error(out_stream.str());
     }
 }

@@ -60,6 +60,13 @@ void DeformableConvolutionLayerTest::SetUp() {
     std::vector<InputShape> shapes;
     bool with_modulation;
     std::tie(convParams, with_modulation, model_type, shapes, targetDevice) = this->GetParam();
+
+    if (model_type == ov::element::f16) {
+        abs_threshold = 1.f;
+    } else {
+        abs_threshold = 0.25;
+    }
+
     init_input_shapes(shapes);
 
     ov::op::PadType padType;

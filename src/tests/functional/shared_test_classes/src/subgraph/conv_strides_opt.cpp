@@ -23,6 +23,8 @@ std::string ConvStridesOpt::getTestCaseName(const testing::TestParamInfo<ConvStr
 }
 
 void ConvStridesOpt::SetUp() {
+    abs_threshold = 2.5f;
+
     Shape input_shape;
     op::PadType pad_type;
     std::tie(input_shape, pad_type, targetDevice) = this->GetParam();
