@@ -64,6 +64,13 @@ void stripDeviceName(std::string& device, const std::string& substr) {
     }
 }
 
+void validDeviceName(const std::string& device) {
+    auto pos = device.rfind(")");
+    if (pos != std::string::npos && pos != device.length() - 1) {
+        OPENVINO_THROW("Device with \"", device, "\" name is illegal in the OpenVINO Runtime");
+    }
+}
+
 bool is_virtual_device(const std::string& device_name) {
     return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
             device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
@@ -711,6 +718,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
     std::string deviceName = device_name;
+    validDeviceName(deviceName);
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);
