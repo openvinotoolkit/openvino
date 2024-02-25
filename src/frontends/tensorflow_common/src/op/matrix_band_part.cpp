@@ -1,6 +1,7 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+// Include necessary OpenVINO headers
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/less_equal.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -9,16 +10,21 @@
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
+// Standard C++ and OpenVINO namespaces
 using namespace std;
 using namespace ov::op;
 
+// OpenVINO namespaces for TensorFlow operation translation
 namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
 
+// Function to translate the TensorFlow MatrixBandPart operation
 OutputVector translate_matrix_band_part_op(const NodeContext& node) {
+    // Perform default operation checks, ensuring the correct number of inputs and the operation type
     default_op_checks(node, 3, {"MatrixBandPart"});
+    
     // Input tensor and parameters
     auto input = node.get_input(0);
     
@@ -52,9 +58,9 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
     auto unsqueeze_range_n = make_shared<v0::Unsqueeze>(range_n, make_shared<v0::Constant>(element::i64, Shape{1}, {0}));
 
     // Create indicator function using logical operations
-    // Create indicator function using logical operations
     auto zero = make_shared<v1::Constant>(element::i64, Shape{}, {0});
 
+    // Define indicator function for rows
     auto in_band_rows = make_shared<v1::LogicalAnd>(
         make_shared<v1::LogicalOr>(
         make_shared<v1::Less>(num_lower, zero),
@@ -66,6 +72,7 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
         )
     );
 
+    // Define indicator function for columns
     auto in_band_cols = make_shared<v1::LogicalAnd>(
         make_shared<v1::LogicalOr>(
             make_shared<v1::Less>(num_lower, zero),
@@ -77,6 +84,7 @@ OutputVector translate_matrix_band_part_op(const NodeContext& node) {
         )
     );
 
+    // Combine row and column indicators with a logical AND operation
     auto in_band_indicator = make_shared<v1::LogicalAnd>(in_band_rows, in_band_cols);
 
     // Unsqueeze the indicator function to have a tensor of shape [1,..,1, m, n]
