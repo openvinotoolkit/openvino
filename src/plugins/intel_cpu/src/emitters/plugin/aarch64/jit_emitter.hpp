@@ -62,12 +62,23 @@ public:
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
+    // we accept only 32bit hexadecimal table values to avoid any rounding
+    using table_entry_val_t = uint32_t;
+    using table_entry_offset_t = size_t; // offsets are in bytes wrt p_table
+    using table_entry_bcast_t = bool; // true => bcast value
+
+    struct mapped_table_entry_t {
+        table_entry_offset_t off;
+        table_entry_val_t val;
+        table_entry_bcast_t bcast;
+    };
+
 protected:
     size_t get_max_vecs_count() const;
     int32_t get_vec_length() const;
 
-    mutable std::vector<uint32_t> aux_vec_idxs;
-    mutable std::vector<uint32_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_vec_idxs;
+    mutable std::vector<size_t> aux_gpr_idxs;
 
     dnnl::impl::cpu::aarch64::jit_generator* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
@@ -80,17 +91,7 @@ protected:
 
     void load_table_addr() const { h->adr(p_table, *l_table.get()); }
 
-    // we accept only 32bit hexadecimal table values to avoid any rounding
-    using table_entry_val_t = uint32_t;
-    using table_entry_offset_t = size_t; // offsets are in bytes wrt p_table
-    using table_entry_bcast_t = bool; // true => bcast value
-
     struct table_entry_t {
-        table_entry_val_t val;
-        table_entry_bcast_t bcast;
-    };
-    struct mapped_table_entry_t {
-        table_entry_offset_t off;
         table_entry_val_t val;
         table_entry_bcast_t bcast;
     };
