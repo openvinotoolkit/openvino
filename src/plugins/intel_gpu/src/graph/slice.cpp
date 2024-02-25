@@ -7,7 +7,6 @@
 #include "openvino/op/slice.hpp"
 #include "slice_shape_inference.hpp"
 #include <sstream>
-#include "openvino/util/log.hpp"
 #include <json_object.h>
 
 namespace cldnn {
