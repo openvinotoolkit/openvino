@@ -23,7 +23,7 @@ typedef std::tuple<InputShape,           // input_shapes
 typedef std::tuple<embeddingBagOffsetsSumParams,
                    ElementType,  // embedding table
                    ElementType,  // indices
-                   LayerTestsUtils::TargetDevice>
+                   ov::test::TargetDevice>
     embeddingBagOffsetsSumLayerTestParamsSet;
 
 class EmbeddingBagOffsetsSumLayerCPUTest : public testing::WithParamInterface<embeddingBagOffsetsSumLayerTestParamsSet>,

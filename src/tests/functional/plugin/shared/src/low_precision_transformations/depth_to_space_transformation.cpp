@@ -2,21 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "low_precision_transformations/depth_to_space_transformation.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "ov_lpt_models/depth_to_space.hpp"
-#include "ov_models/pass/convert_prc.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
@@ -53,7 +49,7 @@ void DepthToSpaceTransformation::SetUp() {
     init_input_shapes(inputShape);
 
     if (inputShape.rank().is_dynamic() || inputShape.rank().get_length() != 4) {
-        IE_THROW() << "not supported input shape size " << inputShape.rank();
+        OPENVINO_THROW("not supported input shape size ", inputShape.rank());
     }
 
     function = ov::builder::subgraph::DepthToSpaceFunction::getOriginal(precision, inputShape, mode, blockSize);

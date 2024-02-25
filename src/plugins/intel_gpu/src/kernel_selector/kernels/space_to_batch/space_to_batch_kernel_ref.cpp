@@ -66,11 +66,11 @@ JitConstants SpaceToBatchKernelRef::GetJitConstants(const space_to_batch_params&
     return jit;
 }
 
-KernelsData SpaceToBatchKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData SpaceToBatchKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority SpaceToBatchKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SpaceToBatchKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

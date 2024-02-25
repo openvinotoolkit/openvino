@@ -214,12 +214,13 @@ public:
         return *_memory_pool;
     }
 
-    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable);
+    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable);
     bool has_variable(const std::string &variable_id) const;
-    ov::intel_gpu::VariableState& get_variable(const std::string &variable_id) const;
+    ov::intel_gpu::VariableStateBase& get_variable(const std::string &variable_id) const;
     const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
     const ov::intel_gpu::VariablesMap& get_variables() const;
     const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
+    std::vector<primitive_id> get_kv_cache_ids() const { return kv_cache_ids; }
 
     const ExecutionConfig& get_config() const { return _config; }
 
@@ -255,6 +256,7 @@ private:
 
     ov::intel_gpu::VariablesMap _variables_states;
     ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<primitive_id> kv_cache_ids;
 
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
@@ -277,7 +279,7 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
-    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type);
+    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;

@@ -18,7 +18,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/roi_align.hpp"
 
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -491,7 +491,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);

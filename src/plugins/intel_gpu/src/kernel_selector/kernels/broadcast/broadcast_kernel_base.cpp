@@ -124,8 +124,7 @@ void BroadcastKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options) const {
+KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::BROADCAST);
 
     const auto& prim_params = static_cast<const broadcast_params&>(params);
@@ -136,7 +135,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
 
     auto cldnn_jit = GetJitConstants(prim_params);
     cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(prim_params)));
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -147,7 +146,7 @@ KernelsData BroadcastKernelBase::GetCommonKernelsData(const Params& params,
                      1,
                      0,
                      1,
-                     prim_params.inputs[0].is_dynamic() || prim_params.outputs[0].is_dynamic());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }

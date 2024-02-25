@@ -15,7 +15,7 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
     using parent = typed_primitive_impl_ocl<crop>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::eltwise_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::eltwise_params, kernel_selector::eltwise_optional_params>;
+    using kernel_params_t = kernel_selector::eltwise_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::crop_impl)
 
@@ -35,7 +35,6 @@ struct crop_impl : typed_primitive_impl_ocl<crop> {
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
 
         params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, kernel_selector::eltwise_mode::ASSIGN});
         if (impl_param.is_dynamic() || is_shape_agnostic) {
@@ -46,7 +45,7 @@ public:
         } else {
             params.inputs[0] = convert_data_tensor(impl_param.get_input_layout(), impl_param.input_offsets[0]);
         }
-        return {params, optional_params};
+        return params;
     }
         void update_dispatch_data(const kernel_impl_params& impl_param) override {
             auto kernel_params = get_kernel_params(impl_param, true);
@@ -57,7 +56,7 @@ public:
             OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
                     "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
             _kernel_data.kernels[0].params.scalars[0] = s;
-            (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+            (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

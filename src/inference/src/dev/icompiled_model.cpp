@@ -4,9 +4,9 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include "dev/converter_utils.hpp"
-#include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -54,7 +54,7 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
             auto new_param = ov::as_type_ptr<ov::op::v0::Parameter>(param->copy_with_new_inputs({}));
             new_param->set_friendly_name(param_name);
             if (add_operation_names) {
-                OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(param_name) == leaf_names.end() ||
+                OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
@@ -77,14 +77,16 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
         for (const auto& result : model->get_results()) {
             auto fake_param = std::make_shared<ov::op::v0::Parameter>(result->get_output_element_type(0),
                                                                       result->get_output_partial_shape(0));
+            OPENVINO_SUPPRESS_DEPRECATED_START
             const std::string res_name = ov::op::util::create_ie_output_name(result->input_value(0));
+            OPENVINO_SUPPRESS_DEPRECATED_END
             fake_param->set_friendly_name(res_name);
             fake_param->set_element_type(result->get_element_type());
             fake_param->validate_and_infer_types();
             auto new_result = result->copy_with_new_inputs({fake_param});
             new_result->set_friendly_name(result->get_friendly_name());
             if (add_operation_names) {
-                OPENVINO_ASSERT(!m_plugin->is_new_api() || leaf_names.find(res_name) == leaf_names.end() ||
+                OPENVINO_ASSERT(leaf_names.find(res_name) == leaf_names.end() ||
                                     result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
@@ -140,4 +142,8 @@ ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (m_context)
         return m_context;
     return m_plugin->get_default_context({});
+}
+
+void ov::ICompiledModel::set_model_shared_object(ov::Model& model, const std::shared_ptr<void>& shared_object) {
+    model.m_shared_object = shared_object;
 }

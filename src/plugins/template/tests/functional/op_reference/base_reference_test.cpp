@@ -5,11 +5,13 @@
 
 #include <gtest/gtest.h>
 
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -38,6 +40,9 @@ void CommonReferenceTest::FillInputs() {
 
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
+        if (param->get_element_type() == ov::element::string) {
+            continue;
+        }
 
         ov::Tensor blob;
         if (param->get_partial_shape().is_static()) {
@@ -210,6 +215,9 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           actual_comparision_size / 8,
                                                           threshold,
                                                           abs_threshold);
+        break;
+    case ov::element::string:
+        ov::test::utils::compare_str(refBlob, outBlob);
         break;
     default:
         FAIL() << "Comparator for " << element_type << " element type isn't supported";

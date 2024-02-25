@@ -1,4 +1,4 @@
-# Overview of OpenVINO C* API 2.0
+# Overview of OpenVINO C* API
 
 This API provides a simplified interface for OpenVINO functionality that allows to:
 
@@ -16,8 +16,7 @@ Supported Python* versions:
   - Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
   - Windows* 10
   - Windows* 11
-  - macOS* 10.15 and above, 64-bit
-  - macOS 11 and above, ARM64
+  - macOS* 12.6 and above, 64-bit and ARM64
   - Red Hat Enterprise Linux* 8, 64-bit
   - Debian 9 ARM64 and ARM
   - CentOS 7 64-bit
@@ -27,7 +26,10 @@ Supported Python* versions:
 To configure the environment for the OpenVINO C* API, run:
 
 - On Ubuntu 20.04/22.04: `source <INSTALL_DIR>/setupvars.sh .`
-- On Windows 10/11: `<INSTALL_DIR>\setupvars.bat `
+- On Windows 10/11:
+
+  * `. <path-to-setupvars-folder>/setupvars.ps1` in PowerShell
+  * `<INSTALL_DIR>\setupvars.bat ` in Command Prompt
 
 The script automatically detects latest installed C* version and configures required environment if the version is supported.
 
@@ -78,7 +80,7 @@ typedef struct {
 typedef struct ov_dimension {
 
     int64_t min;
-  
+
     int64_t max;
 
 } ov_dimension_t;

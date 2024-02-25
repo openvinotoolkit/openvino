@@ -22,7 +22,7 @@ def make_onnx_model(model_name: str) -> None:
         make_tensor_value_info("out1", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([add], "test_graph", input_tensors, output_tensors)
-    model = make_model(graph, producer_name="ONNX Importer", opset_imports=[onnx.helper.make_opsetid("", 13)])
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend", opset_imports=[onnx.helper.make_opsetid("", 13)])
     onnx.save_model(model, model_name)
 
 

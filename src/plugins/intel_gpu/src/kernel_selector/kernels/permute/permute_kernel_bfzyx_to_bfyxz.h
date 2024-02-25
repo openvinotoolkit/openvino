@@ -17,8 +17,8 @@ public:
     PermuteKernel_bfzyx_to_bfyxz() : PermuteKernelBase("permute_bfzyx_to_bfyxz") {}
     virtual ~PermuteKernel_bfzyx_to_bfyxz() {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
     JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;

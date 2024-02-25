@@ -5,7 +5,6 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/test_enums.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 #include "openvino/op/parameter.hpp"
@@ -136,7 +135,7 @@ protected:
             return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-            << "model interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+            << "model interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         compare(expectedOutputs, actualOutputs);
     }

@@ -6,6 +6,7 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/constant.hpp"
 #include "precomp.hpp"
 
 namespace ov {
@@ -361,8 +362,8 @@ inline double calculate_median(std::vector<double>& abs_values) {
 template <typename ExpectedT, typename ActualT>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
-             const double abs_threshold_ = std::numeric_limits<double>::max(),
-             const double rel_threshold_ = std::numeric_limits<double>::max()) {
+             const double abs_threshold_ = 0,
+             const double rel_threshold_ = 0) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -379,7 +380,7 @@ void compare(const ov::Tensor& expected,
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
-    if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
+    if (abs_threshold == 0 && rel_threshold == 0) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
             rel_threshold = 1.;
@@ -450,8 +451,13 @@ void compare(const ov::Tensor& expected,
         }
 
         double abs = std::fabs(expected_value - actual_value);
-        double rel =
-            expected_value && actual_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : 0;
+        double rel = 0;
+        if (expected_value == 0 || actual_value == 0) {
+            rel = (std::abs(expected_value) >= 1 || std::abs(actual_value) >= 1) ? (abs * 1e-2) : abs;
+        } else if (!std::isinf(expected_value)) {
+            rel = (abs / std::fabs(expected_value));
+        }
+
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
@@ -468,6 +474,16 @@ void compare(const ov::Tensor& expected,
                    << rel_error.mean << "; rel threshold " << rel_threshold;
         throw std::runtime_error(out_stream.str());
     }
+}
+
+void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {
+    ASSERT_EQ(expected.get_element_type(), ov::element::string);
+    ASSERT_EQ(actual.get_element_type(), ov::element::string);
+    EXPECT_EQ(expected.get_shape(), actual.get_shape());
+
+    const auto expected_const = ov::op::v0::Constant(expected);
+    const auto result_const = ov::op::v0::Constant(actual);
+    EXPECT_EQ(expected_const.get_value_strings(), result_const.get_value_strings());
 }
 
 void compare(const ov::Tensor& expected,
@@ -527,6 +543,9 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+    case ov::element::Type_t::string:
+        compare_str(expected, actual);
+        break;
     default:
         OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
     }

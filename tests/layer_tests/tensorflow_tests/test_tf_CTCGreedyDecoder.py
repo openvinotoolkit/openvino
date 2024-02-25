@@ -15,9 +15,9 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
     # input_shape - shape a tensor for a decoder
     # merge_repeated - bool, enables/disable merge repeated classes in decoder
     # ir_version - common parameter
-    # use_new_frontend - common parameter
+    # use_legacy_frontend - common parameter
     def create_ctcgreedydecoder_placeholder_const_net(self, input_shape, merge_repeated,
-                                            ir_version, use_new_frontend):
+                                            ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -25,7 +25,7 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
 
         """
 
-        if use_new_frontend == False:
+        if use_legacy_frontend == False:
             pytest.skip('Legacy path isn\'t supported by CTCGreedyDecoder')
 
         seq_lens = np.array([input_shape[2]], dtype=np.int32)
@@ -61,10 +61,10 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
     @pytest.mark.parametrize("merge_repeated", [False, True])
     @pytest.mark.nightly
     def test_ctcgreedydecoder_placeholder_const(self, params, merge_repeated, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104860')
         self._test(*self.create_ctcgreedydecoder_placeholder_const_net(**params, ir_version=ir_version,
-                                                             use_new_frontend=use_new_frontend, merge_repeated=merge_repeated),
+                                                             use_legacy_frontend=use_legacy_frontend, merge_repeated=merge_repeated),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, merge_repeated=merge_repeated)
+                   use_legacy_frontend=use_legacy_frontend, merge_repeated=merge_repeated)

@@ -14,14 +14,14 @@ class TestComplexConjugate(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
 
         rng = np.random.default_rng()
-        assert 'real_part' in inputs_info
-        real_part_shape = inputs_info['real_part']
-        assert 'imag_part' in inputs_info
-        imag_part_shape = inputs_info['imag_part']
+        assert 'real_part:0' in inputs_info
+        real_part_shape = inputs_info['real_part:0']
+        assert 'imag_part:0' in inputs_info
+        imag_part_shape = inputs_info['imag_part:0']
 
         inputs_data = {}
-        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
-        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
+        inputs_data['real_part:0'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
+        inputs_data['imag_part:0'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
 
         return inputs_data
     def create_complex_conjugate_net(self, input_shape):
@@ -55,7 +55,7 @@ class TestComplexConjugate(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_conjugate(self, input_shape, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         self._test(*self.create_complex_conjugate_net(input_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

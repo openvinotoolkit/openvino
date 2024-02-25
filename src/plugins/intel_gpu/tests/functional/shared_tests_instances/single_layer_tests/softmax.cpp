@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/softmax.hpp"
+#include "single_op_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::subgraph;
@@ -44,10 +44,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 const std::vector<ov::Shape> inputShapes3D = {
     {16, 64, 64},
+    {1, 256, 256},
 };
 
 const std::vector<int64_t> axis3D = {
-    -1
+    -1, 1
 };
 
 const auto params3D = testing::Combine(

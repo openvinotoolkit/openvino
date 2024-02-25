@@ -66,9 +66,8 @@ JitConstants ActivationKernelBase::GetJitConstants(const activation_params& para
     return jit;
 }
 
-bool ActivationKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ACTIVATION ||
-        o.GetType() != KernelType::ACTIVATION) {
+bool ActivationKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ACTIVATION) {
         return false;
     }
     const activation_params& orgParams = static_cast<const activation_params&>(p);
@@ -92,8 +91,8 @@ void ActivationKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -102,7 +101,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
@@ -110,7 +109,7 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      EXE_MODE_DEFAULT, false, false, 1,
-                     GetFusedPrimitiveInputsCount(params), 1, newParams.outputs[0].is_dynamic());
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
 
     if (!newParams.inputActivationParams.empty()) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});

@@ -6,97 +6,85 @@
 
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/negative.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reshape.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/subtract.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
-using namespace ov::op::v8;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
+using ov::Shape;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+inline ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
+    return std::make_shared<Squeeze>(std::make_shared<v3::ShapeOf>(std::make_shared<v3::ShapeOf>(source)));
+}
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-ov::OutputVector layer_normalization(const Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
+    // Operator definition: https://github.com/onnx/onnx/blob/main/onnx/defs/nn/defs.cc#L2562:L2611
+    const auto inputs = node.get_ov_inputs();
     const auto num_inputs = inputs.size();
     CHECK_VALID_NODE(node,
                      num_inputs == 2 || num_inputs == 3,
                      "LayerNormalization expects 2 or 3 input tensors. Got: ",
                      num_inputs);
+    CHECK_VALID_NODE(node,
+                     node.get_outputs_size() == 1,
+                     "LayerNormalization expects 1 output tensor to be used in a model, other configurations are used "
+                     "for training and are not supported. Got: ",
+                     node.get_outputs_size(),
+                     " outputs.");
 
-    const auto& X = inputs.at(0);
-    const auto& Scale = inputs.at(1);
-
-    auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
-    double epsilon = node.get_attribute_value<double>("epsilon", 1e-5);
-    int64_t stash_type_i =
-        node.get_attribute_value<int64_t>("stash_type",
-                                          static_cast<int64_t>(ONNX_NAMESPACE::TensorProto_DataType_FLOAT));
+    auto default_stash_type_i = static_cast<int64_t>(TensorProto_DataType::TensorProto_DataType_FLOAT);
+    int64_t stash_type_i = node.get_attribute_value<int64_t>("stash_type", default_stash_type_i);
     element::Type stash_type = common::get_ov_element_type(stash_type_i);
 
-    // following calculations are kept as close to the onnx\defs.cc description as possible
-    auto FloatEpsilon = Constant::create(ov::element::f32, Shape{}, {epsilon});
-    auto Epsilon = std::make_shared<Convert>(FloatEpsilon, stash_type);
-    auto XShape = std::make_shared<ShapeOf>(X);
-    auto Rank = std::make_shared<v3::ShapeOf>(XShape);
-    auto Zero1D = Constant::create(ov::element::i64, {1}, {0});
-    auto One1D = Constant::create(ov::element::i64, {1}, {1});
-    auto Axis1D = Constant::create(ov::element::i64, {1}, {axis});
-    auto PrefixShape = std::make_shared<Slice>(XShape, Zero1D, Axis1D, One1D);
-    ov::Output<ov::Node> NumReducedAxes = (axis >= 0 ? std::make_shared<Subtract>(Rank, Axis1D)->output(0)
-                                                     : std::make_shared<Negative>(Axis1D)->output(0));
-    auto SuffixShape = std::make_shared<v3::Broadcast>(One1D, NumReducedAxes);
-    auto ReducedShape = std::make_shared<Concat>(ov::OutputVector{PrefixShape, SuffixShape}, 0);
+    ov::Output<ov::Node> data = inputs.at(0);
+    element::Type original_type = data.get_element_type();
+    bool needs_type_casting = stash_type != original_type;
 
-    auto X2D = util::flatten(X, static_cast<int>(axis));
-    auto XU = std::make_shared<Convert>(X2D, stash_type);
+    if (needs_type_casting)
+        data = std::make_shared<Convert>(data, stash_type);
 
-    auto Mean2D = std::make_shared<ReduceMean>(XU, One1D, true);
-    auto Square = std::make_shared<Multiply>(XU, XU);
-    auto MeanOfSquare = std::make_shared<ReduceMean>(Square, One1D, true);
-    auto SquareOfMean = std::make_shared<Multiply>(Mean2D, Mean2D);
+    float epsilon = node.get_attribute_value<float>("epsilon", 1e-5f);
 
-    auto Var = std::make_shared<Subtract>(MeanOfSquare, SquareOfMean);
-    auto VarPlusEpsilon = std::make_shared<Add>(Var, Epsilon);
-    auto StdDev = std::make_shared<Sqrt>(VarPlusEpsilon);
-    auto Deviation = std::make_shared<Subtract>(XU, Mean2D);
-    auto Normalized = std::make_shared<Divide>(Deviation, StdDev);
-    auto NormalizedT = std::make_shared<ConvertLike>(Normalized, X);
+    auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
+    // ONNX operator semantics says that `axis` attribute points to the first normalization dimension. We have to
+    // figure out all dimensions for normalization:
+    // axis < 0:  range(axis, 0)     Example: axis = -2; Axes: [-2, -1]
+    // axis >= 0: range(axis, rank)  Example: axis = 2, rank = 4; Axes: [2, 3]
+    auto axes =
+        std::make_shared<v4::Range>(Constant::create(element::i64, {}, {axis}),
+                                    (axis < 0 ? Constant::create(element::i64, {}, {0})->output(0) : rank(data)),
+                                    Constant::create(element::i64, {}, {1}),
+                                    element::i64);
 
-    auto Scale2D = util::flatten(Scale, 0);
-    auto Scaled = std::make_shared<Multiply>(NormalizedT, Scale2D);
-    ov::Output<ov::Node> Biased =
-        (num_inputs == 3 ? std::make_shared<Add>(Scaled, util::flatten(inputs.at(2), 0))->output(0)
-                         : Scaled->output(0));
+    const auto normalize_variance = true;
+    ov::Output<ov::Node> normalized =
+        std::make_shared<v6::MVN>(data, axes, normalize_variance, epsilon, MVNEpsMode::INSIDE_SQRT);
 
-    auto Y = std::make_shared<Reshape>(Biased, XShape, false);
-    auto InvStdDev2D = std::make_shared<Divide>(Constant::create(stash_type, {1}, {1}), StdDev);
-    auto Mean = std::make_shared<Reshape>(Mean2D, ReducedShape, false);
-    auto InvStdDev = std::make_shared<Reshape>(InvStdDev2D, ReducedShape, false);
+    if (needs_type_casting)
+        normalized = std::make_shared<ConvertLike>(normalized, inputs.at(0));
 
-    return ov::OutputVector{Y, Mean, InvStdDev};
+    auto scaled = std::make_shared<Multiply>(normalized, inputs.at(1));
+    auto biased = (num_inputs == 3 ? std::make_shared<Add>(scaled, inputs.at(2))->output(0) : scaled->output(0));
+    return ov::OutputVector{biased};
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

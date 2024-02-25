@@ -27,7 +27,7 @@ The quantization and pre-post-processing API are not included here as
 they change the precision (quantization) or processing graph
 (prepostprocessor). You can find examples of how to apply them to
 optimize performance on OpenVINO IR files in
-`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__ and
+`111-detection-quantization <111-detection-quantization-with-output.html>`__ and
 `118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
 
 |image0|
@@ -141,7 +141,7 @@ requirements of this particular object detection model.
 
 .. parsed-literal::
 
-    <DisplayHandle display_id=b3ed024cde96c857177f3da66878c56a>
+    <DisplayHandle display_id=c7531cff1487c41296f1ac25e2e96b93>
 
 
 
@@ -202,62 +202,54 @@ PyTorch Hub and small enough to see the difference in performance.
 .. parsed-literal::
 
 
-  5%|▌         | 208k/3.87M [00:00<00:01, 2.11MB/s]
+  7%|▋         | 272k/3.87M [00:00<00:01, 2.23MB/s]
 
 .. parsed-literal::
 
 
- 15%|█▍        | 576k/3.87M [00:00<00:01, 3.05MB/s]
+ 19%|█▉        | 752k/3.87M [00:00<00:00, 3.64MB/s]
 
 .. parsed-literal::
 
 
- 24%|██▍       | 952k/3.87M [00:00<00:00, 3.36MB/s]
+ 29%|██▉       | 1.13M/3.87M [00:00<00:00, 3.87MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 1.30M/3.87M [00:00<00:00, 3.51MB/s]
+ 39%|███▉      | 1.52M/3.87M [00:00<00:00, 3.61MB/s]
 
 .. parsed-literal::
 
 
-   43%|████▎     | 1.67M/3.87M [00:00<00:00, 3.60MB/s]
+ 49%|████▉     | 1.89M/3.87M [00:00<00:00, 3.68MB/s]
 
 .. parsed-literal::
 
 
-   52%|█████▏    | 2.02M/3.87M [00:00<00:00, 3.16MB/s]
+ 61%|██████▏   | 2.38M/3.87M [00:00<00:00, 4.06MB/s]
 
 .. parsed-literal::
 
 
-   61%|██████    | 2.36M/3.87M [00:00<00:00, 3.26MB/s]
+ 72%|███████▏  | 2.77M/3.87M [00:00<00:00, 3.82MB/s]
 
 .. parsed-literal::
 
 
-   70%|███████   | 2.72M/3.87M [00:00<00:00, 3.38MB/s]
+ 83%|████████▎ | 3.23M/3.87M [00:00<00:00, 4.07MB/s]
 
 .. parsed-literal::
 
 
-   80%|███████▉  | 3.09M/3.87M [00:00<00:00, 3.49MB/s]
+ 94%|█████████▍| 3.63M/3.87M [00:01<00:00, 3.85MB/s]
 
 .. parsed-literal::
 
 
-   89%|████████▉ | 3.46M/3.87M [00:01<00:00, 3.58MB/s]
-
-.. parsed-literal::
+    100%|██████████| 3.87M/3.87M [00:01<00:00, 3.87MB/s]
 
 
-   99%|█████████▉| 3.84M/3.87M [00:01<00:00, 3.67MB/s]
-
-.. parsed-literal::
-
-
-   100%|██████████| 3.87M/3.87M [00:01<00:00, 3.45MB/s]
 
 .. parsed-literal::
 
@@ -473,12 +465,12 @@ optimizations applied. We will treat it as our baseline.
 
 .. parsed-literal::
 
-    PyTorch model on CPU. First inference time: 0.0268 seconds
+    PyTorch model on CPU. First inference time: 0.0280 seconds
 
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.0213 seconds per image (46.98 FPS)
+    PyTorch model on CPU: 0.0218 seconds per image (45.96 FPS)
 
 
 ONNX model
@@ -528,12 +520,12 @@ Representation (IR) to leverage the OpenVINO Runtime.
 
 .. parsed-literal::
 
-    ONNX model on CPU. First inference time: 0.0186 seconds
+    ONNX model on CPU. First inference time: 0.0174 seconds
 
 
 .. parsed-literal::
 
-    ONNX model on CPU: 0.0123 seconds per image (81.52 FPS)
+    ONNX model on CPU: 0.0136 seconds per image (73.63 FPS)
 
 
 OpenVINO IR model
@@ -570,12 +562,12 @@ accuracy drop. That’s why we skip that step in this notebook.
 
 .. parsed-literal::
 
-    OpenVINO model on CPU. First inference time: 0.0166 seconds
+    OpenVINO model on CPU. First inference time: 0.0153 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on CPU: 0.0122 seconds per image (81.86 FPS)
+    OpenVINO model on CPU: 0.0122 seconds per image (82.17 FPS)
 
 
 OpenVINO IR model on GPU
@@ -636,12 +628,12 @@ If it is the case, don’t use it.
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU. First inference time: 0.0153 seconds
+    OpenVINO model + more threads on CPU. First inference time: 0.0150 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model + more threads on CPU: 0.0122 seconds per image (82.19 FPS)
+    OpenVINO model + more threads on CPU: 0.0122 seconds per image (81.82 FPS)
 
 
 OpenVINO IR model in latency mode
@@ -672,12 +664,12 @@ devices as well.
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO. First inference time: 0.0154 seconds
+    OpenVINO model on AUTO. First inference time: 0.0153 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model on AUTO: 0.0125 seconds per image (80.26 FPS)
+    OpenVINO model on AUTO: 0.0125 seconds per image (80.25 FPS)
 
 
 OpenVINO IR model in latency mode + shared memory
@@ -712,12 +704,12 @@ performance!
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO. First inference time: 0.0124 seconds
+    OpenVINO model + shared memory on AUTO. First inference time: 0.0113 seconds
 
 
 .. parsed-literal::
 
-    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (184.61 FPS)
+    OpenVINO model + shared memory on AUTO: 0.0054 seconds per image (186.01 FPS)
 
 
 Other tricks
@@ -728,8 +720,8 @@ Other tricks
 There are other tricks for performance improvement, such as quantization
 and pre-post-processing or dedicated to throughput mode. To get even
 more from your model, please visit
-`111-detection-quantization <111-yolov5-quantization-migration-with-output.html>`__,
-`118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__, and
+`111-detection-quantization <111-detection-quantization-with-output.html>`__,
+`118-optimize-preprocessing <118-optimize-preprocessing>`__, and
 `109-throughput-tricks <109-throughput-tricks-with-output.html>`__.
 
 Performance comparison
