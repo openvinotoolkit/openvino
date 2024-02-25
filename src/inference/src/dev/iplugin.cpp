@@ -251,7 +251,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 total_size += const_byte_size;
                 if (total_size * 1.2 >= memory_size_in_bytes) {
                     if (!start_split) {
-                        start_split = chec_pairs(pair_checker_temp);
+                        start_split = check_pairs(pair_checker_temp);
                     }
                 }
             }

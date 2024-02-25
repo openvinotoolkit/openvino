@@ -502,7 +502,7 @@ TEST_F(GetSupportedNodesTest, AssignReadValueTest) {
         auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
         auto res = std::make_shared<ov::op::v0::Result>(add);
-        m_function =
+        m_model =
             std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, ov::ParameterVector{param});
     }
     Run(
