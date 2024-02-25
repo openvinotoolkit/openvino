@@ -41,7 +41,7 @@ std::unordered_set<std::string> get_broadcast_fused_nodes(const std::shared_ptr<
     std::unordered_set<std::string> result = {};
 
     for (auto&& node : transformed_model->get_ops()) {
-        if (ov::is_type<ov::op::v3::Broadcast>(node) || ov::is_type<ov::op::v1::Broadcast>(node)) {
+        if (ov::is_type<ov::op::util::BroadcastBase>(node)) {
             for (auto&& fused_layer_name : ov::getFusedNamesVector(node)) {
                 result.emplace(fused_layer_name);
                 result.erase(node->get_friendly_name());
@@ -175,18 +175,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return false;
     };
 
-    auto has_all_sources_supported =
-        [&get_input_node](const NameSet& supported, const NodePtr& op, bool skip_const = true) -> bool {
-        for (auto& input : op->inputs()) {
-            const auto& node = get_input_node(input);
-            if ((skip_const && ov::op::util::is_constant(node)) || (ov::op::util::is_parameter(node)))
-                continue;
-            if (!supported.count(node->get_friendly_name()))
-                return false;
-        }
-        return true;
-    };
-
     auto has_unsupported_source =
         [&get_input_node](const NameSet& supported, const NodePtr& op, bool const_only = false) -> bool {
         for (auto& input : op->inputs()) {
@@ -207,17 +195,16 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     };
 
-    // Walk over transformed model for special handing of Parameters/Constants/Results
-    bool start_split = false;
-    unsigned long total_size = 0;
+    auto chec_pairs = [](std::map<std::string, int> pair_checker) {
+        return std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<std::string, int>& val) {
+            return val.second == 2;
+        });
+    };
+
+    // Check the ops to make sure Assign and ReadValue operations in pairs on the network
     std::map<std::string, int> pair_checker;
     for (auto&& op : ops) {
-        if (ov::op::util::is_constant(op)) {
-            if (has_all_consumers_unsupported(supported, op)) {
-                remove_op_from_supported(op);
-            }
-        }
-        if (memory_control) {
+        if (supported.count(op->get_friendly_name())) {
             if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                 if (pair_checker.count(assign->get_variable_id()) == 0) {
                     pair_checker[assign->get_variable_id()] = 1;
@@ -225,17 +212,45 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     pair_checker[assign->get_variable_id()]++;
                 }
             }
+        }
+    }
+
+    if (!chec_pairs(pair_checker)) {
+        for (auto& op : ops) {
+            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                if (pair_checker[assign->get_variable_id()] == 1) {
+                    remove_op_from_supported(op);
+                }
+            }
+        }
+    }
+
+    bool start_split = false;
+    unsigned long total_size = 0;
+    std::map<std::string, int> pair_checker_temp;
+    for (auto&& op : ops) {
+        // Mark Constants and all fused names as unsupported if they are have no
+        // supported consumers/sources
+        if (ov::op::util::is_constant(op)) {
+            if (has_all_consumers_unsupported(supported, op)) {
+                remove_op_from_supported(op);
+                continue;
+            }
+        }
+        if (memory_control && supported.count(op->get_friendly_name())) {
+            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                if (pair_checker_temp.count(assign->get_variable_id()) == 0) {
+                    pair_checker_temp[assign->get_variable_id()] = 1;
+                } else {
+                    pair_checker_temp[assign->get_variable_id()]++;
+                }
+            }
             if (ov::op::util::is_constant(op) && !start_split) {
                 const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
                 total_size += const_byte_size;
                 if (total_size * 1.2 >= memory_size_in_bytes) {
                     if (!start_split) {
-                        bool only_pairs = std::all_of(pair_checker.begin(),
-                                                      pair_checker.end(),
-                                                      [](const std::pair<std::string, int>& val) {
-                                                          return val.second == 2;
-                                                      });
-                        start_split = only_pairs;
+                        start_split = chec_pairs(pair_checker_temp);
                     }
                 }
             }
@@ -257,10 +272,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             }
         }
     }
-    // Get removed nodes
+
+    // Get removed nodes and nodes fused in broadcast
     NameSet removed_nodes = get_removed_nodes(model, transformed_model);
     NameSet broadcast_fused_nodes = get_broadcast_fused_nodes(transformed_model);
-    // Filter ShapeOfs & Broadcast, Broadcast can't be split with the output ops
+    // Filter ShapeOfs & Broadcast, Broadcast can't be split with it's output ops
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
         if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::util::BroadcastBase>(op)) &&
@@ -272,21 +288,15 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
-    // Some ops in other layers will be fused with Broadcast op in LLM, so need filter the fused ops in other layers
-    for (auto& op : model->get_ordered_ops()) {
-        const auto& name = op->get_friendly_name();
-        if (broadcast_fused_nodes.count(name)) {
-            if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
-                remove_op_from_supported(op);
-                broadcast_fused_nodes.erase(name);
-            }
-        }
-    }
     if (memory_control) {
         for (auto& op : model->get_ordered_ops()) {
-            if (removed_nodes.count(op->get_friendly_name()) && has_all_sources_supported(supported, op) &&
-                !ov::is_type<ov::op::v0::Convert>(op)) {
-                supported.insert(op->get_friendly_name());
+            const auto& name = op->get_friendly_name();
+            // Some ops in other layers will be fused with Broadcast op in LLM, so need filter the fused ops in other layers
+            if (broadcast_fused_nodes.count(name)) {
+                if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
+                    remove_op_from_supported(op);
+                    broadcast_fused_nodes.erase(name);
+                }
             }
         }
     } else {
@@ -294,8 +304,10 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         // mark all removed nodes as supported
         supported.insert(removed_nodes.begin(), removed_nodes.end());
     }
-    bool changed = true;
+    
+    // In case some ops not in orederd
     if (memory_control) {
+        bool changed = true;
         while (changed) {
             changed = false;
             for (auto& op : model->get_ordered_ops()) {

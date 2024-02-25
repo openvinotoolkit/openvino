@@ -14,6 +14,7 @@
 
 #include "compiled_model.hpp"
 #include "itt.hpp"
+#include "op/device_subgraph.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -21,7 +22,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "properties.hpp"
-#include "op/device_subgraph.hpp"
 
 ov::hetero::Plugin::Plugin() {
     set_device_name("HETERO");
@@ -132,9 +132,11 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             query_results[device_name] = get_core()->query_model(model, device_name, device_config);
             update_supported_ops(supported_ops_temp, query_results[device_name]);
             update_supported_ops(supported_ops_final, query_results[device_name]);
-            
-            mapping_info =
-            ov::hetero::mask_model_subgraphs_by_ops(model, supported_ops_temp, m_cfg.dump_dot_files(), default_device);
+
+            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
+                                                                   supported_ops_temp,
+                                                                   true,
+                                                                   default_device);
         } else {
             auto temp_model = model->clone();
             update_supported_ops(supported_ops_temp_1, supported_ops_temp);
@@ -142,18 +144,21 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 supported_ops_temp_1.emplace(node->get_friendly_name(), "HETERO-TEMP");
             }
             auto mapping_info_temp =
-            ov::hetero::mask_model_subgraphs_by_ops(temp_model, supported_ops_temp_1, false, default_device);
+                ov::hetero::mask_model_subgraphs_by_ops(temp_model, supported_ops_temp_1, false, default_device);
             for (const auto& op : temp_model->get_ordered_ops()) {
                 if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
                     if (subgraph->get_affinity() == "HETERO-TEMP") {
-                        query_results[device_name] = get_core()->query_model(subgraph->get_function(), device_name, device_config);
+                        query_results[device_name] =
+                            get_core()->query_model(subgraph->get_function(), device_name, device_config);
                         update_supported_ops(supported_ops_temp, query_results[device_name]);
                         update_supported_ops(supported_ops_final, query_results[device_name]);
                     }
                 }
             }
-            mapping_info =
-            ov::hetero::mask_model_subgraphs_by_ops(model, supported_ops_temp, m_cfg.dump_dot_files(), default_device);
+            mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
+                                                                   supported_ops_temp,
+                                                                   true,
+                                                                   default_device);
         }
     }
     return {supported_ops_final, mapping_info};
