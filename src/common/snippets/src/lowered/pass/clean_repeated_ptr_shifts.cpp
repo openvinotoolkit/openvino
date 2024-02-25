@@ -14,7 +14,7 @@ namespace lowered {
 namespace pass {
 
 bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir, const ExpressionPtr& loop_end_expr) {
-    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
+    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
 
@@ -95,7 +95,7 @@ bool CleanRepeatedDataPointerShifts::run(LinearIR& linear_ir) {
 
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
-        if (ov::is_type<op::LoopEnd>(node)) {
+        if (ov::is_type<op::LoopEndStatic>(node)) {
             modified |= reuse_increments(linear_ir, expr);
         }
     }

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdlib>
+
 #include "common_test_utils/node_builders/lstm_cell.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-
-#include <cstdlib>
+#include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 
