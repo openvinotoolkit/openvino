@@ -172,7 +172,7 @@ LinearIR::constExprIt InsertTailLoop::insert_copy_loop(LinearIR& linear_ir, cons
 void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
                                       LinearIR::constExprIt begin,
                                       LinearIR::constExprIt end,
-                                      const std::shared_ptr<op::LoopEnd>& loop_end,
+                                      const std::shared_ptr<op::LoopEndStatic>& loop_end,
                                       bool need_vector_loop,
                                       size_t tail_size) {
     // tail is required => transform the body into a tail representation
@@ -188,9 +188,10 @@ void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
         // This is done in such way to have original ops from the main body at the end:
         // this allows us to conveniently interact with outer loops in further passes
         const auto new_loop_begin_pos = insert_copy_loop(linear_ir, original_loop_id, begin);
-        const auto new_loop_begin = ov::as_type_ptr<op::LoopBegin>(new_loop_begin_pos->get()->get_node());
+        const auto new_loop_begin = ov::as_type_ptr<op::LoopBeginStatic>(new_loop_begin_pos->get()->get_node());
         OPENVINO_ASSERT(new_loop_begin, "Cloned Loop does not contain LoopBegin op at the expected place.");
-        const auto new_loop_end = new_loop_begin->get_loop_end();
+        const auto new_loop_end = ov::as_type_ptr<op::LoopEndStatic>(new_loop_begin->get_loop_end());
+        OPENVINO_ASSERT(new_loop_end, "Static LoopBegin expects Static LoopEnd");
         tail_loop_info = original_loop_info;
         original_loop_info = loop_manager->get_loop_info(new_loop_end->get_id());
 
@@ -215,7 +216,7 @@ void InsertTailLoop::create_tail_loop(LinearIR& linear_ir,
                         "Outer splitted loop unexpectedly iterates by several dimension indices");
         for (auto it = std::next(begin); it != std::prev(end); ++it) {
             const auto& expr = *it;
-            const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
+            const auto inner_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
             if (!inner_loop_end)
                 continue;
             const auto inner_loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
@@ -318,7 +319,7 @@ bool InsertTailLoop::run(LinearIR& linear_ir) {
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
         const auto& expr = *expr_it;
         const auto node = expr->get_node();
-        const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node);
+        const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(node);
         if (!loop_end)
             continue;
 

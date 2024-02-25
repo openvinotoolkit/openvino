@@ -4,8 +4,6 @@
 
 #include "shared_test_classes/single_op/multinomial.hpp"
 
-#include "ov_models/builders.hpp"
-
 using namespace ov::test;
 
 namespace ov {

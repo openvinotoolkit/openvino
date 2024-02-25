@@ -15,7 +15,7 @@ The preferred way to configure performance in OpenVINO Runtime is using performa
 
 The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
 
-Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gaddb29425af71fbb6ad3379c59342ff0e>`__ (``CPU_THROUGHPUT_AUTO`` in the pre-API 2.0 terminology) was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
+Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gaddb29425af71fbb6ad3379c59342ff0e>`__ was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 Performance Hints: Latency and Throughput

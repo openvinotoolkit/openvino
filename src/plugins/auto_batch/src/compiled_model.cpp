@@ -154,8 +154,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return m_compiled_model_with_batch ? m_compiled_model_with_batch->get_runtime_model()
-                                       : m_compiled_model_without_batch->get_runtime_model();
+    auto& compiled_model = m_compiled_model_with_batch ? m_compiled_model_with_batch : m_compiled_model_without_batch;
+    auto model = compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), compiled_model._so);
+    return model;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -201,6 +203,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
             return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
