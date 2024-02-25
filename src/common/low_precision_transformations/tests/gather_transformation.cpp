@@ -27,15 +27,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     std::vector<size_t> gatherIndicesShape;
@@ -58,7 +58,7 @@ public:
         const int opset_version = std::get<2>(GetParam());
 
         actualFunction =
-            ngraph::builder::subgraph::GatherFunction::getOriginal(inputShape,
+            ov::builder::subgraph::GatherFunction::getOriginal(inputShape,
                                                                    testValues.gatherIndicesShape,
                                                                    testValues.gatherIndicesValues,
                                                                    testValues.axis,
@@ -72,7 +72,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::GatherFunction::getReference(inputShape,
+            ov::builder::subgraph::GatherFunction::getReference(inputShape,
                                                                     testValues.gatherIndicesShape,
                                                                     testValues.gatherIndicesValues,
                                                                     testValues.axis,

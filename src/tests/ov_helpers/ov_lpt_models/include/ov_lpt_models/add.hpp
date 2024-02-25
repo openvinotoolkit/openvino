@@ -14,7 +14,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -65,9 +65,9 @@ public:
         const bool broadcast,
         const ov::pass::low_precision::LayerTransformation::Params& params,
         const ov::element::Type& precision1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::builder::subgraph::DequantizationOperations& dequantization1,
         const ov::element::Type& precision2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+        const ov::builder::subgraph::DequantizationOperations& dequantization2,
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
@@ -77,8 +77,8 @@ public:
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
         const bool broadcast,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData1,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,
@@ -87,10 +87,10 @@ public:
         const bool broadcast,
         const ov::pass::low_precision::LayerTransformation::Params& params,
         const ov::element::Type& precision1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::builder::subgraph::DequantizationOperations& dequantization1,
         const ov::element::Type& precision2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const ov::builder::subgraph::DequantizationOperations& dequantization2,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
@@ -100,4 +100,4 @@ public:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -39,6 +39,7 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
+#include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
@@ -194,6 +195,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
+    // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
@@ -212,6 +214,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
     manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
+    manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
     // Second pass of AlignTypesRemoval after all converting transformations
@@ -254,6 +258,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }
 

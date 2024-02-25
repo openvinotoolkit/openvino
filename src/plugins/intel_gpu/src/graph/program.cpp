@@ -45,9 +45,6 @@
 #include "shuffle_channels_inst.h"
 #include "arg_max_min_inst.h"
 #include "dft_inst.h"
-#include "lstm_inst.h"
-#include "lstm_elt_inst.h"
-#include "lstm_gemm_inst.h"
 #include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "pooling_inst.h"
@@ -56,7 +53,6 @@
 #include "prior_box_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
-#include "split_inst.h"
 #include "mvn_inst.h"
 #include "gemm_inst.h"
 #include "adaptive_pooling_inst.h"
@@ -105,21 +101,28 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
-    ov::threading::IStreamsExecutor::Config task_executor_config(tags, 1);
-    task_executor_config._streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
+    int streams = (num_streams > 0) ? num_streams : config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    auto core_type = ov::threading::IStreamsExecutor::Config::ANY;
     switch (priority) {
-        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::LITTLE; break;
-        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::ANY; break;
-        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = ov::threading::IStreamsExecutor::Config::BIG; break;
+        case ov::hint::Priority::LOW: core_type = ov::threading::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: core_type = ov::threading::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: core_type = ov::threading::IStreamsExecutor::Config::BIG; break;
         default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
     }
     bool enable_cpu_pinning = config.get_property(ov::hint::enable_cpu_pinning);
 
-    task_executor_config.update_executor_config(task_executor_config._streams,
-                                                1,
-                                                task_executor_config._threadPreferredCoreType,
-                                                enable_cpu_pinning);
+    ov::threading::IStreamsExecutor::Config task_executor_config(
+        tags,
+        streams,
+        1,
+        ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
+        1,
+        0,
+        0,
+        core_type,
+        {},
+        enable_cpu_pinning);
 
     return task_executor_config;
 }
@@ -338,7 +341,7 @@ bool program::analyze_output_size_handling_need() {
 
             auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
                                                                             prim->pad,
@@ -365,7 +368,7 @@ bool program::analyze_output_size_handling_need() {
                 size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
-            auto primInputSize = prim_node.input().get_output_layout().get_tensor();
+            auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(
                 primInputSize,
                 size,
@@ -423,7 +426,6 @@ void program::prepare_nodes(topology const& topology) {
     for (const auto& prim : topo_map) {
         get_or_create(prim.second);
     }
-    add_split_outputs();
     for (const auto& node : nodes_map) {
         auto node_ptr = node.second.get();
         if (node_ptr == nullptr)
@@ -534,8 +536,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
-    apply_opt_pass<reverse_optional_nodes_outputs>();
-
     bool output_size_handling_enabled = analyze_output_size_handling_need();
     for (auto& node : processing_order) {
         if (!node->is_type<data>())
@@ -582,8 +582,6 @@ void program::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<concat_input_order>();
     }
 
-    apply_opt_pass<strided_slice_optimize>();
-
     apply_opt_pass<handle_reshape>();
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
@@ -598,9 +596,10 @@ void program::pre_optimize_graph(bool is_internal) {
     // check if there exists some layout incompatibilities and add an reorder node if required
     apply_opt_pass<add_required_reorders>();
 
-    // Modify fused post operation to resolve overflow of fp16 output by adding clamp activation
-    // Currently, 'gemm-softmax' case is applied for clamping
-    apply_opt_pass<clamp_fp16_output>();
+    // Check fusing primitives based on preferred format or layout optimization
+    if (optimize_data) {
+        apply_opt_pass<fuse_primitives_with_layout>();
+    }
 
     // add optimization attributes for onednn primitives
     apply_opt_pass<add_onednn_optimization_attributes>();
@@ -717,30 +716,6 @@ void program::transfer_memory_to_device() {
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
-            }
-        }
-    }
-}
-
-void program::add_split_outputs() {
-    auto itr = nodes_map.begin();
-    while (itr != nodes_map.end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr).second;
-
-        if (node->is_type<split>()) {
-            auto split_prim = node->as<split>().typed_desc();
-            input_info input(split_prim->input[0]);
-            auto split_num = split_prim->output_offsets.size();
-
-            // create crop for each split output provided
-            for (decltype(split_num) i = 0; i < split_num; i++) {
-                primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
-
-                // create dummy crop primitive and add it to nodes map
-                auto crop_prim =
-                    std::make_shared<crop>(output_id, input, tensor{1, 1, 1, 1}, split_prim->output_offsets[i]);
-                get_or_create(crop_prim);
             }
         }
     }
@@ -1503,8 +1478,8 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::depth_to_space::type_id() &&
             prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
-             || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
-                 prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
+             || (prim.as<mvn>().get_input_layout().data_type != data_types::u8 &&
+                 prim.as<mvn>().get_input_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels()) &&
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&

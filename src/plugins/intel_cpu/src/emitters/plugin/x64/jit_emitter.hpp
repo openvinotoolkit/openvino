@@ -8,9 +8,14 @@
 
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
+#include "emitters/utils.hpp"
 #include <node.h>
 
 #include <set>
+
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "emitters/snippets/x64/verbose.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -49,6 +54,14 @@ public:
      * Empty collection means the emitter supports any input precisions.
      */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    const char *info() const {
+        if (!info_.is_initialized())
+            info_.init(this);
+        return info_.c_str();
+    }
+#endif
 
 protected:
     virtual size_t aux_gprs_count() const;
@@ -138,6 +151,13 @@ protected:
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;
 
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    mutable jit_emitter_info_t info_;
+    friend class jit_debug_emitter;
+#endif
+
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
@@ -150,12 +170,11 @@ private:
         // share their broadcast property
         // TODO: enforce through data structure
         const auto it = entry_map_.find(key); // search an entry for a key
-        OPENVINO_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
+        OV_CPU_JIT_EMITTER_ASSERT(it != entry_map_.end(), "Value has not been found in the table");
         const auto &te = (*it).second;
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 };
 
 }   // namespace intel_cpu

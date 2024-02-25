@@ -4,30 +4,26 @@
 
 #include "op/reshape.hpp"
 
-#include <cstddef>
-#include <memory>
-#include <vector>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/shape.hpp"
+#include "openvino/op/reshape.hpp"
 #include "utils/reshape.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector reshape(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
-    const auto data = ng_inputs.at(0);
+ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    const auto data = ov_inputs.at(0);
 
-    Output<ngraph::Node> pattern;
+    ov::Output<ov::Node> pattern;
     bool special_zero = true;
     // Since opset 5 the target shape is provided as input
-    if (ng_inputs.size() == 2) {
-        pattern = ng_inputs.at(1);
+    if (ov_inputs.size() == 2) {
+        pattern = ov_inputs.at(1);
     } else {
         // Added in onnx reshape version 14
         special_zero = !node.get_attribute_value<int64_t>("allowzero", 0);
@@ -35,14 +31,11 @@ OutputVector reshape(const Node& node) {
         pattern = node.get_attribute_as_constant<std::vector<int64_t>>("shape", {});
     }
 
-    return {std::make_shared<default_opset::Reshape>(data, pattern, special_zero)};
+    return {std::make_shared<v1::Reshape>(data, pattern, special_zero)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

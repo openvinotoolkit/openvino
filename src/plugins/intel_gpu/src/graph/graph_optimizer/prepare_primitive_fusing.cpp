@@ -56,7 +56,6 @@ using namespace cldnn;
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
     remove_redundant_reshape(p);
-    fuse_sigmoid_mul_to_swish(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
     fuse_constant_transposes(p);
@@ -73,7 +72,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
                     return;
                 if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
                     return;
-                if (prev.first->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
+                if (prev.first->as<reshape>().get_input_layout() == node.get_output_layout()) {
                     p.add_optimized_primitive_info(prev.first->id());
                     p.add_optimized_primitive_info(node.id());
                     p.extract_and_remove(*prev.first);
@@ -87,7 +86,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     while (node_itr != p.get_processing_order().end()) {
         auto node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            auto input_lay = node.input().get_output_layout();
+            auto input_lay = node.get_input_layout();
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place())
@@ -120,71 +119,6 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
                 p.add_optimized_primitive_info(node.id());
                 p.extract_and_remove(node);
             }
-        });
-    }
-}
-
-void prepare_primitive_fusing::fuse_sigmoid_mul_to_swish(program &p) {
-    auto itr = p.get_processing_order().begin();
-    while (itr != p.get_processing_order().end()) {
-        auto node_itr = itr++;
-        auto& node = (*node_itr);
-
-        if (node->is_output())
-            continue;
-
-        program_helpers::do_for_types<eltwise>(*node, [&p](eltwise_node& node) {
-            if (node.get_dependencies().size() != 2)
-                return;
-
-            if (node.get_primitive()->mode != eltwise_mode::prod)
-                return;
-
-            auto& mul = node;
-            program_node* activation_input = nullptr;
-            size_t values_id = 1;
-            if (node.get_dependency(0).is_type<activation>()) {
-                activation_input = &node.get_dependency(0);
-            } else if (node.get_dependency(1).is_type<activation>()) {
-                activation_input = &node.get_dependency(1);
-                values_id = 0;
-            }
-
-            if (!activation_input)
-                return;
-
-            if (activation_input->as<activation>().get_primitive()->activation_function != activation_func::logistic)
-                return;
-
-            auto& sigmoid = activation_input->as<activation>();
-
-            if (sigmoid.is_output() || sigmoid.get_users().size() != 1)
-                return;
-
-            auto& input = node.get_dependency(values_id);
-
-            if (&input != &sigmoid.input())
-                return;
-
-            activation_additional_params swish_params = {1.0f, 0.0f};
-            auto swish_prim = std::make_shared<cldnn::activation>(mul.id() + "_swish", input.id(), activation_func::swish, swish_params);
-            auto& swish = p.get_or_create(swish_prim);
-
-            p.add_optimized_primitive_info(node.id(), {swish.id()});
-            p.add_optimized_primitive_info(sigmoid.id(), {swish.id()});
-
-            p.add_connection(input, swish);
-            p.replace_all_usages(mul, swish);
-
-            p.remove_all_connections(mul);
-            p.remove_all_connections(sigmoid);
-
-            p.remove_if_dangling(mul);
-            p.remove_if_dangling(sigmoid);
-
-            p.get_processing_order().insert_next(&input, &swish);
-
-            swish.recalc_output_layout();
         });
     }
 }
@@ -579,6 +513,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
+            auto gemm_prim = node.get_primitive();
+            for (size_t idx = 0; idx < gemm_prim->output_order.size(); ++idx) {
+                size_t output_order_idx = static_cast<size_t>(gemm_prim->output_order[idx]);
+                if (idx != output_order_idx) {
+                    does_support_fusings = false;
+                    break;
+                }
+            }
+
             return does_support_fusings;
         };
 
@@ -618,6 +561,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
             auto out_layout = node.get_output_layout();
+            // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
                   !_lo.get_optimization_attributes().use_onednn_impls) ||

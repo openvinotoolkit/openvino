@@ -21,6 +21,7 @@ struct typed_program_node<shape_of> : public typed_program_node_base<shape_of> {
 public:
     using parent::parent;
 
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
     program_node& input() const { return get_dependency(0); }
 };
 

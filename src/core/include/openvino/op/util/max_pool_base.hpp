@@ -58,10 +58,6 @@ public:
     const Shape& get_pads_end() const {
         return m_pads_end;
     }
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon. Please use set_pads_end instead.")
-    void set_adding_above(const Shape& pads_end) {
-        m_pads_end = pads_end;
-    }
     void set_pads_end(Shape pads_end);
 
     /// \return The pad type for pooling.

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -19,6 +19,7 @@ from openvino import (
     serialize,
 )
 
+import openvino.properties as props
 import openvino.properties.hint as hints
 from openvino.runtime import Extension
 from tests.utils.helpers import (
@@ -229,7 +230,7 @@ def test_available_devices(device):
 
 def test_get_property(device):
     core = Core()
-    conf = core.get_property(device, "SUPPORTED_CONFIG_KEYS")
+    conf = core.get_property(device, props.supported_properties())
     assert "PERF_COUNT" in conf
 
 
@@ -346,6 +347,7 @@ def test_unload_plugin(device):
 
 @pytest.mark.template_extension()
 @pytest.mark.dynamic_library()
+@pytest.mark.xfail(condition=sys.platform == "darwin", reason="Ticket - 132696")
 def test_add_extension_template_extension(device):
     core, model = get_model_with_template_extension()
     assert isinstance(model, Model)

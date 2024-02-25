@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestLog1p(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-0.9, 5, x_shape).astype(np.float32)
+        inputs_data['x:0'] = np.random.randint(-0.9, 5, x_shape).astype(np.float32)
 
         return inputs_data
 
@@ -37,7 +37,7 @@ class TestLog1p(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_log1p_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_log1p_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

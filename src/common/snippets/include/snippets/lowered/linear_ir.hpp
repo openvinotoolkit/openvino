@@ -30,8 +30,6 @@ enum PerfCountMode {
 
 class Config {
 public:
-    // True if the lowered Emitters need to be accessed during runtime. Normally they're destroyed after code emission.
-    bool m_save_expressions = false;
     // True if we should check runtime info for nodes to call specific needed transformations
     bool m_need_fill_tail_register = false;
     size_t m_loop_depth = 1;
@@ -135,6 +133,8 @@ public:
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
     const std::shared_ptr<ShapeInferSnippetsNode>& get_shape_infer_instance() const {return m_shape_infer; }
     VectorDims get_master_shape() const;
+
+    bool is_dynamic() const;
 
     /* ------ Helpers for work with LinearIR ----- */
     /**
@@ -253,6 +253,7 @@ private:
     Config m_config{};
     LoopManagerPtr m_loop_manager = nullptr;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    bool m_is_dynamic = false;
 };
 
 template<typename iterator>

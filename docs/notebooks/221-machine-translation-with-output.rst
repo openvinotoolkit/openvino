@@ -16,12 +16,11 @@ following structure: ``<s>`` + *tokenized sentence* + ``<s>`` +
 **Output** After the inference, we have a sequence of up to 200 tokens.
 The structure is the same as the one for the input.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Downloading model <#downloading-model>`__
--  `Load and configure the
-   model <#load-and-configure-the-model>`__
+-  `Load and configure the model <#load-and-configure-the-model>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Load tokenizers <#load-tokenizers>`__
 -  `Perform translation <#perform-translation>`__
@@ -38,9 +37,21 @@ The structure is the same as the one for the input.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -57,8 +68,10 @@ The structure is the same as the one for the input.
     sys.path.append("../utils")
     from notebook_utils import download_file
 
-Downloading model 
------------------------------------------------------------
+Downloading model
+-----------------
+
+
 
 The following command will download the model to the current directory.
 Make sure you have run ``pip install openvino-dev`` beforehand.
@@ -120,8 +133,10 @@ Make sure you have run ``pip install openvino-dev`` beforehand.
     model/tokenizer_tgt/vocab.json:   0%|          | 0.00/543k [00:00<?, ?B/s]
 
 
-Load and configure the model 
-----------------------------------------------------------------------
+Load and configure the model
+----------------------------
+
+
 
 The model is now available in the ``model/`` folder. Below, we load and
 configure its inputs and outputs.
@@ -135,8 +150,10 @@ configure its inputs and outputs.
     model.output(output_name)
     max_tokens = model.input(input_name).shape[1]
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -168,8 +185,10 @@ select device from dropdown list for running inference using OpenVINO
 
     compiled_model = core.compile_model(model, device.value)
 
-Load tokenizers 
----------------------------------------------------------
+Load tokenizers
+---------------
+
+
 
 NLP models usually take a list of tokens as standard input. A token is a
 single word converted to some integer. To provide the proper input, we
@@ -195,8 +214,10 @@ Initialize the tokenizer for the input ``src_tokenizer`` and the output
         str(target_tok_dir / 'merges.txt')
     )
 
-Perform translation 
--------------------------------------------------------------
+Perform translation
+-------------------
+
+
 
 The following function translates a sentence in English to German.
 
@@ -244,8 +265,10 @@ The following function translates a sentence in English to German.
         sentence = " ".join(key for key, _ in itertools.groupby(sentence))
         return sentence
 
-Translate the sentence 
-----------------------------------------------------------------
+Translate the sentence
+----------------------
+
+
 
 The following function is a basic loop that translates sentences.
 
@@ -274,8 +297,10 @@ The following function is a basic loop that translates sentences.
     # uncomment the following line for a real time translation of your input
     # run_translator()
 
-Test your translation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Test your translation
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Run the following cell with an English sentence to have it translated to
 German

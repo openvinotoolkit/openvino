@@ -4,17 +4,14 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-/// \brief      Creates nGraph node representing ONNX InstanceNormalization
+/// \brief      Creates OV node representing ONNX InstanceNormalization
 ///             operator.
 ///
 /// \note       The resulting node represents following equation:
@@ -23,14 +20,11 @@ namespace set_1 {
 ///
 /// \param[in]  node  The input ONNX node representing this operation.
 ///
-/// \return     Vector of nodes containting resulting nGraph nodes.
+/// \return     Vector of nodes containting resulting OV nodes.
 ///
-OutputVector instance_norm(const Node& node);
+ov::OutputVector instance_norm(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

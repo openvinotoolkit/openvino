@@ -49,7 +49,7 @@ ov_set_threading_interface_for(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL
     openvino::itt
-    inference_engine_plugin_api
+    openvino::runtime::dev
   )
 
 if(ENABLE_ONEDNN_FOR_GPU)

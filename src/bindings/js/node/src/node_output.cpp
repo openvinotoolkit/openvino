@@ -1,11 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "node_output.hpp"
+#include "node/include/node_output.hpp"
 
-#include "addon.hpp"
-#include "helper.hpp"
-#include "partial_shape_wrap.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/helper.hpp"
+#include "node/include/partial_shape_wrap.hpp"
 
 Output<ov::Node>::Output(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Output<ov::Node>>(info), _output{} {}
 

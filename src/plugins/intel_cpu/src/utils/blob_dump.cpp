@@ -3,7 +3,6 @@
 //
 
 #include "blob_dump.h"
-#include "blob_factory.hpp"
 #include <cpu_memory.h>
 #include "dnnl_extension_utils.h"
 #include <nodes/common/cpu_memcpy.h>
@@ -92,7 +91,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr &memory, std::vector<uint8_t
 
     // check if it already plain
     if (desc.hasLayoutType(LayoutType::ncsp)) {
-        cpu_memcpy(data.data(), reinterpret_cast<const uint8_t*>(memory->getData()), size);
+        cpu_memcpy(data.data(), memory->getDataAs<const uint8_t>(), size);
         return;
     }
 
@@ -166,7 +165,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
            << "shape: ";
     for (size_t d : dims) stream << d << " ";
     stream << "(" << data_size << ")" <<
-    " by address 0x" << std::hex << reinterpret_cast<const long long *>(memory->getData()) << std::dec <<std::endl;
+    " by address 0x" << std::hex << memory->getDataAs<const long long>() << std::dec <<std::endl;
 
     const void *ptr = memory->getData();
 

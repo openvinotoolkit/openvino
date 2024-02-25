@@ -4,15 +4,16 @@
 
 #pragma once
 
-#include "onnx_import/core/node.hpp"
+#include "core/node.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace conv_factory {
-std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ov::Node>& data,
-                                                const Output<ov::Node>& filters,
+std::shared_ptr<ov::op::Op> make_ng_convolution(const ov::Output<ov::Node>& data,
+                                                const ov::Output<ov::Node>& filters,
                                                 const ov::Strides& strides,
                                                 const ov::Strides& dilations,
                                                 const ov::CoordinateDiff& padding_below,
@@ -20,5 +21,6 @@ std::shared_ptr<ov::op::Op> make_ng_convolution(const Output<ov::Node>& data,
                                                 int64_t groups,
                                                 const ov::op::PadType& auto_pad);
 }  // namespace conv_factory
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

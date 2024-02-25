@@ -12,12 +12,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 
@@ -33,10 +35,6 @@ namespace tensorflow {
 void set_node_name(const string& node_name, const shared_ptr<Node>& node) {
     const auto& outputs = node->outputs();
     node->set_friendly_name(node_name);
-    // TODO: Remove this and set single tensor names for model inputs, ticket - 129457
-    if (outputs.size() == 1 && as_type_ptr<v0::Parameter>(node)) {
-        set_out_name(node_name, outputs[0]);
-    }
     for (size_t idx = 0; idx < outputs.size(); ++idx) {
         set_out_name({node_name + ":" + to_string(idx)}, outputs[idx]);
     }

@@ -2,46 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
+#include "intel_gpu/plugin/plugin.hpp"
+
 #include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <memory>
 #include <mutex>
 #include <string>
-#include <map>
-#include <vector>
-#include <cmath>
 #include <tuple>
-#include <cctype>
-#include <memory>
-
-#include "openvino/core/deprecated.hpp"
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
-#include "openvino/runtime/device_id_parser.hpp"
-#include "openvino/core/dimension_tracker.hpp"
-#include "openvino/pass/manager.hpp"
-#include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include <vector>
 
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-#include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
-
-#include "transformations/init_node_info.hpp"
+#include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/itt.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/performance_heuristics.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
+#include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <performance_heuristics.hpp>
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -106,7 +104,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name();
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
@@ -127,7 +124,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name() + "_" +  "transformed_func";
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;
@@ -777,7 +773,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     }
     auto config = m_configs_map.at(device_id);
     auto cloned_model = clone_and_transform_model(model, config);
-    ov::MemBandwidthPressure memPressure = ov::MemBandwidthPressureTolerance(cloned_model, L3_cache_size);
+    ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
         batch = std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance));

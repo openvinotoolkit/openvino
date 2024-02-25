@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API TransposeReshapeEliminationForMatmul;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TransposeReshapeEliminationForMatmul transformation eliminates Transpose and Reshape which were created to
  * align input and output dimension ranks before second MatMul input and after MatMul output
  * (for example, after Einsum Decomposition inside TensorFlow 1 and OpenVINO EinsumDecomposition transformation)

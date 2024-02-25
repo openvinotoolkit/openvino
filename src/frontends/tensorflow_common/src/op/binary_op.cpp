@@ -8,12 +8,14 @@
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
@@ -25,9 +27,11 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -53,11 +57,27 @@ OutputVector translate_binary_op(const NodeContext& node,
 OutputVector translate_floor_div_op(const NodeContext& node) {
     auto floordiv_fn = [](const Output<Node>& x, const Output<Node>& y) -> shared_ptr<Node> {
         auto out_type = x.get_element_type();
-        if (out_type.is_integral()) {
-            auto float_x = make_shared<v0::Convert>(x, element::f32);
-            auto float_y = make_shared<v0::Convert>(y, element::f32);
-            return make_shared<v0::Convert>(make_shared<v0::Floor>(make_shared<v1::Divide>(float_x, float_y)),
-                                            out_type);
+        if (out_type.is_integral() && out_type.is_signed()) {
+            // when integer inputs have different signs remainder should be taken into account
+            // res = x / y; if x > 0 and y > 0
+            // res = x / y - 1; if (x < 0 xor y < 0) and (x mod y != 0)
+
+            auto zero_const = make_shared<v0::Constant>(out_type, Shape{}, 0);
+            auto minus_one_const = make_shared<v0::Constant>(out_type, Shape{}, -1);
+
+            auto x_less_cond = make_shared<v1::Less>(x, zero_const);
+            auto y_less_cond = make_shared<v1::Less>(y, zero_const);
+            auto xor_cond = make_shared<v1::LogicalXor>(x_less_cond, y_less_cond);
+
+            auto div = make_shared<v1::Divide>(x, y, false);
+            auto mod_xy = make_shared<v1::Mod>(x, y);
+            auto cond_mod = make_shared<v1::NotEqual>(mod_xy, zero_const);
+
+            auto cond = make_shared<v1::LogicalAnd>(cond_mod, xor_cond);
+            auto reminder = make_shared<v1::Select>(cond, minus_one_const, zero_const);
+            return make_shared<v1::Add>(div, reminder);
+        } else if (out_type.is_integral() && !out_type.is_signed()) {
+            return make_shared<v1::Divide>(x, y);
         } else {
             return make_shared<v0::Floor>(make_shared<v1::Divide>(x, y));
         }

@@ -4,9 +4,6 @@
 
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "ov_models/subgraph_builders.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -16,7 +13,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/infer_request.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/subgraph_builders/detection_output.hpp"
@@ -243,20 +240,15 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
     // Modify tensor somehow and save as a reference values
     ov::test::utils::fill_tensor_random(output_tensor2);
 
-    std::vector<float> ref_values;
-    ref_values.resize(output_tensor2.get_byte_size());
-    std::memcpy(ref_values.data(), output_tensor2.data(), output_tensor2.get_byte_size());
+    ov::Tensor ref_tensor(output_tensor2.get_element_type(), output_tensor2.get_shape());
+    output_tensor2.copy_to(ref_tensor);
 
     // Perform second infer() call with a system host memory tensor
     infer_request1.set_output_tensor(output_tensor1);
     ASSERT_NO_THROW(infer_request1.infer());
 
     // Expect that output_tensor2 will not change it's data after infer() call
-    FuncTestUtils::compareRawBuffers(ref_values.data(),
-                                     output_tensor2.data<float>(),
-                                     ref_values.size(),
-                                     ov::shape_size(output_tensor2.get_shape()),
-                                     1e-4f);
+    ov::test::utils::compare(ref_tensor, output_tensor2, 1e-4);
 }
 
 TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {

@@ -4,7 +4,6 @@
 
 #include "config.h"
 
-#include "cpu/cpu_config.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
@@ -13,6 +12,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/precision_support.h"
+#include "utils/cpu_utils.hpp"
 
 #include <algorithm>
 #include <map>
@@ -27,9 +27,9 @@ using namespace dnnl::impl::cpu::x64;
 Config::Config() {
     // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
-    streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
+    threadBindingType = IStreamsExecutor::NONE;
 #else
-    streamExecutorConfig._threadBindingType = IStreamsExecutor::CORES;
+    threadBindingType = IStreamsExecutor::CORES;
 #endif
 
 // for the TBB code-path, additional configuration depending on the OS and CPU types
@@ -38,14 +38,14 @@ Config::Config() {
     // 'CORES' is not implemented for Win/MacOS; so the 'NONE' or 'NUMA' is default
     auto numaNodes = get_available_numa_nodes();
     if (numaNodes.size() > 1) {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::NUMA;
+        threadBindingType = IStreamsExecutor::NUMA;
     } else {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::NONE;
+        threadBindingType = IStreamsExecutor::NONE;
     }
 #    endif
 
     if (get_available_cores_types().size() > 1 /*Hybrid CPU*/) {
-        streamExecutorConfig._threadBindingType = IStreamsExecutor::HYBRID_AWARE;
+        threadBindingType = IStreamsExecutor::HYBRID_AWARE;
     }
 #endif
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
@@ -75,24 +75,65 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.set_property(key, val.as<std::string>());
-            if (key == ov::affinity.name()) {
+            streams = streamExecutorConfig.get_streams();
+            threads = streamExecutorConfig.get_threads();
+            threadsPerStream = streamExecutorConfig.get_threads_per_stream();
+            if (key == ov::num_streams.name()) {
+                ov::Any value = val.as<std::string>();
+                auto streams_value = value.as<ov::streams::Num>();
+                if (streams_value == ov::streams::NUMA) {
+                    latencyThreadingMode = Config::LatencyThreadingMode::PER_NUMA_NODE;
+                } else if (streams_value == ov::streams::AUTO) {
+                    hintPerfMode = ov::hint::PerformanceMode::THROUGHPUT;
+                    changedHintPerfMode = true;
+                } else {
+                    streamsChanged = true;
+                }
+            }
+            OPENVINO_SUPPRESS_DEPRECATED_START
+        } else if (key == ov::affinity.name()) {
+            try {
                 changedCpuPinning = true;
-                try {
-                    const auto affinity_val = val.as<ov::Affinity>();
-                    enableCpuPinning =
-                        (affinity_val == ov::Affinity::CORE || affinity_val == ov::Affinity::HYBRID_AWARE) ? true
-                                                                                                           : false;
-                } catch (const ov::Exception&) {
+                ov::Affinity affinity = val.as<ov::Affinity>();
+#if defined(__APPLE__)
+                enableCpuPinning = false;
+                threadBindingType = affinity == ov::Affinity::NONE ? IStreamsExecutor::ThreadBindingType::NONE
+                                                                   : IStreamsExecutor::ThreadBindingType::NUMA;
+#else
+                enableCpuPinning =
+                    (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
+                switch (affinity) {
+                case ov::Affinity::NONE:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
+                    break;
+                case ov::Affinity::CORE: {
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
+                } break;
+                case ov::Affinity::NUMA:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
+                    break;
+                case ov::Affinity::HYBRID_AWARE:
+                    threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
+                    break;
+                default:
                     OPENVINO_THROW("Wrong value ",
                                    val.as<std::string>(),
                                    "for property key ",
                                    key,
                                    ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
+#endif
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               key,
+                               ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
             }
+            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::performance_mode.name()) {
             try {
-                hintPerfMode = val.as<ov::hint::PerformanceMode>();
+                hintPerfMode = !changedHintPerfMode ? val.as<ov::hint::PerformanceMode>() : hintPerfMode;
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -177,6 +218,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
+        } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
+            try {
+                fcDynamicQuantizationGroupSize = val.as<uint64_t>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value for property key ",
+                                ov::hint::dynamic_quantization_group_size.name(),
+                                ". Expected only unsinged integer numbers");
+            }
         } else if (key == ov::enable_profiling.name()) {
             try {
                 collectPerfCounters = val.as<bool>();
@@ -197,11 +246,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::internal::exclusive_async_requests.name(),
                                ". Expected only true/false");
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key.compare(InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
-            // empty string means that dumping is switched off
-            dumpToDot = val.as<std::string>();
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::intel_cpu::lp_transforms_mode.name()) {
             try {
                 lpTransformsMode = val.as<bool>() ? LPTransformsMode::On : LPTransformsMode::Off;
@@ -217,29 +261,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (!device_id.empty()) {
                 OPENVINO_THROW("CPU plugin supports only '' as device id");
             }
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) {
-            bool enable;
-            try {
-                enable = val.as<bool>();
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               key,
-                               ". Expected only true/false");
-            }
-            if (enable) {
-                if (hasHardwareSupport(ov::element::bf16)) {
-                    inferencePrecision = ov::element::bf16;
-                } else {
-                    OPENVINO_THROW("Platform doesn't support BF16 format");
-                }
-            } else {
-                inferencePrecision = ov::element::f32;
-            }
-            inferencePrecisionSetExplicitly = true;
-            OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == ov::hint::inference_precision.name()) {
             try {
                 auto const prec = val.as<ov::element::Type>();
@@ -323,6 +344,21 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::execution_mode.name(),
                                ". Supported values: ov::hint::ExecutionMode::PERFORMANCE/ACCURACY");
             }
+        } else if (key == ov::hint::kv_cache_precision.name()) {
+            try {
+                auto const prec = val.as<ov::element::Type>();
+                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                    kvCachePrecision = prec;
+                } else {
+                     OPENVINO_THROW("invalid value");
+                }
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::hint::kv_cache_precision.name(),
+                               ". Supported values: u8, bf16, f16, f32");
+            }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");
         }
@@ -333,8 +369,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-            //fp16 precision is used as default precision on ARM for non-convolution networks
-            //fp16 ACL convolution is slower than fp32
+            // fp16 precision is used as default precision on ARM for non-convolution networks
+            // fp16 ACL convolution is slower than fp32
             if (modelType != ModelType::CNN)
                 inferencePrecision = ov::element::f16;
 #else
@@ -350,8 +386,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         _config.clear();
 
     if (exclusiveAsyncRequests) {  // Exclusive request feature disables the streams
-        streamExecutorConfig._streams = 1;
-        streamExecutorConfig._streams_changed = true;
+        streams = 1;
+        streamsChanged = true;
     }
 
     this->modelType = modelType;
@@ -364,20 +400,6 @@ void Config::updateProperties() {
     if (!_config.empty())
         return;
 
-    switch (streamExecutorConfig._threadBindingType) {
-    case IStreamsExecutor::ThreadBindingType::NONE:
-        _config.insert({ov::internal::cpu_bind_thread.name(), "NO"});
-        break;
-    case IStreamsExecutor::ThreadBindingType::CORES:
-        _config.insert({ov::internal::cpu_bind_thread.name(), "YES"});
-        break;
-    case IStreamsExecutor::ThreadBindingType::NUMA:
-        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::NUMA)});
-        break;
-    case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-        _config.insert({ov::internal::cpu_bind_thread.name(), ov::util::to_string(ov::Affinity::HYBRID_AWARE)});
-        break;
-    }
     if (collectPerfCounters == true)
         _config.insert({ov::enable_profiling.name(), "YES"});
     else
@@ -391,21 +413,6 @@ void Config::updateProperties() {
 
     _config.insert({ov::hint::performance_mode.name(), ov::util::to_string(hintPerfMode)});
     _config.insert({ov::hint::num_requests.name(), std::to_string(hintNumRequests)});
-
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (inferencePrecision == ov::element::bf16) {
-        _config.insert(
-            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::YES});
-    } else {
-        _config.insert(
-            {InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
-    }
-    _config.insert({InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
-                    std::to_string(streamExecutorConfig._streams)});
-    _config.insert(
-        {InferenceEngine::PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads)});
-    _config.insert({InferenceEngine::PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot});
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace intel_cpu

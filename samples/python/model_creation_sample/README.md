@@ -30,8 +30,4 @@ The following OpenVINO Python API is used in the application:
 |                   | [openvino.runtime.opset8.relu](https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.relu.html) ,                        |                                                           |
 |                   | [openvino.runtime.opset8.softmax](https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.runtime.opset8.softmax.html)                    |                                                           |
 
-<<<<<<< HEAD
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.3/openvino_inference_engine_ie_bridges_python_sample_hello_classification_README.html).
-=======
-Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.2/openvino_sample_hello_classification.html).
->>>>>>> cf2b238df2 (Merge samples)
+Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](https://docs.openvino.ai/2023.3/openvino_sample_hello_classification.html).

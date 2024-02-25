@@ -4,37 +4,27 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/op/multiply.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline OutputVector mul(const Node& node) {
-    return common::handle_opset6_binary_op<default_opset::Multiply>(node);
+inline ov::OutputVector mul(const ov::frontend::onnx::Node& node) {
+    return common::handle_opset6_binary_op<ov::op::v1::Multiply>(node);
 }
 
 }  // namespace set_1
 
 namespace set_7 {
-inline OutputVector mul(const Node& node) {
-    return {std::make_shared<default_opset::Multiply>(node.get_ng_inputs().at(0), node.get_ng_inputs().at(1))};
+inline ov::OutputVector mul(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<ov::op::v1::Multiply>(node.get_ov_inputs().at(0), node.get_ov_inputs().at(1))};
 }
 
 }  // namespace set_7
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

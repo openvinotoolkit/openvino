@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -30,6 +30,8 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
+#include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
@@ -257,6 +259,11 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
+
+    regclass_RemoteContext(m);
+    regclass_RemoteTensor(m);
+    regclass_VAContext(m);
+    regclass_VASurfaceTensor(m);
 
     // Properties and hints
     regmodule_properties(m);

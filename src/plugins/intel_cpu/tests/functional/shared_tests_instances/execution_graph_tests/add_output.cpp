@@ -4,7 +4,6 @@
 
 #include <common_test_utils/test_constants.hpp>
 #include "execution_graph_tests/add_output.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/constant.hpp"

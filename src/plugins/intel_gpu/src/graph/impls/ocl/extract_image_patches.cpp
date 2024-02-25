@@ -15,7 +15,7 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     using parent = typed_primitive_impl_ocl<extract_image_patches>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::extract_image_patches_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::extract_image_patches_params, kernel_selector::extract_image_patches_optional_params>;
+    using kernel_params_t = kernel_selector::extract_image_patches_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::extract_image_patches_impl)
 
@@ -26,14 +26,13 @@ struct extract_image_patches_impl : typed_primitive_impl_ocl<extract_image_patch
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<extract_image_patches>();
         auto params = get_default_params<kernel_selector::extract_image_patches_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::extract_image_patches_optional_params>(impl_param.get_program());
 
         params.sizes = primitive->sizes;
         params.strides = primitive->strides;
         params.rates = primitive->rates;
         params.auto_pad = primitive->auto_pad;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

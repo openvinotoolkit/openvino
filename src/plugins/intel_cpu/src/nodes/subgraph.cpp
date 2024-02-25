@@ -31,10 +31,17 @@
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <array>
 #include <vector>
+
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+#include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
+#include <signal.h>
+std::mutex err_print_lock;
+#endif
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -387,15 +394,15 @@ ov::element::Type Snippet::getRuntimePrecision() const {
 
 void Snippet::prepareParams() {
     for (size_t i = 0; i < inputNum; i++)
-        snippetAttrs.inMemBlockedDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        snippetAttrs.inMemBlockedDims[i] = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     for (size_t i = 0; i < outputNum; i++)
-        snippetAttrs.outMemBlockedDims[i] = getChildEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        snippetAttrs.outMemBlockedDims[i] = getChildEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     SnippetKey key = {snippetAttrs};
 
     auto builder = [this](const SnippetKey& key) -> std::shared_ptr<SnippetExecutor> {
         std::shared_ptr<SnippetExecutor> executor =
-                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
+                std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic);
         return executor;
     };
 
@@ -416,7 +423,7 @@ void Snippet::prepareParams() {
         getOrCreateExecutor();
     } else {
         // in case perf count is enabled, disable executor cache by default to not mix up perf counters for different subgraphs.
-        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic, context->getConfig().inferencePrecision == ov::element::bf16);
+        execPtr = std::make_shared<SnippetJitExecutor>(key.attrs, is_dynamic);
     }
 #endif
 }
@@ -427,7 +434,7 @@ bool Snippet::needPrepareParams() const {
 }
 
 bool Snippet::canBeInPlace() const {
-    if (isDynamic || getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
+    if (isDynamic || getParentEdgeAt(0)->getParent()->getType() == Type::Input) {
         return false;
     }
     if (getChildEdges().size() != 1) {
@@ -460,9 +467,9 @@ void Snippet::execute(dnnl::stream strm) {
         OPENVINO_THROW("Can't execute Subgraph node. Primitive didn't created");
     }
     for (size_t i = 0; i < inputNum; i++)
-        srcMemPtrs[i] = getParentEdgeAt(i)->getMemoryPtr();
+        srcMemPtrs[i] = getSrcMemoryAtPort(i);
     for (size_t i = 0; i < outputNum; i++)
-        dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
+        dstMemPtrs[i] = getDstMemoryAtPort(i);
 
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
@@ -499,10 +506,10 @@ void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, 
 void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     for (size_t i = 0; i < inMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(inMemPtrs[i]->getData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = inMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
 
     for (size_t i = 0; i < outMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(outMemPtrs[i]->getData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = outMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =
@@ -510,21 +517,45 @@ void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     }
 }
 
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+void Snippet::SnippetJitExecutor::segfault_detector() {
+    const auto target = std::dynamic_pointer_cast<const CPUTargetMachine>(snippetAttrs.snippet->get_generator()->get_target_machine());
+    if (target && target->debug_config.enable_segfault_detector) {
+        __sighandler_t signal_handler = [](int signal) {
+            std::lock_guard<std::mutex> guard(err_print_lock);
+            if (auto segfault_detector_emitter = ov::intel_cpu::g_custom_segfault_handler->local())
+                std::cout << segfault_detector_emitter->info() << std::endl;
+            auto tid = parallel_get_thread_num();
+            OPENVINO_THROW("Segfault was caught by the signal handler in subgraph node execution on thread " + std::to_string(tid));
+        };
+        struct sigaction new_handler{};
+        new_handler.sa_handler = signal_handler;
+        sigaction(SIGSEGV, &new_handler, nullptr);
+    }
+}
+#endif
+
 void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& dom = parallel_exec_domain;
     // < N, C, H, W > < 1, 1, N, C*H*W>
     const auto& callable = schedule.get_callable<kernel>();
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+    segfault_detector();
+#endif
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
         [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
-            callable(indexes, &call_args);
+            callable(&call_args, indexes);
         });
 }
 
 void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     const auto& work_size = parallel_exec_domain;
+#if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
+    segfault_detector();
+#endif
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         update_ptrs(call_args, inMemPtrs, outMemPtrs);
@@ -540,16 +571,16 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 tmp /= work_size[j];
             }
 
-            schedule.get_callable<kernel>()(indexes.data(), &call_args);
+            schedule.get_callable<kernel>()(&call_args, indexes.data());
         }
     });
 }
 
-Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16)
-    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic), enforceBF16(enforceBF16) {}
+Snippet::SnippetExecutor::SnippetExecutor(SnippetAttrs attrs, bool is_dynamic)
+    : snippetAttrs(std::move(attrs)), is_dynamic(is_dynamic) {}
 
-Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16) :
-    SnippetExecutor(std::move(attrs), is_dynamic, enforceBF16) {
+Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic) :
+    SnippetExecutor(std::move(attrs), is_dynamic) {
     numInput = snippetAttrs.inMemBlockedDims.size();
     numOutput = snippetAttrs.outMemBlockedDims.size();
     start_offset_in.resize(numInput);

@@ -552,7 +552,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<dir>::first(node, next);
         auto successor = travel_direction_wrapper<dir>::second(node, next);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -564,7 +565,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 
@@ -600,7 +602,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(node, next.first);
         auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -612,7 +615,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<direction_e::backwards>::first(node, next.first)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 
@@ -685,16 +689,16 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        reorder_cnt total_reorder_count = std::accumulate(
-            p.get_processing_order().begin(),
-            p.get_processing_order().end(),
-            reorder_cnt{ 0, 0 },
-            [&](reorder_cnt& total, program_node* node) {
-            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
-                return total;
-            auto count = count_reorders(fmt_map, lo, node);
-            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
-        });
+        reorder_cnt total_reorder_count =
+            std::accumulate(p.get_processing_order().begin(),
+                            p.get_processing_order().end(),
+                            reorder_cnt{0, 0},
+                            [&](reorder_cnt total, program_node* node) {
+                                if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                                    return total;
+                                auto count = count_reorders(fmt_map, lo, node);
+                                return reorder_cnt{total.number + count.number, total.total_sizes + count.total_sizes};
+                            });
         // Divide results by two as above function will each reorder from both sides
         GPU_DEBUG_LOG_PASS << "Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
         GPU_DEBUG_LOG_PASS << "Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
@@ -890,12 +894,13 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
     const auto reorder_input_pooling = [&p, &rf](typed_program_node<pooling>& pooling_node) {
         // Change input data type of pooling node from i32 to f32
-        auto& input = pooling_node.input();
-        auto input_layout = input.get_output_layout();
+        auto dep = pooling_node.get_dependency_with_port(0);
+        const auto& input = dep.first;
+        auto input_layout = input->get_output_layout();
         if (pooling_node.get_primitive()->mode == pooling_mode::max && input_layout.data_type == data_types::i32) {
             auto new_layout = input_layout;
             new_layout.data_type = data_types::f32;
-            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
             }

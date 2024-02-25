@@ -196,12 +196,12 @@ To set up environment for running the layer tests, follow these [instructions](.
 
 To test the whole suite of the TensorFlow 1 operation set support, run the following command:
 ```bash
-py.test tensorflow_tests --use_new_frontend
+py.test tensorflow_tests
 ```
 
 The command line for one operation:
 ```bash
-py.test tensorflow_tests/test_tf_Unique.py --use_new_frontend
+py.test tensorflow_tests/test_tf_Unique.py
 ```
 
 ## See also

@@ -11,16 +11,12 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/shape.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include <string>
 #include <thread>
-#include <base/behavior_test_utils.hpp>
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 // TODO [mandrono]: move current test case inside CPU plug-in and return the original tests
@@ -42,7 +38,7 @@ public:
 
 protected:
     void SetUp() override;
-    bool checkOutput(const ov::runtime::Tensor& in, const ov::runtime::Tensor& actual);
+    bool checkOutput(const ov::Tensor& in, const ov::Tensor& actual);
 
     std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;

@@ -47,7 +47,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto shape_a = fc_input_a.get_partial_shape();
         auto shape_b = fc_input_b.get_partial_shape();
-        NGRAPH_CHECK(shape_b.is_static());
+        OPENVINO_ASSERT(shape_b.is_static());
 
         auto rank_a = shape_a.rank().get_length();
         auto rank_b = shape_b.rank().get_length();
@@ -140,7 +140,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         if (rank_b != 2) {
             ov::Dimension K = *(shape_b_aligned.rbegin() + 1);
-            NGRAPH_CHECK(K.is_static());
+            OPENVINO_ASSERT(K.is_static());
             auto k_len = K.get_length();
             auto reshape_shape_values = matmul->get_transpose_b() ? std::vector<int64_t>{-1, k_len} : std::vector<int64_t>{k_len, -1};
             auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2 }, reshape_shape_values);
@@ -174,6 +174,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto fc = std::make_shared<ov::intel_cpu::FullyConnectedNode>(fc_input_a, fc_input_b, output_rank,
                 matmul->get_output_element_type(0));
         fc->set_friendly_name(matmul->get_friendly_name());
+        ///todo: CVS-130863 Remove after fp16_compression is copyable
+        if (ov::fp16_compression_is_disabled(matmul))
+            disable_fp16_compression(fc);
         new_ops.push_back(fc);
         ov::copy_runtime_info(matmul, new_ops);
         ov::replace_node(matmul, fc);

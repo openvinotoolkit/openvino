@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <math.h>
+#include <algorithm>
+#include <functional>
+
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 #include "openvino/op/ops.hpp"
@@ -14,7 +18,7 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/single_op/roi_align.hpp"
 
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -246,6 +250,41 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::DetectionOutput>& node,
     return ov::test::utils::create_and_fill_tensor(elemType, targetShape, inGenData);
 }
 
+namespace {
+template <typename GetItemF>
+bool get_const_value(const std::shared_ptr<ov::Node>& node, float& value, const GetItemF& get_item_func) {
+    auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!const_node)
+        return false;
+
+    auto const_value = const_node->cast_vector<float>();
+
+    const auto it = get_item_func(const_value);
+    if (it == const_value.end()) {
+        return false;
+    }
+    value = *it;
+    return true;
+}
+
+using Vec = std::vector<float>;
+bool get_fq_scalar_range(const std::shared_ptr<ov::op::v0::FakeQuantize> &node, float& min_value, float& max_value) {
+    auto get_min_value = [](const Vec& v) {
+        return std::min_element(v.begin(), v.end());
+    };
+    if (!get_const_value(node->get_input_node_shared_ptr(1), min_value, get_min_value))
+        return false;
+
+    auto get_max_value = [](const Vec& v) {
+        return std::max_element(v.begin(), v.end());
+    };
+    if (!get_const_value(node->get_input_node_shared_ptr(2), max_value, get_max_value))
+        return false;
+
+    return true;
+}
+} // namespace
+
 ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
@@ -297,6 +336,11 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v0::FakeQuantize>& node,
         case 4:
             return ov::test::utils::create_tensor<float>(elemType, targetShape, outputHighData, outputHighData.size());
         default: {
+            float min_value = {}, max_value = {};
+            if (get_fq_scalar_range(node, min_value, max_value)) {
+                return ov::test::utils::create_and_fill_tensor_real_distribution(elemType, targetShape, min_value, max_value, 0);
+            }
+
             InputGenerateData inGenData;
             inGenData.range = 10.f;
             inGenData.resolution = 1.0f;
@@ -447,7 +491,6 @@ ov::Tensor generate(const std::shared_ptr<ov::op::v3::Bucketize>& node,
                              size_t port,
                              const ov::element::Type& elemType,
                              const ov::Shape& targetShape) {
-    InferenceEngine::Blob::Ptr blobPtr;
     switch (port) {
         case 0: {
             auto data_size = shape_size(targetShape);

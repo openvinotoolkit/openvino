@@ -53,7 +53,6 @@ from tests import (
     xfail_issue_99955,
     xfail_issue_99957,
     xfail_issue_99958,
-    xfail_issue_99959,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
@@ -61,7 +60,6 @@ from tests import (
     xfail_issue_99970,
     xfail_issue_99972,
     xfail_issue_99973,
-    skip_issue_91151,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -74,7 +72,6 @@ from tests import (
     xfail_issue_119925,
     xfail_issue_119926,
     xfail_issue_125485,
-    xfail_issue_125486,
     xfail_issue_125488,
     skip_issue_125487,
     skip_issue_125489,
@@ -418,19 +415,14 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99949,
-        "OnnxBackendNodeModelTest.test_bitwise_not_2d_cpu",
         "OnnxBackendNodeModelTest.test_bitwise_not_3d_cpu",
-        "OnnxBackendNodeModelTest.test_bitwise_not_4d_cpu",
     ),
     (
         xfail_issue_99950,
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_and_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_chw_expanded_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_axes_hwc_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_crop_cpu",
-        "OnnxBackendNodeModelTest.test_center_crop_pad_pad_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_cpu",
         "OnnxBackendNodeModelTest.test_center_crop_pad_crop_negative_axes_hwc_expanded_cpu",
     ),
@@ -470,10 +462,6 @@ tests_expected_to_fail = [
     (
         xfail_issue_99958,
         "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
-        xfail_issue_99959,
-        "OnnxBackendNodeModelTest.test_mish_cpu",
     ),
     (
         xfail_issue_99960,
@@ -588,11 +576,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
     ),
     (
-        skip_issue_91151,
-        "OnnxBackendNodeModelTest.test_castlike_BFLOAT16_to_FLOAT_cpu",
-        "OnnxBackendNodeModelTest.test_castlike_FLOAT_to_BFLOAT16_cpu",
-    ),
-    (
         xfail_issue_101965,
         "OnnxBackendNodeModelTest.test_dft_axis_cpu",
         "OnnxBackendNodeModelTest.test_dft_cpu",
@@ -701,13 +684,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
-    ),
-    (
-        xfail_issue_125486,
-        "OnnxBackendNodeModelTest.test_gelu_default_1_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_default_2_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_tanh_1_cpu",
-        "OnnxBackendNodeModelTest.test_gelu_tanh_2_cpu",
     ),
     (
         xfail_issue_125488,

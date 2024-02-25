@@ -4,22 +4,20 @@
 
 #include "op/softsign.hpp"
 
-#include <memory>
-#include <vector>
+#include "openvino/op/softsign.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/shape.hpp"
+using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector softsign(const Node& node) {
-    return {std::make_shared<ov::op::v9::SoftSign>(node.get_ng_inputs().at(0))};
+ov::OutputVector softsign(const ov::frontend::onnx::Node& node) {
+    return {std::make_shared<v9::SoftSign>(node.get_ov_inputs().at(0))};
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov
