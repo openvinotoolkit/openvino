@@ -7,17 +7,30 @@ import errno
 import numpy as np
 import paddle
 
-from paddle.base.framework import (
-    Program,
-    Parameter,
-    default_main_program,
-    default_startup_program,
-    Variable,
-    program_guard,
-    dygraph_not_support,
-    static_only,
-)
-from paddle.base import core
+if paddle.__version__ < "2.6.0":
+    from paddle.fluid.framework import (
+        Program,
+        Parameter,
+        default_main_program,
+        default_startup_program,
+        Variable,
+        program_guard,
+        dygraph_not_support,
+        static_only,
+    )
+    from paddle.fluid import core
+else:
+    from paddle.base.framework import (
+        Program,
+        Parameter,
+        default_main_program,
+        default_startup_program,
+        Variable,
+        program_guard,
+        dygraph_not_support,
+        static_only,
+    )
+    from paddle.base import core
 
 
 def prepend_feed_ops(

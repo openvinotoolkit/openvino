@@ -89,9 +89,10 @@ def full_shape_tensor(name : str, shape, dtype, value):
 def full_shape_tensor_list(name : str, shape: list, dtype, value):
     paddle.enable_static()
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        node_shape1 = paddle.full(shape=[1], fill_value=shape, dtype='int32', name='shape')
-        node_shape2 = paddle.full(shape=[2], fill_value=shape, dtype='int32', name='shape')
-        x1 = paddle.full(shape=[node_shape1, node_shape2], fill_value=value, dtype=dtype, name='full')
+        node_shape1 = paddle.to_tensor(3)
+        node_shape2 = paddle.to_tensor(2)
+        shape_list = [node_shape1, node_shape2]
+        x1 = paddle.full(shape=shape_list, fill_value=value, dtype=dtype, name='full')
         out = paddle.cast(x1, np.float32)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -100,7 +101,6 @@ def full_shape_tensor_list(name : str, shape: list, dtype, value):
 
         outs = exe.run(
             fetch_list=[out])
-
         saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
