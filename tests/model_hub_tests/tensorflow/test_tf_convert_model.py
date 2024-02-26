@@ -14,10 +14,14 @@ import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
 
-from models_hub_common.constants import tf_hub_cache_dir, no_clean_cache_dir, hf_cache_dir
+from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list, is_hf_link
+from models_hub_common.utils import get_models_list
 from utils import type_map, load_graph, get_input_signature, get_output_signature
+
+
+def is_hf_link(link: str):
+    return link.startswith("hf_")
 
 
 class TestTFHubConvertModel(TestConvertModel):

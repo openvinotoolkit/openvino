@@ -5,18 +5,9 @@ import itertools
 import os
 import shutil
 import time
-import sys
 
 import numpy as np
 from models_hub_common.constants import test_device
-
-
-def is_tf_hub_link(link: str):
-    return "www.kaggle.com" in link or "tfhub.dev" in link
-
-
-def is_hf_link(link: str):
-    return link.startswith("hf_")
 
 
 def get_models_list(file_name: str):
@@ -29,7 +20,6 @@ def get_models_list(file_name: str):
                 continue
             mark = None
             reason = None
-            model_link = None
             assert len(model_info.split(',')) == 2 or len(model_info.split(',')) == 4, \
                 "Incorrect model info `{}`. It must contain either 2 or 4 fields.".format(model_info)
             if len(model_info.split(',')) == 2:
