@@ -39,12 +39,11 @@ ParamsKey NormalizeKernelWithinSpatialRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData NormalizeKernelWithinSpatialRef::GetKernelsData(const Params& params,
-                                                            const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams);
+KernelsData NormalizeKernelWithinSpatialRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority NormalizeKernelWithinSpatialRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority NormalizeKernelWithinSpatialRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

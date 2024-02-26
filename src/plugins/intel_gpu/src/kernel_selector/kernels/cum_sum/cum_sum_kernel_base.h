@@ -19,13 +19,6 @@ struct cum_sum_params : public base_params {
     bool reverse;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// cum_sum_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct cum_sum_optional_params : optional_params {
-    cum_sum_optional_params() : optional_params(KernelType::CUM_SUM) {}
-};
-
 class CumSumKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
@@ -43,8 +36,8 @@ protected:
     size_t GetRealAxisIndex(const cum_sum_params& params) const;
     virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const cum_sum_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
-    bool Validate(const Params&, const optional_params&) const override;
+    KernelsData GetCommonKernelsData(const Params& params) const;
+    bool Validate(const Params&) const override;
     Datatype GetActivationType(const cum_sum_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

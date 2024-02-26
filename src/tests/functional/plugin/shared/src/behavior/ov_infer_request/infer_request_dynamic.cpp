@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 

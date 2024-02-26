@@ -24,10 +24,6 @@ struct roi_align_params : public base_params {
     }
 };
 
-struct roi_align_optional_params : optional_params {
-    roi_align_optional_params() : optional_params{KernelType::ROI_ALIGN} {}
-};
-
 class ROIAlignKernelRef : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
@@ -35,10 +31,10 @@ public:
     using DispatchData = CommonDispatchData;
 
     ROIAlignKernelRef() : KernelBaseOpenCL{"roi_align_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
 
 protected:
     JitConstants GetJitConstants(const roi_align_params& params) const;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <random>
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
