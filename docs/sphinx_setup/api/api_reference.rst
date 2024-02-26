@@ -10,9 +10,10 @@ API Reference
    :maxdepth: 2
    :hidden:
 
+   ie_python_api/api
    c_cpp_api/group__ov__cpp__api
    c_cpp_api/group__ov__c__api
-   ie_python_api/api
+   nodejs_api/nodejs_api.rst
 
 
 
