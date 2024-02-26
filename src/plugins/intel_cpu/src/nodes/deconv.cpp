@@ -328,7 +328,6 @@ bool Deconvolution::canFuse(const NodePtr& node) const {
     if (canBeExecutedInInt8())
         return canFuseSimpleOperation(node);
     return false;
-    //return (fusedWith.empty() && node->canBePerformedAsScaleShift(this));
 }
 
 std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
@@ -432,9 +431,9 @@ void Deconvolution::getSupportedDescriptors() {
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
-    if (withBiases && !isInt8) {
-        OPENVINO_THROW(errorPrefix, " supports bias fusing only for int8 execution precision");
-    }
+    // if (withBiases && !isInt8) {
+    //     OPENVINO_THROW(errorPrefix, " supports bias fusing only for int8 execution precision");
+    // }
 
     ov::element::Type inPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -1281,8 +1280,7 @@ bool Deconvolution::canFuseBias() const {
     //ONEDNN deconvolution_fwd_t primitive can support bias fusing.
     //ONEDNN convolution_data_bwd_t can't support bias fusing.
     //Current only int8 precision choose deconvolution_fwd_t.
-    return  (canBeExecutedInInt8() &&
-            (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2));
+    return  (externOutShape ? getParentEdges().size() == 3 : getParentEdges().size() == 2);
 }
 
 void Deconvolution::initSupportedPrimitiveDescriptors() {
