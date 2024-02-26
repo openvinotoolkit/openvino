@@ -7,6 +7,7 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 

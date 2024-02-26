@@ -12,7 +12,6 @@
 
 #include "common_test_utils/common_utils.hpp"
 
-#include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/multiply_to_group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
