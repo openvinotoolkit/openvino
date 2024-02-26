@@ -13,16 +13,16 @@ Install OpenVINO™ 2024.0
    :maxdepth: 3
    :hidden:
 
-   OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
-   OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
-   OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>
+   OpenVINO Runtime on Linux <install-openvino-overview/install-openvino-linux-header>
+   OpenVINO Runtime on Windows <install-openvino-overview/install-openvino-windows-header>
+   OpenVINO Runtime on macOS <install-openvino-overview/install-openvino-macos-header>
 
 
 .. raw:: html
 
-   <script type="module" crossorigin src="_static/selector-tool/assets/index-f34d1fad.js"></script>
+   <script type="module" crossorigin src="../_static/selector-tool/assets/index-f34d1fad.js"></script>
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-   <iframe id="selector" src="_static/selector-tool/selector-6ad56e0.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+   <iframe id="selector" src="../_static/selector-tool/selector-6ad56e0.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
 .. warning::
 

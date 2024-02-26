@@ -13,9 +13,9 @@ GET STARTED
    :maxdepth: 1
    :hidden:
 
-   Install OpenVINO <openvino_docs_install_guides_overview>
-   Additional Hardware Setup <openvino_docs_install_guides_configurations_header>
-   Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
+   Install OpenVINO <get-started/install-openvino-overview>
+   Additional Hardware Setup <get-started/configurations-header>
+   Troubleshooting <get-started/troubleshooting-install-config>
    System Requirements <system_requirements>
 
 

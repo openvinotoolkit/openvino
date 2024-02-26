@@ -14,8 +14,8 @@ Additional Configurations For Hardware
    :maxdepth: 2
    :hidden:
 
-   For GPU <openvino_docs_install_guides_configurations_for_intel_gpu>
-   For NPU <openvino_docs_install_guides_configurations_for_intel_npu>
+   For GPU <configurations-header/configurations-intel-gpu>
+   For NPU <configurations-header/configurations-intel-npu>
 
 For certain use cases, you may need to install additional software, to use the full
 potential of OpenVINO™. Check the following list for components for elements used in
@@ -23,14 +23,14 @@ your workflow:
 
 | **GPU drivers**
 |   If you want to run inference on a GPU, make sure your GPU's drivers are properly installed.
-    See the :doc:`guide on GPU configuration <openvino_docs_install_guides_configurations_for_intel_gpu>`
+    See the :doc:`guide on GPU configuration <configurations-header/configurations-intel-gpu>`
     for details.
 
 | **NPU drivers**
 |   Intel's Neural Processing Unit introduced with the Intel® Core™ Ultra generation of CPUs
     (formerly known as Meteor Lake), is a low-power solution for offloading neural network computation.
     If you want to run inference on an NPU, make sure your NPU's drivers are properly installed.
-    See the :doc:`guide on NPU configuration <openvino_docs_install_guides_configurations_for_intel_npu>`
+    See the :doc:`guide on NPU configuration <configurations-header/configurations-intel-npu>`
     for details.
 
 | **Open Computer Vision Library**

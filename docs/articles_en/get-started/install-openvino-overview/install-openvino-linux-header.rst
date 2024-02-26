@@ -14,28 +14,28 @@ Install OpenVINO™ Runtime on Linux
    :maxdepth: 3
    :hidden:
 
-   Use Archive <openvino_docs_install_guides_installing_openvino_from_archive_linux>
-   Use PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Use APT <openvino_docs_install_guides_installing_openvino_apt>
-   Use YUM <openvino_docs_install_guides_installing_openvino_yum>
-   Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
-   Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
-   Use Homebrew <openvino_docs_install_guides_installing_openvino_brew>
-   Use Conan <openvino_docs_install_guides_installing_openvino_conan>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
+   Use Archive <install-openvino-linux-header/install-openvino-archive-linux>
+   Use PyPI <install-openvino-shared/install-openvino-pip>
+   Use APT <install-openvino-linux-header/install-openvino-apt>
+   Use YUM <install-openvino-linux-header/install-openvino-yum>
+   Use Conda Forge <install-openvino-shared/install-openvino-conda>
+   Use vcpkg <install-openvino-shared/install-openvino-vcpkg>
+   Use Homebrew <install-openvino-shared/install-openvino-brew>
+   Use Conan <install-openvino-shared/install-openvino-conan>
+   Use Docker <install-openvino-shared/install-openvino-docker-linux>
 
 
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:
 
-* :doc:`Install OpenVINO using an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_linux>`
-* :doc:`Install OpenVINO using PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-* :doc:`Install OpenVINO using APT <openvino_docs_install_guides_installing_openvino_apt>`
-* :doc:`Install OpenVINO using YUM <openvino_docs_install_guides_installing_openvino_yum>`
-* :doc:`Install OpenVINO using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
-* :doc:`Install OpenVINO using vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>`
-* :doc:`Install OpenVINO using Homebrew <openvino_docs_install_guides_installing_openvino_brew>`
-* :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker>`
-* :doc:`Install OpenVINO using Conan Package Manager <openvino_docs_install_guides_installing_openvino_conan>`
+* :doc:`Install OpenVINO using an Archive File <install-openvino-linux-header/install-openvino-archive-linux>`
+* :doc:`Install OpenVINO using PyPI <install-openvino-shared/install-openvino-pip>`
+* :doc:`Install OpenVINO using APT <install-openvino-linux-header/install-openvino-apt>`
+* :doc:`Install OpenVINO using YUM <install-openvino-linux-header/install-openvino-yum>`
+* :doc:`Install OpenVINO using Conda Forge <install-openvino-shared/install-openvino-conda>`
+* :doc:`Install OpenVINO using vcpkg <install-openvino-shared/install-openvino-vcpkg>`
+* :doc:`Install OpenVINO using Homebrew <install-openvino-shared/install-openvino-brew>`
+* :doc:`Install OpenVINO using Docker <install-openvino-shared/install-openvino-conan>`
+* :doc:`Install OpenVINO using Conan Package Manager <install-openvino-shared/install-openvino-docker-linux>`
 
 
 
