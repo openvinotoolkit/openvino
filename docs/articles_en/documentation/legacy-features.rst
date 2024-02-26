@@ -57,8 +57,8 @@ offering.
     other model repositories have recently grown in size and popularity,
     Open Model ZOO will no longer be maintained. You may still use its ../about-openvino/additional-resources
     until they are fully removed.
-|   :doc:`See the Open Model ZOO ../documentation <legacy-features/model-zoo>`
-|   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_legacy-features/model-zoo>`__
+|   :doc:`See the Open Model ZOO documentation <legacy-features/model-zoo>`
+|   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
 | **Apache MXNet, Caffe, and Kaldi model formats**
 |   *New solution:* conversion to ONNX via external tools
@@ -76,7 +76,7 @@ offering.
     apart from its original feature set.
 
 |   :doc:`See how to use NNCF for model optimization <../openvino-workflow/model-optimization>`
-|   `Check the NNCF GitHub project, including ../documentation <https://github.com/openvinotoolkit/nncf>`__
+|   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
 | **Inference API 1.0**
 |   *New solution:* API 2.0 launched in OpenVINO 2022.1

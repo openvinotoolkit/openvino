@@ -12,7 +12,7 @@ OpenVINO™ Ecosystem Overview
    :maxdepth: 1
    :hidden:
 
-   openvino-ecosystem/openvino-training-extension
+   openvino-ecosystem/openvino-training-extensions
    openvino-ecosystem/datumaro
    openvino-ecosystem/openvino-security-add-on
 

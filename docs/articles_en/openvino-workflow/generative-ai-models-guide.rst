@@ -276,7 +276,7 @@ Inference code that uses native API cannot benefit from Hugging Face pipelines. 
 Additional Resources
 #####################
 
-* `Optimum Intel ../documentation <https://huggingface.co/docs/optimum/intel/inference>`__
+* `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`__
 * :doc:`LLM Weight Compression <model-optimization-guide/weight-compression>`
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__

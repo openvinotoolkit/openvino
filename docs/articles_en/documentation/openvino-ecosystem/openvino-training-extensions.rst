@@ -41,8 +41,8 @@ OpenVINO Training Extensions Components
 Tutorials
 #########
 
-* `Base tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/../../learn-openvino/interactive-tutorials-python/base/index.html>`__
-* `Advanced tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/../../learn-openvino/interactive-tutorials-python/advanced/index.html>`__
+* `Base tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/tutorials/base/index.html>`__
+* `Advanced tutorial <https://openvinotoolkit.github.io/training_extensions/stable/guide/tutorials/advanced/index.html>`__
 
 
 

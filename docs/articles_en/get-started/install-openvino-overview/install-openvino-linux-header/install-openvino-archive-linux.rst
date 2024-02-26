@@ -242,7 +242,7 @@ to see if your case needs any of them.
 The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO.
 If you used a different path in Step 2, for example, ``/home/<USER>/intel/``,
 OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023``
-directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO ../../../documentation.
+directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 
 Step 2: Configure the Environment
@@ -283,7 +283,7 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
+      Try the `Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>`_
       to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
@@ -291,9 +291,9 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
       Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+      * `OpenVINO Python API Tutorial <../../../notebooks/002-openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <../../../notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <../../../notebooks/205-vision-background-removal-with-output.html>`__
 
 
    .. tab-item:: Get started with C++
