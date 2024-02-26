@@ -586,7 +586,7 @@ configuration of the device. There are three different hints:
 notebook is focused on the throughput mode, we will use the latter two.
 The hints can be used with other devices as well. Throughput mode
 implicitly triggers using the `Automatic
-Batching <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Automatic_Batching.html>`__
+Batching <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html>`__
 feature, which sets the batch size to the optimal level.
 
 .. code:: ipython3
@@ -712,7 +712,7 @@ There are other tricks for performance improvement, such as advanced
 options, quantization and pre-post-processing or dedicated to latency
 mode. To get even more from your model, please visit `advanced
 throughput
-options <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput_advanced.html>`__,
+options <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput-advanced.html>`__,
 `109-latency-tricks <109-latency-tricks-with-output.html-with-output.html>`__,
 `111-detection-quantization <111-detection-quantization-with-output.html>`__, and
 `118-optimize-preprocessing <118-optimize-preprocessing-with-output.html>`__.
@@ -765,6 +765,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above.

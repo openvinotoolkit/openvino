@@ -8,7 +8,7 @@ machine learning models to edge devices.
 This short tutorial shows how to convert a TensorFlow Lite
 `EfficientNet-Lite-B0 <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
 image classification model to OpenVINO `Intermediate
-Representation <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
+Representation <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
 (OpenVINO IR) format, using Model Converter. After creating the OpenVINO
 IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
@@ -126,7 +126,7 @@ serialization by ``ov.save_model``. For more information about model
 conversion, see this
 `page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 For TensorFlow Lite models support, refer to this
-`tutorial <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+`tutorial <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow-lite.html>`__.
 
 .. code:: ipython3
 

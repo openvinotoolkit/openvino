@@ -417,6 +417,6 @@ For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
 -  `Deployment Optimization
-   Guide <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html>`__
+   Guide <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html>`__
 -  `Inference Request
-   API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Infer_request.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__
