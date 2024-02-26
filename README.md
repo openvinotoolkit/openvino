@@ -23,7 +23,7 @@
 OpenVINO™ is an open-source software toolkit for optimizing and deploying deep learning models.
 
 - **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and many other common tasks.
-- **Versatile Model Support**: Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
+- **Flexible Model Support**: Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
@@ -69,19 +69,14 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 
 #### OpenVINO Ecosystem
 
--	[🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize your Transformers and Diffusers models.
--   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity.
+-	[🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
+-   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization and sparsity.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
--   [Software Development Kit (SDK) for the Intel® Geti™](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
--	 [RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
+-   [Software Development Kit (SDK) for the Intel® Geti™](https://github.com/openvinotoolkit/geti-sdk) - an interactive video and image annotation tool for computer vision use cases.
 
 #### External OpenVINO-Powered Products
 
--	[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp) - GIMP AI plugins with OpenVINO Backend.
--	[Frigate](https://github.com/blakeblackshear/frigate) – NVR with real-time local object detection for IP cameras.
--	[whisper.cpp](https://github.com/ggerganov/whisper.cpp) - high-performance inference of OpenAI's Whisper automatic speech recognition (ASR) model.
--	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
--	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
+[GIMP AI plugins](https://github.com/intel/openvino-ai-plugins-gimp), [Frigate](https://github.com/blakeblackshear/frigate), [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and many other products showing OpenVINO's flexibility across different applications.
 
 Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to see all the community-made projects using OpenVINO!
 
@@ -92,6 +87,7 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
 
   -   [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - an environment to train models and convert them using OpenVINO for optimized inference.
   -   [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
+  - 	 [RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
   -	  [openvino-rs](https://github.com/intel/openvino-rs) - bindings for accessing OpenVINO functionality in Rust.
   -	  [OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET) - a high-quality .NET wrapper for OpenVINO™ toolkit.
   -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - a repository for the development of additional OpenVINO modules
@@ -100,6 +96,8 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
    -   [OpenCV](https://opencv.org/) - a library of programming functions mainly for real-time computer vision.
    -   [ONNX Runtime](https://onnxruntime.ai/) - a cross-platform inference and training machine-learning accelerator.
    -   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
+   -	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
+   -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
 
 </details>
 
