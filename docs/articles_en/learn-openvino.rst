@@ -16,7 +16,7 @@ Learn OpenVINO
 
    Interactive Tutorials (Python) <tutorials>
    Sample Applications (Python & C++) <openvino_docs_OV_UG_Samples_Overview>
-   Large Language Models in OpenVINO <native_vs_hugging_face_api>
+   Large Language Models Inference Guide <native_vs_hugging_face_api>
 
 
 This section will help you get a hands-on experience with OpenVINO even if you are just starting
