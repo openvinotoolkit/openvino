@@ -12,8 +12,8 @@
 
 ## Contents:
  - [Getting Started](#getting-started)
- - [Tutorials](#tutorials)
  - [Installation](#installation)
+ - [Tutorials](#tutorials)
  - [Products Powered by OpenVINO](#products-povered-by-openvino)
  - [Documentation](#documentation)
  - [Contribution and Support](#contribution-and-support)
@@ -22,13 +22,13 @@
 
 OpenVINO™ is an open-source software toolkit for optimizing and deploying deep learning models.
 
-- **Model Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and other common tasks.
+- **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and many other common tasks.
 - **Versatile Model Support**: Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
 <details>
-  <summary>List of distributed OpenVINO Components</summary>
+  <summary>List of Distributed OpenVINO Components</summary>
 
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
@@ -48,13 +48,13 @@ OpenVINO™ is an open-source software toolkit for optimizing and deploying deep
 ### Getting Started
 
 Explore [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html).
-This example will walk you through the basics, setting you on the path to deploying your first model.
+This example will walk you through the basics to deploy your first model.
 
 ### Installation
 
 Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/openvino_docs_install_guides_overview.html).
 
-Check [System Requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for more information.
+Check [system requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for detailed information.
 
 ### Tutorials
 
@@ -73,7 +73,7 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
 -   [Software Development Kit (SDK) for the Intel® Geti™](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
--	[RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
+-	 [RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
 
 #### External OpenVINO-Powered Products
 
@@ -121,16 +121,15 @@ For additional resources, read:
 
 ### Contribution and Support
 
-We welcome contributions of all kinds.
+We welcome contributions of all kinds!
 
 Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
-If you'd like to be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
+To be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
 Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
 
 Ask questions and seek support on:
 
 * [GitHub Issues](https://github.com/openvinotoolkit/openvino/issues)
-* [Forum](https://software.intel.com/en-us/forums/computer-vision)
 * OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
 * the [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on Stack Overflow\*.
 
