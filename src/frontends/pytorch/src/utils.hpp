@@ -181,8 +181,11 @@ OutputVector translate_1to1_match_2_inputs_align_to_lhs(const NodeContext& conte
     auto rhs = context.get_input(1);
     auto lhs_type = context.get_input_type(0);
     auto rhs_type = context.get_input_type(1);
-    if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-        rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
+    if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
+        !rhs_type.is<type::PyNone>()) {
+        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
+            rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
+    }
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);
     return res;
