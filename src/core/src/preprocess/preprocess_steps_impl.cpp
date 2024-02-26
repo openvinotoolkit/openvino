@@ -130,7 +130,7 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         "mean " + vector_to_string(values));
 }
 
-void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<int>& values){
+void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<float>& values){
     m_actions.emplace_back(
         [pads_begin, pads_end, values](const std::vector<Output<Node>>& nodes,
                                        const std::shared_ptr<Model>& function,
@@ -144,7 +144,7 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::v
 
             auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
             auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
-            auto npad_value = opset8::Constant::create(element::i64, Shape{}, values);
+            auto npad_value = opset8::Constant::create(element::f32, Shape{}, values);
 
             auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, op::PadMode::CONSTANT);
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
