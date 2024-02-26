@@ -242,7 +242,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
                                          const bool keep_core_property) {
 
-    // check
+    // check to the validity of device name
     auto bracket_pos = deviceName.find(")");
     while (bracket_pos != std::string::npos) {
         if (bracket_pos < deviceName.length() - 1 && deviceName[bracket_pos + 1] != ',') {
@@ -719,7 +719,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
-
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
     std::string deviceName = device_name;
     ov::AnyMap config_with_batch = config;
