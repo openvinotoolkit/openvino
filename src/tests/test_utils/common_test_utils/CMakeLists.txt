@@ -30,7 +30,6 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     gmock
-                    ov_models
                     openvino::runtime
                     openvino::runtime::dev
                 PRIVATE
