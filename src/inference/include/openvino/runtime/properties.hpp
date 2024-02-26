@@ -383,6 +383,42 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 }
 /** @endcond */
 
+enum class MaxThreadsPerStream {
+    AUTO,          //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
+    PER_PLATFORM,  //!<  Using all threads per platform for one stream even on dual socket platform.
+    PER_SOCKET,    //!<  Using all threads per socket for one stream on dual socket platform.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const MaxThreadsPerStream& stream_mode) {
+    switch (stream_mode) {
+    case MaxThreadsPerStream::AUTO:
+        return os << "AUTO";
+    case MaxThreadsPerStream::PER_PLATFORM:
+        return os << "PER_PLATFORM";
+    case MaxThreadsPerStream::PER_SOCKET:
+        return os << "PER_SOCKET";
+    default:
+        OPENVINO_THROW("Unsupported mode!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, MaxThreadsPerStream& stream_mode) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        stream_mode = MaxThreadsPerStream::AUTO;
+    } else if (str == "PER_PLATFORM") {
+        stream_mode = MaxThreadsPerStream::PER_PLATFORM;
+    } else if (str == "PER_SOCKET") {
+        stream_mode = MaxThreadsPerStream::PER_SOCKET;
+    } else {
+        OPENVINO_THROW("Unsupported mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 /**
  * @brief This property defines CPU core type which can be used during inference.
  * @ingroup ov_runtime_cpp_prop_api
@@ -398,6 +434,21 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  * @endcode
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
+/**
+ * @brief This property defines max threads per stream used for CPU inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select max threads per stream for CPU inference. Please refer MaxThreadsPerStream
+ * for all definition of types.
+ *
+ * The following code is an example to only use all threads per socket for one stream on dual sockets platform.
+ *
+ * @code
+ * ie.set_property(ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> max_threads_per_stream{"MAX_THREADS_PER_STREAM"};
 
 /**
  * @brief This property allows CPU pinning during inference.

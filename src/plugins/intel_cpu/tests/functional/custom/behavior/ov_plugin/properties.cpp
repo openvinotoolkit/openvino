@@ -47,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::num_requests.name()),
         RW_property(ov::hint::enable_cpu_pinning.name()),
         RW_property(ov::hint::scheduling_core_type.name()),
+        RW_property(ov::hint::max_threads_per_stream.name()),
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),

@@ -76,6 +76,7 @@ struct Config {
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    ov::hint::MaxThreadsPerStream maxThreadsPerStream = ov::hint::MaxThreadsPerStream::AUTO;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
     Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;

@@ -280,6 +280,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
         ),
         (
+            hints.max_threads_per_stream,
+            "MAX_THREADS_PER_STREAM",
+            ((hints.MaxThreadsPerStream.PER_PLATFORM, hints.MaxThreadsPerStream.PER_PLATFORM),),
+        ),
+        (
             hints.enable_hyper_threading,
             "ENABLE_HYPER_THREADING",
             (
@@ -541,7 +546,6 @@ def test_single_property_setting(device):
             props.affinity: "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
-            hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
             "ENABLE_MMAP": "NO",

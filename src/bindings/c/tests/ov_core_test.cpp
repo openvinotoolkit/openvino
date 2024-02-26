@@ -298,6 +298,14 @@ TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     EXPECT_STREQ(val_type, ret);
     ov_free(ret);
 
+    const char* key_type = ov_property_key_hint_max_threads_per_stream;
+    const char* val_type = "PER_PLATFORM";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_type, val_type));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_type, &ret));
+    EXPECT_STREQ(val_type, ret);
+    ov_free(ret);
+
     OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_type, invalid_val));
     ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_type, &ret));

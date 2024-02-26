@@ -129,6 +129,13 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_inference_num_threads;
 
 /**
+ * @brief Read-write property<int32_t string> to set/get the maximum number of threads per stream of CPU inference.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_hint_max_threads_per_stream;
+
+/**
  * @brief Read-write property, it is high-level OpenVINO hint for using CPU pinning to bind CPU threads to processors
  * during inference
  * @ingroup ov_property_c_api

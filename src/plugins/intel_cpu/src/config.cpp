@@ -191,6 +191,21 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                '/',
                                ov::hint::SchedulingCoreType::ECORE_ONLY);
             }
+        } else if (key == ov::hint::max_threads_per_stream.name()) {
+            try {
+                maxThreadsPerStream = val.as<ov::hint::MaxThreadsPerStream>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::max_threads_per_stream.name(),
+                               ". Expected only ",
+                               ov::hint::MaxThreadsPerStream::AUTO,
+                               '/',
+                               ov::hint::MaxThreadsPerStream::PER_PLATFORM,
+                               '/',
+                               ov::hint::MaxThreadsPerStream::PER_SOCKET);
+            }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
                 enableHyperThreading = val.as<bool>();

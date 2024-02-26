@@ -193,6 +193,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::hint::num_requests.name()),
             RO_property(ov::hint::enable_cpu_pinning.name()),
             RO_property(ov::hint::scheduling_core_type.name()),
+            RO_property(ov::hint::max_threads_per_stream.name()),
             RO_property(ov::hint::enable_hyper_threading.name()),
             RO_property(ov::execution_devices.name()),
             RO_property(ov::intel_cpu::denormals_optimization.name()),
@@ -246,7 +247,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const bool use_pin = config.enableCpuPinning;
         return decltype(ov::hint::enable_cpu_pinning)::value_type(use_pin);
     } else if (name == ov::hint::scheduling_core_type) {
-        const auto core_type = config.schedulingCoreType;
+        const auto stream_mode = config.schedulingCoreType;
+        return stream_mode;
+    } else if (name == ov::hint::max_threads_per_stream) {
+        const auto core_type = config.maxThreadsPerStream;
         return core_type;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;

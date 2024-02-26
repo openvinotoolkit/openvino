@@ -81,6 +81,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
+    wrap_property_RW(m_hint, ov::hint::max_threads_per_stream, "max_threads_per_stream");
     wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");

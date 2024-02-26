@@ -14,6 +14,7 @@ from openvino._pyopenvino.properties.hint import model_priority
 from openvino._pyopenvino.properties.hint import performance_mode
 from openvino._pyopenvino.properties.hint import enable_cpu_pinning
 from openvino._pyopenvino.properties.hint import scheduling_core_type
+from openvino._pyopenvino.properties.hint import max_threads_per_stream
 from openvino._pyopenvino.properties.hint import enable_hyper_threading
 from openvino._pyopenvino.properties.hint import execution_mode
 from openvino._pyopenvino.properties.hint import num_requests

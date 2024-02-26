@@ -309,6 +309,8 @@ OPENVINO_C_VAR(const char*) ov_property_key_affinity;
 
 OPENVINO_C_VAR(const char*) ov_property_key_inference_num_threads;
 
+OPENVINO_C_VAR(const char*) ov_property_key_hint_max_threads_per_stream;
+
 OPENVINO_C_VAR(const char*) ov_property_key_hint_enable_cpu_pinning;
 
 OPENVINO_C_VAR(const char*) ov_property_key_hint_enable_hyper_threading;
