@@ -144,5 +144,6 @@ This step is essential for interpreting the model's output.
   print(f"OpenVINO output string: `{ov_output}`")
 
 .. code-block:: python
+
   # Example output:
   ['<s> Quick brown fox was walking through the forest. He was looking for something']
