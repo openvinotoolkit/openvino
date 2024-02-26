@@ -13,8 +13,8 @@ public:
     virtual ~ReorderKernel_fs_b_yx_fsv32_to_bfyx() {}
 
     DispatchData SetDefault(const reorder_params& params) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
 };

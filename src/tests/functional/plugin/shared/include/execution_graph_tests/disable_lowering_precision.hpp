@@ -9,8 +9,7 @@
 #include <string>
 #include <memory>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/test_common.hpp"
 
 namespace ExecutionGraphTests {
 

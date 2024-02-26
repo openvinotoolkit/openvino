@@ -1836,13 +1836,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
-
-        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
-            auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.get_input_layout();
-            if (input_layout.format.dimension() > 4) {
-                expected = format::bfyx;
-                node.set_preferred_input_fmt(0, format::bfyx);
+        if (node.is_type<fully_connected>()) {
+            if (allow_new_shape_infer) {
+                // Plain input format is enforced because no available shape agnostic kernel supporting blocked format.
+                // The condition will be relaxed once more shape agnostic kernels for other formats are enabled (e.g., fsv->bfyx FC optimized kernel(i8)))
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
+                node.set_preferred_input_fmt(0, expected);
+            } else {
+                auto& fc_node = node.as<fully_connected>();
+                auto input_layout = fc_node.get_input_layout();
+                if (input_layout.format.dimension() > 4) {
+                    expected = format::bfyx;
+                    node.set_preferred_input_fmt(0, format::bfyx);
+                }
             }
         }
     } else if (node.is_type<gather>()) {

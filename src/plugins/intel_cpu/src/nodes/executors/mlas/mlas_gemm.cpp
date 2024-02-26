@@ -108,7 +108,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
                                    const ExecutorContext::CPtr context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
 
-void MlasGemmExecutor::update(const MemoryArgs& memory) {
+bool MlasGemmExecutor::update(const MemoryArgs& memory) {
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
     const auto& wgtDims = weiDesc->getShape().getStaticDims();
@@ -124,6 +124,7 @@ void MlasGemmExecutor::update(const MemoryArgs& memory) {
     } else {
         M = outDims[0];
     }
+    return true;
 }
 
 void MlasGemmExecutor::execute(const MemoryArgs& memory) {

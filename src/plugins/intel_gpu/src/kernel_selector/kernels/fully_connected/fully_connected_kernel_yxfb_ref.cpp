@@ -35,11 +35,10 @@ JitConstants FullyConnected_yxfb_ref::GetJitConstants(const fully_connected_para
     return jit;
 }
 
-KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    options,
                                                     DataLayout::yxfb,
                                                     WeightsLayout::oiyx,
                                                     static_cast<int>(i));
@@ -50,7 +49,7 @@ KernelsData FullyConnected_yxfb_ref::GetKernelsData(const Params& params, const 
     return res;
 }
 
-KernelsPriority FullyConnected_yxfb_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_yxfb_ref::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
