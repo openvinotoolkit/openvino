@@ -353,7 +353,7 @@ void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scrat
     for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
         const bool is_M_tail = (M - mb * M_blk < M_blk);
         auto ptr_a = ptr_A + (mb * M_blk * lda) * inType.size();
-        auto ptr_c = ptr_C + (mb * M_blk * ldc) * inType.size();
+        auto ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
         executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
     }
 }

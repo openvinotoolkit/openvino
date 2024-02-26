@@ -160,7 +160,7 @@ struct MHAKernel {
 
                     // apply attention mask (maybe combined with causal_mask)
                     if (attention_mask)
-                        attn_score[n] += attention_mask.at<float>({b, h, m, n}, true);
+                        attn_score[n] += attention_mask.at<T>({b, h, m, n}, true);
 
                     // apply causal_mask
                     if (causal_mask) {
@@ -911,7 +911,11 @@ void ScaledDotProductAttention::createPrimitive() {
 #ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+            if (with_cpu_x86_avx512_core()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
+            }
 #else
             executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
 #endif
