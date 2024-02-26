@@ -48,16 +48,19 @@ bool Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IF_TYPE_OF(v1_Add_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, i8, i16, i32, i64, u8, u16, u32, u64),
-                      add::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      inputs[1],
-                      outputs[0],
-                      inputs[0].get_shape(),
-                      inputs[1].get_shape(),
-                      get_autob());
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_Add_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i8, i16, i32, i64, u8, u16, u32, u64),
+                                      add::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      inputs[1],
+                                      outputs[0],
+                                      inputs[0].get_shape(),
+                                      inputs[1].get_shape(),
+                                      get_autob());
 }
 
 bool Add::has_evaluate() const {
