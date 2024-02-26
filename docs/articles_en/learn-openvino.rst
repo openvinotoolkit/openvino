@@ -16,7 +16,7 @@ Learn OpenVINO
 
    Interactive Tutorials (Python) <tutorials>
    Sample Applications (Python & C++) <openvino_docs_OV_UG_Samples_Overview>
-   Generative AI Optimization and Deployment <gen_ai_guide>
+   Large Language Models in OpenVINO <native_vs_hugging_face_api>
 
 
 This section will help you get a hands-on experience with OpenVINO even if you are just starting
@@ -30,5 +30,5 @@ as well as an experienced user.
 | :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
 | The OpenVINO samples (Python and C++) are simple console applications that show how to use specific OpenVINO API features. They can assist you in executing tasks such as loading a model, running inference, querying particular device capabilities, etc.
 
-| :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>`
+| :doc:`Large Language Models in OpenVINO <native_vs_hugging_face_api>`
 | Detailed information on how OpenVINO accelerates Generative AI use cases and what models it supports. This tutorial provides instructions for running Generative AI models using Hugging Face Optimum Intel and Native OpenVINO APIs.
