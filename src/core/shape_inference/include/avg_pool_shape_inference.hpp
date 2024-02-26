@@ -33,14 +33,12 @@ inline void valid_dilated_kernel_with_padding(const v1::AvgPool* op,
                           ") and this is not ",
                           "allowed.");
 }
-}  // namespace pooling
 
-namespace v1 {
-template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> shape_infer(const AvgPool* op,
-                                 const std::vector<TShape>& input_shapes,
-                                 TContainer& pads_begin,
-                                 TContainer& pads_end) {
+template <class TOp, class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> avg_pool_shape_infer_util(const TOp* op,
+                                               const std::vector<TShape>& input_shapes,
+                                               TContainer& pads_begin,
+                                               TContainer& pads_end) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     const auto dilations = Strides(op->get_kernel().size(), 1);
@@ -53,6 +51,16 @@ std::vector<TRShape> shape_infer(const AvgPool* op,
 
     return {pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
 }
+}  // namespace pooling
+
+namespace v1 {
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const AvgPool* op,
+                                 const std::vector<TShape>& input_shapes,
+                                 TContainer& pads_begin,
+                                 TContainer& pads_end) {
+    return {pooling::avg_pool_shape_infer_util(op, input_shapes, pads_begin, pads_end)};
+}
 }  // namespace v1
 
 namespace v14 {
@@ -61,17 +69,7 @@ std::vector<TRShape> shape_infer(const AvgPool* op,
                                  const std::vector<TShape>& input_shapes,
                                  TContainer& pads_begin,
                                  TContainer& pads_end) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
-    const auto& data_shape = input_shapes[0];
-    const auto dilations = Strides(op->get_kernel().size(), 1);
-
-    auto num_spatial = dilations.size();
-    pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);
-    pooling::validate::padding(op, pads_begin, pads_end);
-    pooling::validate::attributes(op, data_shape, dilations);
-    pooling::apply_padding(op, data_shape, dilations, pads_begin, pads_end);
-
-    return {pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
+    return {pooling::avg_pool_shape_infer_util(op, input_shapes, pads_begin, pads_end)};
 }
 }  // namespace v14
 }  // namespace op

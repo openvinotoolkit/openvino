@@ -299,6 +299,32 @@ bool MaxPool::has_evaluate() const {
     }
 }
 
+/// \return The pooling filter's dilations.
+const Strides& MaxPool::get_dilations() const noexcept {
+    return m_dilations;
+}
+
+void MaxPool::set_dilations(const Strides& dilations) {
+    m_dilations = dilations;
+}
+
+/// \return The data type of the second output tensor (indices).
+element::Type MaxPool::get_index_element_type() const noexcept {
+    return m_index_element_type;
+}
+
+void MaxPool::set_index_element_type(const element::Type index_element_type) {
+    m_index_element_type = index_element_type;
+}
+
+/// \return The 'axis' attribute value.
+int64_t MaxPool::get_axis() const {
+    return m_axis;
+}
+void MaxPool::set_axis(const int64_t axis) {
+    m_axis = axis;
+}
+
 }  // namespace v8
 }  // namespace op
 }  // namespace ov
@@ -342,7 +368,7 @@ bool MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v14_MaxPool_validate_and_infer_types);
 
-    const auto input_shape = get_input_partial_shape(0);
+    const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
         m_axis = ov::util::normalize_axis(this, m_axis, input_shape.rank());
     }
@@ -477,6 +503,32 @@ bool MaxPool::has_evaluate() const {
     default:
         return false;
     }
+}
+
+/// \return The pooling filter's dilations.
+const Strides& MaxPool::get_dilations() const noexcept {
+    return m_dilations;
+}
+
+void MaxPool::set_dilations(const Strides& dilations) {
+    m_dilations = dilations;
+}
+
+/// \return The data type of the second output tensor (indices).
+element::Type MaxPool::get_index_element_type() const noexcept {
+    return m_index_element_type;
+}
+
+void MaxPool::set_index_element_type(const element::Type index_element_type) {
+    m_index_element_type = index_element_type;
+}
+
+/// \return The 'axis' attribute value.
+int64_t MaxPool::get_axis() const {
+    return m_axis;
+}
+void MaxPool::set_axis(const int64_t axis) {
+    m_axis = axis;
 }
 
 }  // namespace v14

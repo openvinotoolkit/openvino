@@ -91,28 +91,16 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The pooling filter's dilations.
-    const Strides& get_dilations() const noexcept {
-        return m_dilations;
-    }
-    void set_dilations(const Strides& dilations) {
-        m_dilations = dilations;
-    }
+    const Strides& get_dilations() const noexcept;
+    void set_dilations(const Strides& dilations);
 
     /// \return The data type of the second output tensor (indices).
-    element::Type get_index_element_type() const noexcept {
-        return m_index_element_type;
-    }
-    void set_index_element_type(const element::Type index_element_type) {
-        m_index_element_type = index_element_type;
-    }
+    element::Type get_index_element_type() const noexcept;
+    void set_index_element_type(const element::Type index_element_type);
 
     // \return The 'axis' attribute value.
-    int64_t get_axis() const {
-        return m_axis;
-    }
-    void set_axis(const int64_t axis) {
-        m_axis = axis;
-    }
+    int64_t get_axis() const;
+    void set_axis(const int64_t axis);
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -167,28 +155,16 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     /// \return The pooling filter's dilations.
-    const Strides& get_dilations() const noexcept {
-        return m_dilations;
-    }
-    void set_dilations(const Strides& dilations) {
-        m_dilations = dilations;
-    }
+    const Strides& get_dilations() const noexcept;
+    void set_dilations(const Strides& dilations);
 
     /// \return The data type of the second output tensor (indices).
-    element::Type get_index_element_type() const noexcept {
-        return m_index_element_type;
-    }
-    void set_index_element_type(const element::Type index_element_type) {
-        m_index_element_type = index_element_type;
-    }
+    element::Type get_index_element_type() const noexcept;
+    void set_index_element_type(const element::Type index_element_type);
 
     // \return The 'axis' attribute value.
-    int64_t get_axis() const {
-        return m_axis;
-    }
-    void set_axis(const int64_t axis) {
-        m_axis = axis;
-    }
+    int64_t get_axis() const;
+    void set_axis(const int64_t axis);
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
