@@ -425,14 +425,7 @@ TEST(export_import_depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(true);
 }
 
-
-template <typename T>
-void test_depth_to_space_fp32_paul(bool is_caching_test) {
-    //  Input  : 1x8x2x2
-    //  Block size : 2
-    //  Output : 1x2x4x4
-    //  Input values in fp32
-
+static void test_depth_to_space_fp16_input_fp32_output(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
@@ -451,6 +444,7 @@ void test_depth_to_space_fp32_paul(bool is_caching_test) {
         ov::float16(2.0f), ov::float16(1.0f), ov::float16(2.0f)
     });
 
+    // Apply existed topology that makes kernel build failure because of input and output data types are different.
     topology topology;
     topology.add(cldnn::input_layout("input", input->get_layout()));
     topology.add(cldnn::data("weights", weights));
@@ -471,9 +465,9 @@ void test_depth_to_space_fp32_paul(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("result:output/sink_port_0").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    std::vector<T> expected_results = {
+    std::vector<float> expected_results = {
         24.0f, 24.0f, 32.0f, 28.0f
     };
 
@@ -482,6 +476,6 @@ void test_depth_to_space_fp32_paul(bool is_caching_test) {
     }
 }
 
-TEST(depth_to_space_fp32_gpu, check_internal_activation) {
-    test_depth_to_space_fp32_paul<float>(false);
+TEST(depth_to_space_gpu, fp16_input_fp32_output) {
+    test_depth_to_space_fp16_input_fp32_output(false);
 }
