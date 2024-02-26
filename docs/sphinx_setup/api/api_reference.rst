@@ -16,7 +16,7 @@ API Reference
    nodejs_api/nodejs_api.rst
 
 
-OpenVINO toolkit offers **APIs for Python, C++, C, and Node.js** which share most features (C++ being the
+OpenVINO toolkit offers **APIs for Python, C++, C, and JavaScript (Node.js)** which share most features (C++ being the
 most comprehensive one), have a common structure, naming convention styles, namespaces,
 and no duplicate structures.
 
