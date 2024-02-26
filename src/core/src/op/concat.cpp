@@ -62,19 +62,31 @@ std::vector<const T*> get_in_buffers(const TensorVector& inputs) {
     return arg_bufs;
 }
 
+inline std::vector<const void*> get_in_buffers(const TensorVector& inputs) {
+    std::vector<const void*> arg_bufs;
+    arg_bufs.reserve(inputs.size());
+    std::transform(inputs.begin(),
+                   inputs.end(),
+                   std::back_inserter(arg_bufs),
+                   [](const ov::Tensor& input) -> const void* {
+                       return input.data();
+                   });
+    return arg_bufs;
+}
+
 template <typename T>
 void evaluate_concat(const Concat* node,
                      TensorVector& outputs,
                      const TensorVector& inputs,
                      const std::vector<Shape>& arg_shapes,
                      const Shape& out_shape) {
-    const auto arg_bufs = get_in_buffers<T>(inputs);
-    reference::concat(arg_bufs,
-                      static_cast<T*>(outputs.front().data()),
-                      arg_shapes,
-                      out_shape,
-                      ov::util::normalize(node->get_axis(), out_shape.size()),
-                      outputs.front().get_element_type().size());
+    const auto arg_bufs = get_in_buffers(inputs);
+    reference::concat_data(arg_bufs,
+                           outputs.front().data(),
+                           arg_shapes,
+                           out_shape,
+                           ov::util::normalize(node->get_axis(), out_shape.size()),
+                           outputs.front().get_element_type());
 }
 
 bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
