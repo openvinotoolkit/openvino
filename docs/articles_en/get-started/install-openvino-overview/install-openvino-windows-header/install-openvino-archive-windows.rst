@@ -194,7 +194,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      Try the `Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
@@ -208,7 +208,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the `C++ Quick Start Example <openvino_docs_../../../get-started_../../../get-started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+      Try the `C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
@@ -247,7 +247,7 @@ Use either of the following methods to delete the files:
 Additional Resources
 ####################
 
-* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_install_guides_overview>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../../install-openvino-overview>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
