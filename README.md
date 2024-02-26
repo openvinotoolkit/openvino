@@ -47,8 +47,7 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 
 ### Getting Started
 
-Explore [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html).
-This example will walk you through the basics to deploy your first model.
+The [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
 
 ### Installation
 
@@ -87,7 +86,7 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
 
   -   [OpenVINO™ Training Extensions (OTE)](https://github.com/openvinotoolkit/training_extensions) - an environment to train models and convert them using OpenVINO for optimized inference.
   -   [Dataset Management Framework (Datumaro)](https://github.com/openvinotoolkit/datumaro) - a framework and CLI tool to build, transform, and analyze datasets.
-  - 	 [RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
+  - [RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
   -	  [openvino-rs](https://github.com/intel/openvino-rs) - bindings for accessing OpenVINO functionality in Rust.
   -	  [OpenVINO.NET](https://github.com/sdcb/OpenVINO.NET) - a high-quality .NET wrapper for OpenVINO™ toolkit.
   -   [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib) - a repository for the development of additional OpenVINO modules
