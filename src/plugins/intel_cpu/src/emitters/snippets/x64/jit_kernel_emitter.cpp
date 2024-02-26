@@ -24,7 +24,10 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     return idxs;
 }
 
+jit_snippets_call_args::jit_snippets_call_args() : amx_tile_config(new amx_tile_config_t()) {}
+
 jit_snippets_call_args::~jit_snippets_call_args() {
+    delete amx_tile_config;
     delete[] loop_args;
 }
 
@@ -163,8 +166,8 @@ void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
     for (const auto& abstract_to_physical : gpr_map_pool.first)
         data_ptr_regs_idx.push_back(abstract_to_physical.second);
 
-    vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
     gpr_map_pool.second.insert(gpr_map_pool.second.end(), pool_gpr_idxs.cbegin(), pool_gpr_idxs.cend());
+    vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
 }
 
@@ -231,9 +234,9 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
     master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
 
     // - Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
-    // - However we can use reg_indexes_idx and reg_runtime_params_idx for non memory access operations
+    // - However we can use reg_indexes_idx for non memory access operations
     //   since we won't need them after offsets calculation
-    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx, reg_runtime_params_idx});
+    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx});
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
