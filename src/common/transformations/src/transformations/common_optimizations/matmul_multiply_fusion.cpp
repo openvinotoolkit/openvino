@@ -12,6 +12,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -19,6 +20,12 @@ using namespace ov;
 static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& matmul,
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<ov::op::v0::Constant> mul_const) {
+    // skip in case the transformation can affect nncf/lpt pipelines to insert FakeQuantize
+    if (weights.get_element_type().is_quantized() || !ov::util::get_constant_from_source(weights) ||
+        is_keep_const_precision(weights.get_node_shared_ptr())) {
+        return nullptr;
+    }
+
     auto const_shape = mul_const->get_shape();
     auto const_rank = static_cast<int64_t>(const_shape.size());
     const auto& weights_shape = weights.get_partial_shape();
