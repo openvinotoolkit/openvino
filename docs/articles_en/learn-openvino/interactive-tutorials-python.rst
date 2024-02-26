@@ -25,7 +25,7 @@ browser, no installation required. Just choose a tutorial and click the button.
 `Binder <https://mybinder.org/>`__ and `Google Colab <https://colab.research.google.com/>`__
 are free online services with limited resources. For the best performance
 and more control, you should run the notebooks locally. Follow the
-:doc:`Installation Guide <notebooks_installation>` in order to get information
+:doc:`Installation Guide <interactive-tutorials-python/notebooks-installation>` in order to get information
 on how to run and manage the notebooks on your system.
 
 .. raw:: html
@@ -36,7 +36,7 @@ on how to run and manage the notebooks on your system.
 
 .. note::
    If you have any issues with the notebooks, refer to the **Troubleshooting** and **FAQ**
-   sections in the :doc:`Installation Guide <notebooks_installation>` or start a GitHub
+   sections in the :doc:`Installation Guide <interactive-tutorials-python/notebooks-installation>` or start a GitHub
    `discussion <https://github.com/openvinotoolkit/openvino_notebooks/discussions>`__.
 
 
