@@ -13,6 +13,12 @@ void ov::frontend::GeneralFailure::create(const char* file,
         make_what(file, line, check_string, "FrontEnd API failed with GeneralFailure" + context_info, explanation));
 }
 
+void ov::frontend::GeneralFailure::create(const CheckLocInfo& check_loc_info,
+                                          const std::string& context_info,
+                                          const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
+}
+
 void ov::frontend::InitializationFailure::create(const char* file,
                                                  int line,
                                                  const char* check_string,
@@ -23,6 +29,12 @@ void ov::frontend::InitializationFailure::create(const char* file,
                                                         check_string,
                                                         "FrontEnd API failed with InitializationFailure" + context_info,
                                                         explanation));
+}
+
+void ov::frontend::InitializationFailure::create(const CheckLocInfo& check_loc_info,
+                                                 const std::string& context_info,
+                                                 const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
 }
 
 void ov::frontend::OpValidationFailure::create(const char* file,
@@ -37,6 +49,12 @@ void ov::frontend::OpValidationFailure::create(const char* file,
                                                       explanation));
 }
 
+void ov::frontend::OpValidationFailure::create(const CheckLocInfo& check_loc_info,
+                                               const std::string& context_info,
+                                               const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
+}
+
 void ov::frontend::OpConversionFailure::create(const char* file,
                                                int line,
                                                const char* check_string,
@@ -49,6 +67,12 @@ void ov::frontend::OpConversionFailure::create(const char* file,
                                                       explanation));
 }
 
+void ov::frontend::OpConversionFailure::create(const CheckLocInfo& check_loc_info,
+                                               const std::string& context_info,
+                                               const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
+}
+
 void ov::frontend::NotImplementedFailure::create(const char* file,
                                                  int line,
                                                  const char* check_string,
@@ -59,4 +83,10 @@ void ov::frontend::NotImplementedFailure::create(const char* file,
                                                         check_string,
                                                         "FrontEnd API failed with NotImplementedFailure" + context_info,
                                                         explanation));
+}
+
+void ov::frontend::NotImplementedFailure::create(const CheckLocInfo& check_loc_info,
+                                                 const std::string& context_info,
+                                                 const std::string& explanation) {
+    create(check_loc_info.file, check_loc_info.line, check_loc_info.check_string, context_info, explanation);
 }

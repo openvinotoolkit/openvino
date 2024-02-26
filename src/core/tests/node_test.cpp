@@ -47,3 +47,52 @@ TEST_F(NodeValidationFailureTest, node_shape_infer_failure_message) {
                     ov::NodeValidationFailure,
                     HasSubstr("':\nShape inference input shapes {[1,2,3],[1]}\nTest message"));
 }
+
+TEST_F(NodeValidationFailureTest, create_node_validation_failure) {
+    constexpr int line = 145;
+    constexpr char test_file[] = "src/test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string explanation = "test error message";
+    const std::string ctx_info = "My context";
+    const std::string exp_error_msg1 = "Check 'value != 0' failed at src/test_file.cpp:145:\nWhile validating node";
+    const std::string exp_error_msg2 = ":\ntest error message\n";
+
+    OV_EXPECT_THROW(ov::NodeValidationFailure::create(test_file, line, check_string, &test_node, explanation),
+                    ov::NodeValidationFailure,
+                    AllOf(HasSubstr(exp_error_msg1), HasSubstr(exp_error_msg2)));
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(ov::NodeValidationFailure::create({test_file, line, check_string}, &test_node, explanation),
+                    ov::NodeValidationFailure,
+                    AllOf(HasSubstr(exp_error_msg1), HasSubstr(exp_error_msg2)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}
+
+TEST_F(NodeValidationFailureTest, create_node_validation_failure_with_input_shapes) {
+    constexpr int line = 145;
+    constexpr char test_file[] = "src/test_file.cpp";
+    constexpr char check_string[] = "value != 0";
+    const std::string explanation = "test error message";
+    const std::string ctx_info = "My context";
+    const std::string exp_error_msg1 = "Check 'value != 0' failed at src/test_file.cpp:145:\nWhile validating node";
+    const std::string exp_error_msg2 = "Shape inference input shapes {[1,2],[4]}\ntest error message\n";
+    const auto input_shapes = std::vector<ov::PartialShape>{{1, 2}, {4}};
+
+    OV_EXPECT_THROW(
+        ov::NodeValidationFailure::create(test_file,
+                                          line,
+                                          check_string,
+                                          std::make_pair(static_cast<const ov::Node*>(&test_node), &input_shapes),
+                                          explanation),
+        ov::NodeValidationFailure,
+        AllOf(HasSubstr(exp_error_msg1), HasSubstr(exp_error_msg2)));
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    OV_EXPECT_THROW(
+        ov::NodeValidationFailure::create({test_file, line, check_string},
+                                          std::make_pair(static_cast<const ov::Node*>(&test_node), &input_shapes),
+                                          explanation),
+        ov::NodeValidationFailure,
+        AllOf(HasSubstr(exp_error_msg1), HasSubstr(exp_error_msg2)));
+    OPENVINO_SUPPRESS_DEPRECATED_END
+}

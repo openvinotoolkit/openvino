@@ -13,6 +13,12 @@
 
 namespace ov {
 
+struct CheckLocInfo {
+    const char* file;
+    int line;
+    const char* check_string;
+};
+
 /// Base error for ov runtime errors.
 class OPENVINO_API Exception : public std::runtime_error {
 public:
@@ -20,6 +26,12 @@ public:
     explicit Exception(const std::string& what_arg);
 
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
+
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
     virtual ~Exception();
 
     static const std::string default_msg;
@@ -64,6 +76,14 @@ public:
                                     const std::string& context_info,
                                     const std::string& explanation);
 
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
+
 protected:
     OPENVINO_SUPPRESS_DEPRECATED_START
     explicit AssertFailure(const std::string& what_arg) : ov::Exception(what_arg) {}
@@ -74,6 +94,14 @@ protected:
 class OPENVINO_API NotImplemented : public AssertFailure {
 public:
     [[noreturn]] static void create(const char* file, int line, const std::string& explanation);
+
+    [[noreturn]] OPENVINO_DEPRECATED(
+        "This function is deprecated and will be removed in the 2024.0 release") static void create(const CheckLocInfo&
+                                                                                                        check_loc_info,
+                                                                                                    const std::string&
+                                                                                                        context_info,
+                                                                                                    const std::string&
+                                                                                                        explanation);
 
     [[noreturn]] OPENVINO_DEPRECATED(
         "This function is deprecated and will be removed, please use "
