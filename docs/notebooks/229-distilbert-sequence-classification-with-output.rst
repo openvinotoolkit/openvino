@@ -168,14 +168,14 @@ optimal execution on end-point target devices.
 
 
 OpenVINO™ Runtime uses the `Infer
-Request <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Infer_request.html>`__
+Request <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__
 mechanism which enables running models on different devices in
 asynchronous or synchronous manners. The model graph is sent as an
 argument to the OpenVINO API and an inference request is created. The
 default inference mode is AUTO but it can be changed according to
 requirements and hardware available. You can explore the different
 inference modes and their usage `in
-documentation. <https://docs.openvino.ai/2023.3/openvino_docs_Runtime_Inference_Modes_Overview.html>`__
+documentation. <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html>`__
 
 .. code:: ipython3
 

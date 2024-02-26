@@ -527,7 +527,7 @@ layers. The framework is designed so that modifications to your original
 training code are minor. Quantization is the simplest scenario and
 requires a few modifications. For more information about NNCF Post
 Training Quantization (PTQ) API, refer to the `Basic Quantization Flow
-Guide <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__.
+Guide <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__.
 
 1. Create a transformation function that accepts a sample from the
    dataset and returns data suitable for model inference. This enables

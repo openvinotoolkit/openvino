@@ -49,7 +49,7 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2023.3/openvino_ir.html>`__ is the
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__ is the
 proprietary model format of OpenVINO. It is produced after converting a
 model with model conversion API. Model conversion API translates the
 frequently used deep learning operations to their respective similar
@@ -1058,20 +1058,20 @@ Both Python conversion API and Model Optimizer command-line tool provide
 the following capabilities: \* overriding original input shapes for
 model conversion with ``input`` and ``input_shape`` parameters. `Setting
 Input Shapes
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-setting-input-shapes.html>`__.
 \* cutting off unwanted parts of a model (such as unsupported operations
 and training sub-graphs) using the ``input`` and ``output`` parameters
 to define new inputs and outputs of the converted model. `Cutting Off
 Parts of a Model
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-cutting-parts-of-a-model.html>`__.
 \* inserting additional input pre-processing sub-graphs into the
 converted model by using the ``mean_values``, ``scales_values``,
 ``layout``, and other parameters. `Embedding Preprocessing Computation
-article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
+article <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-embedding-preprocessing-computation.html>`__.
 \* compressing the model weights (for example, weights for convolutions
 and matrix multiplications) to FP16 data type using ``compress_to_fp16``
 compression parameter. `Compression of a Model to FP16
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_FP16_Compression.html>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-compressing-model-to-fp16.html>`__.
 
 If the out-of-the-box conversion (only the ``input_model`` parameter is
 specified) is not successful, it may be required to use the parameters
@@ -1092,7 +1092,7 @@ up static shapes, model conversion API provides the ``input`` and
 ``input_shape`` parameters.
 
 For more information refer to `Setting Input Shapes
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model.html>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-setting-input-shapes.html>`__.
 
 .. code:: ipython3
 
@@ -1297,7 +1297,7 @@ required:
 
 For a more detailed description, refer to the `Cutting Off Parts of a
 Model
-guide <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model.html>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-cutting-parts-of-a-model.html>`__.
 
 .. code:: ipython3
 
@@ -1392,7 +1392,7 @@ This preprocessing block can perform mean-scale normalization of input
 data, reverting data along channel dimension, and changing the data
 layout. For more information on preprocessing, refer to the `Embedding
 Preprocessing Computation
-article <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Additional_Optimization_Use_Cases.html>`__.
+article <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-embedding-preprocessing-computation.html>`__.
 
 Specifying Layout
 ^^^^^^^^^^^^^^^^^
@@ -1404,7 +1404,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
+overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 

@@ -7527,11 +7527,11 @@ Download Intermediate Representation (IR) model.
     ir_model = core.read_model(model_xml)
 
 Use `Basic Quantization
-Flow <https://docs.openvino.ai/2023.3/basic_quantization_flow.html>`__.
+Flow <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__.
 To use the most advanced quantization flow that allows to apply 8-bit
 quantization to the model with accuracy control see `Quantizing with
 accuracy
-control <https://docs.openvino.ai/2023.3/quantization_w_accuracy_control.html>`__.
+control <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/quantizing-with-accuracy-control.html>`__.
 
 .. code:: ipython3
 
@@ -8391,7 +8391,7 @@ cached to the ``model_cache`` directory.
 With a recent Intel CPU, the best performance can often be achieved by
 doing inference on both the CPU and the iGPU, with OpenVINO’s `Multi
 Device
-Plugin <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Running_on_multiple_devices.html>`__.
+Plugin <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/multi-device.html>`__.
 It takes a bit longer to load a model on GPU than on CPU, so this
 benchmark will take a bit longer to complete than the CPU benchmark.
 

@@ -145,7 +145,7 @@ on a disk using the ``ov.save_model`` function reducing loading time for
 the next running. For more information about model conversion, see this
 `page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 For TensorFlow Lite, refer to the `models
-support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow_Lite.html>`__.
+support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow-lite.html>`__.
 
 .. code:: ipython3
 
