@@ -15,7 +15,7 @@ Interactive Tutorials (Python)
    :caption: Notebooks
    :hidden:
 
-   notebooks_installation
+   interactive-tutorials-python/notebooks-installation
 
 
 Jupyter notebooks show how to use various OpenVINO features to run optimized deep learning
@@ -44,14 +44,14 @@ Additional Resources
 ######################
 
 * `OpenVINO™ Notebooks - Github Repository <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/README.md>`_
-* `Binder ../documentation <https://mybinder.readthedocs.io/en/latest/>`_
+* `Binder documentation <https://mybinder.readthedocs.io/en/latest/>`_
 * `Google Colab <https://colab.research.google.com/>`__
 
 
-.. |binder logo| image:: _static/images/launch_in_binder.svg
+.. |binder logo| image:: ../_static/images/launch_in_binder.svg
    :class: notebook-badge-p
    :alt: Binder button
-.. |colab logo| image:: _static/images/open_in_colab.svg
+.. |colab logo| image:: ../_static/images/open_in_colab.svg
    :class: notebook-badge-p
    :alt: Google Colab button
 
