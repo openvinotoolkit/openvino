@@ -21,7 +21,7 @@ bool Placeholder::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void Placeholder::validate_and_infer_types() {
-    set_output_type(0, ov::element::undefined, ov::PartialShape::dynamic());
+    set_output_type(0, ov::element::undefined, ov::PartialShape{});
 }
 
 std::shared_ptr<Node> Placeholder::clone_with_new_inputs(const ov::OutputVector& new_args) const {
