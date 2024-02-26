@@ -32,7 +32,7 @@ class TestMatrixBandPart(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_matrix_band_part_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_matrix_band_part_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_matrix_band_part_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
