@@ -10,7 +10,6 @@
 
 #include "utils/cpu_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 using namespace CPUTestUtils;
 

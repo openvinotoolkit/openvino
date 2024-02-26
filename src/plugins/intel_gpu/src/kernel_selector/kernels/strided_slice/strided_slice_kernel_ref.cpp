@@ -68,8 +68,8 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::STRIDED_SLICE || o.GetType() != KernelType::STRIDED_SLICE) {
+bool StridedSliceKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::STRIDED_SLICE) {
         return false;
     }
 
@@ -216,8 +216,8 @@ void StridedSliceKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -227,7 +227,7 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
     assert(params.GetType() == KernelType::STRIDED_SLICE);
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto input = newParams.inputs[0];
     auto input_dt = input.GetDType();
@@ -252,12 +252,12 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.has_dynamic_tensors());
+                     0, 1, newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority StridedSliceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority StridedSliceKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

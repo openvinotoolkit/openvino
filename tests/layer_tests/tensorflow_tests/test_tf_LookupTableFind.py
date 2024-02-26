@@ -12,12 +12,15 @@ rng = np.random.default_rng()
 
 class TestLookupTableFindOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'keys' in inputs_info, "Test error: inputs_info must contain `x`"
-        keys_shape = inputs_info['keys']
+        assert 'keys:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        keys_shape = inputs_info['keys:0']
         inputs_data = {}
         if np.issubdtype(self.keys_type, np.integer):
             data = rng.choice(self.all_keys, keys_shape)
-            inputs_data['keys'] = mix_array_with_value(data, self.invalid_key)
+            inputs_data['keys:0'] = mix_array_with_value(data, self.invalid_key)
+        elif self.keys_type == str:
+            data = rng.choice(self.all_keys + [self.invalid_key], keys_shape)
+            inputs_data['keys:0'] = data
         else:
             raise "Unsupported type {}".format(self.keys_type)
 
@@ -64,6 +67,11 @@ class TestLookupTableFindOps(CommonTFLayerTest):
         dict(keys_type=np.int32, values_type=tf.string, all_keys=[20, 10, 33, -22, 44, 11],
              all_values=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              default_value='UNKNOWN', invalid_key=1000),
+        pytest.param(dict(keys_type=str, values_type=np.int64,
+                          all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
+                          all_values=[200, 100, 0, -3, 10, 1],
+                          default_value=0, invalid_key='AbraCadabra'),
+                     marks=pytest.mark.xfail(reason="132669 - Support LookupTableFindV2 with string key")),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
@@ -72,8 +80,8 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(*self.create_lookup_table_find_net(hash_table_type=hash_table_type,
                                                       keys_shape=keys_shape, **params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

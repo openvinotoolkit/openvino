@@ -30,14 +30,12 @@ ParamsKey ExperimentalDetectronDetectionOutputKernelRef::GetSupportedKey() const
     return k;
 }
 
-KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriority(const Params&,
-                                                                                  const optional_params&) const {
+KernelsPriority ExperimentalDetectronDetectionOutputKernelRef::GetKernelsPriority(const Params&) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ExperimentalDetectronDetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT ||
-        o.GetType() != KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {
+bool ExperimentalDetectronDetectionOutputKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT) {
         return false;
     }
     return true;
@@ -94,7 +92,6 @@ using DispatchData = CommonDispatchData;
 
 void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
     const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
     std::vector<size_t> gws,
     const std::string& stage_name,
     size_t stage_index,
@@ -103,7 +100,7 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
     dispatch_data.gws = std::move(gws);
     dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
 
-    const auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options, stage_index);
+    const auto entry_point = GetEntryPoint(kernelName, params.layerID, params, stage_index);
     auto cldnn_jit = GetJitConstants(params);
     cldnn_jit.AddConstant(MakeJitConstant(stage_name, "true"));
 
@@ -116,12 +113,11 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareKernelCommon(
 
 void ExperimentalDetectronDetectionOutputKernelRef::PrepareRefineBoxesKernel(
     const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
     clKernelData& kernel) const {
     const size_t roi_count = params.inputs[kScoresInputIdx].Batch().v;
     const size_t class_count = params.class_agnostic_box_regression ? params.num_classes - 1 : params.num_classes;
 
-    PrepareKernelCommon(params, options, {roi_count, class_count, 1}, "EDDO_STAGE_0_REFINE_BOXES", 0, kernel);
+    PrepareKernelCommon(params, {roi_count, class_count, 1}, "EDDO_STAGE_0_REFINE_BOXES", 0, kernel);
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kBoxesInputIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kDeltasInputIdx});
@@ -134,9 +130,8 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareRefineBoxesKernel(
 
 void ExperimentalDetectronDetectionOutputKernelRef::PrepareNmsClassWiseKernel(
     const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
     clKernelData& kernel) const {
-    PrepareKernelCommon(params, options, {1, 1, 1}, "EDDO_STAGE_1_NMS", 1, kernel);
+    PrepareKernelCommon(params, {1, 1, 1}, "EDDO_STAGE_1_NMS", 1, kernel);
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedScoresBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kRefinedBoxesBufferIdx});
@@ -147,9 +142,8 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareNmsClassWiseKernel(
 
 void ExperimentalDetectronDetectionOutputKernelRef::PrepareTopKDetectionsKernel(
     const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
     clKernelData& kernel) const {
-    PrepareKernelCommon(params, options, {1, 1, 1}, "EDDO_STAGE_2_TOPK", 2, kernel);
+    PrepareKernelCommon(params, {1, 1, 1}, "EDDO_STAGE_2_TOPK", 2, kernel);
 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kScoreClassIndexBufferIdx});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, kDetectionCountBufferIdx});
@@ -157,10 +151,8 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareTopKDetectionsKernel(
 
 void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
     const experimental_detectron_detection_output_params& params,
-    const optional_params& options,
     clKernelData& kernel) const {
     PrepareKernelCommon(params,
-                        options,
                         {static_cast<size_t>(params.max_detections_per_image), 1, 1},
                         "EDDO_STAGE_3_COPY_OUTPUT",
                         3,
@@ -174,9 +166,8 @@ void ExperimentalDetectronDetectionOutputKernelRef::PrepareCopyOutputKernel(
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, kOutputScoresInputIdx});
 }
 
-KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const Params& params,
-                                                                          const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -196,10 +187,10 @@ KernelsData ExperimentalDetectronDetectionOutputKernelRef::GetKernelsData(const 
     kd.internalBufferSizes[kScoreClassIndexBufferIdx] = class_count * roi_count * 12;  // sizeof ScoreClassIndex
     kd.internalBufferSizes[kDetectionCountBufferIdx] = sizeof(uint32_t);
 
-    PrepareRefineBoxesKernel(eddo_params, options, kd.kernels[0]);
-    PrepareNmsClassWiseKernel(eddo_params, options, kd.kernels[1]);
-    PrepareTopKDetectionsKernel(eddo_params, options, kd.kernels[2]);
-    PrepareCopyOutputKernel(eddo_params, options, kd.kernels[3]);
+    PrepareRefineBoxesKernel(eddo_params, kd.kernels[0]);
+    PrepareNmsClassWiseKernel(eddo_params, kd.kernels[1]);
+    PrepareTopKDetectionsKernel(eddo_params, kd.kernels[2]);
+    PrepareCopyOutputKernel(eddo_params, kd.kernels[3]);
 
     return {kd};
 }

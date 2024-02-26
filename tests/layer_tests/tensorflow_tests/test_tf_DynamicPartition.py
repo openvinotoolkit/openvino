@@ -9,14 +9,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestDynamicPartition(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info, "Test error: inputs_info must contain `data`"
-        assert 'partitions' in inputs_info, "Test error: inputs_info must contain `partitions`"
-        data_shape = inputs_info['data']
-        partitions_shape = inputs_info['partitions']
+        assert 'data:0' in inputs_info, "Test error: inputs_info must contain `data`"
+        assert 'partitions:0' in inputs_info, "Test error: inputs_info must contain `partitions`"
+        data_shape = inputs_info['data:0']
+        partitions_shape = inputs_info['partitions:0']
         inputs_data = {}
-        inputs_data['data'] = np.random.randint(-50, 50, data_shape)
+        inputs_data['data:0'] = np.random.randint(-50, 50, data_shape)
         # segment_ids data must be sorted according to TensorFlow SegmentSum specification
-        inputs_data['partitions'] = np.random.randint(0, 5, partitions_shape)
+        inputs_data['partitions:0'] = np.random.randint(0, 5, partitions_shape)
         return inputs_data
 
     def create_dynamic_partition_net(self, data_shape, partitions_shape, num_partitions, data_type):
@@ -45,14 +45,14 @@ class TestDynamicPartition(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_dynamic_partition_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_new_frontend):
+                                     use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
-        if not use_new_frontend:
+        if not use_legacy_frontend:
             pytest.skip("DynamicPartition operation is not supported via legacy frontend.")
         self._test(*self.create_dynamic_partition_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_other_types = [
         dict(data_shape=[10], partitions_shape=[10], num_partitions=10, data_type=tf.int32),
@@ -62,11 +62,11 @@ class TestDynamicPartition(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_other_types)
     @pytest.mark.nightly
     def test_dynamic_partition_other_types(self, params, ie_device, precision, ir_version, temp_dir,
-                                           use_new_frontend):
+                                           use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.xfail('104855')
-        if not use_new_frontend:
+        if not use_legacy_frontend:
             pytest.skip("DynamicPartition operation is not supported via legacy frontend.")
         self._test(*self.create_dynamic_partition_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
