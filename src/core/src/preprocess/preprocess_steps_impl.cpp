@@ -130,6 +130,28 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         "mean " + vector_to_string(values));
 }
 
+void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<int>& values){
+    m_actions.emplace_back(
+        [pads_begin, pads_end, values](const std::vector<Output<Node>>& nodes,
+                                       const std::shared_ptr<Model>& function,
+                                       PreprocessingContext& ctxt) {
+            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add pad for empty input.");
+            OPENVINO_ASSERT(nodes.size() == 1,
+                            "Can't pad multi-plane input. Suggesting to convert current image to "
+                            "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+            auto node = nodes[0];
+            auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, values);
+
+            auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
+            auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
+            auto npad_value = opset8::Constant::create(element::i64, Shape{}, values);
+
+            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, op::PadMode::CONSTANT);
+            return std::make_tuple(std::vector<Output<Node>>{pad}, true);
+        },
+        "pad (" + vector_to_string(values) + ")");
+}
+
 void PreStepsList::add_convert_impl(const element::Type& type) {
     m_actions.emplace_back(
         [type](const std::vector<Output<Node>>& nodes,
