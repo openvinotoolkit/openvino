@@ -384,7 +384,7 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 /** @endcond */
 
 enum class MaxThreadsPerStream {
-    AUTO = 0,          //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
+    AUTO = 0,  //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
     PER_PLATFORM = 1,  //!<  Using all threads per platform for one stream even on dual socket platform.
     PER_SOCKET = 2,    //!<  Using all threads per socket for one stream on dual socket platform.
 };
@@ -439,10 +439,14 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_C
  * @brief This property defines max threads per stream used for CPU inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to select max threads per stream for CPU inference. Please refer MaxThreadsPerStream
- * for all definition of types.
+ * Developer can use this property to select max threads of stream in latency mode for CPU inference on two socket
+ * platform.
+ * -- AUTO mode         : Will create main stream on one socket and sub stream on the other socket. Some node will only
+ * main stream and some node will use both main stream and sub stream.
+ * -- PER_PLATFORM mode : Will create one stream on both sockets
+ * -- PER_SOCKET mode   : Will create one stream on single socket
  *
- * The following code is an example to only use all threads per socket for one stream on dual sockets platform.
+ * The following code is an example to only use all threads of one socket for one stream on dual sockets platform.
  *
  * @code
  * ie.set_property(ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET));
