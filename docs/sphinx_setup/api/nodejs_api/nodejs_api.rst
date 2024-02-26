@@ -37,7 +37,7 @@ To install the package, use the following command:
 .. note::
 
    The *openvino-node* npm package runs in Node.js environment only and provides
-   a subset of :doc:`OpenVINO Runtime C++ API <../api/c_cpp_api/group__ov__cpp__api>`.
+   a subset of :doc:`OpenVINO Runtime C++ API <../c_cpp_api/group__ov__cpp__api>`.
 
 
 Use openvino-node package
