@@ -114,9 +114,9 @@ memory reduction, speed gain, and accuracy loss.
 
 * ``group_size`` controls the size of the group of weights that share the same quantization parameters. Shared quantization parameters help to speed up the calculation of activation values as they are dequantized and quantized between layers. However, they can reduce accuracy. The following group sizes are recommended: ``128``, ``64``, ``32`` (``128`` is default value).
 
-  ``Smaller Group Size``: Leads to a more accurate model but increases the model's footprint and reduces inference speed.
+  `Smaller Group Size`: Leads to a more accurate model but increases the model's footprint and reduces inference speed.
 
-  ``Larger Group Size``: Results in faster inference and a smaller model, but might compromise accuracy.
+  `Larger Group Size`: Results in faster inference and a smaller model, but might compromise accuracy.
 
 * ``ratio`` controls the ratio between INT4 and INT8 compressed layers in the model. Ratio is a decimal between 0 and 1. For example, 0.8 means that 80% of layers will be compressed to INT4, while the rest will be compressed to INT8 precision. The default value for ratio is 1.
 
@@ -237,7 +237,8 @@ load the compressed model later for faster time to first inference.
   model = OVModelForCausalLM.from_pretrained("zephyr-7b-beta-int4-sym-ov")
   tokenizer = AutoTokenizer.from_pretrained("zephyr-7b-beta-int4-sym-ov")
 
-**GPTQ Models**
+GPTQ Models
+++++++++++++
 
 OpenVINO also supports 4-bit models from Hugging Face
 `Transformers <https://github.com/huggingface/transformers>`__ library optimized
@@ -394,8 +395,8 @@ Additional Resources
 
 - `Data-aware Weight Compression Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__
 - `Tune Weight Compression Parameters Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__
-- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__: Repository containing example pipelines that implement image and text generation tasks. It also provides a tool to benchmark LLMs.
+- `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
 - :doc:`Post-training Quantization <ptq_introduction>`
 - :doc:`Training-time Optimization <tmo_introduction>`

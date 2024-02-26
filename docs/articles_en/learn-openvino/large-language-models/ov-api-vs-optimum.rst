@@ -26,7 +26,7 @@ This guide shows how to use LLMs with OpenVINO, from model loading and conversio
 
 The advantages of using OpenVINO for LLM deployment:
 
-●	OpenVINO requires **fewer dependencies** than frameworks like
+●	OpenVINO requires fewer dependencies than frameworks like
 Hugging Face and PyTorch, resulting in a **smaller binary size and reduced
 memory footprint**, making deployments easier and updates more manageable.
 
@@ -34,10 +34,9 @@ memory footprint**, making deployments easier and updates more manageable.
 than Python-based runtimes; includes a Python API for rapid development,
 with the option for further optimization in C++.
 
-●	Provides **compression and precision management** with techniques
-such as 8-bit and 4-bit weight compression, including embedding layers, and storage format
-reduction. This includes fp16 precision for non-compressed models and int8/int4 for compressed
-models, like GPTQ models from Hugging Face.
+●	Provides **compression and precision techniques** such as 8-bit and 4-bit weight compression,
+including embedding layers, and storage format reduction.
+This includes fp16 precision for non-compressed models and int8/int4 for compressed models, like GPTQ models from Hugging Face.
 
 ●	Supports a **wide range of deep learning models and architectures** including text, image,
 and audio generative models like Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL.
@@ -53,7 +52,6 @@ sampling.
 across ARM and x86/x64 architectures, integrated Intel® Processor Graphics,
 discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series;
 features automated optimization to maximize performance on target hardware.
-
 
 OpenVINO offers two main paths for Generative AI use cases:
 
@@ -83,7 +81,7 @@ and export models to the OpenVINO model format for use in native API application
 
 To proceed with Higging Face API, read :doc:`Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>` and :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` example.
 
-To proceed with Native OpenVINO API, go to :doc:`Inference with Native OpenVINO <llm_inference_native_API_1>` page.
+To proceed with Native OpenVINO API, go to :doc:`Inference with Native OpenVINO <llm_inference_native_API>` page.
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
 

@@ -174,7 +174,7 @@ This feature is activated automatically for many supported text generation model
 Model usage remains the same for stateful and stateless models with the Optimum-Intel API, as KV-cache is handled internally by text-generation API of Transformers library.
 The model's format matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
 This is because stateful and stateless models have a different number of inputs and outputs.
-Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
+Learn more about the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
 
 Enabling OpenVINO Runtime Optimizations
 #########################################
