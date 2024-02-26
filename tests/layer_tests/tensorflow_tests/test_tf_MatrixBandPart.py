@@ -18,7 +18,7 @@ class TestMatrixBandPart(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             input_tensor = tf.compat.v1.placeholder(tf.float32, input_shape, 'input')
-            tf.raw_ops.MatrixBandPart(input_tensor=input_tensor, num_lower=-1, num_upper=0)
+            tf.raw_ops.MatrixBandPart(input=input_tensor, num_lower=-1, num_upper=0)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None
