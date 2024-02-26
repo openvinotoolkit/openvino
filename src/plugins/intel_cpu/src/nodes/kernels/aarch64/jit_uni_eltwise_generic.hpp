@@ -10,7 +10,8 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include "nodes/executors/eltwise.hpp"
 
-// disable x64 macros
+// TODO: handle x64 headers more accurate and remove undef later
+// symbols are defined as global macros as result we should disable them
 #undef abi_param1
 #undef abi_param2
 #undef abi_param3

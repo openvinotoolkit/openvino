@@ -42,13 +42,13 @@
 #include <string>
 #include <vector>
 
-#ifndef OPENVINO_ARCH_ARM64
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/injectors/jit_uni_quantization_injector.hpp>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
-#endif
 
 #if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
@@ -82,57 +82,13 @@ bool jitIsSupported(const Node* node,
                     const float beta,
                     const float gamma,
                     const std::vector<ov::element::Type>& input_precisions = {}) {
-    const Algorithm& algorithm = node->getAlgorithm();
-    const auto is_supported = one_of(algorithm,
-                                     Algorithm::EltwiseAdd,
-                                     Algorithm::EltwiseMultiply,
-                                     Algorithm::EltwiseMulAdd,
-                                     Algorithm::EltwisePowerStatic,
-                                     Algorithm::EltwiseRelu);
-    if (!is_supported) {
-        return false;
-    }
-
-    const auto check_precisions = [&node](
-            const std::vector<ov::element::Type>& precisions,
-            const std::set<ov::element::Type>& supported_precisions) {
-        const auto& input_precisions = precisions.size() == 0 ? node->getOriginalInputPrecisions() : precisions;
-        if (std::any_of(input_precisions.begin(),
-                        input_precisions.end(),
-                        [&supported_precisions](const ov::element::Type& precision) {
-                            return supported_precisions.find(precision) == supported_precisions.end();
-                        })) {
-            return false;
-        }
-
-        const auto& output_precisions = node->getOriginalOutputPrecisions();
-        if (std::any_of(output_precisions.begin(),
-                        output_precisions.end(),
-                        [&supported_precisions](const ov::element::Type& precision) {
-                            return supported_precisions.find(precision) == supported_precisions.end();
-                        })) {
-            return false;
-        }
-
-        return true;
-    };
-
-    const std::set<ov::element::Type> supported_precisions = {
-        ov::element::f16,
-        ov::element::f32,
-        ov::element::i32,
-        ov::element::u32
-    };
-
-    if (!check_precisions(input_precisions, supported_precisions)) {
-        return false;
-    }
-
-    if ((algorithm == Algorithm::EltwiseRelu) && ((alpha != 0.f) || (beta != 0.f) || (gamma != 0.f))) {
-        return false;
-    }
-
-    return true;
+    return executors::aarch64::JitEltwiseExecutor::isSupported(
+        node->getAlgorithm(),
+        input_precisions.empty() ? node->getOriginalInputPrecisions() : input_precisions,
+        node->getOriginalOutputPrecisions(),
+        alpha,
+        beta,
+        gamma);
 }
 } // namespace
 #endif
@@ -2308,8 +2264,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 #elif defined(OPENVINO_ARCH_ARM64)
     const bool useJit = canUseOptimizedImpl &&
-                        jitIsSupported(this, getAlpha(), getBeta(), getGamma()) &&
-                        executors::aarch64::JitEltwiseExecutor::isSupported(getAlgorithm(), getAlpha(), getBeta(), getGamma());
+                        jitIsSupported(this, getAlpha(), getBeta(), getGamma());
     if (!useJit) {
         canUseOptimizedImpl = false;
     }
@@ -2424,16 +2379,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             // bad accuracy for shape {1, 1, 4, 11}, {2, 5, 1, 1}
             // same for disabled collapse dims
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-                #if defined (OPENVINO_ARCH_ARM64)
-                size_t blockSize = cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::vlen / 4;
-                #else
-                size_t blockSize = mayiuse(x64::avx512_core) ? 16 : 8;
-                #endif
-
+                size_t blockSize = dnnl::impl::cpu::x64::mayiuse(x64::avx512_core) ? 16 : 8;
                 VectorDims blocks = dims;
                 VectorDims order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
-
                 blocks[1] = dims[1] != Shape::UNDEFINED_DIM ? div_up(blocks[1], blockSize) : Shape::UNDEFINED_DIM;
                 blocks.push_back(blockSize);
                 order.push_back(1);
@@ -2537,7 +2486,12 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
+#if defined(OPENVINO_ARCH_ARM64)
+    bool isBlockedApplicable = (!useJit) && one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
+#else
     bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
+#endif
+
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto &inShape = getInputShapeAtPort(i);
         isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1u, 3u, 4u, 5u);

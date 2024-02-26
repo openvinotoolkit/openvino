@@ -347,10 +347,6 @@ void jit_relu_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
         OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
     }
 
-    if (alpha != 0.f) {
-        OPENVINO_THROW("not zero alpha is not supported");
-    }
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
     TReg tmp = TReg(aux_vec_idxs[0]);

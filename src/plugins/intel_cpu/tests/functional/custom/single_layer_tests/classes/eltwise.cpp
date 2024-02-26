@@ -270,13 +270,6 @@ const std::vector<ElementType>& netType() {
     return netType;
 }
 
-const std::vector<ElementType>& netTypeJit() {
-    static const std::vector<ElementType> netType = {
-        ElementType::i32,
-        ElementType::f32};
-    return netType;
-}
-
 const std::vector<ov::test::utils::OpType>& opTypes() {
     static const std::vector<ov::test::utils::OpType> opTypes = {
         ov::test::utils::OpType::VECTOR,
@@ -294,18 +287,6 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
-    };
-    return eltwiseOpTypesBinInp;
-}
-
-const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpJit() {
-    static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
-        utils::EltwiseTypes::ADD,
-        utils::EltwiseTypes::MULTIPLY,
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-        utils::EltwiseTypes::SUBTRACT,                // TODO: Fix CVS-105430
-        utils::EltwiseTypes::DIVIDE,                  // TODO: Fix CVS-105430
-#endif
     };
     return eltwiseOpTypesBinInp;
 }

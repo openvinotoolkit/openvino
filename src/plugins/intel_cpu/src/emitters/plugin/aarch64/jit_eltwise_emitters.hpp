@@ -76,7 +76,6 @@ private:
     void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
-// TODO: jit_power_emitter => jit_power_static_emitter
 class jit_power_static_emitter : public jit_emitter {
 public:
     jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,

@@ -63,7 +63,7 @@ size_t jit_emitter::get_max_vecs_count() const {
     return 32;
 }
 
-size_t jit_emitter::get_vec_length() const {
+int32_t jit_emitter::get_vec_length() const {
     return 16;
 }
 
@@ -167,7 +167,7 @@ void jit_emitter::store_context(const std::unordered_set<size_t>& ignore_registe
 
         h->stp(Xbyak_aarch64::QReg(prev_reg_idx),
                Xbyak_aarch64::QReg(reg_idx),
-               pre_ptr(h->sp, -get_asimd_vector_length() * 2));
+               pre_ptr(h->sp, -get_vec_length() * 2));
         prev_reg_idx = -1;
     }
     OPENVINO_ASSERT(ignore_registers_count == ignore_registers.size(),
@@ -176,7 +176,7 @@ void jit_emitter::store_context(const std::unordered_set<size_t>& ignore_registe
     // 2.1. store the remaining register
     if (prev_reg_idx != -1) {
         h->str(Xbyak_aarch64::QReg(prev_reg_idx),
-               pre_ptr(h->sp, -get_asimd_vector_length()));
+               pre_ptr(h->sp, -get_vec_length()));
     }
 }
 
@@ -187,7 +187,7 @@ void jit_emitter::restore_context(const std::unordered_set<size_t>& ignore_regis
     if (v_last != 0) {
         const auto reg_idx = get_asimd_vectors_count() - 1;
         h->ldr(Xbyak_aarch64::QReg(reg_idx),
-               post_ptr(h->sp, get_asimd_vector_length()));
+               post_ptr(h->sp, get_vec_length()));
     }
 
     // 2.2. restore pair registers
@@ -207,7 +207,7 @@ void jit_emitter::restore_context(const std::unordered_set<size_t>& ignore_regis
 
         h->ldp(Xbyak_aarch64::QReg(reg_idx),
                Xbyak_aarch64::QReg(prev_reg_idx),
-               post_ptr(h->sp, get_asimd_vector_length() * 2));
+               post_ptr(h->sp, get_vec_length() * 2));
         prev_reg_idx = -1;
     }
 

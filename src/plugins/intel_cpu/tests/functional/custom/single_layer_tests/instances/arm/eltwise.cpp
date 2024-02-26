@@ -130,10 +130,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_NOT_i32, EltwiseLayerC
 const auto params_4D_int_jit = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
-                ::testing::ValuesIn(eltwiseOpTypesBinInpJit()),
+                ::testing::ValuesIn({ utils::EltwiseTypes::ADD, utils::EltwiseTypes::MULTIPLY }),
                 ::testing::ValuesIn(secondaryInputTypes()),
                 ::testing::ValuesIn(opTypes()),
-                ::testing::ValuesIn(netTypeJit()),
+                ::testing::ValuesIn({ ElementType::i32, ElementType::f32 }),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::element::undefined),
                 ::testing::Values(ov::test::utils::DEVICE_CPU),

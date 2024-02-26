@@ -19,6 +19,8 @@ public:
 
     static bool isSupported(
         const Algorithm& algorithm,
+        const std::vector<ov::element::Type>& input_precisions,
+        const std::vector<ov::element::Type>& output_precisions,
         const float alpha,
         const float beta,
         const float gamma);
@@ -35,6 +37,7 @@ public:
     impl_desc_type getImplType() const override {
         return impl_desc_type::asimd;
     }
+
 private:
     std::function<void()> exec_func;
 };

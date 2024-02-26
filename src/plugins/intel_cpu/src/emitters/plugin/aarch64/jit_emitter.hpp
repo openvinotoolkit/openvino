@@ -24,30 +24,23 @@ enum emitter_in_out_map {
     gpr_to_gpr,
 };
 
-// structure for storage of emitter parameters to hash in map
-struct emitter_params {
-    virtual size_t hash() const = 0;
-};
-
 class jit_emitter : public ov::snippets::Emitter {
 public:
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
-                //const float alpha = 0.f,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
                 Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                alpha(0.f), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
+                in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
     }
 
     jit_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
                 dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                 const std::shared_ptr<ov::Node>& n,
                 ov::element::Type exec_prc = ov::element::f32,
-                //const float alpha = 0.f,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec) :
                 Emitter(), h(host), host_isa_(host_isa), exec_prc_(exec_prc),
-                alpha(0.f), in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
+                in_out_type_(in_out_type), p_table(0), l_table (new Xbyak_aarch64::Label()) {
     }
 
     void emit_code(
@@ -71,7 +64,7 @@ public:
 
 protected:
     size_t get_max_vecs_count() const;
-    size_t get_vec_length() const;
+    int32_t get_vec_length() const;
 
     mutable std::vector<uint32_t> aux_vec_idxs;
     mutable std::vector<uint32_t> aux_gpr_idxs;
@@ -79,7 +72,6 @@ protected:
     dnnl::impl::cpu::aarch64::jit_generator* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
-    const float alpha;
 
     emitter_in_out_map in_out_type_;
 
@@ -148,23 +140,13 @@ protected:
         }
     }
 
-    static inline int32_t get_asimd_vector_length() {
-        return 16;
-    }
-
 private:
     mutable std::vector<size_t> preserved_gpr_idxs;
-
-    // // General-purpose Registers
-    // static const std::vector<uint32_t> save_gpr_regs;
-
-    // // SIMD and Floating-Point registers
-    // static const std::vector<uint32_t> save_v_regs;
 
     // General-purpose Registers
     static const std::vector<uint32_t> store_gpr_regs;
 
-    size_t table_off(std::string& key, size_t key_off_val_shift = 0) const {
+    size_t table_off(const std::string& key, const size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also
         // share their broadcast property
         const auto it = entry_map_.find(key); // search an entry for a key
