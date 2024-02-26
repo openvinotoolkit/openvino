@@ -87,6 +87,14 @@ def test_properties_rw_base():
             ),
         ),
         (
+            hints.MaxThreadsPerStream,
+            (
+                (hints.MaxThreadsPerStream.AUTO, "MaxThreadsPerStream.AUTO", 0),
+                (hints.MaxThreadsPerStream.PER_PLATFORM, "MaxThreadsPerStream.PER_PLATFORM", 1),
+                (hints.MaxThreadsPerStream.PER_SOCKET, "MaxThreadsPerStream.PER_SOCKET", 2),
+            ),
+        ),
+        (
             hints.ExecutionMode,
             (
                 (hints.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
