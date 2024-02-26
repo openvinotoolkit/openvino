@@ -103,6 +103,12 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
                                 ov::NodeVector to,
                                 const ov::NodeVector& additional_rt_info_src = {});
 
+Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
+
+std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
+                                                                      size_t lhs_idx,
+                                                                      size_t rhs_idx);
+
 // helper ops
 Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& data,
@@ -136,10 +142,7 @@ OutputVector translate_1to1_match_1_inputs(const NodeContext& context) {
 template <typename T>
 OutputVector translate_1to1_match_1_inputs_with_fp32_type_alignment(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(0), "Input should not be None.");
-    auto x = context.get_input(0);
-    // This const only needed for type alignment
-    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
-    align_eltwise_input_types(context, x, dummy_const, false, true);
+    auto x = get_input_with_floating_type(context, 0);
     return {context.mark_node(std::make_shared<T>(x))};
 }
 
@@ -161,7 +164,6 @@ OutputVector translate_1to1_match_2_inputs_align_types(const NodeContext& contex
     // If type is string or None, we shouldn't align
     if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
         !rhs_type.is<type::PyNone>()) {
-        // align_eltwise_input_types(context, lhs, rhs, false, false);
         align_eltwise_input_types(context,
                                   lhs,
                                   rhs,
@@ -181,10 +183,10 @@ OutputVector translate_1to1_match_2_inputs_align_to_lhs(const NodeContext& conte
     auto rhs = context.get_input(1);
     auto lhs_type = context.get_input_type(0);
     auto rhs_type = context.get_input_type(1);
-    if (!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
-        !rhs_type.is<type::PyNone>()) {
-        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-            rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
+    if ((!lhs_type.is<type::Str>() && !rhs_type.is<type::Str>() && !lhs_type.is<type::PyNone>() &&
+         !rhs_type.is<type::PyNone>()) &&
+        (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())) {
+        rhs = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs));
     }
     OutputVector res = {context.mark_node(std::make_shared<T>(lhs, rhs))};
     align_output_types(context, res);

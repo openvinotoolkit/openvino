@@ -445,6 +445,30 @@ void align_output_types(const NodeContext& context, OutputVector& outputs) {
     }
 }
 
+Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(idx), "Input should not be None.");
+    auto x = context.get_input(0);
+    // This const only needed for type alignment
+    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+    align_eltwise_input_types(context, x, dummy_const, false, true);
+    return x;
+}
+
+std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const NodeContext& context,
+                                                                      size_t lhs_idx,
+                                                                      size_t rhs_idx) {
+    FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(lhs_idx) && !context.input_is_none(rhs_idx),
+                                  "Input should not be None.");
+    auto lhs = context.get_input(lhs_idx);
+    auto rhs = context.get_input(rhs_idx);
+    align_eltwise_input_types(context,
+                              lhs,
+                              rhs,
+                              is_python_scalar_input(context, lhs_idx),
+                              is_python_scalar_input(context, rhs_idx));
+    return std::make_tuple(lhs, rhs);
+}
+
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
     std::deque<Output<Node>> res;
     auto current_output = start;
