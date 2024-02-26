@@ -64,13 +64,6 @@ void stripDeviceName(std::string& device, const std::string& substr) {
     }
 }
 
-void validDeviceName(const std::string& device) {
-    auto pos = device.rfind(")");
-    if (pos != std::string::npos && pos != device.length() - 1) {
-        OPENVINO_THROW("Device with \"", device, "\" name is illegal in the OpenVINO Runtime");
-    }
-}
-
 bool is_virtual_device(const std::string& device_name) {
     return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
             device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
@@ -248,6 +241,16 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
                                          const bool keep_core_property) {
+
+    // check
+    auto bracket_pos = deviceName.find(")");
+    while (bracket_pos != std::string::npos) {
+        if (bracket_pos < deviceName.length() - 1 && deviceName[bracket_pos + 1] != ',') {
+            OPENVINO_THROW("Device with \"", deviceName, "\" name is illegal in the OpenVINO Runtime");
+        }
+        bracket_pos = deviceName.find(")", bracket_pos + 1);
+    }
+
     auto updated_config = config;
     auto updated_device_name = deviceName;
 
@@ -716,9 +719,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
+
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
     std::string deviceName = device_name;
-    validDeviceName(deviceName);
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     auto model = apply_auto_batching(model_, deviceName, config_with_batch);

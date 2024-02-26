@@ -381,6 +381,11 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "HETERO",
         ov::AnyMap{ov::device::priorities("MULTI,DEVICE"),
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
+
+    // invalid device name with characters after parenthesis except comma
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
+
 }
 
 class ApplyAutoBatchThreading : public testing::Test {
