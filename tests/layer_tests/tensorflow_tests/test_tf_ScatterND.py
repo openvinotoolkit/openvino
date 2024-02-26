@@ -4,9 +4,7 @@
 import platform
 
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestTFScatterND(CommonTFLayerTest):
@@ -22,11 +20,7 @@ class TestTFScatterND(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = x_shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            x = tf.compat.v1.placeholder(tf.float32, x_shape, 'Input')
             tf_indices = tf.constant(indices)
             tf_updates = tf.constant(updates)
 
