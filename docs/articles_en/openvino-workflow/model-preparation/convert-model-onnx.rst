@@ -51,10 +51,10 @@ OpenVINO model conversion API supports ONNX models with external data representa
 Supported ONNX Layers
 #####################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Additional Resources
 ####################
 
-Check out more examples of model conversion in :doc:`interactive Python ../../learn-openvino/interactive-tutorials-python <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples of model conversion in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
 

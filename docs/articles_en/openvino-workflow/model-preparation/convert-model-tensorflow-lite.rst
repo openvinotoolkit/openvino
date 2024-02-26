@@ -33,7 +33,7 @@ To convert an TensorFlow Lite model, run model conversion with the path to the `
 Supported TensorFlow Lite Layers
 ###################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Supported TensorFlow Lite Models
 ###################################

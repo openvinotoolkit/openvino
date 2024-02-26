@@ -205,7 +205,7 @@ Additional Resources
 ####################
 
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
-- :doc:`Get Started with Samples <openvino_docs_../../get-started_../../get-started_demos>`
+- :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `Hello Reshape SSD Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_reshape_ssd/README.md>`__

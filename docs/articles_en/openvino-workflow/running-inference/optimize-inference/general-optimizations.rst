@@ -22,7 +22,7 @@ In many cases, a network expects a pre-processed image. It is advised not to per
 
 * Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
 * Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimizie-preprocessing>`
-* Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device_RemoteTensor_API>`.
+* Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
 .. _async_api:
 
@@ -92,7 +92,7 @@ To sum it up:
 
   * For example, for the GPU device, the **input/output tensors** are mapped to the host (which is fast) only when the ``get_tensor`` is used, while for the ``set_tensor`` a copy into the internal GPU structures may happen.
 
-* In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the ``set_tensor`` as a zero-copy way to proceed. For more details, see the :doc:`GPU device Remote tensors API <../inference-devices-and-modes/gpu-device_RemoteTensor_API>`.
+* In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the ``set_tensor`` as a zero-copy way to proceed. For more details, see the :doc:`GPU device Remote tensors API <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
 
 Consider the :ref:`API examples <in_out_tensors>` for the ``get_tensor`` and ``set_tensor``.

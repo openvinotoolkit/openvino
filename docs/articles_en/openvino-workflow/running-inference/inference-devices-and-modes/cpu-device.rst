@@ -423,7 +423,7 @@ By default, OpenVINO Runtime will enable CPU threads pinning for better performa
          :fragment: [ov:intel_cpu:multi_threading:part1]
 
 
-user can check the :doc:`optimization guide <../optimize-inference/optimizing-throughput_advanced>` for details on multi-stream execution
+user can check the :doc:`optimization guide <../optimize-inference/optimizing-throughput-advanced>` for details on multi-stream execution
 
 .. note::
 

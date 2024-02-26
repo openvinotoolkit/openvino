@@ -16,7 +16,7 @@ OpenVINO™ Samples
    :maxdepth: 1
    :hidden:
 
-   Get Started with C++ Samples <openvino_docs_../get-started_../get-started_demos>
+   Get Started with C++ Samples <openvino-samples/get-started-demos>
    openvino-samples/hello-classification
    openvino-samples/hello-nv12-input-classification
    openvino-samples/hello-query-device

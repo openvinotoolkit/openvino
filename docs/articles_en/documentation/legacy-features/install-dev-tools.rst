@@ -161,7 +161,7 @@ To verify the package is properly installed, run the command below (this may tak
 
    mo -h
 
-You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <openvino_docs_../../get-started_guide_troubleshooting>` for possible solutions.
+You will see the help message for ``mo`` if installation finished successfully. If you get an error, refer to the :doc:`Troubleshooting Guide <../../get-started/troubleshooting-install-config>` for possible solutions.
 
 Congratulations! You finished installing OpenVINO Development Tools with C/C++ capability. Now you can start exploring OpenVINO's functionality through example C/C++ applications. See the "What's Next?" section to learn more!
 
@@ -191,7 +191,7 @@ Get started with C++
   :width: 400
 
 
-Try the :doc:`C++ Quick Start Example <openvino_docs_../../get-started_../../get-started_demos>` for step-by-step instructions on building and running a basic image classification C++ application.
+Try the :doc:`C++ Quick Start Example <../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions on building and running a basic image classification C++ application.
 
 Visit the :doc:`Samples <../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 

@@ -14,7 +14,7 @@ Convert to OpenVINO IR
    Convert from PyTorch <convert-model-pytorch>
    Convert from TensorFlow <convert-model-tensorflow>
    Convert from ONNX <convert-model-onnx>
-   Convert from TensorFlow Lite <convert-model-tensorflow_Lite>
+   Convert from TensorFlow Lite <convert-model-tensorflow-lite>
    Convert from PaddlePaddle <convert-model-paddle>
 
 
@@ -290,7 +290,7 @@ Here are code examples of how to use these methods with different model formats:
                  ovc <INPUT_MODEL>.tflite
 
               For details on the conversion, refer to the
-              :doc:`article <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-supported-model-formats/[legacy]-convert-tensorflow_Lite>`.
+              :doc:`article <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-supported-model-formats/[legacy]-convert-tensorflow-lite>`.
 
    .. tab-item:: ONNX
       :sync: onnx
@@ -533,7 +533,7 @@ Here are code examples of how to use these methods with different model formats:
 * :doc:`How to convert PyTorch <convert-model-pytorch>`
 * :doc:`How to convert ONNX <convert-model-onnx>`
 * :doc:`How to convert TensorFlow <convert-model-tensorflow>`
-* :doc:`How to convert TensorFlow Lite <convert-model-tensorflow_Lite>`
+* :doc:`How to convert TensorFlow Lite <convert-model-tensorflow-lite>`
 * :doc:`How to convert PaddlePaddle <convert-model-paddle>`
 
 To choose the best workflow for your application, read the :doc:`Model Preparation section <../model-preparation>`.

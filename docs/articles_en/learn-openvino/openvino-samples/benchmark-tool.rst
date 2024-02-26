@@ -56,7 +56,7 @@ Basic Usage
       .. note::
 
          If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the
-         :doc:`Benchmark Python Tool <openvino_sample_benchmark_tool>` is available,
+         :doc:`Benchmark Python Tool <benchmark_tool>` is available,
          and you should follow the usage instructions on that page instead.
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,
@@ -926,6 +926,6 @@ using ``benchmark_app`` with dynamic networks and a portion of the resulting out
 Additional Resources
 ####################
 
-- :doc:`Get Started with Samples <openvino_docs_../../get-started_../../get-started_demos>`
+- :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`

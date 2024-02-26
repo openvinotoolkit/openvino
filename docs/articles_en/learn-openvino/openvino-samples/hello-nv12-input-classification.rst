@@ -210,7 +210,7 @@ Additional Resources
 ####################
 
 - :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
-- :doc:`Get Started with Samples <openvino_docs_../../get-started_../../get-started_demos>`
+- :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `API Reference <https://docs.openvino.ai/2023.2/api/api_reference.html>`__

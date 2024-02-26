@@ -138,7 +138,7 @@ Some PaddlePaddle models may require setting ``example_input`` or ``output`` for
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../about-openvino/additional-resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 
 Additional Resources
