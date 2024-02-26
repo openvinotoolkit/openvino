@@ -279,12 +279,12 @@ PreProcessSteps& PreProcessSteps::mean(const std::vector<float>& values) {
     return *this;
 }
 
-PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, int value) {
-    m_impl->add_pad_impl(pads_begin, pads_end, std::vector<int>{value});
+PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, float value) {
+    m_impl->add_pad_impl(pads_begin, pads_end, std::vector<float>{value});
     return *this;
 }
 
-PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<int>& values) {
+PreProcessSteps& PreProcessSteps::pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<float>& values) {
     m_impl->add_pad_impl(pads_begin, pads_end, values);
     return *this;
 }
