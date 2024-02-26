@@ -32,7 +32,28 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::ICompiledModel>& impl, co
 }
 
 std::shared_ptr<const Model> CompiledModel::get_runtime_model() const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return _impl->get_runtime_model());
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        auto model = _impl->get_runtime_model();
+        // Recreate ov::Model using main runtime, not Plugin's one
+        auto copy = std::make_shared<Model>(model->get_results(),
+                                            model->get_sinks(),
+                                            model->get_parameters(),
+                                            model->get_variables(),
+                                            model->get_friendly_name());
+        struct SharedObject {
+            // destroy the shared object from runtime model before it from compiled model
+            std::shared_ptr<void> compiled_model_so;
+            std::shared_ptr<void> model_so;
+            SharedObject(const std::shared_ptr<void>& compiled_model_so, const std::shared_ptr<void>& model_so)
+                : compiled_model_so(compiled_model_so),
+                  model_so(model_so) {}
+        };
+        auto shared_object = std::make_shared<SharedObject>(_so, model->m_shared_object);
+        copy->m_shared_object =
+            std::shared_ptr<void>(std::move(shared_object), reinterpret_cast<void*>(shared_object.get()));
+        copy->get_rt_info() = model->get_rt_info();
+        return copy;
+    });
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
