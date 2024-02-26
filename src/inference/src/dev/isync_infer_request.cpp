@@ -143,8 +143,7 @@ ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Outp
     ov::ISyncInferRequest::FoundPort::Type type = ov::ISyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
-            if (ports[i].get_index() == port.get_index() && ports[i].get_names() == port.get_names() &&
-                check_nodes(ports[i].get_node(), port.get_node())) {
+            if (ports[i].get_index() == port.get_index() && check_nodes(ports[i].get_node(), port.get_node())) {
                 std::lock_guard<std::mutex> lock(m_cache_mutex);
                 m_cached_ports[port_hash] = {i, type};
                 return m_cached_ports[port_hash];
