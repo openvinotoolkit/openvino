@@ -1,18 +1,18 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 import pytest
-import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestDot(PytorchLayerTest):
     def _prepare_input(self, inputs, dtype):
+        import numpy as np
         return ((np.array(inputs[0]).astype(dtype)),
                 (np.array(inputs[1]).astype(dtype)))
 
     def create_model(self, dtype):
+        import torch
 
         dtype_map = {
             "float32": torch.float32,
