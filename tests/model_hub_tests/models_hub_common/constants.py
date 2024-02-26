@@ -4,7 +4,6 @@
 
 import os
 import tempfile
-from pathlib import Path
 
 '''
 @brief Time in seconds of measurement performance on each of the networks. This time doesn't include
