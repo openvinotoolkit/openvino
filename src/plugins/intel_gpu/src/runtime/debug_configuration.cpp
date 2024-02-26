@@ -268,14 +268,14 @@ debug_configuration::debug_configuration()
         dump_prof_data_iter_str = " " + dump_prof_data_iter_str + " ";
         std::istringstream iss(dump_prof_data_iter_str);
         char dot;
-        int start, end;
+        int64_t start, end;
         bool is_valid_range = false;
         if (iss >> start >> dot >> dot >> end) {
-            if (start < end) {
+            if (start <= end || end == -1) {
                 try {
                     is_valid_range = true;
-                    dump_prof_data_iter_params.start = static_cast<int64_t>(start);
-                    dump_prof_data_iter_params.end = static_cast<int64_t>(end);
+                    dump_prof_data_iter_params.start = start;
+                    dump_prof_data_iter_params.end = end;
                 } catch(const std::exception& ex) {
                     is_valid_range = false;
                 }
@@ -389,10 +389,11 @@ bool debug_configuration::is_target_dump_prof_data_iteration(int64_t iteration) 
     if (iteration < 0)
         return true;
 
-    if (!dump_prof_data_iter_params.is_enabled)
-        return true;
+    if (dump_prof_data_iter_params.start > iteration)
+        return false;
 
-    if (dump_prof_data_iter_params.start > iteration || dump_prof_data_iter_params.end < iteration)
+    if (dump_prof_data_iter_params.start <= dump_prof_data_iter_params.end &&
+        dump_prof_data_iter_params.end < iteration)
         return false;
 
     return true;
