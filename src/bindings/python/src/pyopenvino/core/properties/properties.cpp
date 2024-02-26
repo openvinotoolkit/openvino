@@ -71,6 +71,11 @@ void regmodule_properties(py::module m) {
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
         .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
+    py::enum_<ov::hint::MaxThreadsPerStream>(m_hint, "MaxThreadsPerStream", py::arithmetic())
+        .value("AUTO", ov::hint::MaxThreadsPerStream::AUTO)
+        .value("PER_PLATFORM", ov::hint::MaxThreadsPerStream::PER_PLATFORM)
+        .value("PER_SOCKET", ov::hint::MaxThreadsPerStream::PER_SOCKET);
+
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
         .value("ACCURACY", ov::hint::ExecutionMode::ACCURACY);
