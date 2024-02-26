@@ -124,7 +124,7 @@ const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream_2 = {
     {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_PLATFORM)},
     {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET)}};
 
-const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream = {
+const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream_3 = {
     {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::AUTO)},
     {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET)}};
 

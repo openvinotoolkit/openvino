@@ -384,9 +384,9 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 /** @endcond */
 
 enum class MaxThreadsPerStream {
-    AUTO,          //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
-    PER_PLATFORM,  //!<  Using all threads per platform for one stream even on dual socket platform.
-    PER_SOCKET,    //!<  Using all threads per socket for one stream on dual socket platform.
+    AUTO = 0,          //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
+    PER_PLATFORM = 1,  //!<  Using all threads per platform for one stream even on dual socket platform.
+    PER_SOCKET = 2,    //!<  Using all threads per socket for one stream on dual socket platform.
 };
 
 /** @cond INTERNAL */
@@ -448,7 +448,7 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_C
  * ie.set_property(ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET));
  * @endcode
  */
-static constexpr Property<SchedulingCoreType> max_threads_per_stream{"MAX_THREADS_PER_STREAM"};
+static constexpr Property<MaxThreadsPerStream> max_threads_per_stream{"MAX_THREADS_PER_STREAM"};
 
 /**
  * @brief This property allows CPU pinning during inference.
