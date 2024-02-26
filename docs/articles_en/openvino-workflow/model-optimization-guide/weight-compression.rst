@@ -240,7 +240,7 @@ load the compressed model later for faster time to first inference.
   tokenizer = AutoTokenizer.from_pretrained("zephyr-7b-beta-int4-sym-ov")
 
 GPTQ Models
-++++++++++++
+############
 
 OpenVINO also supports 4-bit models from Hugging Face
 `Transformers <https://github.com/huggingface/transformers>`__ library optimized
@@ -272,6 +272,9 @@ Make sure to install GPTQ dependencies by running the following command:
   print(results)
 
 An `example of a model <https://huggingface.co/TheBloke/Llama-2-7B-Chat-GPTQ>`__ that has been optimized using GPTQ.
+
+Compression Metrics Examples
+########################################
 
 The table below shows examples of text-generation Language Models with different optimization settings in a data-free setup, where no dataset is used at the optimization step.
 The Perplexity metric is a measurement of response accuracy, where a higher complexity score indicates a lower accuracy.
