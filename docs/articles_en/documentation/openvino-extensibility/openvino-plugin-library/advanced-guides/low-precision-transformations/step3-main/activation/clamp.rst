@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_ClampTransformation}
+.. {#../../../low-precision-transformations_ClampTransformation}
 
 ClampTransformation transformation
 ==================================

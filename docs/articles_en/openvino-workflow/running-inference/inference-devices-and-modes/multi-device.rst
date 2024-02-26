@@ -49,7 +49,7 @@ Following the OpenVINO™ naming convention, the Multi-Device mode is assigned t
 
 Specifying the device list explicitly is required by MULTI, as it defines the devices available for inference and sets their priorities.
 
-Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
+Note that OpenVINO™ Runtime enables you to use “GPU” as an alias for “GPU.0” in function calls. More details on enumerating devices can be found in :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 
 The following commands are accepted by the API:
 
@@ -70,7 +70,7 @@ The following commands are accepted by the API:
          :fragment: [part0]
 
 
-To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
+To check what devices are present in the system, you can use the Device API. For information on how to do it, check :doc:`Query device properties and configuration <query-device-properties>`.
 
 
 Configuring Individual Devices and Creating the Multi-Device On Top
@@ -101,7 +101,7 @@ Querying the Optimal Number of Inference Requests
 +++++++++++++++++++++++++++++++++++++++++++++++++
 
 When using MULTI, you don't need to sum over included devices yourself, you can query the optimal number of requests directly,
-using the :doc:`configure devices <openvino_docs_OV_UG_query_api>` property:
+using the :doc:`configure devices <query-device-properties>` property:
 
 .. tab-set::
 
@@ -123,7 +123,7 @@ Here is an example command to evaluate performance of CPU + GPU:
    ./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 
 
-For more information, refer to the :doc:`Benchmark Tool <openvino_sample_benchmark_tool>` article.
+For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino/openvino-samples/benchmark-tool>` article.
 
 
 .. note::
@@ -142,13 +142,13 @@ For best performance when using the MULTI execution mode you should consider a f
 - Just like with any throughput-oriented execution mode, it is highly recommended to query the optimal number of inference requests directly from the instance of the ``ov:compiled_model``. Refer to the code of the previously mentioned ``benchmark_app`` for more details.
 - Execution on certain device combinations, for example CPU+GPU, performs better with certain knobs. Refer to the ``benchmark_app`` code for details. One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams to balance out slower communication of inference completion from the device to the host.
 - The MULTI logic always attempts to save on copying data between device-agnostic and user-facing inference requests, and device-specific 'worker' requests that are being actually scheduled behind the scene. To facilitate the copy savings, it is recommended to run the requests in the order in which they were created.
-- While performance of accelerators combines well with MULTI, the CPU+GPU execution may introduce certain performance issues. It is due to the devices sharing some resources, like power or bandwidth. Enabling the GPU throttling hint, which saves a CPU thread for CPU inference, is an example of a recommended solution addressing this issue.
+- While performance of accelerators combines well with MULTI, the CPU+GPU execution may introduce certain performance issues. It is due to the devices sharing some ../../../about-openvino/additional-resources, like power or bandwidth. Enabling the GPU throttling hint, which saves a CPU thread for CPU inference, is an example of a recommended solution addressing this issue.
 
 
 Additional Resources
 ####################
 
-- :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
-- :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>`
+- :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
+- :doc:`Automatic Device Selection <auto-device-selection>`
 
 

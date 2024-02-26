@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved}
+.. {#../../low-precision-transformations_MarkupAvgPoolPrecisionPreserved}
 
 MarkupAvgPoolPrecisionPreserved transformation
 ==============================================

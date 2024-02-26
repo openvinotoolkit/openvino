@@ -10,12 +10,12 @@ Converting a PaddlePaddle Model
 
 This page provides general instructions on how to convert a model from the PaddlePaddle format to the OpenVINO IR format using OpenVINO model conversion API. The instructions are different depending on the PaddlePaddle model format.
 
-.. note:: PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note:: PaddlePaddle model serialized in a file can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
 Converting PaddlePaddle Model Files
 ###################################
 
-PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/../../documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 
 To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` and specify the path to the input ``.pdmodel`` model file:
 
@@ -138,11 +138,11 @@ Some PaddlePaddle models may require setting ``example_input`` or ``output`` for
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../about-openvino/additional-resources_supported_operations_frontend>` page.
 
 
 Additional Resources
 ####################
 
-Check out more examples of model conversion in :doc:`interactive Python tutorials <tutorials>`.
+Check out more examples of model conversion in :doc:`interactive Python ../../learn-openvino/interactive-tutorials-python <../../learn-openvino/interactive-tutorials-python>`.
 

@@ -12,7 +12,7 @@ Converting an ONNX GPT-2 Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 `Public pre-trained GPT-2 model <https://github.com/onnx/models/tree/master/text/machine_comprehension/gpt-2>`__ is a large
 transformer-based language model with a simple objective: predict the next word, given all of the previous words within some text.

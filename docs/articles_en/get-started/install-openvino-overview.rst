@@ -31,7 +31,7 @@ Install OpenVINO™ 2024.0
    all necessary components.
 
    The OpenVINO Development Tools is still available for older versions of OpenVINO,
-   as well as the current one, from the GitHub repository and PyPI. :doc:`Learn more <openvino_docs_install_guides_install_dev_tools>`.
+   as well as the current one, from the GitHub repository and PyPI. :doc:`Learn more <../documentation/legacy-features/install-dev-tools>`.
 
 
 .. tip::

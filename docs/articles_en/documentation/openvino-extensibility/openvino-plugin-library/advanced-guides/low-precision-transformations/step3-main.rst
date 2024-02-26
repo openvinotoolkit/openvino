@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_step3_main}
+.. {#../low-precision-transformations_step3_main}
 
 Step 3. Main Transformations
 ============================
@@ -13,87 +13,87 @@ Step 3. Main Transformations
    :maxdepth: 1
    :hidden:
 
-   AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>
-   AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>
-   BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>
-   ClampTransformation <openvino_docs_OV_UG_lpt_ClampTransformation>
-   ConcatTransformation <openvino_docs_OV_UG_lpt_ConcatTransformation>
-   ConvolutionTransformation <openvino_docs_OV_UG_lpt_ConvolutionTransformation>
-   ConvolutionBackpropDataTransformation <openvino_docs_OV_UG_lpt_ConvolutionBackpropDataTransformation>
-   DepthToSpaceTransformation <openvino_docs_OV_UG_lpt_DepthToSpaceTransformation>
-   FakeQuantizeDecompositionTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation>
-   FakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeTransformation>
-   InterpolateTransformation <openvino_docs_OV_UG_lpt_InterpolateTransformation>
-   GroupConvolutionTransformation <openvino_docs_OV_UG_lpt_GroupConvolutionTransformation>
-   GatherTransformation <openvino_docs_OV_UG_lpt_GatherTransformation>
-   MatMulTransformation <openvino_docs_OV_UG_lpt_MatMulTransformation>
-   MaxPoolTransformation <openvino_docs_OV_UG_lpt_MaxPoolTransformation>
-   MultiplyPartialTransformation <openvino_docs_OV_UG_lpt_MultiplyPartialTransformation>
-   MVNTransformation <openvino_docs_OV_UG_lpt_MVNTransformation>
-   NormalizeL2Transformation <openvino_docs_OV_UG_lpt_NormalizeL2Transformation>
-   PadTransformation<openvino_docs_OV_UG_lpt_PadTransformation>
-   PReluTransformation <openvino_docs_OV_UG_lpt_PReluTransformation>
-   ReduceMaxTransformation <openvino_docs_OV_UG_lpt_ReduceMaxTransformation>
-   ReduceMeanTransformation <openvino_docs_OV_UG_lpt_ReduceMeanTransformation>
-   ReduceMinTransformation <openvino_docs_OV_UG_lpt_ReduceMinTransformation>
-   ReduceSumTransformation <openvino_docs_OV_UG_lpt_ReduceSumTransformation>
-   ReluTransformation <openvino_docs_OV_UG_lpt_ReluTransformation>
-   ReshapeTransformation <openvino_docs_OV_UG_lpt_ReshapeTransformation>
-   SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>
-   SqueezeTransformation <openvino_docs_OV_UG_lpt_SqueezeTransformation>
-   ShuffleChannelsTransformation <openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation>
-   SplitTransformation <openvino_docs_OV_UG_lpt_SplitTransformation>
-   StridedSliceTransformation <openvino_docs_OV_UG_lpt_StridedSliceTransformation>
-   TransposeTransformation <openvino_docs_OV_UG_lpt_TransposeTransformation>
-   UnsqueezeTransformation <openvino_docs_OV_UG_lpt_UnsqueezeTransformation>
-   VariadicSplitTransformation <openvino_docs_OV_UG_lpt_VariadicSplitTransformation>
+   AddTransformation <../low-precision-transformations_AddTransformation>
+   AvgPoolTransformation <../low-precision-transformations_AvgPoolTransformation>
+   BatchToSpaceTransformation <../low-precision-transformations_BatchToSpaceTransformation>
+   ClampTransformation <../low-precision-transformations_ClampTransformation>
+   ConcatTransformation <../low-precision-transformations_ConcatTransformation>
+   ConvolutionTransformation <../low-precision-transformations_ConvolutionTransformation>
+   ConvolutionBackpropDataTransformation <../low-precision-transformations_ConvolutionBackpropDataTransformation>
+   DepthToSpaceTransformation <../low-precision-transformations_DepthToSpaceTransformation>
+   FakeQuantizeDecompositionTransformation <../low-precision-transformations_FakeQuantizeDecompositionTransformation>
+   FakeQuantizeTransformation <../low-precision-transformations_FakeQuantizeTransformation>
+   InterpolateTransformation <../low-precision-transformations_InterpolateTransformation>
+   GroupConvolutionTransformation <../low-precision-transformations_GroupConvolutionTransformation>
+   GatherTransformation <../low-precision-transformations_GatherTransformation>
+   MatMulTransformation <../low-precision-transformations_MatMulTransformation>
+   MaxPoolTransformation <../low-precision-transformations_MaxPoolTransformation>
+   MultiplyPartialTransformation <../low-precision-transformations_MultiplyPartialTransformation>
+   MVNTransformation <../low-precision-transformations_MVNTransformation>
+   NormalizeL2Transformation <../low-precision-transformations_NormalizeL2Transformation>
+   PadTransformation<../low-precision-transformations_PadTransformation>
+   PReluTransformation <../low-precision-transformations_PReluTransformation>
+   ReduceMaxTransformation <../low-precision-transformations_ReduceMaxTransformation>
+   ReduceMeanTransformation <../low-precision-transformations_ReduceMeanTransformation>
+   ReduceMinTransformation <../low-precision-transformations_ReduceMinTransformation>
+   ReduceSumTransformation <../low-precision-transformations_ReduceSumTransformation>
+   ReluTransformation <../low-precision-transformations_ReluTransformation>
+   ReshapeTransformation <../low-precision-transformations_ReshapeTransformation>
+   SpaceToBatchTransformation <../low-precision-transformations_SpaceToBatchTransformation>
+   SqueezeTransformation <../low-precision-transformations_SqueezeTransformation>
+   ShuffleChannelsTransformation <../low-precision-transformations_ShuffleChannelsTransformation>
+   SplitTransformation <../low-precision-transformations_SplitTransformation>
+   StridedSliceTransformation <../low-precision-transformations_StridedSliceTransformation>
+   TransposeTransformation <../low-precision-transformations_TransposeTransformation>
+   UnsqueezeTransformation <../low-precision-transformations_UnsqueezeTransformation>
+   VariadicSplitTransformation <../low-precision-transformations_VariadicSplitTransformation>
 
 
 Main transformations are the majority of low precision transformations. Transformations operate with dequantization operations. Main transformations include:
    
-* :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>` 
-* :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>` 
-* :doc:`BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>` 
-* :doc:`ClampTransformation <openvino_docs_OV_UG_lpt_ClampTransformation>` 
-* :doc:`ConcatTransformation <openvino_docs_OV_UG_lpt_ConcatTransformation>` 
-* :doc:`ConvolutionTransformation <openvino_docs_OV_UG_lpt_ConvolutionTransformation>` 
-* :doc:`ConvolutionBackpropDataTransformation <openvino_docs_OV_UG_lpt_ConvolutionBackpropDataTransformation>` 
-* :doc:`DepthToSpaceTransformation <openvino_docs_OV_UG_lpt_DepthToSpaceTransformation>` 
-* :doc:`FakeQuantizeDecompositionTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation>` 
-* :doc:`FakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeTransformation>` 
-* :doc:`InterpolateTransformation <openvino_docs_OV_UG_lpt_InterpolateTransformation>` 
-* :doc:`GroupConvolutionTransformation <openvino_docs_OV_UG_lpt_GroupConvolutionTransformation>` 
-* :doc:`GatherTransformation <openvino_docs_OV_UG_lpt_GatherTransformation>` 
-* :doc:`MatMulTransformation <openvino_docs_OV_UG_lpt_MatMulTransformation>` 
-* :doc:`MaxPoolTransformation <openvino_docs_OV_UG_lpt_MaxPoolTransformation>` 
-* :doc:`MultiplyPartialTransformation <openvino_docs_OV_UG_lpt_MultiplyPartialTransformation>` 
-* :doc:`MVNTransformation <openvino_docs_OV_UG_lpt_MVNTransformation>` 
-* :doc:`NormalizeL2Transformation <openvino_docs_OV_UG_lpt_NormalizeL2Transformation>` 
-* :doc:`PadTransformation<openvino_docs_OV_UG_lpt_PadTransformation>`
-* :doc:`PReluTransformation <openvino_docs_OV_UG_lpt_PReluTransformation>` 
-* :doc:`ReduceMaxTransformation <openvino_docs_OV_UG_lpt_ReduceMaxTransformation>` 
-* :doc:`ReduceMeanTransformation <openvino_docs_OV_UG_lpt_ReduceMeanTransformation>` 
-* :doc:`ReduceMinTransformation <openvino_docs_OV_UG_lpt_ReduceMinTransformation>` 
-* :doc:`ReduceSumTransformation <openvino_docs_OV_UG_lpt_ReduceSumTransformation>` 
-* :doc:`ReluTransformation <openvino_docs_OV_UG_lpt_ReluTransformation>` 
-* :doc:`ReshapeTransformation <openvino_docs_OV_UG_lpt_ReshapeTransformation>` 
-* :doc:`SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>` 
-* :doc:`SqueezeTransformation <openvino_docs_OV_UG_lpt_SqueezeTransformation>` 
-* :doc:`ShuffleChannelsTransformation <openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation>` 
-* :doc:`SplitTransformation <openvino_docs_OV_UG_lpt_SplitTransformation>` 
-* :doc:`StridedSliceTransformation <openvino_docs_OV_UG_lpt_StridedSliceTransformation>` 
-* :doc:`TransposeTransformation <openvino_docs_OV_UG_lpt_TransposeTransformation>` 
-* :doc:`UnsqueezeTransformation <openvino_docs_OV_UG_lpt_UnsqueezeTransformation>` 
-* :doc:`VariadicSplitTransformation <openvino_docs_OV_UG_lpt_VariadicSplitTransformation>` 
+* :doc:`AddTransformation <../low-precision-transformations_AddTransformation>` 
+* :doc:`AvgPoolTransformation <../low-precision-transformations_AvgPoolTransformation>` 
+* :doc:`BatchToSpaceTransformation <../low-precision-transformations_BatchToSpaceTransformation>` 
+* :doc:`ClampTransformation <../low-precision-transformations_ClampTransformation>` 
+* :doc:`ConcatTransformation <../low-precision-transformations_ConcatTransformation>` 
+* :doc:`ConvolutionTransformation <../low-precision-transformations_ConvolutionTransformation>` 
+* :doc:`ConvolutionBackpropDataTransformation <../low-precision-transformations_ConvolutionBackpropDataTransformation>` 
+* :doc:`DepthToSpaceTransformation <../low-precision-transformations_DepthToSpaceTransformation>` 
+* :doc:`FakeQuantizeDecompositionTransformation <../low-precision-transformations_FakeQuantizeDecompositionTransformation>` 
+* :doc:`FakeQuantizeTransformation <../low-precision-transformations_FakeQuantizeTransformation>` 
+* :doc:`InterpolateTransformation <../low-precision-transformations_InterpolateTransformation>` 
+* :doc:`GroupConvolutionTransformation <../low-precision-transformations_GroupConvolutionTransformation>` 
+* :doc:`GatherTransformation <../low-precision-transformations_GatherTransformation>` 
+* :doc:`MatMulTransformation <../low-precision-transformations_MatMulTransformation>` 
+* :doc:`MaxPoolTransformation <../low-precision-transformations_MaxPoolTransformation>` 
+* :doc:`MultiplyPartialTransformation <../low-precision-transformations_MultiplyPartialTransformation>` 
+* :doc:`MVNTransformation <../low-precision-transformations_MVNTransformation>` 
+* :doc:`NormalizeL2Transformation <../low-precision-transformations_NormalizeL2Transformation>` 
+* :doc:`PadTransformation<../low-precision-transformations_PadTransformation>`
+* :doc:`PReluTransformation <../low-precision-transformations_PReluTransformation>` 
+* :doc:`ReduceMaxTransformation <../low-precision-transformations_ReduceMaxTransformation>` 
+* :doc:`ReduceMeanTransformation <../low-precision-transformations_ReduceMeanTransformation>` 
+* :doc:`ReduceMinTransformation <../low-precision-transformations_ReduceMinTransformation>` 
+* :doc:`ReduceSumTransformation <../low-precision-transformations_ReduceSumTransformation>` 
+* :doc:`ReluTransformation <../low-precision-transformations_ReluTransformation>` 
+* :doc:`ReshapeTransformation <../low-precision-transformations_ReshapeTransformation>` 
+* :doc:`SpaceToBatchTransformation <../low-precision-transformations_SpaceToBatchTransformation>` 
+* :doc:`SqueezeTransformation <../low-precision-transformations_SqueezeTransformation>` 
+* :doc:`ShuffleChannelsTransformation <../low-precision-transformations_ShuffleChannelsTransformation>` 
+* :doc:`SplitTransformation <../low-precision-transformations_SplitTransformation>` 
+* :doc:`StridedSliceTransformation <../low-precision-transformations_StridedSliceTransformation>` 
+* :doc:`TransposeTransformation <../low-precision-transformations_TransposeTransformation>` 
+* :doc:`UnsqueezeTransformation <../low-precision-transformations_UnsqueezeTransformation>` 
+* :doc:`VariadicSplitTransformation <../low-precision-transformations_VariadicSplitTransformation>` 
 
 Let's explore some main transformations on the example model. Original model:
 
-.. image:: _static/images/step3_original.svg
+.. image:: ../../../../../_static/images/step3_original.svg
    :alt: Original model
 
 Result model after main transformations:
 
-.. image:: _static/images/step3_transformed.svg
+.. image:: ../../../../../_static/images/step3_transformed.svg
    :alt: Transformed model
 
 Changes in the example model after main transformation:

@@ -163,7 +163,7 @@ also available for CLI interface as the ``--int8`` option.
 
 
 The optimized model can be saved as usual with a call to ``save_pretrained()``.
-For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
+For more details on compression options, refer to the :doc:`weight compression guide <model-optimization-guide/weight-compression>`.
 
 .. note::
 
@@ -265,7 +265,7 @@ The conversion process is significantly simplified as Optimum-Intel provides the
 Moreover, Optimum-Intel applies several model optimizations, such as weight compression and using stateful form by default, that further simplify the model exporting flow.
 You can still use the regular conversion path if the model comes from outside the Hugging Face ecosystem, such as in its source framework format (PyTorch, TensorFlow, etc.).
 
-Model optimization can be performed within Hugging Face or directly using NNCF as described in the :doc:`weight compression guide <weight_compression>`.
+Model optimization can be performed within Hugging Face or directly using NNCF as described in the :doc:`weight compression guide <model-optimization-guide/weight-compression>`.
 
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
@@ -276,10 +276,10 @@ Inference code that uses native API cannot benefit from Hugging Face pipelines. 
 Additional Resources
 #####################
 
-* `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`__
-* :doc:`LLM Weight Compression <weight_compression>`
+* `Optimum Intel ../documentation <https://huggingface.co/docs/optimum/intel/inference>`__
+* :doc:`LLM Weight Compression <model-optimization-guide/weight-compression>`
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
-* :doc:`Stateful Models Low-Level Details <openvino_docs_OV_UG_stateful_models_intro>`
-* :doc:`Working with Textual Data <openvino_docs_OV_UG_string_tensors>`
+* :doc:`Stateful Models Low-Level Details <running-inference/stateful-models-intro>`
+* :doc:`Working with Textual Data <running-inference/string-tensors>`

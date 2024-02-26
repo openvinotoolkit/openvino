@@ -84,7 +84,7 @@ In practice, the code to evaluate or test the PyTorch model is usually provided 
    category_name = weights.meta["categories"][class_id]
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-Check out more examples in :doc:`interactive Python tutorials <tutorials>`.
+Check out more examples in :doc:`interactive Python ../../learn-openvino/interactive-tutorials-python <../../learn-openvino/interactive-tutorials-python>`.
 
 .. note::
 
@@ -121,7 +121,7 @@ If your model has a ``dict`` input, such as, ``{"x": a, "y": b, "z": c}``, it wi
 
    An important consequence of flattening is that only ``tuple`` and ``dict`` with a fixed number of elements and key values are supported. The structure of such inputs should be fully described in the ``example_input`` parameter of ``convert_model``. The flattening on outputs should be reproduced with the given ``example_input`` and cannot be changed once the conversion is done.
 
-Check out more examples of model conversion with non-tensor data types in the following tutorials:
+Check out more examples of model conversion with non-tensor data types in the following ../../learn-openvino/interactive-tutorials-python:
 
 * `Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output.html>`__
 * `Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output.html>`__
@@ -133,7 +133,7 @@ Exporting a PyTorch Model to ONNX Format
 An alternative method of converting PyTorch models is exporting a PyTorch model to ONNX with ``torch.onnx.export`` first and then converting the resulting ``.onnx`` file to OpenVINO Model with ``openvino.convert_model``. It can be considered as a backup solution if a model cannot be converted directly from PyTorch to OpenVINO as described in the above chapters. Converting through ONNX can be more expensive in terms of code, conversion time, and allocated memory.
 
 1. Refer to the `Exporting PyTorch models to ONNX format <https://pytorch.org/docs/stable/onnx.html>`__ guide to learn how to export models from PyTorch to ONNX.
-2. Follow :doc:`Convert an ONNX model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` chapter to produce OpenVINO model.
+2. Follow :doc:`Convert an ONNX model <convert-model-onnx>` chapter to produce OpenVINO model.
 
 Here is an illustration of using these two steps together:
 

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved}
+.. {#../../low-precision-transformations_AvgPoolPrecisionPreserved}
 
 AvgPoolPrecisionPreserved Attribute
 ===================================

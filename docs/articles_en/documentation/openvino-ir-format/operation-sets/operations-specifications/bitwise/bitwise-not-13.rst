@@ -15,7 +15,7 @@ BitwiseNot
 
 **Detailed description**: *BitwiseNot* performs a bitwise logical negation operation for each element in the given tensor, based on the following algorithm.
 
-For ``boolean`` type tensors, BitwiseNot is equivalent to :doc:`LogicalNot <openvino_docs_ops_logical_LogicalNot_1>`.
+For ``boolean`` type tensors, BitwiseNot is equivalent to :doc:`LogicalNot <../logical/logical-not-1>`.
 
 If tensor is of ``any supported integer`` type, for each element of the tensor:
 

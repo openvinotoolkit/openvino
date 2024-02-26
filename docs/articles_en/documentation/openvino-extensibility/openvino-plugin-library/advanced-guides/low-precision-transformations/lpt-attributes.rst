@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_attributes}
+.. {#../low-precision-transformations_attributes}
 
 Attributes
 ==========
@@ -13,12 +13,12 @@ Attributes
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>   
-   PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>
-   Precisions <openvino_docs_OV_UG_lpt_Precisions>
-   QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
-   QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>
+   AvgPoolPrecisionPreserved <../low-precision-transformations_AvgPoolPrecisionPreserved>
+   IntervalsAlignment <../low-precision-transformations_IntervalsAlignment>   
+   PrecisionPreserved <../low-precision-transformations_PrecisionPreserved>
+   Precisions <../low-precision-transformations_Precisions>
+   QuantizationAlignment <../low-precision-transformations_QuantizationAlignment>
+   QuantizationGranularity <../low-precision-transformations_QuantizationGranularity>
 
 Introduction
 ############
@@ -30,27 +30,27 @@ Introduction
       - Target
       - Required
       - Mutable
-    * - :doc:`AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>`
+    * - :doc:`AvgPoolPrecisionPreserved <../low-precision-transformations_AvgPoolPrecisionPreserved>`
       - Precision
       - No
       - Yes
-    * - :doc:`IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>`
+    * - :doc:`IntervalsAlignment <../low-precision-transformations_IntervalsAlignment>`
       - Quantization interval
       - Yes
       - Yes
-    * - :doc:`PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>`
+    * - :doc:`PrecisionPreserved <../low-precision-transformations_PrecisionPreserved>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`Precisions <openvino_docs_OV_UG_lpt_Precisions>`
+    * - :doc:`Precisions <../low-precision-transformations_Precisions>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>`
+    * - :doc:`QuantizationAlignment <../low-precision-transformations_QuantizationAlignment>`
       - Quantization granularity
       - Yes
       - Yes
-    * - :doc:`QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>`
+    * - :doc:`QuantizationGranularity <../low-precision-transformations_QuantizationGranularity>`
       - Quantization granularity
       - Yes
       - No 

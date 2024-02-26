@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_SplitTransformation}
+.. {#../../../low-precision-transformations_SplitTransformation}
 
 SplitTransformation transformation
 ==================================

@@ -18,7 +18,7 @@ ConvolutionBackpropData
 
 ConvolutionBackpropData takes the input tensor, weights tensor and output shape and computes the output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined by other attributes implicitly. If output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed. More thorough explanation can be found in `Transposed Convolutions <https://arxiv.org/abs/1603.07285>`__.
 
-ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation and additionally ``output_padding`` attribute, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular :doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>` operation for detailed description of each Convolution attribute.
+ConvolutionBackpropData accepts the same set of attributes as a regular Convolution operation and additionally ``output_padding`` attribute, but they are interpreted in a "backward way", so they are applied to the output of ConvolutionBackpropData, but not to the input. Refer to a regular :doc:`Convolution <convolution-1>` operation for detailed description of each Convolution attribute.
 
 When output shape is specified as an input tensor ``output_shape`` then it specifies only spatial dimensions. No batch or channel dimension should be passed along with spatial dimensions. If ``output_shape`` is omitted, then ``pads_begin``, ``pads_end`` or ``auto_pad`` are used to determine output spatial shape ``[O_z, O_y, O_x]`` by input spatial shape ``[I_z, I_y, I_x]`` in the following way:
 

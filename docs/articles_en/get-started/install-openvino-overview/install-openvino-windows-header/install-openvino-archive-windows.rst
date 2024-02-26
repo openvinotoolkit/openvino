@@ -27,7 +27,7 @@ System Requirements
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <system_requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -133,13 +133,13 @@ Step 1: Download and Install OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+:doc:`list of additional configurations <../../configurations-header>`
 to see if your case needs any of them.
 
 The ``C:\Program Files (x86)\Intel\openvino_2023`` folder now contains the core components for OpenVINO.
 If you used a different path in Step 1, you will find the ``openvino_2023`` folder there.
 The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>``
-throughout the OpenVINO documentation.
+throughout the OpenVINO ../../../documentation.
 
 
 
@@ -187,7 +187,7 @@ You must update several environment variables before you can compile and run Ope
 What's Next?
 ####################
 
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python.
 
 .. tab-set::
 
@@ -199,7 +199,7 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
-      Visit the :ref:`Tutorials <notebook tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Visit the :ref:`Tutorials <notebook ../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
       * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
       * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
@@ -208,15 +208,15 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the `C++ Quick Start Example <openvino_docs_get_started_get_started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+      Try the `C++ Quick Start Example <openvino_docs_../../../get-started_../../../get-started_demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
       Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`_
-      * `Object classification sample <openvino_sample_hello_classification.html>`_
+      * `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`_
+      * `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`_
 
 
 .. _uninstall-from-windows:

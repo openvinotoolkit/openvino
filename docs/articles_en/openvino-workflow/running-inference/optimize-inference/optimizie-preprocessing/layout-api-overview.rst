@@ -18,10 +18,10 @@ Below is a list of cases where input/output layout is important:
 
 * Performing model modification:
 
-  * Applying the :doc:`preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
+  * Applying the :doc:`preprocessing <../optimizie-preprocessing>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
   * Setting/getting a batch for a model.
 
-* Doing the same operations as used during the model conversion phase. For more information, refer to the :doc:`Model Optimizer Embedding Preprocessing Computation <openvino_docs_MO_DG_Additional_Optimization_Use_Cases>` guide.
+* Doing the same operations as used during the model conversion phase. For more information, refer to the :doc:`Model Optimizer Embedding Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>` guide.
 * Improving the readability of a model input and output.
 
 Syntax of Layout
@@ -132,7 +132,7 @@ A layout has some pre-defined dimension names, widely used in computer vision:
 * ``H``/``Height`` - height
 * ``W``/``Width`` - width
 
-These names are used in :doc:`PreProcessing API <openvino_docs_OV_UG_Preprocessing_Overview>`. There is a set of helper functions to get appropriate dimension index from a layout.
+These names are used in :doc:`PreProcessing API <../optimizie-preprocessing>`. There is a set of helper functions to get appropriate dimension index from a layout.
 
 
 .. tab-set::

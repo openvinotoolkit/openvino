@@ -133,7 +133,7 @@ Feature Overview
    :hidden:
 
    GET STARTED <get-started>
-   LEARN OPENVINO <learno-penvino>
-   OPENVINO WORKFLOW <openvin-oworkflow>
+   LEARN OPENVINO <learn-openvino>
+   OPENVINO WORKFLOW <openvino-workflow>
    DOCUMENTATION <documentation>
    ABOUT OPENVINO <about-openvino>

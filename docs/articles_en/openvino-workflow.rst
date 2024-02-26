@@ -14,19 +14,19 @@ OpenVINO Workflow
    :maxdepth: 1
    :hidden:
 
-   Model Preparation <openvino_docs_model_processing_introduction>
-   Model Optimization and Compression <openvino_docs_model_optimization_guide>
-   Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>
-   Deployment on a Local System  <openvino_deployment_guide>
+   Model Preparation <openvino-workflow/model-preparation>
+   Model Optimization and Compression <openvino-workflow/model-optimization>
+   Running Inference <openvino-workflow/running-inference>
+   Deployment on a Local System  <openvino-workflow/deployment-locally>
    Deployment on a Model Server <ovms_what_is_openvino_model_server>
-   pytorch_2_0_torch_compile
+   openvino-workflow/torch-compile
    
 
 OpenVINO offers multiple workflows, depending on the use case and personal or project preferences.
 This section will give you a detailed view of how you can go from preparing your model,
 through optimizing it, to executing inference, and deploying your solution.
 
-Once you obtain a model in one of the :doc:`supported model formats <openvino_docs_model_processing_introduction>`,
+Once you obtain a model in one of the :doc:`supported model formats <openvino-workflow/model-preparation>`,
 you can decide how to proceed:
 
 .. tab-set::
@@ -78,26 +78,26 @@ OpenVINO uses the following functions for reading, converting, and saving models
       * This method is only available in the Python API.
 
 
-| :doc:`Model Preparation <openvino_docs_model_processing_introduction>`
+| :doc:`Model Preparation <openvino-workflow/model-preparation>`
 |    Learn how to convert pre-trained models to OpenVINO IR.
 
-| :doc:`Model Optimization and Compression <openvino_docs_model_optimization_guide>`
+| :doc:`Model Optimization and Compression <openvino-workflow/model-optimization>`
 |    Find out how to optimize a model to achieve better inference performance, utilizing 
      multiple optimization methods for both in-training compression and post-training quantization. 
 
-| :doc:`Running Inference <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+| :doc:`Running Inference <openvino-workflow/running-inference>`
 |    See how to run inference with OpenVINO, which is the most basic form of deployment, 
      and the quickest way of running a deep learning model.
 
-| :doc:`Deployment Option 1. Using OpenVINO Runtime <openvino_deployment_guide>` 
-|    Deploy a model locally, reading the file directly from your application and utilizing resources available to the system.
+| :doc:`Deployment Option 1. Using OpenVINO Runtime <openvino-workflow/deployment-locally>` 
+|    Deploy a model locally, reading the file directly from your application and utilizing about-openvino/additional-resources available to the system.
 |    Deployment on a local system uses the steps described in the section on running inference.
 
 | :doc:`Deployment Option 2. Using Model Server <ovms_what_is_openvino_model_server>`
-|    Deploy a model remotely, connecting your application to an inference server and utilizing external resources, with no impact on the app's performance.
+|    Deploy a model remotely, connecting your application to an inference server and utilizing external about-openvino/additional-resources, with no impact on the app's performance.
 |    Deployment on OpenVINO Model Server is quick and does not require any additional steps described in the section on running inference.
 
-| :doc:`Deployment Option 3. Using torch.compile for PyTorch 2.0  <pytorch_2_0_torch_compile>`
+| :doc:`Deployment Option 3. Using torch.compile for PyTorch 2.0  <openvino-workflow/torch-compile>`
 |    Deploy a PyTorch model using OpenVINO in a PyTorch-native application.
 
 

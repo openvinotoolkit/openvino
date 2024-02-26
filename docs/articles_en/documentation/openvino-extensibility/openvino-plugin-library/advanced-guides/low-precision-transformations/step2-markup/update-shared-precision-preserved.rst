@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved}
+.. {#../../low-precision-transformations_UpdateSharedPrecisionPreserved}
 
 UpdateSharedPrecisionPreserved transformation
 =============================================

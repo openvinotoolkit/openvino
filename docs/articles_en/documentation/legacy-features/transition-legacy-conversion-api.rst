@@ -11,8 +11,8 @@ Transition from Legacy Conversion API
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
+   transition-legacy-conversion-api/legacy-conversion-api
+   transition-legacy-conversion-api/legacy-model-optimizer-extensibility
 
 In the 2023.1 OpenVINO release OpenVINO Model Converter was introduced with the corresponding
 Python API: ``openvino.convert_model`` method. ``ovc`` and ``openvino.convert_model`` represent
@@ -327,7 +327,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().mean([0.5, 0.5, 0.5])
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <../../openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview>`.
 
     .. tab-item:: CLI
        :sync: cli
@@ -376,7 +376,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().scale([255., 255., 255.])
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <../../openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview>`.
 
     .. tab-item:: CLI
        :sync: cli
@@ -425,7 +425,7 @@ Here is the guide to transition from legacy model preprocessing to new API prepr
                  prep.input(input_name).preprocess().reverse_channels()
                  ov_model = prep.build()
 
-              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`.
+              There is currently no heuristic for automatic detection of the channel to which mean, scale or reverse channels should be applied. ``Layout`` needs to be explicitly specified with "C" channel. For example "NHWC", "NCHW", "?C??". See also :doc:`Layout API overview <../../openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview>`.
 
     .. tab-item:: CLI
        :sync: cli

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_InterpolateTransformation}
+.. {#../../../low-precision-transformations_InterpolateTransformation}
 
 InterpolateTransformation transformation
 ========================================

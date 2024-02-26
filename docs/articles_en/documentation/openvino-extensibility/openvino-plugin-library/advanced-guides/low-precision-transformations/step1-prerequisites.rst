@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_step1_prerequisites}
+.. {#../low-precision-transformations_step1_prerequisites}
 
 Step 1. Prerequisites Transformations
 =====================================
@@ -12,13 +12,13 @@ Step 1. Prerequisites Transformations
    :maxdepth: 1
    :hidden:
 
-   PullReshapeThroughDequantization <openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization>
-   PullTransposeThroughDequantization <openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization>
-   LinOpSequenceFusion <openvino_docs_OV_UG_lpt_LinOpSequenceFusion>
+   PullReshapeThroughDequantization <../low-precision-transformations_PullReshapeThroughDequantization>
+   PullTransposeThroughDequantization <../low-precision-transformations_PullTransposeThroughDequantization>
+   LinOpSequenceFusion <../low-precision-transformations_LinOpSequenceFusion>
 
 Prerequisites transformations are optional. The transformations prepare a model before running other low precision transformations. The transformations do not operate with dequantization operations or update precisions. Prerequisites transformations include:
 
-* :doc:`PullReshapeThroughDequantization <openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization>`
-* :doc:`PullTransposeThroughDequantization <openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization>`
-* :doc:`LinOpSequenceFusion <openvino_docs_OV_UG_lpt_LinOpSequenceFusion>`
+* :doc:`PullReshapeThroughDequantization <../low-precision-transformations_PullReshapeThroughDequantization>`
+* :doc:`PullTransposeThroughDequantization <../low-precision-transformations_PullTransposeThroughDequantization>`
+* :doc:`LinOpSequenceFusion <../low-precision-transformations_LinOpSequenceFusion>`
 

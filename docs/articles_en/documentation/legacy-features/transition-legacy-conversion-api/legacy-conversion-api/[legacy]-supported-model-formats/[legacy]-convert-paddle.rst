@@ -13,17 +13,17 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PaddlePaddle Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle>` article.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PaddlePaddle Model <../../../../../openvino-workflow/model-preparation/convert-model-paddle>` article.
 
 
 This page provides general instructions on how to convert a model from a PaddlePaddle format to the OpenVINO IR format using Model Optimizer. The instructions are different depending on PaddlePaddle model format.
 
-.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+.. note:: PaddlePaddle models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <../../../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 Converting PaddlePaddle Model Inference Format
 ##############################################
 
-PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For how to export PaddlePaddle inference model, please refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/../../../../../documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 
 
 To convert a PaddlePaddle model, use the ``mo`` script and specify the path to the input ``.pdmodel`` model file:
@@ -126,16 +126,16 @@ When you convert certain PaddlePaddle models, you may need to set the ``example_
 Supported PaddlePaddle Layers
 #############################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_../../../../../about-openvino/additional-resources_supported_operations_frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
 
-The model conversion API displays explanatory messages for typographical errors, incorrectly used options, or other issues. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
+The model conversion API displays explanatory messages for typographical errors, incorrectly used options, or other issues. They describe the potential cause of the problem and give a link to the :doc:`Model Optimizer FAQ <../[legacy]-model-optimizer-faq>`, which provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <../../legacy-conversion-api>` to help you understand what went wrong.
 
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PaddlePaddle models.
+See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python>` page for a set of ../../../../../learn-openvino/interactive-tutorials-python providing step-by-step instructions for converting specific PaddlePaddle models.
 
 

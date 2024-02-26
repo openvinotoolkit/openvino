@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_step2_markup}
+.. {#../low-precision-transformations_step2_markup}
 
 Step 2. Markup Transformations
 ==============================
@@ -13,31 +13,31 @@ Step 2. Markup Transformations
    :caption: Low Precision Transformations
    :hidden:
 
-   MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>
-   MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>
-   MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>
-   MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>
-   MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>
-   PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>
-   AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>
-   AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>
+   MarkupBias <../low-precision-transformations_MarkupBias>
+   MarkupCanBeQuantized <../low-precision-transformations_MarkupCanBeQuantized>
+   MarkupPrecisions <../low-precision-transformations_MarkupPrecisions>
+   MarkupPerTensorQuantization <../low-precision-transformations_MarkupPerTensorQuantization>
+   MarkupAvgPoolPrecisionPreserved <../low-precision-transformations_MarkupAvgPoolPrecisionPreserved>
+   PropagatePrecisions <../low-precision-transformations_PropagatePrecisions>
+   AlignQuantizationIntervals <../low-precision-transformations_AlignQuantizationIntervals>
+   AlignQuantizationParameters <../low-precision-transformations_AlignQuantizationParameters>
 
-   CreateAttribute <openvino_docs_OV_UG_lpt_CreateAttribute>
-   CreatePrecisionsDependentAttribute <openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute>
-   PropagateThroughPrecisionPreserved <openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved>
-   PropagateToInput <openvino_docs_OV_UG_lpt_PropagateToInput>
-   UpdateSharedPrecisionPreserved <openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved>
+   CreateAttribute <../low-precision-transformations_CreateAttribute>
+   CreatePrecisionsDependentAttribute <../low-precision-transformations_CreatePrecisionsDependentAttribute>
+   PropagateThroughPrecisionPreserved <../low-precision-transformations_PropagateThroughPrecisionPreserved>
+   PropagateToInput <../low-precision-transformations_PropagateToInput>
+   UpdateSharedPrecisionPreserved <../low-precision-transformations_UpdateSharedPrecisionPreserved>
 
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
 
-1. :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
-2. :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>`
-3. :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>`
-4. :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>`
-5. :doc:`MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>`
-6. :doc:`PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>`
-7. :doc:`AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>`
-8. :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>`
+1. :doc:`MarkupBias <../low-precision-transformations_MarkupBias>`
+2. :doc:`MarkupCanBeQuantized <../low-precision-transformations_MarkupCanBeQuantized>`
+3. :doc:`MarkupPrecisions <../low-precision-transformations_MarkupPrecisions>`
+4. :doc:`MarkupPerTensorQuantization <../low-precision-transformations_MarkupPerTensorQuantization>`
+5. :doc:`MarkupAvgPoolPrecisionPreserved <../low-precision-transformations_MarkupAvgPoolPrecisionPreserved>`
+6. :doc:`PropagatePrecisions <../low-precision-transformations_PropagatePrecisions>`
+7. :doc:`AlignQuantizationIntervals <../low-precision-transformations_AlignQuantizationIntervals>`
+8. :doc:`AlignQuantizationParameters <../low-precision-transformations_AlignQuantizationParameters>`
 
 .. list-table::
     :header-rows: 1
@@ -75,15 +75,15 @@ This step defines the optimal ``FakeQuantize`` decomposition precisions for the 
 
 Common markup transformations can be decomposed into simpler utility markup transformations. The order of Markup utility transformations is not important:
 
-* :doc:`CreateAttribute <openvino_docs_OV_UG_lpt_CreateAttribute>`
-* :doc:`CreatePrecisionsDependentAttribute <openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute>`
-* :doc:`PropagateThroughPrecisionPreserved <openvino_docs_OV_UG_lpt_PropagateThroughPrecisionPreserved>`
-* :doc:`PropagateToInput <openvino_docs_OV_UG_lpt_PropagateToInput>`
-* :doc:`UpdateSharedPrecisionPreserved <openvino_docs_OV_UG_lpt_UpdateSharedPrecisionPreserved>`
+* :doc:`CreateAttribute <../low-precision-transformations_CreateAttribute>`
+* :doc:`CreatePrecisionsDependentAttribute <../low-precision-transformations_CreatePrecisionsDependentAttribute>`
+* :doc:`PropagateThroughPrecisionPreserved <../low-precision-transformations_PropagateThroughPrecisionPreserved>`
+* :doc:`PropagateToInput <../low-precision-transformations_PropagateToInput>`
+* :doc:`UpdateSharedPrecisionPreserved <../low-precision-transformations_UpdateSharedPrecisionPreserved>`
 
 Let's explore all transformations and their relations in detail, using one and the same model:
 
-.. image:: _static/images/step2_markup_original.svg
+.. image:: ../../../../../_static/images/step2_markup_original.svg
 
 The original model key features:
 
@@ -114,7 +114,7 @@ Changes in the example model after ``MarkupCanBeQuantized`` transformation:
 
 Result model:
 
-.. image:: _static/images/step2_markup1.svg
+.. image:: ../../../../../_static/images/step2_markup1.svg
    :alt: MarkupCanBeQuantize
 
 Model display features (here and below):
@@ -137,7 +137,7 @@ No attributes are required before the transformation. Changes in the example mod
 
 Result model:
 
-.. image:: _static/images/step2_markup2.svg
+.. image:: ../../../../../_static/images/step2_markup2.svg
    :alt: MarkupPrecisions result
 
 3. MarkupPerTensorQuantization
@@ -151,7 +151,7 @@ Changes in the example model after ``MarkupPerTensorQuantization`` transformatio
 
 Result model:
 
-.. image:: _static/images/step2_markup3.svg
+.. image:: ../../../../../_static/images/step2_markup3.svg
    :alt: MarkupPerTensorQuantization result
 
 4. MarkupAvgPoolPrecisionPreserved
@@ -169,7 +169,7 @@ Changes in the example model after ``MarkupAvgPoolPrecisionPreserved`` transform
 
 Result model:
 
-.. image:: _static/images/step2_markup4.svg
+.. image:: ../../../../../_static/images/step2_markup4.svg
    :alt: arkupAvgPoolPrecisionPreserved
 
 5. PropagatePrecisions
@@ -188,7 +188,7 @@ Changes in the example model after ``PropagatePrecisions`` transformation:
 
 Result model:
 
-.. image:: _static/images/step2_markup5.svg
+.. image:: ../../../../../_static/images/step2_markup5.svg
    :alt: PropagatePrecisions
 
 .. note::
@@ -208,7 +208,7 @@ Changes in the example model after ``AlignQuantizationIntervals`` transformation
 
 Result model:
 
-.. image:: _static/images/step2_markup6.svg
+.. image:: ../../../../../_static/images/step2_markup6.svg
    :alt: AlignQuantizationIntervals
 
 7. AlignQuantizationParameters
@@ -227,6 +227,6 @@ Changes in the example model after ``AlignQuantizationParameters`` transformatio
 
 Final model:
 
-.. image:: _static/images/step2_markup7.svg
+.. image:: ../../../../../_static/images/step2_markup7.svg
    :alt: AlignQuantizationParameters
 

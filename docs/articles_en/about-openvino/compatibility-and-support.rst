@@ -8,19 +8,19 @@ Compatibility and Support
    :maxdepth: 1
    :hidden:
 
-   openvino_supported_models
-   openvino_supported_devices
-   openvino_resources_supported_operations
-   openvino_resources_supported_operations_frontend
+   compatibility-and-support/supported-models
+   compatibility-and-support/supported-devices
+   compatibility-and-support/supported-operations-inference-devices
+   compatibility-and-support/supported-operations-framework-frontend
 
 
-:doc:`Supported Devices <openvino_supported_devices>` - compatibility information for supported hardware accelerators.
+:doc:`Supported Devices <compatibility-and-support/supported-devices>` - compatibility information for supported hardware accelerators.
 
-:doc:`Supported Models <openvino_supported_models>` - a table of models officially supported by OpenVINO.
+:doc:`Supported Models <compatibility-and-support/supported-models>` - a table of models officially supported by OpenVINO.
 
-:doc:`Supported Operations <openvino_resources_supported_operations>` - a listing of framework layers supported by OpenVINO.
+:doc:`Supported Operations <compatibility-and-support/supported-operations-inference-devices>` - a listing of framework layers supported by OpenVINO.
 
-:doc:`Supported Operations <openvino_resources_supported_operations_frontend>` - a listing of layers supported by OpenVINO inference devices.
+:doc:`Supported Operations <compatibility-and-support/supported-operations-framework-frontend>` - a listing of layers supported by OpenVINO inference devices.
 
 
 

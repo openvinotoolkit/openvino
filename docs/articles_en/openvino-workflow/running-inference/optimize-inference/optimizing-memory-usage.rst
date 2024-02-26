@@ -25,7 +25,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
     the ``ov::compilation_num_threads(NUMBER)`` property for the ``ov::Core`` or pass it as an additional 
     argument to ``ov::Core::compile_model()``
 
-* Not enough memory to recompile a model. If model compilation is successful but one of the following recompilations fails due lack of resources, it may be caused by:
+* Not enough memory to recompile a model. If model compilation is successful but one of the following recompilations fails due lack of ../../../about-openvino/additional-resources, it may be caused by:
 
   * Memory leak - to determine direct leaks, you can use tools like 'address-sanitizer' or
     'valgrind'. In case of indirect leaks, which cannot be caught by tools, peak RAM (VMHWM)

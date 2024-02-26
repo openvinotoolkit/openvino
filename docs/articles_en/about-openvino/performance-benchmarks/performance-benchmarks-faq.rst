@@ -1,4 +1,4 @@
-.. {#openvino_docs_performance_benchmarks_faq}
+.. {#../performance-benchmarks_faq}
 
 Performance Information F.A.Q.
 ==============================
@@ -19,7 +19,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of :doc:`Open Model Zoo <model_zoo>`.
+   All models used are included in the GitHub repository of :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 
@@ -31,10 +31,10 @@ Performance Information F.A.Q.
 
    All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
-   called :doc:`benchmark_app <openvino_sample_benchmark_tool>`.
+   called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
    This tool is available for Python and C++ apps.
 
-   For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
+   For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
 
 .. dropdown:: Where can I find a more detailed description of the workloads used for benchmarking?
 
@@ -69,39 +69,39 @@ Performance Information F.A.Q.
         - BERT
         - question / answer
         - 128
-      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
+      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
         - BERT-large
         - question / answer
         - 384
-      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
+      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/efficientdet-d0-tf>`__
         - Efficientdet
         - classification
         - 512x512
-      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
+      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
         - Mask R-CNN ResNet 50 Atrous
         - object instance segmentation
         - 800x1365
-      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
+      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification
         - 224x224
-      * - `resnet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
+      * - `resnet-50 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/resnet-50-tf>`__
         - ResNet-50_v1_ILSVRC-2012
         - classification
         - 224x224
-      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
+      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
         - ssd-mobilenet-V1-coco onnx model
         - object detection
         - 300x300
-      * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
+      * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
         - ssd-resnet34 onnx model
         - object detection
         - 1200x1200
-      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
+      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
         - U-Net
         - semantic segmentation
         - 368x480
-      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
+      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
         - YOLO v3 Tiny
         - object detection
         - 416x416
@@ -121,7 +121,7 @@ Performance Information F.A.Q.
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
    Set of guidelines and recommendations to optimize models are available in the
-   :doc:`optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+   :doc:`optimization guide <../../openvino-workflow/running-inference/optimize-inference>`.
    Join the conversation in the `Community Forum <https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit>`__ for further support.
 
 .. dropdown:: Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
@@ -135,7 +135,7 @@ Performance Information F.A.Q.
    hardware. For comparison on boost factors for different network models
    and a selection of Intel® CPU architectures, including AVX-2 with Intel®
    Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel®
-   Xeon® 8270, refer to the :doc:`Model Accuracy for INT8 and FP32 Precision <openvino_docs_performance_int8_vs_fp32>`
+   Xeon® 8270, refer to the :doc:`Model Accuracy for INT8 and FP32 Precision <model-accuracy-int8-fp32>`
 
 .. dropdown:: Where can I search for OpenVINO™ performance results based on HW-platforms?
 

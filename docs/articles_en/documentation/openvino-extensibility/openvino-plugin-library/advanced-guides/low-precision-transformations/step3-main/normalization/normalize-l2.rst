@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_NormalizeL2Transformation}
+.. {#../../../low-precision-transformations_NormalizeL2Transformation}
 
 NormalizeL2Transformation transformation
 ========================================

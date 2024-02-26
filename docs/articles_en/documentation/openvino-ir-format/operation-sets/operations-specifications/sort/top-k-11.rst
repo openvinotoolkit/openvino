@@ -1,4 +1,4 @@
-.. {#openvino_docs_ops_sort_TopK_11}
+.. {#top-k-11}
 
 TopK
 ====
