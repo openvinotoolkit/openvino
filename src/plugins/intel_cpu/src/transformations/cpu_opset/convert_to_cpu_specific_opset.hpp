@@ -15,11 +15,9 @@
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "transformations/convert_precision.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "common/pass/ngram_fusion.hpp"
 #include "transformations/defs.hpp"
 
 #include "itt.hpp"
