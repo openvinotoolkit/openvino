@@ -11,7 +11,7 @@ class TestMatrixBandPart(CommonTFLayerTest):
         assert 'input:0' in inputs_info
         input_shape = inputs_info['input']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
         return inputs_data
 
     def create_matrix_band_part_net(self, input_shape):
