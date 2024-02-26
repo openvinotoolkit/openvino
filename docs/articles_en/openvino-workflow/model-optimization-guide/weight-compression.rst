@@ -88,6 +88,8 @@ memory reduction, speed gain, and accuracy loss.
      - Medium
      - Medium
 
+The INT4 method has several parameters that can provide different performance-accuracy trade-offs after optimization:
+
 * ``mode`` - there are two optimization modes: symmetric and asymmetric.
 
   **Symmetric Compression** - ``INT4_SYM``
