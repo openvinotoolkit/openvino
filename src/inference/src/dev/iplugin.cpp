@@ -226,7 +226,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     }
 
     bool start_split = false;
-    unsigned long total_size = 0;
+    double total_size = 0.0;
+    double total_ops_size = 0;
+    for (auto&& op : ops) {
+        if (ov::op::util::is_constant(op)) {
+            const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
+            total_ops_size += const_byte_size;
+        }
+    }
     std::map<std::string, int> pair_checker_temp;
     // Walk over transformed model for special handing of Parameters/Constants/Results
     for (auto&& op : ops) {
@@ -252,6 +259,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 if (total_size * 1.2 >= memory_size_in_bytes) {
                     if (!start_split) {
                         start_split = check_pairs(pair_checker_temp);
+                        if (start_split) {
+                            if ((total_ops_size - total_size) / memory_size_in_bytes < 0.1) {
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -277,10 +289,10 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // Get removed nodes and nodes fused in broadcast
     NameSet removed_nodes = get_removed_nodes(model, transformed_model);
     NameSet broadcast_fused_nodes = get_broadcast_fused_nodes(transformed_model);
-    // Filter ShapeOfs & Broadcast, Broadcast can't be split with it's output ops
+    // Filter ShapeOfs
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
-        if ((ov::is_type<ov::op::util::ShapeOfBase>(op) || ov::is_type<ov::op::util::BroadcastBase>(op)) &&
+        if ((ov::is_type<ov::op::util::ShapeOfBase>(op)) &&
             (supported.count(name) || removed_nodes.count(name))) {
             if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
                 remove_op_from_supported(op);
@@ -289,18 +301,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
-    if (memory_control) {
-        for (auto& op : model->get_ordered_ops()) {
-            const auto& name = op->get_friendly_name();
-            // Some ops in other layers will be fused with Broadcast op in LLM, so need filter the fused ops in other layers
-            if (broadcast_fused_nodes.count(name)) {
-                if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
-                    remove_op_from_supported(op);
-                    broadcast_fused_nodes.erase(name);
-                }
-            }
-        }
-    } else {
+    if (!memory_control) {
         // If memory control is off
         // mark all removed nodes as supported
         supported.insert(removed_nodes.begin(), removed_nodes.end());
