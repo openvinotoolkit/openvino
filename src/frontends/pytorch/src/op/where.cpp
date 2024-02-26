@@ -19,9 +19,9 @@ OutputVector translate_where(const NodeContext& context) {
     auto cond = context.get_input(0);
     PYTORCH_OP_CONVERSION_CHECK(!context.input_is_none(1), "aten::where(cond) unsupported");
     auto bool_cond = context.mark_node(std::make_shared<v0::Convert>(cond, element::boolean));
-    auto x = context.get_input(1);
-    auto y = context.get_input(2);
-    align_eltwise_input_types(context, x, y, is_python_scalar_input(context, 1), is_python_scalar_input(context, 2));
+    Output<Node> x;
+    Output<Node> y;
+    std::tie(x, y) = get_inputs_with_promoted_types(context, 1, 2);
     return {context.mark_node(std::make_shared<v1::Select>(bool_cond, x, y))};
 };
 
