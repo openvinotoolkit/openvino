@@ -5,9 +5,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
-import logging
 
 # Testing operation Equal
 # Documentation: https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/equal
@@ -44,7 +42,8 @@ class TestTFEqual(CommonTFLayerTest):
     # y_shape - second argument, should be an array (shape). Might be None if y_value is passed
     # x_value - fills x_shape by chosen value, uses randint instead
     # y_value - if y_shape is None - uses y_value as scalar, otherwise fills y_shape by chosen value, uses randint instead
-    def create_tf_equal_net(self, ir_version, use_legacy_frontend, x_shape, output_type, y_shape = None, x_value = None, y_value = None):
+    def create_tf_equal_net(self, ir_version, use_legacy_frontend, x_shape, output_type, y_shape=None, x_value=None,
+                            y_value=None):
         self.x_value = x_value
         self.y_value = y_value
         self.output_type = output_type
@@ -55,11 +54,6 @@ class TestTFEqual(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             self.x_shape = x_shape.copy() if isinstance(x_shape, list) else x_shape
             self.y_shape = y_shape.copy() if isinstance(y_shape, list) else y_shape
-
-            if isinstance(x_shape, list):
-                self.x_shape = permute_nchw_to_nhwc(self.x_shape, use_legacy_frontend)
-            if isinstance(y_shape, list):
-                self.y_shape = permute_nchw_to_nhwc(self.y_shape, use_legacy_frontend)
 
             if self.output_type == np.float16:
                 x = tf.compat.v1.placeholder(tf.float16, self.x_shape, 'Input')
@@ -98,15 +92,18 @@ class TestTFEqual(CommonTFLayerTest):
 
     test_data_int32 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
             marks=pytest.mark.precommit_tf_fe),
-        dict(x_shape=[2,3], y_value=2),             #Comparing shape with scalar value (verifies false and possible true)
-        dict(x_shape=[2,3], y_shape=[2,3],          #Comparing shapes with same values (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
+        dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
-        dict(x_shape=[2,3], y_value=2,              #Comparing shape with scalar value (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2,  # Comparing shape with scalar value (verifies true statement)
              x_value=2),
-        dict(x_shape=[2,3,2], y_shape=[2]),         #Comparing shapes with different dimensions, random values (false and possible true)
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[2, 3, 2], y_shape=[2]),
+        # Comparing shapes with different dimensions, random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_int32)
@@ -120,15 +117,18 @@ class TestTFEqual(CommonTFLayerTest):
 
     test_data_int64 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
             marks=pytest.mark.precommit_tf_fe),
-        dict(x_shape=[2,3], y_value=2),             #Comparing shape with scalar value (verifies false and possible true)
-        dict(x_shape=[2,3], y_shape=[2,3],          #Comparing shapes with same values (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
+        dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
-        dict(x_shape=[2,3], y_value=2,              #Comparing shape with scalar value (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2,  # Comparing shape with scalar value (verifies true statement)
              x_value=2),
-        dict(x_shape=[2,3,2], y_shape=[2]),         #Comparing shapes with different dimensions, random values (false and possible true)
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[2, 3, 2], y_shape=[2]),
+        # Comparing shapes with different dimensions, random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_int64)
@@ -142,18 +142,20 @@ class TestTFEqual(CommonTFLayerTest):
 
     # Values for checking important corner cases for float values
     # expect:   false   false   false    false   false   false    true    false    true
-    x_corner = [1.    , 1.    , 1.     , np.nan, np.nan, np.nan , np.inf, np.inf , np.NINF]
+    x_corner = [1., 1., 1., np.nan, np.nan, np.nan, np.inf, np.inf, np.NINF]
     y_corner = [np.nan, np.inf, np.NINF, np.nan, np.inf, np.NINF, np.inf, np.NINF, np.NINF]
 
     test_data_float16 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with different dimensions, random values (false and possible true)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with different dimensions, random values (false and possible true)
             marks=pytest.mark.precommit_tf_fe),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
-                 x_value = x_corner, y_value = y_corner),
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
+                 x_value=x_corner, y_value=y_corner),
             marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float16)
@@ -167,13 +169,15 @@ class TestTFEqual(CommonTFLayerTest):
 
     test_data_float32 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
             marks=pytest.mark.precommit_tf_fe),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
             marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
@@ -187,13 +191,15 @@ class TestTFEqual(CommonTFLayerTest):
 
     test_data_float64 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with different dimensions, random values (false and possible true)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with different dimensions, random values (false and possible true)
             marks=pytest.mark.precommit_tf_fe),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
-                 x_value = x_corner, y_value = y_corner),
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
+                 x_value=x_corner, y_value=y_corner),
             marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float64)
