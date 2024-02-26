@@ -12,7 +12,7 @@
 
 ## Contents:
  - [Getting Started](#getting-started)
-    - [Tutorials](#tutorials)
+ - [Tutorials](#tutorials)
  - [Installation](#installation)
  - [Products Powered by OpenVINO](#products-povered-by-openvino)
  - [Documentation](#documentation)
@@ -20,17 +20,15 @@
  - [License](#license)
 
 
-OpenVINO™ is an open-source toolkit for simple and efficient deployment of various deep-learning models.
+OpenVINO™ is an open-source software toolkit for optimizing and deploying deep learning models.
 
-- Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and other common tasks.
-- Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
-- Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
-- Contribute to the enhancement of deep learning performance across various domains.
+- **Model Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and other common tasks.
+- **Versatile Model Support**: Use models trained with popular frameworks such as TensorFlow, Pytorch, ONNX, Keras, and PaddlePaddle.
+- **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
+- **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
 <details>
-  <summary>List of Components</summary>
-
-a component is....
+  <summary>List of distributed OpenVINO Components</summary>
 
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
@@ -49,22 +47,23 @@ a component is....
 
 ### Getting Started
 
-Explore [OpenVINO Quickstart example](https://docs.openvino.ai/2023.3/notebooks/201-vision-monodepth-with-output.html) to get started.
+Explore [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html).
+This example will walk you through the basics, setting you on the path to deploying your first model.
 
-#### Tutorials
+### Installation
+
+Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/openvino_docs_install_guides_overview.html).
+
+Check [System Requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for more information.
+
+### Tutorials
+
 Explore a variety of tutorials in the [OpenVINO Notebooks Repository](https://github.com/openvinotoolkit/openvino_notebooks)📚.
 
 Check out these notebooks that show how to optimize and deploy popular models (no installation required):
 - [Create an LLM-powered Chatbot using OpenVINO](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/254-llm-chatbot/254-llm-chatbot.ipynb)
 - [YOLOv8 Optimization](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/230-yolov8-optimization)
 - [Text-to-Image Generation](https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/235-controlnet-stable-diffusion)
-- [Quick Start Inference Example](https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/201-vision-monodepth)
-
-### Installation
-
-Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2023.1/openvino_docs_install_guides_overview.html).
-
-Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.html) and [compatibility details](https://docs.openvino.ai/2023.1/compatibility_and_support.html) for more information.
 
 ### Products Powered by OpenVINO
 
@@ -73,7 +72,7 @@ Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.
 -	[🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize your Transformers and Diffusers models.
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - a suite of advanced algorithms for model inference optimization including quantization, filter pruning, binarization and sparsity.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
--   [Software Development Kit (SDK) for the Intel® Geti™ platform for Computer Vision AI model training](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
+-   [Software Development Kit (SDK) for the Intel® Geti™](https://github.com/openvinotoolkit/geti-sdk) - an online, interactive video and image annotation tool for computer vision use cases.
 -	[RapidOCR](https://github.com/RapidAI/RapidOCR) - a cross platform OCR Library based on PaddleOCR & OnnxRuntime & OpenVINO.
 
 #### External OpenVINO-Powered Products
@@ -83,6 +82,8 @@ Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.
 -	[whisper.cpp](https://github.com/ggerganov/whisper.cpp) - high-performance inference of OpenAI's Whisper automatic speech recognition (ASR) model.
 -	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
 -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
+
+Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to see all the community-made projects using OpenVINO!
 
 <details>
   <summary>More products ### this will be removed when we decide on the products to highlight </summary>
@@ -106,39 +107,41 @@ Check [System Requirements](https://docs.openvino.ai/2023.1/system_requirements.
 
 **User documentation**
 
-The latest documentation for OpenVINO™ Toolkit is available at [docs.openvino.ai](https://docs.openvino.ai/). This documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO.
+Find latest documentation, from getting started guides to advanced topics, at [docs.openvino.ai](https://docs.openvino.ai/). User documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO.
 
 **Developer documentation**
 
-[Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for contributing to OpenVINO.
-See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
+[Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) to OpenVINO.
 
-For additional resources, you can read:
+For additional resources, read:
 
 * [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
-* [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino/2023-1.html)
-* [Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html)
-* [OpenVINO Blog](https://blog.openvino.ai/)
-* [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
+* [Release Notes](https://docs.openvino.ai/2024/openvino_release_notes.html)
+* [OpenVINO Blog](https://blog.openvino.ai/) and [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
 ### Contribution and Support
 
+We welcome contributions of all kinds.
+
 Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
 If you'd like to be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
+Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
 
-For detailed guidelines, see [CONTRIBUTING](./CONTRIBUTING.md). Your contributions are greatly appreciated!
+Ask questions and seek support on:
 
-To report questions, issues, and suggestions, use:
-* [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
-* The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
+* [GitHub Issues](https://github.com/openvinotoolkit/openvino/issues)
+* [Forum](https://software.intel.com/en-us/forums/computer-vision)
+* OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
+* the [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on Stack Overflow\*.
 
 ### License
+
 OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 **Telemetry**
 
-OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. [Learn more](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html).
+To help us improve, OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. Visit our [telemetry page](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html) to learn more.
 You can opt-out at any time by running the command:
 
 ``` bash
