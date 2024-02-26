@@ -13,17 +13,30 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
-from models_hub_common.constants import tf_hub_cache_dir
+
+from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from tf_hub_tests.utils import type_map, load_graph, get_input_signature, get_output_signature
+from utils import type_map, load_graph, get_input_signature, get_output_signature
+
+
+def is_hf_link(link: str):
+    return link.startswith("hf_")
 
 
 class TestTFHubConvertModel(TestConvertModel):
     def setup_class(self):
         self.model_dir = tempfile.TemporaryDirectory()
 
-    def load_model(self, model_name, model_link):
+    def load_model(self, model_name, model_link: str):
+        if is_hf_link(model_link):
+            library_type = model_link[3:]
+            if library_type == "transformers":
+                from transformers import TFAutoModel
+                return TFAutoModel.from_pretrained(model_name)
+            elif library_type == "sentence-transformers":
+                from tf_sentence_transformers import SentenceTransformer
+                return SentenceTransformer.from_pretrained(model_name)
         if 'storage.openvinotoolkit.org' in model_link:
             # this models is from public OpenVINO storage
             subprocess.check_call(["wget", "-nv", model_link], cwd=self.model_dir.name)
@@ -53,12 +66,14 @@ class TestTFHubConvertModel(TestConvertModel):
     def get_inputs_info(self, model_obj):
         if type(model_obj) is tf_v1.Graph:
             input_signature = get_input_signature(model_obj)
+        elif hasattr(model_obj, "input_signature") and model_obj.input_signature is not None:
+            input_signature = model_obj.input_signature
         else:
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
 
         inputs_info = []
-        for input_name, input_info in input_signature:
+        for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
             input_shape = []
             try:
                 if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
@@ -115,22 +130,30 @@ class TestTFHubConvertModel(TestConvertModel):
 
         return output_dict
 
+    def clean_dir(self, dir_name: str):
+        if os.path.exists(dir_name):
+            for file_name in os.listdir(dir_name):
+                file_path = os.path.join(dir_name, file_name)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    pass
+
     def teardown_method(self):
         # remove all downloaded files for TF Hub models
-        for file_name in os.listdir(tf_hub_cache_dir):
-            file_path = os.path.join(tf_hub_cache_dir, file_name)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                pass
+        self.clean_dir(tf_hub_cache_dir)
+
+        # remove all downloaded files for HF models
+        self.clean_dir(hf_cache_dir)
+
         # deallocate memory after each test case
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
+                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "precommit")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
@@ -142,7 +165,7 @@ class TestTFHubConvertModel(TestConvertModel):
         self.run(model_name, model_link, ie_device)
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "nightly_models")))
+                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_tf_hub")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
