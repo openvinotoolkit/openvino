@@ -172,7 +172,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 const auto& static_shape = input->get_shape();
                 if (static_shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
-                batched_inputs.insert(params[input_id]->output(0).get_index());  // batched dim for the input
+                batched_inputs.insert(input_id);  // batched dim for the input
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -265,14 +265,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     if (meta_device.device_batch_size > 1 && batched_inputs.size()) {
         try {
             auto inputs = reshaped->inputs();
-            std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
+            std::map<std::size_t, ov::PartialShape> partial_shapes;
             for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
-                auto& input = inputs[input_id];
-                auto input_shape = input.get_shape();
+                auto input_shape = inputs[input_id].get_shape();
                 if (batched_inputs.find(input_id) != batched_inputs.end()) {
                     input_shape[0] = meta_device.device_batch_size;
                 }
-                partial_shapes.insert({input, ov::PartialShape(input_shape)});
+                partial_shapes.insert({input_id, ov::PartialShape(input_shape)});
             }
 
             reshaped->reshape(partial_shapes);

@@ -121,14 +121,13 @@ public:
 
         auto reshaped = m_model->clone();
         auto inputs = reshaped->inputs();
-        std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
+        std::map<std::size_t, ov::PartialShape> partial_shapes;
         for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
-            const auto& input = inputs[input_id];
-            auto input_shape = input.get_shape();
+            auto input_shape = inputs[input_id].get_shape();
             if (m_batched_inputs.find(input_id) != m_batched_inputs.end()) {
                 input_shape[0] = m_batch_size;
             }
-            partial_shapes.insert({input, ov::PartialShape(input_shape)});
+            partial_shapes.insert({input_id, ov::PartialShape(input_shape)});
         }
 
         reshaped->reshape(partial_shapes);
@@ -229,12 +228,12 @@ public:
 
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
-        for (size_t i = 0; i < params.size(); i++) {
-            m_batched_inputs.insert(i);
+        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+            m_batched_inputs.insert(input_id);
         }
         const auto& results = model->get_results();
-        for (size_t i = 0; i < results.size(); i++) {
-            m_batched_outputs.insert(i);
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            m_batched_outputs.insert(output_id);
         }
     }
 };
