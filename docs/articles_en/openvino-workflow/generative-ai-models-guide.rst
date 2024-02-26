@@ -136,15 +136,20 @@ also available for CLI interface as the ``--int8`` option.
 
    8-bit weight compression is enabled by default for models larger than 1 billion parameters.
 
-`NNCF <https://github.com/openvinotoolkit/nncf>`__ also provides 4-bit weight compression,
-which is supported by OpenVINO. It can be applied to Optimum objects as follows:
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ also provides 4-bit weight
+compression with ``OVWeightQuantizationConfig`` class to control weight quantization parameters.
+
 
 .. code-block:: python
 
-    from nncf import compress_weights, CompressWeightsMode
+    from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
+    import nncf
 
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=False)
-    model.model = compress_weights(model.model, mode=CompressWeightsMode.INT4_SYM, group_size=128, ratio=0.8)
+    model = OVModelForCausalLM.from_pretrained(
+        model_id,
+        export=True,
+        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+    )
 
 
 The optimized model can be saved as usual with a call to ``save_pretrained()``.

@@ -124,19 +124,39 @@ memory reduction, speed gain, and accuracy loss.
 
   `Lower Ratio (more INT8)`: Maintains better accuracy but results in a larger model size and potentially slower inference.
 
-In this example, 90% of the model's layers are quantized to INT4 asymmetrically with a group size of 64:
+  In this example, 90% of the model's layers are quantized to INT4 asymmetrically with a group size of 64:
 
-.. code-block:: python
+  .. code-block:: python
 
-  from nncf import compress_weights, CompressWeightsMode
+    from nncf import compress_weights, CompressWeightsMode
 
-  # Example: Compressing weights with INT4_ASYM mode, group size of 64, and 90% INT4 ratio
-  compressed_model = compress_weights(
-    model,
-    mode=CompressWeightsMode.INT4_ASYM,
-    group_size=64,
-    ratio=0.9,
-  )
+    # Example: Compressing weights with INT4_ASYM mode, group size of 64, and 90% INT4 ratio
+    compressed_model = compress_weights(
+      model,
+      mode=CompressWeightsMode.INT4_ASYM,
+      group_size=64,
+      ratio=0.9,
+    )
+
+* ``dataset`` - calibration dataset for data-aware weight compression. It is required for some compression options, for example, some types ``sensitivity_metric`` can use data for precision selection.
+
+* ``sensitivity_metric`` - controls the metric to estimate the sensitivity of compressing layers in the bit-width selection algorithm. Some of the metrics require dataset to be provided. The following types are supported:
+
+  * ``nncf.SensitivityMetric.WEIGHT_QUANTIZATION_ERROR`` - data-free metric computed as the inverted 8-bit quantization noise. Weights with highest value of this metric can be accurately quantized channel-wise to 8-bit. The idea is to leave these weights in 8 bit, and quantize the rest of layers to 4-bit group-wise. Since group-wise is more accurate than per-channel, accuracy should not degrade.
+
+  * ``nncf.SensitivityMetric.HESSIAN_INPUT_ACTIVATION`` - requires dataset. The average Hessian trace of weights with respect to the layer-wise quantization error multiplied by L2 norm of 8-bit quantization noise.
+
+  * ``nncf.SensitivityMetric.MEAN_ACTIVATION_VARIANCE`` - requires dataset. The mean variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+  * ``nncf.SensitivityMetric.MAX_ACTIVATION_VARIANCE`` - requires dataset. The maximum variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+  * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
+
+* ``all_layers`` - boolean parameter that enables INT4 weight quantization of all Fully-Connected and Embedding layers, including the first and last layers in the model.
+
+* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight quantization. Especially helpful when the weights of all the layers are quantized to 4 bits. The method can sometimes result in reduced accuracy when used with Dynamic Quantization of activations. Requires dataset.
+
+For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
 
 The example below shows data-free 4-bit weight quantization
 applied on top of OpenVINO IR. Before trying the example, make sure Optimum Intel
@@ -197,26 +217,6 @@ to compress the model to INT8.
       phrase = "The weather is"
       results = pipe(phrase)
       print(results)
-
-* ``dataset`` - calibration dataset for data-aware weight compression. It is required for some compression options, for example, some types ``sensitivity_metric`` can use data for precision selection.
-
-* ``sensitivity_metric`` - controls the metric to estimate the sensitivity of compressing layers in the bit-width selection algorithm. Some of the metrics require dataset to be provided. The following types are supported:
-
-  * ``nncf.SensitivityMetric.WEIGHT_QUANTIZATION_ERROR`` - data-free metric computed as the inverted 8-bit quantization noise. Weights with highest value of this metric can be accurately quantized channel-wise to 8-bit. The idea is to leave these weights in 8 bit, and quantize the rest of layers to 4-bit group-wise. Since group-wise is more accurate than per-channel, accuracy should not degrade.
-
-  * ``nncf.SensitivityMetric.HESSIAN_INPUT_ACTIVATION`` - requires dataset. The average Hessian trace of weights with respect to the layer-wise quantization error multiplied by L2 norm of 8-bit quantization noise.
-
-  * ``nncf.SensitivityMetric.MEAN_ACTIVATION_VARIANCE`` - requires dataset. The mean variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
-
-  * ``nncf.SensitivityMetric.MAX_ACTIVATION_VARIANCE`` - requires dataset. The maximum variance of the layers' inputs multiplied by inverted 8-bit quantization noise.
-
-  * ``nncf.SensitivityMetric.MEAN_ACTIVATION_MAGNITUDE`` - requires dataset. The mean magnitude of the layers' inputs multiplied by inverted 8-bit quantization noise.
-
-* ``all_layers`` - boolean parameter that enables INT4 weight quantization of all Fully-Connected and Embedding layers, including the first and last layers in the model.
-
-* ``awq`` - boolean parameter that enables the AWQ method for more accurate INT4 weight quantization. Especially helpful when the weights of all the layers are quantized to 4 bits. The method can sometimes result in reduced accuracy when used with Dynamic Quantization of activations. Requires dataset.
-
-For data-aware weight compression refer to the following `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama>`__.
 
 Exporting and Loading Compressed Models
 ########################################
