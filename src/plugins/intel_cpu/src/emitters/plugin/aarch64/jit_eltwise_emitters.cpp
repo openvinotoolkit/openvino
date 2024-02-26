@@ -72,6 +72,72 @@ std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(c
     return {{element::f32, element::f32}};
 }
 
+/// CLAMP ///
+jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                     const std::shared_ptr<ov::Node>& node)
+                                     : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    const auto clamp = std::dynamic_pointer_cast<ov::op::v0::Clamp>(node);
+    if (clamp == nullptr) {
+        OPENVINO_THROW("Can't cast to ov::op::v0::Clamp");
+    }
+    min = static_cast<float>(clamp->get_min());
+    max = static_cast<float>(clamp->get_max());
+
+    prepare_table();
+}
+
+jit_clamp_emitter::jit_clamp_emitter(dnnl::impl::cpu::aarch64::jit_generator* host,
+                                     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                     const float min,
+                                     const float max,
+                                     const ov::element::Type exec_prc)
+                                     : jit_emitter(host, host_isa, exec_prc),
+                                       min(min),
+                                       max(max) {
+    prepare_table();
+}
+
+size_t jit_clamp_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_clamp_emitter::get_aux_vecs_count() const { return 1; }
+
+size_t jit_clamp_emitter::get_aux_gprs_count() const { return 1; }
+
+void jit_clamp_emitter::register_table_entries() {
+    push_arg_entry_of("min", dnnl::impl::float2int(min), true);
+    push_arg_entry_of("max", dnnl::impl::float2int(max), true);
+}
+
+void jit_clamp_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_clamp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != ov::element::f32) {
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg aux = TReg(aux_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    h->ld1r(aux.s, table_val2("min"));
+    h->fmax(dst.s, src.s, aux.s);
+    h->ld1r(aux.s, table_val2("max"));
+    h->fmin(dst.s, dst.s, aux.s);
+}
+
+std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 /// DIVIDE ///
 jit_divide_emitter::jit_divide_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
