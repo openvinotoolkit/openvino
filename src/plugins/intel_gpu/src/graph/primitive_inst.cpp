@@ -2076,7 +2076,7 @@ void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, b
 #ifdef GPU_DEBUG_CONFIG
     int64_t curr_iter = -1;
     GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
-        curr_iter = get_network().get_current_iteration_num() - 1;
+        curr_iter = get_network().get_current_iteration_num();
     }
     GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
 #else
@@ -2089,7 +2089,7 @@ void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, b
                 get_implementation_name(),
                 stage,
 #ifdef GPU_DEBUG_CONFIG
-                per_iter_mode ? get_network().get_current_iteration_num() - 1 : 0,
+                per_iter_mode ? get_network().get_current_iteration_num() : 0,
 #else
                 0,
 #endif

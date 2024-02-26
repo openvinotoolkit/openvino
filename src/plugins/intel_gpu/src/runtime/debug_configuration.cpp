@@ -116,8 +116,11 @@ static void print_help_messages() {
                               " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
                               " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
     message_list.emplace_back("OV_GPU_DumpProfilingDataIteration", "Enable collecting profiling data only at iterations with requested range. "
-                              "For example for dump profiling data only when iteration is from 10 to 20, "
-                              "you can use OV_GPU_DumpProfilingDataIteration='10..20'");
+                              "For example for dump profiling data only when iteration is from 10 to 20, you can use "
+                              "OV_GPU_DumpProfilingDataIteration='10..20'. Additionally, you can dump profiling data only "
+                              "from one specific iteration by giving the same values for the start and end, and the open "
+                              "ended range is also available by range from given start to the last iteration as -1. e.g. "
+                              "OV_GPU_DumpProfilingDataIteration='10..-1'");
     message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
                               "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
