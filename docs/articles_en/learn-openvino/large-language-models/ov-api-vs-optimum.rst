@@ -34,7 +34,7 @@ memory footprint**, making deployments easier and updates more manageable.
 than Python-based runtimes; includes a Python API for rapid development,
 with the option for further optimization in C++.
 
-●	Provides **compression and precision techniques** such as 8-bit and 4-bit weight compression,
+●	Provides **compression and precision management techniques** such as 8-bit and 4-bit weight compression,
 including embedding layers, and storage format reduction.
 This includes fp16 precision for non-compressed models and int8/int4 for compressed models, like GPTQ models from Hugging Face.
 
