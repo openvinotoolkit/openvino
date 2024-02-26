@@ -10,7 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 
 using namespace ov;
 
@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsMarkedToKeepSrcP
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 2, 4, 3});
         auto weights = opset8::Constant::create(element::f32, Shape{3, 2}, {1, 2, 3, 4, 5, 6});
-        enable_keep_const_precision(weights);
+        mark_as_dequantization_node(weights);
         auto matmul = std::make_shared<opset8::MatMul>(data, weights);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 2}, {2, 3});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
