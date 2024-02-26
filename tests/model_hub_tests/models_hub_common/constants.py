@@ -18,7 +18,7 @@ runtime_heat_duration = os.environ.get('RUNTIME_HEAT_DURATION', '5')
 
 tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))
-hf_cache_dir = os.environ.get('HF_CACHE_DIR',
+hf_cache_dir = os.environ.get('HF_HUB_CACHE',
                               os.path.join(tempfile.gettempdir(), "hugging_face"))
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['HF_HUB_CACHE'] = hf_cache_dir
