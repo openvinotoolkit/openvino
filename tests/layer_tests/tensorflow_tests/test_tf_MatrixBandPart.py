@@ -9,7 +9,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestMatrixBandPart(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'input:0' in inputs_info
-        input_shape = inputs_info['input']
+        input_shape = inputs_info['input:0']
         inputs_data = {}
         inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
         return inputs_data
