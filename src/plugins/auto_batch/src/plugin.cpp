@@ -181,7 +181,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                             "Auto-batching operates only networks with inputs/outputs batched by 0th dimension");
             }
         }
-        for (const auto& output : cloned_model->get_results()) {
+        const auto& results = cloned_model->get_results();
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            const auto& output = results[output_id];
             const auto& shape = output->get_output_partial_shape(0);
             if (shape.is_dynamic())
                 OPENVINO_THROW("Auto-batching does not support dynamic networks!");
@@ -189,8 +191,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             if (shape.size() && ov::DimensionTracker::get_label(shape[0])) {
                 if (shape[0] != 1)
                     OPENVINO_THROW("Auto-batching does not reshape/re-batch originally batched networks!");
-                const auto& node = output->input_value(0);
-                batched_outputs.insert(node.get_index());
+                batched_outputs.insert(output_id);
             } else {
                 // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
                 for (size_t s = 1; s < shape.size(); s++)
@@ -265,9 +266,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         try {
             auto inputs = reshaped->inputs();
             std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
-            for (auto& input : inputs) {
+            for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
+                auto& input = inputs[input_id];
                 auto input_shape = input.get_shape();
-                if (batched_inputs.find(input.get_index()) != batched_inputs.end()) {
+                if (batched_inputs.find(input_id) != batched_inputs.end()) {
                     input_shape[0] = meta_device.device_batch_size;
                 }
                 partial_shapes.insert({input, ov::PartialShape(input_shape)});

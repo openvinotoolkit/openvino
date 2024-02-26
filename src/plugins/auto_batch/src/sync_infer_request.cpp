@@ -51,30 +51,34 @@ size_t SyncInferRequest::get_batch_size() const {
 
 void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t>& batched_inputs,
                                                       const std::set<std::size_t>& batched_outputs) {
-    for (const auto& it : get_inputs()) {
+    const auto inputs = get_inputs();
+    for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
+        const auto& input = inputs[input_id];
         ov::SoPtr<ov::ITensor> res;
-        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(input);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(it.get_index()),
+                                                     std::move(input_id),
                                                      batched_inputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, res);
+        set_tensor(input, res);
     }
 
-    for (const auto& it : get_outputs()) {
+    const auto& outputs = get_outputs();
+    for (size_t output_id = 0; output_id < outputs.size(); output_id++) {
+        const auto& output = outputs[output_id];
         ov::SoPtr<ov::ITensor> res;
-        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(it);
+        auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(output);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
         res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     std::move(it.get_index()),
+                                                     std::move(output_id),
                                                      batched_outputs,
                                                      m_batch_id,
                                                      m_batch_size);
-        set_tensor(it, res);
+        set_tensor(output, res);
     }
 }
 

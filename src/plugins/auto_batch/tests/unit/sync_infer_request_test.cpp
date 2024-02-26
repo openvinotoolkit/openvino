@@ -148,13 +148,11 @@ public:
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
         for (size_t i = 0; i < params.size(); i++) {
-            m_batched_inputs.insert(params[i]->output(0).get_index());
+            m_batched_inputs.insert(i);
         }
         const auto& results = model->get_results();
         for (size_t i = 0; i < results.size(); i++) {
-            const auto& output = results[i];
-            const auto& node = output->input_value(0);
-            m_batched_outputs.insert(node.get_index());
+            m_batched_outputs.insert(i);
         }
     }
 };
