@@ -16,7 +16,7 @@ import tensorflow_text  # do not delete, needed for text models
 
 from models_hub_common.constants import tf_hub_cache_dir, no_clean_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list_in_dir, is_hf_link
+from models_hub_common.utils import get_models_list, is_hf_link
 from utils import type_map, load_graph, get_input_signature, get_output_signature
 
 
@@ -149,7 +149,7 @@ class TestTFHubConvertModel(TestConvertModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list_in_dir(os.path.join(os.path.dirname(__file__), "model_lists"), "precommit"))
+                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "precommit")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
@@ -161,7 +161,7 @@ class TestTFHubConvertModel(TestConvertModel):
         self.run(model_name, model_link, ie_device)
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list_in_dir(os.path.join(os.path.dirname(__file__), "model_lists"), "nightly"))
+                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_tf_hub")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \

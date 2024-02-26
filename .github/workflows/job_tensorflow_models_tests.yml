@@ -111,28 +111,12 @@ jobs:
       - name: Install TF Hub tests requirements
         run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/requirements.txt
 
-      - name: TensorFlow Hub Tests - TF FE
+      - name: TensorFlow Models Tests - TF FE
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --scope tf_hub
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow Hugging Face Tests - TF FE
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_convert_model.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --scope hf
-        env:
-          TYPE: ${{ inputs.event == 'schedule' && 'precommit' || 'precommit'}}
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow Other Tests (OMZ) - TF FE
-        run: |
-          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/test_tf_convert_model.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v --scope others
-        env:
-          TYPE: ${{ inputs.event == 'schedule' && 'precommit' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results

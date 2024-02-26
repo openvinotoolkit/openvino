@@ -19,18 +19,7 @@ def is_hf_link(link: str):
     return link.startswith("hf_")
 
 
-def get_models_list_in_dir(dir: str, mark: str):
-    models_list = []
-    for file_name in os.listdir(dir):
-        if file_name.startswith(mark):
-            models_list += get_models_list(os.path.join(dir, file_name))
-    return models_list
-
-
 def get_models_list(file_name: str):
-    scope = "all"
-    if "--scope" in sys.argv and len(sys.argv) >= sys.argv.index("--scope") + 1:
-        scope = sys.argv[sys.argv.index("--scope") + 1]
     models = []
     with open(file_name) as f:
         for model_info in f:
@@ -48,19 +37,7 @@ def get_models_list(file_name: str):
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
                 assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
-            if scope == "all":
-                models.append((model_name, model_link, mark, reason))
-            elif scope == "hf":
-                if is_hf_link(model_link):
-                    models.append((model_name, model_link, mark, reason))
-            elif scope == "tf_hub":
-                if is_tf_hub_link(model_link):
-                    models.append((model_name, model_link, mark, reason))
-            elif scope == "others":
-                if not is_hf_link(model_link) and not is_tf_hub_link(model_link):
-                    models.append((model_name, model_link, mark, reason))
-            else:
-                raise Exception("Unknown scope {}. Please select one of [all, hf, tf_hub, others].".format(scope))
+            models.append((model_name, model_link, mark, reason))
 
     return models
 
