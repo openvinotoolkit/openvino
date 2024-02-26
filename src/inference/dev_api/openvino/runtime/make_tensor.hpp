@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Helpers to create OpenVINO Tensors
+ * @file openvino/runtime/make_tensor.hpp
+ */
+
 #pragma once
 
-#include "ie_blob.h"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -65,14 +69,4 @@ OPENVINO_RUNTIME_API ov::Tensor make_tensor(const ov::SoPtr<ITensor>& tensor);
  */
 OPENVINO_RUNTIME_API ov::SoPtr<ov::ITensor> get_tensor_impl(const ov::Tensor& tensor);
 
-IE_SUPPRESS_DEPRECATED_START
-/** @cond INTERNAL */
-ov::SoPtr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor, bool unwrap = false);
-
-OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const ov::SoPtr<ITensor>& tensor,
-                                                                           bool unwrap = true,
-                                                                           InferenceEngine::TensorDesc desc = {});
-/** @endcond */
-
-IE_SUPPRESS_DEPRECATED_END
 }  // namespace ov

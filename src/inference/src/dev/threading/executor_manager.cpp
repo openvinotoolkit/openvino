@@ -128,20 +128,14 @@ std::shared_ptr<ov::threading::ITaskExecutor> ExecutorManagerImpl::get_executor(
 std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_cpu_streams_executor(
     const ov::threading::IStreamsExecutor::Config& config) {
     std::lock_guard<std::mutex> guard(streamExecutorMutex);
-    for (const auto& it : cpuStreamsExecutors) {
+    for (auto& it : cpuStreamsExecutors) {
         const auto& executor = it.second;
         if (executor.use_count() != 1)
             continue;
 
-        const auto& executorConfig = it.first;
-        if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
-            executorConfig._threads_per_stream == config._threads_per_stream &&
-            executorConfig._threadBindingType == config._threadBindingType &&
-            executorConfig._threadBindingStep == config._threadBindingStep &&
-            executorConfig._threadBindingOffset == config._threadBindingOffset)
-            if (executorConfig._threadBindingType != ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
-                executorConfig._thread_preferred_core_type == config._thread_preferred_core_type)
-                return executor;
+        auto& executorConfig = it.first;
+        if (executorConfig == config)
+            return executor;
     }
     auto newExec = std::make_shared<ov::threading::CPUStreamsExecutor>(config);
     tbbThreadsCreated = true;
@@ -167,14 +161,13 @@ void ExecutorManagerImpl::clear(const std::string& id) {
         cpuStreamsExecutors.clear();
     } else {
         executors.erase(id);
-        cpuStreamsExecutors.erase(
-            std::remove_if(cpuStreamsExecutors.begin(),
-                           cpuStreamsExecutors.end(),
-                           [&](const std::pair<ov::threading::IStreamsExecutor::Config,
-                                               std::shared_ptr<ov::threading::IStreamsExecutor>>& it) {
-                               return it.first._name == id;
-                           }),
-            cpuStreamsExecutors.end());
+        cpuStreamsExecutors.erase(std::remove_if(cpuStreamsExecutors.begin(),
+                                                 cpuStreamsExecutors.end(),
+                                                 [&](std::pair<ov::threading::IStreamsExecutor::Config,
+                                                               std::shared_ptr<ov::threading::IStreamsExecutor>>& it) {
+                                                     return it.first.get_name() == id;
+                                                 }),
+                                  cpuStreamsExecutors.end());
     }
 }
 
@@ -182,7 +175,7 @@ void ExecutorManagerImpl::execute_task_by_streams_executor(
     ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
     ov::threading::Task task) {
     ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor", 1, 1, core_type);
-    if (!streamsConfig._streams_info_table.empty()) {
+    if (!streamsConfig.get_streams_info_table().empty()) {
         auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
         std::vector<Task> tasks{std::move(task)};
         taskExecutor->run_and_wait(tasks);

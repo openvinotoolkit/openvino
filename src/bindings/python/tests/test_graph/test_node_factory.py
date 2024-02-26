@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from sys import platform
 from openvino import compile_model, Model
+from openvino.runtime import Extension
 import openvino.runtime.opset8 as ov
 from openvino.runtime.exceptions import UserInputError
 from openvino.runtime.utils.node_factory import NodeFactory
@@ -99,6 +100,7 @@ def test_node_factory_validate_missing_arguments():
 
 @pytest.mark.template_extension()
 @pytest.mark.dynamic_library()
+@pytest.mark.xfail(condition=platform == "darwin", reason="Ticket - 132696")
 def test_extension_added_from_library():
     if platform == "win32":
         library_path = "openvino_template_extension.dll"
@@ -122,3 +124,17 @@ def test_extension_added_from_library():
     del identity
 
     assert np.array_equal(tensor, result[0])
+
+
+def test_add_extension():
+    class EmptyExtension(Extension):
+        def __init__(self) -> None:
+            super().__init__()
+
+    factory = NodeFactory()
+    factory.add_extension(EmptyExtension())
+    factory.add_extension([EmptyExtension(), EmptyExtension()])
+
+    data = ov.parameter([1, 2], dtype=np.float32)
+    param = factory.create("Parameter", data.outputs())
+    assert param is not None

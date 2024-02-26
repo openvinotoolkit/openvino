@@ -4,11 +4,9 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/markup_bias.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& precision,
@@ -126,4 +124,4 @@ std::shared_ptr<ov::Model> MarkupBiasFunction::get(const ov::element::Type& prec
 }
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

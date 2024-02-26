@@ -4,9 +4,8 @@
 #include <gtest/gtest.h>
 
 #include <iostream>
-#include <openvino/core/rt_info.hpp>
 
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"

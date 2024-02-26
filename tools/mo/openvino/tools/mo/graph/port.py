@@ -469,7 +469,7 @@ class Port:
                             '{}. Return data type of the data node.'.format(self.idx, self.node.name,
                                                                             value_data_type, source_port_data_type))
             # the source port data type has higher priority over the value data type because the MO calculates values in
-            # I64 precision for shapes but not all IE plugins support I64, so we should trust data type infer functions
+            # I64 precision for shapes but not all OV plugins support I64, so we should trust data type infer functions
             return source_port_data_type if source_port_data_type is not None else value_data_type
 
     def get_data_type(self):

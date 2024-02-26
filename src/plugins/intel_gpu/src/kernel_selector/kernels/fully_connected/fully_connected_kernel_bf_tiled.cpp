@@ -59,15 +59,15 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool FullyConnected_bf_tiled::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     auto& fc_params = static_cast<const fully_connected_params&>(params);
@@ -220,7 +220,7 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 }  // namespace
 
 FullyConnected_bf_tiled::tune_params
-FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type, int idx) const {
+FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
     if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
@@ -243,10 +243,11 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
     if (params.weights.GetDType() == WeightsType::UINT4 || params.weights.GetDType() == WeightsType::INT4) {
         if (!params.is_shape_agnostic && batch == 1) {
-            return selector.Default(tune_params(1, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT));
+            // Tuning for Meteor Lake
+            return selector.Default(tune_params(1, 2, 4, 2, 1, 1, EXE_MODE_DEFAULT));
         } else {
             // Try to use SLM kernels if possible
-            if (preffered_kernel_type != KernelType::DEFAULT) {
+            if (preferred_kernel_type != KernelType::DEFAULT) {
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -361,7 +362,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t output_b = fc_params.outputs[0].Batch().v;
@@ -436,7 +437,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     jit.AddConstant(MakeJitConstant("DISPATCH_BSV", dispatchData.tile_ms));
     jit.AddConstant(MakeJitConstant("DISPATCH_FSV", dispatchData.tile_ns));
 
-    jit.Merge(MakeConstantLoopUnrollJitConstants(dispatchData.tile_m));
+    auto max_tile_b_size = dispatchData.tile_m;
+    if (params.compressed &&
+        params.is_shape_agnostic &&
+        (weights_dt == WeightsType::UINT4 || weights_dt == WeightsType::INT4))
+        max_tile_b_size = std::max(max_tile_b_size, (uint32_t)8);
+
+    jit.Merge(MakeConstantLoopUnrollJitConstants(max_tile_b_size));
 
     bool realign_fp16_offset = params.inputs[0].GetDType() == Datatype::F16 && params.inputs[0].GetFirstElementOffset() % 2 != 0;
     jit.AddConstant(MakeJitConstant("REALIGN_FP16_OFFSET", realign_fp16_offset));
@@ -524,7 +531,6 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
-                                                                const optional_params &options,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
@@ -541,7 +547,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
         weights_layout = WeightsLayout::os_iyx_osv64;
 
     auto kernels_data = GetCommonKernelsData(params,
-                                             options,
                                              fc_params.inputs[0].GetLayout(),
                                              weights_layout,
                                              tparams.exec_options,
@@ -556,7 +561,6 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
             return kernels_data;
 
         auto slm_kernel = GetCommonKernelsData(params,
-                                               options,
                                                fc_params.inputs[0].GetLayout(),
                                                weights_layout,
                                                tparams.exec_options,
@@ -575,10 +579,10 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     return kernels_data;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {
+KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params) const {
     KernelsData res = {};
     for (size_t idx = 0; idx < auto_tune_params.size(); ++idx) {
-        KernelsData kds = GetTunedKernelsDataByIndex(params, options, static_cast<int>(idx));
+        KernelsData kds = GetTunedKernelsDataByIndex(params, static_cast<int>(idx));
 
         if (!kds.empty()) {
             res.emplace_back(kds[0]);
@@ -588,12 +592,12 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
     return res;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetAutoTuneParams(fc_params);
 
-    KernelsData kds = GetTunedKernelsDataByIndex(params, optParams, -1);
+    KernelsData kds = GetTunedKernelsDataByIndex(params, -1);
     if (!kds.empty()) {
         res.emplace_back(kds[0]);
     }

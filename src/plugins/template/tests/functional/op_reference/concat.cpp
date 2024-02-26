@@ -146,6 +146,69 @@ std::vector<ConcatParams> generateParams() {
     return params;
 }
 
+std::vector<ConcatParams> generateStringParams() {
+    const auto ET = ov::element::string;
+    using T = typename element_type_traits<ov::element::string>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams(PartialShape::dynamic(),
+                     reference_tests::Tensor(ET, {2}, std::vector<T>{"  ", "..."}),
+                     reference_tests::Tensor(ET, {2}, std::vector<T>{"Ab cd", "1"}),
+                     reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                     0,
+                     reference_tests::Tensor(ET, {4}, std::vector<T>{"  ", "...", "Ab cd", "1"}),
+                     "concat_string_2_1D_ax_0"),
+        ConcatParams(PartialShape::dynamic(),
+                     reference_tests::Tensor(ET, {2}, std::vector<T>{"  ", "..."}),
+                     reference_tests::Tensor(ET, {1}, std::vector<T>{"Ab cd"}),
+                     reference_tests::Tensor(ET, {3}, std::vector<T>{"1.2", "; ", " \n "}),
+                     0,
+                     reference_tests::Tensor(ET, {6}, std::vector<T>{"  ", "...", "Ab cd", "1.2", "; ", " \n "}),
+                     "concat_string_3_1D_ax_0"),
+        ConcatParams(PartialShape::dynamic(),
+                     reference_tests::Tensor(ET, {1, 2}, std::vector<T>{"  ", "..."}),
+                     reference_tests::Tensor(ET, {1, 1}, std::vector<T>{"Ab cd"}),
+                     reference_tests::Tensor(ET, {1, 3}, std::vector<T>{"1.2", "; ", " \n "}),
+                     1,
+                     reference_tests::Tensor(ET, {1, 6}, std::vector<T>{"  ", "...", "Ab cd", "1.2", "; ", " \n "}),
+                     "concat_string_3_2D_ax_1"),
+        ConcatParams(PartialShape::dynamic(),
+                     reference_tests::Tensor(ET, {2, 1}, std::vector<T>{"  ", "..."}),
+                     reference_tests::Tensor(ET, {1, 1}, std::vector<T>{"Ab cd"}),
+                     reference_tests::Tensor(ET, {3, 1}, std::vector<T>{"1.2", "; ", " \n "}),
+                     0,
+                     reference_tests::Tensor(ET, {6, 1}, std::vector<T>{"  ", "...", "Ab cd", "1.2", "; ", " \n "}),
+                     "concat_string_3_2D_ax_0"),
+        ConcatParams(
+            PartialShape::dynamic(),
+            reference_tests::Tensor(ET, {1, 2, 1, 2}, std::vector<T>{{"1,2", "3;4;", "- 5 -", "...."}}),
+            reference_tests::Tensor(ET, {1, 2, 1, 3}, std::vector<T>{"a", ",b", "c. ", "d d ", " e ", "F"}),
+            reference_tests::Tensor(ET, {1, 2, 1, 4}, std::vector<T>{"defg ", ".", "3 4", ":", " \0", "_", "\n", ";"}),
+            3,
+            reference_tests::Tensor(ET,
+                                    {1, 2, 1, 9},
+                                    std::vector<T>{"1,2",
+                                                   "3;4;",
+                                                   "a",
+                                                   ",b",
+                                                   "c. ",
+                                                   "defg ",
+                                                   ".",
+                                                   "3 4",
+                                                   ":",
+                                                   "- 5 -",
+                                                   "....",
+                                                   "d d ",
+                                                   " e ",
+                                                   "F",
+                                                   " ",
+                                                   "_",
+                                                   "\n",
+                                                   ";"}),
+            "concat_string_3_4D_ax_3"),
+    };
+    return params;
+}
+
 std::vector<ConcatParams> generateCombinedParams() {
     const std::vector<std::vector<ConcatParams>> generatedParams{
         generateParams<element::Type_t::i8>(),
@@ -160,6 +223,7 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParams<element::Type_t::f16>(),
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
+        generateStringParams(),
     };
     std::vector<ConcatParams> combinedParams;
 

@@ -12,13 +12,12 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "ngraph/runtime/aligned_buffer.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/type/nf4.hpp"
 #include "openvino/reference/utils/type_util.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace op {
@@ -69,34 +68,6 @@ std::vector<T> from_string_vector(const std::vector<std::string>& str_values) {
 }  // namespace
 
 namespace v0 {
-OPENVINO_SUPPRESS_DEPRECATED_START
-std::shared_ptr<AlignedBuffer> Constant::legacy_to_ov_aligned_buffer(
-    const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
-    return std::make_shared<SharedBuffer<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(buffer->get_ptr<char>(),
-                                                                                           buffer->size(),
-                                                                                           buffer);
-}
-
-Constant::Constant(const std::shared_ptr<ngraph::runtime::Tensor>& tensor) {
-    m_element_type = tensor->get_element_type();
-    m_shape = tensor->get_shape();
-    // Share data from HostTensor if we work with it
-    // And copy data in other cas
-    if (auto hostTensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(tensor)) {
-        m_data = std::make_shared<SharedBuffer<std::shared_ptr<ngraph::runtime::Tensor>>>(
-            static_cast<char*>(hostTensor->get_data_ptr()),
-            tensor->get_size_in_bytes(),
-            tensor);
-    } else {
-        OPENVINO_ASSERT(m_element_type != ov::element::string,
-                        "Creation of string constant for ngraph::runtime::Tensor is supported only for HostTensor");
-        constructor_validate_and_infer_types();
-        allocate_buffer(false);
-        tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
-    }
-    constructor_validate_and_infer_types();
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 Constant::Constant(const Tensor& tensor)
     : m_element_type{tensor.get_element_type()},
@@ -397,10 +368,32 @@ bool Constant::visit_attributes(AttributeVisitor& visitor) {
 
     const auto need_to_reallocate = (m_shape != prev_shape) || (prev_type != m_element_type);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate) {
-        // Filling in a fresh constant
-        allocate_buffer(false);
+        if (m_element_type == ov::element::string) {
+            // string objects initialization is required
+            allocate_buffer(true);
+        } else {
+            // Filling in a fresh constant
+            allocate_buffer(false);
+        }
     }
-    visitor.on_attribute("value", m_data);
+
+    if (m_element_type == ov::element::string) {
+        if (auto string_aligned_buffer = std::dynamic_pointer_cast<ov::StringAlignedBuffer>(m_data)) {
+            visitor.on_attribute("value", string_aligned_buffer);
+        } else if (auto shared_string_tensor = std::dynamic_pointer_cast<ov::SharedBuffer<ov::Tensor>>(m_data)) {
+            auto shared_string_buffer =
+                std::make_shared<ov::SharedStringAlignedBuffer>(static_cast<char*>(shared_string_tensor->get_ptr()),
+                                                                shared_string_tensor->size());
+            visitor.on_attribute("value", shared_string_buffer);
+        } else {
+            // deserialization case when buffer does not exist yet
+            std::shared_ptr<ov::StringAlignedBuffer> string_aligned_buffer;
+            visitor.on_attribute("value", string_aligned_buffer);
+            m_data = string_aligned_buffer;
+        }
+    } else {
+        visitor.on_attribute("value", m_data);
+    }
     update_identical_flags(false, false);
     return true;
 }

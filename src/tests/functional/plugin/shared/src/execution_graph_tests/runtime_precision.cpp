@@ -2,23 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
-#include <tuple>
-#include <vector>
-#include <unordered_set>
-#include <string>
-#include <functional>
+#include "execution_graph_tests/runtime_precision.hpp"
 
-#include "exec_graph_info.hpp"
+#include <functional>
+#include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_set>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/node_builders/binary_convolution.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 
-#include "execution_graph_tests/runtime_precision.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/relu.hpp"
 
 namespace ExecutionGraphTests {
 

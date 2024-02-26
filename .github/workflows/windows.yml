@@ -2,6 +2,7 @@ name: Windows (VS 2019, Python 3.11)
 on:
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -34,6 +35,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -51,6 +53,11 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\openvino\\sccache_log.txt"
+      SCCACHE_LOG: warn
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -59,7 +66,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       # TODO: specify version of compiler here
       SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_Release
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
       - name: Clone OpenVINO
@@ -117,12 +124,16 @@ jobs:
           python3 -m pip install certifi
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install build dependencies
-        run: choco install --no-progress ninja
+        run: |
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip -MaximumRetryCount 10
+          Expand-Archive -Force ninja-win.zip
+          # Add it to the GitHub Path so it would be available in the subsequent steps
+          Add-Content -Path $env:GITHUB_PATH -Value "${{ github.workspace }}/ninja-win"
 
       #
       # Build
@@ -152,6 +163,19 @@ jobs:
 
       - name: Clean sccache stats
         run: '& "$Env:SCCACHE_PATH" --zero-stats'
+
+        # to get more information on the issue
+        # described in the next step
+      - name: Show which network ports are used
+        run: netstat -ban
+
+        # the case is the following:
+        # sccache: error: An attempt was made to access a socket in a way forbidden by its access permissions. (os error 10013)
+        # This looks like the attempt to use
+        # a port below 1024 or a port
+        # which is occupied by another app
+      - name: Stop sccache server just in case
+        run: '& "$Env:SCCACHE_PATH" --stop-server'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
@@ -195,14 +219,24 @@ jobs:
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --verbose
 
       - name: CMake configure, build and install - OpenVINO JS API
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run:
           cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
-          
+
           cmake --build ${{ env.BUILD_DIR }} --parallel
-          
+
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      #
+      # Upload build artifacts and logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: Upload openvino package
         uses: actions/upload-artifact@v3
@@ -219,8 +253,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino js package
-        if: ${{ 'false' }} # 128689
-        # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         uses: actions/upload-artifact@v3
         with:
           name: openvino_js_package
@@ -279,26 +312,42 @@ jobs:
           should-setup-pip-paths: 'false'
           self-hosted-runner: 'true'
 
+      # Test with the short names of the arguments
       - name: Build cpp samples
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/cpp_samples
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
 
+      # Test with the full names of the arguments
       - name: Build c samples
         run: |
-          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples.ps1 -InstallDirectory ${{ env.INSTALL_DIR }} -BuildDirectory ${{ env.BUILD_DIR }}/c_samples
 
       - name: Samples tests
         run: |
-          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 -m pytest -sv ${{ env.INSTALL_TEST_DIR }}/smoke_tests --env_conf ${{ env.INSTALL_TEST_DIR }}/smoke_tests/env_config.yml --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
+          # Install Python benchmark_app by installing openvino-*.whl
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install --ignore-installed PyYAML -r ${{ env.INSTALL_TEST_DIR }}/smoke_tests/requirements.txt "$ovCoreWheelPath"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          $Env:PYTHONCOERCECLOCALE="warn"
+          python3 -bb -W error -X dev -X warn_default_encoding -m pytest ${{ env.INSTALL_TEST_DIR }}/smoke_tests --numprocesses logical --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-SamplesSmokeTests.xml
         env:
           IE_APP_PATH: ${{ env.INSTALL_DIR }}/samples_bin
           IE_APP_PYTHON_PATH: ${{ env.INSTALL_DIR }}/samples/python
           SHARE: ${{ env.INSTALL_TEST_DIR }}/smoke_tests/samples_smoke_tests_data
           WORKSPACE: ${{ env.INSTALL_DIR }}
+
+      # Test .bat scripts for samples building
+      - name: Build cpp samples (bat)
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/cpp/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/cpp_samples_bat
+        env:
+          CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+
+      - name: Build c samples (bat)
+        run: |
+          & ${{ env.SAMPLES_INSTALL_DIR }}/c/build_samples_msvc.bat -i ${{ env.INSTALL_DIR }}/samples_bat -b ${{ env.BUILD_DIR }}/c_samples_bat
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v3
@@ -318,8 +367,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
-    if: ${{ 'false' }} # 128689
-    # if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
       - name: Fetch OpenVINO JS sources
@@ -353,9 +401,91 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
 
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI ]
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: aks-win-4-cores-8gb
+    env:
+      INSTALL_DIR: "${{ github.workspace }}\\install"
+      OPENVINO_TOKENIZERS_REPO: "${{ github.workspace }}\\openvino_tokenizers"
+      EXTENSION_BUILD_DIR: "${{ github.workspace }}\\build\\openvino_tokenizers"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
+
+    steps:
+      - name: checkout action
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'false'
+
+      - name: Clone OpenVINO Tokenizers
+        uses: actions/checkout@v4
+        with:
+          repository: 'openvinotoolkit/openvino_tokenizers'
+          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
+          ref: 'master'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+          popd
+
+      #
+      # Dependencies
+      #
+
+      - name: Install python dependencies
+        run: |
+          # wheel packaging
+          python3 -m pip install -r ${env:OPENVINO_TOKENIZERS_REPO}/requirements-build.txt
+
+      #
+      # Build
+      #
+
+      - name: Build tokenizers wheel
+        run: |
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          python3 -m build --wheel --outdir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+        env:
+          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+
+      #
+      # Upload build artifacts
+      #
+
+      - name: Upload openvino tokenizers wheel
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
+
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
     timeout-minutes: 75
     defaults:
       run:
@@ -374,6 +504,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO tokenizers extension
+        uses: actions/download-artifact@v3
+        with:
+          name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
@@ -413,6 +549,10 @@ jobs:
           $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino-*.whl | % { $_.FullName }
           python3 -m pip install "$ovCoreWheelPath"
 
+          # Find and install the core OV Tokenizers wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}" -Filter openvino_tokenizers-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
           # Find and install the dev OV wheel
           $ovDevWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\tools" -Filter openvino_dev*.whl | % { $_.FullName }
           python3 -m pip install "$ovDevWheelPath[mxnet,caffe,kaldi,onnx,tensorflow2,pytorch]"
@@ -427,6 +567,12 @@ jobs:
 
           # TODO: replace with Python API tests requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/mo/requirements_dev.txt
+
+          # For getting rid of SSL issues during model downloading for unit tests
+          python3 -m pip install certifi
+
+      - name: Set SSL_CERT_FILE for model downloading for unit tests
+        run: echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
       - name: Python API Tests
         #if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test # Ticket: 127101
@@ -472,7 +618,7 @@ jobs:
         run: |
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -484,7 +630,7 @@ jobs:
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
 
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/ -m precommit_tf_fe --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
 
@@ -492,13 +638,13 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         shell: cmd
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --ir_version=10  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         shell: cmd
         run: |
-          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf2_Activation.xml -k "sigmoid"
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -551,7 +697,7 @@ jobs:
         if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).PDPD_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/py_frontend_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-test_py_fontend.xml
 
       - name: OVC unit tests
@@ -604,156 +750,156 @@ jobs:
       - name: OpenVINO Core unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_core_unit_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-NGraphUT.xml
 
       - name: OpenVINO Inference functional tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_functional_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceFunc.xml
 
       - name: OpenVINO Inference unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).inference.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_inference_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-InferenceUnit.xml
 
       - name: Low Precision Transformations Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).LP_transformations.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_lp_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-LpTransformations.xml
 
       - name: OpenVINO Conditional compilation tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).Core.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ConditionalCompilation.xml
 
       - name: IR frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).IR_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: PaddlePaddle frontend tests # Disabled because of CVS-95904
         if: ${{ 'false' }}
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/paddle_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-PaddleTests.xml
 
       - name: ONNX frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend.xml
 
       - name: TensorFlow Common frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
             fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_common_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowCommonFrontend.xml
 
       - name: TensorFlow frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowFrontend.xml
 
       - name: TensorFlow Lite frontend tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
         run: |
           # Skip ticket: 126320
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_tensorflow_lite_frontend_tests --gtest_print_time=1 --gtest_filter=-*test_decode_convert_equal_convert*:*test_convert_partially_equal_convert* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TensorFlowLiteFrontend.xml
 
       - name: Transformations func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).transformations.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_transformations_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-Transformations.xml
 
       - name: Common test utils tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_util_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-commonUtilsTests.xml
 
       - name: Snippets func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_snippets_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SnippetsFuncTests.xml
 
       - name: CPU plugin unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_cpu_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-CPUUnitTests.xml
 
       - name: ov_subgraphs_dumper_tests tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_subgraphs_dumper_tests --gtest_print_time=1 --device=TEMPLATE --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-SubgraphsDumperTests.xml
 
       - name: Template OpImpl tests
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_op_conformance_tests --gtest_print_time=1 --gtest_filter="*OpImpl*" --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateOpImplTests.xml
 
       - name: AUTO unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_unit_tests.xml
 
       - name: AUTO func Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_func_tests.xml
 
       - name: Template plugin func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).TEMPLATE.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_template_func_tests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-TemplateFuncTests.xml
 
       - name: OpenVINO C API tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).C_API.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_capi_test --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OpenVINOCAPITests.xml
 
       - name: AutoBatch unit tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_unit_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_unit_tests.xml
 
       - name: AutoBatch func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).AUTO_BATCH.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_auto_batch_func_tests --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ov_auto_batch_func_tests.xml
 
       - name: Proxy Plugin func tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).PROXY.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_proxy_plugin_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVProxyTests.xml
 
       - name: Hetero Unit Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_unit_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroUnitTests.xml
 
       - name: Hetero Func Tests
         if: fromJSON(needs.smart_ci.outputs.affected_components).HETERO.test
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
@@ -820,7 +966,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -829,12 +975,12 @@ jobs:
 
       - name: Intel CPU plugin func tests (parallel)
         run: |
-          & "${{ env.INSTALL_DIR }}/setupvars.ps1"
+          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
           python3 ${{ env.PARALLEL_TEST_SCRIPT }} -e ${{ env.INSTALL_TEST_DIR }}/ov_cpu_func_tests.exe -c ${{ env.PARALLEL_TEST_CACHE }} -w ${{ env.INSTALL_TEST_DIR }} -s suite -- --gtest_filter=*smoke*
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
@@ -858,7 +1004,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

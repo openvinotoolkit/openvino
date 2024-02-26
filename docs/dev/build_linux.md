@@ -53,7 +53,10 @@ The software was validated on:
      cmake -DCMAKE_BUILD_TYPE=Release ..
      cmake --build . --parallel
    ```
-The process may take some time to finish.
+   The process may take some time to finish. If you are using a system with limited resources, it is recommended to specify a lower number of parallel jobs to avoid overloading your system. This can help maintain system responsiveness and stability during the build process. Use `nproc` to find the number of available processing units. For example, to use 8 parallel jobs, run the following command:
+      ```sh
+      cmake --build . --parallel 8
+      ```
 
 ### Additional Build Options
 

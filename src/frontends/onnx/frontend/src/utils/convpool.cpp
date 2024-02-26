@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -18,14 +17,14 @@
 
 using namespace ov;
 using namespace ov::op;
+using ov::CoordinateDiff;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace convpool {
-Shape get_kernel_shape(const Node& node) {
-    const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
+ov::Shape get_kernel_shape(const Node& node) {
+    const auto& data_shape = node.get_ov_inputs().at(0).get_partial_shape();
     const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
     return node.get_attribute_value<std::vector<size_t>>("kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
 }
@@ -39,7 +38,7 @@ namespace {
 /// \return     The attribute default value.
 ///
 std::vector<std::size_t> get_attr_default_value(const Node& node, const std::string& attr_name) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "If '", attr_name, "' is not provided data rank must be static.");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
@@ -70,11 +69,11 @@ std::vector<std::size_t> get_attribute_value(const Node& node,
 }
 }  // namespace
 
-Strides get_strides(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_strides(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "strides", kernel_rank);
 }
 
-Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
+ov::Strides get_dilations(const Node& node, const std::size_t kernel_rank) {
     return get_attribute_value(node, "dilations", kernel_rank);
 }
 
@@ -127,49 +126,60 @@ std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node, const size_
 }
 
 std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node) {
-    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
+    const auto data_rank = node.get_ov_inputs().at(0).get_partial_shape().rank();
     CHECK_VALID_NODE(node, data_rank.is_static(), "The rank of node must be static in order to calculate pads");
     const auto data_spatial_dims = data_rank.get_length() - 2;
 
     return get_pads(node, data_spatial_dims);
 }
 
-void calculate_auto_pads(const Shape& data_shape,
-                         const Shape& filter_shape,
-                         const Strides& strides,
-                         const Strides& dilations,
+void calculate_auto_pads(const ov::Shape& data_shape,
+                         const ov::Shape& filter_shape,
+                         const ov::Strides& strides,
+                         const ov::Strides& dilations,
                          const ov::op::PadType& pad_type,
                          CoordinateDiff& padding_below,
                          CoordinateDiff& padding_above) {
     if (pad_type == ov::op::PadType::SAME_UPPER || pad_type == ov::op::PadType::SAME_LOWER) {
-        padding_below.clear();
-        padding_above.clear();
-        // Extract kernel shape - remove (N,C) channels
-        Shape kernel_shape(std::next(std::begin(filter_shape), 2), std::end(filter_shape));
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::infer_auto_padding(data_shape, kernel_shape, strides, dilations, pad_type, padding_above, padding_below);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto num_spatial = strides.size();
+        padding_below.resize(num_spatial);
+        padding_above.resize(num_spatial);
+        auto data_dim = data_shape.cend() - num_spatial;
+        auto filter_dim = filter_shape.cend() - num_spatial;
+
+        const auto padding_swap = pad_type == ov::op::PadType::SAME_UPPER;
+        auto&& pad_b = padding_swap ? padding_below.begin() : padding_above.begin();
+        auto&& pad_e = padding_swap ? padding_above.begin() : padding_below.begin();
+
+        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
+            int64_t filter_size = (static_cast<int64_t>(*filter_dim - 1)) * dilations[i] + 1;
+            auto filter_stride = static_cast<int64_t>(strides[i]);
+            auto output_size = (*data_dim + filter_stride - 1) / filter_stride;
+
+            auto padding_needed = std::max<int64_t>(0, (output_size - 1) * filter_stride + filter_size - *data_dim);
+            *pad_b = padding_needed / 2;
+            *pad_e = padding_needed - *pad_b;
+        }
     }
 }
 
 Output<ov::Node> get_reshaped_filters(const Output<ov::Node>& filters, int64_t groups) {
-    const auto zero_node = v0::Constant::create(element::i64, Shape(), {0});
-    const auto split_lengths = v0::Constant::create(element::i64, Shape{2}, {1, -1});
-    const auto groups_node = v0::Constant::create(element::i64, Shape{1}, {groups});
+    const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape(), {0});
+    const auto split_lengths = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});
+    const auto groups_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {groups});
 
     const auto filters_shape = std::make_shared<v3::ShapeOf>(filters);
     const auto splitted_shape = std::make_shared<v1::VariadicSplit>(filters_shape, zero_node, split_lengths);
 
     const auto first_dim = std::make_shared<v1::Divide>(splitted_shape->output(0), groups_node);
     const auto new_filters_shape =
-        std::make_shared<v0::Concat>(OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
+        std::make_shared<v0::Concat>(ov::OutputVector{groups_node, first_dim, splitted_shape->output(1)}, 0);
 
     const auto reshaped_filters = std::make_shared<v1::Reshape>(filters, new_filters_shape, false);
 
     return reshaped_filters;
 }
 }  // namespace convpool
-}  // namespace onnx_import
-}  // namespace ngraph
-
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

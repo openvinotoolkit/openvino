@@ -48,9 +48,9 @@ public:
                                                        test_data._cpu_pinning,
                                                        test_data._streams_info_table_in};
 
-        ASSERT_EQ(test_data._cpu_pinning, config._cpu_reservation);
-        ASSERT_EQ(test_data._streams_info_table, config._streams_info_table);
-        ASSERT_EQ(test_data._stream_processors, config._stream_processor_ids);
+        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_reservation());
+        ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
+        ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
     }
 };
 

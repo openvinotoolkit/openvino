@@ -26,23 +26,21 @@
 using namespace testing;
 using namespace ov::pass;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 class MarkupAvgPoolPrecisionsTransformationTestValues {
 public:
 public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -70,7 +68,7 @@ public:
         std::tie(precision, shape, addFakeQuantize, additionalLayer, testValues) = GetParam();
 
         actualFunction =
-            ngraph::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getOriginal(precision,
+            ov::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getOriginal(precision,
                                                                                     testValues.actual.inputPrecision,
                                                                                     shape,
                                                                                     addFakeQuantize,
@@ -97,7 +95,7 @@ public:
         transform.cleanup->add_matcher<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>();
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getReference(
+        referenceFunction = ov::builder::subgraph::MarkupAvgPoolPrecisionsFunction::getReference(
             precision,
             testValues.expected.inputPrecision,
             shape,

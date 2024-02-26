@@ -57,7 +57,6 @@ struct primitive_impl {
     virtual const std::string& get_type_info() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
-    virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     std::string get_kernel_name() const { return _kernel_name; }
 
@@ -225,6 +224,7 @@ public:
     void reset_output_change() { _output_changed = false; }
 
     bool shape_changed() const { return _shape_changed; }
+    bool mem_changed() const { return _mem_changed; }
     void reset_shape_change() { _shape_changed = false; }
     void set_shape_change() { _shape_changed = true; }
 
@@ -234,6 +234,7 @@ public:
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
+    void do_runtime_skip_strided_slice();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
     void configure_shape_of_dependencies();
@@ -299,6 +300,8 @@ public:
 
     virtual void update_output_memory() {}
 
+    virtual int32_t get_prealloc_iter_num() { return -1; }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -351,6 +354,7 @@ protected:
 
     bool _output_changed;  // todo: implement output reuse if neither of inputs has changed
     bool _shape_changed = false;
+    bool _mem_changed = false;
     bool _has_valid_input =
         true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
@@ -384,6 +388,9 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
+    virtual void update_shape_info_tensor(const kernel_impl_params& params);
+
+    void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
@@ -504,16 +511,8 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
     }
 
-    kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
-        return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/, kernel_arguments_data& /*args*/) {}
-    virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
-        kernel_arguments_data args;
-        return args;
-    }
     virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 

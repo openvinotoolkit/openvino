@@ -67,13 +67,13 @@ void EmbeddingBagPackedSum::initSupportedPrimitiveDescriptors() {
 }
 
 void EmbeddingBagPackedSum::prepareParams() {
-    _batch = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
-    _indicesPerBag = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[1];
-    EmbeddingBagSum::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
+    _batch = getParentEdgeAt(INDICES_IDX)->getMemory().getStaticDims()[0];
+    _indicesPerBag = getParentEdgeAt(INDICES_IDX)->getMemory().getStaticDims()[1];
+    EmbeddingBagSum::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
 }
 
 void EmbeddingBagPackedSum::initFromInputs() {
-    _indices = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
+    _indices = getSrcDataAtPortAs<const int>(INDICES_IDX);
 }
 
 void EmbeddingBagPackedSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
@@ -97,14 +97,14 @@ bool EmbeddingBagPackedSum::isExecutable() const {
 }
 
 void EmbeddingBagPackedSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
+        weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
-                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
+                                       inputMem.getStaticDims(), getDstMemoryAtPort(0));
 }
 
 bool EmbeddingBagPackedSum::created() const {

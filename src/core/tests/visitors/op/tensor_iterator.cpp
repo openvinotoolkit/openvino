@@ -6,10 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/node_builders/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/multiply.hpp"
-#include "ov_models/ov_builders/reshape.hpp"
 #include "visitors/visitors.hpp"
 
 using namespace std;
@@ -23,7 +23,7 @@ TEST(attributes, tensor_iterator_lstm) {
     const size_t I = 8;   // Input size
     const size_t H = 32;  // Hidden size
 
-    NodeBuilder::get_ops().register_factory<ov::op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<ov::op::v0::TensorIterator>();
 
     auto SENT = make_shared<ov::op::v0::Parameter>(element::f32, Shape{N, L, I});
 
@@ -39,14 +39,14 @@ TEST(attributes, tensor_iterator_lstm) {
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell = make_shared<ov::op::v4::LSTMCell>(ov::op::util::reshape(X, Shape{N, I}),
-                                                       ov::op::util::reshape(H_t, Shape{N, H}),
-                                                       ov::op::util::reshape(C_t, Shape{N, H}),
+    auto LSTM_cell = make_shared<ov::op::v4::LSTMCell>(ov::test::utils::reshape(X, Shape{N, I}),
+                                                       ov::test::utils::reshape(H_t, Shape{N, H}),
+                                                       ov::test::utils::reshape(C_t, Shape{N, H}),
                                                        W_body,
                                                        R_body,
                                                        H);
-    auto H_o = ov::op::util::reshape(LSTM_cell->output(0), Shape{N, 1, H});
-    auto C_o = ov::op::util::reshape(LSTM_cell->output(1), Shape{N, 1, H});
+    auto H_o = ov::test::utils::reshape(LSTM_cell->output(0), Shape{N, 1, H});
+    auto C_o = ov::test::utils::reshape(LSTM_cell->output(1), Shape{N, 1, H});
     auto body = make_shared<ov::Model>(OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::v0::TensorIterator>();
@@ -68,7 +68,7 @@ TEST(attributes, tensor_iterator_lstm) {
 }
 
 TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
-    NodeBuilder::get_ops().register_factory<op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<op::v0::TensorIterator>();
     // That which we iterate over
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
@@ -104,7 +104,7 @@ TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2) {
 }
 
 TEST(attributes, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
-    NodeBuilder::get_ops().register_factory<op::v0::TensorIterator>();
+    NodeBuilder::opset().insert<op::v0::TensorIterator>();
     // That which we iterate over
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<ov::op::v0::Parameter>(element::f32, Shape{32, 40, 10});

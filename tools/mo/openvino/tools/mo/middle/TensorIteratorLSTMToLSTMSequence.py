@@ -72,7 +72,7 @@ class TensorIteratorLSTM(MiddleReplacementPattern):
         isomorphisms = find_isomorphisms(ti.body, nodes, edges)
         if len(list(isomorphisms)) != 1:
             raise Error('Unsupported TensorIterator layer {} was found: either its body, ports or '
-                        'edges are not supported by Inference Engine. '
+                        'edges are not supported by OpenVINO. '
                         'Only TensorIterator with LSTMCell in a body of strict form is supported. '
                         'Please modify the original network '
                         'to meet the requirements.'.format(ti.soft_get('name')))

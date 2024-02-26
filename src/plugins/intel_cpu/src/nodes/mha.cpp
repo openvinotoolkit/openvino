@@ -14,6 +14,7 @@
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
+#include "utils/ngraph_utils.hpp"
 
 #include <string>
 #include <vector>
@@ -900,11 +901,11 @@ void MHA::prepareParams() {
         return new_vec;
     };
 
-    const auto memDescTranspose0In0 = getParentEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
-    const auto memDescTranspose1In0 = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
-    const auto memDescAddIn1 = getParentEdgeAt(2)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
-    const auto memDescTranspose2In0 = getParentEdgeAt(3)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
-    const auto memDescOut = getChildEdgeAt(0)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose0In0 = getSrcMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose1In0 = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescAddIn1 = getSrcMemoryAtPort(2)->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescTranspose2In0 = getSrcMemoryAtPort(3)->getDescWithType<BlockedMemoryDesc>();
+    const auto memDescOut = getDstMemoryAtPort(0)->getDescWithType<BlockedMemoryDesc>();
 
     dimsTranspose0In0 = memDescTranspose0In0->getBlockDims();
     dimsTranspose1In0 = memDescTranspose1In0->getBlockDims();
@@ -1213,11 +1214,11 @@ void MHA::callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel
 
 template <typename in1_type>
 void MHA::mhaImpl() {
-    const uint8_t* pTranspose0In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    const uint8_t* pTranspose1In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
-    const float* pAddIn1 = reinterpret_cast<const float*>(getParentEdgeAt(2)->getMemoryPtr()->getData());
-    const uint8_t* pTranspose2In0 = reinterpret_cast<const uint8_t*>(getParentEdgeAt(3)->getMemoryPtr()->getData());
-    uint8_t* pout = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const uint8_t* pTranspose0In0 = getSrcDataAtPortAs<const uint8_t>(0);
+    const uint8_t* pTranspose1In0 = getSrcDataAtPortAs<const uint8_t>(1);
+    const float* pAddIn1 = getSrcDataAtPortAs<const float>(2);
+    const uint8_t* pTranspose2In0 = getSrcDataAtPortAs<const uint8_t>(3);
+    uint8_t* pout = getDstDataAtPortAs<uint8_t>(0);
 
     auto outPrcSize = outputPrecision.size();
 

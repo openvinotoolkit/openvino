@@ -3,8 +3,6 @@
 //
 
 #include "bin_conv.h"
-#include "reorder.h"
-#include "input.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
 #include "conv.h"
@@ -20,7 +18,7 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "utils/general_utils.h"
 #include "openvino/opsets/opset1.hpp"
-#include "utils/cpu_utils.hpp"
+#include "utils/ngraph_utils.hpp"
 
 // WA for xbyak.h
 #ifdef _WIN32
@@ -1021,9 +1019,9 @@ void BinaryConvolution::createPrimitive() {
     if (!selectedPrimitiveDescriptor)
         OPENVINO_THROW("CPU binary convolution with name '", getName(), "' doesn't have primitive descriptors.");
 
-    auto srcDims = getParentEdgesAtPort(0)[0]->getMemory().getStaticDims();
-    auto weiDims = getParentEdgesAtPort(1)[0]->getMemory().getStaticDims();
-    auto dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
+    auto weiDims = getParentEdgeAt(1)->getMemory().getStaticDims();
+    auto dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
 
@@ -1116,7 +1114,7 @@ bool BinaryConvolution::canFuse(const NodePtr& node) const {
     if (node->getType() == Type::FakeQuantize) {
         bool ret = node->getAlgorithm() == Algorithm::FQBinarization;
         for (size_t i = 1; i < node->getParentEdges().size(); i++) {
-            ret &= node->getParentEdgesAtPort(i)[0]->getParent()->getChildEdges().size() == 1;
+            ret &= node->getParentEdgeAt(i)->getParent()->getChildEdges().size() == 1;
         }
         return ret;
     } else {
@@ -1302,13 +1300,13 @@ void BinaryConvolution::executeReference(const uint8_t* src, const uint8_t* weig
 }
 
 void BinaryConvolution::execute(dnnl::stream strm) {
-    auto srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    auto weightsMemory = getParentEdgeAt(1)->getMemoryPtr();
-    auto dstMemory = getChildEdgeAt(0)->getMemoryPtr();
+    auto srcMemory = getSrcMemoryAtPort(0);
+    auto weightsMemory = getSrcMemoryAtPort(1);
+    auto dstMemory = getDstMemoryAtPort(0);
 
-    auto src = reinterpret_cast<const uint8_t*>(srcMemory->getData());
-    auto weights = reinterpret_cast<const uint8_t*>(weightsMemory->getData());
-    auto dst = reinterpret_cast<uint8_t*>(dstMemory->getData());
+    auto src = srcMemory->getDataAs<const uint8_t>();
+    auto weights = weightsMemory->getDataAs<const uint8_t>();
+    auto dst = dstMemory->getDataAs<uint8_t>();
 
     auto srcDesc = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>();
     std::vector<size_t> srcStride(srcDesc->getStrides().size());

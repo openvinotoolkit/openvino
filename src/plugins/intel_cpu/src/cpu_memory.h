@@ -4,7 +4,18 @@
 
 #pragma once
 
-#include "memory_desc/dnnl_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include <onednn/dnnl.h>
+#include <cpu_shape.h>
+
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+
+#include <memory>
+#include <mutex>
+#include <unordered_set>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -175,6 +186,15 @@ public:
 
     virtual void* getData() const = 0; // pointer to the actual memory
 
+    template <typename T, typename datatype = typename std::decay<T>::type>
+    T* getDataAs() const {
+        /** @todo enabling this check requires all the nodes to follow this requirement
+         * OPENVINO_ASSERT(element::from<datatype>() == getPrecision(),
+         * "Memory data element type ", getPrecision(), " is not representable as ", element::from<datatype>());
+         */
+        return static_cast<T*>(getData());
+    }
+
     virtual size_t getSize() const = 0; // in bytes
     virtual const Shape& getShape() const = 0;
     virtual const VectorDims& getStaticDims() const = 0;
@@ -190,6 +210,11 @@ public:
 
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
+
+    ov::element::Type getPrecision() const {
+        return getDesc().getPrecision();
+    }
+
     dnnl::memory::data_type getDataType() const {
         return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }

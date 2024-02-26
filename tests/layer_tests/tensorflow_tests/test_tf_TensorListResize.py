@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTensorListResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_tensor_list_resize(self, input_shape, input_type, new_size):
@@ -46,7 +46,7 @@ class TestTensorListResize(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_tensor_list_resize_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_tensor_list_resize(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

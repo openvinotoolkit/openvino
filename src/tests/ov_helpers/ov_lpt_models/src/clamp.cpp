@@ -7,20 +7,19 @@
 
 
 #include "openvino/opsets/opset1.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/clamp.hpp"
 #include "low_precision/network_helper.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> ClampFunction::getOriginal(
     const ov::PartialShape& inputShape,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
@@ -34,7 +33,7 @@ std::shared_ptr<ov::Model> ClampFunction::getOriginal(
 std::shared_ptr<ov::Model> ClampFunction::getOriginal(
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
-    const ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize,
+    const ov::builder::subgraph::FakeQuantizeOnData fakeQuantize,
     const double clampLowConst,
     const double clampHighConst) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
@@ -76,9 +75,9 @@ std::shared_ptr<ov::Model> ClampFunction::getWithNonDequantizationMultiply(
 std::shared_ptr<ov::Model> ClampFunction::getReference(
     const ov::PartialShape& inputShape,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
     std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
@@ -94,4 +93,4 @@ std::shared_ptr<ov::Model> ClampFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

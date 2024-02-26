@@ -8,8 +8,10 @@
 #include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/optionals.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -71,6 +73,19 @@ inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) 
     }
 }
 
+using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
+
+std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
+std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
+
+inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
+    return get_output_data_types(op.get(), precision_map);
+}
+
+inline std::vector<cldnn::padding> get_output_paddings(const std::shared_ptr<ov::Node>& op) {
+    return get_output_paddings(op.get());
+}
+
 inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
     ov::Shape res(pshape.size());
     for (size_t i = 0; i < pshape.size(); i++) {
@@ -106,6 +121,7 @@ inline void ForceExit() {
 void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream);
 void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
 void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
 
 }  // namespace intel_gpu
 

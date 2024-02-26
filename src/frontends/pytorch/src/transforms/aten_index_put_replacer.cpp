@@ -129,26 +129,22 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto index_dtype = index.get_element_type();
             // Do we need to also check u8?
             if (index_dtype == element::boolean) {
+                auto value_pshape_rank = values.get_partial_shape().rank();
+                if (value_pshape_rank.is_static() && value_pshape_rank.get_length() == 0) {
+                    auto res = masked_fill(rg, input, index, values);
+                    copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
+                    index_op->output(0).replace(res);
+                    return true;
+                }
                 values = rg.make<v1::ConvertLike>(values, input);
                 // then apply masked scatter
                 auto input_shape = rg.make<v3::ShapeOf>(input, element::i32);
                 auto input_rank = rg.make<v3::ShapeOf>(input_shape, element::i32);
                 auto one_const = v0::Constant::create(element::i32, Shape{1}, {1});
-                auto expand_shape = rg.make<v3::Broadcast>(one_const, input_rank, BroadcastType::BIDIRECTIONAL);
-                auto expanded_mask = rg.make<v3::Broadcast>(index, expand_shape, BroadcastType::BIDIRECTIONAL);
-                auto nonzero = rg.make<v3::NonZero>(expanded_mask, element::i32);
+                auto nonzero = rg.make<v3::NonZero>(index, element::i32);
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 index = rg.make<v1::Transpose>(nonzero, input_order);
-                // source can be arbitary shape, select only relevant data
-                auto const_minus_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
-                auto flatten_values = rg.make<v1::Reshape>(values, const_minus_1, false);
-                auto const_0 = v0::Constant::create(element::i32, Shape{1}, {0});
-
-                auto index_shape = rg.make<v3::ShapeOf>(index, element::i32);
-                auto index_dim_zero = rg.make<v8::Gather>(index_shape, const_0, const_0);
-                auto slice_steps = v0::Constant::create(element::i32, Shape{1}, {1});
-                auto sliced_source = rg.make<v8::Slice>(flatten_values, const_0, index_dim_zero, slice_steps, const_0);
-                auto result = rg.make<v3::ScatterNDUpdate>(input, index, sliced_source);
+                auto result = rg.make<v3::ScatterNDUpdate>(input, index, values);
                 copy_runtime_info_and_name(index_op, rg.get(), rt_copy_from);
                 replace_node(index_op, result);
                 return true;

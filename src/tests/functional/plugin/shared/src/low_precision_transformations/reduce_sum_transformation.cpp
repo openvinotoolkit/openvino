@@ -6,23 +6,22 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <ngraph/ngraph.hpp>
 
 #include "ov_lpt_models/reduce.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInfo<ReduceSumTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
-        param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" <<
+           param.fakeQuantize << (param.keepDims ? "_keepDims_" : "") << "_reduce_axis_";
     for (const auto& elem : param.constantValues) {
         result << elem << "_";
     }
@@ -31,17 +30,19 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceSumTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     ReduceSumTransformationParam param;;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = GetParam();
 
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceSum>(
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
+
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceSum>(
         netPrecision,
         inputShape,
         param.fakeQuantize,
@@ -52,17 +53,17 @@ void ReduceSumTransformation::SetUp() {
         dequantizationAfter);
 }
 
-void ReduceSumTransformation::Run() {
-    LayerTestsCommon::Run();
+void ReduceSumTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<4>(GetParam());
-    const auto actualType = getRuntimePrecision(params.layerName);
+    const auto actualType = get_runtime_precision(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(ReduceSumTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    Run();
+    run();
 };
 
 } // namespace LayerTestsDefinitions

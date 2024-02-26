@@ -10,13 +10,11 @@
 #ifndef _WIN32
 #    include <unistd.h>
 #endif
-#include <xml_parse_utils.h>
 
-#include "cpp/ie_cnn_network.h"
-#include "details/ie_exception.hpp"
-#include "file_utils.h"
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -40,18 +38,6 @@ static int32_t as_int32_t(T v) {
 
 }  // namespace ov
 
-namespace {
-
-uint64_t calculate_td(const InferenceEngine::TensorDesc& td, uint64_t _seed) {
-    uint64_t seed = _seed;
-
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getPrecision()));
-    seed = ov::hash_combine(seed, ov::as_int32_t(td.getLayout()));
-    return seed;
-}
-
-}  // namespace
-
 namespace ov {
 
 std::string ModelCache::calculate_file_info(const std::string& filePath) {
@@ -59,7 +45,7 @@ std::string ModelCache::calculate_file_info(const std::string& filePath) {
     auto absPath = filePath;
     if (filePath.size() > 0) {
         try {
-            absPath = FileUtils::absoluteFilePath(filePath);
+            absPath = ov::util::get_absolute_file_path(filePath);
         } catch (std::runtime_error&) {
             // can't get absolute path, will use filePath for hash
         }
@@ -103,23 +89,6 @@ std::string ModelCache::compute_hash(const std::shared_ptr<const ov::Model>& mod
         }
     }
 
-    // 4. Legacy part if CNNNetwork is used with new Plugin API
-    for (auto&& input : model->inputs()) {
-        auto& rt_info = input.get_rt_info();
-
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
-        }
-    }
-    for (auto&& output : model->outputs()) {
-        auto& rt_info = output.get_rt_info();
-        auto it = rt_info.find("ie_legacy_td");
-        if (it != rt_info.end()) {
-            seed = calculate_td(it->second.as<InferenceEngine::TensorDesc>(), seed);
-        }
-    }
-
     return std::to_string(seed);
 }
 
@@ -127,7 +96,7 @@ std::string ModelCache::compute_hash(const std::string& modelName, const ov::Any
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "ModelCache::compute_hash - ModelName");
     uint64_t seed = 0;
     try {
-        seed = hash_combine(seed, FileUtils::absoluteFilePath(modelName));
+        seed = hash_combine(seed, ov::util::get_absolute_file_path(modelName));
     } catch (...) {
         // can't get absolute path, use modelName for hash calculation
         seed = hash_combine(seed, modelName);
@@ -185,15 +154,12 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
 
     pugi::xml_document document;
     pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
-
-    if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "Error reading compiled blob header";
-    }
+    OPENVINO_ASSERT(res.status == pugi::status_ok, "Error reading compiled blob header");
 
     pugi::xml_node compiledBlobNode = document.document_element();
-    header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
-    header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
-    header.m_runtimeInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "runtime_info");
+    header.m_ieVersion = ov::util::pugixml::get_str_attr(compiledBlobNode, "ie_version");
+    header.m_fileInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "file_info");
+    header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiledBlobNode, "runtime_info");
 
     return stream;
 }

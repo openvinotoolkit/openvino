@@ -8,7 +8,6 @@
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov::test::utils;
 
 namespace {
@@ -16,11 +15,6 @@ namespace {
 std::string getOVExtensionPath() {
     return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                               std::string("openvino_template_extension") + OV_BUILD_POSTFIX);
-}
-
-std::string getOldExtensionPath() {
-    return ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                              std::string("template_extension") + OV_BUILD_POSTFIX);
 }
 
 std::string getIncorrectExtensionPath() {
@@ -140,10 +134,6 @@ TEST_F(OVExtensionTests, ReshapeIRWithSeveralNewOps) {
 
 TEST_F(OVExtensionTests, load_new_extension) {
     EXPECT_NO_THROW(core.add_extension(getOVExtensionPath()));
-}
-
-TEST_F(OVExtensionTests, load_old_extension) {
-    EXPECT_NO_THROW(core.add_extension(getOldExtensionPath()));
 }
 
 TEST_F(OVExtensionTests, load_incorrect_extension) {

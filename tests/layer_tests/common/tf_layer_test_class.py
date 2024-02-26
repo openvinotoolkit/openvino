@@ -33,7 +33,7 @@ class CommonTFLayerTest(CommonLayerTest):
         graph_summary = summarize_graph(model_path=model_path)
         outputs_list = graph_summary["outputs"]
         fw_outputs_list = [out + ":0" for out in outputs_list]
-        if self.use_new_frontend:
+        if not self.use_legacy_frontend:
             outputs_list = fw_outputs_list
 
         tf.compat.v1.reset_default_graph()
@@ -61,4 +61,4 @@ class CommonTFLayerTest(CommonLayerTest):
             return self.get_tf_results(inputs_dict, model_path)
         else:
             # get results from tflite
-            return get_tflite_results(self.use_new_frontend, inputs_dict, model_path)
+            return get_tflite_results(self.use_legacy_frontend, inputs_dict, model_path)

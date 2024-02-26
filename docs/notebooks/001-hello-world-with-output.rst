@@ -13,11 +13,12 @@ created, refer to the `TensorFlow to
 OpenVINO <101-tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Imports <#imports>`__
--  `Download the Model and data samples <#download-the-model-and-data-samples>`__
+-  `Download the Model and data
+   samples <#download-the-model-and-data-samples>`__
 -  `Select inference device <#select-inference-device>`__
 -  `Load the Model <#load-the-model>`__
 -  `Load an Image <#load-an-image>`__
@@ -34,8 +35,10 @@ tutorial.
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -55,8 +58,10 @@ Imports
     
     from notebook_utils import download_file
 
-Download the Model and data samples 
------------------------------------------------------------------------------
+Download the Model and data samples
+-----------------------------------
+
+
 
 .. code:: ipython3
 
@@ -89,8 +94,10 @@ Download the Model and data samples
     artifacts/v3-small_224_1.0_float.bin:   0%|          | 0.00/4.84M [00:00<?, ?B/s]
 
 
-Select inference device 
------------------------------------------------------------------
+Select inference device
+-----------------------
+
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -117,8 +124,10 @@ select device from dropdown list for running inference using OpenVINO
 
 
 
-Load the Model 
---------------------------------------------------------
+Load the Model
+--------------
+
+
 
 .. code:: ipython3
 
@@ -128,8 +137,10 @@ Load the Model
     
     output_layer = compiled_model.output(0)
 
-Load an Image 
--------------------------------------------------------
+Load an Image
+-------------
+
+
 
 .. code:: ipython3
 
@@ -160,8 +171,10 @@ Load an Image
 .. image:: 001-hello-world-with-output_files/001-hello-world-with-output_11_1.png
 
 
-Do Inference 
-------------------------------------------------------
+Do Inference
+------------
+
+
 
 .. code:: ipython3
 
