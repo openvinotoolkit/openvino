@@ -29,6 +29,16 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         // Case when two lists gets concatenated
         PYTORCH_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
+    if (inplace) {
+        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
+            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
+    } else {
+        align_eltwise_input_types(context,
+                                  lhs,
+                                  rhs,
+                                  is_python_scalar_input(context, 0),
+                                  is_python_scalar_input(context, 1));
+    }
 
     auto left_is_bool = lhs.get_element_type() == ov::element::boolean ||
                         (dtype0.is<element::Type>() && dtype0.as<element::Type>() == element::boolean);
@@ -44,16 +54,6 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
         return {logical_or};
     }
 
-    if (inplace) {
-        if (lhs.get_element_type().is_dynamic() || lhs.get_element_type() != rhs.get_element_type())
-            rhs = context.mark_node(std::make_shared<v1::ConvertLike>(rhs, lhs));
-    } else {
-        align_eltwise_input_types(context,
-                                  lhs,
-                                  rhs,
-                                  is_python_scalar_input(context, 0),
-                                  is_python_scalar_input(context, 1));
-    }
     Output<Node> alpha;
     if (!context.input_is_none(2)) {
         alpha = context.get_input(2);

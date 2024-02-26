@@ -465,8 +465,6 @@ def test_shared_consts_reused():
 @pytest.mark.parametrize("l_scalar", [True, False])
 @pytest.mark.parametrize("r_scalar", [True, False])
 def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
-    if l_type == r_type == torch.bool:
-        pytest.skip("Add does not support both inputs being bool.")
     from openvino.frontend.pytorch.ts_decoder import (TorchScriptPythonDecoder,
                                                       pt_to_ov_type_map)
 
