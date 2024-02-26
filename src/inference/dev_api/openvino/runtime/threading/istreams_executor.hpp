@@ -125,7 +125,7 @@ public:
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
                std::vector<std::vector<int>> streamsInfoTable = {},
                bool cpuReservation = false)
-            : _name{name},
+            : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threadsPerStream},
               _threadBindingType{threadBindingType},
@@ -133,7 +133,7 @@ public:
               _threadBindingOffset{threadBindingOffset},
               _threads{threads},
               _thread_preferred_core_type(threadPreferredCoreType),
-              _streams_info_table{streamsInfoTable},
+              _streams_info_table{std::move(streamsInfoTable)},
               _cpu_reservation{cpuReservation} {
             update_executor_config();
         }
