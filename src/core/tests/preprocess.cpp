@@ -914,6 +914,22 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
+TEST(pre_post_process, pad_vector_constant_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 199, 199});
+    auto p = PrePostProcessor(f);
+    
+    std::stringstream exp_dump;
+    exp_dump << PartialShape{1, 3, 200, 200};
+    try{
+        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0);
+        p.build();
+    } catch (const ov::Exception& err) {
+        EXPECT_TRUE(std::string(err.what()).find(exp_dump.str())) << err.what();
+    } catch (...) {
+        FAIL() << "Expected ov::Exception";
+    }
+}
+
 TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
