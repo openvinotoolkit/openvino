@@ -34,7 +34,8 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             if (streams == ov::streams::NUMA) {
                 _streams = get_num_numa_nodes();
             } else if (streams == ov::streams::AUTO) {
-                _streams = 1;
+                // bare minimum of streams (that evenly divides available number of cores)
+                _streams = get_default_num_streams();
             } else if (streams.num >= 0) {
                 _streams = streams.num;
             } else {
