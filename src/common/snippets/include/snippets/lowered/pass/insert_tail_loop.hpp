@@ -37,7 +37,7 @@ private:
     static void create_tail_loop(LinearIR& linear_ir,
                                  LinearIR::constExprIt begin,
                                  LinearIR::constExprIt end,
-                                 const std::shared_ptr<op::LoopEnd>& loop_end,
+                                 const std::shared_ptr<op::LoopEndStatic>& loop_end,
                                  bool need_vector_loop,
                                  size_t tail_size);
     static void tail_transformations(LinearIR& linear_ir,
