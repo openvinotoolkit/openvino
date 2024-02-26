@@ -385,7 +385,7 @@ std::vector<GridSampleParams> generateBilinearParamsEvenDimensions() {
 
 template <ov::element::Type_t DATA_ET, class DT = ov::fundamental_type_for<DATA_ET>>
 std::vector<GridSampleParams> generateBicubicParams() {
-    constexpr auto GRID_ET = ov::element::f32;
+    constexpr auto GRID_ET = ov::element::Type_t::f32;
     using GT = ov::fundamental_type_for<GRID_ET>;
     const auto types_str = param_types_str(DATA_ET, GRID_ET);
     std::vector<GridSampleParams> params;
