@@ -5,9 +5,12 @@ Model Accuracy
 
 
 
-The following two tables present the absolute accuracy drop calculated as the accuracy difference 
-between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and 
-FP16 representations of a model on three platform architectures. Please also refer to notes below 
+The following two tables present the absolute accuracy drop calculated as the accuracy difference
+between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
+FP16 representations of a model on three platform architectures. Please also refer to notes below
+The following two tables present the absolute accuracy drop calculated as the accuracy difference
+between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
+FP16 representations of a model on three platform architectures. Please also refer to notes below
 the table for more information.
 
 * A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
@@ -105,28 +108,28 @@ the table for more information.
    * - chatGLM2-6b
      - lambada openai
      - ppl
-     - 
+     -
      - 17.38
      - 17.41
      - 17.17
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
-     - 
+     -
      - 3.24
      - 3.24
-     - 3.25    
+     - 3.25
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - CLIP
-     - 
-     - 
      -
-     - 
+     -
+     -
+     -
    * - Mistral-7b
      - proprietary Mistral.ai
      - ppl
-     - 
+     -
      - 3.29
      - 3.47
      - 3.49
@@ -233,37 +236,36 @@ the table for more information.
    * - chatGLM2-6b
      - lambada openai
      - ppl
-     - 
+     -
      - 17.48
      - 17.56
-     - 
+     -
      - 17.49
    * - Llama-2-7b-chat
      - Wiki, StackExch, Crawl
      - ppl
-     - 
+     -
      - 3.26
      - 3.26
-     - 
+     -
      -
    * - Stable-Diffusion-V2-1
      - LIAON-5B
      - CLIP
-     - 
-     - 
-     - 
-     - 
+     -
+     -
+     -
+     -
      - 22.48
    * - Mistral-7b
      - proprietary Mistral.ai
      - ppl
-     - 
+     -
      - 3.19
      - 3.18
-     - 
-     - 
+     -
+     -
 
-Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop. 
-For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured 
+Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop.
+For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured
 accuracy for the model.
-
