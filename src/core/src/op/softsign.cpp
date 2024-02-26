@@ -74,13 +74,16 @@ bool SoftSign::evaluate(TensorVector& outputs,
     const auto& input_shape = inputs[0].get_shape();
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v9_SoftSign_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64),
-                      softsign::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      shape_size(input_shape));
+    return IF_TYPE_OF_CONVERT_TENSORS(v9_SoftSign_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, f64),
+                                      softsign::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      shape_size(input_shape));
 }
 }  // namespace v9
 }  // namespace op
