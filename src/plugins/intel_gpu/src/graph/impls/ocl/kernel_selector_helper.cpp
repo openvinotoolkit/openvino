@@ -1080,7 +1080,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
 
     // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
     ov::PartialShape vals_ordered;
-    auto axis_order = l.format.axes_order();
+    auto axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
         if (axis_order[i] >= vals_original.size())
             vals_ordered.push_back(ov::Dimension(1));

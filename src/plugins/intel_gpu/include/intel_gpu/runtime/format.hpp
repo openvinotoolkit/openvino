@@ -413,8 +413,6 @@ struct format {
     const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.
     const std::string& internal_order() const { return traits().internal_order; }
-    /// @brief Returns an order of dimensions for a @ format.
-    const std::vector<size_t>& axes_order() const { return traits()._order; }
     /// @brief Returns block sizes as vector of pairs of dimension and block size for that dimension.
     const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits().block_sizes; }
     /// @brief Returns number of dimensions contained within this format

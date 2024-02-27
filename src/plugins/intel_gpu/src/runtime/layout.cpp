@@ -171,7 +171,7 @@ std::vector<tensor::value_type> layout::get_ordered_dims() const {
 }
 
 std::vector<size_t> layout::get_dims_order() const {
-    return format.axes_order();
+    return format.dims_order();
 }
 
 std::string layout::to_string() const {
@@ -456,7 +456,7 @@ bool layout::compatible(const layout& other) const {
 
     // TODO: Relax restrictions below
     if (blocks1 != blocks2 ||
-        (!blocks1.empty() && l1.format.axes_order() != l2.format.axes_order()))
+        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
 
     if (check_format(format::b_fs_yx_fsv2) ||

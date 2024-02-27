@@ -1377,7 +1377,7 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         bool no_batch_padding = true;
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
-            input_layout.format.axes_order()[0] != 0 || out_fmt.axes_order()[0] != 0) {
+            input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
             for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
                 no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
             }
