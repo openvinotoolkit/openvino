@@ -113,7 +113,7 @@ def pytest_generate_tests(metafunc):
     sphinx_warnings = sphinx_parser.filter()
     all_warnings.update(sphinx_warnings)
 
-    filtered_keys = filter(lambda line: not any([line.startswith(repo) for repo in exclude_links]), all_warnings)
+    filtered_keys = filter(lambda line: not any([repo in line for repo in exclude_links]), all_warnings)
     files_with_errors = {key: all_warnings[key] for key in filtered_keys}
 
     # read mute lists
