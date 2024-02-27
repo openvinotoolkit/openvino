@@ -36,7 +36,7 @@ void get_cur_stream_info(const int stream_id,
     concurrency = streams_info_table[stream_info_id][THREADS_PER_STREAM];
     core_type = streams_info_table[stream_info_id][PROC_TYPE];
     numa_node_id = streams_info_table[stream_info_id][STREAM_NUMA_NODE_ID];
-    max_threads_per_core = 1;
+    max_threads_per_core = 2;
     if (core_type == ALL_PROC) {
         for (size_t i = stream_info_id + 1; i < streams_info_table.size(); i++) {
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
