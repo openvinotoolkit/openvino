@@ -220,8 +220,3 @@ Performance varies by use, configuration and other factors. Learn more at
 `www.Intel.com/PerformanceIndex <www.Intel.com/PerformanceIndex>`__.
 
 
-
-
-
-
-
