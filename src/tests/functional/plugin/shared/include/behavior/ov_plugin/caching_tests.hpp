@@ -66,11 +66,11 @@ using compileModelLoadFromFileParams = std::tuple<
 class CompileModelLoadFromFileTestBase : public testing::WithParamInterface<compileModelLoadFromFileParams>,
                                   virtual public SubgraphBaseTest,
                                   virtual public OVPluginTestBase {
+public:
     std::string m_cacheFolderName;
     std::string m_modelName;
     std::string m_weightsName;
 
-public:
     static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj);
 
     void SetUp() override;
