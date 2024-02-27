@@ -15,8 +15,7 @@ Large Language Models Inference Guide
 
    Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>
    LLM Inference with Optimum Intel <llm_inference>
-   LLM Inference with OpenVINO API <llm_inference_native_API>
-   LLM Inference with Native OpenVINO <llm_inference_native_ov>
+   LLM Inference with OpenVINO API <llm_inference_native_ov>
 
 
 Large Language Models (LLMs) like GPT are transformative deep learning networks
