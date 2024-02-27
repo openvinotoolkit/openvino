@@ -123,10 +123,9 @@ MakeDefaultMultiThreadsTestCase _pecore32_streams_1 = {
     },
     1,
     {
-        {1, 0, 32, 0, 0},
+        {1, 0, 24, 0, 0},
         {0, 1, 8, 0, 0},
         {0, 2, 16, 0, 0},
-        {0, 3, 8, 0, 0},
     },
 };
 
