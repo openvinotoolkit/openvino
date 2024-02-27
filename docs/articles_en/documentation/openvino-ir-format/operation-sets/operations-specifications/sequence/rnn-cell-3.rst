@@ -16,7 +16,7 @@ RNNCell
 
 **Detailed description**:
 
-*RNNCell* represents a single RNN cell and is part of  :doc:`RNNSequence <openvino_docs_ops_sequence_RNNSequence_5>` operation.
+*RNNCell* represents a single RNN cell and is part of  :doc:`RNNSequence <rnn-sequence-5>` operation.
 
 .. code-block:: cpp
 

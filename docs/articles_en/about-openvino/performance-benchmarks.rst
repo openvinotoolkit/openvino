@@ -13,13 +13,13 @@ Performance Benchmarks
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_performance_benchmarks_faq
-   OpenVINO Accuracy <openvino_docs_performance_int8_vs_fp32>
-   openvino_docs_MO_DG_Getting_Performance_Numbers
+   performance-benchmarks/performance-benchmarks-faq
+   OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
+   performance-benchmarks/getting-performance-numbers
 
 
 This page presents benchmark results for `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
-and :doc:`OpenVINO Model Server <ovms_what_is_openvino_model_server>`, for a representative selection of public neural networks and Intel® devices.
+and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative selection of public neural networks and Intel® devices.
 The results may help you decide which hardware to use in your applications or plan AI workload for the hardware you have already implemented in your solutions.
 Click the buttons below to see the chosen benchmark data.
 
@@ -95,7 +95,7 @@ Please visit the tabs below for more information on key performance indicators a
 
       The workload parameters affect the performance results of the different models we use for benchmarking.
       Image processing models have different image size definitions and the Natural Language Processing models
-      have different max token list lengths. All these can be found in detail in the :doc:`FAQ section <openvino_docs_performance_benchmarks_faq>`.
+      have different max token list lengths. All these can be found in detail in the :doc:`FAQ section <performance-benchmarks/performance-benchmarks-faq>`.
       All models are executed using a batch size of 1. Below are the parameters for the GenAI models we display.
 
       * Input tokens: 1024,
@@ -119,21 +119,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: _static/benchmarks_files/OV-2023.3-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2023.3-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: _static/benchmarks_files/OV-2023.3-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2023.3-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: _static/benchmarks_files/OV-2023.3-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2023.3-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -155,7 +155,7 @@ only to measuring performance.
 
    The benchmark setup for OVMS consists of four main parts:
 
-   .. image:: _static/images/performance_benchmarks_ovms_02.png
+   .. image:: ../_static/images/performance_benchmarks_ovms_02.png
       :alt: OVMS Benchmark Setup Diagram
 
    * **OpenVINO™ Model Server** is launched as a docker container on the server platform and it listens (and answers on)
@@ -180,7 +180,7 @@ only to measuring performance.
 Test performance yourself
 ####################################
 
-You can also test performance for your system yourself, following the guide on :doc:`getting performance numbers <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
+You can also test performance for your system yourself, following the guide on :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
 Performance of a particular application can also be evaluated virtually using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__.
 It is a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit.

@@ -24,7 +24,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <system_requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
       | `PyPI OpenVINO page <https://pypi.org/project/openvino/>`__
 
 
@@ -121,7 +121,7 @@ If installation was successful, you will see the list of available devices.
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+:doc:`list of additional configurations <../../configurations-header>`
 to see if your case needs any of them.
 
 
@@ -130,7 +130,7 @@ to see if your case needs any of them.
 What's Next?
 ####################
 
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python.
 
 .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
    :width: 400
@@ -140,7 +140,7 @@ Try the `Python Quick Start Example <https://docs.openvino.ai/2023.3/notebooks/2
 Get started with Python
 +++++++++++++++++++++++
 
-Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
 * `OpenVINO Python API Tutorial <https://docs.openvino.ai/2023.3/notebooks/002-openvino-api-with-output.html>`__
 * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2023.3/notebooks/001-hello-world-with-output.html>`__

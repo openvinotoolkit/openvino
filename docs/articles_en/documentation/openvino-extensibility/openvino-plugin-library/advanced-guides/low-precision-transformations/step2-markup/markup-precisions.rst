@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MarkupPrecisions}
+.. {#../../low-precision-transformations_MarkupPrecisions}
 
 MarkupPrecisions transformation
 ===============================

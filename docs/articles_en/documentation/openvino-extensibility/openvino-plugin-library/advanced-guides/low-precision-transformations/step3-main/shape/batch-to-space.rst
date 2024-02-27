@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_BatchToSpaceTransformation}
+.. {#../../../low-precision-transformations_BatchToSpaceTransformation}
 
 BatchToSpaceTransformation transformation
 =========================================

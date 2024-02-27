@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_attributes}
+.. {#../low-precision-transformations_attributes}
 
 Attributes
 ==========
@@ -13,12 +13,12 @@ Attributes
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>   
-   PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>
-   Precisions <openvino_docs_OV_UG_lpt_Precisions>
-   QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
-   QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>
+   AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>
+   IntervalsAlignment <lpt-attributes/intervals-alignment>  
+   PrecisionPreserved <lpt-attributes/precision-preserved>
+   Precisions <lpt-attributes/precisions>
+   QuantizationAlignment <lpt-attributes/quantization-alignment>
+   QuantizationGranularity <lpt-attributes/quantization-granularity>
 
 Introduction
 ############
@@ -30,27 +30,27 @@ Introduction
       - Target
       - Required
       - Mutable
-    * - :doc:`AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>`
+    * - :doc:`AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>`
       - Precision
       - No
       - Yes
-    * - :doc:`IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>`
+    * - :doc:`IntervalsAlignment <lpt-attributes/intervals-alignment>`
       - Quantization interval
       - Yes
       - Yes
-    * - :doc:`PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>`
+    * - :doc:`PrecisionPreserved <lpt-attributes/precision-preserved>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`Precisions <openvino_docs_OV_UG_lpt_Precisions>`
+    * - :doc:`Precisions <lpt-attributes/precisions>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>`
+    * - :doc:`QuantizationAlignment <lpt-attributes/quantization-alignment>`
       - Quantization granularity
       - Yes
       - Yes
-    * - :doc:`QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>`
+    * - :doc:`QuantizationGranularity <lpt-attributes/quantization-granularity>`
       - Quantization granularity
       - Yes
       - No 

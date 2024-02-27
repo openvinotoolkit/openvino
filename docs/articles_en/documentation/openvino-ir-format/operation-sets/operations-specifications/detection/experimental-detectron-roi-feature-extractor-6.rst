@@ -13,7 +13,7 @@ ExperimentalDetectronROIFeatureExtractor
 
 **Category**: *Object detection*
 
-**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the :doc:`ROIAlign <openvino_docs_ops_detection_ROIAlign_3>` operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the :doc:`ROIAlign <roi-align-3>` operation applied over a feature pyramid.
 
 **Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels.
 

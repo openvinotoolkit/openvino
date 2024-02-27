@@ -12,10 +12,10 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting an ONNX Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_ONNX>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting an ONNX Model <../../../../../openvino-workflow/model-preparation/convert-model-onnx>` article. 
 
 
-.. note:: ONNX models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+.. note:: ONNX models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <../../../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 Converting an ONNX Model
 ########################
@@ -49,20 +49,20 @@ The model conversion process assumes you have an ONNX model that was directly do
          mo --input_model <INPUT_MODEL>.onnx
 
 
-There are no ONNX-specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+There are no ONNX-specific parameters, so only framework-agnostic parameters are available to convert your model. For details, see the *General Conversion Parameters* section in the :doc:`Converting a Model to Intermediate Representation (IR) <../[legacy]-setting-input-shapes>` guide.
 
 Supported ONNX Layers
 #####################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific ONNX models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific ONNX models. Here are some examples:
 
-* :doc:`Convert ONNX Faster R-CNN Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN>`
-* :doc:`Convert ONNX GPT-2 Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_GPT2>`
-* :doc:`Convert ONNX Mask R-CNN Model <openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN>`
+* :doc:`Convert ONNX Faster R-CNN Model <[legacy]-conversion-tutorials/convert-onnx-faster-r-cnn>`
+* :doc:`Convert ONNX GPT-2 Model <[legacy]-conversion-tutorials/convert-onnx-gpt-2>`
+* :doc:`Convert ONNX Mask R-CNN Model <[legacy]-conversion-tutorials/convert-onnx-mask-r-cnn>`
 
 

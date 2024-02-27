@@ -13,13 +13,13 @@ Advanced Topics
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_ov_plugin_dg_quantized_models
-   openvino_docs_OV_UG_lpt
+   advanced-guides/quantized-models
+   advanced-guides/low-precision-transformations
 
 The guides below provides extra information about specific features of OpenVINO needed for understanding during OpenVINO plugin development:
 
-* :doc:`Quantized networks <openvino_docs_ov_plugin_dg_quantized_models>`
-* :doc:`Low precision transformations guide <openvino_docs_OV_UG_lpt>` 
-* :doc:`Writing OpenVINO™ transformations guide <openvino_docs_transformations>`
+* :doc:`Quantized networks <advanced-guides/quantized-models>`
+* :doc:`Low precision transformations guide <advanced-guides/low-precision-transformations>` 
+* :doc:`Writing OpenVINO™ transformations guide <../transformations-api>`
 
 

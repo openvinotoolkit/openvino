@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MultiplyPartialTransformation}
+.. {#../../../low-precision-transformations_MultiplyPartialTransformation}
 
 MultiplyTransformation transformation
 =====================================

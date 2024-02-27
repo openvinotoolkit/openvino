@@ -16,11 +16,11 @@ I420toBGR
 
 **Detailed description**:
 
-Similar to *I420toRGB* but output channels for each pixel are reversed so that the first channel is ``blue``, the second one is ``green``, the last one is ``red``.  See detailed conversion formulas in the :doc:`I420toRGB description <openvino_docs_ops_image_I420toRGB_8>`.
+Similar to *I420toRGB* but output channels for each pixel are reversed so that the first channel is ``blue``, the second one is ``green``, the last one is ``red``.  See detailed conversion formulas in the :doc:`I420toRGB description <i420-to-rgb-8>`.
 
 **Inputs:**
 
-Same as specified for :doc:`I420toRGB <openvino_docs_ops_image_I420toRGB_8>` operation.
+Same as specified for :doc:`I420toRGB <i420-to-rgb-8>` operation.
 
 **Outputs:**
 

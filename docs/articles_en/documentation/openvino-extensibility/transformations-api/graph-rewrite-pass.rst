@@ -24,12 +24,12 @@ In addition, GraphRewrite handles nodes that were registered by MatcherPasses du
 
 GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
 
-.. image:: ./_static/images/graph_rewrite_execution.png
+.. image:: ./../../../_static/images/graph_rewrite_execution.png
 
 But it is not really efficient when you have a lot of registered passes. So first of all GraphRewrite checks that all MatcherPass patterns has type-based root node (it means that type of this node is not hidden into predicate).
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
-.. image:: ./_static/images/graph_rewrite_efficient_search.png
+.. image:: ./../../../_static/images/graph_rewrite_efficient_search.png
 
 .. note::
 
@@ -38,6 +38,6 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 See Also
 ########
 
-* :doc:`OpenVINO™ Transformations <openvino_docs_transformations>`
+* :doc:`OpenVINO™ Transformations <../transformations-api>`
 
 

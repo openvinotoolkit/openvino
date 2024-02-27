@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization}
+.. {#../../low-precision-transformations_PullReshapeThroughDequantization}
 
 PullReshapeThroughDequantization transformation
 ===============================================

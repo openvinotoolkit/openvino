@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_StridedSliceTransformation}
+.. {#../../../low-precision-transformations_StridedSliceTransformation}
 
 StridedSliceTransformation transformation
 =========================================

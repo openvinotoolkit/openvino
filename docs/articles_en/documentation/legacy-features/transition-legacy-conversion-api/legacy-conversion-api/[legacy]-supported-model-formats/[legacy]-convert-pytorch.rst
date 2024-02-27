@@ -13,13 +13,13 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PyTorch Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a PyTorch Model <../../../../../openvino-workflow/model-preparation/convert-model-pytorch>` article. 
 
 This page provides instructions on how to convert a model from the PyTorch format to the OpenVINO IR format.
 
 The conversion is a required step to run inference using OpenVINO API.
 It is not required if you choose to work with OpenVINO under the PyTorch framework, 
-using its :doc:`torch.compile feature <pytorch_2_0_torch_compile>`.
+using its :doc:`torch.compile feature <../../../../../openvino-workflow/torch-compile>`.
 
 Converting a PyTorch model with PyTorch Frontend
 ###############################################################
@@ -66,7 +66,7 @@ parameter to be set, for example:
 
 Sometimes ``convert_model`` will produce inputs of the model with dynamic rank or dynamic type. 
 Such model may not be supported by the hardware chosen for inference. To avoid this issue,
-use the ``input`` argument of ``convert_model``. For more information, refer to :doc:`Convert Models Represented as Python Objects <openvino_docs_MO_DG_Python_API>`. 
+use the ``input`` argument of ``convert_model``. For more information, refer to :doc:`Convert Models Represented as Python Objects <../[legacy]-convert-models-as-python-objects>`. 
 
 .. important::
 
@@ -78,7 +78,7 @@ Exporting a PyTorch Model to ONNX Format
 It is also possible to export a PyTorch model to ONNX and then convert it to OpenVINO IR. To convert and deploy a PyTorch model this way, follow these steps:
 
 1. `Export a PyTorch model to ONNX <#exporting-a-pytorch-model-to-onnx-format>`__.
-2. :doc:`Convert an ONNX model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX>` to produce an optimized :doc:`Intermediate Representation <openvino_docs_MO_DG_IR_and_opsets>` of the model based on the trained network topology, weights, and biases values.
+2. :doc:`Convert an ONNX model <[legacy]-convert-onnx>` to produce an optimized :doc:`Intermediate Representation <../../../../openvino-ir-format/operation-sets>` of the model based on the trained network topology, weights, and biases values.
 
 PyTorch models are defined in Python. To export them, use the ``torch.onnx.export()`` method. The code to
 evaluate or test the model is usually provided with its code and can be used for its initialization and export.
@@ -105,9 +105,9 @@ To export a PyTorch model, you need to obtain the model as an instance of ``torc
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific PyTorch models. Here are some examples:
 
-* :doc:`Convert PyTorch BERT-NER Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_Bert_ner>`
-* :doc:`Convert PyTorch RCAN Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_RCAN>`
-* :doc:`Convert PyTorch YOLACT Model <openvino_docs_MO_DG_prepare_model_convert_model_pytorch_specific_Convert_YOLACT>`
+* :doc:`Convert PyTorch BERT-NER Model <[legacy]-conversion-tutorials/convert-pytorch-bert-ner>`
+* :doc:`Convert PyTorch RCAN Model <[legacy]-conversion-tutorials/convert-pytorch-rcan>`
+* :doc:`Convert PyTorch YOLACT Model <[legacy]-conversion-tutorials/convert-pytorch-yolact>`
 

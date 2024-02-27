@@ -7,7 +7,7 @@ Stateful models and State API
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_ways_to_get_stateful_model
+   stateful-models-intro/obtaining-stateful-openvino-model
 
 A "stateful model" is a model that implicitly preserves data between two consecutive inference
 calls. The tensors saved from one run are kept in an internal memory buffer called a
@@ -16,7 +16,7 @@ output. In contrast, for a "stateless" model to pass data between runs, all prod
 returned as output and needs to be handled by the application itself for reuse at the next
 execution.
 
-.. image:: _static/images/stateful_model_example.svg
+.. image:: ../../_static/images/stateful_model_example.svg
    :alt: example comparison between stateless and stateful model implementations
    :align: center
    :scale: 90 %
@@ -57,9 +57,9 @@ OpenVINO Stateful Model Representation
 To make a model stateful, OpenVINO replaces looped pairs of `Parameter` and `Result` with its
 own two operations:
 
-* ``ReadValue`` (:doc:`see specs <openvino_docs_ops_infrastructure_ReadValue_6>`)
+* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>`)
   reads the data from the state and returns it as output.
-* ``Assign`` (:doc:`see specs <openvino_docs_ops_infrastructure_Assign_6>`)
+* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>`)
   accepts the data as input and saves it in the state for the next inference call.
 
 Each pair of these operations works with **state**, which is automatically saved between
@@ -68,7 +68,7 @@ from the application code to OpenVINO and all related internal work is hidden fr
 
 There are three methods of turning an OpenVINO model into a stateful one:
 
-* :doc:`Optimum-Intel<gen_ai_guide>` - the most user-friendly option. All necessary optimizations
+* :doc:`Optimum-Intel<../generative-ai-models-guide>` - the most user-friendly option. All necessary optimizations
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
@@ -113,7 +113,7 @@ states.
   each run performed in a different infer request than the previous one would require the state
   to be set "manually", using the ``ov::VariableState::set_state`` method.
 
-.. image:: _static/images/stateful_model_init_subgraph.svg
+.. image:: ../../_static/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
    :scale: 80 %
@@ -142,4 +142,4 @@ sequences.
 You can find more examples demonstrating how to work with states in other articles:
 
 * `LLM Chatbot notebook <notebooks/273-stable-zephyr-3b-chatbot-with-output.html>`__
-* :doc:`Serving Stateful Models with OpenVINO Model Server <ovms_docs_stateful_models>`
+* :doc:`Serving Stateful Models with OpenVINO Model Server <../../ovms_docs_stateful_models>`

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_ReduceMaxTransformation}
+.. {#../../../low-precision-transformations_ReduceMaxTransformation}
 
 ReduceMaxTransformation transformation
 ======================================

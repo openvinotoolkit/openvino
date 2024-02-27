@@ -44,7 +44,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       Execution diagram:
 
-      .. image:: _static/images/torch_compile_backend_openvino.svg
+      .. image:: ../_static/images/torch_compile_backend_openvino.svg
          :width: 992px
          :height: 720px
          :scale: 60%
@@ -61,7 +61,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       Execution diagram:
 
-      .. image:: _static/images/torch_compile_backend_openvino_ts.svg
+      .. image:: ../_static/images/torch_compile_backend_openvino_ts.svg
          :width: 1088px
          :height: 720px
          :scale: 60%
@@ -194,5 +194,5 @@ fails during OpenVINO conversion, the subgraph falls back to PyTorch's default i
 Additional Resources
 ############################
 
-* `PyTorch 2.0 documentation <https://pytorch.org/docs/stable/index.html>`_
+* `PyTorch 2.0 ../documentation <https://pytorch.org/docs/stable/index.html>`_
 

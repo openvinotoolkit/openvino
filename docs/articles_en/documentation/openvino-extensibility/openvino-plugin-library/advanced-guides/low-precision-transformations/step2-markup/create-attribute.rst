@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_CreateAttribute}
+.. {#../../low-precision-transformations_CreateAttribute}
 
 CreateAttribute transformation
 ==============================

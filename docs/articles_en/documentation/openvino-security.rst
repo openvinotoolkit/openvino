@@ -8,7 +8,7 @@ OpenVINO Security
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_protecting_model_guide
+   openvino-security/openvino-encrypted-models
 
 
 Deploying deep learning models for OpenVINO may raise security and privacy issues.
@@ -16,6 +16,6 @@ Trained models are often valuable intellectual property and you may choose to pr
 
 Actual security and privacy requirements depend on your unique deployment scenario.
 This section provides general guidance on using OpenVINO tools and libraries securely.
-The main security measure for OpenVINO is its :doc:`Security Add-on <ovsa_get_started>`. You can find its description in the Ecosystem section.
+The main security measure for OpenVINO is its :doc:`Security Add-on <openvino-ecosystem/openvino-security-add-on>`. You can find its description in the Ecosystem section.
 
 

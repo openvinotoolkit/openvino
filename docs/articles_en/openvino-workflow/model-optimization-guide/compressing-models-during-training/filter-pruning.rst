@@ -229,18 +229,18 @@ To restore the model from checkpoint you should use the following API:
          :fragment: [load_checkpoint]         
 
 For more details on saving/loading checkpoints in the NNCF, see the following 
-`documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
+`../../../documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 
 Deploying pruned model
 ######################
 
 The pruned model requres an extra step that should be done to get performance improvement. This step involves removal of the 
-zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
+zero filters from the model. This is done at the model conversion step using  :doc:`model conversion API <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
 
 * To remove zero filters from the pruned model add the following parameter to the model conversion command: ``transform=Pruning``
 
 After that, the model can be deployed with OpenVINO in the same way as the baseline model.
-For more details about model deployment with OpenVINO, see the corresponding :doc:`documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+For more details about model deployment with OpenVINO, see the corresponding :doc:`../../../documentation <../../running-inference>`.
 
 
 Examples

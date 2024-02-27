@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MVNTransformation}
+.. {#../../../low-precision-transformations_MVNTransformation}
 
 MVNTransformation transformation
 ================================

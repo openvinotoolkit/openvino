@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_LinOpSequenceFusion}
+.. {#../../low-precision-transformations_LinOpSequenceFusion}
 
 LinOpSequenceFusion transformation
 ==================================

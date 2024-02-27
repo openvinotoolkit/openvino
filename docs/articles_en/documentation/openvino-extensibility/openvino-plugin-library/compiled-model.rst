@@ -12,7 +12,7 @@ ov::CompiledModel class functionality:
 
 * Compile an ov::Model instance to a backend specific graph representation
 * Create an arbitrary number of ov::InferRequest objects
-* Hold some common resources shared between different instances of ov::InferRequest. For example:
+* Hold some common ../../../about-openvino/additional-resources shared between different instances of ov::InferRequest. For example:
 
   * ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
   * ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
@@ -51,7 +51,7 @@ The implementation ``compile_model()`` is fully device-specific.
 compile_model()
 +++++++++++++++
 
-The function accepts a const shared pointer to ``ov::Model`` object and applies OpenVINO passes using ``transform_model()`` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in :doc:`Low Precision Transformations <openvino_docs_OV_UG_lpt>` guide.
+The function accepts a const shared pointer to ``ov::Model`` object and applies OpenVINO passes using ``transform_model()`` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in :doc:`Low Precision Transformations <advanced-guides/low-precision-transformations>` guide.
 
 .. doxygensnippet:: src/plugins/template/src/compiled_model.cpp
    :language: cpp
@@ -82,9 +82,9 @@ The method creates an synchronous inference request and returns it.
 
 While the public OpenVINO API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-* :doc:`Synchronous inference request <openvino_docs_ov_plugin_dg_infer_request>`, which defines pipeline stages and runs them synchronously in the ``infer`` method.
+* :doc:`Synchronous inference request <synch-inference-request>`, which defines pipeline stages and runs them synchronously in the ``infer`` method.
 
-* :doc:`Asynchronous inference request <openvino_docs_ov_plugin_dg_async_infer_request>`, which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can have one or several stages:
+* :doc:`Asynchronous inference request <asynch-inference-request>`, which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can have one or several stages:
 
   * For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the ``m_request_executor`` executor.
   * For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
@@ -132,5 +132,5 @@ The methods returns the runtime model with backend specific information.
    :language: cpp
    :fragment: [compiled_model:get_runtime_model]
 
-The next step in plugin library implementation is the :doc:`Synchronous Inference Request <openvino_docs_ov_plugin_dg_infer_request>` class.
+The next step in plugin library implementation is the :doc:`Synchronous Inference Request <synch-inference-request>` class.
 

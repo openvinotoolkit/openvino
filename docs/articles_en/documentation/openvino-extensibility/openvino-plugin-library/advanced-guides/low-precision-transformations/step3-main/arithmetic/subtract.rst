@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_SubtractTransformation}
+.. {#../../../low-precision-transformations_SubtractTransformation}
 
 SubtractTransformation transformation
 =====================================

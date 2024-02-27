@@ -17,7 +17,7 @@ BitwiseAnd
 
 After broadcasting input tensors *a* and *b*, *BitwiseAnd* performs a bitwise logical AND operation for each corresponding element in the given tensors, based on the following algorithm.
 
-For ``boolean`` type tensors, BitwiseAnd is equivalent to :doc:`LogicalAnd <openvino_docs_ops_logical_LogicalAnd_1>`.
+For ``boolean`` type tensors, BitwiseAnd is equivalent to :doc:`LogicalAnd <../logical/logical-and-1>`.
 
 If tensor is of ``any supported integer`` type, for each element of the tensor:
 
@@ -60,8 +60,8 @@ Example 2 - *BitwiseAnd* output for uint8 tensor:
   * **Range of values**:
 
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`,
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
 
   * **Type**: string
   * **Default value**: "numpy"
