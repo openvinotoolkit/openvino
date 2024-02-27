@@ -52,16 +52,6 @@ std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args
     return std::make_shared<Concat>(new_args, m_axis);
 }
 
-template <typename T>
-std::vector<const T*> get_in_buffers(const TensorVector& inputs) {
-    std::vector<const T*> arg_bufs;
-    arg_bufs.reserve(inputs.size());
-    std::transform(inputs.begin(), inputs.end(), std::back_inserter(arg_bufs), [](const ov::Tensor& input) -> const T* {
-        return static_cast<const T*>(input.data());
-    });
-    return arg_bufs;
-}
-
 inline std::vector<const void*> get_in_buffers(const TensorVector& inputs) {
     std::vector<const void*> arg_bufs;
     arg_bufs.reserve(inputs.size());
