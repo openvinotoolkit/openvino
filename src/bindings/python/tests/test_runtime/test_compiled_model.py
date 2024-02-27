@@ -35,8 +35,7 @@ def test_export_import(device):
     core = Core()
 
     if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
-        pytest.skip(
-            f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
