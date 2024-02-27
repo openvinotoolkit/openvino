@@ -185,7 +185,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
     auto input_m = any_input();
     auto weights_m = any_input(has_static_dim(0));
     auto bias_val_m = wrap_type<ov::op::v0::Constant>();
-    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ input_m, weights_m }, consumers_count(1));
+    auto convolution_m = wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>({ input_m, weights_m });
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
