@@ -111,8 +111,8 @@ jobs:
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
           echo "Available storage:"
           df -h
         env:
@@ -121,7 +121,7 @@ jobs:
       - name: PyTorch Models Tests
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -131,7 +131,7 @@ jobs:
       - name: Reformat unsupported ops file
         if: '!cancelled()'
         run: |
-          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
+          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
   
       - name: Available storage after tests
         run: |
