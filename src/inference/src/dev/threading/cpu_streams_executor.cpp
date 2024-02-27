@@ -162,7 +162,7 @@ struct CPUStreamsExecutor::Impl {
             int concurrency;
             int cpu_core_type;
             int numa_node_id;
-            int max_threads_per_core;
+            int max_threads_per_core = _impl->_config.get_max_threads_per_core();
             StreamCreateType stream_type;
             const auto org_proc_type_table = get_org_proc_type_table();
             int streams_num = _impl->_config.get_streams();

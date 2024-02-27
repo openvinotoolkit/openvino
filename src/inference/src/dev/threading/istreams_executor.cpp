@@ -252,6 +252,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         if (_threads_per_stream == 0) {
             return;
         }
+        _max_threads_per_core = 2;
 
         // create stream_info_table based on core type
         std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
