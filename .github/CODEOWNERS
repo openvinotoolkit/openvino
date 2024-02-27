@@ -93,7 +93,7 @@
 /tests/layer_tests/tensorflow_tests @openvinotoolkit/openvino-tf-frontend-maintainers
 /tests/layer_tests/jax_tests @openvinotoolkit/openvino-tf-frontend-maintainers
 /tests/model_hub_tests @openvinotoolkit/openvino-tf-frontend-maintainers
-/tests/model_hub_tests/torch_tests @openvinotoolkit/openvino-pytorch-frontend-maintainers
+/tests/model_hub_tests/pytorch @openvinotoolkit/openvino-pytorch-frontend-maintainers
 
 # Tools:
 /tools/  @openvinotoolkit/openvino-tools-maintainers
