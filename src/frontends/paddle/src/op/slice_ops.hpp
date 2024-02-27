@@ -51,11 +51,13 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
         if (input_shape.size() == decrease_axis.size()) {
             // according to paddle slice_op, when all axes are decreased, output shape is [1], instead of scalar.
             // Ref: paddle/fluid/operators/slice_op.h
-            auto decreased_node = std::make_shared<default_opset::Reshape>(
-                slice_node,
-                std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
-                false);
-            return node.default_single_output_mapping({decreased_node}, {"Out"});
+            // auto decreased_node = std::make_shared<default_opset::Reshape>(
+            //     slice_node,
+            //     std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
+            //     false);
+            auto squeeze_node = std::make_shared<default_opset::Squeeze>(slice_node);
+            // auto squeeze_node_2 = std::make_shared<default_opset::Squeeze>(squeeze_node);
+            return node.default_single_output_mapping({squeeze_node}, {"Out"});
         }
 
         const auto squeeze_index_node =

@@ -28,7 +28,7 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         dims = std::vector<int32_t>(dim.begin(), dim.end());
     }
 
-    size_t axis_size = dims.size();
+    int64_t axis_size = static_cast<int64_t>(dims.size());
     reduce_all = reduce_all || (axis_size == input_rank || axis_size == 0);
 
     if (reduce_all) {
