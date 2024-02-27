@@ -447,7 +447,7 @@ void align_output_types(const NodeContext& context, OutputVector& outputs) {
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(idx), "Input should not be None.");
-    auto x = context.get_input(0);
+    auto x = context.get_input(static_cast<int>(idx));
     // This const only needed for type alignment
     auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
@@ -459,8 +459,8 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
                                                                       size_t rhs_idx) {
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(lhs_idx) && !context.input_is_none(rhs_idx),
                                   "Input should not be None.");
-    auto lhs = context.get_input(lhs_idx);
-    auto rhs = context.get_input(rhs_idx);
+    auto lhs = context.get_input(static_cast<int>(lhs_idx));
+    auto rhs = context.get_input(static_cast<int>(rhs_idx));
     align_eltwise_input_types(context,
                               lhs,
                               rhs,
