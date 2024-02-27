@@ -122,19 +122,19 @@ void tensor_iterator(uint64_t num_iterations,
         std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
         shape.at(concat_desc->m_axis) = values_to_concat[i].size();
         out[concat_desc->m_output_index].set_shape(shape);
-        std::vector<const char*> pointers_on_values;
+        std::vector<const void*> pointers_on_values;
         pointers_on_values.reserve(values_to_concat[i].size());
         for (size_t j = 0; j < values_to_concat[i].size(); ++j) {
             size_t idx = concat_desc->m_stride > 0 ? j : (values_to_concat[i].size() - j - 1);
             if (values_to_concat[i].size() > idx && values_to_concat[i][idx])
-                pointers_on_values.push_back(static_cast<char*>(values_to_concat[i][idx].data()));
+                pointers_on_values.push_back(values_to_concat[i][idx].data());
         }
         reference::concat(pointers_on_values,
-                          static_cast<char*>(out[concat_desc->m_output_index].data()),
+                          out[concat_desc->m_output_index].data(),
                           shapes_to_concat,
                           shape,
                           concat_desc->m_axis,
-                          out[concat_desc->m_output_index].get_element_type().size());
+                          out[concat_desc->m_output_index].get_element_type());
     }
 }
 }  // namespace reference

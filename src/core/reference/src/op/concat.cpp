@@ -30,8 +30,7 @@ inline void copy_single_input_elements(const std::string* arg,
                                        std::string* out,
                                        size_t in_offset,
                                        size_t out_offset,
-                                       size_t num_of_elements,
-                                       size_t elem_size = 1) {
+                                       size_t num_of_elements) {
     const auto src_begin = std::next(arg, in_offset);
     const auto out_ptr = std::next(out, out_offset);
     std::copy_n(src_begin, num_of_elements, out_ptr);
@@ -58,35 +57,12 @@ inline void copy_elements(const void* arg,
                                                   elem_size);
 }
 
-template <typename T>
-void concat_common(const std::vector<const T*>& args,
-                   T* out,
-                   const std::vector<Shape>& in_shapes,
-                   const Shape& out_shape,
-                   int64_t concatenation_axis,
-                   size_t elem_size) {
-    const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
-    const auto& shape_sizes = calculate_shape_sizes(in_shapes);
-
-    size_t out_offset = 0;
-    for (size_t step = 0; step < steps; ++step) {
-        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
-            const size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = step * size;
-
-            copy_single_input_elements(args[in_index], out, in_offset, out_offset, size, elem_size);
-
-            out_offset += size;
-        }
-    }
-}
-
-void concat_data(const std::vector<const void*>& args,
-                 void* out,
-                 const std::vector<Shape>& in_shapes,
-                 const Shape& out_shape,
-                 int64_t concatenation_axis,
-                 const ov::element::Type& elem_type) {
+void concat(const std::vector<const void*>& args,
+            void* out,
+            const std::vector<Shape>& in_shapes,
+            const Shape& out_shape,
+            int64_t concatenation_axis,
+            const ov::element::Type& elem_type) {
     const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
     const auto& shape_sizes = calculate_shape_sizes(in_shapes);
 
@@ -105,22 +81,5 @@ void concat_data(const std::vector<const void*>& args,
     }
 }
 
-void concat(const std::vector<const char*>& args,
-            char* out,
-            const std::vector<Shape>& in_shapes,
-            const Shape& out_shape,
-            int64_t concatenation_axis,
-            size_t elem_size) {
-    reference::concat_common<char>(args, out, in_shapes, out_shape, concatenation_axis, elem_size);
-}
-
-void concat(const std::vector<const std::string*>& args,
-            std::string* out,
-            const std::vector<Shape>& in_shapes,
-            const Shape& out_shape,
-            int64_t concatenation_axis,
-            size_t elem_size) {
-    reference::concat_common<std::string>(args, out, in_shapes, out_shape, concatenation_axis, 1);
-}
 }  // namespace reference
 }  // namespace ov

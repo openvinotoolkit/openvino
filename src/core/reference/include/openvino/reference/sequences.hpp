@@ -247,13 +247,13 @@ void cell_pass(CellType type,
     // The tensor that concats all the intermediate output values of the hidden.
     // It has shape [batch_size, seq_length, hidden_size]
     std::vector<Shape> in_shapes(num_splits, part_shape);
-    std::vector<const char*> to_concat_pointers(num_splits);
+    std::vector<const void*> to_concat_pointers(num_splits);
     Shape out_shape{batch, num_splits, hidden_size};
 
     for (size_t i = 0; i < num_splits; ++i)
         to_concat_pointers[i] = h_list[i].data();
 
-    reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, sizeof(T));
+    reference::concat(to_concat_pointers, outputs[0], in_shapes, out_shape, 1, ov::element::from<T>());
 
     if (is_reverse)  // enable_mask
     {
@@ -364,19 +364,24 @@ void lstm_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h_c{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()},
+                          Y,
+                          in_shapes_y,
+                          output_shape_y,
+                          1,
+                          ov::element::from<T>());
         reference::concat({forward_res[0].data(), reverse_res[0].data()},
                           Ho,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          ov::element::from<T>());
         reference::concat({forward_res[1].data(), reverse_res[1].data()},
                           Co,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          ov::element::from<T>());
     }
 }
 
@@ -489,19 +494,24 @@ void lstm_sequence_v1(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h_c{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()},
+                          Y,
+                          in_shapes_y,
+                          output_shape_y,
+                          1,
+                          ov::element::from<T>());
         reference::concat({forward_res[0].data(), reverse_res[0].data()},
                           Ho,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          ov::element::from<T>());
         reference::concat({forward_res[1].data(), reverse_res[1].data()},
                           Co,
                           in_shapes_h_c,
                           output_shape_h_c,
                           1,
-                          sizeof(T));
+                          ov::element::from<T>());
     }
 }
 
@@ -605,8 +615,18 @@ void gru_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
-        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()},
+                          Y,
+                          in_shapes_y,
+                          output_shape_y,
+                          1,
+                          ov::element::from<T>());
+        reference::concat({forward_res_h.data(), reverse_res_h.data()},
+                          Ho,
+                          in_shapes_h,
+                          output_shape_h,
+                          1,
+                          ov::element::from<T>());
     }
 }
 
@@ -693,8 +713,18 @@ void rnn_sequence(const char* X,
         Shape output_shape_y{H_shape[0], 2, X_shape[1], H_shape[2]};
         Shape output_shape_h{H_shape[0], 2, H_shape[2]};
 
-        reference::concat({forward_res_y.data(), reverse_res_y.data()}, Y, in_shapes_y, output_shape_y, 1, sizeof(T));
-        reference::concat({forward_res_h.data(), reverse_res_h.data()}, Ho, in_shapes_h, output_shape_h, 1, sizeof(T));
+        reference::concat({forward_res_y.data(), reverse_res_y.data()},
+                          Y,
+                          in_shapes_y,
+                          output_shape_y,
+                          1,
+                          ov::element::from<T>());
+        reference::concat({forward_res_h.data(), reverse_res_h.data()},
+                          Ho,
+                          in_shapes_h,
+                          output_shape_h,
+                          1,
+                          ov::element::from<T>());
     }
 }
 }  // namespace reference

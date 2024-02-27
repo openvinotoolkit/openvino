@@ -81,12 +81,12 @@ void evaluate_concat(const Concat* node,
                      const std::vector<Shape>& arg_shapes,
                      const Shape& out_shape) {
     const auto arg_bufs = get_in_buffers(inputs);
-    reference::concat_data(arg_bufs,
-                           outputs.front().data(),
-                           arg_shapes,
-                           out_shape,
-                           ov::util::normalize(node->get_axis(), out_shape.size()),
-                           outputs.front().get_element_type());
+    reference::concat(arg_bufs,
+                      outputs.front().data(),
+                      arg_shapes,
+                      out_shape,
+                      ov::util::normalize(node->get_axis(), out_shape.size()),
+                      outputs.front().get_element_type());
 }
 
 bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
