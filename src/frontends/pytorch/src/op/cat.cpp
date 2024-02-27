@@ -81,7 +81,7 @@ OutputVector translate_cat_fx(const NodeContext& context) {
     }
     int64_t axis = 0;
     if (!context.get_input_type(context.get_input_size() - 1).is<type::List>()) {
-        // axis can be not present and that means that last input will be inlined input
+        // axis can be not present and that means that last input will have List type
         axis = context.const_input<int64_t>(context.get_input_size() - 1);
     } else {
         list_elems.push_back(context.get_input(static_cast<int>(context.get_input_size() - 1)));

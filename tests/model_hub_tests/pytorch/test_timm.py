@@ -18,13 +18,10 @@ from packaging import version
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
-                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = ["base", "xxtiny", "xxs", "pico", "xtiny", "xs", "nano", "tiny", "s", "mini", "small", "lite",
+                   "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
-        if "x_" in name:
-            # x_small or xx_small should be merged to xsmall and xxsmall
-            name.replace("x_", "x")
         # first: remove datasets
         name_parts = name.split(".")
         _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
@@ -89,7 +86,7 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("mode", ["export"]) # disable "export" for now
+    @pytest.mark.parametrize("mode", ["trace"]) # disable "export" for now
     @pytest.mark.parametrize("name", get_all_models())
     def test_convert_model_all_models(self, mode, name, ie_device):
         self.mode = mode

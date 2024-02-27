@@ -104,7 +104,7 @@ class TestScatter(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize(["inplace", "has_out"], [(True, False), (False, True), (False, False)])
     @pytest.mark.parametrize("reduce", [None, "add", "multiply"])
-    def test_scatter1(self, dim, index, src, dtype, inplace, has_out, reduce, ie_device, precision, ir_version):
+    def test_scatter(self, dim, index, src, dtype, inplace, has_out, reduce, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
         freeze = True
