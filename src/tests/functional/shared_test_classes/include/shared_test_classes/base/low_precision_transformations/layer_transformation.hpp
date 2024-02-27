@@ -15,7 +15,6 @@
 
 #include "low_precision/layer_transformation.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace LayerTestsUtils {
 

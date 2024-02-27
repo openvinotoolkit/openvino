@@ -13,13 +13,11 @@ namespace lowered {
 namespace pass {
 
 InsertPerfCount::InsertPerfCount(std::map<std::string, std::string> boundary_op_names)
-    : Pass(), m_boundary_op_names(std::move(boundary_op_names)) {
+    : RangedPass(), m_boundary_op_names(std::move(boundary_op_names)) {
 }
 
-bool InsertPerfCount::run(LinearIR& linear_ir) {
+bool InsertPerfCount::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertPerfCount")
-    if (linear_ir.empty())
-        return false;
     if (m_boundary_op_names.empty()) {
         const auto& first_op_name = linear_ir.begin()->get()->get_node()->get_friendly_name();
         const auto& last_op_name = linear_ir.rbegin()->get()->get_node()->get_friendly_name();
@@ -27,7 +25,7 @@ bool InsertPerfCount::run(LinearIR& linear_ir) {
     }
 
     size_t seq_number = 0;
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& op_name = expr_it->get()->get_node()->get_friendly_name();
         const auto& found = m_boundary_op_names.find(op_name);
         if (found != m_boundary_op_names.end()) {

@@ -61,10 +61,15 @@ size_t store_emitter_params::hash() const {
     return seed;
 }
 
-static int get_aux_regs_as_temp(const size_t byte_size, const bool is_fill = false) {
-    if (!one_of(byte_size, 64u, 32u, 16u))
-        return 1;
+static int get_aux_regs_as_temp(const int elem_count, const int data_size, bool is_pure_move,
+                                const int avx512_threshold_for_mask = 0, const bool is_fill = false) {
     if (mayiuse(cpu::x64::avx512_core) && is_fill)
+        return 1;
+
+    const int byte_size = elem_count * data_size;
+    if ((is_pure_move && one_of(byte_size, 16, 32, 64)) || (!is_pure_move && one_of(elem_count, 4, 8, 16)))
+        return 0;
+    if ((mayiuse(cpu::x64::avx512_core) && (byte_size > avx512_threshold_for_mask)) || (one_of(byte_size % 16, 1, 2, 3)))
         return 1;
     return 0;
 }
@@ -84,7 +89,10 @@ size_t jit_load_emitter::get_inputs_num() const { return 1; }
 
 size_t jit_load_emitter::aux_gprs_count() const {
     // 0 for temp reg for mask load in avx512 if needed
-    int count = get_aux_regs_as_temp(load_num_ * dst_prc_.size(), is_fill_);
+    const auto is_pure_load = (src_prc_ == dst_prc_) ||
+                                (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
+                                 one_of(dst_prc_, ov::element::f32, ov::element::i32));
+    int count = get_aux_regs_as_temp(load_num_, static_cast<int>(src_prc_.size()), is_pure_load, threshold_for_mask_emu_load, is_fill_);
 
     // 1 for table address
     if (is_fill_)
@@ -619,7 +627,10 @@ inline bool jit_store_emitter::is_truncation_emulation() const {
 
 size_t jit_store_emitter::aux_gprs_count() const {
     // for temp reg for store(mask version or special number cases)
-    int count = get_aux_regs_as_temp(store_num_ * src_prc_.size());
+    const auto is_pure_store = (src_prc_ == dst_prc_) ||
+                                (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
+                                 one_of(dst_prc_, ov::element::f32, ov::element::i32));
+    int count = get_aux_regs_as_temp(store_num_, static_cast<int>(dst_prc_.size()), is_pure_store, threshold_for_mask_emu_store);
 
     // for table value in truncation arithmetic mode
     if (is_truncation_emulation())
