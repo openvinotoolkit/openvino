@@ -11,7 +11,8 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/insert_specific_iterations.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
 #include "snippets/lowered/pass/validate_loops.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
@@ -38,7 +39,7 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto in_shape0 = in_shapes[0].get_shape();
     const auto in_shape1 = in_shapes[1].get_shape();
     const auto inner_wa = std::max(*in_shape0.rbegin(), *in_shape1.rbegin());
-    const auto inner_inc = vector_size;
+    const auto inner_inc = std::min(vector_size, inner_wa);
     const auto blocked_wa = block_size;
     const auto blocked_inc = 1;
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
@@ -46,7 +47,12 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
     loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
-    loop_manager->get_loop_info(loop_id)->set_outer_splited_loop(true);
+    const auto& outer_loop_info = loop_manager->get_loop_info(loop_id);
+    const auto outer_tail_size = outer_wa % outer_inc;
+    if (outer_tail_size != 0) {
+        outer_loop_info->register_handler<LinearIR::LoopManager::LoopInfo::SpecificIterationHandlers::HandlerType::LAST_ITER,
+                                          pass::TransformInnerSplitLoop>(outer_tail_size);
+    }
 }
 
 static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pass::PassConfig>& config) {
@@ -55,7 +61,7 @@ static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pas
     pipeline.register_pass<pass::ValidateLoops>();
     pipeline.register_pass<pass::InitLoops>();
     pipeline.register_pass<pass::InsertLoops>();
-    pipeline.register_pass<pass::InsertTailLoop>();
+    pipeline.register_pass<pass::InsertSpecificIterations>();
     pipeline.register_pass<pass::CleanupLoopOffsets>();
     pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
     pipeline.run(linear_ir);
@@ -85,7 +91,7 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_OriginalPtrShifts) {
 
     auto config = std::make_shared<pass::PassConfig>();
     config->disable<pass::CleanupLoopOffsets>();
-    config->disable<pass::InsertTailLoop>();
+    config->disable<pass::InsertSpecificIterations>();
     config->disable<pass::OptimizeLoopSingleEvaluation>();
     apply_transformations(linear_ir, config);
 
@@ -105,7 +111,7 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_CleanUpPtrShifts) {
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
     auto config = std::make_shared<pass::PassConfig>();
-    config->disable<pass::InsertTailLoop>();
+    config->disable<pass::InsertSpecificIterations>();
     config->disable<pass::OptimizeLoopSingleEvaluation>();
     apply_transformations(linear_ir, config);
 

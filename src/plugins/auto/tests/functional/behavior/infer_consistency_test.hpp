@@ -8,8 +8,8 @@
 
 #include "auto_func_test.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace auto_plugin {
@@ -76,7 +76,7 @@ protected:
                     inf_req.set_tensor(iter, tensor);
                 }
             }
-            auto refOutData = ngraph::helpers::interpretFunction(model_cannot_batch, input_data);
+            auto refOutData = ov::test::utils::infer_on_template(model_cannot_batch, input_data);
             ref.push_back(refOutData);
         }
         for (size_t i = 0; i < 50; i++) {
