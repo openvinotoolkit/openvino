@@ -12,8 +12,8 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestPerfCountersTest,
                         ::testing::Combine(
-                                ::testing::Values(targetDevice),
-                                ::testing::Values(pluginConfig)),
+                                ::testing::Values(ov::test::utils::target_device),
+                                ::testing::Values(ov::AnyMap({}))),
                          OVInferRequestPerfCountersTest::getTestCaseName);
 
 }  // namespace
