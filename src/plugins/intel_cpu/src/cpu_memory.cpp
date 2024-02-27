@@ -608,29 +608,26 @@ long mbind(void *start, unsigned long len, int mode,
 				maxnode, flags);
 }
 bool mbind_move(void* data, size_t size, int targetNode) {
-  auto pagesize = getpagesize();
-  auto page_count = (size + pagesize - 1) / pagesize;
-  char* pages = reinterpret_cast<char*>(
-      (((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
-  unsigned long mask = 0;
-  auto mode = MPOL_DEFAULT;
-  unsigned flags = 0;
-  if (targetNode < 0) {
-    // restore default policy
-    mask = -1;
-    mode = MPOL_DEFAULT;
-    flags = 0;
-  } else {
-    mask = 1ul << targetNode;
-    mode = MPOL_BIND;
-    flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
-  }
-  auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask,
-                  sizeof(mask) * 8, flags);
-  if (rc < 0) {
-    perror("mbind failed");
-  }
-  return true;
+    auto pagesize = getpagesize();
+    auto page_count = (size + pagesize - 1) / pagesize;
+    char* pages = reinterpret_cast<char*>(
+        (((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
+    unsigned long mask = 0;
+    unsigned flags = 0;
+    if (targetNode < 0) {
+      // restore default policy
+      mask = -1;
+      flags = 0;
+    } else {
+      mask = 1ul << targetNode;
+      flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
+    }
+    auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask,
+                    sizeof(mask) * 8, flags);
+    if (rc < 0) {
+      perror("mbind failed");
+    }
+    return true;
 }
 
 bool mbind_move(const MemoryCPtr mem, int numaNodeID) {

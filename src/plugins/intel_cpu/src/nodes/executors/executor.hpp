@@ -156,7 +156,7 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
     virtual impl_desc_type implType() const = 0;
-    virtual void moveToNumaNode(int numaID) {}
+    virtual void moveMemToNumaNode(int numaID) {}
     virtual ~Executor() = default;
 };
 using ExecutorPtr = std::shared_ptr<Executor>;

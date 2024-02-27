@@ -322,6 +322,10 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     conf.readProperties(config, modelType);
     calculate_streams(conf, cloned_model);
 
+    if(conf.streamExecutorConfig.get_sub_stream_mode() == IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET) {
+        transformations.SetSubStreasMode(true);
+    }
+
     transformations.PostLpt();
     transformations.Snippets();
 

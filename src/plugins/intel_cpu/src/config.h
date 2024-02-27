@@ -78,8 +78,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    // Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
-    Config::MaxThreadsPerStream hintMaxThreadsPerStream = Config::MaxThreadsPerStream::PER_SOCKET;
+    Config::MaxThreadsPerStream hintMaxThreadsPerStream = Config::MaxThreadsPerStream::AUTO;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
