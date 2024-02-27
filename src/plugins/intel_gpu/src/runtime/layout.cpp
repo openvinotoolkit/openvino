@@ -428,16 +428,27 @@ bool layout::compatible(const layout& other) const {
     if (l1.is_dynamic() || l2.is_dynamic())
         return false;
 
-    if (l1.data_type != l2.data_type)
-        return false;
-
     auto l1_size = l1.get_tensor();
     auto l2_size = l2.get_tensor();
+    if (l1 == l2)
+        return true;
+    if (l1.data_type != l2.data_type)
+        return false;
+    // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
+    // there is no padding and both hold same number of elements.
+    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
+        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+        return true;
     if (l1_size != l2_size)
         return false;
-
     if (l1.get_linear_size() != l2.get_linear_size())
         return false;
+    if (check_redundant_1d_along_feature(l1, l2))
+        return true;
+    auto check_format = [&l1, &l2](cldnn::format format) {
+        return (l1.format == format && l2.format != format) ||
+               (l2.format == format && l1.format != format);
+    };
 
     const auto& blocks1 = format::block_sizes(l1.format);
     const auto& blocks2 = format::block_sizes(l2.format);
@@ -446,11 +457,6 @@ bool layout::compatible(const layout& other) const {
     if (blocks1 != blocks2 ||
         (!blocks1.empty() && format::traits(l1.format)._order != format::traits(l2.format)._order))
         return false;
-
-    auto check_format = [&l1, &l2](cldnn::format format) {
-        return (l1.format == format && l2.format != format) ||
-               (l2.format == format && l1.format != format);
-    };
 
     if (check_format(format::b_fs_yx_fsv2) ||
         check_format(format::b_fs_yx_fsv4) ||
@@ -476,16 +482,6 @@ bool layout::compatible(const layout& other) const {
         check_format(format::bs_fs_zyx_bsv32_fsv16) ||
         check_format(format::bs_fs_zyx_bsv32_fsv32))
         return false;
-
-    if (l1 == l2)
-        return true;
-    if (check_redundant_1d_along_feature(l1, l2))
-        return true;
-    // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
-    // there is no padding and both hold same number of elements.
-    if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
-        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
-        return true;
 
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
