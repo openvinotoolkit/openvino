@@ -68,10 +68,6 @@ public:
         return m_primitive ? m_primitive->implType() : undef;
     }
 
-    void moveToNumaNode(int numaNodeID) {
-        numaNodeID = numaNodeID;
-    }
-
 private:
     void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
         const auto& primMemDesc = primitive->srcDesc();
