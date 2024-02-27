@@ -114,7 +114,7 @@ jobs:
       - name: TensorFlow Models Tests - TF FE
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${inputs.model_scope} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${{ inputs.model_scope }} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TEST_DEVICE: CPU
 
