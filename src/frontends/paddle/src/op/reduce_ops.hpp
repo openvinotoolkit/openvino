@@ -23,10 +23,8 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     } else {
         auto any = node.get_attribute_as_any("dim");
         if (any.is<std::vector<int32_t>>()) {
-            printf("break info 0\n");
             dims = node.get_attribute<std::vector<int32_t>>("dim");
         } else {
-            printf("break info 1\n");
             auto dim = any.as<std::vector<int64_t>>();
             dims = std::vector<int32_t>(dim.begin(), dim.end());
         }
