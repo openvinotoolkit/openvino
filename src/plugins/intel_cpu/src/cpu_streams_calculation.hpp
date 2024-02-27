@@ -52,7 +52,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const int input_current_socket_id,
                                                      const std::string input_perf_hint,
-                                                     const Config::LatencyThreadingMode latencyThreadingMode,
+                                                     const Config::MaxThreadsPerStream hint_max_threads_per_stream,
                                                      const std::vector<std::vector<int>>& proc_type_table);
 /**
  * @brief      Get model_prefer_threads
@@ -104,7 +104,7 @@ void get_num_streams(const int streams,
  * @param[in]  latency_threading_mode is the scope of candidate processors per stream for latency hint
  * @return     number of streams
  */
-int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode);
+int get_default_latency_streams(Config::MaxThreadsPerStream hint_max_threads_per_stream);
 
 }  // namespace intel_cpu
 }  // namespace ov

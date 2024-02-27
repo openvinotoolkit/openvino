@@ -185,7 +185,7 @@ static bool streamsSet(const ov::AnyMap& config) {
 }
 
 void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
-    const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
+    const int latency_streams = get_default_latency_streams(config.hintMaxThreadsPerStream);
     int streams_set = config.streams;
     int streams;
     if (config.streamsChanged) {

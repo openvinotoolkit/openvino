@@ -72,10 +72,10 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
                      const int num_streams,
-                     const Config::LatencyThreadingMode latency_threading_mode,
+                     const Config::MaxThreadsPerStream hint_max_threads_per_stream,
                      const std::vector<std::vector<int>>& proc_type_table) {
     int result_value;
-    int num_sockets = get_default_latency_streams(latency_threading_mode);
+    int num_sockets = get_default_latency_streams(hint_max_threads_per_stream);
     bool latency = num_streams <= num_sockets && num_streams > 0;
 
     if (input_changed) {
