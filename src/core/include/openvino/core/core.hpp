@@ -53,6 +53,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
+#include "openvino/core/preprocess/padding_mode.hpp"
 
 // type
 #include "openvino/core/type/element_type.hpp"
