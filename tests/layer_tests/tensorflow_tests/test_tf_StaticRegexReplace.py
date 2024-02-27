@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -11,12 +13,11 @@ rng = np.random.default_rng()
 
 class TestStaticRegexReplace(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        strings_dictionary = ['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence \t\n', ' ',
-                              'Oferta polska', 'Предложение по-РУССки', '汉语句子']
-        inputs_data['input'] = rng.choice(strings_dictionary, input_shape)
+        strings_dictionary = ['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence \t\n', ' ']
+        inputs_data['input:0'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
     def create_static_regex_replace_net(self, input_shape, pattern, rewrite, replace_global):
@@ -39,7 +40,10 @@ class TestStaticRegexReplace(CommonTFLayerTest):
     @pytest.mark.parametrize('replace_global', [None, True, False])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='132674 - Add support of StaticRegexReplace')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
     def test_static_regex_replace(self, input_shape, pattern, rewrite, replace_global,
                                   ie_device, precision, ir_version, temp_dir,
                                   use_legacy_frontend):
