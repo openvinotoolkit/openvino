@@ -509,7 +509,7 @@ jobs:
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'ubuntu-20.04-8-cores'
-      scope: 'precommit'
+      model_scope: 'precommit'
 
   TensorFlow_Models_Tests_Nightly:
     name: TensorFlow Models tests
@@ -518,11 +518,11 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        SCOPE: ['nightly_hf', 'nightly_tf_hub']
+        MODEL_SCOPE: ['nightly_hf', 'nightly_tf_hub']
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'ubuntu-20.04-16-cores'
-      scope: ${{ matrix.scope }}
+      model_scope: ${{ matrix.MODEL_SCOPE }}
 
   # TODO: Switch back to self-hosted runners
   # container:

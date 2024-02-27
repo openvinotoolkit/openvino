@@ -12,7 +12,7 @@ on:
         type: string
         required: false
         default: '{"image": null}'
-      scope:
+      model_scope:
         description: 'Scope of models for testing.'
         type: string
         required: true
@@ -20,7 +20,7 @@ on:
 jobs:
   TensorFlow_Hub_Models_Tests:
     name: TensorFlow Hub Models tests
-    timeout-minutes: ${{ inputs.scope != 'precommit' && 400 || 25 }}
+    timeout-minutes: ${{ inputs.model_scope != 'precommit' && 400 || 25 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -114,7 +114,7 @@ jobs:
       - name: TensorFlow Models Tests - TF FE
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${inputs.scope} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${inputs.model_scope} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
         env:
           TEST_DEVICE: CPU
 
