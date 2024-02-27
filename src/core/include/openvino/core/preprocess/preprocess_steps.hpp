@@ -7,6 +7,7 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/preprocess/color_format.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
+#include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -88,7 +89,10 @@ public:
     /// \param value Value to be populated in the padded area
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps& pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, float value);
+    PreProcessSteps& pad(const std::vector<int>& pads_begin,
+                         const std::vector<int>& pads_end,
+                         float value,
+                         PaddingMode mode);
 
     /// \brief Add pad preprocess operation
     /// Extends an input tensor on edges with constants
@@ -98,7 +102,10 @@ public:
     /// \param values Values to be populated in the padded area
     ///
     /// \return Reference to 'this' to allow chaining with other calls in a builder-like manner
-    PreProcessSteps& pad(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<float>& values);
+    PreProcessSteps& pad(const std::vector<int>& pads_begin,
+                         const std::vector<int>& pads_end,
+                         const std::vector<float>& values,
+                         PaddingMode mode);
 
     /// \brief Signature for custom preprocessing operation. Custom preprocessing operation takes one input node and
     /// produces one output node. For more advanced cases, client's code can use transformation passes over ov::Model

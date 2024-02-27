@@ -921,7 +921,7 @@ TEST(pre_post_process, pad_vector_constant_layout) {
     std::stringstream exp_dump;
     exp_dump << PartialShape{1, 3, 200, 200};
     try{
-        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0);
+        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::PAD_CONSTANT);
         p.build();
     } catch (const ov::Exception& err) {
         EXPECT_TRUE(std::string(err.what()).find(exp_dump.str())) << err.what();

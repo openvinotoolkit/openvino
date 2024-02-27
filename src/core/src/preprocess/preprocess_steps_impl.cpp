@@ -130,15 +130,50 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
         "mean " + vector_to_string(values));
 }
 
-void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::vector<int>& pads_end, const std::vector<float>& values){
+void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
+                                const std::vector<int>& pads_end,
+                                const std::vector<float>& values,
+                                PaddingMode mode) {
+    std::string name;
+    name = "pad(begin " + vector_to_string(pads_begin) + 
+            ", end " + vector_to_string(pads_end);
+    switch (mode) {
+        case PaddingMode::PAD_CONSTANT:
+            name += ", with " + vector_to_string(values) + ")";
+            break;
+        case PaddingMode::PAD_EDGE:
+            name += ", copied from edge";
+            break;
+        case PaddingMode::PAD_REFLECT:
+            name += ", reflected from tensor";
+            break;
+        case PaddingMode::PAD_SYMMETRIC:
+            name += ", symmetrically added from tensor";
+            break;
+    }
+
     m_actions.emplace_back(
-        [pads_begin, pads_end, values](const std::vector<Output<Node>>& nodes,
-                                       const std::shared_ptr<Model>& function,
-                                       PreprocessingContext& ctxt) {
+        [pads_begin, pads_end, values, mode](const std::vector<Output<Node>>& nodes,
+                                             const std::shared_ptr<Model>& function,
+                                             PreprocessingContext& ctxt) {
             OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add pad for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't pad multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
+
+            const auto to_mode = [](const PaddingMode mode) -> op::PadMode {
+                switch (mode) {
+                case PaddingMode::PAD_CONSTANT:
+                    return op::PadMode::CONSTANT;
+                case PaddingMode::PAD_EDGE:
+                    return op::PadMode::EDGE;
+                case PaddingMode::PAD_REFLECT:
+                    return op::PadMode::REFLECT;
+                case PaddingMode::PAD_SYMMETRIC:
+                    return op::PadMode::SYMMETRIC;
+                }
+            };
+
             auto node = nodes[0];
             auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, values);
 
@@ -146,10 +181,9 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin, const std::v
             auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
             auto npad_value = opset8::Constant::create(element::f32, Shape{}, values);
 
-            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, op::PadMode::CONSTANT);
+            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, to_mode(mode));
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
-        },
-        "pad (" + vector_to_string(values) + ")");
+        }, name);
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
