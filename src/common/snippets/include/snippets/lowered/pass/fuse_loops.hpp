@@ -36,11 +36,11 @@ namespace pass {
  *        The main conditions of possible fusion is the equal increments and the equal/broadcastable work amounts.
  * @ingroup snippets
  */
-class FuseLoops : public Pass {
+class FuseLoops : public RangedPass {
 public:
-    OPENVINO_RTTI("FuseLoops", "Pass")
+    OPENVINO_RTTI("FuseLoops", "RangedPass")
     FuseLoops();
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     // This method checks that all ports which connect lower and upper loops are incremented.
     // This helps to avoid fusing for the ports with incompleted data

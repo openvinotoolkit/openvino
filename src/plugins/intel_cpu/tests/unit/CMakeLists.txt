@@ -57,7 +57,6 @@ ov_add_test_target(
             openvino::shape_inference
             openvino_runtime_s
             unit_test_utils
-            ov_models
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
