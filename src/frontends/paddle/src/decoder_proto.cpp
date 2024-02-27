@@ -89,20 +89,6 @@ ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& t
             types[i] = get_ov_type(static_cast<proto::VarType_Type>(casted[i]));
         }
         return types;
-    } else if (data.is<std::vector<int32_t>>() && type_info == typeid(std::vector<int64_t>)) {
-        const auto& casted = data.as<std::vector<int32_t>>();
-        std::vector<int64_t> types(casted.size());
-        for (size_t i = 0; i < casted.size(); ++i) {
-            types[i] = casted[i];
-        }
-        return types;
-    } else if (data.is<std::vector<int64_t>>() && type_info == typeid(std::vector<int32_t>)) {
-        const auto& casted = data.as<std::vector<int64_t>>();
-        std::vector<int32_t> types(casted.size());
-        for (size_t i = 0; i < casted.size(); ++i) {
-            types[i] = casted[i];
-        }
-        return types;
     }
     // no conversion rules found.
     return data;

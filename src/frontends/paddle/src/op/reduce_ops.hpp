@@ -21,7 +21,15 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     if (reduce_all) {
         std::iota(dims.begin(), dims.end(), 0);
     } else {
-        dims = node.get_attribute<std::vector<int32_t>>("dim");
+        auto any = node.get_attribute_as_any("dim");
+        if (any.is<std::vector<int32_t>>()) {
+            printf("break info 0\n");
+            dims = node.get_attribute<std::vector<int32_t>>("dim");
+        } else {
+            printf("break info 1\n");
+            auto dim = any.as<std::vector<int64_t>>();
+            dims = std::vector<int32_t>(dim.begin(), dim.end());
+        }
     }
     auto axesNode = default_opset::Constant::create(ov::element::i32, {dims.size()}, dims);
     bool scalar_output = !keep_dim;
