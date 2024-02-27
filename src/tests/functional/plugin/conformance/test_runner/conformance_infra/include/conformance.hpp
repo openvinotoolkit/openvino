@@ -16,14 +16,10 @@
 namespace ov {
 namespace test {
 namespace conformance {
-extern const char* targetDevice;
-extern const char *targetPluginName;
 extern const char* refCachePath;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
-
-extern ov::AnyMap pluginConfig;
 
 enum ShapeMode {
     DYNAMIC,
@@ -33,27 +29,26 @@ enum ShapeMode {
 
 extern ShapeMode shapeMode;
 
-inline ov::AnyMap readPluginConfig(const std::string &configFilePath) {
-    if (!ov::test::utils::fileExists(configFilePath)) {
-        std::string msg = "Input directory (" + configFilePath + ") doesn't not exist!";
-        throw std::runtime_error(msg);
+inline ov::AnyMap read_plugin_config(const std::string& config_file_path) {
+    if (!ov::test::utils::fileExists(config_file_path)) {
+        OPENVINO_THROW("Input directory (" + config_file_path + ") doesn't not exist!");
     }
     ov::AnyMap config;
-    std::ifstream file(configFilePath);
+    std::ifstream file(config_file_path);
     if (file.is_open()) {
         std::string buffer;
         while (getline(file, buffer)) {
             if (buffer.find("#") == std::string::npos && !buffer.empty()) {
-                auto configElements = ov::test::utils::splitStringByDelimiter(buffer, " ");
-                if (configElements.size() != 2) {
-                    throw std::runtime_error("Incorrect line to get config item: " + buffer + "\n. Example: \"PLUGIN_CONFIG_KEY=PLUGIN_CONFIG_VALUE\"");
+                auto config_elem = ov::test::utils::splitStringByDelimiter(buffer, " ");
+                if (config_elem.size() != 2) {
+                    OPENVINO_THROW("Incorrect line to get config item: " + buffer +
+                                   "\n. Example: \"PLUGIN_CONFIG_KEY=PLUGIN_CONFIG_VALUE\"");
                 }
-                config.emplace(configElements.front(), configElements.back());
+                config.emplace(config_elem.front(), config_elem.back());
             }
         }
     } else {
-        std::string msg = "Error in opening file: " + configFilePath;
-        throw std::runtime_error(msg);
+        OPENVINO_THROW("Error in opening file: " + config_file_path);
     }
     file.close();
     return config;

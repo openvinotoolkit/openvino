@@ -65,7 +65,8 @@ public:
         set_api_entity();
         auto test_name = this->GetFullTestName();
         k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
-        std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
+        if (ov::test::utils::is_print_rel_influence_coef)
+            std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();
     }
@@ -158,6 +159,9 @@ protected:
     std::shared_ptr<ov::Model> function;
 };
 
+// DEPRECATED
+// Replace the usage by `ov::test::utils::create_core()`
+// in NVIDIA and NPU plugin
 inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
     ov::Core core;

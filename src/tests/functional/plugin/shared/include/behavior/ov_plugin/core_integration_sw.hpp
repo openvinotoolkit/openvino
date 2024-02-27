@@ -16,12 +16,12 @@ using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClas
 
 TEST_P(OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest,
        CompileModelRepeatedlyWithMetaPluginTestThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     ASSERT_THROW(ie.compile_model(actualNetwork, target_device, configuration), ov::Exception);
 }
 
 TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     std::string clear_target_device;
     auto pos = target_devices.begin()->find('.');
@@ -43,7 +43,7 @@ TEST_P(OVClassSeveralDevicesTestCompileModel, CompileModelActualSeveralDevicesNo
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePropertiesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork,
                                         ov::test::utils::DEVICE_HETERO,
                                         ov::device::priorities(target_device),
@@ -51,17 +51,17 @@ TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceUsingDevicePrope
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDeviceNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO + std::string(":") + target_device));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelActualHeteroDevice2NoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     OV_ASSERT_NO_THROW(ie.compile_model(actualNetwork, ov::test::utils::DEVICE_HETERO, ov::device::priorities(target_device)));
 }
 
 TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
-    auto ie = createCoreWithTemplate();
+    auto ie = ov::test::utils::create_core();
     auto net = ie.compile_model(actualNetwork, target_device);
     auto runtime_function = net.get_runtime_model();
     ASSERT_NE(nullptr, runtime_function);
@@ -90,7 +90,7 @@ TEST_P(OVClassModelOptionalTestP, CompileModelCreateDefaultExecGraphResult) {
 }
 
 TEST_P(OVClassSeveralDevicesTestQueryModel, QueryModelActualSeveralDevicesNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     std::string clear_target_device;
     auto pos = target_devices.begin()->find('.');
@@ -163,7 +163,7 @@ TEST(OVClassBasicPropsTest, smoke_GetMetricSupportedMetricsHeteroNoThrow) {
 }
 
 TEST_P(OVClassModelOptionalTestP, getVersionsNonEmpty) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     ASSERT_EQ(2, core.get_versions(ov::test::utils::DEVICE_HETERO + std::string(":") + target_device).size());
 }
 

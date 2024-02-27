@@ -8,6 +8,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
+bool is_print_rel_influence_coef = false;
+
 PassRate::PassRate(unsigned long p,
                    unsigned long f,
                    unsigned long s,

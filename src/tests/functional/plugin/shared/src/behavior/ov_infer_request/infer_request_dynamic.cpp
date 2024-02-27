@@ -551,7 +551,7 @@ TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithSetTensor2times) {
 TEST_P(OVInferRequestDynamicTests, InferDynamicNetworkWithLocalCore) {
     ov::CompiledModel compiled_model;
     {
-        ov::Core local_core = createCoreWithTemplate();
+        ov::Core local_core = ov::test::utils::create_core();
         const std::string tensor_name = "input_tensor";
         std::map<std::string, ov::PartialShape> shapes;
         shapes[tensor_name] = {ov::Dimension::dynamic(), 4, 20, 20};
