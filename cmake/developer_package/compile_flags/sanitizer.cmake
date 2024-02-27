@@ -106,7 +106,7 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
                     set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.asan-x86_64.so))")
                 endif()
                 if(ENABLE_UB_SANITIZER)
-                    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.ubsan_standalone-x86_64.so)")
+                    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.ubsan_standalone-x86_64.so))")
                 endif()
             endif()
 
