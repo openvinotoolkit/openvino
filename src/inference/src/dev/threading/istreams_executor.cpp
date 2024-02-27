@@ -125,6 +125,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
         if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            streamConfig._max_threads_per_core = 2;
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
@@ -252,7 +253,6 @@ void IStreamsExecutor::Config::update_executor_config() {
         if (_threads_per_stream == 0) {
             return;
         }
-        _max_threads_per_core = 2;
 
         // create stream_info_table based on core type
         std::vector<int> stream_info(CPU_STREAMS_TABLE_SIZE, 0);
