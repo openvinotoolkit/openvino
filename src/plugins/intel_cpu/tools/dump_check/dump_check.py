@@ -6,7 +6,7 @@
 from openvino.runtime import Core, Model, Tensor, PartialShape, Type
 from openvino.runtime import opset8 as opset
 from openvino.runtime.op import Constant, Parameter, tensor_iterator
-from openvino.runtime.passes import Manager
+from openvino.runtime.passes import Manager, Serialize
 from openvino.runtime.utils.types import get_dtype
 import openvino as ov
 import numpy as np
@@ -207,7 +207,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     xml_path = f"{base_name[-1]}.xml"
     bin_path = f"{base_name[-1]}.bin"
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(runtime_func)
     
     print(f"{device_target} Runtime model (exec_graph) is serialized to {xml_path}.")

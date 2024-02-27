@@ -5,33 +5,43 @@ A very basic introduction to using object detection models with
 OpenVINO™.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.0/omz_models_model_horizontal_text_detection_0001.html>`__
-model from `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.3/omz_models_model_horizontal_text_detection_0001.html>`__
+model from `Open Model
+Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__ is used. It
 detects horizontal text in images and returns a blob of data in the
 shape of ``[100, 5]``. Each detected text box is stored in the
 ``[x_min, y_min, x_max, y_max, conf]`` format, where the
 ``(x_min, y_min)`` are the coordinates of the top left bounding box
 corner, ``(x_max, y_max)`` are the coordinates of the bottom right
 bounding box corner and ``conf`` is the confidence for the predicted
-class. 
+class.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Imports <#imports>`__
-- `Download model weights <#download-model-weights>`__
-- `Select inference device <#select-inference-device>`__
-- `Load the Model <#load-the-model>`__
-- `Load an Image <#load-an-image>`__
-- `Do Inference <#do-inference>`__
-- `Visualize Results <#visualize-results>`__
+-  `Imports <#imports>`__
+-  `Download model weights <#download-model-weights>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Load an Image <#load-an-image>`__
+-  `Do Inference <#do-inference>`__
+-  `Visualize Results <#visualize-results>`__
 
 .. code:: ipython3
 
     # Install openvino package
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "openvino>=2023.1.0"
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Imports
-########################################
+-------
+
+
 
 .. code:: ipython3
 
@@ -40,13 +50,20 @@ Imports
     import numpy as np
     import openvino as ov
     from pathlib import Path
-    import sys
     
-    sys.path.append("../utils")
+    # Fetch `notebook_utils` module
+    import urllib.request
+    urllib.request.urlretrieve(
+        url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
+        filename='notebook_utils.py'
+    )
+    
     from notebook_utils import download_file
 
 Download model weights
-#######################################################
+----------------------
+
+
 
 .. code:: ipython3
 
@@ -82,9 +99,11 @@ Download model weights
 
 
 Select inference device
-###########################################################
+-----------------------
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -110,7 +129,9 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 Load the Model
-###############################################
+--------------
+
+
 
 .. code:: ipython3
 
@@ -123,12 +144,20 @@ Load the Model
     output_layer_ir = compiled_model.output("boxes")
 
 Load an Image
-##############################################
+-------------
+
+
 
 .. code:: ipython3
 
+    # Download the image from the openvino_notebooks storage
+    image_filename = download_file(
+        "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
+        directory="data"
+    )
+    
     # Text detection models expect an image in BGR format.
-    image = cv2.imread("../data/image/intel_rnb.jpg")
+    image = cv2.imread(str(image_filename))
     
     # N,C,H,W = batch size, number of channels, height, width.
     N, C, H, W = input_layer_ir.shape
@@ -143,11 +172,19 @@ Load an Image
 
 
 
-.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_0.png
+.. parsed-literal::
+
+    data/intel_rnb.jpg:   0%|          | 0.00/288k [00:00<?, ?B/s]
+
+
+
+.. image:: 004-hello-detection-with-output_files/004-hello-detection-with-output_11_1.png
 
 
 Do Inference
-##############################################
+------------
+
+
 
 .. code:: ipython3
 
@@ -158,7 +195,9 @@ Do Inference
     boxes = boxes[~np.all(boxes == 0, axis=1)]
 
 Visualize Results
-##################################################
+-----------------
+
+
 
 .. code:: ipython3
 

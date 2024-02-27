@@ -3,11 +3,14 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 using namespace std;
 using namespace ov;
-using namespace ov::opset8;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -23,13 +26,13 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
 
     // introduce extra dimension in order to compute size in case of a scalar input
-    auto const_zero = make_shared<Constant>(element::i32, Shape{1}, 0);
-    input = make_shared<Unsqueeze>(input, const_zero);
+    auto const_zero = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    input = make_shared<v0::Unsqueeze>(input, const_zero);
 
     // compute the input tensor size
-    auto shape_of = make_shared<ShapeOf>(input, out_type);
-    auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
-    auto size = make_shared<ReduceProd>(shape_of, axis);
+    auto shape_of = make_shared<v3::ShapeOf>(input, out_type);
+    auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto size = make_shared<v1::ReduceProd>(shape_of, axis);
     set_node_name(node.get_name(), size);
     return {size};
 }

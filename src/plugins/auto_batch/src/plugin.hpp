@@ -7,7 +7,6 @@
 
 #include <map>
 
-#include "ie/ie_plugin_config.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/properties.hpp"
 

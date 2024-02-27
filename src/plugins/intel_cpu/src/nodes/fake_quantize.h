@@ -4,14 +4,11 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <common/primitive_attr.hpp>
+#include "common/primitive_attr.hpp"
+#include "node.h"
 
-#include <string>
-#include <memory>
-#include <vector>
 #include <utility>
+#include "dnnl_postops_composer_legacy.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -30,9 +27,9 @@ enum class FQ_add_input_type {
 struct jit_quantize_params {
     bool is_planar;
 
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision wei_prc;
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc;
+    ov::element::Type wei_prc;
+    ov::element::Type dst_prc;
 
     Algorithm op_type;
 
@@ -77,7 +74,7 @@ struct jit_uni_quantize_kernel {
 
 class FakeQuantize : public Node {
 public:
-    FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void initSupportedPrimitiveDescriptors() override;
     void getSupportedDescriptors() override;
@@ -104,6 +101,7 @@ public:
     const std::vector<float>& getInputShift() const { return inputShift; }
     const std::vector<float>& getOutputScale() const { return outputScale; }
     const std::vector<float>& getOutputShift() const { return outputShift; }
+    const size_t getLevels() const { return levels; }
 
     void setCropLow(std::vector<float> newCropLow) {
         cropLow = std::move(newCropLow); cropLowSize = cropLow.size(); ++parameterVersion;
@@ -131,18 +129,18 @@ public:
     bool isOutputLowBroadcast() const { return isOutputLowBroadcasted; }
     bool isOutputHighBroadcast() const { return isOutputHighBroadcasted; }
 
-    InferenceEngine::Precision getInputPrecision() const { return inputPrecision; }
-    InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
+    ov::element::Type getInputPrecision() const { return inputPrecision; }
+    ov::element::Type getOutputPrecision() const { return outputPrecision; }
 
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
+    bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true,
                            bool do_rounding = true);
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     enum BroadcastingPolicy {
         PerChannel, // all FQ operations are per channel
@@ -267,8 +265,8 @@ private:
     size_t currentAxisSize = 0;
     size_t axis = 0;
 
-    InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
-    InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
+    ov::element::Type inputPrecision = ov::element::f32;
+    ov::element::Type outputPrecision = ov::element::f32;
 
     std::string errorPrefix;
 

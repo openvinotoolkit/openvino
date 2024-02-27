@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/unique.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset10.hpp"
 
 using namespace std;
 using namespace ov;
+using namespace ov::op;
 
 namespace ov {
 namespace frontend {
@@ -20,7 +22,7 @@ NamedOutputVector translate_unique_op(const NodeContext& node) {
     auto node_name = node.get_name();
     auto input_values = node.get_input(0);
     auto output_indices_type = node.get_attribute<ov::element::Type>("out_idx", ov::element::i32);
-    auto unique = make_shared<opset10::Unique>(input_values, false, output_indices_type);
+    auto unique = make_shared<v10::Unique>(input_values, false, output_indices_type);
 
     // set up new Unique node name and tensor names manually
     // because the second and fourth outputs of OpenVINO Unique are not needed

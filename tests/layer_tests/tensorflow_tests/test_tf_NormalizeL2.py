@@ -32,13 +32,15 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 126314, 122716')
     def test_normalize_l2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                use_new_frontend, use_old_api):
+                                use_legacy_frontend):
         self._test(*self.create_normalize_l2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_complex = [
         dict(shape=[2, 3, 5, 4], axes=[1, 2, 3]),
@@ -48,7 +50,7 @@ class TestNormalizeL2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_complex)
     @pytest.mark.nightly
     def test_normalize_l2_complex(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend, use_old_api):
+                                  use_legacy_frontend):
         self._test(*self.create_normalize_l2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

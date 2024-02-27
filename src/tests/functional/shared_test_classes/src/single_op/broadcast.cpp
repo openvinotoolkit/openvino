@@ -51,8 +51,8 @@ void BroadcastLayerTest::SetUp() {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
     std::shared_ptr<ov::Node> broadcast;
-    if (mode == ngraph::op::BroadcastType::NONE) {
-        auto axis_set_const = ov::op::v0::Constant::create(ngraph::element::i64, {axes_mapping.size()}, axes_mapping.to_vector());
+    if (mode == ov::op::BroadcastType::NONE) {
+        auto axis_set_const = ov::op::v0::Constant::create(ov::element::i64, {axes_mapping.size()}, axes_mapping.to_vector());
         broadcast = std::make_shared<ov::op::v3::Broadcast>(params[0],
                                                             target_shape_const,
                                                             axis_set_const,

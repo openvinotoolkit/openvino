@@ -1,37 +1,44 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Background <#background>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Convert model to OpenVINO Intermediate
+   Representation <#convert-model-to-openvino-intermediate-representation>`__
 
-.. _top:
+   -  `Download model checkpoint and create PyTorch
+      model <#download-model-checkpoint-and-create-pytorch-model>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Mask predictor <#mask-predictor>`__
 
-**Table of contents**:
+-  `Run OpenVINO model in interactive segmentation
+   mode <#run-openvino-model-in-interactive-segmentation-mode>`__
 
-- `Background <#background>`__
-- `Prerequisites <#prerequisites>`__
-- `Convert model to OpenVINO Intermediate Representation <#convert-model-to-openvino-intermediate-representation>`__
+   -  `Example Image <#example-image>`__
+   -  `Preprocessing and visualization
+      utilities <#preprocessing-and-visualization-utilities>`__
+   -  `Image encoding <#image-encoding>`__
+   -  `Example point input <#example-point-input>`__
+   -  `Example with multiple points <#example-with-multiple-points>`__
+   -  `Example box and point input with negative
+      label <#example-box-and-point-input-with-negative-label>`__
 
-  - `Download model checkpoint and create PyTorch model <#download-model-checkpoint-and-create-pytorch-model>`__
-  - `Image Encoder <#image-encoder>`__
-  - `Mask predictor <#mask-predictor>`__
+-  `Interactive segmentation <#interactive-segmentation>`__
+-  `Run OpenVINO model in automatic mask generation
+   mode <#run-openvino-model-in-automatic-mask-generation-mode>`__
+-  `Optimize encoder using NNCF Post-training Quantization
+   API <#optimize-encoder-using-nncf-post-training-quantization-api>`__
 
-- `Run OpenVINO model in interactive segmentation mode <#run-openvino-model-in-interactive-segmentation-mode>`__
-
-  - `Example Image <#example-image>`__
-  - `Preprocessing and visualization utilities <#preprocessing-and-visualization-utilities>`__
-  - `Image encoding <#image-encoding>`__
-  - `Example point input <#example-point-input>`__
-  - `Example with multiple points <#example-with-multiple-points>`__
-  - `Example box and point input with negative label <#example-box-and-point-input-with-negative-label>`__
-
-- `Interactive segmentation <#interactive-segmentation>`__
-- `Run OpenVINO model in automatic mask generation mode <#run-openvino-model-in-automatic-mask-generation-mode>`__
-- `Optimize encoder using NNCF Post-training Quantization API <#optimize-encoder-using-nncf-post-training-quantization-api>`__
-
-  - `Prepare a calibration dataset <#prepare-a-calibration-dataset>`__
-  - `Run quantization and serialize OpenVINO IR model <#run-quantization-and-serialize-openvino-ir-model>`__
-  - `Validate Quantized Model Inference <#validate-quantized-model-inference>`__
-  - `Compare Performance of the Original and Quantized Models <#compare-performance-of-the-original-and-quantized-models>`__
+   -  `Prepare a calibration dataset <#prepare-a-calibration-dataset>`__
+   -  `Run quantization and serialize OpenVINO IR
+      model <#run-quantization-and-serialize-openvino-ir-model>`__
+   -  `Validate Quantized Model
+      Inference <#validate-quantized-model-inference>`__
+   -  `Compare Performance of the Original and Quantized
+      Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Segmentation - identifying which image pixels belong to an object - is a
 core task in computer vision and is used in a broad array of
@@ -57,8 +64,9 @@ zero-shot transfer). This notebook shows an example of how to convert
 and use Segment Anything Model in OpenVINO format, allowing it to run on
 a variety of platforms that support an OpenVINO.
 
-Background `⇑ <#top>`__
-###############################################################################################################################
+Background
+----------
+
 
 
 Previously, to solve any kind of segmentation problem, there were two
@@ -126,28 +134,23 @@ post <https://ai.facebook.com/blog/segment-anything-foundation-model-image-segme
 
 .. |model_diagram| image:: https://raw.githubusercontent.com/facebookresearch/segment-anything/main/assets/model_diagram.png
 
-Prerequisites `⇑ <#top>`__
-###############################################################################################################################
+Prerequisites
+-------------
+
 
 
 .. code:: ipython3
 
-    !pip install -q "segment_anything" "gradio>=3.25"
+    %pip install -q "segment_anything" "gradio>=4.13" "openvino>=2023.1.0" "nncf>=2.5.0" "torch>=2.1" "torchvision>=0.16"  --extra-index-url https://download.pytorch.org/whl/cpu
+
+Convert model to OpenVINO Intermediate Representation
+-----------------------------------------------------
 
 
-.. parsed-literal::
 
-    
-    [notice] A new release of pip is available: 23.1.2 -> 23.2
-    [notice] To update, run: pip install --upgrade pip
+Download model checkpoint and create PyTorch model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-Convert model to OpenVINO Intermediate Representation `⇑ <#top>`__
-###############################################################################################################################
-
-
-Download model checkpoint and create PyTorch model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 There are several Segment Anything Model
@@ -161,14 +164,14 @@ model type below to a SAM model checkpoint, then load the model using
 .. code:: ipython3
 
     import sys
-    
+
     sys.path.append("../utils")
     from notebook_utils import download_file
-    
+
     checkpoint = "sam_vit_b_01ec64.pth"
     model_url = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
     model_type = "vit_b"
-    
+
     download_file(model_url)
 
 
@@ -188,7 +191,7 @@ model type below to a SAM model checkpoint, then load the model using
 .. code:: ipython3
 
     from segment_anything import sam_model_registry
-    
+
     sam = sam_model_registry[model_type](checkpoint=checkpoint)
 
 As we already discussed, Image Encoder part can be used once per image,
@@ -198,8 +201,9 @@ into account this fact, we split model on 2 independent parts:
 image_encoder and mask_predictor (combination of Prompt Encoder and Mask
 Decoder).
 
-Image Encoder `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Image Encoder
+~~~~~~~~~~~~~
+
 
 
 Image Encoder input is tensor with shape ``1x3x1024x1024`` in ``NCHW``
@@ -211,37 +215,32 @@ embeddings, tensor with shape ``1x256x64x64``
     import warnings
     from pathlib import Path
     import torch
-    from openvino.tools import mo
-    from openvino.runtime import serialize, Core
-    
-    core = Core()
-    
+    import openvino as ov
+
+    core = ov.Core()
+
     ov_encoder_path = Path("sam_image_encoder.xml")
-    onnx_encoder_path = ov_encoder_path.with_suffix(".onnx")
     if not ov_encoder_path.exists():
-        if not onnx_encoder_path.exists():
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
-                warnings.filterwarnings("ignore", category=UserWarning)
-    
-                torch.onnx.export(sam.image_encoder, torch.zeros(1,3,1024,1024), onnx_encoder_path)
-    
-        ov_encoder_model = mo.convert_model(onnx_encoder_path, compress_to_fp16=True)
-        serialize(ov_encoder_model, str(ov_encoder_path))
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+
+            ov_encoder_model = ov.convert_model(sam.image_encoder, example_input=torch.zeros(1,3,1024,1024), input=([1,3,1024,1024],))
+        ov.save_model(ov_encoder_model, ov_encoder_path)
     else:
         ov_encoder_model = core.read_model(ov_encoder_path)
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -257,8 +256,9 @@ embeddings, tensor with shape ``1x256x64x64``
 
     ov_encoder = core.compile_model(ov_encoder_model, device.value)
 
-Mask predictor `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Mask predictor
+~~~~~~~~~~~~~~
+
 
 
 This notebook expects the model was exported with the parameter
@@ -294,8 +294,8 @@ Model outputs:
 .. code:: ipython3
 
     from typing import Tuple
-    
-    class SamONNXModel(torch.nn.Module):
+
+    class SamExportableModel(torch.nn.Module):
         def __init__(
             self,
             model,
@@ -311,29 +311,29 @@ Model outputs:
             self.use_stability_score = use_stability_score
             self.stability_score_offset = 1.0
             self.return_extra_metrics = return_extra_metrics
-    
+
         def _embed_points(self, point_coords: torch.Tensor, point_labels: torch.Tensor) -> torch.Tensor:
             point_coords = point_coords + 0.5
             point_coords = point_coords / self.img_size
             point_embedding = self.model.prompt_encoder.pe_layer._pe_encoding(point_coords)
             point_labels = point_labels.unsqueeze(-1).expand_as(point_embedding)
-    
-            point_embedding = point_embedding * (point_labels != -1)
+
+            point_embedding = point_embedding * (point_labels != -1).to(torch.float32)
             point_embedding = point_embedding + self.model.prompt_encoder.not_a_point_embed.weight * (
                 point_labels == -1
-            )
-    
+            ).to(torch.float32)
+
             for i in range(self.model.prompt_encoder.num_point_embeddings):
                 point_embedding = point_embedding + self.model.prompt_encoder.point_embeddings[
                     i
-                ].weight * (point_labels == i)
-    
+                ].weight * (point_labels == i).to(torch.float32)
+
             return point_embedding
-    
+
         def t_embed_masks(self, input_mask: torch.Tensor) -> torch.Tensor:
             mask_embedding = self.model.prompt_encoder.mask_downscaling(input_mask)
             return mask_embedding
-    
+
         def mask_postprocessing(self, masks: torch.Tensor) -> torch.Tensor:
             masks = torch.nn.functional.interpolate(
                 masks,
@@ -342,7 +342,7 @@ Model outputs:
                 align_corners=False,
             )
             return masks
-    
+
         def select_masks(
             self, masks: torch.Tensor, iou_preds: torch.Tensor, num_points: int
         ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -355,9 +355,9 @@ Model outputs:
             best_idx = torch.argmax(score, dim=1)
             masks = masks[torch.arange(masks.shape[0]), best_idx, :, :].unsqueeze(1)
             iou_preds = iou_preds[torch.arange(masks.shape[0]), best_idx].unsqueeze(1)
-    
+
             return masks, iou_preds
-    
+
         @torch.no_grad()
         def forward(
             self,
@@ -373,66 +373,48 @@ Model outputs:
                 )
             else:
                 dense_embedding = self._embed_masks(mask_input)
-    
+
             masks, scores = self.model.mask_decoder.predict_masks(
                 image_embeddings=image_embeddings,
                 image_pe=self.model.prompt_encoder.get_dense_pe(),
                 sparse_prompt_embeddings=sparse_embedding,
                 dense_prompt_embeddings=dense_embedding,
             )
-    
+
             if self.use_stability_score:
                 scores = calculate_stability_score(
                     masks, self.model.mask_threshold, self.stability_score_offset
                 )
-    
+
             if self.return_single_mask:
                 masks, scores = self.select_masks(masks, scores, point_coords.shape[1])
-    
+
             upscaled_masks = self.mask_postprocessing(masks)
-    
+
             if self.return_extra_metrics:
                 stability_scores = calculate_stability_score(
                     upscaled_masks, self.model.mask_threshold, self.stability_score_offset
                 )
                 areas = (upscaled_masks > self.model.mask_threshold).sum(-1).sum(-1)
                 return upscaled_masks, scores, stability_scores, areas, masks
-    
+
             return upscaled_masks, scores
-    
+
     ov_model_path = Path("sam_mask_predictor.xml")
     if not ov_model_path.exists():
-        onnx_model_path = ov_model_path.with_suffix('.onnx')
-        if not onnx_model_path.exists():
-            onnx_model = SamONNXModel(sam, return_single_mask=True)
-            dynamic_axes = {
-                "point_coords": {0: "batch_size", 1: "num_points"},
-                "point_labels": {0: "batch_size", 1: "num_points"},
-            }
-    
-            embed_dim = sam.prompt_encoder.embed_dim
-            embed_size = sam.prompt_encoder.image_embedding_size
-            dummy_inputs = {
-                "image_embeddings": torch.randn(1, embed_dim, *embed_size, dtype=torch.float),
-                "point_coords": torch.randint(low=0, high=1024, size=(1, 5, 2), dtype=torch.float),
-                "point_labels": torch.randint(low=0, high=4, size=(1, 5), dtype=torch.float),
-            }
-            output_names = ["masks", "iou_predictions"]
-    
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
-                warnings.filterwarnings("ignore", category=UserWarning)
-                torch.onnx.export(
-                    onnx_model,
-                    tuple(dummy_inputs.values()),
-                    onnx_model_path,
-                    input_names=list(dummy_inputs.keys()),
-                    output_names=output_names,
-                    dynamic_axes=dynamic_axes,
-                )
-    
-        ov_model = mo.convert_model(onnx_model_path, compress_to_fp16=True)
-        serialize(ov_model, str(ov_model_path))
+        exportable_model = SamExportableModel(sam, return_single_mask=True)
+        embed_dim = sam.prompt_encoder.embed_dim
+        embed_size = sam.prompt_encoder.image_embedding_size
+        dummy_inputs = {
+            "image_embeddings": torch.randn(1, embed_dim, *embed_size, dtype=torch.float),
+            "point_coords": torch.randint(low=0, high=1024, size=(1, 5, 2), dtype=torch.float),
+            "point_labels": torch.randint(low=0, high=4, size=(1, 5), dtype=torch.float),
+        }
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=torch.jit.TracerWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+            ov_model = ov.convert_model(exportable_model, example_input=dummy_inputs)
+        ov.save_model(ov_model, ov_model_path)
     else:
         ov_model = core.read_model(ov_model_path)
 
@@ -453,12 +435,14 @@ Model outputs:
 
     ov_predictor = core.compile_model(ov_model, device.value)
 
-Run OpenVINO model in interactive segmentation mode `⇑ <#top>`__
-###############################################################################################################################
+Run OpenVINO model in interactive segmentation mode
+---------------------------------------------------
 
 
-Example Image `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Example Image
+~~~~~~~~~~~~~
+
 
 
 .. code:: ipython3
@@ -466,7 +450,7 @@ Example Image `⇑ <#top>`__
     import numpy as np
     import cv2
     import matplotlib.pyplot as plt
-    
+
     download_file("https://raw.githubusercontent.com/facebookresearch/segment-anything/main/notebooks/images/truck.jpg")
     image = cv2.imread('truck.jpg')
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -489,8 +473,9 @@ Example Image `⇑ <#top>`__
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_21_0.png
 
 
-Preprocessing and visualization utilities `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Preprocessing and visualization utilities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 To prepare input for Image Encoder we should:
@@ -510,25 +495,25 @@ These steps are applicable to all available models
 
     from copy import deepcopy
     from typing import Tuple
-    from torchvision.transforms.functional import resize, to_pil_image 
-    
+    from torchvision.transforms.functional import resize, to_pil_image
+
     class ResizeLongestSide:
         """
         Resizes images to longest side 'target_length', as well as provides
         methods for resizing coordinates and boxes. Provides methods for
         transforming numpy arrays.
         """
-    
+
         def __init__(self, target_length: int) -> None:
             self.target_length = target_length
-    
+
         def apply_image(self, image: np.ndarray) -> np.ndarray:
             """
             Expects a numpy array with shape HxWxC in uint8 format.
             """
             target_size = self.get_preprocess_shape(image.shape[0], image.shape[1], self.target_length)
             return np.array(resize(to_pil_image(image), target_size))
-    
+
         def apply_coords(self, coords: np.ndarray, original_size: Tuple[int, ...]) -> np.ndarray:
             """
             Expects a numpy array of length 2 in the final dimension. Requires the
@@ -542,7 +527,7 @@ These steps are applicable to all available models
             coords[..., 0] = coords[..., 0] * (new_w / old_w)
             coords[..., 1] = coords[..., 1] * (new_h / old_h)
             return coords
-    
+
         def apply_boxes(self, boxes: np.ndarray, original_size: Tuple[int, ...]) -> np.ndarray:
             """
             Expects a numpy array shape Bx4. Requires the original image size
@@ -550,7 +535,7 @@ These steps are applicable to all available models
             """
             boxes = self.apply_coords(boxes.reshape(-1, 2, 2), original_size)
             return boxes.reshape(-1, 4)
-    
+
         @staticmethod
         def get_preprocess_shape(oldh: int, oldw: int, long_side_length: int) -> Tuple[int, int]:
             """
@@ -561,24 +546,24 @@ These steps are applicable to all available models
             neww = int(neww + 0.5)
             newh = int(newh + 0.5)
             return (newh, neww)
-    
-    
+
+
     resizer = ResizeLongestSide(1024)
-    
-    
+
+
     def preprocess_image(image: np.ndarray):
         resized_image = resizer.apply_image(image)
         resized_image = (resized_image.astype(np.float32) - [123.675, 116.28, 103.53]) / [58.395, 57.12, 57.375]
         resized_image = np.expand_dims(np.transpose(resized_image, (2, 0, 1)).astype(np.float32), 0)
-    
+
         # Pad
         h, w = resized_image.shape[-2:]
         padh = 1024 - h
         padw = 1024 - w
         x = np.pad(resized_image, ((0, 0), (0, 0), (0, padh), (0, padw)))
         return x
-    
-    
+
+
     def postprocess_masks(masks: np.ndarray, orig_size):
         size_before_pad = resizer.get_preprocess_shape(orig_size[0], orig_size[1], masks.shape[-1])
         masks = masks[..., :int(size_before_pad[0]), :int(size_before_pad[1])]
@@ -592,22 +577,23 @@ These steps are applicable to all available models
         h, w = mask.shape[-2:]
         mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
         ax.imshow(mask_image)
-    
-        
+
+
     def show_points(coords, labels, ax, marker_size=375):
         pos_points = coords[labels == 1]
         neg_points = coords[labels == 0]
         ax.scatter(pos_points[:, 0], pos_points[:, 1], color='green', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
-        ax.scatter(neg_points[:, 0], neg_points[:, 1], color='red', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)   
-    
-        
+        ax.scatter(neg_points[:, 0], neg_points[:, 1], color='red', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
+
+
     def show_box(box, ax):
         x0, y0 = box[0], box[1]
         w, h = box[2] - box[0], box[3] - box[1]
-        ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))  
+        ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0, 0, 0, 0), lw=2))
 
-Image encoding `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Image encoding
+~~~~~~~~~~~~~~
+
 
 
 To start work with image, we should preprocess it and obtain image
@@ -619,13 +605,14 @@ reuse them.
 
     preprocessed_image = preprocess_image(image)
     encoding_results = ov_encoder(preprocessed_image)
-    
+
     image_embeddings = encoding_results[ov_encoder.output(0)]
 
 Now, we can try to provide different prompts for mask generation
 
-Example point input `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Example point input
+~~~~~~~~~~~~~~~~~~~
+
 
 
 In this example we select one point. The green star symbol show its
@@ -635,12 +622,12 @@ location on the image below.
 
     input_point = np.array([[500, 375]])
     input_label = np.array([1])
-    
+
     plt.figure(figsize=(10,10))
     plt.imshow(image)
     show_points(input_point, input_label, plt.gca())
     plt.axis('off')
-    plt.show() 
+    plt.show()
 
 
 
@@ -672,7 +659,7 @@ object).
 .. code:: ipython3
 
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1])
     masks = masks > 0.0
@@ -684,15 +671,16 @@ object).
     show_mask(masks, plt.gca())
     show_points(input_point, input_label, plt.gca())
     plt.axis('off')
-    plt.show() 
+    plt.show()
 
 
 
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_35_0.png
 
 
-Example with multiple points `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Example with multiple points
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 in this example, we provide additional point for cover larger object
@@ -711,7 +699,7 @@ Now, prompt for model looks like represented on this image:
     plt.imshow(image)
     show_points(input_point, input_label, plt.gca())
     plt.axis('off')
-    plt.show() 
+    plt.show()
 
 
 
@@ -724,7 +712,7 @@ Transform the points as in the previous example.
 
     coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
     label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
 
 Package inputs, then predict and threshold the mask.
@@ -736,9 +724,9 @@ Package inputs, then predict and threshold the mask.
         "point_coords": coord,
         "point_labels": label,
     }
-    
+
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1])
     masks = masks > 0.0
@@ -750,7 +738,7 @@ Package inputs, then predict and threshold the mask.
     show_mask(masks, plt.gca())
     show_points(input_point, input_label, plt.gca())
     plt.axis('off')
-    plt.show() 
+    plt.show()
 
 
 
@@ -759,8 +747,9 @@ Package inputs, then predict and threshold the mask.
 
 Great! Looks like now, predicted mask cover whole truck.
 
-Example box and point input with negative label `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Example box and point input with negative label
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 In this example we define input prompt using bounding box and point
@@ -796,10 +785,10 @@ padding point since the input includes a box input.
 
     box_coords = input_box.reshape(2, 2)
     box_labels = np.array([2,3])
-    
+
     coord = np.concatenate([input_point, box_coords], axis=0)[None, :, :]
     label = np.concatenate([input_label, box_labels], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
 
 Package inputs, then predict and threshold the mask.
@@ -811,9 +800,9 @@ Package inputs, then predict and threshold the mask.
         "point_coords": coord,
         "point_labels": label,
     }
-    
+
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1])
     masks = masks > 0.0
@@ -833,8 +822,9 @@ Package inputs, then predict and threshold the mask.
 .. image:: 237-segment-anything-with-output_files/237-segment-anything-with-output_53_0.png
 
 
-Interactive segmentation `⇑ <#top>`__
-###############################################################################################################################
+Interactive segmentation
+------------------------
+
 
 
 Now, you can try SAM on own image. Upload image to input window and
@@ -844,13 +834,13 @@ point.
 .. code:: ipython3
 
     import gradio as gr
-    
+
     class Segmenter:
         def __init__(self, ov_encoder, ov_predictor):
             self.encoder = ov_encoder
             self.predictor = ov_predictor
             self._img_embeddings = None
-    
+
         def set_image(self, img:np.ndarray):
             if self._img_embeddings is not None:
                 del self._img_embeddings
@@ -859,7 +849,7 @@ point.
             image_embeddings = encoding_results[ov_encoder.output(0)]
             self._img_embeddings = image_embeddings
             return img
-    
+
         def get_mask(self, points, img):
             coord = np.array(points)
             coord = np.concatenate([coord, np.array([[0,0]])], axis=0)
@@ -873,28 +863,28 @@ point.
                 "point_coords": coord,
                 "point_labels": label,
             }
-    
+
             results = self.predictor(inputs)
             masks = results[ov_predictor.output(0)]
             masks = postprocess_masks(masks, img.shape[:-1])
-            
+
             masks = masks > 0.0
             mask = masks[0]
             mask = np.transpose(mask, (1, 2, 0))
             return mask
-            
+
     segmenter = Segmenter(ov_encoder, ov_predictor)
-            
-            
+
+
     with gr.Blocks() as demo:
         with gr.Row():
-            input_img = gr.Image(label="Input", type="numpy").style(height=480, width=480)
-            output_img = gr.Image(label="Selected Segment", type="numpy").style(height=480, width=480)
-        
+            input_img = gr.Image(label="Input", type="numpy", height=480, width=480)
+            output_img = gr.Image(label="Selected Segment", type="numpy", height=480, width=480)
+
         def on_image_change(img):
             segmenter.set_image(img)
             return img
-    
+
         def get_select_coords(img, evt: gr.SelectData):
             pixels_in_queue = set()
             h, w = img.shape[:2]
@@ -910,10 +900,10 @@ point.
                 out = cv2.addWeighted(out.astype(np.float32), 0.7, mask_image.astype(np.float32), 0.3, 0.0)
             out = out.astype(np.uint8)
             return out
-        
+
         input_img.select(get_select_coords, [input_img], output_img)
         input_img.upload(on_image_change, [input_img], [input_img])
-    
+
     if __name__ == "__main__":
         try:
             demo.launch()
@@ -923,27 +913,20 @@ point.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1187339/1907223323.py:46: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
-      input_img = gr.Image(label="Input", type="numpy").style(height=480, width=480)
-    /tmp/ipykernel_1187339/1907223323.py:47: GradioDeprecationWarning: The `style` method is deprecated. Please set these arguments in the constructor instead.
-      output_img = gr.Image(label="Selected Segment", type="numpy").style(height=480, width=480)
+    Running on local URL:  http://127.0.0.1:7860
 
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7862
-    
     To create a public link, set `share=True` in `launch()`.
 
 
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7862/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
-Run OpenVINO model in automatic mask generation mode `⇑ <#top>`__
-###############################################################################################################################
+Run OpenVINO model in automatic mask generation mode
+----------------------------------------------------
+
 
 
 Since SAM can efficiently process prompts, masks for the entire image
@@ -959,15 +942,15 @@ postprocessing masks to remove small disconnected regions and holes.
 .. code:: ipython3
 
     from segment_anything.utils.amg import (
-        MaskData, 
-        generate_crop_boxes, 
-        uncrop_boxes_xyxy, 
-        uncrop_masks, 
-        uncrop_points, 
-        calculate_stability_score, 
-        rle_to_mask, 
-        batched_mask_to_box, 
-        mask_to_rle_pytorch, 
+        MaskData,
+        generate_crop_boxes,
+        uncrop_boxes_xyxy,
+        uncrop_masks,
+        uncrop_points,
+        calculate_stability_score,
+        rle_to_mask,
+        batched_mask_to_box,
+        mask_to_rle_pytorch,
         is_box_near_crop_edge,
         batch_iterator,
         remove_small_regions,
@@ -992,12 +975,12 @@ postprocessing masks to remove small disconnected regions and holes.
         stability_score_thresh
     ) -> MaskData:
         orig_h, orig_w = orig_size
-    
+
         # Run model on this batch
         transformed_points = resizer.apply_coords(points, im_size)
         in_points = transformed_points
         in_labels = np.ones(in_points.shape[0], dtype=int)
-    
+
         inputs = {
             "image_embeddings": image_embedding,
             "point_coords": in_points[:, None, :],
@@ -1007,7 +990,7 @@ postprocessing masks to remove small disconnected regions and holes.
         masks = postprocess_masks(res[ov_predictor.output(0)], orig_size)
         masks = torch.from_numpy(masks)
         iou_preds = torch.from_numpy(res[ov_predictor.output(1)])
-    
+
         # Serialize predictions and store in MaskData
         data = MaskData(
             masks=masks.flatten(0, 1),
@@ -1015,12 +998,12 @@ postprocessing masks to remove small disconnected regions and holes.
             points=torch.as_tensor(points.repeat(masks.shape[1], axis=0)),
         )
         del masks
-    
+
         # Filter by predicted IoU
         if iou_thresh > 0.0:
             keep_mask = data["iou_preds"] > iou_thresh
             data.filter(keep_mask)
-    
+
         # Calculate stability score
         data["stability_score"] = calculate_stability_score(
             data["masks"], mask_threshold, stability_score_offset
@@ -1028,21 +1011,21 @@ postprocessing masks to remove small disconnected regions and holes.
         if stability_score_thresh > 0.0:
             keep_mask = data["stability_score"] >= stability_score_thresh
             data.filter(keep_mask)
-    
+
         # Threshold masks and calculate boxes
         data["masks"] = data["masks"] > mask_threshold
         data["boxes"] = batched_mask_to_box(data["masks"])
-    
+
         # Filter boxes that touch crop boundaries
         keep_mask = ~is_box_near_crop_edge(data["boxes"], crop_box, [0, 0, orig_w, orig_h])
         if not torch.all(keep_mask):
             data.filter(keep_mask)
-    
+
         # Compress to RLE
         data["masks"] = uncrop_masks(data["masks"], crop_box, orig_h, orig_w)
         data["rles"] = mask_to_rle_pytorch(data["masks"])
         del data["masks"]
-    
+
         return data
 
 .. code:: ipython3
@@ -1066,18 +1049,18 @@ postprocessing masks to remove small disconnected regions and holes.
         cropped_im_size = cropped_im.shape[:2]
         preprocessed_cropped_im = preprocess_image(cropped_im)
         crop_embeddings = ov_encoder(preprocessed_cropped_im)[ov_encoder.output(0)]
-    
+
         # Get points for this crop
         points_scale = np.array(cropped_im_size)[None, ::-1]
         points_for_image = point_grids[crop_layer_idx] * points_scale
-    
+
         # Generate masks for this crop in batches
         data = MaskData()
         for (points,) in batch_iterator(points_per_batch, points_for_image):
             batch_data = process_batch(crop_embeddings, points, cropped_im_size, crop_box, orig_size, pred_iou_thresh, mask_threshold, stability_score_offset, stability_score_thresh)
             data.cat(batch_data)
             del batch_data
-    
+
         # Remove duplicates within this crop.
         keep_by_nms = batched_nms(
             data["boxes"].float(),
@@ -1086,12 +1069,12 @@ postprocessing masks to remove small disconnected regions and holes.
             iou_threshold=box_nms_thresh,
         )
         data.filter(keep_by_nms)
-    
+
         # Return to the original image frame
         data["boxes"] = uncrop_boxes_xyxy(data["boxes"], crop_box)
         data["points"] = uncrop_points(data["points"], crop_box)
         data["crop_boxes"] = torch.tensor([crop_box for _ in range(len(data["rles"]))])
-    
+
         return data
 
 .. code:: ipython3
@@ -1101,13 +1084,13 @@ postprocessing masks to remove small disconnected regions and holes.
         crop_boxes, layer_idxs = generate_crop_boxes(
             orig_size, crop_n_layers, crop_overlap_ratio
         )
-    
+
         # Iterate over image crops
         data = MaskData()
         for crop_box, layer_idx in zip(crop_boxes, layer_idxs):
             crop_data = process_crop(image, point_grids, crop_box, layer_idx, orig_size)
             data.cat(crop_data)
-    
+
         # Remove duplicate masks between crops
         if len(crop_boxes) > 1:
             # Prefer masks from smaller crops
@@ -1120,7 +1103,7 @@ postprocessing masks to remove small disconnected regions and holes.
                 iou_threshold=crop_nms_thresh,
             )
             data.filter(keep_by_nms)
-    
+
         data.to_numpy()
         return data
 
@@ -1130,30 +1113,30 @@ postprocessing masks to remove small disconnected regions and holes.
         """
         Removes small disconnected regions and holes in masks, then reruns
         box NMS to remove any new duplicates.
-    
+
         Edits mask_data in place.
-    
+
         Requires open-cv as a dependency.
         """
         if len(mask_data["rles"]) == 0:
             return mask_data
-    
+
         # Filter small disconnected regions and holes
         new_masks = []
         scores = []
         for rle in mask_data["rles"]:
             mask = rle_to_mask(rle)
-    
+
             mask, changed = remove_small_regions(mask, min_area, mode="holes")
             unchanged = not changed
             mask, changed = remove_small_regions(mask, min_area, mode="islands")
             unchanged = unchanged and not changed
-    
+
             new_masks.append(torch.as_tensor(mask).unsqueeze(0))
             # Give score=0 to changed masks and score=1 to unchanged masks
             # so NMS will prefer ones that didn't need postprocessing
             scores.append(float(unchanged))
-    
+
         # Recalculate boxes and remove any new duplicates
         masks = torch.cat(new_masks, dim=0)
         boxes = batched_mask_to_box(masks)
@@ -1163,7 +1146,7 @@ postprocessing masks to remove small disconnected regions and holes.
             torch.zeros(len(boxes)),  # categories
             iou_threshold=nms_thresh,
         )
-    
+
         # Only recalculate RLEs for masks that have changed
         for i_mask in keep_by_nms:
             if scores[i_mask] == 0.0:
@@ -1172,7 +1155,7 @@ postprocessing masks to remove small disconnected regions and holes.
                 # update res directly
                 mask_data["boxes"][i_mask] = boxes[i_mask]
         mask_data.filter(keep_by_nms)
-    
+
         return mask_data
 
 There are several tunable parameters in automatic mask generation that
@@ -1188,10 +1171,10 @@ smaller objects, and post-processing can remove stray pixels and holes
     ) -> List[Dict[str, Any]]:
         """
         Generates masks for the given image.
-    
+
         Arguments:
           image (np.ndarray): The image to generate masks for, in HWC uint8 format.
-    
+
         Returns:
            list(dict(str, any)): A list over records for masks. Each record is
              a dict containing the following keys:
@@ -1216,7 +1199,7 @@ smaller objects, and post-processing can remove stray pixels and holes
         )
         mask_data = generate_masks(
             image, point_grids, crop_n_layers, crop_overlap_ratio, crop_nms_thresh)
-    
+
         # Filter small disconnected regions and holes in masks
         if min_mask_region_area > 0:
             mask_data = postprocess_small_regions(
@@ -1224,10 +1207,10 @@ smaller objects, and post-processing can remove stray pixels and holes
                 min_mask_region_area,
                 max(box_nms_thresh, crop_nms_thresh),
             )
-    
+
         mask_data["segmentations"] = [
             rle_to_mask(rle) for rle in mask_data["rles"]]
-    
+
         # Write mask records
         curr_anns = []
         for idx in range(len(mask_data["segmentations"])):
@@ -1241,7 +1224,7 @@ smaller objects, and post-processing can remove stray pixels and holes
                 "crop_box": box_xyxy_to_xywh(mask_data["crop_boxes"][idx]).tolist(),
             }
             curr_anns.append(ann)
-    
+
         return curr_anns
 
 .. code:: ipython3
@@ -1276,7 +1259,7 @@ is a dictionary containing various data about the mask. These keys are:
 .. code:: ipython3
 
     from tqdm.notebook import tqdm
-    
+
     def draw_anns(image, anns):
         if len(anns) == 0:
             return
@@ -1291,10 +1274,10 @@ is a dictionary containing various data about the mask. These keys are:
 .. code:: ipython3
 
     import PIL
-    
+
     out = draw_anns(image, prediction)
     cv2.imwrite("result.png", out[:, :, ::-1])
-    
+
     PIL.Image.open("result.png")
 
 
@@ -1310,8 +1293,9 @@ is a dictionary containing various data about the mask. These keys are:
 
 
 
-Optimize encoder using NNCF Post-training Quantization API `⇑ <#top>`__
-###############################################################################################################################
+Optimize encoder using NNCF Post-training Quantization API
+----------------------------------------------------------
+
 
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
@@ -1326,11 +1310,12 @@ The optimization process contains the following steps:
 
 1. Create a Dataset for quantization.
 2. Run ``nncf.quantize`` for getting an optimized model.
-3. Serialize OpenVINO IR model, using the ``openvino.runtime.serialize``
+3. Serialize OpenVINO IR model, using the ``openvino.save_model``
    function.
 
-Prepare a calibration dataset `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Prepare a calibration dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 Download COCO dataset. Since the dataset is used to calibrate the
@@ -1340,12 +1325,12 @@ the label files.
 .. code:: ipython3
 
     from zipfile import ZipFile
-    
+
     DATA_URL = "https://ultralytics.com/assets/coco128.zip"
     OUT_DIR = Path('.')
-    
+
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
-    
+
     if not (OUT_DIR / "coco128/images/train2017").exists():
         with ZipFile('coco128.zip' , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -1363,20 +1348,20 @@ calibration dataset. For PyTorch, we can pass an instance of the
 .. code:: ipython3
 
     import torch.utils.data as data
-    
+
     class COCOLoader(data.Dataset):
         def __init__(self, images_path):
             self.images = list(Path(images_path).iterdir())
-    
+
         def __getitem__(self, index):
             image_path = self.images[index]
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             return image
-        
+
         def __len__(self):
             return len(self.images)
-        
+
     coco_dataset = COCOLoader(OUT_DIR / 'coco128/images/train2017')
     calibration_loader = torch.utils.data.DataLoader(coco_dataset)
 
@@ -1386,19 +1371,19 @@ dataset and returns data that can be passed to the model for inference.
 .. code:: ipython3
 
     import nncf
-    
+
     def transform_fn(image_data):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
         Parameters:
             image_data: image data produced by DataLoader during iteration
         Returns:
-            input_tensor: input data in Dict format for ONNX model quantization
+            input_tensor: input data in Dict format for model quantization
         """
         image = image_data.numpy()
         processed_image = preprocess_image(np.squeeze(image))
         return processed_image
-    
+
     calibration_dataset = nncf.Dataset(calibration_loader, transform_fn)
 
 
@@ -1407,8 +1392,9 @@ dataset and returns data that can be passed to the model for inference.
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
-Run quantization and serialize OpenVINO IR model `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Run quantization and serialize OpenVINO IR model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 The ``nncf.quantize`` function provides an interface for model
@@ -1427,15 +1413,13 @@ result, we will use a ``mixed`` quantization preset. It provides
 symmetric quantization of weights and asymmetric quantization of
 activations.
 
-.. note::
-
-   Model post-training quantization is time-consuming process.
+   **NOTE**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
 
-    # Load FP32 ONNX model
-    model = core.read_model(onnx_encoder_path)
+
+    model = core.read_model(ov_encoder_path)
     quantized_model = nncf.quantize(model,
                                     calibration_dataset,
                                     model_type=nncf.parameters.ModelType.TRANSFORMER,
@@ -1445,456 +1429,38 @@ activations.
 
 .. parsed-literal::
 
-    INFO:nncf:709 ignored nodes was found by types in the NNCFGraph
-    INFO:nncf:24 ignored nodes was found by name in the NNCFGraph
-    INFO:nncf:Not adding activation input quantizer for operation: 6 /Add
-    INFO:nncf:Not adding activation input quantizer for operation: 9 /blocks.0/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 10 /blocks.0/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 16 /blocks.0/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 24 /blocks.0/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 34 /blocks.0/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 45 /blocks.0/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 15 /blocks.0/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 23 /blocks.0/norm1/Mul
-    33 /blocks.0/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 556 /blocks.0/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 557 /blocks.0/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 558 /blocks.0/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 633 /blocks.0/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 472 /blocks.0/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 552 /blocks.0/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 551 /blocks.0/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 631 /blocks.0/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 8 /blocks.0/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 13 /blocks.0/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 14 /blocks.0/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 22 /blocks.0/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 32 /blocks.0/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 43 /blocks.0/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 56 /blocks.0/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 21 /blocks.0/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 31 /blocks.0/norm2/Mul
-    42 /blocks.0/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 91 /blocks.0/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 154 /blocks.0/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 92 /blocks.0/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 120 /blocks.0/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 12 /blocks.0/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 19 /blocks.1/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 20 /blocks.1/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 30 /blocks.1/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 41 /blocks.1/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 54 /blocks.1/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 72 /blocks.1/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 29 /blocks.1/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 40 /blocks.1/norm1/Mul
-    53 /blocks.1/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 731 /blocks.1/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 732 /blocks.1/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 733 /blocks.1/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 820 /blocks.1/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 616 /blocks.1/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 727 /blocks.1/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 726 /blocks.1/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 818 /blocks.1/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 18 /blocks.1/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 27 /blocks.1/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 28 /blocks.1/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 39 /blocks.1/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 52 /blocks.1/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 66 /blocks.1/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 85 /blocks.1/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 38 /blocks.1/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 51 /blocks.1/norm2/Mul
-    65 /blocks.1/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 140 /blocks.1/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 272 /blocks.1/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 141 /blocks.1/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 201 /blocks.1/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 26 /blocks.1/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 36 /blocks.2/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 37 /blocks.2/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 50 /blocks.2/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 64 /blocks.2/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 83 /blocks.2/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 107 /blocks.2/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 49 /blocks.2/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 63 /blocks.2/norm1/Mul
-    82 /blocks.2/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 525 /blocks.2/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 526 /blocks.2/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 527 /blocks.2/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 605 /blocks.2/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 436 /blocks.2/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 521 /blocks.2/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 520 /blocks.2/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 603 /blocks.2/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 35 /blocks.2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 47 /blocks.2/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 48 /blocks.2/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 62 /blocks.2/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 81 /blocks.2/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 102 /blocks.2/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 135 /blocks.2/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 61 /blocks.2/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 80 /blocks.2/norm2/Mul
-    101 /blocks.2/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 253 /blocks.2/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 427 /blocks.2/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 254 /blocks.2/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 330 /blocks.2/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 46 /blocks.2/Add_1
-    INFO:nncf:Not adding activation input quantizer for operation: 59 /blocks.3/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 60 /blocks.3/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 79 /blocks.3/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 100 /blocks.3/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 133 /blocks.3/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 174 /blocks.3/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 78 /blocks.3/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 99 /blocks.3/norm1/Mul
-    132 /blocks.3/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1110 /blocks.3/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1111 /blocks.3/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1112 /blocks.3/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1192 /blocks.3/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1013 /blocks.3/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1106 /blocks.3/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1105 /blocks.3/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1190 /blocks.3/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 58 /blocks.3/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 76 /blocks.3/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 77 /blocks.3/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 98 /blocks.3/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 131 /blocks.3/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 168 /blocks.3/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 247 /blocks.3/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 97 /blocks.3/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 130 /blocks.3/norm2/Mul
-    167 /blocks.3/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 413 /blocks.3/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 588 /blocks.3/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 414 /blocks.3/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 506 /blocks.3/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 75 /blocks.3/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 95 /blocks.4/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 96 /blocks.4/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 129 /blocks.4/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 166 /blocks.4/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 245 /blocks.4/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 317 /blocks.4/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 128 /blocks.4/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 165 /blocks.4/norm1/Mul
-    244 /blocks.4/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1294 /blocks.4/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1295 /blocks.4/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1296 /blocks.4/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1384 /blocks.4/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1176 /blocks.4/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1290 /blocks.4/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1289 /blocks.4/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1382 /blocks.4/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 94 /blocks.4/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 126 /blocks.4/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 127 /blocks.4/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 164 /blocks.4/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 243 /blocks.4/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 311 /blocks.4/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 407 /blocks.4/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 163 /blocks.4/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 242 /blocks.4/norm2/Mul
-    310 /blocks.4/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 574 /blocks.4/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 777 /blocks.4/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 575 /blocks.4/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 678 /blocks.4/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 125 /blocks.4/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 161 /blocks.5/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 162 /blocks.5/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 241 /blocks.5/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 309 /blocks.5/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 405 /blocks.5/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 493 /blocks.5/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 240 /blocks.5/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 308 /blocks.5/norm1/Mul
-    404 /blocks.5/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1079 /blocks.5/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1080 /blocks.5/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1081 /blocks.5/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1165 /blocks.5/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 977 /blocks.5/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1075 /blocks.5/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1074 /blocks.5/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1163 /blocks.5/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 160 /blocks.5/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 238 /blocks.5/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 239 /blocks.5/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 307 /blocks.5/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 403 /blocks.5/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 488 /blocks.5/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 569 /blocks.5/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 306 /blocks.5/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 402 /blocks.5/norm2/Mul
-    487 /blocks.5/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 758 /blocks.5/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 968 /blocks.5/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 759 /blocks.5/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 859 /blocks.5/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 237 /blocks.5/Add_1
-    INFO:nncf:Not adding activation input quantizer for operation: 304 /blocks.6/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 305 /blocks.6/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 401 /blocks.6/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 486 /blocks.6/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 567 /blocks.6/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 651 /blocks.6/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 400 /blocks.6/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 485 /blocks.6/norm1/Mul
-    566 /blocks.6/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1661 /blocks.6/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1662 /blocks.6/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1663 /blocks.6/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1734 /blocks.6/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1571 /blocks.6/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1657 /blocks.6/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1656 /blocks.6/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1732 /blocks.6/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 303 /blocks.6/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 398 /blocks.6/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 399 /blocks.6/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 484 /blocks.6/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 565 /blocks.6/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 645 /blocks.6/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 752 /blocks.6/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 483 /blocks.6/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 564 /blocks.6/norm2/Mul
-    644 /blocks.6/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 954 /blocks.6/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1148 /blocks.6/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 955 /blocks.6/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1060 /blocks.6/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 397 /blocks.6/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 481 /blocks.7/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 482 /blocks.7/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 563 /blocks.7/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 643 /blocks.7/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 750 /blocks.7/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 846 /blocks.7/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 562 /blocks.7/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 642 /blocks.7/norm1/Mul
-    749 /blocks.7/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1821 /blocks.7/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1822 /blocks.7/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1823 /blocks.7/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1897 /blocks.7/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1718 /blocks.7/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1817 /blocks.7/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1816 /blocks.7/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1895 /blocks.7/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 480 /blocks.7/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 560 /blocks.7/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 561 /blocks.7/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 641 /blocks.7/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 748 /blocks.7/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 840 /blocks.7/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 948 /blocks.7/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 640 /blocks.7/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 747 /blocks.7/norm2/Mul
-    839 /blocks.7/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1134 /blocks.7/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1341 /blocks.7/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1135 /blocks.7/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1241 /blocks.7/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 559 /blocks.7/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 638 /blocks.8/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 639 /blocks.8/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 746 /blocks.8/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 838 /blocks.8/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 946 /blocks.8/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1047 /blocks.8/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 745 /blocks.8/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 837 /blocks.8/norm1/Mul
-    945 /blocks.8/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1630 /blocks.8/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 1631 /blocks.8/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1632 /blocks.8/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1707 /blocks.8/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1535 /blocks.8/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1626 /blocks.8/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1625 /blocks.8/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 1705 /blocks.8/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 637 /blocks.8/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 743 /blocks.8/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 744 /blocks.8/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 836 /blocks.8/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 944 /blocks.8/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1042 /blocks.8/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1129 /blocks.8/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 835 /blocks.8/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 943 /blocks.8/norm2/Mul
-    1041 /blocks.8/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1322 /blocks.8/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1526 /blocks.8/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1323 /blocks.8/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1422 /blocks.8/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 742 /blocks.8/Add_1
-    INFO:nncf:Not adding activation input quantizer for operation: 833 /blocks.9/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 834 /blocks.9/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 942 /blocks.9/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1040 /blocks.9/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1127 /blocks.9/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1214 /blocks.9/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 941 /blocks.9/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1039 /blocks.9/norm1/Mul
-    1126 /blocks.9/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 2098 /blocks.9/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 2099 /blocks.9/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 2100 /blocks.9/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2137 /blocks.9/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2038 /blocks.9/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2094 /blocks.9/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 2093 /blocks.9/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 2135 /blocks.9/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 832 /blocks.9/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 939 /blocks.9/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 940 /blocks.9/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1038 /blocks.9/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1125 /blocks.9/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1208 /blocks.9/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1316 /blocks.9/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1037 /blocks.9/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1124 /blocks.9/norm2/Mul
-    1207 /blocks.9/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1512 /blocks.9/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1690 /blocks.9/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1513 /blocks.9/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1611 /blocks.9/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 938 /blocks.9/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1035 /blocks.10/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1036 /blocks.10/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1123 /blocks.10/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1206 /blocks.10/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1314 /blocks.10/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1409 /blocks.10/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1122 /blocks.10/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1205 /blocks.10/norm1/Mul
-    1313 /blocks.10/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 2155 /blocks.10/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 2156 /blocks.10/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 2157 /blocks.10/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2177 /blocks.10/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2121 /blocks.10/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2151 /blocks.10/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 2150 /blocks.10/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 2175 /blocks.10/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1034 /blocks.10/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 1120 /blocks.10/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1121 /blocks.10/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1204 /blocks.10/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1312 /blocks.10/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1403 /blocks.10/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1506 /blocks.10/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1203 /blocks.10/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1311 /blocks.10/norm2/Mul
-    1402 /blocks.10/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1676 /blocks.10/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1854 /blocks.10/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1677 /blocks.10/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1768 /blocks.10/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1119 /blocks.10/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 1201 /blocks.11/norm1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1202 /blocks.11/norm1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1310 /blocks.11/norm1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1401 /blocks.11/norm1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1504 /blocks.11/norm1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1598 /blocks.11/norm1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1309 /blocks.11/norm1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1400 /blocks.11/norm1/Mul
-    1503 /blocks.11/norm1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 2067 /blocks.11/attn/Squeeze
-    INFO:nncf:Not adding activation input quantizer for operation: 2068 /blocks.11/attn/Squeeze_1
-    INFO:nncf:Not adding activation input quantizer for operation: 2069 /blocks.11/attn/Squeeze_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2110 /blocks.11/attn/Mul_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2002 /blocks.11/attn/Add_2
-    INFO:nncf:Not adding activation input quantizer for operation: 2063 /blocks.11/attn/Add_3
-    INFO:nncf:Not adding activation input quantizer for operation: 2062 /blocks.11/attn/Softmax
-    INFO:nncf:Not adding activation input quantizer for operation: 2108 /blocks.11/attn/MatMul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1200 /blocks.11/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1307 /blocks.11/norm2/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1308 /blocks.11/norm2/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1399 /blocks.11/norm2/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1502 /blocks.11/norm2/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1593 /blocks.11/norm2/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1671 /blocks.11/norm2/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1398 /blocks.11/norm2/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1501 /blocks.11/norm2/Mul
-    1592 /blocks.11/norm2/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1835 /blocks.11/mlp/act/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1993 /blocks.11/mlp/act/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1836 /blocks.11/mlp/act/Mul
-    INFO:nncf:Not adding activation input quantizer for operation: 1913 /blocks.11/mlp/act/Mul_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1306 /blocks.11/Add_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1590 /neck/neck.1/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1591 /neck/neck.1/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 1669 /neck/neck.1/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 1741 /neck/neck.1/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 1834 /neck/neck.1/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 1911 /neck/neck.1/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 1668 /neck/neck.1/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 1740 /neck/neck.1/Mul
-    1833 /neck/neck.1/Add_1
-    
-    INFO:nncf:Not adding activation input quantizer for operation: 1991 /neck/neck.3/ReduceMean
-    INFO:nncf:Not adding activation input quantizer for operation: 1992 /neck/neck.3/Sub
-    INFO:nncf:Not adding activation input quantizer for operation: 2058 /neck/neck.3/Pow
-    INFO:nncf:Not adding activation input quantizer for operation: 2106 /neck/neck.3/ReduceMean_1
-    INFO:nncf:Not adding activation input quantizer for operation: 2144 /neck/neck.3/Add
-    INFO:nncf:Not adding activation input quantizer for operation: 2168 /neck/neck.3/Sqrt
-    INFO:nncf:Not adding activation input quantizer for operation: 2057 /neck/neck.3/Div
-    INFO:nncf:Not adding activation input quantizer for operation: 2105 /neck/neck.3/Mul
-    2143 4017
-    
+    2023-09-11 20:39:36.145499: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2023-09-11 20:39:36.181406: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2023-09-11 20:39:36.769588: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    Statistics collection: 100%|██████████████████| 128/128 [02:12<00:00,  1.03s/it]
+    Applying Smooth Quant: 100%|████████████████████| 48/48 [00:01<00:00, 32.29it/s]
 
 
 .. parsed-literal::
 
-    Statistics collection: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 128/128 [05:14<00:00,  2.45s/it]
-    Biases correction: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 48/48 [06:34<00:00,  8.21s/it]
+    INFO:nncf:36 ignored nodes was found by name in the NNCFGraph
+
+
+.. parsed-literal::
+
+    Statistics collection: 100%|██████████████████| 128/128 [04:36<00:00,  2.16s/it]
+    Applying Fast Bias correction: 100%|████████████| 49/49 [00:28<00:00,  1.72it/s]
 
 .. parsed-literal::
 
     model quantization finished
 
 
+
 .. code:: ipython3
 
     ov_encoder_path_int8 = "sam_image_encoder_int8.xml"
-    serialize(quantized_model, ov_encoder_path_int8)
+    ov.save_model(quantized_model, ov_encoder_path_int8)
 
-Validate Quantized Model Inference `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Validate Quantized Model Inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 We can reuse the previous code to validate the output of ``INT8`` model.
@@ -1906,12 +1472,12 @@ We can reuse the previous code to validate the output of ``INT8`` model.
     ov_encoder_int8 = core.compile_model(ov_encoder_model_int8, device.value)
     encoding_results = ov_encoder_int8(preprocessed_image)
     image_embeddings = encoding_results[ov_encoder_int8.output(0)]
-    
+
     input_point = np.array([[500, 375]])
     input_label = np.array([1])
     coord = np.concatenate([input_point, np.array([[0.0, 0.0]])], axis=0)[None, :, :]
     label = np.concatenate([input_label, np.array([-1])], axis=0)[None, :].astype(np.float32)
-    
+
     coord = resizer.apply_coords(coord, image.shape[:2]).astype(np.float32)
     inputs = {
         "image_embeddings": image_embeddings,
@@ -1919,7 +1485,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
         "point_labels": label,
     }
     results = ov_predictor(inputs)
-    
+
     masks = results[ov_predictor.output(0)]
     masks = postprocess_masks(masks, image.shape[:-1])
     masks = masks > 0.0
@@ -1928,7 +1494,7 @@ We can reuse the previous code to validate the output of ``INT8`` model.
     show_mask(masks, plt.gca())
     show_points(input_point, input_label, plt.gca())
     plt.axis('off')
-    plt.show() 
+    plt.show()
 
 
 
@@ -1949,7 +1515,7 @@ Run ``INT8`` model in automatic mask generation mode
 
 .. parsed-literal::
 
-      0%|          | 0/48 [00:00<?, ?it/s]
+      0%|          | 0/47 [00:00<?, ?it/s]
 
 
 
@@ -1958,11 +1524,12 @@ Run ``INT8`` model in automatic mask generation mode
 
 
 
-Compare Performance of the Original and Quantized Models `⇑ <#top>`__
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Compare Performance of the Original and Quantized Models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.1/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Finally, use the OpenVINO
+`Benchmark
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
@@ -1979,71 +1546,74 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
-    [ INFO ] 
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 69.37 ms
+    [ INFO ] Read model took 31.21 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1196.87 ms
+    [ INFO ] Compile model took 956.62 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model474
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   NETWORK_NAME: torch_jit
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
     [ INFO ]   CPU:
-    [ INFO ]     CPU_BIND_THREAD: YES
-    [ INFO ]     CPU_THREADS_NUM: 0
-    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
-    [ INFO ]     DEVICE_ID: 
-    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
-    [ INFO ]     DYN_BATCH_ENABLED: NO
-    [ INFO ]     DYN_BATCH_LIMIT: 0
-    [ INFO ]     ENFORCE_BF16: NO
-    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
-    [ INFO ]     NETWORK_NAME: torch_jit
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model474
+    [ INFO ]     NUM_STREAMS: 12
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: NO
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     PERF_COUNT: False
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 4043.51 ms
+    [ INFO ] First inference took 3347.39 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            108 iterations
-    [ INFO ] Duration:         135037.41 ms
+    [ INFO ] Count:            132 iterations
+    [ INFO ] Duration:         135907.17 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        14646.89 ms
-    [ INFO ]    Average:       14615.54 ms
-    [ INFO ]    Min:           6295.79 ms
-    [ INFO ]    Max:           19356.55 ms
-    [ INFO ] Throughput:   0.80 FPS
+    [ INFO ]    Median:        12159.63 ms
+    [ INFO ]    Average:       12098.43 ms
+    [ INFO ]    Min:           7652.77 ms
+    [ INFO ]    Max:           13027.98 ms
+    [ INFO ] Throughput:   0.97 FPS
 
 
 .. code:: ipython3
@@ -2059,69 +1629,72 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
-    [ INFO ] 
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2023.0.1-11005-fa1c41994f3-releases/2023/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ] Build ................................. 2023.1.0-12050-e33de350633
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 104.31 ms
+    [ INFO ] Read model took 40.67 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : f32 / [...] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : f32 / [...] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
-    [ INFO ]     input.1 (node: input.1) : u8 / [N,C,H,W] / [1,3,1024,1024]
+    [ INFO ]     x (node: x) : u8 / [N,C,H,W] / [1,3,1024,1024]
     [ INFO ] Model outputs:
-    [ INFO ]     4017 (node: 4017) : f32 / [...] / [1,256,64,64]
+    [ INFO ]     ***NO_NAME*** (node: __module.neck.3/aten::add/Add_2933) : f32 / [...] / [1,256,64,64]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1414.62 ms
+    [ INFO ] Compile model took 1151.47 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model474
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
     [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
-    [ INFO ]   NETWORK_NAME: torch_jit
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
     [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
     [ INFO ]   CPU:
-    [ INFO ]     CPU_BIND_THREAD: YES
-    [ INFO ]     CPU_THREADS_NUM: 0
-    [ INFO ]     CPU_THROUGHPUT_STREAMS: 12
-    [ INFO ]     DEVICE_ID: 
-    [ INFO ]     DUMP_EXEC_GRAPH_AS_DOT: 
-    [ INFO ]     DYN_BATCH_ENABLED: NO
-    [ INFO ]     DYN_BATCH_LIMIT: 0
-    [ INFO ]     ENFORCE_BF16: NO
-    [ INFO ]     EXCLUSIVE_ASYNC_REQUESTS: NO
-    [ INFO ]     NETWORK_NAME: torch_jit
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 36
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model474
+    [ INFO ]     NUM_STREAMS: 12
     [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
-    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
     [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
-    [ INFO ]     PERF_COUNT: NO
-    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     PERF_COUNT: False
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
-    [ WARNING ] No input files were given for input 'input.1'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input.1' with random values 
+    [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 2694.03 ms
+    [ INFO ] First inference took 1951.78 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            132 iterations
-    [ INFO ] Duration:         129404.57 ms
+    [ INFO ] Count:            216 iterations
+    [ INFO ] Duration:         130123.96 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        11651.20 ms
-    [ INFO ]    Average:       11526.49 ms
-    [ INFO ]    Min:           5003.59 ms
-    [ INFO ]    Max:           13329.53 ms
-    [ INFO ] Throughput:   1.02 FPS
+    [ INFO ]    Median:        7192.03 ms
+    [ INFO ]    Average:       7197.18 ms
+    [ INFO ]    Min:           6134.35 ms
+    [ INFO ]    Max:           7888.28 ms
+    [ INFO ] Throughput:   1.66 FPS
 

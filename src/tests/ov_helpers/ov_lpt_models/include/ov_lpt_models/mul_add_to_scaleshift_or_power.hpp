@@ -6,33 +6,32 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include "low_precision/layer_transformation.hpp"
 #include "common/dequantization_operations.hpp"
 #include "common/add.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 class MulAddToScaleshiftOrPowerFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         bool isDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations::Multiply& mulValues,
-        const ngraph::builder::subgraph::Add& addValues);
+        const ov::builder::subgraph::DequantizationOperations::Multiply& mulValues,
+        const ov::builder::subgraph::Add& addValues);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
         bool isDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations::Multiply& weightsValues,
-        const ngraph::builder::subgraph::Add& biasesValues,
-        const ngraph::element::Type precisionAfterOperation);
+        const ov::builder::subgraph::DequantizationOperations::Multiply& weightsValues,
+        const ov::builder::subgraph::Add& biasesValues,
+        const ov::element::Type precisionAfterOperation);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

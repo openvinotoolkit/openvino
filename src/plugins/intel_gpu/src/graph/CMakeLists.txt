@@ -37,6 +37,7 @@ target_link_libraries(${TARGET_NAME} PUBLIC OpenCL::OpenCL openvino::shape_infer
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_kernels
                                              openvino_intel_gpu_runtime
                                              openvino::itt
+                                             openvino::reference
                                              openvino::runtime::dev
                                              openvino::runtime)
 

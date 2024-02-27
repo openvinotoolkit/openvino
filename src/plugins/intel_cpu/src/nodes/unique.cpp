@@ -4,16 +4,17 @@
 
 #include "unique.hpp"
 
-#include "ie_parallel.hpp"
 #include <openvino/op/unique.hpp>
-#include "common/cpu_memcpy.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include <openvino/op/constant.hpp>
 
-using namespace InferenceEngine;
+#include "openvino/core/parallel.hpp"
+#include "common/cpu_memcpy.h"
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+
 using namespace ov::intel_cpu;
 using namespace ov::intel_cpu::node;
 
-#define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
+#define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
 bool Unique::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -36,11 +37,11 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (!one_of(op->get_input_size(), 1u, 2u) || op->get_output_size() != 4)
-        THROW_ERROR << "has incorrect number of input/output edges.";
+        THROW_ERROR("has incorrect number of input/output edges.");
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
@@ -54,7 +55,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
             axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
         }
         if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
-            THROW_ERROR << "has invalid axis value: " << ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0];
+            THROW_ERROR("has invalid axis value: ",
+                        ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
         }
     } else {
         flattened = true;
@@ -63,11 +65,11 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != Precision::I32 && dataPrecision != Precision::I8 && dataPrecision != Precision::U8) {
-        dataPrecision = Precision::FP32;
+    if (dataPrecision != ov::element::i32 && dataPrecision != ov::element::i8 && dataPrecision != ov::element::u8) {
+        dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();
-    const InferenceEngine::Precision axisPrecision = Precision::I32;
+    const ov::element::Type axisPrecision = ov::element::i32;
 
     impl_desc_type implType = ref;
 
@@ -88,27 +90,27 @@ void Unique::createPrimitive() {
 }
 
 void Unique::prepareParams() {
-    auto dataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
+    auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
     if (!dataMemPtr || !dataMemPtr->isAllocated()) {
-        THROW_ERROR << " has not allocated input data memory.";
+        THROW_ERROR(" has not allocated input data memory.");
     }
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
-            auto dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+            auto dstMemPtr = getDstMemoryAtPort(i);
             if (!dstMemPtr || !dstMemPtr->isAllocated()) {
-                THROW_ERROR << " has not allocated output memory at port " << i;
+                THROW_ERROR(" has not allocated output memory at port ", i);
             }
         }
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_ERROR << " has unidentified preferable primitive descriptor.";
+        THROW_ERROR(" has unidentified preferable primitive descriptor.");
     }
 
     size_t srcLen = 1;
     if (flattened) {
-        srcLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getSize() / dataTypeSize;
+        srcLen = getSrcMemoryAtPort(IN_DATA)->getSize() / dataTypeSize;
     } else {
-        auto dstDataShape = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getStaticDims();
+        auto dstDataShape = getSrcMemoryAtPort(IN_DATA)->getStaticDims();
         srcLen = dstDataShape[axis];
     }
     firstUniTmp.resize(srcLen, 0);
@@ -133,21 +135,21 @@ struct Unique::slicedExec {
 void Unique::execute(dnnl::stream strm) {
     if (flattened) {
         OV_SWITCH(intel_cpu, flattenExec, this, dataPrecision,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::I32, int32_t),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
     } else {
         OV_SWITCH(intel_cpu, slicedExec, this, dataPrecision,
-              OV_CASE(Precision::FP32, float),
-              OV_CASE(Precision::I32, int32_t),
-              OV_CASE(Precision::I8, int8_t),
-              OV_CASE(Precision::U8, uint8_t))
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t))
     }
 }
 
 void Unique::executeDynamicImpl(dnnl::stream strm) {
-    const auto& srcDataDims = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getStaticDims();
+    const auto& srcDataDims = getSrcMemoryAtPort(IN_DATA)->getStaticDims();
     VectorDims dstDataDims;
     Dim uniqLen = 1;
     if (flattened) {
@@ -164,8 +166,8 @@ void Unique::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename T>
 void Unique::flattenTensorExec() {
-    const T* srcDataPtr = reinterpret_cast<const T*>(getParentEdgeAt(IN_DATA)->getMemoryPtr()->getData());
-    const size_t inputLen = getParentEdgeAt(IN_DATA)->getMemoryPtr()->getSize() / sizeof(T);
+    const T* srcDataPtr = getSrcDataAtPortAs<const T>(IN_DATA);
+    const size_t inputLen = getSrcMemoryAtPort(IN_DATA)->getSize() / sizeof(T);
     std::vector<T> uniDataTmp(inputLen);
     auto uniDataTmpPtr = uniDataTmp.data();
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
@@ -263,26 +265,26 @@ void Unique::flattenTensorExec() {
 
     redefineOutputMemory({ {uniqueLen}, {uniqueLen}, {inputLen}, {uniqueLen}});
 
-    T* uniDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
+    T* uniDataPtr = getDstDataAtPortAs<T>(UNIQUE_DATA);
     cpu_parallel_memcpy(uniDataPtr, uniDataTmpPtr, uniqueLen * sizeof(T));
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        int *firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
+        int *firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
         cpu_parallel_memcpy(firstPtr, firstUniTmp.data(), uniqueLen * sizeof(int));
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        auto inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
+        auto inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
         cpu_parallel_memcpy(inToOutPtr, inToOutTmp.data(), inputLen * sizeof(int));
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        auto occurPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
+        auto occurPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
         cpu_parallel_memcpy(occurPtr, occurTmp.data(), uniqueLen * sizeof(int));
     }
 }
 
 template <typename T>
 void Unique::slicedTensorExec() {
-    auto inDataMemPtr = getParentEdgeAt(IN_DATA)->getMemoryPtr();
-    auto srcDataPtr = reinterpret_cast<const T*>(inDataMemPtr->getData());
+    auto inDataMemPtr = getSrcMemoryAtPort(IN_DATA);
+    auto srcDataPtr = inDataMemPtr->getDataAs<const T>();
     int *firstTmpPtr = nullptr, *inToOutTmpPtr = nullptr, *occurTmpPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
         firstTmpPtr = firstUniTmp.data();
@@ -367,16 +369,16 @@ void Unique::slicedTensorExec() {
 
     int *firstPtr = nullptr, *inToOutPtr = nullptr, *occurNPtr = nullptr;
     if (definedOutputs[FIRST_UNIQUE_IDX]) {
-        firstPtr = reinterpret_cast<int*>(getChildEdgesAtPort(FIRST_UNIQUE_IDX)[0]->getMemoryPtr()->getData());
+        firstPtr = getDstDataAtPortAs<int>(FIRST_UNIQUE_IDX);
     }
     if (definedOutputs[INPUT_TO_UNIQ_IDX]) {
-        inToOutPtr = reinterpret_cast<int*>(getChildEdgesAtPort(INPUT_TO_UNIQ_IDX)[0]->getMemoryPtr()->getData());
+        inToOutPtr = getDstDataAtPortAs<int>(INPUT_TO_UNIQ_IDX);
     }
     if (definedOutputs[OCCURRENCES_NUM]) {
-        occurNPtr = reinterpret_cast<int*>(getChildEdgesAtPort(OCCURRENCES_NUM)[0]->getMemoryPtr()->getData());
+        occurNPtr = getDstDataAtPortAs<int>(OCCURRENCES_NUM);
     }
 
-    T* dstDataPtr = reinterpret_cast<T*>(getChildEdgesAtPort(UNIQUE_DATA)[0]->getMemoryPtr()->getData());
+    T* dstDataPtr = getDstDataAtPortAs<T>(UNIQUE_DATA);
     const auto dstOuterStep = innerLen * uniqueLen;
     // Filling of the first output if needed.
     if (sorted || definedOutputs[UNIQUE_DATA]) {

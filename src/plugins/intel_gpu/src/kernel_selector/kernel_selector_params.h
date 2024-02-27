@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <memory>
 #include <cstddef>
@@ -228,21 +229,15 @@ public:
                         uint32_t stride : 1;
                         uint32_t broadcast : 1;
                     } eltwise;
-                    struct lstm_gemm_t {
-                        uint32_t bias : 1;
-                        uint32_t hidden : 1;
-                    } lstm_gemm;
-                    struct lstm_dynamic_t {
-                        uint32_t last_hidden : 1;
-                        uint32_t last_cell : 1;
-                    } lstm_dynamic;
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
                     struct quantize_t {
-                        uint32_t packed_binary_output : 1;
                         uint32_t scale_shift_opt : 1;
                     } quantize;
+                    struct gemm_t {
+                        uint32_t indirect : 1;
+                    } gemm;
                 } dedicated;
             } val;
             uint64_t raw;
@@ -263,7 +258,6 @@ public:
                 uint32_t int64 : 1;
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
-                uint32_t binary : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
@@ -329,9 +323,8 @@ public:
     void EnableBilinearInterpolationPad() { key.restrict.val.dedicated.conv.bilinear_interpolation_pad = 1; }
     void EnableDeformableMask() { key.restrict.val.dedicated.conv.deformable_mask_enabled = 1; }
 
-    void EnableQuantizePackedBinaryOutput() { key.restrict.val.dedicated.quantize.packed_binary_output = 1; }
     void EnableQuantizeScaleShiftOpt() { key.restrict.val.dedicated.quantize.scale_shift_opt = 1; }
-
+    void EnableIndirectGemm() { key.restrict.val.dedicated.gemm.indirect = 1; }
     void EnableWinogradReorder() { key.restrict.val.dedicated.reorder.winograd = 1; }
     void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
     void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
@@ -341,11 +334,7 @@ public:
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 
-    void EnableLSTMGEMMBias() { key.restrict.val.dedicated.lstm_gemm.bias = 1; }
-    void EnableLSTMGEMMHidden() { key.restrict.val.dedicated.lstm_gemm.hidden = 1; }
     void EnableLSTMEltCell() { key.restrict.val.dedicated.lstm_elt.cell = 1; }
-    void EnableLSTMDyanmicOptionalHiddenOutput() { key.restrict.val.dedicated.lstm_dynamic.last_hidden = 1; }
-    void EnableLSTMDyanmicOptionalCellOutput() { key.restrict.val.dedicated.lstm_dynamic.last_cell = 1; }
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
@@ -415,6 +404,10 @@ struct Params {
     virtual void set_dynamic_shape_offsets() {
         return;
     }
+    virtual void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) {
+        return;
+    }
+
 protected:
     Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
@@ -425,6 +418,11 @@ public:
     EngineInfo engineInfo;
     std::string uniqueID;
     bool is_shape_agnostic;
+    size_t stage_id;
+
+    bool allowStaticInputReordering = true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
+    bool allowInputReordering = false;  // allow kernel to ask graph compiler to reorder the input data before executing its
+
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
 };
@@ -606,8 +604,6 @@ struct dep_info {
 //     - KernelBase::MakeFusedOpsDeclsJitConstants that creates arguments for kernel declaration and macro for all tensors used in
 //       a fused op (requires FusedOpsConfiguration instance).
 //     - fused_operation_desc contains a bunch of methods to generate variable/pointer names, type conversions, data loads
-//  If you need an example of custom code generation for fused ops, check BinaryConvolutionKernelGeneric::GetFusedPrimitivesJitConstants
-//  method in binary_convolution_kernel_generic.cpp.
 struct fused_operation_desc {
     std::shared_ptr<fuse_params> op_params;
     int32_t dep_idx_start;
@@ -698,34 +694,24 @@ struct base_params : public Params {
         }
     }
 
+    void set_dynamic_shape_offsets(std::map<size_t, size_t> in_tensor_to_offset_map, std::map<size_t, size_t> out_tensor_to_offset_map) override {
+        for (size_t i = 0; i < inputs.size(); i++) {
+            auto& in = inputs[i];
+            OPENVINO_ASSERT(in_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all input tensors have mapping to the offset");
+            size_t offset = in_tensor_to_offset_map.at(i);
+            in.SetDynamicShapeOffset(offset);
+        }
+        OPENVINO_ASSERT(fused_ops.empty(), "[GPU] set_dynamic_shape_offsets with mappings doesn't support fused ops for now");
+        for (size_t i = 0; i < outputs.size(); i++) {
+            auto& out = outputs[i];
+            OPENVINO_ASSERT(out_tensor_to_offset_map.count(i) > 0, "[GPU] set_dynamic_shape_offsets expects all output tensors have mapping to the offset");
+            size_t offset = out_tensor_to_offset_map.at(i);
+            out.SetDynamicShapeOffset(offset);
+        }
+    }
+
 protected:
     explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct optional_params {
-    virtual ~optional_params() {}
-
-    KernelType GetType() const { return kType; }
-
-    std::vector<DataLayout> inputLayouts;
-    std::vector<DataLayout> outputLayouts;
-
-    bool meaningfulKernelsNames = false;  // use layer name instead of internal kernel name
-    bool allowStaticInputReordering =
-        true;  // allow kernel to provide a kernel which reorder static data like weights/bias/tables...
-    bool allowInputReordering =
-        false;  // allow kernel to ask graph compiler to reorder the input data before executing its
-    bool allowOutputReordering =
-        false;  // allow kernel to ask graph compiler to reorder the output data before executing the next kernel
-
-    virtual ParamsKey GetSupportedKey() const;
-
-protected:
-    explicit optional_params(KernelType kt) : kType(kt) {}
-    KernelType kType;
 };
 
 }  // namespace kernel_selector

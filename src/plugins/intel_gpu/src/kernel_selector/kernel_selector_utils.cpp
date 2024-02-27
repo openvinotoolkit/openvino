@@ -24,8 +24,6 @@ static WeightsType DataTypeToWeightsType(Datatype t) {
             return WeightsType::F16;
         case Datatype::F32:
             return WeightsType::F32;
-        case Datatype::BINARY:
-            return WeightsType::BINARY;
         case Datatype::INT32:
             return WeightsType::INT32;
         default:
@@ -95,13 +93,11 @@ bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout lay
 }
 
 bool UpdateWeightsParams(weight_bias_params& newParams,
-                         const optional_params& options,
                          WeightsLayout reqLayout,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey,
                          size_t groups,
                          bool rotate) {
-    const auto& optParams = static_cast<const weight_bias_optional_params&>(options);
     const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
     const auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
     switch (CheckWeights(newParams, inType, reqLayout, paramsKey, rotate)) {
@@ -110,7 +106,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
         case UNSUPPORTED:
             return false;
         case REORDER_NEEDED: {
-            if (!optParams.allowStaticInputReordering) {
+            if (!newParams.allowStaticInputReordering) {
                 return false;
             }
             weightsReorderParams.is_initialized = true;
@@ -468,7 +464,6 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::b_fs_yx_fsv8,           {1, 8}},
         {DataLayout::b_fs_zyx_fsv8,          {1, 8}},
         {DataLayout::fs_b_yx_fsv32,          {1, 32}},
-        {DataLayout::b_fs_yx_32fp,           {1, 32}},
         {DataLayout::bs_fs_yx_bsv32_fsv16,   {32, 16}},
         {DataLayout::bs_fs_zyx_bsv32_fsv16,  {32, 16}},
         {DataLayout::bs_fs_yx_bsv32_fsv32,   {32, 32}},

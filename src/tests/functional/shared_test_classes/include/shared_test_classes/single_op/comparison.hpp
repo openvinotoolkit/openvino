@@ -10,15 +10,15 @@
 #include "gtest/gtest.h"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
 
 typedef std::tuple<
     std::vector<InputShape>,             // Input shapes tuple
-    ngraph::helpers::ComparisonTypes,    // Comparison op type
-    ngraph::helpers::InputLayerType,     // Second input type
+    ov::test::utils::ComparisonTypes,    // Comparison op type
+    ov::test::utils::InputLayerType,     // Second input type
     ov::element::Type,                   // Model type
     std::string,                         // Device name
     std::map<std::string, std::string>   // Additional network configuration

@@ -14,6 +14,7 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
+    BEAM_TABLE_UPDATE,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -39,7 +40,6 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_GEMM,
     LSTM_ELT,
     BORDER,
     TILE,
@@ -48,7 +48,6 @@ enum class KernelType {
     BUCKETIZE,
     GEMM,
     GRID_SAMPLE,
-    PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
     GATHER,
@@ -64,10 +63,7 @@ enum class KernelType {
     SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
-    BINARY_CONVOLUTION,
     QUANTIZE,
-    LSTM_DYNAMIC_INPUT,
-    LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
@@ -95,9 +91,11 @@ enum class KernelType {
     EYE,
     GENERATE_PROPOSALS,
     MULTICLASS_NMS,
+    MULTINOMIAL,
     UNIQUE_COUNT,
     UNIQUE_GATHER,
     RMS,
+    SWIGLU,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +103,6 @@ enum class KernelType {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class Datatype {
     UNSUPPORTED,
-    BINARY,
     UINT4,
     INT4,
     INT8,
@@ -124,7 +121,6 @@ enum class Datatype {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class WeightsType {
     UNSUPPORTED,
-    BINARY,
     F16,
     F32,
     INT8,
@@ -494,6 +490,8 @@ enum class ScatterUpdateAxis {
     Y,
     Z,
     W,
+    U,
+    V,
     FEATURE,
     BATCH,
 };

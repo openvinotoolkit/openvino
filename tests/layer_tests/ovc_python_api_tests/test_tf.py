@@ -1,16 +1,20 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-
+import os
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import openvino.runtime as ov
 import pytest
+import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
 
-from common.mo_convert_test_class import CommonMOConvertTest
+from common import constants
 from common.layer_test_class import CommonLayerTest
-import tensorflow as tf
+from common.mo_convert_test_class import CommonMOConvertTest
+from common.tf_layer_test_class import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):
@@ -131,7 +135,8 @@ def create_tf_module(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_tf_module_dynamic(tmp_dir):
@@ -155,7 +160,9 @@ def create_tf_module_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = Net()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer(tmp_dir):
@@ -178,7 +185,8 @@ def create_keras_layer(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+    return net, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                               np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_dynamic(tmp_dir):
@@ -203,7 +211,10 @@ def create_keras_layer_dynamic(tmp_dir):
     model_ref = Model([sigm], parameter_list, "test")
 
     net = LayerModel()
-    return net, model_ref, {'input': input_shapes}
+    return net, model_ref, {'input': input_shapes,
+                            'example_input': (np.random.rand(1, 2, 3).astype(np.float32),
+                                              np.random.rand(1, 2, 3).astype(np.float32))
+                            }
 
 
 def create_tf_checkpoint(tmp_dir):
@@ -478,17 +489,19 @@ def create_keras_layer_with_example_input_2(tmp_dir):
 
 def create_keras_layer_with_input_shapes_case1(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [[1, 2, 3], [1, 2, 3]]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case2(tmp_dir):
     model, model_ref = create_keras_layer_input_list()
-    return model, model_ref, {'input': [([1, 2, 3], np.float32), ([1, 2, 3], np.float32)]}
+    return model, model_ref, {'example_input':  (np.random.rand(1, 2, 3).astype(np.float32),
+                                                 np.random.rand(1, 2, 3).astype(np.float32))}
 
 
 def create_keras_layer_with_input_shapes_case3(tmp_dir):
     model, model_ref = create_keras_layer_input_dict_one_inp()
-    return model, model_ref, {'input': [('args', [1, 2, 3])]}
+    return model, model_ref, {'example_input':  {'args': np.random.rand(1, 2, 3).astype(np.float32)}}
 
 
 def create_keras_layer_with_input_shapes_case4(tmp_dir):
@@ -524,6 +537,28 @@ def create_keras_layer_with_tf_function_call_default_compressed_to_fp16(tmp_dir)
     model = LayerModel()
     model_ref = two_params_function_reference_fp16_compressed([[1, 2], [1, 2]], [[5.0]])
     return model, model_ref, {}
+
+
+def create_keras_layer_with_compressed_constants(tmp_dir):
+    import tensorflow as tf
+
+    class LayerModel(tf.Module):
+        def __init__(self):
+            super(LayerModel, self).__init__()
+            self.const = tf.constant([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], shape=[10], dtype=tf.float16)
+
+        @tf.function(input_signature=[tf.TensorSpec([10], tf.float32)])
+        def __call__(self, input_1):
+            return input_1 + tf.cast(self.const, dtype=tf.float32)
+
+    param_1 = ov.opset13.parameter([10], dtype=np.float32)
+    const_1 = ov.opset13.constant(np.arange(10), dtype=np.float16)
+    convert_1 = ov.opset13.convert(const_1, np.float32)
+    add_1 = ov.opset13.add(param_1, convert_1)
+
+    ov_model_ref = Model([add_1], [param_1], "test")
+    fw_model = LayerModel()
+    return fw_model, ov_model_ref, {}
 
 
 def create_keras_layer_with_tf_function_call_no_signature(tmp_dir):
@@ -664,6 +699,7 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_keras_layer_with_input_shapes_case4,
         create_keras_layer_with_tf_function_call,
         create_keras_layer_with_tf_function_call_default_compressed_to_fp16,
+        create_keras_layer_with_compressed_constants,
         create_keras_layer_with_tf_function_call_no_signature,
         create_keras_layer_with_tf_function_call_no_signature_single_input,
         create_keras_layer_with_string_tensor,
@@ -929,6 +965,29 @@ class TestMoConvertTF(CommonMOConvertTest):
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": fw_infer}, eps)
         assert CommonLayerTest().compare_ie_results_with_framework(ov_infer, {"Identity:0": [-1.8, -4.4]}, eps)
 
+
+class TFGraphDefNames(unittest.TestCase):
+    def test_graph_def_names(self):
+        from openvino.tools.ovc import convert_model
+
+        tf_model, model_ref, _ = create_tf_graph_def(None)
+        ov_model = convert_model(tf_model)
+
+        input_list = []
+        with tf.Graph().as_default() as graph:
+            tf.import_graph_def(tf_model, name='')
+            for op in graph.get_operations():
+                if op.type == "Placeholder":
+                    input_list.append(op.name + ":0")
+
+        for input in input_list:
+            found = False
+            for ov_input in ov_model.inputs:
+                if input in ov_input.get_names():
+                    found = True
+            assert found, "Could not found input {} in resulting model.".format(input)
+
+
 class TFConvertTest(unittest.TestCase):
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -1007,10 +1066,224 @@ class TestTFConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend, use_old_api):
+                                 temp_dir, use_legacy_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']
 
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
+
+
+class TestOutputTensorName(unittest.TestCase):
+    @staticmethod
+    def create_keras_model_with_named_output():
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        input_names = ["Input1", "Input2"]
+        input_shape = [1, 2, 3]
+
+        x1 = tf.keras.Input(shape=input_shape, name=input_names[0])
+        x2 = tf.keras.Input(shape=input_shape, name=input_names[1])
+        y = tf.nn.sigmoid(tf.nn.relu(x1 + x2))
+        keras_net = tf.keras.Model(inputs=[x1, x2], outputs=[{"output": y}])
+        keras_net.output_names[0] = "output"
+
+        return keras_net
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(path, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+        out_tensor_name = list(out_tensors)[0]
+
+        ov_model = convert_model(model, output=out_tensor_name)
+        out_tensors = ov_model.outputs[0].get_names()
+
+        assert len(out_tensors) == 1
+        assert list(out_tensors)[0] == "Sigmoid:0"
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_file_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        model_path = tmp_dir + os.sep + "model"
+
+        from openvino import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+        tf.saved_model.save(model, model_path)
+
+        ov_model = convert_model(model_path)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf2_from_memory_single_tensor_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        model = TestOutputTensorName.create_keras_model_with_named_output()
+
+        ov_model = convert_model(model)
+        for output in ov_model.outputs:
+            out_tensors = output.get_names()
+
+            assert len(out_tensors) == 1
+            out_tensor = list(out_tensors)[0]
+            assert out_tensor == "output"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_output_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            add = tf.add(x, y, name="add")
+            result1 = tf.identity(add, name="result1")
+            result2 = tf.identity(add, name="result2")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.outputs[0].get_names() == {"result1:0", "result2:0", "add:0"}
+        assert ov_model.outputs[1].get_names() == {"result1:0", "result2:0", "add:0"}
+
+
+class TestInputTensorName(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_input_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(path, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_input_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(model, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_input_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            input1 = tf.identity(x, name="x_identity")
+            input2 = tf.identity(y, name="y_identity")
+            add = tf.add(input1, input2, name="add")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.inputs[0].get_names() == {"x:0"}
+        assert ov_model.inputs[1].get_names() == {"y:0"}

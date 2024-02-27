@@ -5,11 +5,11 @@
 #pragma once
 
 #include <memory>
-#include <openvino/core/model.hpp>
+#include "openvino/core/model.hpp"
 
 #include "common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -23,4 +23,4 @@ public:
 };
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

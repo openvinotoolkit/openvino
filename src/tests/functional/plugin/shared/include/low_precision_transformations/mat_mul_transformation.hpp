@@ -15,17 +15,17 @@ namespace LayerTestsDefinitions {
 
 class MatMulTransformationTestValues {
 public:
-    ngraph::Shape inputShape1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::Shape inputShape2;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::Shape inputShape1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::Shape inputShape2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
     std::string expectedKernelName;
     std::string expectedRuntimePrecision;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     MatMulTransformationTestValues> MatMulTransformationParams;
 
@@ -34,11 +34,10 @@ class MatMulTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

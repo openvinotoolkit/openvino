@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/img/openvino-logo-purple-black.png" width="400px">
+<img src="docs/sphinx_setup/_static/images/img/openvino-logo-purple-black.png" width="400px">
 
 [![PyPI Status](https://badge.fury.io/py/openvino.svg)](https://badge.fury.io/py/openvino)
 [![Anaconda Status](https://anaconda.org/conda-forge/openvino/badges/version.svg)](https://anaconda.org/conda-forge/openvino)
@@ -27,9 +27,10 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
+
 <details>
   <summary>List of Distributed OpenVINO Components</summary>
-
+  
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
     * [inference](./src/inference) - provides an API to infer models on the device.
@@ -42,7 +43,6 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
 * [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
 * [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
-
 </details>
 
 ### Getting Started
@@ -146,6 +146,7 @@ opt_in_out --opt_out
 
 ---
 \* Other names and brands may be claimed as the property of others.
+
 
 [OpenVINO™ Runtime]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
 [OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc

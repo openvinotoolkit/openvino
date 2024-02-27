@@ -21,6 +21,7 @@ struct NMSRotatedParams {
     reference_tests::Tensor iouThreshold;
     reference_tests::Tensor scoreThreshold;
     reference_tests::Tensor softNmsSigma;
+    bool sortResultsDescending = true;
     bool clockwise = true;
     reference_tests::Tensor expectedSelectedIndices;
     reference_tests::Tensor expectedSelectedScores;
@@ -35,6 +36,7 @@ struct Builder : ParamsBuilder<NMSRotatedParams> {
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, iouThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, scoreThreshold);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, softNmsSigma);
+    REFERENCE_TESTS_ADD_SET_PARAM(Builder, sortResultsDescending);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, clockwise);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedIndices);
     REFERENCE_TESTS_ADD_SET_PARAM(Builder, expectedSelectedScores);
@@ -91,7 +93,7 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               false,
+                                                               params.sortResultsDescending,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
         return std::make_shared<Model>(nms->outputs(), ParameterVector{boxes, scores});
@@ -129,7 +131,7 @@ private:
                                                                max_output_boxes_per_class,
                                                                iou_threshold,
                                                                score_threshold,
-                                                               false,
+                                                               params.sortResultsDescending,
                                                                params.expectedSelectedIndices.type,
                                                                params.clockwise);
         return std::make_shared<Model>(
@@ -146,6 +148,8 @@ TEST_P(ReferenceNMSRotatedTestWithoutConstants, CompareWithRefs) {
     Exec();
 }
 
+// clang-format off
+// To make the test data shape more readable
 template <element::Type_t ET, element::Type_t ET_BOX, element::Type_t ET_TH, element::Type_t ET_IND>
 std::vector<NMSRotatedParams> generateParams() {
     using T = typename element_type_traits<ET>::value_type;
@@ -173,6 +177,140 @@ std::vector<NMSRotatedParams> generateParams() {
                                         std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65}))
             .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
             .testcaseName("NMSRotated_new_rotation_basic"),
+        Builder{}
+            .boxes(reference_tests::Tensor(ET, {1, 4, 5}, std::vector<T>{/*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6}))
+            .scores(reference_tests::Tensor(ET, {1, 2, 4}, std::vector<T>{/*0*/ 0.65, 0.7, 0.55, 0.96, /*1*/ 0.65, 0.7, 0.55, 0.96}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .sortResultsDescending(false)
+            .expectedSelectedIndices(reference_tests::Tensor(
+                ET_IND,
+                {6, 3},
+                std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 1, 3, 0, 1, 1, 0, 1, 0}))  // batch, class, box_id (sorted max score first)
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {6, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65, 0.0, 1.0, 0.96, 0.0, 1.0, 0.7, 0.0, 1.0, 0.65}))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{6}))
+            .testcaseName("NMSRotated_new_rotation_class_2"),
+        Builder{}
+            .boxes(reference_tests::Tensor(ET, {2, 4, 5}, std::vector<T>{/* First batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6,
+                                                                         /* Second batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6}))
+            .scores(reference_tests::Tensor(ET, {2, 1, 4}, std::vector<T>{0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .sortResultsDescending(false)
+            .expectedSelectedIndices(reference_tests::Tensor(
+                ET_IND,
+                {6, 3},
+                std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0,
+                                   1, 0, 3, 1, 0, 1, 1, 0, 0}))  // batch, class, box_id (sorted max score first)
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {6, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65, 1.0, 0.0, 0.96, 1.0, 0.0, 0.7, 1.0, 0.0, 0.65}))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{6}))
+            .testcaseName("NMSRotated_new_rotation_batch_2"),
+        Builder{}
+            .boxes(reference_tests::Tensor(ET, {2, 4, 5}, std::vector<T>{/* First batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6,
+                                                                         /* Second batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6}))
+            .scores(reference_tests::Tensor(ET, {2, 2, 4}, std::vector<T>{0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .sortResultsDescending(false)
+            .expectedSelectedIndices(reference_tests::Tensor(
+                ET_IND,
+                {12, 3},
+                std::vector<T_IND>{0, 0, 3, 0, 0, 1, 0, 0, 0,
+                                   0, 1, 3, 0, 1, 1, 0, 1, 0,
+                                   1, 0, 3, 1, 0, 1, 1, 0, 0,
+                                   1, 1, 3, 1, 1, 1, 1, 1, 0}))  // batch, class, box_id (sorted max score first)
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {12, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65,
+                                                          0.0, 1.0, 0.96, 0.0, 1.0, 0.7, 0.0, 1.0, 0.65,
+                                                          1.0, 0.0, 0.96, 1.0, 0.0, 0.7, 1.0, 0.0, 0.65,
+                                                          1.0, 1.0, 0.96, 1.0, 1.0, 0.7, 1.0, 1.0, 0.65,
+                                                          }))
+
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{12}))
+            .testcaseName("NMSRotated_new_rotation_batch_2_class_2_sort_attr_false"),
+        Builder{}
+            .boxes(reference_tests::Tensor(ET, {2, 4, 5}, std::vector<T>{/* First batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6,
+                                                                         /* Second batch */
+                                                                         /*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
+                                                                         /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
+                                                                         /*2*/ 4.0, 8.0, 10.0, 12.0, 0.3,
+                                                                         /*3*/ 2.0, 5.0, 13.0, 7.0,  0.6}))
+            .scores(reference_tests::Tensor(ET, {2, 2, 4}, std::vector<T>{0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96,
+                                                                          0.65, 0.7, 0.55, 0.96, 0.65, 0.7, 0.55, 0.96}))
+            .maxOutputBoxesPerClass(reference_tests::Tensor(ET_BOX, {}, std::vector<T_BOX>{5000}))
+            .iouThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.5f}))
+            .scoreThreshold(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .softNmsSigma(reference_tests::Tensor(ET_TH, {}, std::vector<T_TH>{0.0f}))
+            .sortResultsDescending(true)
+
+            .expectedSelectedIndices(reference_tests::Tensor(
+                ET_IND,
+                {12, 3},
+                std::vector<T_IND>{0, 0, 3, 0, 1, 3, 1, 0, 3, 1, 1, 3,
+                                   0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1,
+                                   0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0}))  // batch, class, box_id (sorted max score first)
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {12, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96,
+                                                          0.0, 1.0, 0.96,
+                                                          1.0, 0.0, 0.96,
+                                                          1.0, 1.0, 0.96,
+
+                                                          0.0, 0.0, 0.7,
+                                                          0.0, 1.0, 0.7,
+                                                          1.0, 0.0, 0.7,
+                                                          1.0, 1.0, 0.7,
+
+                                                          0.0, 0.0, 0.65,
+                                                          0.0, 1.0, 0.65,
+                                                          1.0, 0.0, 0.65,
+                                                          1.0, 1.0, 0.65
+                                                          }))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{12}))
+            .testcaseName("NMSRotated_new_rotation_batch_2_class_2_sort_attr_true"),
         Builder{}
             .boxes(reference_tests::Tensor(ET, {1, 4, 5}, std::vector<T>{/*0*/ 7.0, 4.0, 8.0,  7.0,  0.5,
                                                                          /*1*/ 4.0, 7.0, 9.0,  11.0, 0.6,
@@ -418,6 +556,7 @@ std::vector<NMSRotatedParams> generateParams() {
     };
     return params;
 }
+// clang-format on
 
 std::vector<NMSRotatedParams> generateCombinedParams() {
     const std::vector<std::vector<NMSRotatedParams>> generatedParams{

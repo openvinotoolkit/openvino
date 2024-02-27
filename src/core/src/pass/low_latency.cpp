@@ -53,7 +53,7 @@ void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& su
     for (const auto& out : sub_graph_op->get_output_descriptions()) {
         const auto& connect_to = results.at(out->m_body_value_index)->get_input_source_output(0);
         for (auto& input_to : sub_graph_op->output(out->m_output_index).get_target_inputs()) {
-            // create IE output name
+            // create OV output name
             std::string out_name = sub_graph_op->get_friendly_name();
             if (sub_graph_op->get_output_size() != 1)
                 out_name += "." + std::to_string(out->m_output_index);
@@ -93,13 +93,13 @@ std::shared_ptr<ov::opset9::Assign> replace_with_memory(const ov::Input<ov::Node
     using namespace ov::opset9;
     using namespace ov::op::util;
 
-    VariableInfo var_info{ov::PartialShape::dynamic(), ov::element::dynamic, variable_name};
-    auto variable = std::make_shared<Variable>(var_info);
-
     ov::Output<ov::Node> read_value_in = input.get_source_output();
     if (use_const_initializer) {
         read_value_in = create_init_subgraph(read_value_in, to);
     }
+
+    VariableInfo var_info{read_value_in.get_partial_shape(), read_value_in.get_element_type(), variable_name};
+    auto variable = std::make_shared<Variable>(var_info);
     auto read_value = to.make<ReadValue>(read_value_in, variable);
     input.replace_source_output(read_value->output(0));
     auto assign = to.make<Assign>(output, variable);

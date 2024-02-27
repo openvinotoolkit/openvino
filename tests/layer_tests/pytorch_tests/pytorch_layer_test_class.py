@@ -9,11 +9,13 @@ import os
 import numpy as np
 from common.constants import test_device, test_precision
 from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
 import torch
-import openvino.frontend.pytorch.torchdynamo.backend
+from packaging import version
+import openvino.torch
 
 
 class PytorchLayerTest:
@@ -53,6 +55,8 @@ class PytorchLayerTest:
         def numpy_to_torch_recursively(x):
             if isinstance(x, tuple):
                 return tuple(numpy_to_torch_recursively(y) for y in x)
+            elif isinstance(x, dict):
+                return dict((k, numpy_to_torch_recursively(y)) for k, y in x.items())
             elif isinstance(x, np.ndarray):
                 return torch.from_numpy(x)
             else:
@@ -72,25 +76,59 @@ class PytorchLayerTest:
                     return True
             return False
 
+        def use_torch_export():
+            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+            if torch_compile_env is not None:
+                return torch_compile_env == "EXPORT"
+            return False
+
         ov_inputs = flattenize_inputs(inputs)
 
         if use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
-            trace_model = kwargs.get('trace_model', False)
-            freeze_model = kwargs.get('freeze_model', True)
-            with torch.no_grad():
-                if kwargs.get('use_convert_model', False):
-                    smodel, converted_model = self.convert_via_mo(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
-                else:
-                    smodel, converted_model = self.convert_directly_via_frontend(model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+            if use_torch_export():
+                from openvino import convert_model
+                from torch.export import export
+                from torch.fx.experimental.proxy_tensor import make_fx
 
-            if kind is not None and not isinstance(kind, (tuple, list)):
-                kind = [kind]
-            if kind is not None:
-                for op in kind:
-                    assert self._check_kind_exist(
-                        smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
+                em = export(model, tuple(torch_inputs))
+                if version.parse(torch.__version__) >= version.parse("2.3"):
+                    em = em.run_decompositions()
+                print(em.graph_module.code)
+
+                try:
+                    gm = make_fx(em)(*torch_inputs)
+                except:
+                    gm = make_fx(em, tracing_mode='symbolic')(*torch_inputs)
+
+                input_shapes = []
+                input_types = []
+                for input_data in torch_inputs:
+                    input_types.append(input_data.type())
+                    input_shapes.append(input_data.size())
+
+                decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
+                converted_model = convert_model(decoder, example_input=torch_inputs)
+                self._resolve_input_shape_dtype(
+                    converted_model, ov_inputs, dynamic_shapes)
+                smodel = model
+            else:
+                trace_model = kwargs.get('trace_model', False)
+                freeze_model = kwargs.get('freeze_model', True)
+                with torch.no_grad():
+                    if kwargs.get('use_convert_model', False):
+                        smodel, converted_model = self.convert_via_mo(
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                    else:
+                        smodel, converted_model = self.convert_directly_via_frontend(
+                            model, torch_inputs, trace_model, dynamic_shapes, ov_inputs, freeze_model)
+                if kind is not None and not isinstance(kind, (tuple, list)):
+                    kind = [kind]
+                if kind is not None:
+                    for op in kind:
+                        assert self._check_kind_exist(
+                            smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
             compiled = core.compile_model(converted_model, ie_device)
@@ -122,10 +160,11 @@ class PytorchLayerTest:
                     if fw_type in [np.int32, np.int64] and ov_type in [np.int32, np.int64]:
                         # do not differentiate between int32 and int64
                         continue
-                    assert ov_type == fw_type, f"dtype validation failed: {ov_type} != {fw_type}"
+                    assert ov_type == fw_type, f"dtype validation failed: ov={ov_type} vs fw={fw_type}"
                     continue
-                ov_tensor_fw_format =  torch.tensor(np.array(ov_tensor))
-                assert ov_tensor_fw_format.dtype == fw_tensor.dtype, f"dtype validation failed: {ov_tensor_fw_format.dtype} != {fw_tensor.dtype}"
+                ov_tensor_format = torch.tensor(np.array(ov_tensor))
+                assert ov_tensor_format.dtype == fw_tensor.dtype, f"dtype validation failed: ov={ov_tensor_format.dtype} vs fw={fw_tensor.dtype}"
+                assert ov_tensor_format.shape == fw_tensor.shape, f"Shapes are not equal: ov={ov_tensor_format.shape} vs fw={fw_tensor.shape}"
 
             # Compare Ie results with Framework results
             fw_eps = custom_eps if precision == 'FP32' else 5e-2
@@ -137,16 +176,16 @@ class PytorchLayerTest:
                     assert 'quant_size' in kwargs, "quant size must be specified for quantized_ops flag"
                     quant_size = kwargs['quant_size']
             for i in range(len(infer_res)):
-                cur_fw_res = flatten_fw_res[i].contiguous().numpy(
-                ) if isinstance(flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
+                cur_fw_res = flatten_fw_res[i].contiguous().numpy(force=True) if isinstance(
+                    flatten_fw_res[i], torch.Tensor) else flatten_fw_res[i]
                 if np.array(cur_fw_res).size == 0:
                     continue
                 cur_ov_res = infer_res[compiled.output(i)]
-                print(f"fw_res: {cur_fw_res};\n ov_res: {cur_ov_res}")
                 n_is_not_close = np.array(cur_fw_res).size - np.isclose(cur_ov_res, cur_fw_res,
-                                                              atol=fw_eps,
-                                                              rtol=fw_eps, equal_nan=True).sum()
-                max_diff = np.array(abs(np.array(cur_ov_res, dtype=np.float32) - np.array(cur_fw_res, dtype=np.float32))).max()
+                                                                        atol=fw_eps,
+                                                                        rtol=fw_eps, equal_nan=True).sum()
+                max_diff = np.array(abs(np.array(
+                    cur_ov_res, dtype=np.float32) - np.array(cur_fw_res, dtype=np.float32))).max()
                 if not quantized_ops and n_is_not_close > 0:
                     is_ok = False
                     print("Max diff is {}".format(max_diff))
@@ -167,11 +206,15 @@ class PytorchLayerTest:
     def convert_via_mo(self, model, example_input, trace_model, dynamic_shapes, ov_inputs, freeze_model):
         from openvino import convert_model, PartialShape
         if trace_model:
-            decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
-            kwargs = {"example_input": example_input if len(example_input) > 1 else example_input[0]}
+            decoder = TorchScriptPythonDecoder(
+                model, example_input=example_input, skip_freeze=not freeze_model)
+            kwargs = {"example_input": example_input if len(
+                example_input) > 1 or isinstance(example_input[0], dict) else example_input[0]}
         else:
-            decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
-            kwargs = {"input": [(i.dtype, PartialShape([-1] * len(i.shape))) for i in example_input]}
+            decoder = TorchScriptPythonDecoder(
+                model, skip_freeze=not freeze_model)
+            kwargs = {"input": [(i.dtype, PartialShape(
+                [-1] * len(i.shape))) for i in example_input]}
         smodel = decoder.pt_module
         print(smodel.inlined_graph)
         if not dynamic_shapes:
@@ -186,9 +229,11 @@ class PytorchLayerTest:
         fe = fe_manager.load_by_framework('pytorch')
 
         if trace_model:
-            decoder = TorchScriptPythonDecoder(model, example_input=example_input, skip_freeze=not freeze_model)
+            decoder = TorchScriptPythonDecoder(
+                model, example_input=example_input, skip_freeze=not freeze_model)
         else:
-            decoder = TorchScriptPythonDecoder(model, skip_freeze=not freeze_model)
+            decoder = TorchScriptPythonDecoder(
+                model, skip_freeze=not freeze_model)
         smodel = decoder.pt_module
         print(smodel.inlined_graph)
         im = fe.load(decoder)
@@ -207,7 +252,8 @@ class PytorchLayerTest:
                 inp = ov_inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
             if params[i].get_node().get_element_type().is_dynamic():
-                params[i].get_node().set_element_type(self._type_map[inp.dtype.name])
+                params[i].get_node().set_element_type(
+                    self._type_map[inp.dtype.name])
             shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
             params[i].get_node().set_partial_shape(PartialShape(shape))
         om.validate_nodes_and_infer_types()
@@ -217,10 +263,13 @@ class PytorchLayerTest:
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
-            fw_model = torch.compile(model)
-            ov_model = torch.compile(model, backend="openvino")
-        ov_res = ov_model(*inputs)
-        fw_res = fw_model(*inputs)
+            fw_res = model(*inputs)
+
+        torch._dynamo.reset()
+        with torch.no_grad():
+            model.eval()
+            ov_model = torch.compile(model, backend="openvino", options={"testing" : 1})
+            ov_res = ov_model(*inputs)
 
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
@@ -235,7 +284,6 @@ class PytorchLayerTest:
         assert len(flatten_fw_res) == len(
             flatten_ov_res
         ), f'number of outputs are not equal, {len(flatten_fw_res)} != {len(flatten_ov_res)}'
-
 
         # Check if output data types match
         for fw_tensor, ov_tensor in zip(flatten_fw_res, flatten_ov_res):
@@ -263,7 +311,6 @@ class PytorchLayerTest:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(fw_eps, fw_eps))
         assert is_ok, "Accuracy validation failed"
-
 
 
 def get_params(ie_device=None, precision=None):
@@ -310,4 +357,4 @@ def flattenize_outputs(res):
 
 
 def flattenize_inputs(res):
-    return flattenize(res, [tuple])
+    return flattenize(res, [tuple, dict])

@@ -1928,6 +1928,43 @@ TEST(resample_gpu, interpolate_in1x1x2x4_linear_scale) {
     }
 }
 
+TEST(resample_gpu, downsampling_u8) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ { 1, 1, 9, 16 }, data_types::u8, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(resample("resample", input_info("input"), {1, 1, 3, 5}, {}, {0, 1, 2, 3}));
+
+    set_values<uint8_t>(input, {
+        124, 126, 128, 130, 131, 131, 129, 128, 119, 119, 119, 119, 119, 119, 119, 119,
+        125, 124, 120, 118, 115, 111, 109, 106, 103, 109, 95, 120, 155, 150, 142, 139,
+        129, 128, 122, 110, 98, 85, 81, 78, 79, 78, 76, 75, 74, 75, 76, 77,
+        78, 77, 77, 76, 76, 77, 77, 78, 80, 77, 75, 75, 78, 81, 83, 83,
+        79, 79, 78, 78, 78, 77, 75, 75, 70, 71, 73, 74, 76, 76, 75, 74,
+        74, 72, 71, 70, 71, 72, 75, 76, 74, 73, 74, 72, 73, 73, 72, 72,
+        71, 71, 71, 72, 72, 72, 73, 73, 73, 71, 69, 71, 75, 78, 78, 75,
+        72, 72, 75, 77, 79, 79, 79, 78, 76, 75, 74, 72, 72, 73, 74, 75,
+        74, 74, 75, 75, 75, 75, 75, 75, 77, 74, 70, 67, 67, 69, 73, 76
+    });
+
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network net{ engine, topology, config };
+    net.set_input_data("input", input);
+
+    auto outputs = net.execute();
+
+    auto output = outputs.at("resample").get_memory();
+    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+
+    std::vector<uint8_t> ref_out = { 124, 114, 104, 112, 143, 79, 78, 72, 74, 75, 72, 79, 77, 73, 74 };
+
+    for (size_t i = 0; i < ref_out.size(); ++i) {
+        ASSERT_EQ(ref_out[i], output_ptr[i]);
+    }
+}
+
 struct resample_opt_random_test_params {
     data_types input_type;
     tensor input_size;
@@ -2099,46 +2136,6 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
 
 struct resample_opt_random_test_ext : resample_opt_random_test
 {
-    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
-                                const std::string& primitive_id)
-    {
-        using namespace std::chrono;
-        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
-        e->wait(); // should ensure execution completion, if not segfault will occur
-        double avg_time = 0.0;
-        auto intervals = e->get_profiling_info();
-        for (const auto& q : intervals)
-        {
-            if (q.stage == instrumentation::profiling_stage::executing) {
-                continue;
-            }
-            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-            break;
-        }
-        return avg_time;
-    }
-
-    static void print_all_perf(std::map<primitive_id, network_output> outputs)
-    {
-        std::cout << "Print last run time" << std::endl;
-        using namespace std::chrono;
-        for( const auto &n : outputs ) {
-            std::shared_ptr<event> e = n.second.get_event();
-            auto intervals = e->get_profiling_info();
-            double time = 0.0;
-            for (const auto& q : intervals)
-            {
-                if (q.stage == instrumentation::profiling_stage::executing) {
-                    continue;
-                }
-                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-                break;
-            }
-            std::cout << n.first << ":" << time << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
     void execute_perf_test(const resample_opt_random_test_params& params, const std::string& kernel, const bool do_planar = false) {
         auto& engine = get_test_engine();
 
@@ -2174,7 +2171,7 @@ struct resample_opt_random_test_ext : resample_opt_random_test
         double exectime = 0.f;
         for (int i = 0; i < r; ++i) {
             result_opt = net_opt.execute();
-            exectime += get_exectime(result_opt, "resample_opt");
+            exectime += get_profiling_exectime(result_opt, "resample_opt");
         }
         exectime /= r;
         std::string frm_str = format(working_format).to_string();
@@ -2197,7 +2194,7 @@ struct resample_opt_random_test_ext : resample_opt_random_test
                   << frm_str << " " << input_type << " " << exectime << std::endl;
 
         // Uncomment line below if you like to see the latencies of all operations from last iteration
-        //print_all_perf(result_opt);
+        //print_profiling_all_exectimes(result_opt);
     }
 };
 

@@ -7,7 +7,6 @@ import logging as log
 import os
 import re
 from collections import OrderedDict, namedtuple
-from distutils.util import strtobool
 from itertools import zip_longest
 from pathlib import Path
 from operator import xor
@@ -23,6 +22,22 @@ from openvino.tools.mo.middle.passes.convert_data_type import destination_type_t
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
 from openvino.tools.mo.utils.help import get_convert_model_help_specifics, get_to_string_methods_for_params
+
+
+def strtobool(value):
+    """
+    Converts a string representation to true or false.
+
+    :param value: a string which will be converted to bool.
+    :return: boolean value of the input string.
+    """
+    value = value.lower()
+    if value in ('y', 'yes', 't', 'true', 'on', '1'):
+        return 1
+    elif value in ('n', 'no', 'f', 'false', 'off', '0'):
+        return 0
+    else:
+        raise ValueError(f"Invalid truth value: {value}.")
 
 
 def extension_path_to_str_or_extensions_class(extension):

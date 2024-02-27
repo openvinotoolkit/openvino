@@ -9,6 +9,7 @@
 #include "op/fused_mul_add.hpp"
 #include "op/load_convert.hpp"
 #include "op/store_convert.hpp"
+#include "op/perf_count_rdtsc.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 
 namespace ov {
@@ -38,6 +39,10 @@ const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::spec
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::LoadConvertTruncation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertSaturation, PassThroughShapeInfer),
         SHAPE_INFER_PREDEFINED(ov::intel_cpu::StoreConvertTruncation, PassThroughShapeInfer),
+#ifdef SNIPPETS_DEBUG_CAPS
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscBegin, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(ov::intel_cpu::PerfCountRdtscEnd, EmptyShapeInfer),
+#endif
         SHAPE_INFER_OP_SPECIFIC_EXTERNAL(ov::intel_cpu::BrgemmCPU, BrgemmShapeInfer),
         //
         SHAPE_INFER_OP_SPECIFIC(ov::intel_cpu::BrgemmCopyB),

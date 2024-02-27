@@ -6,7 +6,7 @@
 #include <vector>
 #include <array>
 
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 
@@ -45,4 +45,4 @@ void proposal_exec(const float* input0, const float* input1,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

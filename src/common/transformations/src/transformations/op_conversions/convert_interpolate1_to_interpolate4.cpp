@@ -10,6 +10,7 @@
 #include "itt.hpp"
 #include "openvino/core/core.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/interpolate.hpp"
@@ -34,9 +35,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
             element::f32);
 
         std::shared_ptr<Node> scales = std::make_shared<ov::op::v1::Divide>(out_dims, in_dims);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto& constant = ov::get_constant_from_source(scales)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto& constant = ov::util::get_constant_from_source(scales)) {
             scales = constant;
         }
         auto axisConstant = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);

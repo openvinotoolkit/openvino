@@ -22,7 +22,6 @@ inline uint32_t SubGroupSize(WeightsLayout l) {
         case WeightsLayout::os_i_osv16__ai8:
         case WeightsLayout::i_yxs_os_yxsv2_osv16:
         case WeightsLayout::iy_xs_os_xsv2_osv16__ao32:
-        case WeightsLayout::os_is_yx_osv32_isv32p:
         case WeightsLayout::os_is_yx_isv16_osv16:
         case WeightsLayout::os_is_zyx_isv16_osv16:
         case WeightsLayout::is_os_zyx_isv16_osv16:
@@ -198,9 +197,9 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     return dispatchData;
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params) const {
     assert(params.GetType() == KernelType::REORDER);
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
@@ -210,7 +209,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -223,8 +222,19 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
     return {kd};
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+void ReorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const reorder_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params) const {
+    if (!Validate(params)) {
         return {};
     }
     assert(params.GetType() == KernelType::REORDER);
@@ -234,18 +244,11 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     DispatchData dispatchData = SetDefault(newParams);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const reorder_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-    };
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 
@@ -256,9 +259,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
-    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.outputs[0].is_dynamic());
+    kernel.params.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }

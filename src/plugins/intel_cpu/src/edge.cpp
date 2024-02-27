@@ -5,8 +5,6 @@
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include <blob_factory.hpp>
-#include "nodes/input.h"
 
 using namespace dnnl;
 namespace ov {
@@ -18,14 +16,14 @@ Edge::Edge(const NodePtr &parent, const NodePtr &child, int pr_port, int ch_port
 const NodePtr Edge::getParent() const {
     auto parentPtr = parent.lock();
     if (!parentPtr)
-        IE_THROW() << "Edge contains empty parent node";
+        OPENVINO_THROW("Edge contains empty parent node");
     return parentPtr;
 }
 
 const NodePtr Edge::getChild() const {
     auto childPtr = child.lock();
     if (!childPtr)
-        IE_THROW() << "Edge contains empty child node";
+        OPENVINO_THROW("Edge contains empty child node");
     return childPtr;
 }
 
@@ -53,31 +51,46 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::drop() {
-    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
-
-        if (myself != list.end())
-            list.erase(myself);
-    };
-
-    _drop_from(getParent()->childEdges);
-    _drop_from(getChild()->parentEdges);
-}
-
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
+    auto add_result_node = [](std::vector<NodePtr>& result, const NodePtr& node) -> bool {
+        if (Type::ShapeOf == node->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return false;
+        }
+        result.push_back(node);
+        return true;
+    };
+    auto childNode = this->getChild();
+    if (childNode->getChildEdges().empty()) {
+        add_result_node(result, childNode);
+        return;
+    }
+
     if (this->inPlace(LOOK_DOWN)) {
-        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
+            auto vecChildEdges = getChild()->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
         }
     } else {
-        result.push_back(this->getChild());
+        if (!add_result_node(result, childNode))
+            return;
+
+        // collect consumers in case of an upstream in-place memory reference
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto&& conf = peerChildSPD->getConfig();
+            for (size_t i = 0; i < conf.outConfs.size(); i++) {
+                const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
+                if (peerOutInPlacePort == this->getOutputNum()) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
+                        childEdge->collectConsumers(result);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -87,7 +100,7 @@ bool Edge::enforceReorder() {
     auto childNode = getChild();
     auto childSPD = childNode->getSelectedPrimitiveDescriptor();
     if (!parentSPD || !childSPD)
-        IE_THROW() << "Cannot make a decision about reorder. Primitive descriptors weren't selected.";
+        OPENVINO_THROW("Cannot make a decision about reorder. Primitive descriptors weren't selected.");
 
     bool in_place = inPlace();
 
@@ -238,12 +251,12 @@ int Edge::getOutputNum() const {
 
 void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& allocate) {
     if (memoryPtr)
-        IE_THROW() << "Unexpected behaviour: status == NeedAllocation but memory is already allocated.";
+        OPENVINO_THROW("Unexpected behaviour: status == NeedAllocation but memory is already allocated.");
 
     auto& inputDesc = getInputDesc();
     auto& outputDesc = getOutputDesc();
     if (!inputDesc.isCompatible(outputDesc))
-        IE_THROW() << "Cannot allocate memory for incompatible descriptors.";
+        OPENVINO_THROW("Cannot allocate memory for incompatible descriptors.");
 
     memoryPtr = allocate(inputDesc);
     DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
@@ -261,7 +274,7 @@ void Edge::allocate(const void* mem_ptr) {
 
 void Edge::allocate(MemoryMngrPtr memMngr) {
     if (!memMngr) {
-        IE_THROW(Unexpected) << "Memory manager ptr is NULL";
+        OPENVINO_THROW("Unexpected: Memory manager ptr is NULL");
     }
 
     auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
@@ -310,13 +323,13 @@ void Edge::externalAllocate(WeightsSharing::Ptr weightsCache) {
 
 void Edge::changeStatus(Edge::Status state) {
     if (state == Status::NotAllocated) {
-        IE_THROW() << "Incorrect behaviour! Use method sharedMemFrom()";
+        OPENVINO_THROW("Incorrect behaviour! Use method sharedMemFrom()");
     }
     if (state == Status::Validated) {
-        IE_THROW() << "Incorrect behaviour! Use method validate()";
+        OPENVINO_THROW("Incorrect behaviour! Use method validate()");
     }
     if (Status::Validated == this->status) {
-        IE_THROW() << "Unexpected attempt of memory change on edge: " << name();
+        OPENVINO_THROW("Unexpected attempt of memory change on edge: ", name());
     }
     if (this->status != Status::Uninitialized && state == Status::NeedAllocation)
         return;
@@ -328,22 +341,22 @@ void Edge::changeStatus(Edge::Status state) {
 PortDescBaseCPtr Edge::getInputPortDesc() const {
     auto parentPtr = getParent();
     if (parentPtr->getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Primitive descriptor for node " << parentPtr->getName() << " is not selected.";
+        OPENVINO_THROW("Primitive descriptor for node ", parentPtr->getName(), " is not selected.");
 
     int inputIdx = getInputNum();
     if (inputIdx < 0)
-        IE_THROW() << "Edge cannot be found for node" << parentPtr->getName() << ".";
+        OPENVINO_THROW("Edge cannot be found for node", parentPtr->getName(), ".");
 
     auto& outConfs = parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
     if (outConfs.empty())
-        IE_THROW() << "Node " << parentPtr->getName() << " has empty output config list.";
+        OPENVINO_THROW("Node ", parentPtr->getName(), " has empty output config list.");
 
     if (static_cast<size_t>(inputIdx) >= outConfs.size())
         inputIdx = 0;
 
     auto inputPortDesc = outConfs[inputIdx].getPortDesc();
     if (!inputPortDesc) {
-        IE_THROW() << "Node" << parentPtr->getName() << " has unitialized input port desc on port " << inputIdx;
+        OPENVINO_THROW("Node", parentPtr->getName(), " has unitialized input port desc on port ", inputIdx);
     }
 
     return inputPortDesc;
@@ -353,22 +366,22 @@ PortDescBaseCPtr Edge::getOutputPortDesc() const {
     auto childPtr = getChild();
 
     if (childPtr->getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Primitive descriptor for node " << childPtr->getName() << " is not selected.";
+        OPENVINO_THROW("Primitive descriptor for node ", childPtr->getName(), " is not selected.");
 
     int outputIdx = getOutputNum();
     if (outputIdx < 0) {
-        IE_THROW() << "Edge cannot be found for node" << childPtr->getName() << ".";
+        OPENVINO_THROW("Edge cannot be found for node", childPtr->getName(), ".");
     }
     auto& inConfs = childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs;
     if (inConfs.empty())
-        IE_THROW() << "Node " << childPtr->getName() << " has empty input config list.";
+        OPENVINO_THROW("Node ", childPtr->getName(), " has empty input config list.");
 
     if (static_cast<size_t>(outputIdx) >= inConfs.size())
         outputIdx = 0;
 
     auto outPortDesc = inConfs[outputIdx].getPortDesc();
     if (!outPortDesc) {
-        IE_THROW() << "Node" << childPtr->getName() << " has unitialized output port desc on port " << outputIdx;
+        OPENVINO_THROW("Node", childPtr->getName(), " has unitialized output port desc on port ", outputIdx);
     }
 
     return outPortDesc;
@@ -377,8 +390,10 @@ PortDescBaseCPtr Edge::getOutputPortDesc() const {
 const MemoryDesc& Edge::getInputDesc() const {
     auto memDescPtr = getInputPortDesc()->getMemDesc();
     if (!memDescPtr) {
-        IE_THROW() << "Cannot get input memory descriptor for edge: " << getParent()->getName() << "->"
-                   << getChild()->getName();
+        OPENVINO_THROW("Cannot get input memory descriptor for edge: ",
+                       getParent()->getName(),
+                       "->",
+                       getChild()->getName());
     }
     return *memDescPtr;
 }
@@ -386,23 +401,24 @@ const MemoryDesc& Edge::getInputDesc() const {
 const MemoryDesc& Edge::getOutputDesc() const {
     auto memDescPtr = getOutputPortDesc()->getMemDesc();
     if (!memDescPtr) {
-        IE_THROW() << "Cannot get output memory descriptor for edge: " << getParent()->getName() << "->"
-                   << getChild()->getName();
+        OPENVINO_THROW("Cannot get output memory descriptor for edge: ",
+                       getParent()->getName(),
+                       "->",
+                       getChild()->getName());
     }
     return *memDescPtr;
 }
 
 const MemoryDesc& Edge::getDesc() const {
     if (!getInputDesc().isCompatible(getOutputDesc()))
-        IE_THROW() << "Cannot get descriptor for edge: " << getParent()->getName() << "->"
-                   << getChild()->getName();
+        OPENVINO_THROW("Cannot get descriptor for edge: ", getParent()->getName(), "->", getChild()->getName());
 
     return getInputDesc();
 }
 
 const IMemory &Edge::getMemory() {
     auto memPtr = getMemoryPtr();
-    IE_ASSERT(memPtr != nullptr) << " Dereferencing NULL memory in edge: " << name();
+    OPENVINO_ASSERT(memPtr != nullptr, " Dereferencing NULL memory in edge: ", name());
     return *memPtr;
 }
 
@@ -424,7 +440,7 @@ void Edge::validate() {
     getChild();
 
     if (status != Status::Allocated || !memoryPtr) {
-        IE_THROW() << "Error memory is not allocated!";
+        OPENVINO_THROW("Error memory is not allocated!");
     }
     status = Status::Validated;
 }
@@ -432,7 +448,7 @@ void Edge::validate() {
 EdgePtr Edge::getSharedEdge() const {
     auto memoryFromEdgePtr = memoryFromEdge.lock();
     if (!memoryFromEdgePtr) {
-        IE_THROW() << "Cannot get memory ptr for edge( " << name() << " ). The pointer on the edge with memory is empty!";
+        OPENVINO_THROW("Cannot get memory ptr for edge( ", name(), " ). The pointer on the edge with memory is empty!");
     }
     return memoryFromEdgePtr;
 }
@@ -451,6 +467,7 @@ void Edge::init() {
         changeStatus(Status::NeedAllocation);
     } else {
         if (Type::Input == edgePtr->getParent()->getType() &&
+            Type::MemoryInput != getParent()->getType() &&
             edgePtr->getParent()->isConstant() &&
             !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
@@ -474,8 +491,9 @@ EdgePtr Edge::getBaseEdge(int look) {
     const int parentInPlacePort = getParent()->inPlaceOutPort(inputNum);
     const int childInPlacePort = getChild()->inPlaceInputPort(outputNum);
 
-    IE_ASSERT(!(parentInPlacePort >=0 && childInPlacePort >= 0)) <<
-        "Unresolved in place memory conflict detected on edge: " << name();
+    OPENVINO_ASSERT(!(parentInPlacePort >= 0 && childInPlacePort >= 0),
+                    "Unresolved in place memory conflict detected on edge: ",
+                    name());
 
     if ((childInPlacePort >= 0) && (look & LOOK_DOWN)) {
         auto ch_edges = getChild()->getChildEdgesAtPort(childInPlacePort);
@@ -492,7 +510,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge;
     } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
-        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0];
+        return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);
@@ -528,7 +546,7 @@ bool Edge::inPlace(LOOK look) const {
 
 NodePtr Edge::modifiedInPlace() const {
     auto childNode = getChild();
-    if (!childNode || !childNode->isInPlace()) {
+    if (!childNode || !childNode->isInPlace() || childNode->getChildEdges().empty()) {
         return nullptr;
     }
     // check if the children nodes are able to modify the memory
@@ -551,7 +569,8 @@ NodePtr Edge::modifiedInPlace() const {
         auto& outConfs = childSPD->getConfig().outConfs;
         for (size_t i = 0; i < outConfs.size(); ++i) {
             const auto& conf = outConfs[i];
-            if (childPort < 0 || conf.inPlace() != childPort) {
+            if (childPort < 0 || conf.inPlace() != childPort ||
+                Type::MemoryInput == childNode->getType()) { //exception type, it doesn't modify memory
                 continue;
             }
             if (childNode->isExecutable()) {

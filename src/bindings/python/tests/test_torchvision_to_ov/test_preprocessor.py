@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -12,8 +12,9 @@ import torch
 import torch.nn.functional as f
 import torchvision.transforms as transforms
 
-from openvino.runtime import Core, Tensor
+from openvino import Type, Core
 from openvino.tools.mo import convert_model
+from openvino.properties.hint import inference_precision
 
 from openvino.preprocess.torchvision import PreprocessConverter
 
@@ -38,7 +39,8 @@ def _infer_pipelines(test_input, preprocess_pipeline, input_channels=3):
     ov_model = PreprocessConverter.from_torchvision(
         model=ov_model, transform=preprocess_pipeline, input_example=Image.fromarray(test_input.astype("uint8"), "RGB"),
     )
-    ov_model = core.compile_model(ov_model, "CPU")
+    infer_config = {inference_precision: Type.f32}
+    ov_model = core.compile_model(ov_model, "CPU", infer_config)
 
     # Torch results
     torch_input = copy.deepcopy(test_input)
@@ -65,15 +67,20 @@ def test_normalize():
 
 
 @pytest.mark.parametrize(
-    ("interpolation", "tolerance"),
+    ("target_size", "interpolation", "tolerance"),
     [
-        (transforms.InterpolationMode.NEAREST, 4e-05),
+        ((220, 220, 3), transforms.InterpolationMode.NEAREST, 4e-05),
+        ((200, 240, 3), transforms.InterpolationMode.NEAREST, 0.3),  # Ticket 127670
+        ((220, 220, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((200, 240, 3), transforms.InterpolationMode.BILINEAR, 4e-03),
+        ((220, 220, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
+        ((200, 240, 3), transforms.InterpolationMode.BICUBIC, 4e-03),
     ],
 )
-def test_resize(interpolation, tolerance):
+def test_resize(target_size, interpolation, tolerance):
     if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
         pytest.skip("Ticket: 114816")
-    test_input = np.random.randint(255, size=(220, 220, 3), dtype=np.uint8)
+    test_input = np.random.randint(255, size=target_size, dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
             transforms.Resize(224, interpolation=interpolation),

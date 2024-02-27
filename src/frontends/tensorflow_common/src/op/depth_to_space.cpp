@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/depth_to_space.hpp"
+
 #include "common_op_table.hpp"
-#include "openvino/opsets/opset8.hpp"
 
 using namespace std;
-using namespace ov::opset8;
+using namespace ov::op;
 
 // Translate DepthToSpace op
 namespace ov {
@@ -29,8 +30,8 @@ OutputVector translate_depth_to_space_op(const NodeContext& node) {
     bool is_nhwc = (data_format == "NHWC");
 
     convert_nhwc_to_nchw(is_nhwc, input_data);
-    auto mode = DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
-    auto depth_to_space = make_shared<DepthToSpace>(input_data, mode, block_size)->output(0);
+    auto mode = v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST;
+    auto depth_to_space = make_shared<v0::DepthToSpace>(input_data, mode, block_size)->output(0);
     convert_nchw_to_nhwc(is_nhwc, depth_to_space);
     set_node_name(node.get_name(), depth_to_space.get_node_shared_ptr());
     return {depth_to_space};

@@ -7,7 +7,6 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 
-#include "binary_convolution_inst.h"
 #include "reshape_inst.h"
 #include "convert_color_inst.h"
 #include "one_hot_inst.h"
@@ -134,8 +133,13 @@ void remove_redundant_reorders::run(program& p) {
         auto node = *itr++;
         if (!node->is_type<reorder>())  // only care for reorders
             continue;
-
         auto& r_node = node->as<reorder>();
+
+        // Do not opt out result reorder of Loop body network
+        bool is_loop_body_network_output = (r_node.get_program().is_body_program() && r_node.is_output());
+        if (is_loop_body_network_output)
+            continue;
+
         auto& dep_node = r_node.get_dependency(0);
 
         if (!dep_node.is_type<reorder>())
@@ -153,14 +157,15 @@ void remove_redundant_reorders::run(program& p) {
         // fp32 -> reorder -> u8 -> reorder -> fp32
         // we can't fuse two reorder primitives as first one must do cast to u8 data type which changes the values
         if (!data_type_traits::is_floating_point(r_dep_node.get_output_layout().data_type) &&
-            data_type_traits::is_floating_point(r_dep_node.input().get_output_layout().data_type)) {
+            data_type_traits::is_floating_point(r_dep_node.get_input_layout().data_type)) {
             continue;
         }
 
         bool remove_current = r_node.is_simple_reorder() &&
                               r_dep_node.get_users().size() == 1 &&
                               !r_dep_node.is_output() &&
-                              !r_node.get_primitive()->has_surface_input();
+                              !r_node.get_primitive()->has_surface_input() &&
+                              r_node.get_input_layout().data_padding == r_node.get_output_layout().data_padding;
 
         if (remove_dep) {
             // for chains like
@@ -261,6 +266,9 @@ void remove_redundant_reorders::run(program& p) {
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
                 r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
+        // Do not opt out result reorder of Loop body network
+        no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
+
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
             r_node.get_primitive()->has_surface_input())
@@ -351,8 +359,11 @@ void remove_redundant_reorders::run(program& p) {
                 !user->has_fused_primitives()) {
                 auto l1 = node->get_output_layout();
                 auto l2 = user->get_output_layout();
+                // in multiple outputs, remove redundant reorder is only allowed for same output port idx
+                auto l1_port_idx = node->get_dependency_with_port(0).second;
+                auto l2_port_idx = user->get_dependency_with_port(0).second;
 
-                if (l1.identical(l2))
+                if (l1.identical(l2) && (l1_port_idx == l2_port_idx))
                     r_nodes_to_remove.push_back(user);
             }
         }
@@ -407,6 +418,11 @@ void remove_redundant_reorders::run(program& p) {
             if (!lo.can_fuse_reorder_to_prev(input, node, input.get_output_layout().format, output_layout.format))
                 continue;
 
+            // Do not opt out result reorder of Loop body network
+            bool is_loop_body_network_output = (node.get_program().is_body_program() && node.is_output());
+            if (is_loop_body_network_output)
+                continue;
+
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
             if (input.type()->does_possible_implementation_exist(input)) {
@@ -454,7 +470,7 @@ void remove_redundant_reorders::run(program& p) {
         if (!quantize_opt && !convert_color_opt)
             continue;
 
-        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
+        auto same_data_type = node.get_input_layout().data_type == node.get_output_layout().data_type;
         if (!same_data_type && !convert_color_opt)
             continue;
 

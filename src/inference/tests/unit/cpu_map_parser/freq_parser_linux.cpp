@@ -4,9 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/test_common.hpp>
-
-#include "ie_system_conf.h"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
@@ -967,6 +966,22 @@ LinuxCpuMapTestCase freq_1sockets_4cores = {
     {},
 };
 
+LinuxCpuMapTestCase freq_1sockets_4cores_2 = {
+    0,
+    0,
+    0,
+    0,
+    {},
+    {},
+    {
+        {"0-3", "-1", "1848000"},
+        {"0-3", "-1", "1848000"},
+        {"0-3", "-1", "1848000"},
+        {"0-3", "-1", "1848000"},
+    },
+    {},
+};
+
 TEST_P(LinuxCpuMapFreqParserTests, LinuxFreq) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
@@ -986,7 +1001,8 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          freq_1sockets_12cores_hyperthreading,
                                          freq_1sockets_8cores_hyperthreading,
                                          freq_1sockets_8cores_hyperthreading_1,
-                                         freq_1sockets_4cores));
+                                         freq_1sockets_4cores,
+                                         freq_1sockets_4cores_2));
 
 #endif
 }  // namespace

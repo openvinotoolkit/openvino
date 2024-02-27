@@ -4,17 +4,15 @@
 
 #include "memory_formats_attribute.hpp"
 
-#include <ngraph/node.hpp>
-#include <ngraph/opsets/opset1.hpp>
-
-using namespace ngraph;
+#include "openvino/core/node.hpp"
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 InputMemoryFormats::~InputMemoryFormats() = default;
 
-std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+std::string getInputMemoryFormats(const std::shared_ptr<ov::Node>& node) {
     auto it_info = node->get_rt_info().find(InputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
         if (it_info->second.is<InputMemoryFormats>()) {
@@ -26,7 +24,7 @@ std::string getInputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
 
 OutputMemoryFormats::~OutputMemoryFormats() = default;
 
-std::string getOutputMemoryFormats(const std::shared_ptr<ngraph::Node>& node) {
+std::string getOutputMemoryFormats(const std::shared_ptr<ov::Node>& node) {
     auto it_info = node->get_rt_info().find(OutputMemoryFormats::get_type_info_static());
     if (it_info != node->get_rt_info().end()) {
         if (it_info->second.is<OutputMemoryFormats>()) {

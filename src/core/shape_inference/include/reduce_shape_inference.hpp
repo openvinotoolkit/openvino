@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "utils.hpp"
@@ -60,9 +59,7 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
     const auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
     if (data_rank.is_static() && axes_val) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ov::normalize_axes(op, data_rank.get_length(), *axes_val);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        ov::util::normalize_axes(op, data_rank.get_length(), *axes_val);
 
         output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
     } else {

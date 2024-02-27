@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -442,3 +442,23 @@ def range(
             "output_type": output_type,
         },
     )
+
+
+@nameable_op
+def scatter_nd_update(
+    data: NodeInput,
+    indices: NodeInput,
+    updates: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs ScatterNDUpdate.
+
+    :param data: Node input representing the tensor to be updated.
+    :param indices: Node input representing the indices at which updates will be applied.
+    :param updates: Node input representing the updates to be applied.
+    :param name: Optional name for the output node.
+    :return: New node performing the ScatterNDUpdate.
+    """
+    inputs = as_nodes(data, indices, updates)
+
+    return _get_node_factory_opset4().create("ScatterNDUpdate", inputs, {})

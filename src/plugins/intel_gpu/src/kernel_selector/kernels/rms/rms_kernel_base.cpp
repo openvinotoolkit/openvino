@@ -6,8 +6,8 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-bool RMSKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (!KernelBaseOpenCL::Validate(p, o))
+bool RMSKernelBase::Validate(const Params& p) const {
+    if (!KernelBaseOpenCL::Validate(p))
         return false;
 
     const rms_params& params = static_cast<const rms_params&>(p);
@@ -37,21 +37,7 @@ RMSKernelBase::DispatchData RMSKernelBase::SetDefault(const rms_params& params) 
     return dispatchData;
 }
 
-KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::RMS);
-
-    if (!Validate(params, options))
-        return {};
-
-    const rms_params& orgParams = static_cast<const rms_params&>(params);
-    auto dispatchData = SetDefault(orgParams);
-
-    KernelData kd = KernelData::Default<rms_params>(params);
-
-    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
-    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
+void RMSKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const rms_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -60,6 +46,24 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params, const opti
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
+}
+
+KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
+    assert(params.GetType() == KernelType::RMS);
+
+    if (!Validate(params))
+        return {};
+
+    const rms_params& orgParams = static_cast<const rms_params&>(params);
+    auto dispatchData = SetDefault(orgParams);
+
+    KernelData kd = KernelData::Default<rms_params>(params);
+
+    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -74,7 +78,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params, const opti
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }

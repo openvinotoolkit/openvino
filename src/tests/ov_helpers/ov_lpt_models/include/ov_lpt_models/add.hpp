@@ -5,8 +5,8 @@
 #pragma once
 
 #include <memory>
-#include <ngraph/ngraph.hpp>
-#include <low_precision/layer_transformation.hpp>
+
+#include "low_precision/layer_transformation.hpp"
 
 #include "elementwise.hpp"
 #include "ov_lpt_models/common/builders.hpp"
@@ -14,16 +14,16 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 class AddActualValues {
 public:
-    ngraph::element::Type precision1;
+    ov::element::Type precision1;
     std::vector<float> subtractValues1;
     std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
+    ov::element::Type precision2;
     std::vector<float> subtractValues2;
     std::vector<float> mutliplyValues2;
 };
@@ -40,10 +40,10 @@ inline std::ostream& operator<<(std::ostream& out, const AddActualValues& values
 
 class AddExpectedValues {
 public:
-    ngraph::element::Type precision1;
+    ov::element::Type precision1;
     std::vector<float> subtractValues1;
     std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
+    ov::element::Type precision2;
     std::vector<float> mutliplyValuesAfter;
 };
 
@@ -58,39 +58,39 @@ inline std::ostream& operator<<(std::ostream& out, const AddExpectedValues& valu
 
 class AddFunction : public ElementwiseFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::PartialShape& inputShape2,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape1,
+        const ov::PartialShape& inputShape2,
         const bool broadcast,
         const ov::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::element::Type& precision1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
-        const ngraph::element::Type& precision2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
+        const ov::element::Type& precision1,
+        const ov::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::element::Type& precision2,
+        const ov::builder::subgraph::DequantizationOperations& dequantization2,
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
         const std::string& postops_configuration = "");
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape,
+    static std::shared_ptr<ov::Model> getOriginal(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape,
         const bool broadcast,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData1,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData2);
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData1,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData2);
 
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::PartialShape& inputShape1,
-        const ngraph::PartialShape& inputShape2,
+    static std::shared_ptr<ov::Model> getReference(
+        const ov::element::Type precision,
+        const ov::PartialShape& inputShape1,
+        const ov::PartialShape& inputShape2,
         const bool broadcast,
         const ov::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::element::Type& precision1,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization1,
-        const ngraph::element::Type& precision2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization2,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const ov::element::Type& precision1,
+        const ov::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::element::Type& precision2,
+        const ov::builder::subgraph::DequantizationOperations& dequantization2,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
@@ -100,4 +100,4 @@ public:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

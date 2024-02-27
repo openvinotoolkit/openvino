@@ -17,10 +17,6 @@ struct experimental_detectron_topk_roi_params : public base_params {
     size_t max_rois = 0; // maximal numbers of output ROIs.
 };
 
-struct experimental_detectron_topk_roi_optional_params : public optional_params {
-    experimental_detectron_topk_roi_optional_params() : optional_params(KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {}
-};
-
 /**
  * Reference GPU kernel for the ExperimentalDetectronTopKROIs-6 operation to set output by indices sorted before.
  */
@@ -31,11 +27,11 @@ public:
 private:
     virtual JitConstants GetJitConstants(const experimental_detectron_topk_roi_params &params) const;
 
-    KernelsData GetKernelsData(const Params &params, const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
+    KernelsPriority GetKernelsPriority(const Params &params) const override;
 
-    bool Validate(const Params &params, const optional_params &optionalParams) const override;
+    bool Validate(const Params &params) const override;
 
     ParamsKey GetSupportedKey() const override;
 };

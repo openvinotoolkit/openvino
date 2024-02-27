@@ -3,8 +3,7 @@
 //
 
 #include "preprocessing/yuv_to_grey_tests.hpp"
-#include "shared_test_classes/single_layer/convert_color_i420.hpp"
-#include "shared_test_classes/single_layer/convert_color_nv12.hpp"
+#include "shared_test_classes/base/utils/generate_inputs.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -167,7 +166,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_single_plane_i420_use_opencv) {
     // Test various possible r/g/b values within dimensions
     const auto input_yuv_shape = Shape{1, get_full_height() * 3 / 2, width, 1};
     const auto input_y_shape = Shape{1, get_full_height(), width, 1};
-    auto ov20_input_yuv = LayerTestsDefinitions::I420TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::I420_SINGLE_PLANE);
     auto ov20_input_y =
         std::vector<uint8_t>(ov20_input_yuv.begin(), ov20_input_yuv.begin() + shape_size(input_y_shape));
 
@@ -188,8 +187,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_three_plane_i420_use_opencv) {
     const auto input_y_shape = Shape{1, get_full_height(), width, 1};
     const auto input_u_shape = Shape{1, get_full_height() / 2, width / 2, 1};
     const auto input_v_shape = Shape{1, get_full_height() / 2, width / 2, 1};
-    // const auto input_uv_shape = Shape{1, get_full_height() / 2, width / 2, 2};
-    auto ov20_input_yuv = LayerTestsDefinitions::I420TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::I420_THREE_PLANES);
 
     auto input_yuv_iter = ov20_input_yuv.begin();
     auto ov20_input_y = std::vector<uint8_t>(input_yuv_iter, input_yuv_iter + shape_size(input_y_shape));
@@ -218,7 +216,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_single_plane_nv12_use_opencv) {
     // Test various possible r/g/b values within dimensions
     const auto input_yuv_shape = Shape{1, get_full_height() * 3 / 2, width, 1};
     const auto input_y_shape = Shape{1, get_full_height(), width, 1};
-    auto ov20_input_yuv = LayerTestsDefinitions::NV12TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::NV12_SINGLE_PLANE);
     auto ov20_input_y =
         std::vector<uint8_t>(ov20_input_yuv.begin(), ov20_input_yuv.begin() + shape_size(input_y_shape));
 
@@ -238,7 +236,7 @@ TEST_P(PreprocessingYUV2GreyTest, convert_two_plane_nv12_use_opencv) {
     // Test various possible r/g/b values within dimensions
     const auto input_y_shape = Shape{1, get_full_height(), width, 1};
     const auto input_uv_shape = Shape{1, get_full_height() / 2, width / 2, 2};
-    auto ov20_input_yuv = LayerTestsDefinitions::NV12TestUtils::color_test_image(height, width, b_step);
+    auto ov20_input_yuv = ov::test::utils::color_test_image(height, width, b_step, ColorFormat::NV12_TWO_PLANES);
 
     auto input_yuv_iter = ov20_input_yuv.begin();
     auto ov20_input_y = std::vector<uint8_t>(input_yuv_iter, input_yuv_iter + shape_size(input_y_shape));

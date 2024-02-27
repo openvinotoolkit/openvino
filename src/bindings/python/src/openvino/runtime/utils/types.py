@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and openvino types."""
@@ -36,6 +36,10 @@ openvino_to_numpy_types_map = [
     (Type.u32, np.uint32),
     (Type.u64, np.uint64),
     (Type.bf16, np.uint16),
+    (Type.string, str),
+    (Type.string, np.str_),
+    (Type.string, bytes),
+    (Type.string, np.bytes_),
 ]
 
 openvino_to_numpy_types_str_map = [
@@ -52,6 +56,10 @@ openvino_to_numpy_types_str_map = [
     ("u16", np.uint16),
     ("u32", np.uint32),
     ("u64", np.uint64),
+    ("string", str),
+    ("string", np.str_),
+    ("string", bytes),
+    ("string", np.bytes_),
 ]
 
 

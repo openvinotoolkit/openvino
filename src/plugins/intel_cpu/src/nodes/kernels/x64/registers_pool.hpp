@@ -5,9 +5,8 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
-#include <dnnl_types.h>
-#include "ie_common.h"
 #include "utils/cpu_utils.hpp"
+#include "dnnl_types.h"
 #include <utility>
 
 namespace ov {
@@ -74,7 +73,7 @@ public:
     private:
         void ensureValid() const {
             if (!isInitialized()) {
-                IE_THROW() << "RegistersPool::Reg is either not initialized or released";
+                OPENVINO_THROW("RegistersPool::Reg is either not initialized or released");
             }
         }
 
@@ -125,20 +124,20 @@ protected:
 
         void setAsUsed(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size()) {
-                IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
+                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
             }
             if (!isFreeIndexVector[regIdx]) {
-                IE_THROW() << "Inconsistency in RegistersPool::PhysicalSet::setAsUsed()";
+                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUsed()");
             }
             isFreeIndexVector[regIdx] = false;
         }
 
         void setAsUnused(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size()) {
-                IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
+                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
             }
             if (isFreeIndexVector[regIdx]) {
-                IE_THROW() << "Inconsistency in RegistersPool::PhysicalSet::setAsUnused()";
+                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUnused()");
             }
             isFreeIndexVector[regIdx] = true;
         }
@@ -148,10 +147,10 @@ protected:
                 return getFirstFreeIndex();
             } else {
                 if (requestedIdx >= isFreeIndexVector.size()) {
-                    IE_THROW() << "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()";
+                    OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
                 }
                 if (!isFreeIndexVector[requestedIdx]) {
-                    IE_THROW() << "The register with index #" << requestedIdx << " already used in the RegistersPool";
+                    OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
                 }
                 return requestedIdx;
             }
@@ -178,16 +177,16 @@ protected:
                     return c;
                 }
             }
-            IE_THROW() << "Not enough registers in the RegistersPool";
+            OPENVINO_THROW("Not enough registers in the RegistersPool");
         }
 
     private:
         std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask(int requestedIdx) { IE_THROW() << "getFreeOpmask: The Opmask is not supported in current instruction set"; }
-    virtual void returnOpmaskToPool(int idx) { IE_THROW() << "returnOpmaskToPool: The Opmask is not supported in current instruction set"; }
-    virtual size_t countUnusedOpmask() const { IE_THROW() << "countUnusedOpmask: The Opmask is not supported in current instruction set"; }
+    virtual int getFreeOpmask(int requestedIdx) { OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set"); }
+    virtual void returnOpmaskToPool(int idx) { OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set"); }
+    virtual size_t countUnusedOpmask() const { OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set"); }
 
     RegistersPool(int simdRegistersNumber)
             : simdSet(simdRegistersNumber) {
@@ -245,7 +244,7 @@ private:
         static thread_local bool isCreated = false;
         if (isCtor) {
             if (isCreated) {
-                IE_THROW() << "There should be only one instance of RegistersPool per thread";
+                OPENVINO_THROW("There should be only one instance of RegistersPool per thread");
             }
             isCreated = true;
         } else {
@@ -340,9 +339,9 @@ RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t isa, st
         case dnnl::impl::cpu::x64::amx_fp16:
         case dnnl::impl::cpu::x64::avx512_core_amx_fp16:
         case dnnl::impl::cpu::x64::isa_all:
-            IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+            OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
         }
-    IE_THROW() << "Invalid isa argument in RegistersPool::create()";
+    OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
 #undef ISA_SWITCH_CASE
 }
 

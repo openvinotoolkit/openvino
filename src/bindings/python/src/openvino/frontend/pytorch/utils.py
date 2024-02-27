@@ -1,5 +1,5 @@
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -99,14 +99,27 @@ def get_value_from_getattr(getattr_node, self_module):
             break
         getattr_node = inputs[0].node()
     module = self_module
+    path_name = "self"
     while len(stack) > 0:
         node = stack.pop()
         attr_name = node.s("name")
         assert hasattr(
             module, attr_name), f"No attribute with name \"{attr_name}\" found in module."
+        path_name = ".".join([path_name, attr_name])
         module = getattr(module, attr_name)
-    return module
+    return module, path_name
 
+def graph_has_ops(graph, op_types:list) -> bool:
+    res = False
+    for n in graph.nodes():
+        if any(kind in n.kind() for kind in op_types):
+            return True
+        for b in n.blocks():
+            res = graph_has_ops(b, op_types)
+        if res:
+            return res
+    return res
+    
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
@@ -118,13 +131,19 @@ pt_to_ov_type_map = {
     "torch.float64": OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
+    "torch.int16": OVType.i16,
     "torch.int32": OVType.i32,
     "torch.int64": OVType.i64,
     "torch.bool": OVType.boolean,
     "torch.DoubleTensor": OVType.f64,
     "torch.FloatTensor": OVType.f32,
+    "torch.HalfTensor": OVType.f16,
+    "torch.BFloat16Tensor": OVType.bf16,
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
+    "torch.ShortTensor": OVType.i16,
+    "torch.CharTensor": OVType.i8,
+    "torch.ByteTensor": OVType.u8,
     "torch.BoolTensor": OVType.boolean,
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,

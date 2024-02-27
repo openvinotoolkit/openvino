@@ -3,7 +3,7 @@
 //
 
 #include "ref_opt_transpose.hpp"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,8 +17,8 @@ struct TransposeContext {
 
 template <typename T>
 void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
+    const auto src_data = srcMemPtr->getDataAs<const T>();
+    auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -42,8 +42,8 @@ void transpose_to_0312(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dst
 
 template<typename T>
 void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
+    const auto src_data = srcMemPtr->getDataAs<const T>();
+    auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -70,8 +70,8 @@ void transpose_to_04123(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& ds
 
 template<typename T>
 void transpose_to_051234(const int MB, const MemoryCPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
-    const auto src_data = reinterpret_cast<const T*>(srcMemPtr->getData());
-    auto dst_data = reinterpret_cast<T*>(dstMemPtr->getData());
+    const auto src_data = srcMemPtr->getDataAs<const T>();
+    auto dst_data = dstMemPtr->getDataAs<T>();
 
     const int DIM1 = srcMemPtr->getStaticDims()[1];
     const int DIM2 = srcMemPtr->getStaticDims()[2];
@@ -113,18 +113,19 @@ struct TransposeOptimizedEmitter {
                 transpose_to_051234<T>(ctx.MB, ctx.srcMemPtr, ctx.dstMemPtr);
                 break;
             default:
-                IE_THROW() << "Transpose supports optimized execution with only 4D, 5D and 6D shapes";
+                OPENVINO_THROW("Transpose supports optimized execution with only 4D, 5D and 6D shapes");
         }
     }
 };
 }   // namespace
-void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) {
+void RefOptimizedTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const size_t dataSize = src[0]->getDesc().getPrecision().size();
+    const int MB = src[0]->getStaticDims()[0];
     TransposeContext ctx = {src[0], dst[0], MB};
     OV_SWITCH(intel_cpu, TransposeOptimizedEmitter, ctx, dataSize,
-              OV_CASE(1u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U8>::value_type),
-              OV_CASE(2u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::U16>::value_type),
-              OV_CASE(4u, InferenceEngine::PrecisionTrait<InferenceEngine::Precision::I32>::value_type));
+              OV_CASE(1u, element_type_traits<ov::element::u8>::value_type),
+              OV_CASE(2u, element_type_traits<ov::element::u16>::value_type),
+              OV_CASE(4u, element_type_traits<ov::element::i32>::value_type));
 }
 
 bool RefOptimizedTransposeExecutor::init(const TransposeParams &transposeParams,

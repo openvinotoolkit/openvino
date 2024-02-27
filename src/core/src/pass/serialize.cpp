@@ -22,13 +22,13 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {
@@ -89,7 +89,7 @@ class ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::unordered_map<HashValue, std::pair<FilePosition, void const*>>;
+    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, void const*>>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true)
         : m_binary_output(bin_data),
@@ -105,56 +105,53 @@ public:
         const auto offset = write_pos - m_blob_offset;
         *new_size = size;
 
-        if (!m_enable_compression || compress_to_fp16) {
-            write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
+        if (!m_enable_compression) {
+            if (!compress_to_fp16) {
+                m_binary_output.write(ptr, size);
+            } else {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+                m_binary_output.write(fp16_buffer.get(), *new_size);
+            }
             return offset;
+        } else {
+            std::unique_ptr<char[]> fp16_buffer = nullptr;
+            if (compress_to_fp16) {
+                OPENVINO_ASSERT(size % src_type.size() == 0);
+                fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
+            }
+            const char* ptr_to_write;
+            if (fp16_buffer) {
+                ptr_to_write = fp16_buffer.get();
+            } else {
+                ptr_to_write = ptr;
+            }
+
+            // This hash is weak (but efficient). For example current hash algorithms gives
+            // the same hash for {2, 2} and {0, 128} arrays.
+            // But even strong hashing algorithms sometimes give collisions.
+            // Therefore we always have to compare values when finding a match in the hash multimap.
+            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            auto found = m_hash_to_file_positions.find(hash);
+            // iterate over all matches of the key in the multimap
+            while (found != m_hash_to_file_positions.end()) {
+                if (memcmp(ptr, found->second.second, size) == 0)
+                    return found->second.first;
+                found++;
+            }
+            // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the ostream,
+            // we store pointer to the original uncompressed blob.
+            m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
+            m_binary_output.write(ptr_to_write, *new_size);
         }
-        // TODO: Find a way to keep both types of compression (m_enable_compression and compress_to_fp16)
-        // simultaneously. Disabled usual compression by m_enable_compression for those constants that are requested to
-        // be compressed by compress_to_fp16 for now. To implement both compression types applied simultaneously
-        // we need to save element_type for each constant in the cache together with the compression status
-        // that implies a wider impact and requires a more accurate implementation of cache handling.
-        // When FP16 compression is turned on together with the usual compression enabled by m_enable_compression, we
-        // can avoid comparing FP32 weights, but it would require comparing with data from a file, because on-the-fly
-        // converted FP16 constants are not kept in memory.
-
-        // This hash is weak (but efficient) and must be replace with some other
-        // more stable hash algorithm. For example current hash algorithms gives
-        // the same hash for {2, 2} and {0, 128} arrays. So we have to compare
-        // values when finding a match in hash map.
-        const HashValue hash = hash_combine(ptr, size);
-        const auto found = m_hash_to_file_positions.find(hash);
-        if (found != end(m_hash_to_file_positions) &&
-            memcmp(static_cast<void const*>(ptr), found->second.second, size) == 0) {
-            return found->second.first;
-        }
-
-        write_with_optional_fp16_compression(ptr, size, new_size, compress_to_fp16, src_type);
-        m_hash_to_file_positions.insert({hash, {offset, static_cast<void const*>(ptr)}});
-
         return offset;
     }
 
 private:
-    void write_with_optional_fp16_compression(const char* ptr,
-                                              size_t size,
-                                              size_t* new_size,
-                                              bool compress_to_fp16 = false,
-                                              ov::element::Type src_type = ov::element::dynamic) {
-        if (!compress_to_fp16) {
-            m_binary_output.write(ptr, size);
-        } else {
-            OPENVINO_ASSERT(size % src_type.size() == 0);
-            auto fp16_buffer = compress_data_to_fp16(ptr, size, src_type, new_size);
-            m_binary_output.write(fp16_buffer.get(), *new_size);
-            // Compressed data is disposed
-        }
-    }
-
-    std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
-                                                  size_t size,
-                                                  ov::element::Type src_type,
-                                                  size_t* compressed_size) {
+    static std::unique_ptr<char[]> compress_data_to_fp16(const char* ptr,
+                                                         size_t size,
+                                                         ov::element::Type src_type,
+                                                         size_t* compressed_size) {
         auto num_src_elements = size / src_type.size();
         *compressed_size = num_src_elements * ov::element::f16.size();
         if (src_type == ov::element::f32) {
@@ -195,7 +192,6 @@ private:
 
 void ngfunction_2_ir(pugi::xml_node& node,
                      const ov::Model& model,
-                     const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
                      int64_t version,
                      bool deterministic);
@@ -306,7 +302,6 @@ public:
 class XmlSerializer : public ov::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     const std::string& m_node_type_name;
-    const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
     int64_t m_version;
     bool m_deterministic;
@@ -426,7 +421,6 @@ class XmlSerializer : public ov::AttributeVisitor {
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler,
                   int64_t version,
                   bool deterministic = false,
@@ -434,7 +428,6 @@ public:
                   ov::element::Type output_element_type = ov::element::dynamic)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
-          m_custom_opsets(custom_opsets),
           m_constant_write_handler(constant_write_handler),
           m_version(version),
           m_deterministic(deterministic),
@@ -519,17 +512,52 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-        } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+        } else if (ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                &new_size,
+                auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+                auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+                size_t new_size = 0;
+                size_t inter_size = 0;
+                // write a header of packed string tensor
+                std::shared_ptr<uint8_t> header_ptr = nullptr;
+                size_t header_size = 0;
+                if (a1) {
+                    a1->get_header(header_ptr, header_size);
+                } else {
+                    a2->get_header(header_ptr, header_size);
+                }
+
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                header_size,
+                                                                &inter_size,
                                                                 m_compress_to_fp16,
                                                                 m_output_element_type);
+                new_size += inter_size;
 
+                // write raw strings part
+                size_t num_elements = 0;
+                if (a1) {
+                    num_elements = a1->get()->get_num_elements();
+                } else {
+                    num_elements = a2->get()->get_num_elements();
+                }
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    const char* raw_string_ptr;
+                    size_t raw_string_size;
+                    if (a1) {
+                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    } else {
+                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    }
+
+                    m_constant_write_handler.write(raw_string_ptr,
+                                                   raw_string_size,
+                                                   &inter_size,
+                                                   m_compress_to_fp16,
+                                                   m_output_element_type);
+                    new_size += inter_size;
+                }
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
@@ -629,21 +657,11 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(xml_body, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(m_xml_node, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
         } else {
             OPENVINO_THROW("Unsupported Model name.");
         }
@@ -689,33 +707,19 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
     return edges;
 }
 
-std::string get_opset_name(const ov::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // Try to find opset name from RT info
+    // TODO: remove it one day: try to find opset name from RT info
+    // It's a dirty hack to TypeRelaxed and similar template internal operations
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
-            const std::string& opset_name = opset_it->second.as<std::string>();
-            if (custom_opsets.find(opset_name) != custom_opsets.end()) {
-                return opset_name;
-            }
+            return opset_it->second.as<std::string>();
         }
     }
 
-    if (n->get_type_info().version_id != nullptr) {
-        return n->get_type_info().version_id;
-    }
-
-    for (const auto& custom_opset : custom_opsets) {
-        std::string name = custom_opset.first;
-        ngraph::OpSet opset = custom_opset.second;
-        if (opset.contains_op_type(n)) {
-            return name;
-        }
-    }
-
-    return "experimental";
+    return n->get_type_info().version_id == nullptr ? "experimental" : n->get_type_info().version_id;
 }
 
 std::string get_precision_name(const ov::element::Type& elem_type) {
@@ -757,6 +761,12 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BOOL";
     case ::ov::element::Type_t::nf4:
         return "NF4";
+    case ::ov::element::Type_t::f8e4m3:
+        return "F8E4M3";
+    case ::ov::element::Type_t::f8e5m2:
+        return "F8E5M2";
+    case ::ov::element::Type_t::string:
+        return "STRING";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
@@ -783,11 +793,6 @@ std::string generate_unique_name(const std::unordered_set<std::string>& unique_n
         suffix++;
         return generate_unique_name(unique_names, base_name, suffix);
     }
-}
-
-template <typename T>
-bool is_name_auto_generated(const T& n) {
-    return n.get_friendly_name() == n.get_name();
 }
 
 // TODO: remove when CNNNetwork will be supporting not-unique names
@@ -919,12 +924,12 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ov::Model& model,
-                     const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
                      bool deterministic) {
     // If determinism is not required, include auto-generated names into xml
-    if (!deterministic || !is_name_auto_generated(model)) {
+    // model name is not critical for hash computing
+    if (!deterministic) {
         netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
     netXml.append_attribute("version").set_value(static_cast<long long>(version));
@@ -945,8 +950,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& param : model.get_parameters()) {
             result.emplace_back(param);
         }
+        auto model_sinks = model.get_sinks();
         for (auto&& node : sorted_ops) {
-            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
+            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) &&
+                std::find(model_sinks.begin(), model_sinks.end(), node) == model_sinks.end())
                 result.emplace_back(node);
         }
         for (const auto& sink : model.get_sinks()) {
@@ -967,12 +974,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         // If determinism is not required, include auto-generated names into xml
-        if (!deterministic || !is_name_auto_generated(*node)) {
+        // layer name is not critical for hash computing
+        if (!deterministic) {
             layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
         }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
-            layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
+            layer.append_attribute("version").set_value(get_opset_name(node).c_str());
         }
 
         // <layers/data> general attributes
@@ -1098,7 +1106,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             PaddingsFixer fixed_node(node);
             XmlSerializer visitor(data,
                                   node_type_name,
-                                  custom_opsets,
                                   constant_node_write_handler,
                                   version,
                                   deterministic,
@@ -1172,7 +1179,6 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
@@ -1195,7 +1201,7 @@ void serializeFunc(std::ostream& xml_file,
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(bin_file);
-    XmlSerializer visitor(net_node, name, custom_opsets, constant_write_handler, version, deterministic);
+    XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
     visitor.on_attribute(name, model);
 
     xml_doc.save(xml_file);
@@ -1208,8 +1214,16 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
+
+    // TODO xxx-105807: if rt_info is set in python api as a string ['precise_0'] = '',
+    //  we need to convert value to a class in order to have rt_info in the IR. The code below will convert
+    // ['precise_0'] = '' into => rt_info['precise_0'] = DisableFP16Compression{}
+    for (auto& node : model->get_ops())
+        if (fp16_compression_is_disabled(node))
+            disable_fp16_compression(node);
+
     if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile, model, m_version, m_custom_opsets);
+        serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
         auto xmlDir = ov::util::get_directory(m_xmlPath);
         if (xmlDir != m_xmlPath)
@@ -1223,7 +1237,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
         try {
-            serializeFunc(xml_file, bin_file, model, m_version, m_custom_opsets);
+            serializeFunc(xml_file, bin_file, model, m_version);
         } catch (const ov::AssertFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
@@ -1240,43 +1254,24 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-pass::Serialize::Serialize(std::ostream& xmlFile,
-                           std::ostream& binFile,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-      m_version{version},
-      m_custom_opsets{custom_opsets} {}
+      m_version{version} {}
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ngraph::OpSet>{}, version) {}
-
-pass::Serialize::Serialize(const std::string& xmlPath,
-                           const std::string& binPath,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version},
-      m_custom_opsets{custom_opsets} {}
+      m_version{version} {}
 
-pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ngraph::OpSet>{}, version) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        Serialize::Version version)
     : m_stream(stream),
-      m_custom_opsets(std::move(custom_opsets)),
       m_custom_data_serializer(custom_data_serializer),
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
@@ -1284,12 +1279,6 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
         OPENVINO_THROW("Unsupported version");
     }
 }
-
-pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       Serialize::Version version)
-    : StreamSerialize(stream, {}, custom_data_serializer, version) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
@@ -1334,7 +1323,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
-    XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
+    XmlSerializer visitor(net_node, name, constant_write_handler, version);
     std::shared_ptr<ov::Model> fun = model;
     visitor.on_attribute(name, fun);
 
@@ -1401,7 +1390,7 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::ostream bin(&binHash);
 
     // Determinism is important for hash calculation
-    serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, {}, true);
+    serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, true);
 
     uint64_t seed = 0;
     seed = hash_combine(seed, xmlHash.getResult());

@@ -65,14 +65,8 @@ TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
             return {op};
         });
 
-    auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
-    fe->add_extension(ext);
-
-    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"})));
-
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = fe->convert(input_model));
+    ASSERT_NO_THROW(model = onnx::tests::convert_model("missing_op_domain.onnx", ext));
 
     for (const auto& op : model->get_ops()) {
         if (const auto& add = std::dynamic_pointer_cast<ov::op::v1::Add>(op)) {
@@ -93,12 +87,6 @@ TEST(ONNXConversionExtensionTest, custom_op_with_incorrect_numer_of_outputs_exce
                                                         return {op};
                                                     });
 
-    auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
-    fe->add_extension(ext);
-
-    const auto input_model = fe->load(ov::test::utils::getModelFromTestModelZoo(
-        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"})));
-
     std::shared_ptr<ov::Model> model;
-    ASSERT_THROW(fe->convert(input_model), ov::Exception);
+    ASSERT_THROW(onnx::tests::convert_model("missing_op_domain.onnx", ext), ov::Exception);
 }

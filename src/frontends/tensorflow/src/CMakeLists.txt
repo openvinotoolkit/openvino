@@ -3,6 +3,7 @@
 #
 
 ov_add_frontend(NAME tensorflow
+                PROTOBUF_REQUIRED
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
                 LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)

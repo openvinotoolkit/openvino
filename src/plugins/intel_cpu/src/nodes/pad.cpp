@@ -4,17 +4,15 @@
 
 #include "pad.h"
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
-#include <selective_build.h>
+#include "selective_build.h"
 #include <openvino/op/constant.hpp>
 #include <openvino/op/pad.hpp>
 #include <openvino/core/type/float16.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
-
 
 namespace ov {
 namespace intel_cpu {
@@ -47,22 +45,22 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, PortMask(PADS_BEGIN_ID, PADS_END_ID))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix = NameFromType(getType()) + " node with name '" + getName() + "' ";
     if (inputShapes.size() != 3 && inputShapes.size() != 4)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges";
+        OPENVINO_THROW(errorPrefix, " has incorrect number of input edges");
     if (outputShapes.size() != 1)
-        IE_THROW() << errorPrefix << "Incorrect number of output edges";
+        OPENVINO_THROW(errorPrefix, "Incorrect number of output edges");
 
     const size_t srcDimsRank = inputShapes[DATA_ID].getRank();
     const size_t dstDimsRank = outputShapes[DATA_ID].getRank();
     if (srcDimsRank != dstDimsRank)
-        IE_THROW() << errorPrefix << "has incorrect number of input/output dimensions!";
+        OPENVINO_THROW(errorPrefix, "has incorrect number of input/output dimensions!");
 
     auto pad = ov::as_type<const op::util::PadBase>(op.get());
     if (!pad) {
-        IE_THROW() << errorPrefix << "couldn't be casted to op of opset1";
+        OPENVINO_THROW(errorPrefix, "couldn't be casted to op of opset1");
     }
 
     shapeHasDataDependency = !ov::is_type<op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
@@ -79,7 +77,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
                 parameter.push_back(value);
             }
             if (parameter.size() != srcDimsRank)
-                IE_THROW() << errorPrefix << "has incorrect number of input/output dimensions!";
+                OPENVINO_THROW(errorPrefix, "has incorrect number of input/output dimensions!");
         }
     };
 
@@ -93,7 +91,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         if (isPadValueSpecified && op->get_input_node_shared_ptr(PAD_VALUE_ID)->get_type_info() ==
                                        ov::op::v0::Constant::get_type_info_static()) {
             if (!ov::is_scalar(pad->get_input_shape(PAD_VALUE_ID)))
-                IE_THROW() << errorPrefix << "has non scalar 'pad_value' input";
+                OPENVINO_THROW(errorPrefix, "has non scalar 'pad_value' input");
             attrs.padValue =
                 ov::as_type_ptr<const op::v0::Constant>(pad->get_input_node_shared_ptr(PAD_VALUE_ID))
                     ->cast_vector<float>()[0];
@@ -106,7 +104,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     } else if (pad_mode == op::PadMode::SYMMETRIC) {
         attrs.padMode = SYMMETRIC;
     } else {
-        IE_THROW() << errorPrefix << "has unsupported pad_mode: " + ov::as_string(pad_mode);
+        OPENVINO_THROW(errorPrefix, "has unsupported pad_mode: " + ov::as_string(pad_mode));
     }
 }
 
@@ -116,12 +114,11 @@ void Pad::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    std::vector<InferenceEngine::Precision> supportedPrecisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I32,
-                                                                   InferenceEngine::Precision::BF16, InferenceEngine::Precision::FP16,
-                                                                   InferenceEngine::Precision::I8, InferenceEngine::Precision::U8};
-    InferenceEngine::Precision precision = getOriginalInputPrecisionAtPort(DATA_ID);
+    std::vector<ov::element::Type> supportedPrecisions =
+        {ov::element::f32, ov::element::i32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8};
+    ov::element::Type precision = getOriginalInputPrecisionAtPort(DATA_ID);
     if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), precision) == supportedPrecisions.end())
-        precision = precision.is_float() ? InferenceEngine::Precision::FP32 : InferenceEngine::Precision::I32;
+        precision = precision.is_real() ? ov::element::f32 : ov::element::i32;
 
     const auto& inputDataShape = getInputShapeAtPort(DATA_ID);
     const size_t numOfDims = inputDataShape.getRank();
@@ -133,10 +130,10 @@ void Pad::initSupportedPrimitiveDescriptors() {
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto pushSupportedPrimitiveDescriptor = [&](LayoutType memoryFormat) {
         config.inConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getInputShapeAtPort(DATA_ID)));
-        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_BEGIN_ID)));
-        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::I32, getInputShapeAtPort(PADS_END_ID)));
+        config.inConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_BEGIN_ID)));
+        config.inConfs[2].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getInputShapeAtPort(PADS_END_ID)));
         if (isPadValueSpecified)
-            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(Precision::FP32, getInputShapeAtPort(PAD_VALUE_ID)));
+            config.inConfs[3].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, getInputShapeAtPort(PAD_VALUE_ID)));
 
         config.outConfs[0].setMemDesc(creatorsMap.at(memoryFormat)->createSharedDesc(precision, getOutputShapeAtPort(DATA_ID)));
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref});
@@ -179,11 +176,11 @@ bool Pad::needPrepareParams() const {
 void Pad::createPrimitive() {
     if (srcMemory.empty()) {
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
     }
     if (dstMemory.empty()) {
-        dstMemory.push_back(getChildEdgeAt(0)->getMemoryPtr());
+        dstMemory.push_back(getDstMemoryAtPort(0));
     }
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         prepareParams();
@@ -221,9 +218,9 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     auto& srcMemPtr = srcMemory[DATA_ID];
     auto& dstMemPtr = dstMemory[DATA_ID];
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << "has not allocated source memory.";
+        OPENVINO_THROW(errorPrefix, "has not allocated source memory.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << errorPrefix << "has not allocated destination memory.";
+        OPENVINO_THROW(errorPrefix, "has not allocated destination memory.");
     const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();
@@ -236,7 +233,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
 
     auto fillingInParameters =
         [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
-            const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->getData());
+            const int* ptr = srcMemory[type]->getDataAs<const int32_t>();
             parameter.resize(size);
             for (size_t i = 0; i < size; i++) {
                 parameter[i] = static_cast<int>(ptr[i]);
@@ -248,7 +245,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     if (params.attrs.padsEnd.empty())
         fillingInParameters(params.attrs.padsEnd, PADS_END_ID, srcDims.size(), 0);
     if (!params.attrs.constPadValue)
-        params.attrs.padValue = reinterpret_cast<const float*>(srcMemory[PAD_VALUE_ID]->getData())[0];
+        params.attrs.padValue = srcMemory[PAD_VALUE_ID]->getDataAs<const float>()[0];
     // pads are constant, so we can calculate new collapsing pads for first target dimensions and use it for the next
     // dimensions to avoid permanent identical pad calculations
     const size_t blockSize = srcMemPtr->getDesc().hasLayoutType(LayoutType::nCsp16c)
@@ -389,9 +386,9 @@ void Pad::PadExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemP
 
 void Pad::execute(dnnl::stream strm) {
     if (!execPtr)
-        IE_THROW() << errorPrefix << "has not compiled executor.";
+        OPENVINO_THROW(errorPrefix, "has not compiled executor.");
 
-    execPtr->exec(getParentEdgeAt(0)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+    execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0));
 }
 
 void Pad::executeDynamicImpl(dnnl::stream strm) {
@@ -427,17 +424,17 @@ void Pad::PadExecutor::padConstant(const MemoryPtr& srcMemPtr, const MemoryPtr& 
               PadConstantEmitter,
               ctx,
               params.attrs.prc,
-              OV_CASE(InferenceEngine::Precision::FP32, float),
-              OV_CASE(InferenceEngine::Precision::I32, int32_t),
-              OV_CASE(InferenceEngine::Precision::BF16, bfloat16_t),
-              OV_CASE(InferenceEngine::Precision::FP16, ov::float16),
-              OV_CASE(InferenceEngine::Precision::I8, int8_t),
-              OV_CASE(InferenceEngine::Precision::U8, uint8_t));
+              OV_CASE(ov::element::f32, float),
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::bf16, bfloat16_t),
+              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::i8, int8_t),
+              OV_CASE(ov::element::u8, uint8_t));
 }
 
 template <typename T>
 void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    T* dstData = reinterpret_cast<T*>(dstMemPtr->getData());
+    T* dstData = dstMemPtr->getDataAs<T>();
     const T value = static_cast<T>(params.attrs.padValue);
     if (zeroInputDimsCase) {
         const auto workAmount = dstMemPtr->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
@@ -448,7 +445,7 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
         return;
     }
 
-    const T* srcData = reinterpret_cast<const T*>(srcMemPtr->getData());
+    const T* srcData = srcMemPtr->getDataAs<const T>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -486,8 +483,8 @@ void Pad::PadExecutor::padConstantCommon(const MemoryPtr& srcMemPtr, const Memor
 }
 
 void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -527,8 +524,8 @@ void Pad::PadExecutor::padConstantZero(const MemoryPtr& srcMemPtr, const MemoryP
 }
 
 void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -568,8 +565,8 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
 }
 
 void Pad::PadExecutor::padReflectOrSymmetric(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const bool isSymmetric) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemPtr->getData());
+    const uint8_t* srcData = srcMemPtr->getDataAs<const uint8_t>();
+    uint8_t* dstData = dstMemPtr->getDataAs<uint8_t>();
     const size_t shift = isSymmetric ? 1 : 0;
     const size_t endSrcShift = (params.srcDimsForReflectOrSymmetric[params.nDimsForWork] - params.srcODims[params.nDimsForWork]) * params.shift;
 

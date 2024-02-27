@@ -3,153 +3,95 @@
 //
 #include "serialize.h"
 
-#include <openvino/pass/serialize.hpp>
-
 #include <pugixml.hpp>
 
-using namespace InferenceEngine;
+#include "openvino/pass/serialize.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
-namespace {
-    std::string to_string(InferenceEngine::Layout layout) {
-        std::stringstream ss;
-        ss << layout;
-        return ss.str();
+
+static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
+    pugi::xml_node outputs = root.child("outputs");
+    auto nodes_it = outputs.children("out").begin();
+    size_t size = model->outputs().size();
+    for (size_t i = 0; i < size; ++nodes_it, i++) {
+        std::string name = nodes_it->attribute("name").value();
+        if (name.empty())
+            continue;
+        auto result = model->output(i).get_node_shared_ptr();
+        ov::descriptor::set_ov_tensor_legacy_name(result->input_value(0).get_tensor(), name);
     }
-
-    InferenceEngine::Layout layout_from_string(const std::string & name) {
-        static const std::unordered_map<std::string, InferenceEngine::Layout> layouts = {
-            { "ANY", InferenceEngine::Layout::ANY },
-            { "NCHW", InferenceEngine::Layout::NCHW },
-            { "NHWC", InferenceEngine::Layout::NHWC },
-            { "NCDHW", InferenceEngine::Layout::NCDHW },
-            { "NDHWC", InferenceEngine::Layout::NDHWC },
-            { "OIHW", InferenceEngine::Layout::OIHW },
-            { "C", InferenceEngine::Layout::C },
-            { "CHW", InferenceEngine::Layout::CHW },
-            { "HWC", InferenceEngine::Layout::HWC },
-            { "HW", InferenceEngine::Layout::HW },
-            { "NC", InferenceEngine::Layout::NC },
-            { "CN", InferenceEngine::Layout::CN },
-            { "BLOCKED", InferenceEngine::Layout::BLOCKED }
-        };
-        auto it = layouts.find(name);
-        if (it != layouts.end()) {
-            return it->second;
-        }
-        IE_THROW(NetworkNotRead) << "Unknown layout with name '" << name << "'";
-    }
-
-    template <typename T>
-    void setInfo(pugi::xml_object_range<pugi::xml_named_node_iterator>&& nodes, T&& info) {
-        auto nodes_it = nodes.begin();
-        auto info_iter = info.begin();
-        for (; nodes_it != nodes.end(); ++nodes_it, ++info_iter) {
-            auto name_attr = nodes_it->attribute("name");
-            auto precision_attr = nodes_it->attribute("precision");
-            auto layout_attr = nodes_it->attribute("layout");
-
-            if (!name_attr || !precision_attr || !layout_attr || info_iter == info.end()) {
-                IE_THROW(NetworkNotRead) << "The inputs/outputs information is invalid.";
-            }
-
-            info_iter->second->setName(name_attr.value());
-            info_iter->second->setPrecision(Precision::FromStr(precision_attr.value()));
-            info_iter->second->setLayout(layout_from_string(layout_attr.value()));
-        }
-    }
-};  // namespace
-
-CNNNetworkSerializer::CNNNetworkSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager)
-    : _ostream(ostream)
-    , _extensionManager(extensionManager) {
 }
 
-void CNNNetworkSerializer::operator << (const CNNNetwork & network) {
-    auto getCustomOpSets = [this]() {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
+ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
 
-        if (_extensionManager) {
-            auto extensions = _extensionManager->Extensions();
-            for (const auto& extension : extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(std::begin(opset), std::end(opset));
-            }
-        }
-
-        return custom_opsets;
-    };
-
-    auto serializeInputsAndOutputs = [&](std::ostream & stream) {
+void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
+    auto serializeInfo = [&](std::ostream& stream) {
         const std::string name = "cnndata";
         pugi::xml_document xml_doc;
         pugi::xml_node root = xml_doc.append_child(name.c_str());
-        pugi::xml_node inputs = root.append_child("inputs");
         pugi::xml_node outputs = root.append_child("outputs");
-
-        for (const auto & in : network.getInputsInfo()) {
-            auto in_node = inputs.append_child("in");
-
-            in_node.append_attribute("name")
-                    .set_value(in.first.c_str());
-            in_node.append_attribute("precision")
-                    .set_value(in.second->getPrecision().name());
-            in_node.append_attribute("layout")
-                    .set_value(to_string(in.second->getLayout()).c_str());
-        }
-
-        for (const auto & out : network.getOutputsInfo()) {
+        for (const auto& out : model->get_results()) {
             auto out_node = outputs.append_child("out");
-            out_node.append_attribute("name")
-                    .set_value(out.first.c_str());
-            out_node.append_attribute("precision")
-                    .set_value(out.second->getPrecision().name());
-            out_node.append_attribute("layout")
-                    .set_value(to_string(out.second->getLayout()).c_str());
+            const std::string name = ov::descriptor::get_ov_tensor_legacy_name(out->input_value(0).get_tensor());
+            out_node.append_attribute("name").set_value(name.c_str());
         }
-
         xml_doc.save(stream);
     };
 
-    // Serialize to old representation in case of old API
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInputsAndOutputs);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(network.getFunction()));
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
+    serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
-CNNNetworkDeserializer::CNNNetworkDeserializer(std::istream & istream, cnn_network_builder fn)
+ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
     : _istream(istream)
-    , _cnn_network_builder(fn) {
+    , _model_builder(fn) {
 }
 
-void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network) {
+void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
 
-    std::string xmlString, xmlInOutString;
-    InferenceEngine::Blob::Ptr dataBlob;
+    std::string xmlString;
+    ov::Tensor dataBlob;
+
+    // get file size before seek content
+    // blob from cache may have other header, skip it
+    const size_t _pos = _istream.tellg();
+    _istream.seekg(0, _istream.end);
+    const size_t file_size = _istream.tellg();
+    _istream.seekg(_pos, _istream.beg);
 
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
-    // read CNNNetwork input/output precisions
+    // check if model header contains valid data
+    bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
+                        (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                        (hdr.model_size = file_size - hdr.model_offset);
+    if (!isValidModel) {
+        OPENVINO_THROW("Failed to read CPU device xml header");
+    }
+    // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
-    xmlInOutString.resize(hdr.custom_data_size);
-    _istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+
     pugi::xml_document xmlInOutDoc;
-    auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
-    if (res.status != pugi::status_ok) {
-        IE_THROW(NetworkNotRead) << "The inputs and outputs information is invalid.";
+    if (hdr.custom_data_size > 0) {
+        std::string xmlInOutString;
+        xmlInOutString.resize(hdr.custom_data_size);
+        _istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+        auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
+        if (res.status != pugi::status_ok) {
+            OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
+        }
     }
 
     // read blob content
     _istream.seekg(hdr.consts_offset);
     if (hdr.consts_size) {
-        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C));
-        dataBlob->allocate();
-        _istream.read(dataBlob->buffer(), hdr.consts_size);
+        dataBlob = ov::Tensor(ov::element::u8, ov::Shape({hdr.consts_size}));
+        _istream.read(static_cast<char *>(dataBlob.data(ov::element::u8)), hdr.consts_size);
     }
 
     // read XML content
@@ -157,15 +99,11 @@ void CNNNetworkDeserializer::operator >> (InferenceEngine::CNNNetwork & network)
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
-    network = _cnn_network_builder(xmlString, std::move(dataBlob));
+    model = _model_builder(xmlString, std::move(dataBlob));
 
-    // Set input and output precisions
+    // Set Info
     pugi::xml_node root = xmlInOutDoc.child("cnndata");
-    pugi::xml_node inputs = root.child("inputs");
-    pugi::xml_node outputs = root.child("outputs");
-
-    setInfo(inputs.children("in"), network.getInputsInfo());
-    setInfo(outputs.children("out"), network.getOutputsInfo());
+    setInfo(root, model);
 }
 
 }   // namespace intel_cpu

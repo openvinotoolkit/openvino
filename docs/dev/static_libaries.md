@@ -31,14 +31,12 @@ The default architecture of OpenVINO Runtime assumes that the following componen
 * (Device) Inference backends (CPU, GPU, MULTI, HETERO, etc.)
 * (Model) Frontends (IR, ONNX, PDPD, etc.)
 * Preprocessing library (to perform preprocessing, e.g. resize and color space conversions)
-* IR v7 reader (used in legacy tests only, if you are not to going to run OpenVINO tests, set `-DENABLE_TESTS=OFF` which disables IR v7 reader)
 
 With the static OpenVINO Runtime, all these modules should be linked into a final user application and **the list of modules/configuration must be known for the CMake configuration stage**. To minimize the total binary size, you can explicitly turn `OFF` unnecessary components. Use [[CMake Options for Custom Compilation|CMakeOptionsForCustomCompilation ]] as a reference for OpenVINO CMake configuration.
 
 For example, to enable only IR v11 reading and CPU inference capabilities, use:
 ```sh
 cmake -DENABLE_INTEL_GPU=OFF \
-      -DENABLE_INTEL_GNA=OFF \
       -DENABLE_TEMPLATE=OFF \
       -DENABLE_HETERO=OFF \
       -DENABLE_MULTI=OFF \
@@ -49,8 +47,6 @@ cmake -DENABLE_INTEL_GPU=OFF \
       -DENABLE_OV_TF_FRONTEND=OFF \
       -DENABLE_OV_TF_LITE_FRONTEND=OFF \
       -DENABLE_OV_PYTORCH_FRONTEND=OFF \
-      -DENABLE_IR_V7_READER=OFF \
-      -DENABLE_GAPI_PREPROCESSING=OFF \
       -DENABLE_INTEL_CPU=ON \
       -DENABLE_OV_IR_FRONTEND=ON
 ```
@@ -135,7 +131,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
 * The enabled and tested capabilities of OpenVINO Runtime in a static build:
     * OpenVINO common runtime - work with `ov::Model`, perform model loading on particular device
-    * CPU and GNA inference plugins (**GPU is not enabled**)
     * MULTI, HETERO, AUTO, and BATCH inference modes
     * IR, ONNX, PDPD, and TF frontends to read `ov::Model`
 * Static build support for building static libraries only for OpenVINO Runtime libraries. All other third-party prebuilt dependencies remain in the same format:

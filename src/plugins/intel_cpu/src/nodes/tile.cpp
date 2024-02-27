@@ -3,9 +3,12 @@
 //
 
 #include "tile.h"
-#include "common/cpu_memcpy.h"
 
-using namespace InferenceEngine;
+#include "openvino/op/tile.hpp"
+#include "openvino/op/constant.hpp"
+
+#include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -36,7 +39,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context
         Node(op, context, NgraphShapeInferFactory(op, PortMask(TILE_REPEATS))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     errorPrefix = "Tile node with name '" + getName() + "'";
@@ -61,25 +64,43 @@ void Tile::getSupportedDescriptors() {
         return result;
     };
     if (getParentEdges().size() != 2)
-        IE_THROW() << errorPrefix << " has incorrect number of input edges. "
-                "Expected: 2, Actual: " << getParentEdges().size();
+        OPENVINO_THROW(errorPrefix,
+                       " has incorrect number of input edges. "
+                       "Expected: 2, Actual: ",
+                       getParentEdges().size());
     if (getChildEdges().empty())
-        IE_THROW() << errorPrefix << " has no output edges.";
+        OPENVINO_THROW(errorPrefix, " has no output edges.");
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
     for (size_t i = 1lu; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size())
-            IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different ranks: " << dstDims0.size() << " and " << dstDims.size();
+            OPENVINO_THROW(errorPrefix,
+                           " has output edges 0 and ",
+                           i,
+                           " with different ranks: ",
+                           dstDims0.size(),
+                           " and ",
+                           dstDims.size());
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                IE_THROW() << errorPrefix << " has output edges 0 and " << i << " with different dims: " << vec_to_string(dstDims0) << " and "
-                           << vec_to_string(dstDims);
+                OPENVINO_THROW(errorPrefix,
+                               " has output edges 0 and ",
+                               i,
+                               " with different dims: ",
+                               vec_to_string(dstDims0),
+                               " and ",
+                               vec_to_string(dstDims));
             }
         }
     }
     if (constMap[TILE_REPEATS] && getInputShapeAtPort(TILE_INPUT).getRank() > getOutputShapeAtPort(0).getRank())
-        IE_THROW() << errorPrefix << " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
-                "Actual input shape size: " << getInputShapeAtPort(TILE_INPUT).getRank() << ", output shape size: " << getOutputShapeAtPort(0).getRank();
+        OPENVINO_THROW(
+            errorPrefix,
+            " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
+            "Actual input shape size: ",
+            getInputShapeAtPort(TILE_INPUT).getRank(),
+            ", output shape size: ",
+            getOutputShapeAtPort(0).getRank());
 
     if (!isDynamicNode())
         needPrepareParamsVar = true;
@@ -98,9 +119,9 @@ bool Tile::needPrepareParams() const {
 
 void Tile::prepareParams() {
     if (!constMap[TILE_REPEATS]) {
-        const auto& repeatsMem = getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory();
+        const auto& repeatsMem = getParentEdgeAt(TILE_REPEATS)->getMemory();
 
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(repeatsMem.getData());
+        const int32_t* repeatsData = repeatsMem.getDataAs<const int32_t>();
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
         repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
@@ -124,7 +145,7 @@ bool Tile::needShapeInfer() const {
     if (!constMap[TILE_REPEATS]) {
         if (originRepeats.empty())
             return true;
-        const int32_t* repeatsData = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(TILE_REPEATS)[0]->getMemory().getData());
+        const int32_t* repeatsData = getParentEdgeAt(TILE_REPEATS)->getMemory().getDataAs<const int32_t>();
         for (size_t i = 0lu; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i]))
                 return true;
@@ -140,7 +161,7 @@ void Tile::executeDynamicImpl(dnnl::stream strm) {
 
 void Tile::execute(dnnl::stream strm) {
     if (optimizedCase) {
-        optimizedExecute(getParentEdgeAt(TILE_INPUT)->getMemoryPtr(), getChildEdgeAt(0)->getMemoryPtr());
+        optimizedExecute(getSrcMemoryAtPort(TILE_INPUT), getDstMemoryAtPort(0));
     } else {
         plainExecute(strm);
     }
@@ -153,8 +174,8 @@ void Tile::plainExecute(dnnl::stream strm) {
 
     auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.getData());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().getData());
+    const uint8_t* src_ptr = srcMemory.getDataAs<const uint8_t>();
+    uint8_t* dst_ptr = getChildEdgeAt(0)->getMemory().getDataAs<uint8_t>();
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;

@@ -20,7 +20,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_ASSERT(!input_shapes.empty());
+        OPENVINO_ASSERT(!input_shapes.empty());
         return {{input_shapes.front()}, ShapeInferStatus::success};
     }
     port_mask_t get_port_mask() const override {

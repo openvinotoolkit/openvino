@@ -3,14 +3,12 @@
 
 import argparse
 import logging as log
-from copy import copy
 
 from openvino.preprocess import PrePostProcessor  # pylint: disable=no-name-in-module,import-error
 # pylint: disable=no-name-in-module,import-error
-from openvino.runtime import Model, Layout, PartialShape, layout_helpers
-
-from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
+from openvino.runtime import Model, Layout, PartialShape
 from openvino.tools.ovc.error import Error
+from openvino.tools.ovc.moc_frontend.layout_utils import update_layout_to_dict
 from openvino.tools.ovc.utils import refer_to_faq_msg
 
 
@@ -136,6 +134,7 @@ def find_channels_dimension(shape: PartialShape, num_channels: int, name: str, l
         'is_input': True
     }
     return layout_values
+
 
 def update_tensor_names_to_first_in_sorted_list(values_dict: dict, ov_function: Model):
     if not isinstance(values_dict, dict):

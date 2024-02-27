@@ -5,33 +5,73 @@ This notebook contains helper functions and classes for use with
 OpenVINO™ Notebooks. The code is synchronized with the
 ``notebook_utils.py`` file in the same directory as this notebook.
 
-There are five categories:
+There are four categories:
 
--  `Files <#Files>`__
--  `Images <#Images>`__
--  `Videos <#Videos>`__
--  `Visualization <#Visualization>`__
--  `OpenVINO Tools <#OpenVINO-Tools>`__
--  `Checks and Alerts <#Checks-and-Alerts>`__
+-  `Files <#files>`__
+-  `Images <#images>`__
+-  `Videos <#videos>`__
+-  `Visualization <#visualization>`__
+-  `Checks and Alerts <#checks-and-alerts>`__
 
 Each category contains a test cell that also shows how to use the
-functions in the section.
+functions in the section. #### Table of contents:
+
+-  `Files <#files>`__
+
+   -  `Test File Functions <#test-file-functions>`__
+
+-  `Images <#images>`__
+
+   -  `Convert Pixel Data <#convert-pixel-data>`__
+   -  `Test Data Conversion
+      Functions <#test-data-conversion-functions>`__
+
+-  `Videos <#videos>`__
+
+   -  `Video Player <#video-player>`__
+   -  `Test Video Player <#test-video-player>`__
+
+-  `Visualization <#visualization>`__
+
+   -  `Segmentation <#segmentation>`__
+   -  `Network Results <#network-results>`__
+   -  `Test Visualization Functions <#test-visualization-functions>`__
+
+-  `Checks and Alerts <#checks-and-alerts>`__
+
+   -  `Test Alerts <#test-alerts>`__
 
 .. code:: ipython3
 
     # Install requirements
-    !pip install -q "openvino>=2023.0.0" opencv-python
-    !pip install -q pillow tqdm requests matplotlib
+    %pip install -q "openvino>=2023.1.0" opencv-python
+    %pip install -q pillow tqdm requests matplotlib
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 23.3 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Files
 -----
+
+
 
 Load an image, download a file, download an OpenVINO IR model, and
 create a progress bar to show download progress.
@@ -57,6 +97,8 @@ create a progress bar to show download progress.
 
 Test File Functions
 ~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -91,7 +133,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -108,12 +150,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/10.9k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/16.3k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -131,7 +173,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-475/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -150,8 +192,12 @@ Test File Functions
 Images
 ------
 
+
+
 Convert Pixel Data
 ~~~~~~~~~~~~~~~~~~
+
+
 
 Normalize image pixel values between 0 and 1, and convert images to
 ``RGB`` and ``BGR``.
@@ -175,6 +221,8 @@ Normalize image pixel values between 0 and 1, and convert images to
 
 Test Data Conversion Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -200,8 +248,12 @@ Test Data Conversion Functions
 Videos
 ------
 
+
+
 Video Player
 ~~~~~~~~~~~~
+
+
 
 A custom video player to fulfill FPS requirements. You can set target
 FPS and output size, flip the video horizontally or skip first N frames.
@@ -216,6 +268,8 @@ FPS and output size, flip the video horizontally or skip first N frames.
 
 Test Video Player
 ~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -246,8 +300,12 @@ Test Video Player
 Visualization
 -------------
 
+
+
 Segmentation
 ~~~~~~~~~~~~
+
+
 
 Define a ``SegmentationMap NamedTuple`` that keeps the labels and
 colormap for a segmentation project/dataset. Create
@@ -347,6 +405,8 @@ the original image.
 Network Results
 ~~~~~~~~~~~~~~~
 
+
+
 Show network result image, optionally together with the source image and
 a legend with labels.
 
@@ -358,6 +418,8 @@ a legend with labels.
 
 Test Visualization Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -425,6 +487,8 @@ Test Visualization Functions
 Checks and Alerts
 -----------------
 
+
+
 Create an alert class to show stylized info/error/warning messages and a
 ``check_device`` function that checks whether a given device is
 available.
@@ -451,6 +515,8 @@ available.
 
 Test Alerts
 ~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -494,5 +560,5 @@ Test Alerts
 
 .. raw:: html
 
-    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2023.0.1-11005-fa1c41994f3-releases/2023/0</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
+    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2023.3.0-13775-ceeafaf64f3-releases/2023/3</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
 

@@ -24,11 +24,9 @@ class InputModel : public ov::frontend::InputModel {
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 
-    std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;
-    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
 
 public:
     explicit InputModel(const GraphIterator::Ptr& graph_iterator,
@@ -58,6 +56,8 @@ public:
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
+    std::shared_ptr<InputModel> get_body_input_model(const std::string& body_input_model_name) const;
+    std::vector<std::string> get_input_names() const;
 };
 
 }  // namespace tensorflow

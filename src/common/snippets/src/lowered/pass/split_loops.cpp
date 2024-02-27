@@ -15,23 +15,27 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 using LoopManager = LinearIR::LoopManager;
+using LoopInfo = LoopManager::LoopInfo;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
-SplitLoops::SplitLoops() : Pass() {}
+SplitLoops::SplitLoops() : RangedPass() {}
 
-bool SplitLoops::can_be_split(const LoopInfoPtr& current, const LoopInfoPtr& parent) {
-    return current->work_amount == parent->work_amount && current->dim_idx == parent->dim_idx &&
-           current->increment != parent->increment;
+bool SplitLoops::can_be_split(const LoopInfoPtr& loop_to_split, const LoopInfoPtr& loop_to_fuse) {
+    const auto current_dim_idx = loop_to_split->get_dim_idx();
+    const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
+    const auto& handlers = loop_to_split->get_handlers();
+    const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
+    const bool only_main_body = handlers.get_first_iter_handelrs().empty() && handlers.get_last_iter_handelrs().empty();
+    return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
+           loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
 
-bool SplitLoops::run(LinearIR& linear_ir) {
+bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SplitLoops")
-    if (linear_ir.empty())
-        return false;
-
     const auto& loop_manager = linear_ir.get_loop_manager();
     bool loop_was_split = false;
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         const auto& loop_ids = expr->get_loop_ids();
         if (loop_ids.empty())
             continue;
@@ -42,10 +46,10 @@ bool SplitLoops::run(LinearIR& linear_ir) {
         // be in the same set of outer loops. Otherwise they won't be fused.
         const auto& loop_id = loop_ids.front();
         const auto loop = loop_manager->get_loop_info(loop_id);
-        for (const auto& entry_point : loop->entry_points) {
+        for (const auto& entry_point : loop->get_entry_points()) {
             const auto& parent_port = entry_point.expr_port->get_port_connector_ptr()->get_source();
             const auto& parent_expr = parent_port.get_expr();
-            const auto parent_loop_ids = parent_expr->get_loop_ids();
+            const auto& parent_loop_ids = parent_expr->get_loop_ids();
             if (parent_loop_ids.empty())
                 continue;
 
@@ -56,29 +60,33 @@ bool SplitLoops::run(LinearIR& linear_ir) {
                 continue;
 
             const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
-            if (can_be_split(loop, parent_loop)) {
+            const bool split_parent = parent_loop->get_increment() < loop->get_increment();
+            const auto& loop_to_split = split_parent ? parent_loop : loop;
+            const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
+            const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
+            if (can_be_split(loop_to_split, loop_to_fuse)) {
                 loop_was_split = true;
-                const bool split_parent = parent_loop->increment < loop->increment;
-                const auto& loop_to_split = split_parent ? parent_loop : loop;
-                const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
-                const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
-                loop_to_split->work_amount = loop_to_fuse->increment;
+                loop_to_split->set_work_amount(loop_to_fuse->get_increment());
 
-                LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-                LoopManager::get_loop_bounds(linear_ir,
-                                             loop_to_split->entry_points,
-                                             loop_to_split->exit_points,
-                                             loop_begin_pos,
-                                             loop_end_pos,
-                                             loop_to_split_id);
-                const auto split_loop_id = loop_manager->mark_loop(loop_begin_pos,
-                                                                   loop_end_pos,
-                                                                   loop_to_fuse->work_amount,
-                                                                   loop_to_fuse->increment,
-                                                                   loop_to_split->dim_idx,
-                                                                   loop_to_split->entry_points,
-                                                                   loop_to_split->exit_points);
-                loop_manager->get_loop_info(split_loop_id)->outer_splited_loop = true;
+                const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
+                                                                      loop_to_split->get_entry_points(),
+                                                                      loop_to_split->get_exit_points());
+                const auto split_loop_id = loop_manager->mark_loop(loop_bounds.first,
+                                                                   loop_bounds.second,
+                                                                   loop_to_fuse->get_work_amount(),
+                                                                   loop_to_fuse->get_increment(),
+                                                                   loop_to_split->get_dim_idx(),
+                                                                   loop_to_split->get_entry_points(),
+                                                                   loop_to_split->get_exit_points());
+                const auto& new_loop_info = loop_manager->get_loop_info(split_loop_id);
+                const auto work_amount = loop_to_fuse->get_work_amount();
+                const auto increment = loop_to_fuse->get_increment();
+                const auto tail_size = work_amount % increment;
+                auto new_handlers = loop_to_split->get_handlers();
+                if (tail_size != 0) {
+                    new_handlers.register_handler<LoopInfo::SpecificIterationHandlers::HandlerType::LAST_ITER, TransformInnerSplitLoop>(tail_size);
+                }
+                new_loop_info->set_handlers(new_handlers);
                 break;
             }
         }
@@ -87,7 +95,7 @@ bool SplitLoops::run(LinearIR& linear_ir) {
     // FuseLoops pass is explicitly run here in order to avoid unnecessary computations
     // in case if loops are not split but FuseLoops is registered in pass manager after SplitLoops
     if (loop_was_split)
-        FuseLoops().run(linear_ir);
+        FuseLoops().run(linear_ir, begin, end);
     return loop_was_split;
 }
 } // namespace pass

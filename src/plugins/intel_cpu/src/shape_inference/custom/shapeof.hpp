@@ -22,7 +22,7 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_ASSERT(!input_shapes.empty());
+        OPENVINO_ASSERT(!input_shapes.empty());
         return {{VectorDims{input_shapes.front().get().size()}}, ShapeInferStatus::success};
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -172,6 +172,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::Priority>());
     } else if (any.is<ov::hint::PerformanceMode>()) {
         return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::intel_auto::SchedulePolicy>()) {
+        return py::cast(any.as<ov::intel_auto::SchedulePolicy>());
     } else if (any.is<ov::hint::SchedulingCoreType>()) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
@@ -184,6 +186,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::CacheMode>()) {
+        return py::cast(any.as<ov::CacheMode>());
     } else if (any.is<ov::device::UUID>()) {
         std::stringstream uuid_stream;
         uuid_stream << any.as<ov::device::UUID>();
@@ -260,6 +264,12 @@ void deprecation_warning(const std::string& function_name,
     PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
+void raise_not_implemented() {
+    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
+    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    throw py::error_already_set();
+}
+
 bool py_object_is_any_map(const py::object& py_obj) {
     if (!py::isinstance<py::dict>(py_obj)) {
         return false;
@@ -294,6 +304,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
+    } else if (py::isinstance<py::bytes>(py_obj)) {
+        return py_obj.cast<std::string>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
     } else if (py::isinstance(py_obj, float_32_type)) {
@@ -357,6 +369,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
         return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::intel_auto::SchedulePolicy>(py_obj)) {
+        return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
@@ -369,6 +383,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::Affinity>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
+    } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {
+        return py::cast<ov::Output<ov::Node>>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);

@@ -51,10 +51,3 @@ function(ov_target_link_whole_archive targetName)
         target_link_libraries(${targetName} PRIVATE ${libs})
     endif()
 endfunction()
-
-# deprecated
-
-function(ieTargetLinkWholeArchive)
-    message(WARNING "'ieTargetLinkWholeArchive' is deprecated, use 'ov_target_link_whole_archive' instead")
-    ov_target_link_whole_archive(${ARGN})
-endfunction()

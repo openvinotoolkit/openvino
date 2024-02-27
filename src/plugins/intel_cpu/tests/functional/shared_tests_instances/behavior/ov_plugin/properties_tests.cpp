@@ -3,11 +3,9 @@
 //
 
 #include "behavior/ov_plugin/properties_tests.hpp"
-
-#include <openvino/runtime/auto/properties.hpp>
+#include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 
@@ -15,16 +13,52 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCommon,
                          OVBasicPropertiesTestsP,
                          ::testing::Values(std::make_pair("openvino_intel_cpu_plugin", "CPU")));
 
-const std::vector<ov::AnyMap> cpu_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+auto cpu_properties = []() -> std::vector<ov::AnyMap> {
+    std::vector<ov::AnyMap> properties = {
+        {},
+        {ov::hint::enable_cpu_pinning(true)},
+        {ov::hint::enable_cpu_pinning(false)},
+        {ov::enable_profiling(true)},
+        {ov::enable_profiling(false)},
+        {ov::internal::exclusive_async_requests(true)},
+        {ov::internal::exclusive_async_requests(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(1)}},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::num_streams(ov::streams::AUTO)},
+        {ov::num_streams(8)},
+        // check that hints doesn't override customer value (now for streams and later for other config opts)
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}, {ov::hint::num_requests(3)}},
+        {{ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}, {ov::hint::num_requests(3)}},
+    };
+
+    auto numa_nodes = ov::get_available_numa_nodes();
+    if (numa_nodes.size() > 1) {
+        properties.push_back({ov::num_streams(ov::streams::NUMA)});
+    }
+    return properties;
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          OVPropertiesTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
-                                            ::testing::ValuesIn(cpu_properties)),
+                                            ::testing::ValuesIn(cpu_properties())),
                          OVPropertiesTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> cpu_inproperties = {
+    {{ov::hint::performance_mode.name(), "DOESN'T EXIST"}},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY), {ov::hint::num_requests(-1)}},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+     {ov::hint::num_requests.name(), "should be int"}},
+    {{ov::num_streams.name(), "OFF"}},
+    {{ov::hint::enable_cpu_pinning.name(), "OFF"}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesIncorrectTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::ValuesIn(cpu_inproperties)),
+                         OVPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> cpu_setcore_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
@@ -47,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 //
-// IE Class GetMetric
+// OV Class GetMetric
 //
 
 INSTANTIATE_TEST_SUITE_P(smoke_HeteroOVGetMetricPropsTest,
@@ -99,7 +133,7 @@ const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {
      ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
 
 
-// IE Class load and check network with ov::device::properties
+// OV Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          OVClassCompileModelAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU"), ::testing::ValuesIn(configsDeviceProperties)));

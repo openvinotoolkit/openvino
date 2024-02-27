@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <functional_test_utils/summary/op_summary.hpp>
-#include <ov_models/subgraph_builders.hpp>
-
 namespace ov {
 namespace test {
-namespace subgraph {
+namespace op_conformance {
 
 using OpGenerator = std::map<ov::DiscreteTypeInfo, std::function<std::shared_ptr<ov::Model>()>>;
 OpGenerator getOpGeneratorMap();
@@ -18,7 +15,7 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>> res;
     auto opsets = ov::get_available_opsets();
     auto opGenerator = getOpGeneratorMap();
-    std::set<ngraph::NodeTypeInfo> opsInfo;
+    std::set<ov::NodeTypeInfo> opsInfo;
     for (const auto& opset_pair : opsets) {
         std::string opset_version = opset_pair.first;
         const ov::OpSet& opset = opset_pair.second();
@@ -33,6 +30,6 @@ static const std::vector<std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Mod
     return res;
 }
 
-}  // namespace subgraph
+}  // namespace op_conformance
 }  // namespace test
 }  // namespace ov

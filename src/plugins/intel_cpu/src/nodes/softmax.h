@@ -4,13 +4,7 @@
 
 #pragma once
 
-#include <node.h>
-
-#include <ie_common.h>
-#include <string>
-#include <memory>
-#include <vector>
-
+#include "node.h"
 #include "common/dnnl_executor.h"
 
 namespace ov {
@@ -19,7 +13,7 @@ namespace node {
 
 class SoftMax : public Node {
 public:
-    SoftMax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    SoftMax(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void initOptimalPrimitiveDescriptor() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
@@ -31,7 +25,7 @@ public:
     void execute(dnnl::stream strm) override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;

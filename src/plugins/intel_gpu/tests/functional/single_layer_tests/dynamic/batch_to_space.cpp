@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/batch_to_space.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
-#include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/batch_to_space.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 struct BatchToSpaceParams {
     std::vector<int64_t> block;
@@ -22,22 +23,21 @@ struct BatchToSpaceParams {
 typedef std::tuple<
         InputShape,                        // Input shapes
         BatchToSpaceParams,
-        ElementType,                       // Element type
-        ngraph::helpers::InputLayerType,   // block/begin/end input type
+        ov::element::Type,                       // Element type
+        ov::test::utils::InputLayerType,   // block/begin/end input type
         std::map<std::string, std::string> // Additional network configuration
 > BatchToSpaceParamsLayerParamSet;
 
 class BatchToSpaceLayerGPUTest : public testing::WithParamInterface<BatchToSpaceParamsLayerParamSet>,
-                                 virtual public SubgraphBaseTest {
+                                 virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BatchToSpaceParamsLayerParamSet>& obj) {
         InputShape shapes;
         BatchToSpaceParams params;
-        ElementType elementType;
-        ngraph::helpers::InputLayerType restInputType;
-        TargetDevice targetDevice;
+        ov::element::Type model_type;
+        ov::test::utils::InputLayerType restInputType;
         std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, params, elementType, restInputType, additionalConfig) = obj.param;
+        std::tie(shapes, params, model_type, restInputType, additionalConfig) = obj.param;
 
         std::ostringstream results;
         results << "IS=" <<  ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -45,7 +45,7 @@ public:
         for (const auto& item : shapes.second) {
             results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "netPRC=" << elementType << "_";
+        results << "netPRC=" << model_type << "_";
         results << "block=" << ov::test::utils::vec2str(params.block) << "_";
         results << "begin=" << ov::test::utils::vec2str(params.begin) << "_";
         results << "end=" << ov::test::utils::vec2str(params.end) << "_";
@@ -59,7 +59,7 @@ public:
         return results.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         for (size_t i = 0; i < funcInputs.size(); ++i) {
@@ -100,7 +100,7 @@ protected:
     void SetUp() override {
         InputShape shapes;
         BatchToSpaceParams ssParams;
-        ngraph::helpers::InputLayerType restInputType;
+        ov::test::utils::InputLayerType restInputType;
         std::map<std::string, std::string> additionalConfig;
         std::tie(shapes, ssParams, inType, restInputType, additionalConfig) = this->GetParam();
 
@@ -112,7 +112,7 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType == ov::test::utils::InputLayerType::PARAMETER) {
             inputShapes.push_back(InputShape({static_cast<int64_t>(block.size())}, std::vector<ov::Shape>(shapes.second.size(), {block.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
             inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
@@ -122,10 +122,10 @@ protected:
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
         std::shared_ptr<ov::Node> blockInput, beginInput, endInput;
-        if (restInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto blockNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{block.size()});
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
+        if (restInputType == ov::test::utils::InputLayerType::PARAMETER) {
+            auto blockNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{block.size()});
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{begin.size()});
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{end.size()});
 
             params.push_back(blockNode);
             params.push_back(beginNode);
@@ -135,38 +135,34 @@ protected:
             beginInput = beginNode;
             endInput = endNode;
         } else {
-            blockInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{block.size()}, block);
-            beginInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
-            endInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
+            blockInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{block.size()}, block);
+            beginInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{begin.size()}, begin);
+            endInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{end.size()}, end);
         }
-        auto ss = std::make_shared<ngraph::op::v1::BatchToSpace>(params[0], blockInput, beginInput, endInput);
+        auto ss = std::make_shared<ov::op::v1::BatchToSpace>(params[0], blockInput, beginInput, endInput);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < ss->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(ss->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(ss->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "BatchToSpaceFuncTest");
+        function = std::make_shared<ov::Model>(results, params, "BatchToSpaceFuncTest");
     }
 };
 
-TEST_P(BatchToSpaceLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(BatchToSpaceLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
 std::map<std::string, std::string> emptyAdditionalConfig;
 
-const std::vector<ElementType> inputPrecisions = {
-        ElementType::f32
+const std::vector<ov::element::Type> inputPrecisions = {
+        ov::element::f32
 };
 
-const std::vector<ngraph::helpers::InputLayerType> restInputTypes = {
-    ngraph::helpers::InputLayerType::CONSTANT,
-    ngraph::helpers::InputLayerType::PARAMETER
+const std::vector<ov::test::utils::InputLayerType> restInputTypes = {
+    ov::test::utils::InputLayerType::CONSTANT,
+    ov::test::utils::InputLayerType::PARAMETER
 };
 
 const std::vector<InputShape> inputShapesDynamic3D = {
@@ -224,4 +220,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Dynamic_5D, BatchToSpaceLay
                          BatchToSpaceLayerGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions

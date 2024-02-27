@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
 #include <string>
 #include <vector>
 #include <memory>
-#include <caseless.hpp>
-#include "executors/eltwise_list.hpp"
+
+#include "dnnl_postops_composer_legacy.h"
+#include "nodes/executors/eltwise.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,8 +23,8 @@ struct jit_eltwise_params {
     size_t inputs_number;
     size_t input_size;
 
-    InferenceEngine::Precision src_prc[MAX_ELTWISE_INPUTS];
-    InferenceEngine::Precision dst_prc;
+    ov::element::Type src_prc[MAX_ELTWISE_INPUTS];
+    ov::element::Type dst_prc;
 
     VectorDims dims;
     VectorDims src_offsets[MAX_ELTWISE_INPUTS];
@@ -103,7 +103,7 @@ public:
     using executorPtr = std::shared_ptr<IEltwiseExecutor>;
 
 public:
-    Eltwise(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Eltwise(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -114,13 +114,15 @@ public:
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
+    bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    const std::vector<float>& getScales() const { return scales; }
+    const std::vector<float>& getShifts() const { return shifts; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
@@ -141,7 +143,7 @@ public:
 
     BroadcastingPolicy getBroadcastingPolicy() const { return broadcastingPolicy; }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     executorPtr execPtr = nullptr;
@@ -156,8 +158,8 @@ private:
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
 
-    std::vector<InferenceEngine::Precision> inpPrc;
-    InferenceEngine::Precision outPrc;
+    std::vector<ov::element::Type> inpPrc;
+    ov::element::Type outPrc;
 
     // blocked dims for which kernel compiled and params prepared
     std::vector<VectorDims> currentInBlkDims = {};
@@ -185,10 +187,10 @@ private:
     std::vector<MemoryPtr> memPtrs = {};
     std::vector<const void*> fqDataPtrs;
 
-    using Initializer = std::function<void(const std::shared_ptr<ngraph::Node>&, Eltwise& node)>;
-    static const std::map<const ngraph::DiscreteTypeInfo, Initializer>& getInitializers();
+    using Initializer = std::function<void(const std::shared_ptr<ov::Node>&, Eltwise& node)>;
+    static const std::map<const ov::DiscreteTypeInfo, Initializer>& getInitializers();
 
-    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op);
+    static BroadcastingPolicy determineBroadcastingPolicy(const std::shared_ptr<ov::Node>& op);
 
     size_t getOpInputsNum() const;
 
@@ -205,8 +207,8 @@ private:
 
 class eltwise_precision_helper {
 public:
-    static InferenceEngine::Precision get_precision(const size_t inputs_number,
-                                                    const InferenceEngine::Precision (&src_prc)[MAX_ELTWISE_INPUTS],
+    static ov::element::Type get_precision(const size_t inputs_number,
+                                                    const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
                                                     const std::vector<Eltwise::EltwiseData>& eltwise_data);
 
 private:

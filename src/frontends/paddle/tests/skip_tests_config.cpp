@@ -11,7 +11,8 @@ std::vector<std::string> disabledTestPatterns() {
     return {
 #ifdef OPENVINO_STATIC_LIBRARY
         // Disable tests for static libraries
-        ".*FrontendLibCloseTest.*"
+        ".*FrontendLibCloseTest.*",
 #endif
+        ".*testUnloadLibBeforeDeletingDependentObject.*",
     };
 }

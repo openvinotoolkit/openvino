@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::
     ov::SinkVector sinks;
     for (const auto& node : nodes) {
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-        NGRAPH_CHECK(sink != nullptr, "Node {} is not instance of Sink");
+        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
         sinks.push_back(sink);
     }
     return sinks;
@@ -54,10 +54,34 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
     std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& sink : sinks) {
         auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-        NGRAPH_CHECK(node != nullptr, "Sink {} is not instance of Node");
+        OPENVINO_ASSERT(node != nullptr, "Sink {} is not instance of Node");
         nodes.push_back(node);
     }
     return nodes;
+}
+
+// Assign operations created via Assign py binding have Variables which are not connected to
+// ReadValue operations. This function attempts to resolve this situation by finding correct Variables
+// for Assigns.
+static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model>& model, const ov::SinkVector& sinks) {
+    const auto& variables = model->get_variables();
+    ov::op::util::VariableVector variables_to_delete;
+    for (const auto& sink : sinks) {
+        if (auto assign = ov::as_type_ptr<ov::op::v6::Assign>(sink)) {
+            for (const auto& variable : variables) {
+                auto info = variable->get_info();
+                if (assign->get_variable_id() == info.variable_id && variable != assign->get_variable()) {
+                    variables_to_delete.push_back(assign->get_variable());
+                    assign->set_variable(variable);
+                    break;
+                }
+            }
+        }
+    }
+
+    for (const auto& var : variables_to_delete) {
+        model->remove_variable(var);
+    }
 }
 
 void regclass_graph_Model(py::module m) {
@@ -75,12 +99,14 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(params);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(res, sinks, params, name);
+                  auto model = std::make_shared<ov::Model>(res, sinks, params, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("name"),
+              py::arg("name") = "",
               R"(
                     Create user-defined Model which is a representation of a model.
 
@@ -159,7 +185,9 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  return std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -493,48 +521,48 @@ void regclass_graph_Model(py::module m) {
               R"(
                     Return the model parameters.
                     
-                    :return: ParameterVector containing model parameters.
-                    :rtype: ParameterVector
+                    :return: a list of model's parameters.
+                    :rtype: List[op.Parameter]
                  )");
     model.def_property_readonly("parameters",
                                 &ov::Model::get_parameters,
                                 R"(
                                         Return the model parameters.
                                         
-                                        :return: ParameterVector containing model parameters.
-                                        :rtype: ParameterVector
+                                        :return: a list of model's parameters.
+                                        :rtype: List[op.Parameter]
                                     )");
     model.def("get_results",
               &ov::Model::get_results,
               R"(
                     Return a list of model outputs.
 
-                    :return: ResultVector containing model parameters.
-                    :rtype: ResultVector
-                 )");
+                    :return: a list of model's result nodes.
+                    :rtype: List[op.Result]
+                )");
     model.def_property_readonly("results",
                                 &ov::Model::get_results,
                                 R"(
-                                        Return a list of model outputs.
+                                    Return a list of model outputs.
 
-                                        :return: ResultVector containing model parameters.
-                                        :rtype: ResultVector
-                                    )");
+                                    :return: a list of model's result nodes.
+                                    :rtype: List[op.Result]
+                                )");
     model.def("get_result",
               &ov::Model::get_result,
               R"(
                     Return single result.
 
                     :return: Node object representing result.
-                    :rtype: openvino.runtime.Node
-                 )");
+                    :rtype: op.Result
+                )");
     model.def_property_readonly("result",
                                 &ov::Model::get_result,
                                 R"(
                                         Return single result.
 
                                         :return: Node object representing result.
-                                        :rtype: openvino.runtime.Node
+                                        :rtype: op.Result
                                     )");
     model.def("get_result_index",
               (int64_t(ov::Model::*)(const ov::Output<ov::Node>&) const) & ov::Model::get_result_index,
@@ -719,6 +747,7 @@ void regclass_graph_Model(py::module m) {
                 Delete Result node from the list of results. Method will not delete node from graph.
 
                 :param result: Result node to delete.
+                :type result: op.Result
             )");
 
     model.def("remove_parameter",
@@ -737,6 +766,7 @@ void regclass_graph_Model(py::module m) {
             * call graph validation to check all changes
 
             :param parameter: Parameter node to delete.
+            :type parameter: op.Parameter
         )");
 
     model.def(
@@ -757,7 +787,19 @@ void regclass_graph_Model(py::module m) {
                 Delete sink node from the list of sinks. Method doesn't delete node from graph.
 
                 :param sink: Sink to delete.
+                :type sink: openvino.runtime.Node
         )");
+
+    model.def("remove_variable",
+              &ov::Model::remove_variable,
+              py::arg("variable"),
+              R"(
+                    Delete variable from the list of variables.
+                    Method doesn't delete nodes that used this variable from the graph.
+
+                    :param variable:  Variable to delete.
+                    :type variable: op.util.Variable
+                )");
 
     model.def("add_parameters",
               &ov::Model::add_parameters,
@@ -786,7 +828,7 @@ void regclass_graph_Model(py::module m) {
 
                     :param results: new Result nodes.
                     :type results: List[op.Result]
-                 )");
+                )");
 
     model.def(
         "add_sinks",
@@ -795,20 +837,61 @@ void regclass_graph_Model(py::module m) {
             for (py::handle sink : sinks) {
                 auto sink_cpp =
                     std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                NGRAPH_CHECK(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign {} is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }
             self.add_sinks(sinks_cpp);
         },
         py::arg("sinks"),
         R"(
-                    Add new sink nodes to the list.
+            Add new sink nodes to the list.
+            
+            Method doesn't validate graph, it should be done manually after all changes.
+
+            :param sinks: new sink nodes.
+            :type sinks: List[openvino.runtime.Node]
+        )");
+
+    model.def("add_variables",
+              &ov::Model::add_variables,
+              py::arg("variables"),
+              R"(
+                    Add new variables to the list. 
                     
                     Method doesn't validate graph, it should be done manually after all changes.
 
-                    :param sinks: new sink nodes.
-                    :type sinks: List[openvino.runtime.Node]
-                 )");
+                    :param variables: new variables to add.
+                    :type variables: List[op.util.Variable]
+                )");
+
+    model.def("get_variables",
+              &ov::Model::get_variables,
+              R"(
+                    Return a list of model's variables.
+                    
+                    :return: a list of model's variables.
+                    :rtype: List[op.util.Variable]
+                )");
+
+    model.def_property_readonly("variables",
+                                &ov::Model::get_variables,
+                                R"(
+                                    Return a list of model's variables.
+                                    
+                                    :return: a list of model's variables.
+                                    :rtype: List[op.util.Variable]
+                                )");
+
+    model.def("get_variable_by_id",
+              &ov::Model::get_variable_by_id,
+              R"(
+                    Return a variable by specified variable_id.
+                    
+                    :param variable_id: a variable id to get variable node.
+                    :type variable_id: str
+                    :return: a variable node.
+                    :rtype: op.util.Variable
+                )");
 
     model.def(
         "get_sinks",
@@ -830,10 +913,10 @@ void regclass_graph_Model(py::module m) {
             return cast_to_node_vector(sinks);
         },
         R"(
-            Return a list of model outputs.
+            Return a list of model's sinks.
 
-            :return: ResultVector containing model parameters.
-            :rtype: ResultVector
+            :return: a list of model's sinks.
+            :rtype: List[openvino.runtime.Node]
         )");
 
     model.def(

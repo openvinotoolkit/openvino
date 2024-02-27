@@ -18,36 +18,41 @@ transformer combines encoded patches with class masks and decodes them
 into a segmentation map as the output, where each pixel has a label
 assigned to it.
 
-|Segmenteer diagram| > Credits for this image go to `original authors of
+|Segmenter diagram| > Credits for this image go to `original authors of
 Segmenter <https://github.com/rstrudel/segmenter>`__.
 
 More about the model and its details can be found in the following
 paper: `Segmenter: Transformer for Semantic
 Segmentation <https://arxiv.org/abs/2105.05633>`__ or in the
-`repository <https://github.com/rstrudel/segmenter>`__. 
+`repository <https://github.com/rstrudel/segmenter>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__ 
-  
-  - `Prerequisites <#prerequisites>`__ 
-  - `Loading PyTorch model <#loading-pytorch-model>`__ 
+-  `Get and prepare PyTorch model <#get-and-prepare-pytorch-model>`__
 
-- `Preparing preprocessing and visualization functions <#preparing-preprocessing-and-visualization-functions>`__
+   -  `Prerequisites <#prerequisites>`__
+   -  `Loading PyTorch model <#loading-pytorch-model>`__
 
-  - `Preprocessing <#preprocessing>`__ 
-  - `Visualization <#visualization>`__ 
-  
-- `Validation of inference of original model <#validation-of-inference-of-original-model>`__ 
-- `Export to ONNX <#export-to-onnx>`__ 
-- `Convert ONNX model to OpenVINO Intermediate Representation (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
-- `Verify converted model inference <#verify-converted-model-inference>`__ 
+-  `Preparing preprocessing and visualization
+   functions <#preparing-preprocessing-and-visualization-functions>`__
 
-  - `Select inference device <#select-inference-device>`__ 
-  
-- `Benchmarking performance of converted model <#benchmarking-performance-of-converted-model>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Visualization <#visualization>`__
 
-.. |Segmenteer diagram| image:: https://user-images.githubusercontent.com/24582831/148507554-87eb80bd-02c7-4c31-b102-c6141e231ec8.png
+-  `Validation of inference of original
+   model <#validation-of-inference-of-original-model>`__
+-  `Convert PyTorch model to OpenVINO Intermediate Representation
+   (IR) <#convert-pytorch-model-to-openvino-intermediate-representation-ir>`__
+-  `Verify converted model
+   inference <#verify-converted-model-inference>`__
+
+   -  `Select inference device <#select-inference-device>`__
+
+-  `Benchmarking performance of converted
+   model <#benchmarking-performance-of-converted-model>`__
+
+.. |Segmenter diagram| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/93932510/f57979e7-fd3b-449f-bf01-afe0f965abbc
 
 To demonstrate how to convert and use Segmenter in OpenVINO, this
 notebook consists of the following steps:
@@ -55,13 +60,14 @@ notebook consists of the following steps:
 -  Preparing PyTorch Segmenter model
 -  Preparing preprocessing and visualization functions
 -  Validating inference of original model
--  Converting PyTorch model to ONNX
--  Converting ONNX to OpenVINO IR
+-  Converting PyTorch model to OpenVINO IR
 -  Validating inference of the converted model
 -  Benchmark performance of the converted model
 
 Get and prepare PyTorch model
-###############################################################################################################################
+-----------------------------
+
+
 
 The first thing we’ll need to do is clone
 `repository <https://github.com/rstrudel/segmenter>`__ containing model
@@ -76,26 +82,354 @@ model and load weights, but we will need to download config and trained
 weights (checkpoint) file and add some additional helper functions.
 
 Prerequisites
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-.. code:: ipython3
-
-    # Installing requirements
-    !pip install -q "openvino==2023.1.0.dev20230811"
-    !pip install -q timm "mmsegmentation==0.30.0" einops "mmcv==1.7.1" "timm == 0.4.12" onnx 
+~~~~~~~~~~~~~
 
 
-.. parsed-literal::
-
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    black 21.7b0 requires tomli<2.0.0,>=0.2.6, but you have tomli 2.0.1 which is incompatible.
-    
 
 .. code:: ipython3
 
     import sys
     from pathlib import Path
     
+    # clone Segmenter repo
+    if not Path("segmenter").exists():
+        !git clone https://github.com/rstrudel/segmenter
+    else:
+        print("Segmenter repo already cloned")
+    
+    # include path to Segmenter repo to use its functions
+    sys.path.append("./segmenter")
+
+
+.. parsed-literal::
+
+    Cloning into 'segmenter'...
+
+
+.. parsed-literal::
+
+    remote: Enumerating objects: 268, done.[K
+    Receiving objects:   0% (1/268)
+Receiving objects:   1% (3/268)
+Receiving objects:   2% (6/268)
+Receiving objects:   3% (9/268)
+Receiving objects:   4% (11/268)
+Receiving objects:   5% (14/268)
+Receiving objects:   6% (17/268)
+Receiving objects:   7% (19/268)
+Receiving objects:   8% (22/268)
+Receiving objects:   9% (25/268)
+Receiving objects:  10% (27/268)
+Receiving objects:  11% (30/268)
+Receiving objects:  12% (33/268)
+Receiving objects:  13% (35/268)
+Receiving objects:  14% (38/268)
+Receiving objects:  15% (41/268)
+Receiving objects:  16% (43/268)
+Receiving objects:  17% (46/268)
+Receiving objects:  18% (49/268)
+Receiving objects:  19% (51/268)
+Receiving objects:  20% (54/268)
+Receiving objects:  21% (57/268)
+Receiving objects:  22% (59/268)
+
+.. parsed-literal::
+
+    Receiving objects:  23% (62/268)
+
+.. parsed-literal::
+
+    Receiving objects:  24% (65/268)
+
+.. parsed-literal::
+
+    Receiving objects:  24% (65/268), 3.68 MiB | 3.63 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  24% (66/268), 7.47 MiB | 3.70 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  25% (67/268), 7.47 MiB | 3.70 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  25% (68/268), 11.26 MiB | 3.73 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  26% (70/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  27% (73/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  28% (76/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  29% (78/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  30% (81/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  31% (84/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  32% (86/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  33% (89/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  34% (92/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  35% (94/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  36% (97/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  37% (100/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  38% (102/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  39% (105/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  40% (108/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  41% (110/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  42% (113/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  43% (116/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  44% (118/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  45% (121/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  46% (124/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  47% (126/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  48% (129/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  49% (132/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  50% (134/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  51% (137/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  52% (140/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  53% (143/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  54% (145/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  55% (148/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  56% (151/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  57% (153/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  58% (156/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  59% (159/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  60% (161/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  61% (164/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  62% (167/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  63% (169/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  64% (172/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  65% (175/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  66% (177/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  67% (180/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  68% (183/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  69% (185/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  70% (188/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  71% (191/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  72% (193/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  73% (196/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  74% (199/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  75% (201/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  76% (204/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  77% (207/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  78% (210/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  79% (212/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  80% (215/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  81% (218/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  82% (220/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  83% (223/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  84% (226/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  85% (228/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  86% (231/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  87% (234/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  88% (236/268), 11.26 MiB | 3.73 MiB/s
+Receiving objects:  89% (239/268), 11.26 MiB | 3.73 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  90% (242/268), 11.26 MiB | 3.73 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  91% (244/268), 11.26 MiB | 3.73 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  92% (247/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  93% (250/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  94% (252/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  95% (255/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  96% (258/268), 13.11 MiB | 3.72 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  97% (260/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  98% (263/268), 13.11 MiB | 3.72 MiB/s
+Receiving objects:  99% (266/268), 13.11 MiB | 3.72 MiB/s
+
+.. parsed-literal::
+
+    Receiving objects:  99% (267/268), 15.03 MiB | 3.73 MiB/s
+
+.. parsed-literal::
+
+    remote: Total 268 (delta 0), reused 0 (delta 0), pack-reused 268[K
+    Receiving objects: 100% (268/268), 15.03 MiB | 3.73 MiB/s
+Receiving objects: 100% (268/268), 15.34 MiB | 3.73 MiB/s, done.
+    Resolving deltas:   0% (0/117)
+Resolving deltas:   1% (2/117)
+Resolving deltas:   2% (3/117)
+Resolving deltas:   3% (4/117)
+Resolving deltas:   5% (6/117)
+Resolving deltas:   7% (9/117)
+Resolving deltas:   8% (10/117)
+Resolving deltas:   9% (11/117)
+Resolving deltas:  10% (12/117)
+Resolving deltas:  11% (14/117)
+Resolving deltas:  13% (16/117)
+Resolving deltas:  15% (18/117)
+Resolving deltas:  26% (31/117)
+Resolving deltas:  33% (39/117)
+Resolving deltas:  54% (64/117)
+Resolving deltas:  56% (66/117)
+Resolving deltas:  76% (90/117)
+Resolving deltas:  80% (94/117)
+Resolving deltas:  81% (95/117)
+Resolving deltas:  82% (96/117)
+Resolving deltas: 100% (117/117)
+Resolving deltas: 100% (117/117), done.
+
+
+.. code:: ipython3
+
+    # Installing requirements
+    %pip install -q "openvino>=2023.1.0"
+    %pip install -r segmenter/requirements.txt
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: torch in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 1)) (2.1.0+cpu)
+    Requirement already satisfied: click in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 2)) (8.1.7)
+    Requirement already satisfied: numpy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 3)) (1.23.5)
+
+
+.. parsed-literal::
+
+    Collecting einops (from -r segmenter/requirements.txt (line 4))
+      Using cached einops-0.7.0-py3-none-any.whl.metadata (13 kB)
+
+
+.. parsed-literal::
+
+    Collecting python-hostlist (from -r segmenter/requirements.txt (line 5))
+      Using cached python_hostlist-1.23.0-py3-none-any.whl
+    Requirement already satisfied: tqdm in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 6)) (4.66.1)
+    Requirement already satisfied: requests in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 7)) (2.31.0)
+    Requirement already satisfied: pyyaml in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from -r segmenter/requirements.txt (line 8)) (6.0.1)
+
+
+.. parsed-literal::
+
+    Collecting timm==0.4.12 (from -r segmenter/requirements.txt (line 9))
+      Using cached timm-0.4.12-py3-none-any.whl (376 kB)
+
+
+.. parsed-literal::
+
+    Collecting mmcv==1.3.8 (from -r segmenter/requirements.txt (line 10))
+      Using cached mmcv-1.3.8-py2.py3-none-any.whl
+
+
+.. parsed-literal::
+
+    Collecting mmsegmentation==0.14.1 (from -r segmenter/requirements.txt (line 11))
+
+
+.. parsed-literal::
+
+      Using cached mmsegmentation-0.14.1-py3-none-any.whl (201 kB)
+    Requirement already satisfied: torchvision in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from timm==0.4.12->-r segmenter/requirements.txt (line 9)) (0.16.0+cpu)
+    Requirement already satisfied: addict in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from mmcv==1.3.8->-r segmenter/requirements.txt (line 10)) (2.4.0)
+    Requirement already satisfied: Pillow in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from mmcv==1.3.8->-r segmenter/requirements.txt (line 10)) (10.2.0)
+
+
+.. parsed-literal::
+
+    Collecting yapf (from mmcv==1.3.8->-r segmenter/requirements.txt (line 10))
+
+
+.. parsed-literal::
+
+      Using cached yapf-0.40.2-py3-none-any.whl.metadata (45 kB)
+    Requirement already satisfied: matplotlib in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (3.7.4)
+    Requirement already satisfied: prettytable in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (3.9.0)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (3.13.1)
+    Requirement already satisfied: typing-extensions in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (4.9.0)
+    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (1.12)
+    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (3.1)
+    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (3.1.3)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch->-r segmenter/requirements.txt (line 1)) (2023.10.0)
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: charset-normalizer<4,>=2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->-r segmenter/requirements.txt (line 7)) (3.3.2)
+    Requirement already satisfied: idna<4,>=2.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->-r segmenter/requirements.txt (line 7)) (3.6)
+    Requirement already satisfied: urllib3<3,>=1.21.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->-r segmenter/requirements.txt (line 7)) (2.2.0)
+    Requirement already satisfied: certifi>=2017.4.17 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from requests->-r segmenter/requirements.txt (line 7)) (2024.2.2)
+    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch->-r segmenter/requirements.txt (line 1)) (2.1.5)
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: contourpy>=1.0.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (1.1.1)
+    Requirement already satisfied: cycler>=0.10 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (0.12.1)
+    Requirement already satisfied: fonttools>=4.22.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (4.48.1)
+    Requirement already satisfied: kiwisolver>=1.0.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (1.4.5)
+    Requirement already satisfied: packaging>=20.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (23.2)
+    Requirement already satisfied: pyparsing>=2.3.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (3.1.1)
+    Requirement already satisfied: python-dateutil>=2.7 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (2.8.2)
+    Requirement already satisfied: importlib-resources>=3.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (6.1.1)
+    Requirement already satisfied: wcwidth in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from prettytable->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (0.2.13)
+    Requirement already satisfied: mpmath>=0.19 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch->-r segmenter/requirements.txt (line 1)) (1.3.0)
+    Requirement already satisfied: importlib-metadata>=6.6.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from yapf->mmcv==1.3.8->-r segmenter/requirements.txt (line 10)) (7.0.1)
+    Requirement already satisfied: platformdirs>=3.5.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from yapf->mmcv==1.3.8->-r segmenter/requirements.txt (line 10)) (4.2.0)
+
+
+.. parsed-literal::
+
+    Collecting tomli>=2.0.1 (from yapf->mmcv==1.3.8->-r segmenter/requirements.txt (line 10))
+      Using cached tomli-2.0.1-py3-none-any.whl (12 kB)
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: zipp>=0.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from importlib-metadata>=6.6.0->yapf->mmcv==1.3.8->-r segmenter/requirements.txt (line 10)) (3.17.0)
+
+
+.. parsed-literal::
+
+    Requirement already satisfied: six>=1.5 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from python-dateutil>=2.7->matplotlib->mmsegmentation==0.14.1->-r segmenter/requirements.txt (line 11)) (1.16.0)
+
+
+.. parsed-literal::
+
+    Using cached einops-0.7.0-py3-none-any.whl (44 kB)
+    Using cached yapf-0.40.2-py3-none-any.whl (254 kB)
+
+
+.. parsed-literal::
+
+    Installing collected packages: python-hostlist, tomli, einops, yapf, mmsegmentation, mmcv, timm
+
+
+.. parsed-literal::
+
+      Attempting uninstall: tomli
+        Found existing installation: tomli 1.2.3
+        Uninstalling tomli-1.2.3:
+          Successfully uninstalled tomli-1.2.3
+
+
+.. parsed-literal::
+
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    black 21.7b0 requires tomli<2.0.0,>=0.2.6, but you have tomli 2.0.1 which is incompatible.
+    Successfully installed einops-0.7.0 mmcv-1.3.8 mmsegmentation-0.14.1 python-hostlist-1.23.0 timm-0.4.12 tomli-2.0.1 yapf-0.40.2
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. code:: ipython3
+
     import numpy as np
     import yaml
     
@@ -112,27 +446,6 @@ functions from segmenter repo
 
 First, we will clone the Segmenter repo and then download weights and
 config for our model.
-
-.. code:: ipython3
-
-    # clone Segmenter repo
-    if not Path("segmenter").exists():
-        !git clone https://github.com/rstrudel/segmenter
-    else:
-        print("Segmenter repo already cloned")
-    
-    # include path to Segmenter repo to use its functions
-    sys.path.append("./segmenter")
-
-
-.. parsed-literal::
-
-    Cloning into 'segmenter'...
-    remote: Enumerating objects: 268, done.[K
-    remote: Total 268 (delta 0), reused 0 (delta 0), pack-reused 268[K
-    Receiving objects: 100% (268/268), 15.34 MiB | 3.91 MiB/s, done.
-    Resolving deltas: 100% (117/117), done.
-
 
 .. code:: ipython3
 
@@ -164,10 +477,12 @@ config for our model.
 
 
 Loading PyTorch model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~
+
+
 
 PyTorch models are usually an instance of
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary containing model weights.
 Typical steps to get the model are therefore:
 
@@ -208,18 +523,20 @@ Load normalization settings from config file.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mmcv/__init__.py:20: UserWarning: On January 1, 2023, MMCV will release v2.0.0, in which it will remove components related to the training process and add a data transformation module. In addition, it will rename the package names mmcv to mmcv-lite and mmcv-full to mmcv. See https://github.com/open-mmlab/mmcv/blob/master/docs/en/compatibility.md for more details.
-      warnings.warn(
 
 
 Preparing preprocessing and visualization functions
-###############################################################################################################################
+---------------------------------------------------
+
+
 
 Now we will define utility functions for preprocessing and visualizing
 the results.
 
 Preprocessing
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~
+
+
 
 Inference input is tensor with shape ``[1, 3, H, W]`` in ``B, C, H, W``
 format, where:
@@ -264,7 +581,9 @@ normalized with given mean and standard deviation provided in
         return im
 
 Visualization
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~
+
+
 
 Inference output contains labels assigned to each pixel, so the output
 in our case is ``[150, H, W]`` in ``CL, H, W`` format where:
@@ -308,7 +627,9 @@ corresponding to the inferred labels.
         return pil_blend
 
 Validation of inference of original model
-###############################################################################################################################
+-----------------------------------------
+
+
 
 Now that we have everything ready, we can perform segmentation on
 example image ``coco_hollywood.jpg``.
@@ -359,11 +680,13 @@ We can see that model segments the image into meaningful parts. Since we
 are using tiny variant of model, the result is not as good as it is with
 larger models, but it already shows nice segmentation performance.
 
-Export to ONNX
-###############################################################################################################################
+Convert PyTorch model to OpenVINO Intermediate Representation (IR)
+------------------------------------------------------------------
+
+
 
 Now that we’ve verified that the inference of PyTorch model works, we
-will first export it to ONNX format.
+will convert it to OpenVINO IR format.
 
 To do this, we first get input dimensions from the model configuration
 file and create torch dummy input. Input dimensions are in our case
@@ -374,17 +697,21 @@ file and create torch dummy input. Input dimensions are in our case
 -  ``H`` - model input image height
 -  ``W`` - model input image width
 
-Note that H and W are here fixed to 512, as this is required by the
-model. Resizing is done inside the inference function from the
-original repository.
+..
 
-After that, we use ``export`` function from PyTorch to convert the model
-to ONNX. The process can generate some warnings, but they are not a
-problem.
+   Note that H and W are here fixed to 512, as this is required by the
+   model. Resizing is done inside the inference function from the
+   original repository.
+
+After that, we use ``ov.convert_model`` function from PyTorch to convert
+the model to OpenVINO model, which is ready to use in Python interface
+but can also be serialized to OpenVINO IR format for future execution
+using ``ov.save_model``. The process can generate some warnings, but
+they are not a problem.
 
 .. code:: ipython3
 
-    import torch.onnx
+    import openvino as ov
     
     # get input sizes from config file
     batch_size = 2
@@ -394,63 +721,35 @@ problem.
     # make dummy input with correct shapes obtained from config file
     dummy_input = torch.randn(batch_size, channels, image_size, image_size)
     
-    onnx_path = MODEL_DIR / "segmenter.onnx"
-    
-    # export to onnx format
-    torch.onnx.export(pytorch_model,
-                      dummy_input,
-                      onnx_path,
-                      input_names=["input"],
-                      output_names=["output"])
-    
-    # if we wanted dynamic batch size (sometimes required by infer function) we could add additional parameter
-    # dynamic_axes={"input": {0: "batch_size"}, "output": {0: "batch_size"}}
+    model = ov.convert_model(pytorch_model, example_input=dummy_input, input=([batch_size, channels, image_size, image_size], ))
+    # serialize model for saving IR
+    ov.save_model(model, MODEL_DIR / "segmenter.xml")
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:69: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if H % patch_size > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:71: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if W % patch_size > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/vit.py:122: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if x.shape[1] != pos_embed.shape[1]:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/decoder.py:100: TracerWarning: Converting a tensor to a Python integer might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       masks = rearrange(masks, "b (h w) n -> b n h w", h=int(GS))
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:85: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_h > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/204-segmenter-semantic-segmentation/./segmenter/segm/model/utils.py:87: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if extra_w > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/_internal/jit_utils.py:258: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_node_shape_type_inference(node, params_dict, opset_version)
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:687: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-499/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/onnx/utils.py:1178: UserWarning: The shape inference of prim::Constant type is missing, so it may result in wrong shape inference for the exported graph. Please consider adding it in symbolic function. (Triggered internally at ../torch/csrc/jit/passes/onnx/shape_type_inference.cpp:1884.)
-      _C._jit_pass_onnx_graph_shape_type_inference(
 
-
-Convert ONNX model to OpenVINO Intermediate Representation (IR)
-###############################################################################################################################
-
-While ONNX models are directly supported by OpenVINO runtime, it can be
-useful to convert them to IR format to take advantage of OpenVINO
-optimization tools and features. The ``ov.convert_model`` function of
-`model conversion
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
-can be used. The function returns instance of OpenVINO Model class,
-which is ready to use in Python interface but can also be serialized to
-OpenVINO IR format for future execution.
-
-.. code:: ipython3
-
-    import openvino as ov
-    
-    model = ov.convert_model(str(MODEL_DIR / "segmenter.onnx"))
-    # serialize model for saving IR
-    ov.save_model(model, str(MODEL_DIR / "segmenter.xml"))
 
 Verify converted model inference
-###############################################################################################################################
+--------------------------------
+
+
 
 To test that model was successfully converted, we can use same inference
 function from original repository, but we need to make custom class.
@@ -518,9 +817,11 @@ Now that we have created ``SegmenterOV`` helper class, we can use it in
 inference function.
 
 Select inference device
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -572,33 +873,33 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 
-.. image:: 204-segmenter-semantic-segmentation-with-output_files/204-segmenter-semantic-segmentation-with-output_34_0.png
+.. image:: 204-segmenter-semantic-segmentation-with-output_files/204-segmenter-semantic-segmentation-with-output_32_0.png
 
 
 
 As we can see, we get the same results as with original model.
 
 Benchmarking performance of converted model
-###############################################################################################################################
+-------------------------------------------
+
+
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 to measure the inference performance of the model.
 
-.. note::
-
-   For more accurate performance, it is recommended to run
+   NOTE: For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run ``benchmark_app -m model.xml -d CPU`` to benchmark
    async inference on CPU for one minute. Change ``CPU`` to ``GPU`` to
    benchmark on GPU. Run ``benchmark_app --help`` to see an overview of
    all command-line options.
 
+..
 
-
-Keep in mind that the authors of original paper used V100 GPU, which
-is significantly more powerful than the CPU used to obtain the
-following throughput. Therefore, FPS can’t be compared directly.
+   Keep in mind that the authors of original paper used V100 GPU, which
+   is significantly more powerful than the CPU used to obtain the
+   following throughput. Therefore, FPS can’t be compared directly.
 
 .. code:: ipython3
 
@@ -621,5 +922,93 @@ following throughput. Therefore, FPS can’t be compared directly.
 
 .. parsed-literal::
 
-    /bin/bash: benchmark_app: command not found
+    [Step 1/11] Parsing and validating input arguments
+    [ INFO ] Parsing input parameters
+    [Step 2/11] Loading OpenVINO Runtime
+    [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
+    [ INFO ] OpenVINO:
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
+    [ INFO ] 
+    [ INFO ] Device info:
+    [ INFO ] AUTO
+    [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
+    [ INFO ] 
+    [ INFO ] 
+    [Step 3/11] Setting device configuration
+    [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
+    [Step 4/11] Reading model files
+    [ INFO ] Loading model files
+    [ INFO ] Read model took 23.09 ms
+    [ INFO ] Original model I/O parameters:
+    [ INFO ] Model inputs:
+    [ INFO ]     im (node: im) : f32 / [...] / [2,3,512,512]
+    [ INFO ] Model outputs:
+    [ INFO ]     y (node: aten::upsample_bilinear2d/Interpolate) : f32 / [...] / [2,150,512,512]
+    [Step 5/11] Resizing model to match image sizes and given batch
+    [ INFO ] Model batch size: 2
+    [Step 6/11] Configuring input of the model
+    [ INFO ] Model inputs:
+    [ INFO ]     im (node: im) : u8 / [N,C,H,W] / [2,3,512,512]
+    [ INFO ] Model outputs:
+    [ INFO ]     y (node: aten::upsample_bilinear2d/Interpolate) : f32 / [...] / [2,150,512,512]
+    [Step 7/11] Loading the model to the device
+
+
+.. parsed-literal::
+
+    [ INFO ] Compile model took 385.39 ms
+    [Step 8/11] Querying optimal runtime parameters
+    [ INFO ] Model:
+    [ INFO ]   NETWORK_NAME: Model0
+    [ INFO ]   EXECUTION_DEVICES: ['CPU']
+    [ INFO ]   PERFORMANCE_HINT: PerformanceMode.THROUGHPUT
+    [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]   MULTI_DEVICE_PRIORITIES: CPU
+    [ INFO ]   CPU:
+    [ INFO ]     AFFINITY: Affinity.CORE
+    [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
+    [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
+    [ INFO ]     ENABLE_CPU_PINNING: True
+    [ INFO ]     ENABLE_HYPER_THREADING: True
+    [ INFO ]     EXECUTION_DEVICES: ['CPU']
+    [ INFO ]     EXECUTION_MODE_HINT: ExecutionMode.PERFORMANCE
+    [ INFO ]     INFERENCE_NUM_THREADS: 24
+    [ INFO ]     INFERENCE_PRECISION_HINT: <Type: 'float32'>
+    [ INFO ]     NETWORK_NAME: Model0
+    [ INFO ]     NUM_STREAMS: 6
+    [ INFO ]     OPTIMAL_NUMBER_OF_INFER_REQUESTS: 6
+    [ INFO ]     PERFORMANCE_HINT: THROUGHPUT
+    [ INFO ]     PERFORMANCE_HINT_NUM_REQUESTS: 0
+    [ INFO ]     PERF_COUNT: NO
+    [ INFO ]     SCHEDULING_CORE_TYPE: SchedulingCoreType.ANY_CORE
+    [ INFO ]   MODEL_PRIORITY: Priority.MEDIUM
+    [ INFO ]   LOADED_FROM_CACHE: False
+    [Step 9/11] Creating infer requests and preparing input tensors
+    [ WARNING ] No input files were given for input 'im'!. This input will be filled with random values!
+    [ INFO ] Fill input 'im' with random values 
+
+
+.. parsed-literal::
+
+    [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
+    [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
+
+
+.. parsed-literal::
+
+    [ INFO ] First inference took 210.45 ms
+
+
+.. parsed-literal::
+
+    [Step 11/11] Dumping statistics report
+    [ INFO ] Execution Devices:['CPU']
+    [ INFO ] Count:            1686 iterations
+    [ INFO ] Duration:         120531.12 ms
+    [ INFO ] Latency:
+    [ INFO ]    Median:        429.25 ms
+    [ INFO ]    Average:       428.34 ms
+    [ INFO ]    Min:           354.96 ms
+    [ INFO ]    Max:           506.55 ms
+    [ INFO ] Throughput:   27.98 FPS
 

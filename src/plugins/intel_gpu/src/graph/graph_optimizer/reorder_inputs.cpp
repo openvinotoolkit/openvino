@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
-#include "binary_convolution_inst.h"
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
@@ -553,7 +552,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<dir>::first(node, next);
         auto successor = travel_direction_wrapper<dir>::second(node, next);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -565,7 +565,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<dir>::first(node, next)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 
@@ -601,7 +602,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         // So the priority is preferred_input/output_format --> fmt_map --> output_layout().format
         auto predecessor = travel_direction_wrapper<direction_e::backwards>::first(node, next.first);
         auto successor = travel_direction_wrapper<direction_e::backwards>::second(node, next.first);
-        auto in_layout = predecessor->get_output_layout();
+        auto port_idx = successor->get_dependency_output_port(*predecessor);
+        auto in_layout = predecessor->get_output_layout(false, port_idx);
         auto out_layout = in_layout;
 
         in_layout.format = get_target_output_format(lo, fmt_map, predecessor, successor);
@@ -613,7 +615,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         if (in_layout.format == format::any || out_layout.format == format::any)
             continue;
 
-        auto reorder_pair = rf.get_reorder(travel_direction_wrapper<direction_e::backwards>::first(node, next.first)->id(),
+        auto reorder_pair = rf.get_reorder(predecessor->id(),
+                                           port_idx,
                                            in_layout,
                                            out_layout);
 
@@ -686,16 +689,16 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     }
 
     GPU_DEBUG_IF(debug_config->verbose >= 2) {
-        reorder_cnt total_reorder_count = std::accumulate(
-            p.get_processing_order().begin(),
-            p.get_processing_order().end(),
-            reorder_cnt{ 0, 0 },
-            [&](reorder_cnt& total, program_node* node) {
-            if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
-                return total;
-            auto count = count_reorders(fmt_map, lo, node);
-            return reorder_cnt{ total.number + count.number, total.total_sizes + count.total_sizes };
-        });
+        reorder_cnt total_reorder_count =
+            std::accumulate(p.get_processing_order().begin(),
+                            p.get_processing_order().end(),
+                            reorder_cnt{0, 0},
+                            [&](reorder_cnt total, program_node* node) {
+                                if (fmt_map.count(node) == 0 || fmt_map.at(node) == format::any)
+                                    return total;
+                                auto count = count_reorders(fmt_map, lo, node);
+                                return reorder_cnt{total.number + count.number, total.total_sizes + count.total_sizes};
+                            });
         // Divide results by two as above function will each reorder from both sides
         GPU_DEBUG_LOG_PASS << "Total number of reorders: " << total_reorder_count.number / 2 << std::endl;
         GPU_DEBUG_LOG_PASS << "Total elements count of all reorders: " << total_reorder_count.total_sizes / 2 << std::endl;
@@ -738,30 +741,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 if (new_input.first) {
                     p.add_intermediate(new_input.first, detection_output_node, i, !new_input.second);
                 }
-            }
-        }
-    };
-
-    const auto reorder_input_and_weights_binary_convolution = [&p, &rf](typed_program_node<binary_convolution>& binary_conv_node) {
-        auto& input = binary_conv_node.input();
-        auto input_layout = input.get_output_layout();
-        auto new_layout = input_layout;
-        new_layout.data_type = data_types::u1;
-
-        auto reorder = rf.get_reorder(input.id(), input_layout, new_layout);
-
-        if (reorder.first) {
-            p.add_intermediate(reorder.first, binary_conv_node, 0, !reorder.second);
-        }
-
-        auto& weights = binary_conv_node.weights();
-        auto weights_layout = weights.get_output_layout();
-        if (!weights.is_type<data>() && !weights.is_constant()) {
-            auto new_layout = layout{ weights_layout.get_partial_shape(), data_types::u1, format::b_fs_yx_32fp };
-            auto reorder = rf.get_reorder(weights.id(), weights_layout, new_layout);
-            if (reorder.first) {
-                p.add_intermediate(reorder.first, binary_conv_node, 1, !reorder.second);
-                p.get_or_create(reorder.first).recalc_output_layouts(false);
             }
         }
     };
@@ -915,12 +894,13 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
     const auto reorder_input_pooling = [&p, &rf](typed_program_node<pooling>& pooling_node) {
         // Change input data type of pooling node from i32 to f32
-        auto& input = pooling_node.input();
-        auto input_layout = input.get_output_layout();
+        auto dep = pooling_node.get_dependency_with_port(0);
+        const auto& input = dep.first;
+        auto input_layout = input->get_output_layout();
         if (pooling_node.get_primitive()->mode == pooling_mode::max && input_layout.data_type == data_types::i32) {
             auto new_layout = input_layout;
             new_layout.data_type = data_types::f32;
-            auto new_input = rf.get_reorder(input.id(), input_layout, new_layout);
+            auto new_input = rf.get_reorder(input->id(), dep.second, input_layout, new_layout);
             if (new_input.first) {
                p.add_intermediate(new_input.first, pooling_node, 0);
             }
@@ -928,10 +908,9 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
     };
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected, pooling>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
-            reorder_input_and_weights_binary_convolution,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
@@ -1006,7 +985,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(), ov::AxisSet{});
+                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(),
+                                                                            ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
                     p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);
@@ -1050,7 +1030,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
                     static size_t idx = 0;
                     const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
-                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(), ov::AxisSet{});
+                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), fc_layout.get_shape(),
+                                                                            ov::AxisSet{}, ov::op::BroadcastType::NUMPY);
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
                     p.add_intermediate(broadcast_node, *node, fused_prim.outer_dep_start_idx, true);

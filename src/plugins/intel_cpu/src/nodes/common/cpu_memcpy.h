@@ -5,9 +5,8 @@
 #pragma once
 
 #include <cstring>
-#include "ie_api.h"
-#include <ie_parallel.hpp>
-#include <onednn/dnnl.h>
+#include "openvino/core/parallel.hpp"
+#include "onednn/dnnl.h"
 
 namespace ov {
 namespace intel_cpu {

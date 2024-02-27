@@ -69,7 +69,7 @@ bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
 bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
-    auto checkPrecision = [&srcDescs, &dstDescs](std::vector<Precision> srcVecPrc, Precision dstPrc) -> bool {
+    auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc, ov::element::Type dstPrc) -> bool {
         for (size_t i = 0; i < srcDescs.size(); i++) {
             if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
         }
@@ -92,48 +92,48 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseSwish:
         case Algorithm::EltwisePrelu:
         case Algorithm::EltwiseHswish:
-            if (!(checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
+            if (!(checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
                 return false;
             }
             break;
         case Algorithm::EltwiseAbs:
         case Algorithm::EltwiseExp:
         case Algorithm::EltwiseLog:
-            if (!(checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
-                  checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
+            if (!(checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
+                  checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
                 return false;
             }
             break;
         case Algorithm::EltwiseMaximum:
         case Algorithm::EltwiseMinimum:
         case Algorithm::EltwiseSquaredDifference:
-            if (!(checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
-                  checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
-                  checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
+            if (!(checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
+                  checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
+                  checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
                 return false;
             }
             break;
         case Algorithm::EltwiseAdd:
         case Algorithm::EltwiseSubtract:
-            if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
-                  checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
-                  checkPrecision({Precision::I32, Precision::I32}, Precision::I32) ||
-                  checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
+            if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
+                  checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
+                  checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
+                  checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
                 return false;
             }
             break;
         case Algorithm::EltwiseMultiply:
-            if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
-                  checkPrecision({Precision::U8, Precision::U8}, Precision::I16) ||
-                  checkPrecision({Precision::U8, Precision::I16}, Precision::I16) ||
-                  checkPrecision({Precision::I16, Precision::U8}, Precision::I16) ||
-                  checkPrecision({Precision::I16, Precision::I16}, Precision::I16) ||
-                  checkPrecision({Precision::FP16, Precision::FP16}, Precision::FP16) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::FP32))) {
+            if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
+                  checkPrecision({ov::element::u8, ov::element::u8}, ov::element::i16) ||
+                  checkPrecision({ov::element::u8, ov::element::i16}, ov::element::i16) ||
+                  checkPrecision({ov::element::i16, ov::element::u8}, ov::element::i16) ||
+                  checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
+                  checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
                 return false;
             }
             break;
@@ -144,11 +144,11 @@ bool AclEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         case Algorithm::EltwiseGreaterEqual:
         case Algorithm::EltwiseLess:
         case Algorithm::EltwiseLessEqual:
-            if (!(checkPrecision({Precision::U8, Precision::U8}, Precision::U8) ||
-                  checkPrecision({Precision::I16, Precision::I16}, Precision::U8) ||
-                  checkPrecision({Precision::I32, Precision::I32}, Precision::U8) ||
-                  checkPrecision({Precision::FP16, Precision::FP16}, Precision::U8) ||
-                  checkPrecision({Precision::FP32, Precision::FP32}, Precision::U8))) {
+            if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
+                  checkPrecision({ov::element::i16, ov::element::i16}, ov::element::u8) ||
+                  checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) ||
+                  checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) ||
+                  checkPrecision({ov::element::f32, ov::element::f32}, ov::element::u8))) {
                 return false;
             }
             break;
@@ -497,7 +497,8 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
             };
             break;
         default:
-            IE_THROW() << "Unsupported operation type for ACL Eltwise executor: " << static_cast<int>(aclEltwiseAttrs.algorithm);
+            OPENVINO_THROW("Unsupported operation type for ACL Eltwise executor: ",
+                           static_cast<int>(aclEltwiseAttrs.algorithm));
     }
 
     // We get a problem (seg. faults, data race etc) for eltwise operations when we use several configure(...) functions in parallel.

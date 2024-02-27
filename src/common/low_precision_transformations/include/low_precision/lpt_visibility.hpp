@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "ngraph/visibility.hpp"
+#include "openvino/core/visibility.hpp"
 
 /**
  * @file lpt_visibility.hpp
- * @brief Defines visibility settings for Inference Engine LP Transformations library
+ * @brief Defines visibility settings for OpenVINO LP Transformations library
  */
 
 #ifdef OPENVINO_STATIC_LIBRARY

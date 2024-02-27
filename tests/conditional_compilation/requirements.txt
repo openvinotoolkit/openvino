@@ -1,5 +1,6 @@
 -c ../constraints.txt
 numpy
+protobuf
 pytest
 pytest-dependency
 pytest-html

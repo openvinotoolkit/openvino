@@ -6,7 +6,6 @@
 
 #include <node.h>
 
-#include <ie_precision.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -35,7 +34,7 @@ struct jit_topk_config_params {
     bool stable;             // if require stable sorting
     TopKLayoutType layout;   // memory layout
     TopKAlgorithm algorithm; // topk sorting algorithm
-    InferenceEngine::Precision precision; // precision
+    ov::element::Type precision; // precision
     int data_size;           // data size
     int blk_size;            // block size
     int top_k;               // number of the output elements in the sorting dimension
@@ -80,7 +79,7 @@ struct jit_uni_topk_kernel {
 
 class TopK : public Node {
 public:
-    TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     ~TopK() override = default;
 
     void getSupportedDescriptors() override;
@@ -96,7 +95,7 @@ public:
         return false;
     }
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node> &op, std::string &errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node> &op, std::string &errorMessage) noexcept;
 
 private:
     void topk_process(const uint8_t *in_ptr, uint8_t *out_ptr, uint8_t *dst_idx);

@@ -2,18 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/region_yolo.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/region_yolo.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 struct regionYoloAttributes {
     size_t classes;
@@ -28,9 +26,7 @@ typedef std::tuple<
         InputShape,                         // Input Shape
         regionYoloAttributes,               // Params
         std::vector<int64_t>,               // mask
-        ov::test::ElementType,              // Network input precision
-        ov::test::ElementType,              // Network output precision
-        std::map<std::string, std::string>, // Additional network configuration
+        ov::element::Type,                  // Model type
         std::string                         // Device name
 > RegionYoloGPUTestParam;
 
@@ -38,70 +34,60 @@ class RegionYoloLayerGPUTest : public testing::WithParamInterface<RegionYoloGPUT
                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RegionYoloGPUTestParam> obj) {
-        InputShape inputShape;
+        InputShape shapes;
         regionYoloAttributes attributes;
         std::vector<int64_t> mask;
-        ov::test::ElementType inpPrecision;
-        ov::test::ElementType outPrecision;
+        ov::element::Type model_type;
         std::string targetName;
-        std::map<std::string, std::string> additionalConfig;
-
-        std::tie(inputShape, attributes, mask, inpPrecision, outPrecision, additionalConfig, targetName) = obj.param;
+        std::tie(shapes, attributes, mask, model_type, targetName) = obj.param;
 
         std::ostringstream result;
-        result << "IS=" << inputShape << "_";
+        result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
+        for (const auto& item : shapes.second) {
+            result << ov::test::utils::vec2str(item) << "_";
+        }
         result << "classes=" << attributes.classes << "_";
         result << "coords=" << attributes.coordinates << "_";
         result << "num=" << attributes.num_regions << "_";
         result << "doSoftmax=" << attributes.do_softmax << "_";
         result << "axis=" << attributes.start_axis << "_";
         result << "endAxis=" << attributes.end_axis << "_";
-        result << "inpPRC=" << inpPrecision << "_";
-        result << "outPRC=" << outPrecision << "_";
+        result << "inpPRC=" << model_type << "_";
         result << "targetDevice=" << targetName << "_";
         return result.str();
     }
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
+        InputShape shapes;
         regionYoloAttributes attributes;
         std::vector<int64_t> mask;
-        ov::test::ElementType inPrc;
-        ov::test::ElementType outPrc;
-        std::map<std::string, std::string> additionalConfig;
+        ov::element::Type model_type;
+        std::tie(shapes, attributes, mask, model_type, targetDevice) = this->GetParam();
 
-        std::tie(inputShape, attributes, mask, inPrc, outPrc, additionalConfig, targetDevice) = this->GetParam();
-
-        init_input_shapes({ inputShape });
+        init_input_shapes({ shapes });
 
         ov::ParameterVector paramRegionYolo;
         for (auto&& shape : inputDynamicShapes) {
-            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
+            paramRegionYolo.push_back(std::make_shared<ov::op::v0::Parameter>(model_type, shape));
         }
 
-        const auto region_yolo = std::make_shared<ngraph::op::v0::RegionYolo>(paramRegionYolo[0],
+        const auto region_yolo = std::make_shared<ov::op::v0::RegionYolo>(paramRegionYolo[0],
                                                                               attributes.coordinates, attributes.classes, attributes.num_regions,
                                                                               attributes.do_softmax, mask, attributes.start_axis, attributes.end_axis);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < region_yolo->get_output_size(); i++)
-            results.push_back(std::make_shared<ngraph::opset1::Result>(region_yolo->output(i)));
-        function = std::make_shared<ngraph::Function>(results, paramRegionYolo, "RegionYolo");
+            results.push_back(std::make_shared<ov::op::v0::Result>(region_yolo->output(i)));
+        function = std::make_shared<ov::Model>(results, paramRegionYolo, "RegionYolo");
     }
 };
 
-TEST_P(RegionYoloLayerGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(RegionYoloLayerGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-std::map<std::string, std::string> emptyAdditionalConfig;
-
-const std::vector<ov::test::ElementType> inpOutPrc = {ov::test::ElementType::f16, ov::test::ElementType::f32};
+const std::vector<ov::element::Type> model_types = {ov::element::f16, ov::element::f32};
 
 const std::vector<InputShape> inShapes_caffe_dynamic = {
         {{-1, -1, -1, -1}, {{1, 125, 13, 13}, {1, 125, 26, 26}}},
@@ -134,9 +120,7 @@ const auto testCase_yolov3_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inShapes_v3_dynamic),
         ::testing::Values(yoloV3attr),
         ::testing::Values(masks[2]),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::Values(emptyAdditionalConfig),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
@@ -146,9 +130,7 @@ const auto testCase_yolov3_mxnet_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inShapes_mxnet_dynamic),
         ::testing::Values(yoloV3mxnetAttr),
         ::testing::Values(masks[1]),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::Values(emptyAdditionalConfig),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
@@ -158,9 +140,7 @@ const auto testCase_yolov2_caffe_dynamic = ::testing::Combine(
         ::testing::ValuesIn(inShapes_caffe_dynamic),
         ::testing::Values(yoloV2caffeAttr),
         ::testing::Values(masks[0]),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::ValuesIn(inpOutPrc),
-        ::testing::Values(emptyAdditionalConfig),
+        ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU)
 );
 
@@ -177,4 +157,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPURegionYoloCaffeDynamic, RegionYoloLayerGPUTest
                          RegionYoloLayerGPUTest::getTestCaseName);
 
 } // namespace
-} // namespace GPULayerTestsDefinitions

@@ -14,6 +14,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -26,13 +27,10 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         {data_pattern, ru_min_input_pattern, ru_max_input_pattern},
         pattern::consumers_count(1));
     const auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    const auto optional_convert = ov::pass::pattern::optional<ov::op::v0::Convert>(random_uniform_pattern);
 
-    const auto convert_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Convert>({random_uniform_pattern});
-    const auto random_uniform_or_convert_pattern =
-        std::make_shared<pattern::op::Or>(OutputVector{random_uniform_pattern, convert_pattern});
-
-    const auto mul_add_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>(
-        {random_uniform_or_convert_pattern, const_pattern});
+    const auto mul_add_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply, ov::op::v1::Add>({optional_convert, const_pattern});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -63,19 +61,14 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         const auto new_mul_add1 = mul_add_ptr->clone_with_new_inputs({ru->input_value(1), new_const});
         const auto new_mul_add2 = mul_add_ptr->clone_with_new_inputs({ru->input_value(2), new_const});
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& folded_const1 = ov::get_constant_from_source(new_mul_add1);
-        const auto& folded_const2 = ov::get_constant_from_source(new_mul_add2);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& folded_const1 = ov::util::get_constant_from_source(new_mul_add1);
+        const auto& folded_const2 = ov::util::get_constant_from_source(new_mul_add2);
 
         const auto new_ru = ru->clone_with_new_inputs(
             {data, folded_const1 ? folded_const1 : new_mul_add1, folded_const2 ? folded_const2 : new_mul_add2});
 
-        if (pattern_map.count(convert_pattern)) {
-            const auto& convert = pattern_map.at(convert_pattern);
-            const auto cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(convert.get_node_shared_ptr());
-            if (!cvt)
-                return false;
+        if (pattern_map.count(optional_convert)) {
+            auto cvt = pattern_map.at(optional_convert).get_node_shared_ptr();
             if (!cvt->get_element_type().is_real())
                 return false;
             const auto new_ru_conv = cvt->clone_with_new_inputs({new_ru});

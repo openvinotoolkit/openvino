@@ -2,21 +2,24 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <common/primitive_desc_iface.hpp>
-#include <memory>
-#include <oneapi/dnnl/dnnl.hpp>
-#include "memory_desc/blocked_memory_desc.h"
-#include "onednn/iml_type_mapper.h"
 #ifdef CPU_DEBUG_CAPS
 
+#include "cpu_memory.h"
 #include "debug_capabilities.h"
 #include "node.h"
 #include "edge.h"
+#include "graph.h"
 #include <iomanip>
 #include "nodes/input.h"
 #include "nodes/eltwise.h"
-#include "snippets/op/subgraph.hpp"
-#include <ie_ngraph_utils.hpp>
+
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "common/primitive_desc_iface.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "oneapi/dnnl/dnnl.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include <memory>
 
 namespace dnnl {
 namespace impl {
@@ -110,7 +113,7 @@ void DebugLogEnabled::break_at(const std::string & log) {
 
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
     os << desc.getShape().toString()
-       << " " << desc.getPrecision().name()
+       << " " << desc.getPrecision().get_type_name()
        << " " << desc.serializeFormat();
     return os;
 }
@@ -123,28 +126,28 @@ std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg) {
     return dnnl::impl::operator<<(os, convert_to_c(alg));
 }
 
+std::ostream & operator<<(std::ostream & os, const PortConfig& config) {
+    const char* sep = ",";
+    os << sep << *config.getMemDesc();
+    os << " inPlace:" << config.inPlace();
+    config.constant() ? os << " constant" : os << " non-constant";
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const NodeConfig& config) {
+    os << "(";
+    for (auto & conf : config.inConfs)
+        os << conf;
+    os << ") -> (";
+    for (auto & conf : config.outConfs)
+        os << conf;
+    os << ")" << '\n';
+    return os;
+}
+
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
-    std::stringstream ss;
-    ss << "  " << impl_type_to_string(desc.getImplementationType()) << "(";
-    const char * sep = "";
-    for (auto & conf : desc.getConfig().inConfs) {
-        ss << sep << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
-        if (conf.constant()) ss << " constant";
-        sep = ",";
-    }
-    ss << ") -> (";
-    sep = "";
-    for (auto & conf : desc.getConfig().outConfs) {
-        ss << sep << *conf.getMemDesc();
-        if (conf.inPlace() >= 0) ss << " inPlace:" << conf.inPlace();
-        if (conf.constant()) ss << " constant";
-        sep = ",";
-    }
-    ss << ")" << std::endl;
-    auto str = ss.str();
-    replace_all(str, "0 - ?", "?");
-    os << str;
+    os << "  " << impl_type_to_string(desc.getImplementationType());
+    os << desc.getConfig();
     return os;
 }
 
@@ -160,7 +163,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     const char * comma = "";
     auto node_id = [](Node & node) {
         auto id = node.getName();
-        if (id.size() > 20)
+        if (id.size() > 50)
             return node.getTypeStr() + "_" + std::to_string(node.getExecIndex());
         return id;
     };
@@ -184,6 +187,18 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             num_output_port = edge->getInputNum() + 1;
     }
 
+    auto getData = [](const MemoryPtr& ptr) {
+        std::string ret;
+        try {
+            std::stringstream ss;
+            ss << ptr->getData();
+            ret = ss.str();
+        } catch (const std::exception& e) {
+            ret = "?";
+        }
+        return ret;
+    };
+
     if (num_output_port) {
         if (num_output_port > 1) leftside << "(";
         comma = "";
@@ -196,10 +211,10 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                     auto desc = &(ptr->getDesc());
                     auto shape_str = desc->getShape().toString();
                     replace_all(shape_str, " ", "");
-                    leftside << comma << desc->getPrecision().name()
+                    leftside << comma << desc->getPrecision().get_type_name()
                                 << "_" << desc->serializeFormat()
                                 << "_" << shape_str
-                                << "_" << ptr->getData();
+                                << "&" << getData(ptr);
                     b_ouputed = true;
                 } else {
                     leftside << "(empty)";
@@ -210,7 +225,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
                 auto shape_str = desc->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
                 replace_all(shape_str, " ", "");
-                leftside << comma << desc->getPrecision().name()
+                leftside << comma << desc->getPrecision().get_type_name()
                             << "_" << desc->serializeFormat()
                             << "_" << shape_str;
                 b_ouputed = true;
@@ -229,7 +244,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         if (!inConfs.empty()) {
             os << " in:[";
             for (auto& c : inConfs) {
-                os << c.getMemDesc()->getPrecision().name()
+                os << c.getMemDesc()->getPrecision().get_type_name()
                         << c.getMemDesc()->
                         << "/" << c.getMemDesc()->serializeFormat()
                         << "; ";
@@ -244,7 +259,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             for (auto& c : outConfs) {
                 auto shape_str = c.getMemDesc()->getShape().toString();
                 replace_all(shape_str, "0 - ?", "?");
-                leftside << comma << c.getMemDesc()->getPrecision().name()
+                leftside << comma << c.getMemDesc()->getPrecision().get_type_name()
                             << "_" << c.getMemDesc()->serializeFormat()
                             << "_" << shape_str;
                 comma = ",";
@@ -257,7 +272,7 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
         for (size_t i = 0; i < node.getOriginalOutputPrecisions().size(); i++) {
             auto shape = node.getOutputShapeAtPort(i);
             std::string prec_name = "Undef";
-            prec_name = node.getOriginalOutputPrecisionAtPort(i).name();
+            prec_name = node.getOriginalOutputPrecisionAtPort(i).get_type_name();
             auto shape_str = shape.toString();
             replace_all(shape_str, "0 - ?", "?");
             leftside << comma << prec_name
@@ -275,22 +290,24 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
     comma = "";
     for (size_t port = 0; port < node.getParentEdges().size(); ++port) {
         // find the Parent edge connecting to port
+        os << comma;
+        const char * sep2 = "";
         for (const auto & e : node.getParentEdges()) {
             auto edge = e.lock();
             if (!edge) continue;
             if (edge->getOutputNum() != static_cast<int>(port)) continue;
             auto n = edge->getParent();
-            os << comma;
+            os << sep2;
             os << node_id(*edge->getParent());
             auto ptr = edge->getMemoryPtr();
             if (ptr) {
-                os << "_" << ptr->getData();
+                os << "&" << getData(ptr);
             }
             if (!is_single_output_port(*n))
                 os << "[" << edge->getInputNum() << "]";
-            comma = ",";
-            break;
+            sep2 = "|"; // show all edges at single port(usually indicating bugs)
         }
+        comma = ",";
     }
 
     if (node.getType() == intel_cpu::Type::Input && node.isConstant()) {
@@ -300,9 +317,9 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
             auto shape = pmem->getDesc().getShape().getDims();
 
             if (shape_size(shape) <= 8) {
-                auto type = InferenceEngine::details::convertPrecision(pmem->getDesc().getPrecision());
-                auto tensor = std::make_shared<ngraph::runtime::HostTensor>(type, shape, data);
-                auto constop = std::make_shared<ngraph::op::Constant>(tensor);
+                auto type = pmem->getDesc().getPrecision();
+                auto tensor = ov::Tensor(type, shape, data);
+                auto constop = std::make_shared<ov::op::v0::Constant>(tensor);
                 comma = "";
                 for (auto & v : constop->get_value_strings()) {
                     os << comma << v;
@@ -367,14 +384,28 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 
     return os;
 }
+std::ostream & operator<<(std::ostream & os, const Shape& shape) {
+    os << shape.toString();
+    return os;
+}
 
-class OstreamAttributeVisitor : public ngraph::AttributeVisitor {
+// Print complex data structures in a textualized form to the console is an efficient way to investigate them
+std::ostream & operator<<(std::ostream & os, const Graph& g) {
+    os << "ov::intel_cpu::Graph " << g.GetName() << " {" << std::endl;
+    for (auto &graphNode : g.GetNodes()) {
+        std::cout << *graphNode << std::endl;
+    }
+    os << "};" << std::endl;
+    return os;
+}
+
+class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream & os;
 
 public:
     OstreamAttributeVisitor(std::ostream & os) : os(os) {}
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto& value = join(a->get());
             append_attribute(name.c_str(), value.c_str());
@@ -386,43 +417,43 @@ public:
         }
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
         append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
         append_attribute(name.c_str(), adapter.get().c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         append_attribute(name.c_str(), std::to_string(adapter.get()).c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
         const auto& value = join(adapter.get());
         append_attribute(name.c_str(), value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         const auto& value = join(adapter.get());
         append_attribute(name.c_str(), value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         const auto& value = join(adapter.get());
         append_attribute(name.c_str(), value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         const auto& value = join(adapter.get());
         append_attribute(name.c_str(), value.c_str());
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         const auto& value = join(adapter.get());
         append_attribute(name.c_str(), value.c_str());
     }
@@ -430,7 +461,7 @@ public:
     void append_attribute(const char * name, const char * value) {
         os << " " << name << "=" << value;
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         append_attribute(name.c_str(), "Model");
     }
 
@@ -520,7 +551,11 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         }
     }
     os << prefix << "}\n";
-
+    os << prefix << "fp16_compress disabled Ngraph nodes:\n";
+    for (const auto& op : f.get_ordered_ops()) {
+        if (ov::fp16_compression_is_disabled(op) && !std::dynamic_pointer_cast<op::v0::Constant>(op))
+            os << "\t" << tag << op->get_friendly_name() << "\n";
+    }
     return os;
 }
 
@@ -577,6 +612,7 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
     }
 
     os << " " << dnnl_dt2str(desc.get()->data_type);
+    os << " " << dnnl_fmt_kind2str(desc.get()->format_kind);
     return os;
 }
 
@@ -594,6 +630,54 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag form
     const auto c_format_tag = dnnl::memory::convert_to_c(format_tag);
     os << dnnl_fmt_tag2str(c_format_tag);
     return os;
+}
+
+template <typename T>
+std::string to_string(const T* values, size_t N, size_t maxsize) {
+    std::stringstream ss;
+    for (size_t i = 0; i < N; i++) {
+        if (i > 0)
+            ss << ",";
+        if (ss.tellp() > static_cast<std::stringstream::pos_type>(maxsize)) {
+            ss << "..." << N << "in total";
+            break;
+        }
+        if (std::is_same<T, int8_t>::value || std::is_same<T, uint8_t>::value)
+            ss << static_cast<int>(values[i]);
+        else
+            ss << values[i];
+    }
+    return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const IMemory& mem) {
+    const auto& desc = mem.getDesc();
+    os << desc;
+    if (mem.isAllocated()) {
+        os << " [";
+        if (desc.getPrecision() == ov::element::i32) {
+            os << to_string(reinterpret_cast<int32_t*>(mem.getData()), mem.getSize() / sizeof(int32_t), 256);
+        } else if (desc.getPrecision() == ov::element::f32) {
+            os << to_string(reinterpret_cast<float*>(mem.getData()), mem.getSize() / sizeof(float), 256);
+        } else if (desc.getPrecision() == ov::element::i64) {
+            os << to_string(reinterpret_cast<int64_t*>(mem.getData()), mem.getSize() / sizeof(int64_t), 256);
+        } else {
+            os << " ? ";
+        }
+        os << "]";
+    }
+    return os;
+}
+// @todo remove
+void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
+    const size_t s = memory.get_desc().get_size() / sizeof(float);
+    std::cout << message << " " << id << " size: " << s << ", values: ";
+    auto m = reinterpret_cast<float*>(memory.get_data_handle());
+    for (size_t i = 0; i < std::min(s, size); i++) {
+        std::cout << *m << " ";
+        m++;
+    }
+    std::cout << "\n";
 }
 
 }   // namespace intel_cpu

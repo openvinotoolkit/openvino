@@ -14,7 +14,7 @@ namespace kernel_selector {
 namespace {
 
 
-CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params &params, const optional_params &) {
+CommonDispatchData SetDefault(const experimental_detectron_topk_roi_params &params) {
     CommonDispatchData dispatchData;
     dispatchData.gws = {params.outputs[0].Batch().v, 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -28,16 +28,16 @@ JitConstants ExperimentalDetectronTopKROIRef::GetJitConstants(const experimental
 }
 
 
-KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params, const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kernel_data = KernelData::Default<experimental_detectron_topk_roi_params>(params);
     const experimental_detectron_topk_roi_params &new_params = dynamic_cast<const experimental_detectron_topk_roi_params &>(*kernel_data.params.get());
 
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto dispatch_data = SetDefault(new_params);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
 
     auto experimental_detectron_topk_roi_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, experimental_detectron_topk_roi_jit, entry_point);
@@ -50,8 +50,7 @@ KernelsData ExperimentalDetectronTopKROIRef::GetKernelsData(const Params &params
     return kernelsData;
 }
 
-KernelsPriority ExperimentalDetectronTopKROIRef::GetKernelsPriority(const Params & /*params*/,
-                                                                    const optional_params & /*options*/) const {
+KernelsPriority ExperimentalDetectronTopKROIRef::GetKernelsPriority(const Params & /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -82,9 +81,8 @@ ParamsKey ExperimentalDetectronTopKROIRef::GetSupportedKey() const {
     return k;
 }
 
-bool ExperimentalDetectronTopKROIRef::Validate(const Params &params, const optional_params &optionalParams) const {
-    if (params.GetType() != KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS ||
-        optionalParams.GetType() != KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {
+bool ExperimentalDetectronTopKROIRef::Validate(const Params &params) const {
+    if (params.GetType() != KernelType::EXPERIMENTAL_DETECTRON_TOPK_ROIS) {
         return false;
     }
 

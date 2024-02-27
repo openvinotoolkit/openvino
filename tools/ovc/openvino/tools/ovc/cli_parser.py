@@ -9,9 +9,8 @@ import re
 from collections import OrderedDict, namedtuple
 from typing import List, Union
 
-from openvino.runtime import PartialShape, Dimension, Shape, Type  # pylint: disable=no-name-in-module,import-error
-
 import openvino
+from openvino.runtime import PartialShape, Dimension, Type  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.error import Error
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 from openvino.tools.ovc.moc_frontend.shape_utils import to_partial_shape, is_shape_type
@@ -64,13 +63,14 @@ def single_input_to_input_cut_info(input: [str, tuple, list, PartialShape, Type,
                              None)
     # Case when only type is set
     if is_type(input):
-        return _InputCutInfo(None, None, to_ov_type(input), None) # pylint: disable=no-member
+        return _InputCutInfo(None, None, to_ov_type(input), None)  # pylint: disable=no-member
 
     # We don't expect here single unnamed value. If list of int is set it is considered as shape.
     # Setting of value is expected only using InputCutInfo or string analog.
 
-    raise Exception("Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(type(input)))
-
+    raise Exception(
+        "Unexpected object provided for input. Expected tuple, Shape, PartialShape, Type or str. Got {}".format(
+            type(input)))
 
 
 def is_single_input(input: [tuple, list]):
@@ -104,7 +104,6 @@ def parse_inputs(inputs: str):
     inputs_list = []
     # Split to list of string
     for input_value in split_inputs(inputs):
-
         # Parse string with parameters for single input
         node_name, shape = parse_input_value(input_value)
         # pylint: disable=no-member
@@ -113,7 +112,6 @@ def parse_inputs(inputs: str):
 
 
 def input_to_input_cut_info(input: [dict, tuple, list]):
-
     """
     Parses 'input' to list of InputCutInfo.
     :param input: input cut parameters passed by user
@@ -156,9 +154,9 @@ ParamDescription = namedtuple("ParamData", ["description", "cli_tool_description
 
 
 def get_mo_convert_params():
-    mo_convert_docs = openvino.tools.ovc.convert_model.__doc__ # pylint: disable=no-member
+    mo_convert_docs = openvino.tools.ovc.convert_model.__doc__  # pylint: disable=no-member
     mo_convert_params = {}
-    group = "Optional parameters:"    #FIXME: WA for unknown bug in this function
+    group = "Optional parameters:"  # FIXME: WA for unknown bug in this function
     mo_convert_params[group] = {}
 
     mo_convert_docs = mo_convert_docs[:mo_convert_docs.find('Returns:')]
@@ -167,11 +165,11 @@ def get_mo_convert_params():
         param_idx1 = mo_convert_docs.find(":param")
         if param_idx1 == -1:
             break
-        param_idx2 = mo_convert_docs.find(":", param_idx1+1)
-        param_name = mo_convert_docs[param_idx1+len(':param '):param_idx2]
+        param_idx2 = mo_convert_docs.find(":", param_idx1 + 1)
+        param_name = mo_convert_docs[param_idx1 + len(':param '):param_idx2]
 
-        param_description_idx = mo_convert_docs.find(":param", param_idx2+1)
-        param_description = mo_convert_docs[param_idx2+1: param_description_idx]
+        param_description_idx = mo_convert_docs.find(":param", param_idx2 + 1)
+        param_description = mo_convert_docs[param_idx2 + 1: param_description_idx]
 
         group_name_idx = param_description.rfind('\n\n')
         group_name = ''
@@ -253,22 +251,6 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         setattr(namespace, self.dest, list_of_paths)
 
 
-def readable_file_or_object(path: str):
-    """
-    Check that specified path is a readable file.
-    :param path: path to check
-    :return: path if the file is readable
-    """
-    if not isinstance(path, (str, pathlib.Path)):
-        return path
-    if not os.path.isfile(path):
-        raise Error('The "{}" is not existing file'.format(path))
-    elif not os.access(path, os.R_OK):
-        raise Error('The "{}" is not readable'.format(path))
-    else:
-        return path
-
-
 def readable_file_or_dir_or_object(path: str):
     """
     Check that specified path is a readable file or directory.
@@ -299,22 +281,9 @@ def readable_dirs_or_files_or_empty(paths: [str, list, tuple]):
 
     return paths_list[0] if isinstance(paths, (list, tuple)) and len(paths_list) == 1 else paths_list
 
-def readable_files_or_empty(paths: [str, list, tuple]):
-    """
-    Checks that comma separated list of paths are readable directories, files or a provided path is empty.
-    :param paths: comma separated list of paths.
-    :return: comma separated list of paths.
-    """
-    if isinstance(paths, (list, tuple)):
-        return [readable_file_or_object(path) for path in paths]
-    if isinstance(paths, (str, pathlib.Path)):
-        paths_list = [readable_file_or_object(path) for path in str(paths).split(',')]
-        return paths_list
-    return paths
-
 
 def add_args_by_description(args_group, params_description):
-    signature = inspect.signature(openvino.tools.ovc.convert_model) # pylint: disable=no-member
+    signature = inspect.signature(openvino.tools.ovc.convert_model)  # pylint: disable=no-member
     filepath_args = get_params_with_paths_list()
     cli_tool_specific_descriptions = get_convert_model_help_specifics()
     for param_name, param_description in params_description.items():
@@ -333,7 +302,8 @@ def add_args_by_description(args_group, params_description):
                 else param_description.description
             action = param_specifics['action'] if 'action' in param_specifics else None
             param_type = param_specifics['type'] if 'type' in param_specifics else None
-            param_alias = param_specifics['aliases'] if 'aliases' in param_specifics and param_name != 'input_model' else {}
+            param_alias = param_specifics[
+                'aliases'] if 'aliases' in param_specifics and param_name != 'input_model' else {}
             param_version = param_specifics['version'] if 'version' in param_specifics else None
             param_choices = param_specifics['choices'] if 'choices' in param_specifics else None
 
@@ -371,6 +341,7 @@ def add_args_by_description(args_group, params_description):
                     **additional_params
                 )
 
+
 class Formatter(argparse.HelpFormatter):
     def _format_usage(self, usage, actions, groups, prefix):
         usage = argparse.HelpFormatter._format_usage(self, usage, actions, groups, prefix)
@@ -395,16 +366,19 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
 
     # Command line tool specific params
     parser.add_argument('--output_model',
-                              help='This parameter is used to name output .xml/.bin files with converted model.')
+                        help='This parameter is used to name output .xml/.bin files of converted model. '
+                             'Model name or output directory can be passed. If output directory is passed, '
+                             'the resulting .xml/.bin files are named by original model name.')
     parser.add_argument('--compress_to_fp16', type=check_bool, default=True, nargs='?',
-                              help='Compress weights in output OpenVINO model to FP16. '
-                                   'To turn off compression use "--compress_to_fp16=False" command line parameter. '
-                                   'Default value is True.')
+                        help='Compress weights in output OpenVINO model to FP16. '
+                             'To turn off compression use "--compress_to_fp16=False" command line parameter. '
+                             'Default value is True.')
     parser.add_argument('--version', action='version',
-                              help='Print ovc version and exit.',
-                              version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
+                        help='Print ovc version and exit.',
+                        version='OpenVINO Model Converter (ovc) {}'.format(VersionChecker().get_ie_version()))
     add_args_by_description(parser, mo_convert_params_common)
     return parser
+
 
 def input_model_details(model):
     if isinstance(model, (list, tuple)) and len(model) == 1:
@@ -420,7 +394,6 @@ def get_common_cli_options(argv, is_python_api_used):
     if not is_python_api_used:
         model_name = get_model_name_from_args(argv)
         d['output_model'] = ['- IR output name', lambda _: model_name]
-    d['log_level'] = '- Log level'
     d['input'] = ['- Input layers', lambda x: x if x else 'Not specified, inherited from the model']
     d['output'] = ['- Output layers', lambda x: x if x else 'Not specified, inherited from the model']
     return d
@@ -534,11 +507,11 @@ def split_inputs(input_str):
                 else:
                     break
             idx += 1
-        if idx >= len(input_str)-1:
+        if idx >= len(input_str) - 1:
             inputs.append(input_str)
             break
         inputs.append(input_str[:idx])
-        input_str = input_str[idx+1:]
+        input_str = input_str[idx + 1:]
     return inputs
 
 
@@ -560,18 +533,25 @@ def get_model_name_from_args(argv: argparse.Namespace):
     if hasattr(argv, 'output_model') and argv.output_model:
         model_name = argv.output_model
 
-        if not os.path.isdir(argv.output_model):
+        if not os.path.isdir(argv.output_model) and not argv.output_model.endswith(os.sep):
+            # In this branch we assume that model name is set in 'output_model'.
             if not model_name.endswith('.xml'):
                 model_name += '.xml'
+            # Logic of creating and checking directory is covered in save_model() method.
             return model_name
         else:
-            if not os.access(argv.output_model, os.W_OK):
+            # In this branch 'output_model' has directory without name of model.
+            # The directory may not exist.
+            if os.path.isdir(argv.output_model) and not os.access(argv.output_model, os.W_OK):
+                # If the provided path is existing directory, but not writable, then raise error
                 raise Error('The directory "{}" is not writable'.format(argv.output_model))
             output_dir = argv.output_model
 
     input_model = argv.input_model
     if isinstance(input_model, (tuple, list)) and len(input_model) > 0:
         input_model = input_model[0]
+
+    input_model = os.path.abspath(input_model)
 
     if not isinstance(input_model, (str, pathlib.Path)):
         return output_dir
@@ -584,8 +564,8 @@ def get_model_name_from_args(argv: argparse.Namespace):
     input_model_name = os.path.splitext(input_model_name)[0]
 
     # if no valid name exists in input path set name to 'model'
-    if input_model_name == '' or input_model_name == '.':
-        input_model_name = "model"
+    if input_model_name == '':
+        raise Exception("Could not derive model name from input model. Please provide 'output_model' parameter.")
 
     # add .xml extension
     return os.path.join(output_dir, input_model_name + ".xml")
@@ -640,6 +620,7 @@ def depersonalize(value: str, key: str):
         else:
             res.append(path)
     return ','.join(res)
+
 
 def get_available_front_ends(fem=None):
     # Use this function as workaround to avoid IR frontend usage by MO

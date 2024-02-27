@@ -20,12 +20,12 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SplitSqueezeConcatFusion transformation replaces group of
  * operations: Split -> Squeeze (multiple) -> Concat to Transpose -> Reshape ops.
  */
 class ov::pass::SplitSqueezeConcatFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitSqueezeConcatFusion", "0");
-    SplitSqueezeConcatFusion();
+    SplitSqueezeConcatFusion(bool use_shapes);
 };

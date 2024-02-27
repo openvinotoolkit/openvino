@@ -14,49 +14,79 @@ documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US
 
    anime
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Preparation <#preparation>`__
+-  `Preparation <#preparation>`__
 
-  - `Install requirements <#install-requirements>`__
-  - `Imports <#imports>`__
-  - `Settings <#settings>`__
-  - `Functions <#functions>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
+   -  `Functions <#functions>`__
 
-- `Inference on PaddleGAN Model <#inference-on-paddlegan-model>`__
+-  `Inference on PaddleGAN Model <#inference-on-paddlegan-model>`__
 
-  - `Show Inference Results on PaddleGAN model <#show-inference-results-on-paddlegan-model>`__
+   -  `Show Inference Results on PaddleGAN
+      model <#show-inference-results-on-paddlegan-model>`__
 
-- `Model Conversion to ONNX and OpenVINO IR <#model-conversion-to-onnx-and-openvino-ir>`__
+-  `Model Conversion to ONNX and OpenVINO
+   IR <#model-conversion-to-onnx-and-openvino-ir>`__
 
-  - `Convert to ONNX <#convert-to-onnx>`__
-  - `Convert to OpenVINO IR <#convert-to-openvino-ir>`__
+   -  `Convert to ONNX <#convert-to-onnx>`__
+   -  `Convert to OpenVINO IR <#convert-to-openvino-ir>`__
 
-- `Show Inference Results on OpenVINO IR and PaddleGAN Models <#show-inference-results-on-openvino-ir-and-paddlegan-models>`__
+-  `Show Inference Results on OpenVINO IR and PaddleGAN
+   Models <#show-inference-results-on-openvino-ir-and-paddlegan-models>`__
 
-  - `Create Postprocessing Functions <#create-postprocessing-functions>`__
-  - `Do Inference on OpenVINO IR Model <#do-inference-on-openvino-ir-model>`__
+   -  `Create Postprocessing
+      Functions <#create-postprocessing-functions>`__
+   -  `Do Inference on OpenVINO IR
+      Model <#do-inference-on-openvino-ir-model>`__
 
-    - `Select inference device <#select-inference-device>`__
+      -  `Select inference device <#select-inference-device>`__
 
-- `Performance Comparison <#performance-comparison>`__
-- `References <#references>`__
+-  `Performance Comparison <#performance-comparison>`__
+-  `References <#references>`__
 
 Preparation
-###############################################################################################################################
+-----------
+
+
 
 Install requirements
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
-    !pip install -q "openvino==2023.1.0.dev20230811"
+    %pip install -q "openvino>=2023.1.0"
     
-    !pip install -q "paddlepaddle==2.5.0" "paddle2onnx>=0.6"
-    !pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
+    %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6"
+    %pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
     
-    !pip install -q opencv-python matplotlib scikit-learn scikit-image
-    !pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" easydict munch natsort
+    %pip install -q opencv-python matplotlib scikit-learn scikit-image
+    %pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" easydict munch natsort
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -65,12 +95,19 @@ Install requirements
     paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.1 which is incompatible.
-    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.8.0.76 which is incompatible.
+    ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
     scikit-image 0.21.0 requires imageio>=2.27, but you have imageio 2.9.0 which is incompatible.
     
 
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
 Imports
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -114,7 +151,9 @@ Imports
         raise
 
 Settings
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -129,7 +168,9 @@ Settings
     onnx_path = model_path.with_suffix(".onnx")
 
 Functions
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -144,7 +185,9 @@ Functions
         return image
 
 Inference on PaddleGAN Model
-###############################################################################################################################
+----------------------------
+
+
 
 The PaddleGAN
 `documentation <https://github.com/PaddlePaddle/PaddleGAN/blob/develop/docs/en_US/tutorials/animegan.md>`__
@@ -161,7 +204,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [09/08 23:30:31] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [02/09 23:41:27] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -240,7 +283,9 @@ cell.
 
 
 Show Inference Results on PaddleGAN model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -257,14 +302,18 @@ Show Inference Results on PaddleGAN model
 
 
 Model Conversion to ONNX and OpenVINO IR
-###############################################################################################################################
+----------------------------------------
+
+
 
 Convert the PaddleGAN model to OpenVINO IR by first converting PaddleGAN
 to ONNX with ``paddle2onnx`` and then converting the ONNX model to
 OpenVINO IR with model conversion API.
 
 Convert to ONNX
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~
+
+
 
 Exporting to ONNX requires specifying an input shape with PaddlePaddle
 ``InputSpec`` and calling ``paddle.onnx.export``. Then, check the input
@@ -296,23 +345,29 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2023-09-08 23:30:39 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-02-09 23:41:36 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+
+
+.. parsed-literal::
+
     [Paddle2ONNX] Start to parse PaddlePaddle model...
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2023-09-08 23:30:39 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2024-02-09 23:41:36 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0908 23:30:39.290753 670433 interpretercore.cc:237] New Executor is Running.
+    I0209 23:41:36.202327 2843665 program_interpreter.cc:212] New Executor is Running.
 
 
 Convert to OpenVINO IR
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The OpenVINO IR format enables storing the preprocessing normalization
 in the model file. It is then no longer necessary to normalize input
@@ -354,7 +409,7 @@ feeding them to the converted model.
 Now we use model conversion API and convert the model to OpenVINO IR.
 
 **Convert ONNX Model to OpenVINO IR with**\ `Model Conversion Python
-API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 
 .. code:: ipython3
 
@@ -375,7 +430,9 @@ API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction
 
 
 Show Inference Results on OpenVINO IR and PaddleGAN Models
-###############################################################################################################################
+----------------------------------------------------------
+
+
 
 If the conversion is successful, the output of model conversion API in
 the cell above will show *SUCCESS*, and the OpenVINO IR model will be
@@ -387,7 +444,9 @@ without installing PaddleGAN, it is useful to check what these functions
 do and extract them.
 
 Create Postprocessing Functions
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
@@ -431,7 +490,9 @@ OpenVINO IR model
         return dstf
 
 Do Inference on OpenVINO IR Model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Load the OpenVINO IR model and do inference, following the same steps as
 for the PaddleGAN model. For more information about inference on
@@ -443,9 +504,11 @@ based on the input image. If you do inference on images with different
 input shapes, results may differ from the PaddleGAN results.
 
 Select inference device
--------------------------------------------------------------------------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
-Select device from dropdown list for running inference using OpenVINO:
+
+
+select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
@@ -536,7 +599,9 @@ Select device from dropdown list for running inference using OpenVINO:
 
 
 Performance Comparison
-###############################################################################################################################
+----------------------
+
+
 
 Measure the time it takes to do inference on an image. This gives an
 indication of performance. It is not a perfect measure. Since the
@@ -578,19 +643,25 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.438 seconds per image, FPS: 2.28
-    PaddleGAN model on CPU: 6.173 seconds per image, FPS: 0.16
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.427 seconds per image, FPS: 2.34
+
+
+.. parsed-literal::
+
+    PaddleGAN model on CPU: 6.182 seconds per image, FPS: 0.16
 
 
 References
-###############################################################################################################################
+----------
+
+
 
 -  `PaddleGAN <https://github.com/PaddlePaddle/PaddleGAN>`__
 -  `Paddle2ONNX <https://github.com/PaddlePaddle/paddle2onnx>`__
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion
-   API <https://docs.openvino.ai/2023.0/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
 
 The PaddleGAN code that is shown in this notebook is written by
 PaddlePaddle Authors and licensed under the Apache 2.0 license. The

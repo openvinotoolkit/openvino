@@ -723,7 +723,7 @@ def create_pytorch_module_with_compressed_int8_constant_compress_to_fp16_default
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -758,7 +758,7 @@ def create_pytorch_module_with_compressed_int8_constant(tmp_dir):
     net = Int8Model()
     example_input = (torch.rand((1, 3, 10, 10)),)
     traced_model = torch.jit.trace(net, example_input)
-    shape = [-1, -1, -1, -1]
+    shape = [-1, 3, -1, -1]
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape, dtype=np.float32)
     weights = ov.opset10.constant(net.weights.numpy(force=True))
@@ -1011,7 +1011,7 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_new_frontend, use_old_api):
+                                   temp_dir, use_legacy_frontend):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
         test_params = {'input_model': fw_model}
@@ -1027,8 +1027,8 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
             def __init__(self):
                 super(DataModel, self).__init__()
                 self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
+
+            def forward(self, x):
                 return self.data, x
 
         data_model = DataModel()
@@ -1051,13 +1051,13 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
     def test_sharing_memory_switched_on(self, ie_device, precision, ir_version, temp_dir):
         from openvino.tools.ovc import convert_model
         from openvino.runtime import Core
-        
+
         class DataModel(torch.nn.Module):
             def __init__(self):
                 super(DataModel, self).__init__()
                 self.data = torch.tensor([1, 2, 3, 4])
-        
-            def forward(self, x):                
+
+            def forward(self, x):
                 return self.data, x
 
         data_model = DataModel()
@@ -1236,9 +1236,11 @@ class TestPrecisionSensitive():
     @pytest.mark.parametrize("create_model", test_data)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122714')
-    def test_precision_sensitive(self, create_model, ie_device, precision, ir_version, temp_dir, use_new_frontend, use_old_api):
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 122714, 122710')
+    def test_precision_sensitive(self, create_model, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         import numpy.testing as npt
         from pathlib import Path
 

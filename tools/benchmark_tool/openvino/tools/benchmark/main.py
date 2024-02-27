@@ -26,7 +26,8 @@ def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
         return not arg_value is None and not arg_value == empty_value
 
-    args, parser = parse_args()
+    parser = parse_args()
+    args = parser.parse_args()
 
     if args.latency_percentile < 1 or args.latency_percentile > 100:
         parser.print_help()
@@ -105,7 +106,7 @@ def main():
         next_step()
 
         def set_performance_hint(device):
-            perf_hint = properties.hint.PerformanceMode.UNDEFINED
+            perf_hint = properties.hint.PerformanceMode.THROUGHPUT
             supported_properties = benchmark.core.get_property(device, properties.supported_properties())
             if properties.hint.performance_mode() in supported_properties:
                 if is_flag_set_in_command_line('hint'):
@@ -116,16 +117,16 @@ def main():
                     elif args.perf_hint == "cumulative_throughput" or args.perf_hint == "ctput":
                         perf_hint = properties.hint.PerformanceMode.CUMULATIVE_THROUGHPUT
                     elif args.perf_hint=='none':
-                        perf_hint = properties.hint.PerformanceMode.UNDEFINED
+                        # Not set PerformanceMode, and plugin will apply its internal default PerformanceMode
+                        return
                     else:
                         raise RuntimeError("Incorrect performance hint. Please set -hint option to"
                             "`throughput`(tput), `latency', 'cumulative_throughput'(ctput) value or 'none'.")
                 else:
-                    perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
+                    perf_hint = properties.hint.PerformanceMode.LATENCY if benchmark.api_type == "sync" else properties.hint.PerformanceMode.THROUGHPUT
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
                     f"Device({device}) performance hint will be set to {perf_hint}.")
-                if perf_hint != properties.hint.PerformanceMode.UNDEFINED:
-                    config[device][properties.hint.performance_mode()] = perf_hint
+                config[device][properties.hint.performance_mode()] = perf_hint
             else:
                 logger.warning(f"Device {device} does not support performance hint property(-hint).")
 
@@ -328,7 +329,7 @@ def main():
         topology_name = ""
         load_from_file_enabled = is_flag_set_in_command_line('load_from_file') or is_flag_set_in_command_line('lfile')
         if load_from_file_enabled and not is_network_compiled:
-            if not args.mean_values or not args.scale_values:
+            if args.mean_values or args.scale_values:
                 raise RuntimeError("--mean_values and --scale_values aren't supported with --load_from_file. "
                     "The values can be set via model_optimizer while generating xml")
             next_step()
@@ -414,7 +415,7 @@ def main():
                                               ('compile model time (ms)', duration_ms)
                                           ])
         else:
-            if not args.mean_values or not args.scale_values:
+            if args.mean_values or args.scale_values:
                 raise RuntimeError("--mean_values and --scale_values aren't supported for compiled model. "
                     "The values can be set via model_optimizer while generating xml")
             next_step()
@@ -446,7 +447,7 @@ def main():
         keys = compiled_model.get_property(properties.supported_properties())
         logger.info("Model:")
         for k in keys:
-            skip_keys = ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', properties.supported_properties())
+            skip_keys = (properties.supported_properties())
             if k not in skip_keys:
                 value = compiled_model.get_property(k)
                 if k == properties.device.properties():

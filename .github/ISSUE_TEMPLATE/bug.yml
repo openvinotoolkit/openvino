@@ -41,9 +41,7 @@ body:
       options:
         - CPU
         - GPU
-        - GNA
-        - NCS2 (Intel Movidius)
-        - HDDL
+        - NPU
         - AUTO
         - HETERO
         - BATCH

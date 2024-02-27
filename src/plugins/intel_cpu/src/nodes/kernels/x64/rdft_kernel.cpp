@@ -3,7 +3,6 @@
 //
 
 #include "rdft_kernel.hpp"
-#include <ie_common.h>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;

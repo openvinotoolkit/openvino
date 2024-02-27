@@ -195,7 +195,11 @@ void nms_rotated(const float* boxes_data,
     }
 
     if (sort_result_descending) {
-        std::reverse(filteredBoxes.begin(), filteredBoxes.end());
+        std::stable_sort(filteredBoxes.begin(), filteredBoxes.end(), [](const BoxInfo& lhs, const BoxInfo& rhs) {
+            return (lhs.score > rhs.score) ||
+                   ((lhs.score == rhs.score) && (std::tie(lhs.batch_index, lhs.class_index, lhs.index) <
+                                                 std::tie(rhs.batch_index, rhs.class_index, rhs.index)));
+        });
     }
 
     size_t max_num_of_selected_indices = selected_indices_shape[0];

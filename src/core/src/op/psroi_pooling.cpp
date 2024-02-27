@@ -6,7 +6,6 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "psroi_pooling_shape_inference.hpp"
 
 namespace ov {
@@ -53,9 +52,7 @@ void PSROIPooling::validate_and_infer_types() {
                           coords_et.is_real(),
                           "Coords' data type must be floating point. Got " + coords_et.to_string());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, feat_maps_et, output_shapes[0]);
 }
 

@@ -7,6 +7,9 @@
 #include "primitive_inst.h"
 #include "loop_inst.h"
 #include "shape_of_inst.h"
+#include "activation_inst.h"
+#include "reorder_inst.h"
+#include "quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
@@ -30,6 +33,21 @@
 
 using namespace cldnn;
 
+static size_t get_shape_data_size(const layout& l) {
+    if (l.is_static())
+        return 0;
+
+    size_t size = layout::max_rank(); // all dimenstions are stored
+    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    for (size_t j = 0; j < layout::max_rank(); ++j) {
+        if (dynamic_pad[j] == 1) {
+            size += 2; // lower + upper
+        }
+    }
+
+    return size;
+}
+
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -38,7 +56,7 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-            output_layout.data_padding = prim->output_paddings[i];
+            output_layout.data_padding = prim->get_output_padding(i);
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
@@ -68,6 +86,85 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     dependencies[idx].first = new_dep.first;
     dependencies[idx].second = new_dep.second;
     new_dep.first->users.push_back(this);
+}
+
+std::vector<layout> const program_node::get_input_layouts() const {
+    std::vector<layout> layouts;
+    for (size_t i = 0; i < dependencies.size(); i++) {
+        layouts.push_back(get_input_layout(i));
+    }
+    return layouts;
+}
+
+layout program_node::get_input_layout(size_t idx) const {
+    const auto& d = get_dependency_with_port(idx);
+    return d.first->get_output_layout(true, d.second);
+}
+
+ov::PartialShape program_node::get_input_pshape(size_t idx) const {
+    return get_input_layout(idx).get_partial_shape();
+}
+
+ov::PartialShape program_node::get_output_pshape(size_t idx) const {
+    if (!is_valid_output_layout(idx))
+        return calc_output_layouts()[idx].get_partial_shape();
+    return get_output_layout(idx).get_partial_shape();
+}
+
+std::vector<layout> program_node::get_shape_info_input_layouts() const {
+    std::vector<layout> res;
+    for (size_t i = 0; i < get_dependencies().size(); i++) {
+        const auto& d = get_dependency_with_port(i);
+        res.push_back(d.first->get_output_layout(false, d.second));
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_input_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_output_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = get_total_shape_info_input_size();
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return res;
+}
+
+size_t program_node::get_total_shape_info_input_size() const {
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_output_size() const {
+    size_t offset = 0;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_size() const {
+    return get_total_shape_info_input_size() + get_total_shape_info_output_size();
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
@@ -245,15 +342,22 @@ size_t program_node::get_user_index(const program_node& node) const {
             idx++;
     }
 
-    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid user node" + node.id() + " node");
 }
 
+int32_t program_node::get_dependency_output_port(const program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i].first == &node)
+            return dependencies[i].second;
+
+    OPENVINO_THROW("[GPU] Search invalid dependency output port" + node.id() + " node");
+}
 size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
 
-    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {
@@ -368,7 +472,7 @@ bool program_node::recalc_output_layouts(bool invalidate_users_if_changed) {
 
 bool program_node::is_dynamic() const {
     for (const auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -381,7 +485,7 @@ bool program_node::is_dynamic() const {
 
 bool program_node::is_dynamic() {
     for (auto& input : get_dependencies()) {
-        if (input.first->is_dynamic_output_layout())
+        if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
 
@@ -532,6 +636,356 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
 void program_node::add_dependant_shape_of_node(const program_node* node) {
     OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
+}
+
+void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << valid_output_layouts;
+    ob << output_layouts;
+
+    ob << preferred_input_fmts.size();
+    for (auto preferred_input_fmt : preferred_input_fmts) {
+        int32_t format_type_int = preferred_input_fmt;
+        ob << format_type_int;
+    }
+
+    ob << preferred_output_fmts.size();
+    for (auto preferred_output_fmt : preferred_output_fmts) {
+        int32_t format_type_int = preferred_output_fmt;
+        ob << format_type_int;
+    }
+
+    ob << dependencies.size();
+    for (const auto& dep_pair : dependencies) {
+        ob << dep_pair.first->id();
+        ob << dep_pair.second;
+    }
+
+    ob << users.size();
+    for (const auto& user_node : users) {
+        ob << user_node->id();
+    }
+
+    ob << memory_dependencies;
+
+    ob << make_data(&impl_type, sizeof(impl_type));
+    ob << constant;
+    ob << data_flow;
+    ob << in_shape_of_subgraph;
+
+    ob << output;
+    ob << user_mark;
+    ob << optimized;
+    ob << share_buffer;
+    for (const auto& _support_padding : _support_padding_in_axis) {
+        ob << _support_padding;
+    }
+
+    ob << has_reused_memory;
+    ob << reused_memory_color;
+
+    // fused_prims;
+    {
+        ob << fused_prims.size();
+        for (auto& f_desc : fused_prims) {
+            if (get_program().has_node(f_desc.desc->id)) {
+                ob << true;
+                ob << f_desc.desc->id;
+            } else {
+                ob << false;
+                ob << f_desc.desc;
+            }
+            ob << f_desc.input_layout;
+            ob << f_desc.output_layout;
+            ob << cldnn::prim_map_storage::instance().get_type_string(f_desc.f_param->type());
+            if (f_desc.f_param->type() == activation::type_id()) {
+                auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
+            } else if (f_desc.f_param->type() == reorder::type_id()) {
+                auto casted = std::dynamic_pointer_cast<ReorderFuseParams>(f_desc.f_param);
+                ob << casted->_in;
+                ob << casted->_out;
+            } else if (f_desc.f_param->type() == eltwise::type_id()) {
+                auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(f_desc.f_param);
+                if (get_program().has_node(casted->_desc->id)) {
+                    ob << true;
+                    ob << casted->_desc->id;
+                } else {
+                    ob << false;
+                    ob << casted->_desc;
+                }
+            } else if (f_desc.f_param->type() == quantize::type_id()) {
+                auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(f_desc.f_param);
+                ob << casted->_out_layout;
+                ob << casted->_scale_shift_opt;
+                ob << casted->_need_post_scale;
+                ob << casted->_need_post_shift;
+                ob << casted->_need_pre_shift;
+                ob << casted->_need_clamp;
+                ob << casted->_need_min_clamp;
+                ob << casted->_need_max_clamp;
+                ob << casted->_per_tensor_input_range;
+                ob << casted->_per_tensor_input_scale;
+                ob << casted->_per_tensor_input_shift;
+                ob << casted->_per_tensor_output_range;
+                ob << casted->_per_tensor_output_scale;
+                ob << casted->_per_tensor_output_shift;
+                ob << casted->_in_lo;
+                ob << casted->_in_hi;
+                ob << casted->_in_scale;
+                ob << casted->_in_shift;
+                ob << casted->_out_lo;
+                ob << casted->_out_hi;
+                ob << casted->_out_scale;
+                ob << casted->_out_shift;
+            }
+
+            ob << f_desc.deps.size();
+            for (auto& dep : f_desc.deps) {
+                ob << dep.first;
+                ob << dep.second;
+            }
+            ob << f_desc.fused_deps.size();
+            for (auto& f_dep : f_desc.fused_deps) {
+                ob << f_dep.first;
+                ob << f_dep.second;
+            }
+            ob << f_desc.outer_dep_start_idx;
+            ob << f_desc.total_num_deps;
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims = fused_prims_onednn.size();
+    ob << num_fused_prims;
+    for (auto fused_prim : fused_prims_onednn) {
+        ob << make_data(&fused_prim.op_type, sizeof(onednn_post_op_type));
+        ob << fused_prim.mem_offset;
+        ob << fused_prim.mem_dep;
+        ob << make_data(&fused_prim.tag, sizeof(dnnl::memory::format_tag));
+        ob << fused_prim.flatten;
+        ob << fused_prim.dims;
+        ob << make_data(&fused_prim.dt, sizeof(dnnl::memory::data_type));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
+}
+
+void program_node::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> valid_output_layouts;
+    ib >> output_layouts;
+
+    {
+        // preferred_input_fmts
+        size_t preferred_input_fmts_size;
+        int32_t format_type_int;
+        ib >> preferred_input_fmts_size;
+        preferred_input_fmts.clear();
+        for (size_t i = 0; i < preferred_input_fmts_size; ++i) {
+            ib >> format_type_int;
+            preferred_input_fmts.push_back((format::type) format_type_int);
+        }
+    }
+
+    {
+        // preferred_input_fmts
+        size_t preferred_output_fmts_size;
+        int32_t format_type_int;
+        ib >> preferred_output_fmts_size;
+        preferred_output_fmts.clear();
+        for (size_t i = 0; i < preferred_output_fmts_size; ++i) {
+            ib >> format_type_int;
+            preferred_output_fmts.push_back((format::type) format_type_int);
+        }
+    }
+
+    {
+        // dependencies
+        size_t deps_size;
+        primitive_id dep_id;
+        int32_t dep_idx;
+        ib >> deps_size;
+        dependencies.clear();
+        for (size_t i = 0; i < deps_size; ++i) {
+            ib >> dep_id;
+            ib >> dep_idx;
+            dependencies.emplace_back(std::make_pair(get_program().get_node_ptr(dep_id).get(), dep_idx));
+        }
+    }
+
+    {
+        // users
+        size_t users_size;
+        primitive_id user_id;
+        ib >> users_size;
+        users.clear();
+        users.resize(0);
+        for (size_t i = 0; i < users_size; ++i) {
+            ib >> user_id;
+            users.push_back(get_program().get_node_ptr(user_id).get());
+        }
+    }
+
+    ib >> memory_dependencies;
+
+    ib >> make_data(&impl_type, sizeof(impl_type));
+    ib >> constant;
+    ib >> data_flow;
+    ib >> in_shape_of_subgraph;
+
+    ib >> output;
+    ib >> user_mark;
+    ib >> optimized;
+    ib >> share_buffer;
+    for (auto& _support_padding : _support_padding_in_axis) {
+        ib >> _support_padding;
+    }
+    ib >> has_reused_memory;
+    ib >> reused_memory_color;
+
+    // fused_prims;
+    {
+        size_t fused_desc_size;
+        ib >> fused_desc_size;
+        for (size_t i = 0; i < fused_desc_size; ++i) {
+            bool exist_prim;
+            ib >> exist_prim;
+            std::shared_ptr<const primitive> desc;
+            if (exist_prim) {
+                primitive_id desc_id;
+                ib >> desc_id;
+                desc = get_program().get_node_ptr(desc_id)->desc;
+            } else {
+                ib >> desc;
+            }
+            auto f_desc = fused_primitive_desc(desc);
+            ib >> f_desc.input_layout;
+            ib >> f_desc.output_layout;
+
+            std::string f_param_type_str;
+            ib >> f_param_type_str;
+            auto f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
+            if (f_param_type == activation::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<activation> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<activation>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<ActivationFuseParams>(param_desc);
+            } else if (f_param_type == reorder::type_id()) {
+                layout in, out;
+                ib >> in;
+                ib >> out;
+                f_desc.f_param = std::make_shared<ReorderFuseParams>(in, out);
+            } else if (f_param_type == eltwise::type_id()) {
+                ib >> exist_prim;
+                std::shared_ptr<eltwise> param_desc;
+                if (exist_prim) {
+                    primitive_id desc_id;
+                    ib >> desc_id;
+                    param_desc = std::dynamic_pointer_cast<eltwise>(get_program().get_node_ptr(desc_id)->desc);
+                } else {
+                    ib >> param_desc;
+                }
+                f_desc.f_param = std::make_shared<EltwiseFuseParams>(param_desc);
+            } else if (f_param_type == quantize::type_id()) {
+                layout out_layout;
+                bool scale_shift_opt;
+                bool need_post_scale;
+                bool need_post_shift;
+                bool need_pre_shift;
+                bool need_clamp;
+                bool need_min_clamp;
+                bool need_max_clamp;
+                bool per_tensor_input_range;
+                bool per_tensor_input_scale;
+                bool per_tensor_input_shift;
+                bool per_tensor_output_range;
+                bool per_tensor_output_scale;
+                bool per_tensor_output_shift;
+                float in_lo;
+                float in_hi;
+                float in_scale;
+                float in_shift;
+                float out_lo;
+                float out_hi;
+                float out_scale;
+                float out_shift;
+
+                ib >> out_layout;
+                ib >> scale_shift_opt;
+                ib >> need_post_scale;
+                ib >> need_post_shift;
+                ib >> need_pre_shift;
+                ib >> need_clamp;
+                ib >> need_min_clamp;
+                ib >> need_max_clamp;
+                ib >> per_tensor_input_range;
+                ib >> per_tensor_input_scale;
+                ib >> per_tensor_input_shift;
+                ib >> per_tensor_output_range;
+                ib >> per_tensor_output_scale;
+                ib >> per_tensor_output_shift;
+                ib >> in_lo;
+                ib >> in_hi;
+                ib >> in_scale;
+                ib >> in_shift;
+                ib >> out_lo;
+                ib >> out_hi;
+                ib >> out_scale;
+                ib >> out_shift;
+
+                f_desc.f_param = std::make_shared<QuantizeFuseParams>(out_layout, scale_shift_opt, need_post_scale, need_post_shift,
+                                    need_pre_shift, need_clamp, need_min_clamp, need_max_clamp, per_tensor_input_range,
+                                    per_tensor_input_scale, per_tensor_input_shift, per_tensor_output_range, per_tensor_output_scale,
+                                    per_tensor_output_shift, in_lo, in_hi, in_scale, in_shift, out_lo, out_hi, out_scale, out_shift);
+            } else {
+                f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
+            }
+
+            size_t num_deps;
+            primitive_id prim_id;
+            size_t idx;
+            ib >> num_deps;
+            f_desc.deps.clear();
+            for (size_t i = 0; i < num_deps; ++i) {
+                ib >> prim_id;
+                ib >> idx;
+                f_desc.deps.emplace_back(std::make_pair(prim_id, idx));
+            }
+            ib >> num_deps;
+            f_desc.fused_deps.clear();
+            for (size_t i = 0; i < num_deps; ++i) {
+                ib >> prim_id;
+                ib >> idx;
+                f_desc.fused_deps[prim_id] = idx;
+            }
+            ib >> f_desc.outer_dep_start_idx;
+            ib >> f_desc.total_num_deps;
+            fused_prims.emplace_back(f_desc);
+        }
+    }
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t num_fused_prims;
+    ib >> num_fused_prims;
+    fused_prims_onednn.resize(num_fused_prims);
+    for (size_t idx = 0; idx < num_fused_prims; ++idx) {
+        ib >> make_data(&fused_prims_onednn[idx].op_type, sizeof(onednn_post_op_type));
+        ib >> fused_prims_onednn[idx].mem_offset;
+        ib >> fused_prims_onednn[idx].mem_dep;
+        ib >> make_data(&fused_prims_onednn[idx].tag, sizeof(dnnl::memory::format_tag));
+        ib >> fused_prims_onednn[idx].flatten;
+        ib >> fused_prims_onednn[idx].dims;
+        ib >> make_data(&fused_prims_onednn[idx].dt, sizeof(dnnl::memory::data_type));
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
 }
 
     /* ----------------------------------------- */

@@ -3,7 +3,7 @@
 //
 
 #include "primitive_base.hpp"
-
+#include "kernel_base.h"
 #include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
@@ -15,7 +15,7 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent = typed_primitive_impl_ocl<fully_connected>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::fully_connected_params, kernel_selector::fully_connected_optional_params>;
+    using kernel_params_t = kernel_selector::fully_connected_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
@@ -46,6 +46,15 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<fully_connected_impl>(*this);
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:
@@ -148,10 +157,8 @@ public:
 
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
-        const auto& progam = impl_param.get_program();
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
-        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
-        optional_params.allowInputReordering = true;
+        params.allowInputReordering = true;
 
         bool commpressed = !primitive->decompression_scale.empty();
         bool with_zp = !primitive->decompression_zero_point.empty();
@@ -181,12 +188,12 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

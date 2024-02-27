@@ -170,20 +170,26 @@ std::string get_dir_path(const ExecutionConfig& config) {
 
 void dump_graph_init(std::ofstream& graph,
                      const program& program,
-                     std::function<bool(program_node const&)> const& filter) {
+                     std::function<std::shared_ptr<primitive_inst>(const primitive_id&)> get_primitive_inst) {
     const std::string invalid_layout_msg = "(invalid layout)";
 
-    const auto dump_mem_info = [&invalid_layout_msg](const program_node* ptr) {
+    const auto dump_mem_info = [&invalid_layout_msg, &get_primitive_inst](const program_node* ptr) {
         std::string out = "layout_info: ";
         if (!ptr->is_valid_output_layout()) {
             return out + invalid_layout_msg;
         }
 
-        auto out_layout = ptr->get_output_layout();
-        if (!out_layout.data_padding) {
-            out += " " +  out_layout.to_short_string();
-        } else {
-            out += " " + out_layout.to_string();
+        auto out_layouts = ptr->get_output_layouts();
+        for (size_t i = 0; i < out_layouts.size(); i++) {
+            auto& out_layout = out_layouts[i];
+            if (!out_layout.data_padding) {
+                out += "\n" + std::to_string(i) + ": " + out_layout.to_short_string();
+            } else {
+                out += "\n" + std::to_string(i) + ": " + out_layout.to_string();
+            }
+            if (get_primitive_inst) {
+                out += "\nshape: " + get_primitive_inst(ptr->id())->get_output_layout(i).get_partial_shape().to_string();
+            }
         }
 
         return out;
@@ -199,7 +205,8 @@ void dump_graph_init(std::ofstream& graph,
         }
         auto output_fmts = ptr->get_preferred_output_fmts();
         if (!output_fmts.empty()) {
-            out += "\npreferred_out_fmt";
+            out += ((out.empty()) ? "" : "\n");
+            out += "preferred_out_fmt";
             for (auto& fmt : output_fmts) {
                 out += ":" + fmt_to_str(fmt);
             }
@@ -210,9 +217,6 @@ void dump_graph_init(std::ofstream& graph,
 
     graph << "digraph cldnn_program {\n";
     for (auto& node : program.get_processing_order()) {
-        if (filter && !filter(*node)) {
-            continue;
-        }
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
@@ -259,9 +263,6 @@ void dump_graph_init(std::ofstream& graph,
         graph << "];\n";
 
         for (auto& user : node->get_users()) {
-            if (filter && !filter(*user)) {
-                continue;
-            }
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
@@ -289,10 +290,6 @@ void dump_graph_init(std::ofstream& graph,
         }
 
         for (auto& dep : node->get_dependencies()) {
-            if (filter && !filter(*dep.first)) {
-                continue;
-            }
-
             if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) != dep.first->get_users().end()) {
                 continue;
             }
@@ -318,13 +315,8 @@ void dump_graph_optimized(std::ofstream& graph, const program& program) {
     close_stream(graph);
 }
 
-void dump_graph_info(std::ofstream& graph,
-                     const program& program,
-                     std::function<bool(program_node const&)> const& filter) {
+void dump_graph_info(std::ofstream& graph, const program& program) {
     for (auto& node : program.get_processing_order()) {
-        if (filter && !filter(*node))
-            continue;
-
         dump_full_node(graph, node);
         graph << std::endl << std::endl;
     }

@@ -24,12 +24,12 @@ struct ReduceExecutorDesc {
 
 const std::vector<ReduceExecutorDesc>& getReduceExecutorsList();
 
-class ReduceExecutorFactory : public ExecutorFactory {
+class ReduceExecutorFactory : public ExecutorFactoryLegacy {
 public:
     ReduceExecutorFactory(const ReduceAttrs& reduceAttrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                       const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getReduceExecutorsList()) {
             if (desc.builder->isSupported(reduceAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
@@ -66,7 +66,7 @@ public:
             }
         }
 
-        IE_THROW() << "Supported Reduce executor is not found";
+        OPENVINO_THROW("Supported Reduce executor is not found");
     }
 
     bool isEmpty() {

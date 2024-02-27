@@ -70,9 +70,7 @@ void VariadicSplit::validate_and_infer_types() {
         set_input_is_relevant_to_value(i);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     const auto& data_type = get_input_element_type(0);
@@ -123,9 +121,8 @@ bool VariadicSplit::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return variadic_split::has_axis_and_splits_bound_set(this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return variadic_split::has_axis_and_splits_bound_set(this) &&
+           ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v1
 }  // namespace op

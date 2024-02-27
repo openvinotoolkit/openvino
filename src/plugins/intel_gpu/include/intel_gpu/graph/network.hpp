@@ -16,6 +16,7 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/shape_predictor.hpp"
+#include "intel_gpu/plugin/variable_state.hpp"
 
 #include <map>
 #include <vector>
@@ -66,20 +67,6 @@ struct network {
 public:
     using ptr = std::shared_ptr<network>;
 
-    struct VariableState {
-        using Ptr = std::shared_ptr<VariableState>;
-
-        VariableState(cldnn::memory_ptr mem = nullptr) :
-            memory { std::move(mem) }, is_set { false } {
-        }
-        void set_memory(cldnn::memory_ptr new_mem) {
-            memory = new_mem;
-        }
-        cldnn::memory_ptr memory;
-        bool is_set;
-    };
-    using variables_states_map = std::map<std::string, VariableState::Ptr>;
-
     explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
@@ -97,12 +84,7 @@ public:
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
-    network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
-    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, bool is_primary_stream, uint32_t local_net_id);
-
     ~network();
-
-    void save(cldnn::BinaryOutputBuffer& ob);
 
     static ptr build_network(engine& engine,
                              const topology& topology,
@@ -141,7 +123,7 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order || _enable_profiling)
             evt = get_primitive_event(output_id);
         return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
@@ -212,8 +194,8 @@ public:
     std::string get_implementation_info(const primitive_id& id) const;
     const event::ptr& get_primitive_event(const primitive_id& id) const { return _events.at(id); }
     bool has_event(const primitive_id& id) const { return _events.count(id); }
-    std::vector<std::shared_ptr<primitive_inst>> get_primitives(const std::vector<primitive_id>& ids);
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
+    std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
+    std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                            const std::vector<event::ptr>& events);
     void allocate_primitives();
@@ -232,29 +214,25 @@ public:
         return *_memory_pool;
     }
 
-    void allocate_variables_memories();
-    void assign_variables_memories();
-    /// Assigns memory state locations
-    void assign_variables_memories(variables_states_map &&variables_memories);
-    void update_variable_memory(const std::string& variable_id, const cldnn::layout& layout);
+    void set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable);
+    bool has_variable(const std::string &variable_id) const;
+    ov::intel_gpu::VariableStateBase& get_variable(const std::string &variable_id) const;
+    const ov::intel_gpu::VariableStateInfo& get_variable_info(const std::string &variable_id) const;
+    const ov::intel_gpu::VariablesMap& get_variables() const;
+    const ov::intel_gpu::VariablesInfoMap& get_variables_info() const;
+    std::vector<primitive_id> get_kv_cache_ids() const { return kv_cache_ids; }
 
-    /// Returns memory state @p variable_id of stateful network
-    VariableState& get_variable_memory(const std::string &variable_id);
-    const variables_states_map& get_variable_memories() const { return _variables_states; }
-
-    using variables_state_info_map = std::map<std::string, cldnn::layout>;
-    void set_variables_state_info(const std::string& variable_id, const cldnn::layout& layout);
-    const variables_state_info_map& get_variables_state_info() const;
     const ExecutionConfig& get_config() const { return _config; }
 
-    ShapePredictor& get_shape_predictor() { return *_shape_predictor; }
+    std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
+    void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t get_current_iteration_num() { return iteration; }
 #endif
 
 private:
-    using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
+    using output_chains_map = std::map<primitive_id, std::vector<primitive_inst*>>;
     uint32_t net_id = 0;
     program::ptr _program;
     ExecutionConfig _config;
@@ -275,9 +253,11 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
-    variables_states_map _variables_states;
-    std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
-    variables_state_info_map _variables_state_info;
+
+    ov::intel_gpu::VariablesMap _variables_states;
+    ov::intel_gpu::VariablesInfoMap _variables_state_info;
+    std::vector<primitive_id> kv_cache_ids;
+
     program::primitives_info _prims_info;
     std::map<primitive_id, primitive_id> _ext_id_mapping;
     size_t _weights_cache_capacity = 1;
@@ -287,7 +267,7 @@ private:
     std::unordered_map<primitive_id, event::ptr> _old_events;
     output_chains_map _output_chains;
 
-    std::unique_ptr<ShapePredictor> _shape_predictor;
+    std::shared_ptr<ShapePredictor> _shape_predictor;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
@@ -299,6 +279,7 @@ private:
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+    void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
 
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;

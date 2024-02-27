@@ -36,6 +36,21 @@ inline std::string vec2str(const std::vector<vecElementType>& vec) {
     }
     return std::string("()");
 }
+
+template <>
+inline std::string vec2str(const std::vector<int64_t>& vec) {
+    if (!vec.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<int64_t>(result, "."));
+        result << vec.back() << ")";
+        auto ret = result.str();
+        std::replace(ret.begin(), ret.end(), '-', '_');
+        return ret;
+    }
+    return std::string("()");
+}
+
 inline void replaceSubstringInString(std::string& str, const std::string& from, const std::string& to) {
     size_t pos;
     while ((pos = str.find(from)) != std::string::npos) {
@@ -91,16 +106,6 @@ inline std::string vec2str(const std::vector<std::vector<std::vector<vecElementT
         result << vec2str<vecElementType>(v);
     }
     return result.str();
-}
-
-template <typename ElementType>
-inline void vec2File(const std::vector<ElementType>& vec, const std::string& output_file_path) {
-    std::ofstream output_file;
-    output_file.open(output_file_path, std::ios::out | std::ios::trunc);
-    for (const auto& element : vec) {
-        output_file << element << std::endl;
-    }
-    output_file.close();
 }
 
 template <typename vecElementType>
@@ -186,6 +191,15 @@ inline std::ostream& operator<<(std::ostream& os, const std::map<std::string, st
     os << "(";
     for (const auto& configItem : config) {
         os << configItem.first << "=" << configItem.second << "_";
+    }
+    os << ")";
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const ov::AnyMap& config) {
+    os << "(";
+    for (const auto& configItem : config) {
+        os << configItem.first << "=" << configItem.second.as<std::string>() << "_";
     }
     os << ")";
     return os;

@@ -5,6 +5,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
@@ -22,6 +23,7 @@
 #include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 #include "transformations/symbolic_transformations/label_optimization.hpp"
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
+#include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 
 using namespace ov::pass;
@@ -56,9 +58,7 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
     if (output_shape.rank().is_dynamic() || output_shape.size() != 1)
         return;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto step_value = ov::get_constant_from_source(node->input_value(2));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto step_value = ov::util::get_constant_from_source(node->input_value(2));
     if (!step_value || step_value->cast_vector<int64_t>()[0] != 1)
         return;
 
@@ -118,9 +118,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
             symbolic_set_up_for_shape(dt, shape);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output.get_tensor().set_tensor_type(output.get_element_type(), shape);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::descriptor::set_tensor_type(output.get_tensor(), output.get_element_type(), shape);
         }
     }
     return true;
@@ -201,6 +199,8 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(OptimizeLabelsUsedAsValues)   // reduce shape sub-graphs
         REGISTER_SYMBOLIC(LabelResolvingThroughSelect)  // figures out that broadcasting didn't happen through Select op
         REGISTER_SYMBOLIC(DeReshapeMatMul)
+        REGISTER_SYMBOLIC(DeReshapeFullyConnected)
+        REGISTER_SYMBOLIC(ReshapeOptimizations)
         REGISTER_SYMBOLIC(SimplifyShapeOfSubGraph)
     }
 }

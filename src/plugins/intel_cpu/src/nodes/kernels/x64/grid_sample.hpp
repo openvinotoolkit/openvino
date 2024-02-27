@@ -5,7 +5,6 @@
 #pragma once
 
 #include "jit_kernel_base.hpp"
-#include "ie_precision.hpp"
 #include <set>
 
 namespace ov {
@@ -27,8 +26,8 @@ struct GridSampleKernelConfParams {
     bool alignCorners  = false;
     GridSampleInterpolationMode interpolationMode = GridSampleInterpolationMode::BILINEAR;
     GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
-    InferenceEngine::Precision inDataPrc;
-    InferenceEngine::Precision gridPrc;
+    ov::element::Type inDataPrc;
+    ov::element::Type gridPrc;
     uint64_t batchNum      = 1lu;
     uint64_t cannelNum     = 1lu;
     uint64_t srcBatchStepB = 0lu;

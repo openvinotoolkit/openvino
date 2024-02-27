@@ -14,16 +14,17 @@ endif()
 
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/arm)
+      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/arm)
 endif()
 
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations/x64
+      ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
-      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -53,12 +54,9 @@ ov_add_test_target(
             gtest_main
             gmock
             dnnl
-            inference_engine_transformations
-            inference_engine_lp_transformations
             openvino::shape_inference
-            inference_engine_s
+            openvino_runtime_s
             unit_test_utils
-            ov_models
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}
@@ -93,7 +91,7 @@ if(ENABLE_FASTER_BUILD)
     set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
     group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
     group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
-    group_source_file(unit_src_ngrah_transformation ${CMAKE_CURRENT_SOURCE_DIR}/ngraph_transformations)
+    group_source_file(unit_src_transformations ${CMAKE_CURRENT_SOURCE_DIR}/transformations)
     group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
 endif()
 

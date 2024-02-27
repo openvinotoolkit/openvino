@@ -45,7 +45,7 @@ private:
     bool flattened = true;
     int  axis = 0;
     bool definedOutputs[4] = { false, false, false, false };
-    InferenceEngine::Precision dataPrecision;
+    ov::element::Type dataPrecision;
     int64_t dataTypeSize = 1l;
     size_t uniqueLen = 1lu;
 

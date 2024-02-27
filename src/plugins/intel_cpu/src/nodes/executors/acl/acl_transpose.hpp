@@ -5,6 +5,9 @@
 #pragma once
 
 #include "nodes/executors/transpose.hpp"
+
+#include "arm_compute/runtime/Tensor.h"
+#include "arm_compute/runtime/NEON/functions/NEPermute.h"
 #include "utils/debug_capabilities.h"
 
 namespace ov {
@@ -18,10 +21,9 @@ public:
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,
               const dnnl::primitive_attr &attr) override;
-    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst, const int MB) override;
-    impl_desc_type getImplType() const override { return implType; }
+    void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
+    impl_desc_type implType() const override { return impl_desc_type::acl; }
 private:
-    static const impl_desc_type implType = impl_desc_type::acl;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NEPermute> acl_permute;
 };
@@ -49,8 +51,8 @@ public:
             DEBUG_LOG("NEPermute requires the same input and output precisions");
             return false;
         }
-        if (srcDescs[0]->getPrecision() != InferenceEngine::Precision::FP32 &&
-            srcDescs[0]->getPrecision() != InferenceEngine::Precision::I8) {
+        if (srcDescs[0]->getPrecision() != ov::element::f32 &&
+            srcDescs[0]->getPrecision() != ov::element::i8) {
             DEBUG_LOG("NEPermute supports 1, 2, 4 bytes data types. FP16 implementation is disabled due to performance issues");
             return false;
         }

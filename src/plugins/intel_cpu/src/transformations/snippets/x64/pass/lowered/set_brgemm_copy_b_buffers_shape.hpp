@@ -13,13 +13,17 @@ namespace pass {
 /**
  * @interface SetBrgemmCopyBBuffersShape
  * @brief Sets the allocation shape for the Buffers after BrgemmCopyB node using BrgemmCopyB parameters
+ *        This pass may be deprecated when a more generic memory management approach is introduced.
+ *        Ticket: 113744
  * @ingroup snippets
  */
-class SetBrgemmCopyBBuffersShape: public snippets::lowered::pass::Pass {
+class SetBrgemmCopyBBuffersShape: public snippets::lowered::pass::RangedPass {
 public:
     SetBrgemmCopyBBuffersShape() = default;
     OPENVINO_RTTI("SetBrgemmCopyBBuffersShape", "Pass");
-    bool run(snippets::lowered::LinearIR& linear_ir) override;
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
 };
 
 }  // namespace pass

@@ -82,7 +82,7 @@ const auto groupConv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels),
@@ -92,7 +92,7 @@ const auto groupConv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels),
         ::testing::ValuesIn(numGroups),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ov::op::PadType::VALID)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvolutionLayerTest,
@@ -128,7 +128,7 @@ const auto groupConv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(4),
         ::testing::Values(2),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
+        ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),
@@ -138,7 +138,7 @@ const auto groupConv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(4),
         ::testing::Values(2),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ov::op::PadType::VALID)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvolutionLayerTest,

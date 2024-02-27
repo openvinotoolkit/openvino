@@ -4,21 +4,16 @@
 
 #include "graph_dumper.h"
 
+#include "dnnl_debug.h"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
-#include <ie_ngraph_utils.hpp>
-#include "exec_graph_info.hpp"
-#include "ie_common.h"
-#include <dnnl_debug.h>
-#include "ngraph/ngraph.hpp"
-#include <ngraph/pass/manager.hpp>
-#include <openvino/pass/serialize.hpp>
 
-#include <vector>
-#include <string>
-#include <memory>
 #include <map>
-
-using namespace InferenceEngine;
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -33,23 +28,20 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
 
     if (node->getType() == Type::Input && node->isConstant()) {
         // We need to separate Input and Const layers
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
-    } else if (node->getType() == Type::Generic) {
-        // Path to print actual name for extension layers
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
+        serialization_info[ov::exec_model_info::LAYER_TYPE] = "Const";
     } else {
-        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
+        serialization_info[ov::exec_model_info::LAYER_TYPE] = NameFromType(node->getType());
     }
 
     // Original layers
-    serialization_info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
+    serialization_info[ov::exec_model_info::ORIGINAL_NAMES] = node->getOriginalLayers();
 
     // Implementation type name
-    serialization_info[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
+    serialization_info[ov::exec_model_info::IMPL_TYPE] = node->getPrimitiveDescriptorType();
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
-        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().name();
+        outputPrecisionsStr = node->getChildEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
 
         bool isAllEqual = true;
         for (size_t i = 1; i < node->getChildEdges().size(); i++) {
@@ -62,15 +54,15 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
         // If all output precisions are the same, we store the name only once
         if (!isAllEqual) {
             for (size_t i = 1; i < node->getChildEdges().size(); i++)
-                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().name());
+                outputPrecisionsStr += "," + std::string(node->getChildEdgeAt(i)->getMemory().getDesc().getPrecision().get_type_name());
         }
     } else {
         // Branch to correctly handle output nodes
         if (!node->getParentEdges().empty()) {
-            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().name();
+            outputPrecisionsStr = node->getParentEdgeAt(0)->getMemory().getDesc().getPrecision().get_type_name();
         }
     }
-    serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
+    serialization_info[ov::exec_model_info::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
     std::string outputLayoutsStr;
     auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
@@ -95,34 +87,34 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr &node) {
     } else {
         outputLayoutsStr = dnnl::utils::fmt2str(dnnl::memory::format_tag::undef);
     }
-    serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
+    serialization_info[ov::exec_model_info::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
     // Performance
     if (node->PerfCounter().avg() != 0) {
-        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
+        serialization_info[ov::exec_model_info::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
     } else {
-        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
+        serialization_info[ov::exec_model_info::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
     }
 
-    serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+    serialization_info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
 
-    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().name();
+    serialization_info[ov::exec_model_info::RUNTIME_PRECISION] = node->getRuntimePrecision().get_type_name();
 
     return serialization_info;
 }
 
 }  // namespace
 
-std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph) {
-    std::map<NodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
+    std::map<NodePtr, std::shared_ptr<ov::Node> > node2layer;
 
-    ngraph::ResultVector results;
-    ngraph::ParameterVector params;
-    ngraph::NodeVector to_hold;
+    ov::ResultVector results;
+    ov::ParameterVector params;
+    ov::NodeVector to_hold;
 
     auto get_inputs = [&] (const NodePtr & node) {
         auto pr_edges = node->getParentEdges();
-        ngraph::OutputVector inputs(pr_edges.size());
+        ov::OutputVector inputs(pr_edges.size());
 
         for (size_t i = 0; i < pr_edges.size(); i++) {
             auto edge = node->getParentEdgeAt(i);
@@ -130,7 +122,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
             int ch_port = edge->getOutputNum();
             auto pr_node = edge->getParent();
 
-            IE_ASSERT(node2layer.count(pr_node) == 1);
+            OPENVINO_ASSERT(node2layer.count(pr_node) == 1);
             auto pr = node2layer[pr_node];
 
             inputs[ch_port] = pr->output(pr_port);
@@ -162,22 +154,22 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         }
 
         auto meta_data = extract_node_metadata(node);
-        std::shared_ptr<ngraph::Node> return_node;
+        std::shared_ptr<ov::Node> return_node;
         if (is_input) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
-            auto param = std::make_shared<ngraph::op::Parameter>(details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+            auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
             params.push_back(param);
         } else if (is_output) {
-            results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
+            results.emplace_back(std::make_shared<ov::op::v0::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
-            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+            return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
             for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto& desc = node->getChildEdgeAt(port)->getMemory().getDesc();
-                return_node->set_output_type(port, details::convertPrecision(desc.getPrecision()), desc.getShape().toPartialShape());
+                return_node->set_output_type(port, desc.getPrecision(), desc.getShape().toPartialShape());
             }
         }
 
@@ -192,7 +184,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         return return_node;
     };
 
-    ngraph::NodeVector nodes;
+    ov::NodeVector nodes;
     nodes.reserve(graph.graphNodes.size());
     for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
         nodes.emplace_back(create_ngraph_node(node));
@@ -204,7 +196,7 @@ std::shared_ptr<ngraph::Function> dump_graph_as_ie_ngraph_net(const Graph &graph
         holder->add_control_dependency(node);
     }
 
-    return std::make_shared<ngraph::Function>(results, params, graph._name);
+    return std::make_shared<ov::Model>(results, params, graph._name);
 }
 
 #ifdef CPU_DEBUG_CAPS
@@ -214,12 +206,15 @@ void serialize(const Graph &graph) {
     if (path.empty())
         return;
 
-    if (path == "cout")
+    if (path == "cout") {
         serializeToCout(graph);
-    else if (!path.compare(path.size() - 4, 4, ".xml"))
-        serializeToXML(graph, path);
-    else
-        IE_THROW() << "Unknown serialize format. Should be either 'cout' or '*.xml'. Got " << path;
+    } else if (!path.compare(path.size() - 4, 4, ".xml")) {
+        static int g_idx = 0;
+        std::string xmlPath = std::string(path, 0, path.size() - 4) + "_" + std::to_string(g_idx++) + ".xml";
+        serializeToXML(graph, xmlPath);
+    } else {
+        OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
+    }
 }
 
 void serializeToXML(const Graph &graph, const std::string& path) {
@@ -227,7 +222,7 @@ void serializeToXML(const Graph &graph, const std::string& path) {
         return;
 
     std::string binPath;
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(path,
                                                binPath,
                                                ov::pass::Serialize::Version::IR_V10);
@@ -241,13 +236,13 @@ void serializeToCout(const Graph &graph) {
         if (nodeDesc) {
             auto& inConfs = nodeDesc->getConfig().inConfs;
             if (!inConfs.empty()) {
-                std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().name()
+                std::cout << "in: " << inConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << inConfs.front().getMemDesc()->serializeFormat()
                           << "; ";
             }
             auto& outConfs = nodeDesc->getConfig().outConfs;
             if (!outConfs.empty()) {
-                std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().name()
+                std::cout << "out: " << outConfs.front().getMemDesc()->getPrecision().get_type_name()
                           << "/l=" << outConfs.front().getMemDesc()->serializeFormat();
             }
         }

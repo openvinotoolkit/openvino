@@ -42,11 +42,13 @@ struct gather_impl : public typed_primitive_impl<gather> {
     }
 
     void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
         ob << axis;
         ob << batch_dims;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
         ib >> axis;
         ib >> batch_dims;
     }
@@ -54,6 +56,10 @@ struct gather_impl : public typed_primitive_impl<gather> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, gather_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "gather::execute_impl");
         auto& stream = instance.get_network().get_stream();
+
+        if (instance.can_be_optimized()) {
+            return stream.group_events(events);
+        }
 
         for (auto e : events) {
             e->wait();

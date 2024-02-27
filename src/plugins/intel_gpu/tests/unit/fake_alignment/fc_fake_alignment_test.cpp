@@ -38,9 +38,10 @@ TEST_P(fully_connected_fake_align_test, fake_alignment) {
 
     auto& engine = get_test_engine();
 
+    auto input_size = p.input_layout.get_partial_shape().size();
     auto input_layout_prim = std::make_shared<input_layout>("input", p.input_layout);
     auto weight_layout_prim = std::make_shared<input_layout>("weight", p.weight_layout);
-    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type);
+    auto fully_connected_prim = std::make_shared<fully_connected>("output", input_info("input"), "weight", "", p.data_type, padding(), input_size);
 
     cldnn::program prog(engine);
 
@@ -106,7 +107,107 @@ INSTANTIATE_TEST_SUITE_P(smoke, fully_connected_fake_align_test,
             layout{ov::PartialShape{-1, -1}, data_types::i8, format::bfyx},                            // fake_aligned input layout_dgpu // dummy
             layout{ov::PartialShape{-1, -1}, data_types::f16, format::bfyx}                            // fake_aligned output layout_dgpu // dummy
         },
+        {
+            layout{ov::PartialShape{1, 55, 511}, data_types::f16, format::bfyx},                       // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{64, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_igpu
+            layout{ov::PartialShape{64, 1, 800}, data_types::f16, format::bfyx},                       // fake_aligned output layout_igpu
+            layout{ov::PartialShape{56, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{56, 1, 800}, data_types::f16, format::bfyx}                        // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{2, 55, 511}, data_types::f16, format::bfyx},                       // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{112, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{112, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{112, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{112, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{55, 1, 511}, data_types::f16, format::bfyx},                       // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{64, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_igpu
+            layout{ov::PartialShape{64, 1, 800}, data_types::f16, format::bfyx},                       // fake_aligned output layout_igpu
+            layout{ov::PartialShape{56, 1, 511}, data_types::f16, format::bfyx},                       // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{56, 1, 800}, data_types::f16, format::bfyx}                        // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{240, 1,  511}, data_types::f16, format::bfyx},                     // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{240, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{240, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{240, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{240, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{241, 1, 511}, data_types::f16, format::bfyx},                      // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{256, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{256, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{248, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{248, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{257, 1, 511}, data_types::f16, format::bfyx},                      // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                         // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{272, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{272, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{264, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{264, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{55, 1, 511}, data_types::f16, format::bfyx, padding{{2,0,1,0}, 0}}, // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                          // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{64, 1, 511}, data_types::f16, format::bfyx, padding{{2,0,1,0}, 0}}, // fake_aligned input layout_igpu
+            layout{ov::PartialShape{64, 1, 800}, data_types::f16, format::bfyx},                        // fake_aligned output layout_igpu
+            layout{ov::PartialShape{56, 1, 511}, data_types::f16, format::bfyx, padding{{2,0,1,0}, 0}}, // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{56, 1, 800}, data_types::f16, format::bfyx}                         // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{55, 1, 511}, data_types::f16, format::bfyx, padding{{0,1,1,0}, 0}}, // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::f16, format::bfyx},                          // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{55, 1, 511}, data_types::f16, format::bfyx, padding{{0,1,1,0}, 0}}, // fake_aligned input layout_igpu
+            layout{ov::PartialShape{55, 1, 800}, data_types::f16, format::bfyx},                        // fake_aligned output layout_igpu
+            layout{ov::PartialShape{55, 1, 511}, data_types::f16, format::bfyx, padding{{0,1,1,0}, 0}}, // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{55, 1, 800}, data_types::f16, format::bfyx}                         // fake_aligned output layout_dgpu
+        },
 
+        /* int4 compressed weights */
+        {
+            layout{ov::PartialShape{240, 1, 511}, data_types::f16, format::bfyx},                      // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::u4, format::bfyx},                          // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{240, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{240, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{240, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{240, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{241, 1, 511}, data_types::f16, format::bfyx},                      // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::u4, format::bfyx},                          // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{256, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{256, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{248, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{248, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
+        {
+            layout{ov::PartialShape{257, 1, 511}, data_types::f16, format::bfyx},                      // input_layout
+            layout{ov::PartialShape{800, 511}, data_types::u4, format::bfyx},                          // weight layout
+            data_types::f16,
+            layout{ov::PartialShape{320, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_igpu
+            layout{ov::PartialShape{320, 1, 800}, data_types::f16, format::bfyx},                      // fake_aligned output layout_igpu
+            layout{ov::PartialShape{264, 1, 511}, data_types::f16, format::bfyx},                      // fake_aligned input layout_dgpu
+            layout{ov::PartialShape{264, 1, 800}, data_types::f16, format::bfyx}                       // fake_aligned output layout_dgpu
+        },
     }));
 
 }  // fake_alignment_tests

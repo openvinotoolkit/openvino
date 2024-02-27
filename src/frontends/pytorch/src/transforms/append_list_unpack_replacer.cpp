@@ -76,7 +76,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             auto split = std::make_shared<v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
             NodeVector to_copy_rt{axis_0, split};
             OutputVector res;
-            for (auto output : split->outputs()) {
+            for (auto& output : split->outputs()) {
                 auto squeeze = std::make_shared<v0::Squeeze>(output, axis_0);
                 to_copy_rt.push_back(squeeze);
                 res.push_back(squeeze);

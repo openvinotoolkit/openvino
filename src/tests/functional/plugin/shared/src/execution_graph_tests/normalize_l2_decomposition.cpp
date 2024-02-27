@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 
-#include <openvino/runtime/core.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include "openvino/runtime/core.hpp"
+#include "openvino/opsets/opset9.hpp"
 
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/ov_test_utils.hpp"

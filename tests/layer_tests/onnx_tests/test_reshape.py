@@ -3,7 +3,7 @@
 
 import pytest
 from common.layer_test_class import check_ir_version
-from common.onnx_layer_test_class import OnnxRuntimeLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest, onnx_make_model
 
 from unit_tests.utils.graph import build_graph
 
@@ -55,7 +55,7 @@ class TestReshape(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_reshape_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_reshape_model')
 
         #
         #   Create reference IR net
@@ -164,7 +164,7 @@ class TestReshape(OnnxRuntimeLayerTest):
         )
 
         # Create the model (ModelProto)
-        onnx_net = helper.make_model(graph_def, producer_name='test_reshape_model')
+        onnx_net = onnx_make_model(graph_def, producer_name='test_reshape_model')
 
         #
         #   Create reference IR net
@@ -231,64 +231,64 @@ class TestReshape(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D_precommit)
     @pytest.mark.precommit
-    def test_reshape_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D_precommit)
     @pytest.mark.precommit
-    def test_reshape_4D_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_4D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D_precommit)
     @pytest.mark.precommit
-    def test_reshape_3D_precommit(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_3D_precommit(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_reshape_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_reshape_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_reshape_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_reshape_const_5D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_const_5D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_reshape_const_4D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_const_4D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_reshape_const_3D(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+    def test_reshape_const_3D(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_reshape_net_const(**params, ir_version=ir_version), ie_device,
                    precision, ir_version,
-                   temp_dir=temp_dir, use_old_api=use_old_api)
+                   temp_dir=temp_dir)

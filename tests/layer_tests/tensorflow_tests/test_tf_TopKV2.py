@@ -12,10 +12,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 class TestTopKV2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, x_shape)
+        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape)
         return inputs_data
 
     def create_topk_v2_net(self, input_shape, input_type, k, sorted, is_first_output, is_second_output):
@@ -48,10 +48,11 @@ class TestTopKV2(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
-                       reason='Ticket - 122716')
-    def test_topk_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                           use_old_api):
+    @pytest.mark.xfail(condition=platform.system() in ('Linux', 'Darwin') and platform.machine() in ('arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'),
+                       reason='Ticket - 126314, 122716')
+    def test_topk_v2_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_topk_v2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

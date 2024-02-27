@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
-#include <ngraph/op/constant.hpp>
-#include <string>
+#include <openvino/op/constant.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -15,9 +13,9 @@ namespace node {
 
 class Input : public Node {
 public:
-    Input(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
     Input(const Shape& shape,
-          const InferenceEngine::Precision& prc,
+          const ov::element::Type& prc,
           const std::string& name,
           const std::string& type,
           const GraphContext::CPtr context);
@@ -46,7 +44,7 @@ private:
     void initSupportedPdFromMemDesc();
 
 private:
-    std::shared_ptr<ngraph::op::Constant> constOp;
+    std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
     MemoryDescPtr extMemDesc = nullptr;
     bool isMeanImage = false;

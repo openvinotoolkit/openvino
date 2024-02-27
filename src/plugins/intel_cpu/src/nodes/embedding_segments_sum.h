@@ -4,12 +4,8 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
 #include "embedding_bag_sum.h"
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +13,7 @@ namespace node {
 
 class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
 public:
-    EmbeddingSegmentsSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -25,7 +21,7 @@ public:
     bool created() const override;
 
     bool isExecutable() const override;
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
     void prepareParams() override;

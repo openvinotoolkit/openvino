@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -14,7 +14,7 @@ namespace intel_cpu {
  * @brief Fused Multiply Add
  * @ingroup snippets
  */
-class FusedMulAdd : public ngraph::op::Op {
+class FusedMulAdd : public ov::op::Op {
 public:
     OPENVINO_OP("FusedMulAdd", "SnippetsOpset");
 

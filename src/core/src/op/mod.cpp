@@ -14,7 +14,6 @@
 #include "openvino/op/select.hpp"
 #include "openvino/reference/mod.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace util {
@@ -244,13 +243,16 @@ bool Mod::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) co
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IfTypeOf<i8, i16, i32, i64, u8, u16, u32, u64>::apply<mod::Evaluate>(inputs[0].get_element_type(),
-                                                                                inputs[0],
-                                                                                inputs[1],
-                                                                                outputs[0],
-                                                                                inputs[0].get_shape(),
-                                                                                inputs[1].get_shape(),
-                                                                                get_autob());
+    return IF_TYPE_OF(v1_Mod_evaluate,
+                      OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
+                      mod::Evaluate,
+                      inputs[0].get_element_type(),
+                      inputs[0],
+                      inputs[1],
+                      outputs[0],
+                      inputs[0].get_shape(),
+                      inputs[1].get_shape(),
+                      get_autob());
 }
 
 bool Mod::evaluate_lower(TensorVector& outputs) const {

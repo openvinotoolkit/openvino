@@ -1,16 +1,17 @@
 name: Cleanup PIP caches
 on:
+  workflow_dispatch:
   schedule:
     # at 00:00 on the 1st day of every month
     - cron: '0 0 1 * *'
 
 jobs:
   Cleanup_PIP_Caches:
-    runs-on: aks-linux-2-cores
+    runs-on: aks-linux-2-cores-8gb
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
-        - /mount/caches:/mount/caches
+        - /mount:/mount
     env:
       PIP_CACHE_PATH: /mount/caches/pip
 

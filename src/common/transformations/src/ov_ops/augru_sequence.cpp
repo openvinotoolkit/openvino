@@ -60,9 +60,7 @@ void ov::op::internal::AUGRUSequence::validate_and_infer_types() {
                               element::Type::merge(result_et, result_et, get_input_element_type(6)),
                           "Element types for inputs do not match.");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     std::vector<ov::PartialShape> output_shapes = shape_infer(this, input_shapes);
 
     // Set output size, type and shape

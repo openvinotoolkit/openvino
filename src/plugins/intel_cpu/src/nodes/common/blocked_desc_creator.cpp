@@ -5,7 +5,7 @@
 #include "blocked_desc_creator.h"
 #include <numeric>
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {
@@ -15,8 +15,8 @@ constexpr size_t channelsPos = 1lu;
 
 class PlainFormatCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
-        SizeVector order(srcShape.getRank());
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type &precision, const Shape& srcShape) const override {
+        VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         return CpuBlockedMemoryDesc(precision, srcShape, srcShape.getDims(), order);
     }
@@ -25,12 +25,12 @@ public:
 
 class PerChannelCreator : public BlockedDescCreator {
 public:
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision &precision, const Shape& srcShape) const override {
-        SizeVector order(srcShape.getRank());
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type &precision, const Shape& srcShape) const override {
+        VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
-        SizeVector blkDims = srcShape.getDims();
+        VectorDims blkDims = srcShape.getDims();
         if (srcShape.getRank() > 2) {
-            auto moveElementBack = [](SizeVector& vector, size_t indx) {
+            auto moveElementBack = [](VectorDims& vector, size_t indx) {
                 auto itr = vector.begin() + indx;
                 std::rotate(itr, itr + 1, vector.end());
             };
@@ -47,16 +47,16 @@ public:
 class ChannelBlockedCreator : public BlockedDescCreator {
 public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
-    CpuBlockedMemoryDesc createDesc(const InferenceEngine::Precision& precision, const Shape& srcShape) const override {
+    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override {
         if (srcShape.getRank() < 2) {
-            IE_THROW() << "Can't create blocked tensor descriptor!";
+            OPENVINO_THROW("Can't create blocked tensor descriptor!");
         }
 
-        SizeVector order(srcShape.getRank());
+        VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
         order.push_back(channelsPos);
 
-        SizeVector blkDims = srcShape.getDims();
+        VectorDims blkDims = srcShape.getDims();
         if (Shape::UNDEFINED_DIM != blkDims[channelsPos]) {
             blkDims[channelsPos] = blkDims[channelsPos] / _blockSize + (blkDims[channelsPos] % _blockSize ? 1 : 0);
         }

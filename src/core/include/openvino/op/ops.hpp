@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
@@ -61,6 +62,7 @@
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -86,6 +88,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/inverse.hpp"
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
@@ -156,6 +159,7 @@
 #include "openvino/op/roi_pooling.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"

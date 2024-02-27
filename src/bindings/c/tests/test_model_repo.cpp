@@ -4,7 +4,9 @@
 
 #include "test_model_repo.hpp"
 
-#include <common_test_utils/file_utils.hpp>
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu_no_reshapes.hpp"
+#include "openvino/pass/serialize.hpp"
 
 namespace TestDataHelpers {
 
@@ -15,7 +17,7 @@ const std::string model_exported_name = "test_exported_model.blob";
 void generate_test_model() {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    auto function = ov::test::utils::make_conv_pool_relu_no_reshapes({1, 3, 227, 227});
     manager.run_passes(function);
 }
 

@@ -4,9 +4,8 @@
 
 #include <fstream>
 
-#include <ov_models/subgraph_builders.hpp>
-#include <base/behavior_test_utils.hpp>
 #include "behavior/ov_plugin/life_time.hpp"
+#include "common_test_utils/subgraph_builders/split_concat.hpp"
 
 namespace ov {
 namespace test {
@@ -25,7 +24,7 @@ void OVHoldersTest::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTest::TearDown() {
@@ -37,7 +36,7 @@ void OVHoldersTest::TearDown() {
 EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
 
 static void release_order_test(std::vector<std::size_t> order, const std::string &deviceName,
-                               std::shared_ptr<ngraph::Function> function) {
+                               std::shared_ptr<ov::Model> function) {
     ov::AnyVector objects;
     {
         ov::Core core = createCoreWithTemplate();
@@ -140,7 +139,7 @@ void OVHoldersTestOnImportedNetwork::SetUp() {
     if (deathTestStyle == "fast") {
         ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
     }
-    function = ngraph::builder::subgraph::makeSplitConcat();
+    function = ov::test::utils::make_split_concat();
 }
 
 void OVHoldersTestOnImportedNetwork::TearDown() {

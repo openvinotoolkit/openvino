@@ -10,7 +10,7 @@
 namespace LayerTestsDefinitions {
 class PadTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<int64_t> padsBegin;
     std::vector<int64_t> padsEnd;
     float padValue;
@@ -19,9 +19,9 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
-    ngraph::op::PadMode,
+    ov::element::Type,
+    ov::PartialShape,
+    ov::op::PadMode,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam
@@ -35,6 +35,6 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 }  // namespace LayerTestsDefinitions

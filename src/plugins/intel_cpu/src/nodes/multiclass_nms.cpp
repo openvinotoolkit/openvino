@@ -9,17 +9,16 @@
 #include <cassert>
 #include <chrono>
 #include <cmath>
-#include <ie_ngraph_utils.hpp>
 #include <queue>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "utils/general_utils.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
 
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace ov {
 namespace intel_cpu {
@@ -46,7 +45,7 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     m_errorPrefix = "MultiClassNms layer with name '" + getName() + "' ";
 
@@ -54,14 +53,14 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
         m_outStaticShape = true;
 
     if (getOriginalInputsNumber() != 2 && getOriginalInputsNumber() != 3)
-        IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
+        OPENVINO_THROW(m_errorPrefix, "has incorrect number of input edges: ", getOriginalInputsNumber());
 
     if (getOriginalOutputsNumber() != 3)
-        IE_THROW() << m_errorPrefix << "has incorrect number of output edges: " << getOriginalOutputsNumber();
+        OPENVINO_THROW(m_errorPrefix, "has incorrect number of output edges: ", getOriginalOutputsNumber());
 
     auto nmsBase = std::dynamic_pointer_cast<ov::op::util::MulticlassNmsBase>(op);
     if (nmsBase == nullptr)
-        IE_THROW() << m_errorPrefix << " is not an instance of MulticlassNmsBase.";
+        OPENVINO_THROW(m_errorPrefix, " is not an instance of MulticlassNmsBase.");
     auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
@@ -85,21 +84,32 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     auto boxes_ps = PartialShape(boxes_dims);
     auto scores_ps = PartialShape(scores_dims);
     if (boxes_dims.size() != 3)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input rank: " << boxes_dims.size();
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input rank: ", boxes_dims.size());
     if (boxes_dims[2] != 4)
-        IE_THROW() << m_errorPrefix << "has unsupported 'boxes' input 3rd dimension size: " << boxes_dims[2];
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     if (scores_dims.size() == 3) {
         if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[2]))
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incompatible 'boxes' and 'scores' shape ",
+                           boxes_ps,
+                           " v.s. ",
+                           scores_ps);
     } else if (scores_dims.size() == 2) {
         if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static())
-            IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+            OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
         if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[1]))
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << boxes_ps << " v.s. " << scores_ps;
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incompatible 'boxes' and 'scores' shape ",
+                           boxes_ps,
+                           " v.s. ",
+                           scores_ps);
         if (getOriginalInputsNumber() != 3)
-            IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incorrect number of input edges: ",
+                           getOriginalInputsNumber(),
+                           " when input 'scores' is 2D.");
     } else {
-        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
     }
 }
 
@@ -107,8 +117,8 @@ void MultiClassNms::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    const std::vector<Precision> supportedFloatPrecision = {Precision::FP32, Precision::BF16};
-    const std::vector<Precision> supportedIntOutputPrecision = {Precision::I32, Precision::I64};
+    const std::vector<ov::element::Type> supportedFloatPrecision = {ov::element::f32, ov::element::f16, ov::element::bf16};
+    const std::vector<ov::element::Type> supportedIntOutputPrecision = {ov::element::i32, ov::element::i64};
 
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_BOXES), supportedFloatPrecision, "boxes", m_inType);
     checkPrecision(getOriginalInputPrecisionAtPort(NMS_SCORES), supportedFloatPrecision, "scores", m_inType);
@@ -119,19 +129,19 @@ void MultiClassNms::initSupportedPrimitiveDescriptors() {
 
     if (getOriginalInputsNumber() == 3) {
         checkPrecision(getOriginalInputPrecisionAtPort(NMS_ROISNUM), supportedIntOutputPrecision, "roisnum", m_inType);
-        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                            {LayoutType::ncsp, Precision::FP32},
-                            {LayoutType::ncsp, Precision::I32}},
-                            {{LayoutType::ncsp, Precision::FP32},
-                            {LayoutType::ncsp, Precision::I32},
-                            {LayoutType::ncsp, Precision::I32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                            {LayoutType::ncsp, ov::element::f32},
+                            {LayoutType::ncsp, ov::element::i32}},
+                            {{LayoutType::ncsp, ov::element::f32},
+                            {LayoutType::ncsp, ov::element::i32},
+                            {LayoutType::ncsp, ov::element::i32}},
                             impl_desc_type::ref_any);
     } else {
-        addSupportedPrimDesc({{LayoutType::ncsp, Precision::FP32},
-                            {LayoutType::ncsp, Precision::FP32}},
-                            {{LayoutType::ncsp, Precision::FP32},
-                            {LayoutType::ncsp, Precision::I32},
-                            {LayoutType::ncsp, Precision::I32}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                            {LayoutType::ncsp, ov::element::f32}},
+                            {{LayoutType::ncsp, ov::element::f32},
+                            {LayoutType::ncsp, ov::element::i32},
+                            {LayoutType::ncsp, ov::element::i32}},
                             impl_desc_type::ref_any);
     }
 }
@@ -148,20 +158,31 @@ void MultiClassNms::prepareParams() {
 
     if (shared) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2])
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incompatible 'boxes' and 'scores' shape ",
+                           PartialShape(boxes_dims),
+                           " v.s. ",
+                           PartialShape(scores_dims));
     } else if (scores_dims.size() == 2) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1])
-            IE_THROW() << m_errorPrefix << "has incompatible 'boxes' and 'scores' shape " << PartialShape(boxes_dims) << " v.s. " << PartialShape(scores_dims);
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incompatible 'boxes' and 'scores' shape ",
+                           PartialShape(boxes_dims),
+                           " v.s. ",
+                           PartialShape(scores_dims));
         if (!has_roinum)
-            IE_THROW() << m_errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber() << " when input 'scores' is 2D.";
+            OPENVINO_THROW(m_errorPrefix,
+                           "has incorrect number of input edges: ",
+                           getOriginalInputsNumber(),
+                           " when input 'scores' is 2D.");
     } else {
-        IE_THROW() << m_errorPrefix << "has unsupported 'scores' input rank: " << scores_dims.size();
+        OPENVINO_THROW(m_errorPrefix, "has unsupported 'scores' input rank: ", scores_dims.size());
     }
 
     if (has_roinum) {
         const auto& roisnum_dims = getParentEdgeAt(NMS_ROISNUM)->getMemory().getStaticDims();
         if (roisnum_dims.size() != 1)
-            IE_THROW() << m_errorPrefix << "has unsupported 'roisnum' input rank: " << roisnum_dims.size();
+            OPENVINO_THROW(m_errorPrefix, "has unsupported 'roisnum' input rank: ", roisnum_dims.size());
         m_numBatches = shared ? boxes_dims[0] : roisnum_dims[0];
     } else {
         m_numBatches = boxes_dims[0];
@@ -203,8 +224,8 @@ void MultiClassNms::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void MultiClassNms::execute(dnnl::stream strm) {
-    const float* boxes = reinterpret_cast<const float*>(getParentEdgeAt(NMS_BOXES)->getMemoryPtr()->getData());
-    const float* scores = reinterpret_cast<const float*>(getParentEdgeAt(NMS_SCORES)->getMemoryPtr()->getData());
+    const float* boxes = getSrcDataAtPortAs<const float>(NMS_BOXES);
+    const float* scores = getSrcDataAtPortAs<const float>(NMS_SCORES);
 
     auto dims_boxes = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     auto dims_scores = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
@@ -215,9 +236,9 @@ void MultiClassNms::execute(dnnl::stream strm) {
     const bool has_roinum = getOriginalInputsNumber() == 3;
     const auto shared = dims_scores.size() == 3;  // bboxes shared among classes
 
-    auto selectedOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDOUTPUTS)[0]->getMemoryPtr();
-    auto selectedIndicesMemPtr = getChildEdgesAtPort(NMS_SELECTEDINDICES)[0]->getMemoryPtr();
-    auto validOutputsMemPtr = getChildEdgesAtPort(NMS_SELECTEDNUM)[0]->getMemoryPtr();
+    auto selectedOutputsMemPtr = getDstMemoryAtPort(NMS_SELECTEDOUTPUTS);
+    auto selectedIndicesMemPtr = getDstMemoryAtPort(NMS_SELECTEDINDICES);
+    auto validOutputsMemPtr = getDstMemoryAtPort(NMS_SELECTEDNUM);
 
     auto boxesStrides = getParentEdgeAt(NMS_BOXES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     auto scoresStrides = getParentEdgeAt(NMS_SCORES)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -225,7 +246,7 @@ void MultiClassNms::execute(dnnl::stream strm) {
     int* roisnum = nullptr;
     VectorDims roisnumStrides;
     if (has_roinum) {
-        roisnum = reinterpret_cast<int*>(getParentEdgeAt(NMS_ROISNUM)->getMemoryPtr()->getData());
+        roisnum = getSrcDataAtPortAs<int>(NMS_ROISNUM);
         roisnumStrides = getParentEdgeAt(NMS_ROISNUM)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     }
 
@@ -328,9 +349,9 @@ void MultiClassNms::execute(dnnl::stream strm) {
         size_t totalBox = std::accumulate(m_selected_num.begin(), m_selected_num.end(), size_t(0));
         redefineOutputMemory({{totalBox, 6}, {totalBox, 1}, {m_numBatches}});
     }
-    int* selected_indices = reinterpret_cast<int*>(selectedIndicesMemPtr->getData());
-    float* selected_outputs = reinterpret_cast<float*>(selectedOutputsMemPtr->getData());
-    int* selected_num = reinterpret_cast<int*>(validOutputsMemPtr->getData());
+    int* selected_indices = selectedIndicesMemPtr->getDataAs<int>();
+    float* selected_outputs = selectedOutputsMemPtr->getDataAs<float>();
+    int* selected_num = validOutputsMemPtr->getDataAs<int>();
 
     auto _flattened_index = [](int batch_idx, int box_idx, int num_box) {
         return batch_idx * num_box + box_idx;
@@ -417,9 +438,9 @@ float MultiClassNms::intersectionOverUnion(const float* boxesI, const float* box
 void MultiClassNms::nmsWithEta(const float* boxes,
                                 const float* scores,
                                 const int* roisnum,
-                                const SizeVector& boxesStrides,
-                                const SizeVector& scoresStrides,
-                                const SizeVector& roisnumStrides,
+                                const VectorDims& boxesStrides,
+                                const VectorDims& scoresStrides,
+                                const VectorDims& roisnumStrides,
                                 const bool shared) {
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
@@ -502,10 +523,10 @@ void MultiClassNms::nmsWithEta(const float* boxes,
 const float* MultiClassNms::slice_class(const int batch_idx,
                                         const int class_idx,
                                         const float* dataPtr,
-                                        const SizeVector& dataStrides,
+                                        const VectorDims& dataStrides,
                                         const bool is_boxes,
                                         const int* roisnum,
-                                        const SizeVector& roisnumStrides,
+                                        const VectorDims& roisnumStrides,
                                         const bool shared) {
     if (shared) {
         if (is_boxes)
@@ -529,9 +550,9 @@ const float* MultiClassNms::slice_class(const int batch_idx,
 void MultiClassNms::nmsWithoutEta(const float* boxes,
                                 const float* scores,
                                 const int* roisnum,
-                                const SizeVector& boxesStrides,
-                                const SizeVector& scoresStrides,
-                                const SizeVector& roisnumStrides,
+                                const VectorDims& boxesStrides,
+                                const VectorDims& scoresStrides,
+                                const VectorDims& roisnumStrides,
                                 const bool shared) {
     parallel_for2d(m_numBatches, m_numClasses, [&](int batch_idx, int class_idx) {
         /*
@@ -589,9 +610,12 @@ void MultiClassNms::nmsWithoutEta(const float* boxes,
     });
 }
 
-void MultiClassNms::checkPrecision(const Precision prec, const std::vector<Precision> precList, const std::string name, const std::string type) {
+void MultiClassNms::checkPrecision(const ov::element::Type prec,
+                                   const std::vector<ov::element::Type> precList,
+                                   const std::string name,
+                                   const std::string type) {
     if (std::find(precList.begin(), precList.end(), prec) == precList.end())
-        IE_THROW() << m_errorPrefix << "has unsupported '" << name << "' " << type << " precision: " << prec;
+        OPENVINO_THROW(m_errorPrefix, "has unsupported '", name, "' ", type, " precision: ", prec);
 }
 
 }   // namespace node

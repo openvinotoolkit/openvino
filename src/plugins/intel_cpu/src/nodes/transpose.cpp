@@ -3,16 +3,17 @@
 //
 
 #include "transpose.h"
-#include "ie_parallel.hpp"
+
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/constant.hpp"
+
 #include "nodes/common/reorder_prim.h"
 
-#include <algorithm>
 #include <string>
-#include <dnnl_extension_utils.h>
-#include <common/primitive_hashing_utils.hpp>
+#include "dnnl_extension_utils.h"
+#include "common/primitive_hashing_utils.hpp"
 #include "shape_inference/custom/transpose.hpp"
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -41,7 +42,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         : Node(op, context, TransposeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (op->get_input_node_ptr(INPUT_ORDER_IDX)->get_type_info() == ov::op::v0::Constant::get_type_info_static()) {
@@ -75,7 +76,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
     config.inConfs[INPUT_DATA_IDX].constant(false);
     config.inConfs[INPUT_ORDER_IDX].constant(isInputOrderConst);
     config.inConfs[INPUT_ORDER_IDX].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            Precision::I32, getInputShapeAtPort(INPUT_ORDER_IDX)));
+            ov::element::i32, getInputShapeAtPort(INPUT_ORDER_IDX)));
     config.outConfs[0].inPlace(isOptimized ? 0 : -1);
     config.outConfs[0].constant(false);
     transpose_context = std::make_shared<ExecutorContext>(context, getImplPriority());
@@ -111,7 +112,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
 #endif // OPENVINO_ARCH_X86_64
-        if (prec == Precision::FP32 || prec == Precision::FP16 || prec == Precision::I8 || prec == Precision::U8) {
+        if (prec == ov::element::f32 || prec == ov::element::f16 || prec == ov::element::i8 || prec == ov::element::u8 || prec == ov::element::bf16) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
@@ -138,13 +139,13 @@ void Transpose::prepareParams() {
 
     if (performAsReorder) {
         //  Transpose(order={0,3,1,2}) can be performed as Reorder(acdb=>abcd)
-        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
+        auto dstMemPtr = getDstMemoryAtPort(0);
         auto dstDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
-            IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";
+            OPENVINO_THROW("Reorder primitive descriptor was not found for Transpose node ", getName(), ".");
         }
         prim = result;
 
@@ -167,8 +168,8 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = reinterpret_cast<const int32_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-        auto orderLen = getParentEdgeAt(0)->getMemoryPtr()->getSize();
+        auto orderPtr = getSrcDataAtPortAs<const int32_t>(0);
+        auto orderLen = getSrcMemoryAtPort(0)->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
 
@@ -187,7 +188,7 @@ void Transpose::prepareParams() {
     auto result = cache->getOrCreate(transposeParams.permuteParams, builder);
 
     if (!result.first) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
     }
 
     execPtr = result.first;
@@ -197,20 +198,27 @@ void Transpose::createPrimitive() {
     if (isOptimized)
         return;
 
-    auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
     if (!dstMemPtr || !dstMemPtr->isAllocated())
-        IE_THROW() << "Destination memory was not allocated.";
+        OPENVINO_THROW("Destination memory was not allocated.");
     if (!srcMemPtr || !srcMemPtr->isAllocated())
-        IE_THROW() << "Input memory was not allocated.";
+        OPENVINO_THROW("Input memory was not allocated.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor was not set.";
+        OPENVINO_THROW("Preferable primitive descriptor was not set.");
 
     if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         order == std::vector<size_t>{0, 3, 1, 2}) {
         performAsReorder = true;
     }
+
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    // Avoid using reference implementation of non-fp32 reorders on arm platforms
+    if (prec != ov::element::f32) {
+        performAsReorder = false;
+    }
+#endif
 
     if (!performAsReorder) {
         transposeParams.permuteParams.data_size = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc()->getPrecision().size();
@@ -235,14 +243,12 @@ void Transpose::execute(dnnl::stream strm) {
     if (prim) {
         prim.execute(strm, primArgs);
     } else if (execPtr) {
-        auto dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
+        auto dstMemPtr = getDstMemoryAtPort(0);
+        auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
 
-        int MB = srcMemPtr->getStaticDims()[0];
-
-        execPtr->exec({srcMemPtr}, {dstMemPtr}, MB);
+        execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
-        IE_THROW() << "Could not execute Transpose node. Primitive was not created.";
+        OPENVINO_THROW("Could not execute Transpose node. Primitive was not created.");
     }
 }
 

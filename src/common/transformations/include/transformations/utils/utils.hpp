@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -60,6 +61,7 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
     return false;
 }
 
+OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
 inline std::string create_ie_output_name(const Output<const Node>& output) {
     std::string out_name;
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -77,16 +79,25 @@ inline std::string create_ie_output_name(const Output<const Node>& output) {
     return out_name;
 }
 
+OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
 inline std::string create_ie_output_name(const Output<Node>& output) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return create_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
 inline std::string get_ie_output_name(const Output<const Node>& output) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return create_ie_output_name(output);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
+OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
 inline std::string get_ie_output_name(const Output<Node>& output) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
     return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 /**
@@ -182,7 +193,8 @@ TRANSFORMATIONS_API bool check_for_broadcast(const PartialShape& ref_shape, cons
 
 TRANSFORMATIONS_API std::shared_ptr<Node> activation(const std::string& activation_name, const Output<Node>& apply_to);
 
-TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& seq_len_input, int64_t max_seq_len);
+TRANSFORMATIONS_API bool is_seq_len_provided(const std::shared_ptr<Node>& X,
+                                             const std::shared_ptr<Node>& seq_len_input);
 
 TRANSFORMATIONS_API std::shared_ptr<Node> try_fold_unary_output(const std::shared_ptr<Node>& node);
 
@@ -191,9 +203,29 @@ TRANSFORMATIONS_API std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<N
 TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const PartialShape& expected,
                                                                     const PartialShape& actual);
 
+/**
+ * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
+ * and calls "func" for each ov::Node.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
 TRANSFORMATIONS_API void visit_shape_path(ov::Node* node,
                                           std::unordered_set<ov::Node*>& visited,
                                           std::function<void(ov::Node*)> func);
+
+/**
+ * \brief Traverses a constant path starting from "node", and calls "func" for each ov::Node.
+ * If the function was called for non-constant subgraph, exception is thrown.
+ *
+ * \param node  The node from which constant path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ */
+TRANSFORMATIONS_API void visit_constant_path(ov::Node* node,
+                                             std::unordered_set<ov::Node*>& visited,
+                                             std::function<void(ov::Node*)> func);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> make_try_fold(Args&&... args) {

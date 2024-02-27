@@ -17,8 +17,8 @@ def main():
     #! [ov:model_create]
     # 2. Creating ov.Model
     input = ops.parameter([1, 1], dtype=np.float32, name="data")
-    init_const = ops.constant([0], dtype=np.float32)
-    read = ops.read_value(init_const, "variable0")
+    init_const = ops.constant([[0]], dtype=np.float32)
+    read = ops.read_value(init_const, "variable0", "f32", [1, 1])
     add = ops.add(input, read)
     assign = ops.assign(add, "variable0")
     add2 = ops.add(add, read)
@@ -44,8 +44,7 @@ def main():
         output_tensors.append(infer_request.get_tensor(output))
 
     # 7. Initialize memory state before starting
-    for state in infer_request.query_state():
-        state.reset()
+    infer_request.reset_state()
 
     #! [ov:part1]
     # input data
@@ -66,8 +65,7 @@ def main():
         log.info(state_buf[0])
 
     log.info("\nReset state between utterances...\n")
-    for state in infer_request.query_state():
-        state.reset()
+    infer_request.reset_state()
         
     log.info("Infer the second utterance")
     for next_input in range(int(len(input_data)/2), len(input_data)):

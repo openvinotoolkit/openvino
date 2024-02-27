@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ngraph/ngraph.hpp"
 #include "snippets_helpers.hpp"
 
 
@@ -271,7 +270,7 @@ class MHAQuantMatMul0Function : public SnippetsFunctionBase {
 public:
     explicit MHAQuantMatMul0Function(const std::vector<PartialShape>& inputShapes)
             : SnippetsFunctionBase(inputShapes) {
-        NGRAPH_CHECK(input_shapes.size() == 4, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
@@ -405,7 +404,7 @@ class MHAWithExtractedReshapeFunction : public SnippetsFunctionBase {
 public:
     explicit MHAWithExtractedReshapeFunction(const std::vector<PartialShape>& inputShapes, const bool add_2nd_reshape)
         : SnippetsFunctionBase(inputShapes), add_2nd_reshape(add_2nd_reshape) {
-        NGRAPH_CHECK(input_shapes.size() == 5, "Got invalid number of input shapes");
+        OPENVINO_ASSERT(input_shapes.size() == 5, "Got invalid number of input shapes");
     }
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;

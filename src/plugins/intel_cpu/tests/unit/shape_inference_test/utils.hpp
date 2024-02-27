@@ -11,6 +11,7 @@
 #include "shape_inference/static_shape.hpp"
 
 namespace ov {
+
 namespace intel_cpu {
 
 using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;

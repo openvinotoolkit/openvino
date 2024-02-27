@@ -26,9 +26,7 @@ op::v0::LRN::LRN(const Output<Node>& arg, const Output<Node>& axes, double alpha
 AxisSet op::v0::LRN::get_reduction_axes() const {
     AxisSet axes{1};  // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& const_op = get_constant_from_source(axes_input_node)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& const_op = ov::util::get_constant_from_source(axes_input_node)) {
         axes = const_op->get_axis_set_val();
     }
     return axes;

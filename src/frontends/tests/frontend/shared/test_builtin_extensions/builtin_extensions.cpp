@@ -67,6 +67,7 @@ ov::OutputVector ReluToSwishTranslator(const ov::frontend::NodeContext& node) {
     return {std::make_shared<ov::opset8::Swish>(node.get_input(0))};
 }
 
+#ifdef ENABLE_OV_PADDLE_FRONTEND
 std::map<std::string, ov::OutputVector> ReluToSwishTranslatorPDPD(const ov::frontend::NodeContext& node) {
     return {{"Out", {std::make_shared<ov::opset8::Swish>(node.get_input("X"))}}};
 }
@@ -81,7 +82,7 @@ std::map<std::string, ov::OutputVector> Relu6ToReluTranslatorPaddle(const ov::fr
     ret["Out"] = {relu};
     return ret;
 }
-
+#endif
 }  // namespace
 
 class CustomElu : public ov::op::Op {
@@ -146,14 +147,23 @@ private:
 };
 
 #ifdef ENABLE_OV_PYTORCH_FRONTEND
+#    include <openvino/frontend/extension/op.hpp>
 #    include <openvino/frontend/pytorch/extension/conversion.hpp>
 #    include <openvino/frontend/pytorch/extension/op.hpp>
-#    define PT_EXT                                                       \
-        std::make_shared<ov::frontend::pytorch::OpExtension<CustomElu>>( \
-            "aten::elu",                                                 \
-            std::map<std::string, size_t>{{"m_alpha", 1}},               \
-            std::map<std::string, ov::Any>{{"m_beta", 1.0f}}),           \
-            std::make_shared<ov::frontend::pytorch::ConversionExtension>("Relu", ReluToSwishTranslator),
+#    include <openvino/op/relu.hpp>
+class ReluCustom : public ov::op::v0::Relu {
+public:
+    OPENVINO_OP("ReluCustom");
+    OPENVINO_FRAMEWORK_MAP(pytorch, "aten::relu");
+};
+#    define PT_EXT                                                                                       \
+        std::make_shared<ov::frontend::pytorch::OpExtension<CustomElu>>(                                 \
+            "aten::elu",                                                                                 \
+            std::map<std::string, size_t>{{"m_alpha", 1}},                                               \
+            std::map<std::string, ov::Any>{{"m_beta", 1.0f}}),                                           \
+            std::make_shared<ov::frontend::pytorch::ConversionExtension>("Relu", ReluToSwishTranslator), \
+            std::make_shared<ov::OpExtension<ReluCustom>>(),
+
 #else
 #    define PT_EXT
 #endif

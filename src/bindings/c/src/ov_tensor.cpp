@@ -24,7 +24,9 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::U16, ov::element::u16},
     {ov_element_type_e::U32, ov::element::u32},
     {ov_element_type_e::U64, ov::element::u64},
-    {ov_element_type_e::NF4, ov::element::nf4}};
+    {ov_element_type_e::NF4, ov::element::nf4},
+    {ov_element_type_e::F8E4M3, ov::element::f8e4m3},
+    {ov_element_type_e::F8E5M3, ov::element::f8e5m2}};
 
 inline ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {

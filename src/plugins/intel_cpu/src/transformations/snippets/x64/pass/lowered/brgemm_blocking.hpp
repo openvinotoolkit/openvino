@@ -12,15 +12,20 @@ namespace pass {
 
 /**
  * @interface BrgemmBlocking
- * @brief Covers BrgemmCPU with blocking loop by M
+ * @brief Covers BrgemmCPU with blocking loops
  * @ingroup snippets
  */
 
-class BrgemmBlocking : public snippets::lowered::pass::Pass {
+class BrgemmBlocking : public snippets::lowered::pass::RangedPass {
 public:
     OPENVINO_RTTI("BrgemmBlocking", "Pass")
     BrgemmBlocking();
-    bool run(snippets::lowered::LinearIR& linear_ir) override;
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
+
+private:
+    static void move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir, const snippets::lowered::LinearIR::constExprIt& brgemm_it);
 };
 
 }  // namespace pass

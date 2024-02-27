@@ -64,8 +64,10 @@ OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
     auto dtype = node.get_attribute<element::Type>("dtype");
     auto size = node.get_input(0);
     auto element_shape = node.get_attribute<PartialShape>("element_shape");
+    bool dynamic_size = node.get_attribute<bool>("dynamic_size", false);
+    int64_t element_rank = element_shape.rank().is_static() ? element_shape.rank().get_length() : -1;
 
-    if (element_shape.rank().is_static()) {
+    if (element_rank != -1 && !dynamic_size) {
         auto node_name = node.get_name();
         auto new_output1 =
             create_initial_tensor_array_constant(element_shape.rank().get_length(), dtype, size, node.get_name());
@@ -76,8 +78,8 @@ OutputVector translate_tensor_array_v3_op(const NodeContext& node) {
         return OutputVector{new_output1, new_output2};
     }
 
-    // dynamic case when it is unable retrieve element rank from the attribute
-    auto tensor_array_v3 = make_shared<TensorArrayV3>(size, dtype, node.get_decoder());
+    // dynamic case when it is unable retrieve element rank from the attribute or container size is dynamic
+    auto tensor_array_v3 = make_shared<TensorArrayV3>(size, dtype, element_rank, dynamic_size, node.get_decoder());
     set_node_name(node.get_name(), tensor_array_v3);
 
     return tensor_array_v3->outputs();
@@ -290,6 +292,7 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
     // if it just initialized, its shape is equal to [tensor_array_size, 1, ..., 1]
     // otherwise, it is equal to [tensor_array_size, <element shape>]
     auto tensor_array = node.get_input(3);
+    bool dynamic_size = true;
 
     // reshape index to have it of [1] shape
     auto new_index_shape = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
@@ -302,6 +305,7 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
             auto tensor_array_v3 = as_type_ptr<TensorArrayV3>(enter->input_value(0).get_node_shared_ptr());
             int64_t tensor_element_rank = value.get_partial_shape().rank().get_length();
             tensor_array_v3->set_element_rank(tensor_element_rank);
+            dynamic_size = tensor_array_v3->get_dynamic_size();
         }
     }
 
@@ -316,6 +320,21 @@ OutputVector translate_tensor_array_write_v3_op(const NodeContext& node) {
     auto element_shape = make_shared<v3::ShapeOf>(value, element::i32);
     auto new_tensor_array_shape = make_shared<v0::Concat>(OutputVector{tensor_array_size, element_shape}, 0);
     tensor_array = make_shared<v3::Broadcast>(tensor_array, new_tensor_array_shape);
+
+    if (dynamic_size) {
+        // it requires to adjust a container size
+        auto const_one = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        auto index_plus_one = make_shared<v1::Add>(index, const_one);
+        auto max_size = make_shared<v1::Maximum>(tensor_array_size, index_plus_one);
+
+        auto dummy_size = make_shared<v1::Subtract>(max_size, tensor_array_size);
+        auto dummy_tensor_shape = make_shared<v0::Concat>(OutputVector{dummy_size, element_shape}, 0);
+
+        // create dummy tensor and concatenate it
+        auto zero_element = create_same_type_const_scalar<int32_t>(value, 0);
+        auto dummy_tensor = make_shared<v3::Broadcast>(zero_element, dummy_tensor_shape);
+        tensor_array = make_shared<v0::Concat>(OutputVector{tensor_array, dummy_tensor}, 0);
+    }
 
     // update the resulted tensor using ScatterUpdate
     value = make_shared<v0::Unsqueeze>(value, zero_const);

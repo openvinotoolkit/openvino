@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/broadcast.hpp"
 
 #include "primitive.hpp"
@@ -131,6 +132,8 @@ struct broadcast : public primitive_base<broadcast> {
     ///        along which broadcast should happen.
     std::vector<uint16_t> broadcast_axes;
 
+    ov::PartialShape output_pshape = ov::PartialShape::dynamic();
+
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
@@ -146,7 +149,8 @@ struct broadcast : public primitive_base<broadcast> {
 
         return axes_mapping == rhs_casted.axes_mapping &&
                broadcast_mode == rhs_casted.broadcast_mode &&
-               broadcast_sizes == rhs_casted.broadcast_sizes;
+               broadcast_sizes == rhs_casted.broadcast_sizes &&
+               output_pshape == rhs_casted.output_pshape;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -156,6 +160,7 @@ struct broadcast : public primitive_base<broadcast> {
         ob << make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
         ob << broadcast_sizes;
         ob << broadcast_axes;
+        ob << output_pshape;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -165,6 +170,7 @@ struct broadcast : public primitive_base<broadcast> {
         ib >> make_data(&broadcast_mode, sizeof(ov::op::BroadcastModeSpec));
         ib >> broadcast_sizes;
         ib >> broadcast_axes;
+        ib >> output_pshape;
     }
 };
 }  // namespace cldnn

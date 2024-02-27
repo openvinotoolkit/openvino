@@ -6,9 +6,9 @@ Refer to conftest.py on the test usage.
 """
 
 
-def test_documentation_page(doxygen_errors):
+def test_documentation_page(errors):
     """ Test documentation page has no errors generating
     """
-    if doxygen_errors:
+    if errors:
         assert False, '\n'.join(['documentation has issues:'] +
-                                sorted(doxygen_errors))
+                                sorted(errors))
