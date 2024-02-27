@@ -16,11 +16,11 @@ namespace pass {
  * @brief Fuses consecutive Load and MoveBroadcast into a single load insctruction.
  * @ingroup snippets
  */
-class LoadMoveBroadcastToBroadcastLoad: public Pass {
+class LoadMoveBroadcastToBroadcastLoad: public RangedPass {
 public:
     LoadMoveBroadcastToBroadcastLoad() = default;
-    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "Pass")
-    bool run(LinearIR& linear_ir) override;
+    OPENVINO_RTTI("LoadMoveBroadcastToBroadcastLoad", "RangedPass")
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 
 }  // namespace pass

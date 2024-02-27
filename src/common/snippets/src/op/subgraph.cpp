@@ -473,7 +473,7 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
 #ifdef SNIPPETS_DEBUG_CAPS
     if (linear_ir.get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
-        perf_count_pass.run(linear_ir);
+        perf_count_pass.run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
 #endif
     m_generator->generate(linear_ir, lowering_result, compile_params);

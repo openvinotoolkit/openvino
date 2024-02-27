@@ -92,12 +92,14 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(snippets::low
     return true;
 }
 
-bool ov::intel_cpu::pass::FuseLoadStoreConvert::run(snippets::lowered::LinearIR& linear_ir) {
+bool ov::intel_cpu::pass::FuseLoadStoreConvert::run(snippets::lowered::LinearIR& linear_ir,
+                                                    snippets::lowered::LinearIR::constExprIt begin,
+                                                    snippets::lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoadStoreConvert")
 
     bool modified = false;
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& convert = expr->get_node();
         if (!ov::is_type<ov::op::v0::Convert>(convert))

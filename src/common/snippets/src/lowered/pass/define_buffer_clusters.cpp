@@ -320,10 +320,10 @@ void DefineBufferClusters::parse_memory_access_op(const ExpressionPtr& expr) {
     }
 }
 
-bool DefineBufferClusters::run(LinearIR& linear_ir) {
+bool DefineBufferClusters::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::DefineBufferClusters");
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); ++expr_it) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& expr = *expr_it;
         const auto op = expr->get_node();
         if (ov::is_type<op::LoopEndStatic>(op)) {

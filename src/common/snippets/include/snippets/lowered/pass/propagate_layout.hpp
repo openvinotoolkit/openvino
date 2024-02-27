@@ -17,10 +17,10 @@ namespace pass {
  * proper data pointer offsets in the Kernel;
  * @ingroup snippets
  */
-class PropagateLayout : public Pass {
+class PropagateLayout : public RangedPass {
 public:
-    OPENVINO_RTTI("PropagateLayout", "Pass")
-    bool run(LinearIR& linear_ir) override;
+    OPENVINO_RTTI("PropagateLayout", "RangedPass")
+    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 
 } // namespace pass

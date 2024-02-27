@@ -48,6 +48,9 @@ public:
         return is_enabled(T::get_type_info_static());
     }
 
+    friend bool operator==(const PassConfig& lhs, const PassConfig& rhs);
+    friend bool operator!=(const PassConfig& lhs, const PassConfig& rhs);
+
 private:
     std::unordered_set<DiscreteTypeInfo> m_disabled;
     std::unordered_set<DiscreteTypeInfo> m_enabled;

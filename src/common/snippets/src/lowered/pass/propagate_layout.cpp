@@ -14,12 +14,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool PropagateLayout::run(LinearIR& linear_ir) {
+bool PropagateLayout::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::PropagateLayout")
-    if (linear_ir.empty())
-        return false;
-
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr);
         if (!io_expr)
             continue;

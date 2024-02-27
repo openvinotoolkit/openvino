@@ -28,6 +28,14 @@ bool PassConfig::is_enabled(const DiscreteTypeInfo& type_info) const {
     return m_enabled.count(type_info);
 }
 
+bool operator==(const PassConfig& lhs, const PassConfig& rhs) {
+    return lhs.m_disabled == rhs.m_disabled && lhs.m_enabled == rhs.m_enabled;
+}
+
+bool operator!=(const PassConfig& lhs, const PassConfig& rhs) {
+    return !(lhs == rhs);
+}
+
 } // namespace pass
 } // namespace lowered
 } // namespace snippets

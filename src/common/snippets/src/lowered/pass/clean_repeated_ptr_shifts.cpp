@@ -13,7 +13,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir, const ExpressionPtr& loop_end_expr) {
+bool CleanRepeatedDataPointerShifts::reuse_increments(const ExpressionPtr& loop_end_expr) {
     const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
     if (!loop_end)
         return false;
@@ -89,14 +89,15 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR& linear_ir,
     return true;
 }
 
-bool CleanRepeatedDataPointerShifts::run(LinearIR& linear_ir) {
+bool CleanRepeatedDataPointerShifts::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanRepeatedDataPointerShifts")
     bool modified = false;
 
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<op::LoopEndStatic>(node)) {
-            modified |= reuse_increments(linear_ir, expr);
+            modified |= reuse_increments(expr);
         }
     }
 

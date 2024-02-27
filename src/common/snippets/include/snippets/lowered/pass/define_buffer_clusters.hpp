@@ -31,9 +31,9 @@ namespace pass {
  *                 These passes should be executed separately before this pass!
  * @ingroup snippets
  */
-class DefineBufferClusters : public Pass {
+class DefineBufferClusters : public RangedPass {
 public:
-    OPENVINO_RTTI("DefineBufferClusters", "Pass")
+    OPENVINO_RTTI("DefineBufferClusters", "RangedPass")
 
     DefineBufferClusters(AllocateBuffers::BufferClusters& clusters) : m_clusters(clusters) {}
 
@@ -42,7 +42,7 @@ public:
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(lowered::LinearIR& linear_ir) override;
+    bool run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
     using BufferPorts = std::unordered_map<ExpressionPtr, std::set<size_t>>;
