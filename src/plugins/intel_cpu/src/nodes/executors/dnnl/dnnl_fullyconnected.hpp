@@ -68,6 +68,10 @@ public:
         return m_primitive ? m_primitive->implType() : undef;
     }
 
+    void moveToNumaNode(int numaNodeID) {
+        numaNodeID = numaNodeID;
+    }
+
 private:
     void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
         const auto& primMemDesc = primitive->srcDesc();
@@ -112,13 +116,13 @@ private:
         m_primArgs[DNNL_ARG_BIAS] = memory->getPrimitive();
     }
 
-    void updateScratchPadMem(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive) {
+    void updateScratchPadMem(const PrimitivePtr currentPrimitive, const PrimitivePtr newPrimitive, int numaNodeID = 0) {
         const auto newPrimMemDesc = newPrimitive->scratchPadDesc();
         // @todo should we compare dnnl::memory::desc directly to avoid any overhead?
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(*newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
@@ -148,6 +152,7 @@ private:
     bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
+    int numaNodeID;
 };
 
 }  // namespace intel_cpu
