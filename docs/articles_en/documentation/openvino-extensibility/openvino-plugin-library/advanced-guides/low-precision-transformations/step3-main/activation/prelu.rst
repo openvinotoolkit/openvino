@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_PReluTransformation}
+.. {#../../../low-precision-transformations_PReluTransformation}
 
 PReluTransformation transformation
 ==================================

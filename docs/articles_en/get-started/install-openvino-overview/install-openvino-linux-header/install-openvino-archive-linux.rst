@@ -40,7 +40,7 @@ Install OpenVINO™ Runtime on Linux from an Archive File
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <system_requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -236,7 +236,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+:doc:`list of additional configurations <../../configurations-header>`
 to see if your case needs any of them.
 
 The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO.
@@ -276,39 +276,39 @@ What's Next?
 ############################################################
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications!
-Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
+Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python.
 
 .. tab-set::
 
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <notebooks/201-vision-monodepth-with-output.html>`_
+      Try the `Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>`_
       to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
-      Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+      * `OpenVINO Python API Tutorial <../../../notebooks/002-openvino-api-with-output.html>`__
+      * `Basic image classification program with Hello Image Classification <../../../notebooks/001-hello-world-with-output.html>`__
+      * `Convert a PyTorch model and use it for image background removal <../../../notebooks/205-vision-background-removal-with-output.html>`__
 
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions
+      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
       on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
-      Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
+      Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`__
-      * `Object classification sample <openvino_sample_hello_classification.html>`__
+      * `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`__
+      * `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`__
 
 
 
@@ -338,11 +338,11 @@ To delete the files:
 Additional Resources
 ###########################################################
 
-* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <openvino_docs_get_started_guide_troubleshooting>`
-* Converting models for use with OpenVINO™: :doc:`Convert a Model <openvino_docs_model_processing_introduction>`
-* Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
-* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
-* Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model_zoo>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../../troubleshooting-install-config>`
+* Converting models for use with OpenVINO™: :doc:`Convert a Model <../../../openvino-workflow/model-preparation>`
+* Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <../../../openvino-workflow/running-inference>`
+* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
+* Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
 * IoT libraries and code samples in the GitHub repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
 
 

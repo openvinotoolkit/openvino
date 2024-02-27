@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_AvgPoolTransformation}
+.. {#../../../low-precision-transformations_AvgPoolTransformation}
 
 AvgPoolTransformation transformation
 ====================================

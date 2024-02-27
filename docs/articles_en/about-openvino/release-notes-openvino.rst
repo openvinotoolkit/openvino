@@ -62,7 +62,7 @@ Support Change and Deprecation Notices
 
 * The OpenVINO™ Development Tools package (pip install openvino-dev) is deprecated and will be
   removed from installation options and distribution channels beginning with 2025.0.
-  For more details, refer to the :doc:`OpenVINO Legacy Features and Components <openvino_legacy_features>`
+  For more details, refer to the :doc:`OpenVINO Legacy Features and Components <../documentation/legacy-features>`
   page.
 * Ubuntu 18.04 support will be discontinued in the 2023.3 LTS release. The recommended version
   of Ubuntu is 22.04.
@@ -77,9 +77,9 @@ Support Change and Deprecation Notices
 
   * `Deployment Manager <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_deployment_manager_tool.html>`__
     is deprecated and will be supported for two years according to our LTS policy.
-    Visit our :doc:`selector tool <openvino_docs_install_guides_overview>` to see
-    package distribution options or our :doc:`deployment guide <openvino_deployment_guide>`
-    documentation.
+    Visit our :doc:`selector tool <../get-started/install-openvino-overview>` to see
+    package distribution options or our :doc:`deployment guide <../openvino-workflow/deployment-locally>`
+    ../documentation.
   * Accuracy Checker is deprecated and will be discontinued with 2024.0.
   * Post-Training Optimization Tool (POT)  has been deprecated and the 2023.3 LTS will be
     the last release that will support the tool.  Developers are encouraged to use the Neural
@@ -87,7 +87,7 @@ Support Change and Deprecation Notices
   * Model Optimizer is deprecated and will be fully supported until the 2025.0 release.
     We encourage developers to perform model conversion through OpenVINO Model Converter
     (API call: OVC). Follow the
-    :doc:`model conversion transition guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+    :doc:`model conversion transition guide <../documentation/legacy-features/transition-legacy-conversion-api>`
     for more details.
   * Deprecated support for a `git patch <https://github.com/openvinotoolkit/nncf/tree/develop/third_party_integration/huggingface_transformers>`__
     for NNCF integration with `huggingface/transformers <https://github.com/huggingface/transformers>`__.
@@ -249,8 +249,8 @@ OpenVINO™ Runtime
     * Inference functions (``InferRequest.infer/start_async``, ``CompiledModel.__call__`` etc.) support OVDict as the input.
     * PILLOW interpolation modes bindings. (`PR #21188 <https://github.com/openvinotoolkit/openvino/pull/21188>`__ external contribution: @meetpatel0963)
 
-  * Torchvision to :doc:`OpenVINO preprocessing <openvino_docs_OV_UG_string_tensors>`
-    converter documentation has been added to OpenVINO docs.
+  * Torchvision to :doc:`OpenVINO preprocessing <../openvino-workflow/running-inference/string-tensors>`
+    converter ../documentation has been added to OpenVINO docs.
 
 
 OpenVINO Ecosystem

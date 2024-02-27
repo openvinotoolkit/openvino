@@ -13,7 +13,7 @@ Converting TensorFlow Slim Image Classification Model Library Models
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 `TensorFlow-Slim Image Classification Model Library <https://github.com/tensorflow/models/tree/master/research/slim/README.md>`__ is a library to define, train and evaluate classification models in TensorFlow. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow-Slim library model, complete the following steps:
 
@@ -115,5 +115,5 @@ OpenVINO classification sample reads an input image as a three-dimensional array
 
 Similarly, the mean/scale values can be determined for other Slim models.
 
-The exact mean/scale values are defined in the table with list of supported TensorFlow-Slim models at the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+The exact mean/scale values are defined in the table with list of supported TensorFlow-Slim models at the :doc:`Converting a TensorFlow Model <../[legacy]-convert-tensorflow>` guide.
 

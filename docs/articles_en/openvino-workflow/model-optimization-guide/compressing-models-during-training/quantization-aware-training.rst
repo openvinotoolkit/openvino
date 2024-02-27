@@ -217,13 +217,13 @@ To restore the model from checkpoint you should use the following API:
          :fragment: [load_checkpoint]
          
 
-For more details on saving/loading checkpoints in the NNCF, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
+For more details on saving/loading checkpoints in the NNCF, see the following `../../../documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 
 Deploying quantized model
 #########################
 
 The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are 
-required in this case. For more details, see the corresponding :doc:`documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
+required in this case. For more details, see the corresponding :doc:`../../../documentation <../../running-inference>`.
 
 Examples
 ####################

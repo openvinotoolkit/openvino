@@ -12,7 +12,7 @@ Converting a TensorFlow XLNet Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
    
 Pretrained models for XLNet (Bidirectional Encoder Representations from Transformers) are
 `publicly available <https://github.com/zihangdai/xlnet>`__.

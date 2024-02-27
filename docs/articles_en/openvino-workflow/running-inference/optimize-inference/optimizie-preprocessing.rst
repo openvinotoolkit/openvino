@@ -8,10 +8,10 @@ Optimize Preprocessing
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_Preprocessing_Details
-   openvino_docs_OV_UG_Layout_Overview
-   openvino_docs_OV_UG_Preprocess_Usecase_save
-   Torchvision preprocessing converter <torchvision_preprocessing_converter>
+   optimizie-preprocessing/preprocessing-api-details
+   optimizie-preprocessing/layout-api-overview
+   optimizie-preprocessing/integrate-save-preprocessing-use-case
+   Torchvision preprocessing converter <optimizie-preprocessing/torchvision-preprocessing-converter>
 
 .. meta::
    :description: The preprocessing entails additional operations to transform 
@@ -35,7 +35,7 @@ Consider the following standard example: deep learning model expects input with 
 * For each pixel, subtract mean values and divide by scale factor.
 
 
-.. image:: _static/images/preprocess_not_fit.png
+.. image:: ../../../_static/images/preprocess_not_fit.png
 
 
 Even though it is relatively easy to implement all these steps in the application code manually, before actual inference, it is also possible with the use of Preprocessing API. Advantages of using the API are:
@@ -48,9 +48,9 @@ Preprocessing API
 
 Intuitively, preprocessing API consists of the following parts:
 
-1. **Tensor** - declares user data format, like shape, :doc:`layout <openvino_docs_OV_UG_Layout_Overview>`, precision, color format from actual user's data.
+1. **Tensor** - declares user data format, like shape, :doc:`layout <optimizie-preprocessing/layout-api-overview>`, precision, color format from actual user's data.
 2. **Steps** - describes sequence of preprocessing steps which need to be applied to user data.
-3. **Model** - specifies model data format. Usually, precision and shape are already known for model, only additional information, like :doc:`layout <openvino_docs_OV_UG_Layout_Overview>` can be specified.
+3. **Model** - specifies model data format. Usually, precision and shape are already known for model, only additional information, like :doc:`layout <optimizie-preprocessing/layout-api-overview>` can be specified.
 
 .. note::
 
@@ -105,7 +105,7 @@ Below is all the specified input information:
 
 * Precision is ``U8`` (unsigned 8-bit integer).
 * Data represents tensor with the ``{1,480,640,3}`` shape.
-* :doc:`Layout <openvino_docs_OV_UG_Layout_Overview>` is "NHWC". It means: ``height=480``, ``width=640``, ``channels=3``.
+* :doc:`Layout <optimizie-preprocessing/layout-api-overview>` is "NHWC". It means: ``height=480``, ``width=640``, ``channels=3``.
 * Color format is ``BGR``.
 
 
@@ -114,7 +114,7 @@ Below is all the specified input information:
 Declaring Model Layout
 ++++++++++++++++++++++
 
-Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data :doc:`layout <openvino_docs_OV_UG_Layout_Overview>`
+Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data :doc:`layout <optimizie-preprocessing/layout-api-overview>`
 
 
 .. tab-set::
@@ -197,7 +197,7 @@ The ``model`` will accept ``U8`` input with the shape of ``{1, 480, 640, 3}`` an
 Additional Resources
 ####################
 
-* :doc:`Preprocessing Details <openvino_docs_OV_UG_Preprocessing_Details>`
-* :doc:`Layout API overview <openvino_docs_OV_UG_Layout_Overview>`
-* `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class documentation
+* :doc:`Preprocessing Details <optimizie-preprocessing/preprocessing-api-details>`
+* :doc:`Layout API overview <optimizie-preprocessing/layout-api-overview>`
+* `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class ../../../documentation
 

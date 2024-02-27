@@ -403,7 +403,7 @@ Additional Resources
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__: Repository containing example pipelines that implement image and text generation tasks. It also provides a tool to benchmark LLMs.
 - `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
-- :doc:`Post-training Quantization <ptq_introduction>`
-- :doc:`Training-time Optimization <tmo_introduction>`
+- :doc:`Post-training Quantization <quantizing-models-post-training>`
+- :doc:`Training-time Optimization <compressing-models-during-training>`
 
 

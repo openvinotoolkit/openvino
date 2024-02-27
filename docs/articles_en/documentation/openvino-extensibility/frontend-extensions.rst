@@ -12,17 +12,17 @@ Frontend Extensions
 
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate 
 mapping of custom operations from framework model representation to OpenVINO representation. 
-Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to 
+Refer to :doc:`Introduction to OpenVINO Extension <../openvino-extensibility>` to 
 understand the entire flow.
 
 This API is applicable to new frontends only, which exist for ONNX, TensorFlow Lite, PaddlePaddle, and TensorFlow. 
 If a different model format is used, follow legacy 
-:doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` 
+:doc:`Model Optimizer Extensions <../legacy-features/transition-legacy-conversion-api/legacy-model-optimizer-extensibility>` 
 guide.
 
 .. note:: 
 
-   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, 
+   This ../../documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, 
    which demonstrates extension development details based on minimalistic ``Identity`` 
    operation that is a placeholder for your real custom operation. You can review the complete code, 
    which is fully compilable, to see how it works.
@@ -77,7 +77,7 @@ OpenVINO runtime just before the loading a model that contains custom operations
 Or extensions can be constructed in a separately compiled shared library. 
 Separately compiled library can be used in Model Optimizer or ``benchmark_app``. 
 Read about how to build and load such a library in the chapter of “Create library with extensions” in 
-:doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>`.
+:doc:`Introduction to OpenVINO Extension <../openvino-extensibility>`.
 
 If operation have multiple inputs and/or outputs they will be mapped in order. 
 The type of elements in input/output tensors should match expected types in the surrounding operations. 
@@ -409,7 +409,7 @@ The following example shows such conversion for the ``top_k_v2`` operation.
 For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to
 those outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
 For a description of TensorFlow operations, including the names of their outputs, refer to the
-`tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ documentation page.
+`tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ ../../documentation page.
 The next example shows such conversion for the ``TopKV2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp

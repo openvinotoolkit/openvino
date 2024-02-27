@@ -1,4 +1,4 @@
-.. {#datumaro_documentation}
+.. {#datumaro_../../documentation}
 
 Datumaro
 ========
@@ -21,7 +21,7 @@ Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree
 Detailed Workflow
 #################
 
-.. image:: ./_static/images/datumaro.png
+.. image:: ./../../_static/images/datumaro.png
 
 1. To start working with Datumaro, download public datasets or prepare your own annotated dataset.
 
@@ -44,7 +44,7 @@ Detailed Workflow
       annotations. Please see `SplitTask` for the task-specific split.
 
 6. Export the cleaned and unified dataset for follow-up workflows such as model training.
-Go to :doc:`OpenVINO™ Training Extensions <ote_documentation>`.
+Go to :doc:`OpenVINO™ Training Extensions <openvino-training-extensions>`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 

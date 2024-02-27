@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MatMulTransformation}
+.. {#../../../low-precision-transformations_MatMulTransformation}
 
 MatMulTransformation transformation
 ===================================

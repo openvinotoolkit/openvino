@@ -9,7 +9,7 @@ System Requirements
    Certain hardware (including but not limited to GPU, GNA, and latest CPUs) requires manual
    installation of specific drivers and/or other software components to work correctly and/or
    to utilize hardware capabilities at their best. This might require updates to operating
-   system, including but not limited to Linux kernel, please refer to their documentation
+   system, including but not limited to Linux kernel, please refer to their ../documentation
    for details. These modifications should be handled by user and are not part of OpenVINO
    installation.
 
@@ -93,10 +93,10 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require :doc:`drivers <openvino_docs_install_guides_configurations_for_intel_npu>`
+      * These Accelerators require :doc:`drivers <../get-started/configurations-header/configurations-intel-npu>`
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
-        the :doc:`download page <openvino_docs_install_guides_overview>`.
+        the :doc:`download page <../get-started/install-openvino-overview>`.
 
 
 Intel® Gaussian & Neural Accelerator

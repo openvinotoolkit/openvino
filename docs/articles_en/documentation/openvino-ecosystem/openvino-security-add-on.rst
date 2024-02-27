@@ -1,4 +1,4 @@
-.. {#ovsa_get_started}
+.. {#ovsa_../../get-started}
 
 OpenVINO™ Security Add-on
 ===========================
@@ -19,7 +19,7 @@ In this release, one person performs the role of both the Model Developer and th
 Overview
 ########
 
-The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
+The OpenVINO™ Security Add-on works with the :doc:`OpenVINO™ Model Server <../../ovms_what_is_openvino_model_server>` on Intel® architecture. Together, the OpenVINO™ Security Add-on and the OpenVINO™ Model Server provide a way for Model Developers and Independent Software Vendors to use secure packaging and secure model execution to enable access control to the OpenVINO™ models, and for model Users to run inference within assigned limits.
 
 The OpenVINO™ Security Add-on consists of three components that run in Kernel-based Virtual Machines (KVMs). These components provide a way to run security-sensitive operations in an isolated environment. A brief description of the three components are as follows. Click each triangled line for more information about each. 
 
@@ -47,7 +47,7 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 **Where the OpenVINO™ Security Add-on Fits into Model Development and Deployment**
 
-.. image:: _static/images/ovsa_diagram.svg
+.. image:: ../../_static/images/ovsa_diagram.svg
 
 The binding between SWTPM (vTPM used in guest VM) and HW TPM (TPM on the host) is explained in `this document. <https://github.com/openvinotoolkit/security_addon/blob/master/docs/fingerprint-changes.md>`__
 
@@ -300,7 +300,7 @@ This example in this step uses the following names. Your configuration might use
       ifconfig $nic 0.0.0.0 down
    
 
-See the QEMU documentation for more information about the QEMU network configuration.
+See the QEMU ../../documentation for more information about the QEMU network configuration.
 
 Networking is set up on the Host Machine. Continue to the Step 3 to prepare a Guest VM for the combined role of Model Developer and Independent Software Vendor.
 
@@ -318,7 +318,7 @@ For each separate role you play, you must prepare a virtual machine, called a Gu
 
 Begin these steps on the Host Machine. 
 
-As an option, you can use ``virsh`` and the virtual machine manager to create and bring up a Guest VM. See the ``libvirtd`` documentation for instructions if you'd like to do this.
+As an option, you can use ``virsh`` and the virtual machine manager to create and bring up a Guest VM. See the ``libvirtd`` ../../documentation for instructions if you'd like to do this.
 
 1. Download the **Server install ISO image for 64-bit PC (AMD64) computers** of `Ubuntu 18.04 <https://releases.ubuntu.com/18.04/>`__
 
@@ -736,7 +736,7 @@ How to Use the OpenVINO™ Security Add-on
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable :ref:`set up steps <setup-host>` and :ref:`installation steps <ovsa-install>` before beginning this section.
 
-This document uses the :ref:`face-detection-retail-0004 <omz_models_model_face_detection_retail_0044>` model as an example. 
+This document uses the :ref:`face-detection-retail-0004 <../../omz_models_model_face_detection_retail_0044>` model as an example. 
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
@@ -744,7 +744,7 @@ The following figure describes the interactions between the Model Developer, Ind
 
    The Model Developer/Independent Software Vendor and User roles are related to virtual machine use and one person might fill the tasks required by multiple roles. In this document the tasks of Model Developer and Independent Software Vendor are combined and use the Guest VM named ``ovsa_isv``. It is possible to have all roles set up on the same Host Machine.
 
-.. image:: _static/images/ovsa_example.svg
+.. image:: ../../_static/images/ovsa_example.svg
 
 Model Developer Instructions
 ++++++++++++++++++++++++++++
@@ -799,7 +799,7 @@ Download a model from the Model Zoo:
 
 .. code-block:: sh
    
-   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o model/face-detection-retail-0004.bin
+   curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_../legacy-features/model-zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o model/face-detection-retail-0004.bin
 
 The model is downloaded to the ``OVSA_DEV_ARTEFACTS/model`` directory
 

@@ -71,7 +71,7 @@ are in sync with the specification of ONNX GRU operator defined
 * *linear_before_reset*
 
   * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification 
-    of *GRUCell* described in the formula in the `ONNX documentation <https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU>`__.
+    of *GRUCell* described in the formula in the `ONNX ../../../../../documentation <https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU>`__.
   * **Range of values**: True or False
   * **Type**: ``boolean``
   * **Default value**: False

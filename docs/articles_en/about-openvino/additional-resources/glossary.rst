@@ -115,11 +115,11 @@ Glossary of terms used in OpenVINO™
 
 | *plugin / Inference Device / Inference Mode*
 |   OpenVINO makes hardware available for inference based on several core components.
-    They used to be called "plugins" in earlier versions of documentation and you may
+    They used to be called "plugins" in earlier versions of ../../documentation and you may
     still find this term in some articles. Because of their role in the software,
     they are now referred to as Devices and Modes ("virtual" devices). For a detailed
     description of the concept, refer to
-    :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
+    :doc:`Inference Devices and Modes <../../openvino-workflow/running-inference/inference-devices-and-modes>`.
 
 | *Tensor*
 |   A memory container used for storing inputs and outputs of the model, as well as
@@ -128,4 +128,4 @@ Glossary of terms used in OpenVINO™
 
 See Also
 #################################################
-* :doc:`Available Operations Sets <openvino_docs_ops_opset>`
+* :doc:`Available Operations Sets <../../documentation/openvino-ir-format/operation-sets/available-opsets>`

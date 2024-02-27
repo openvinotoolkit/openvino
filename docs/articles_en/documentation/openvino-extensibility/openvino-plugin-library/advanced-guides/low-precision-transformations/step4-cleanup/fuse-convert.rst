@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_FuseConvertTransformation}
+.. {#../../low-precision-transformations_FuseConvertTransformation}
 
 FuseConvertTransformation transformation
 ========================================

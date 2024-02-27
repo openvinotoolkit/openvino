@@ -13,9 +13,9 @@ Overview of Transformations API
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_Extensibility_UG_model_pass
-   openvino_docs_Extensibility_UG_matcher_pass
-   openvino_docs_Extensibility_UG_graph_rewrite_pass
+   transformations-api/model-pass
+   transformations-api/matcher-pass
+   transformations-api/graph-rewrite-pass
 
 OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
 This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
@@ -24,7 +24,7 @@ Working with Model
 ##################
 
 Before the moving to transformation part it is needed to say several words about functions which allow to modify ``ov::Model``.
-This chapter extends the :doc:`model representation guide <openvino_docs_OV_UG_Model_Representation>` and shows an API that allows us to manipulate with ``ov::Model``.
+This chapter extends the :doc:`model representation guide <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` and shows an API that allows us to manipulate with ``ov::Model``.
 
 Working with node input and output ports
 ++++++++++++++++++++++++++++++++++++++++
@@ -49,7 +49,7 @@ Let's start with OpenVINO™ helper functions. The most popular function is ``ov
 
 We will review real replacement case where Negative operation is replaced with Multiply.
 
-.. image:: ./_static/images/ov_replace_node.png
+.. image:: ./../../_static/images/ov_replace_node.png
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -65,7 +65,7 @@ The alternative way to do the same replacement is the following:
 
 Another transformation example is insertion.
 
-.. image:: ./_static/images/ov_insert_node.png
+.. image:: ./../../_static/images/ov_insert_node.png
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -97,11 +97,11 @@ Transformations types
 
 OpenVINO™ Runtime has three main transformation types:
 
-* :doc:`Model pass <openvino_docs_Extensibility_UG_model_pass>` - straightforward way to work with ``ov::Model`` directly
-* :doc:`Matcher pass <openvino_docs_Extensibility_UG_matcher_pass>` - pattern-based transformation approach
-* :doc:`Graph rewrite pass <openvino_docs_Extensibility_UG_graph_rewrite_pass>` - container for matcher passes needed for efficient execution
+* :doc:`Model pass <transformations-api/model-pass>` - straightforward way to work with ``ov::Model`` directly
+* :doc:`Matcher pass <transformations-api/matcher-pass>` - pattern-based transformation approach
+* :doc:`Graph rewrite pass <transformations-api/graph-rewrite-pass>` - container for matcher passes needed for efficient execution
 
-.. image:: ./_static/images/transformations_structure.png
+.. image:: ./../../_static/images/transformations_structure.png
 
 Transformation conditional compilation
 ######################################
@@ -218,6 +218,6 @@ If you are using ``ov::pass::Manager`` to run sequence of transformations, you c
 See Also
 ########
 
-* :doc:`OpenVINO™ Model Representation <openvino_docs_OV_UG_Model_Representation>`
-* :doc:`OpenVINO™ Extensions <openvino_docs_Extensibility_UG_Intro>`
+* :doc:`OpenVINO™ Model Representation <../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>`
+* :doc:`OpenVINO™ Extensions <../openvino-extensibility>`
 

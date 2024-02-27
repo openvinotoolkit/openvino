@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_ConcatTransformation}
+.. {#../../../low-precision-transformations_ConcatTransformation}
 
 ConcatTransformation transformation
 ===================================
