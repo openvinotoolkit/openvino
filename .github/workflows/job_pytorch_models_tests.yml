@@ -133,7 +133,7 @@ jobs:
       - name: PyTorch Models Tests Not Timm
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "NOT TestTimmConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not TestTimmConvertModel"
         env:
           TYPE: nightly
           TEST_DEVICE: CPU
