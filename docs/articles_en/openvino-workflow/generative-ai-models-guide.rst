@@ -8,7 +8,7 @@ They also show how to convert models into OpenVINO IR format so they can be opti
 by NNCF and used with other OpenVINO tools.
 
 Prerequisites
-+++++++++++++++++++++++++++
+###############
 
 * Create a Python environment by following the instructions on the :doc:`Install OpenVINO PIP <openvino_docs_install_guides_overview>` page.
 * Install the necessary dependencies for Optimum Intel:

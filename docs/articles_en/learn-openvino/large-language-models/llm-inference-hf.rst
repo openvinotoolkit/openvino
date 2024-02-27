@@ -14,7 +14,8 @@ Inference with Hugging Face
 ############################
 
 
-**Installation**
+Installation
++++++++++++++++++++++++++++
 
 1. Create a virtual environment. ``openvino_llm`` is an example name; you can choose any name for your environment.
 
