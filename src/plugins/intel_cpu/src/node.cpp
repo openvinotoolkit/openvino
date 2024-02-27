@@ -110,6 +110,10 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
         originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
     }
 
+    if (rtInfo.count("parallelDomain")) {
+        parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
+    }
+
     if (originalLayers.empty()) {
         addOriginalLayer(name);
     }
@@ -900,6 +904,26 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     (*privateWeightCache)[format] = ptr;
 
     return ptr;
+}
+
+void Node::toNumaNode(int numaNodeID) {
+    if (curNumaNode == numaNodeID)
+        return;
+
+    // create scratch pad from specified numa node
+    if (scratchpadMem) {
+        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDesc());
+        auto mem = scratchpadMem->getPrimitive();
+        primArgs[DNNL_ARG_SCRATCHPAD] = mem;
+    }
+
+    // mbind constant prim args to numa nodes
+    if (primArgs.count(DNNL_ARG_WEIGHTS))
+        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
+    if (primArgs.count(DNNL_ARG_BIAS))
+        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
+
+    curNumaNode = numaNodeID;
 }
 
 bool Node::isInPlace() const {

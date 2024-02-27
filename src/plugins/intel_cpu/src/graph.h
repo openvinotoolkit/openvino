@@ -229,6 +229,7 @@ protected:
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
+    void GroupParallelNodes();
     void Allocate();
     void AllocateWithReuse();
     void ExtractExecutableNodes();
@@ -237,6 +238,9 @@ protected:
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
     void InferDynamic(SyncInferRequest* request);
+    void ParalleMtNuma(size_t num_nodes,
+                       ov::threading::CPUStreamsExecutor::Ptr executor,
+                       const std::function<void(size_t, size_t)>& func) const;
 
     friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);

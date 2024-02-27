@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
@@ -19,12 +20,27 @@ public:
 
     GraphContext(const Config& config,
                  WeightsSharing::Ptr w_cache,
-                 bool isGraphQuantized)
+                 bool isGraphQuantized,
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr)
         : config(config),
           weightsCache(w_cache),
-          isGraphQuantizedFlag(isGraphQuantized) {
+          isGraphQuantizedFlag(isGraphQuantized),
+          streamExecutor(streamExecutor) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-        rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
+        // primitive/executors can be shared across sub-stream
+        // but scratch pad cannot be shared.
+        numNumaNodes = 1;
+        if (streamExecutor) {
+            // cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
+            // auto cpuStreamExecutor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(streamExecutor);
+            // auto nNumaNodes = static_cast<int>(cpuStreamExecutor->get_sub_streams());
+            auto nNumaNodes = get_num_numa_nodes();
+            if (numNumaNodes < nNumaNodes)
+                numNumaNodes = nNumaNodes;
+        }
+        for (int i = 0; i < numNumaNodes; i++) {
+            rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
+        }
     }
 
     const Config& getConfig() const {
@@ -40,14 +56,34 @@ public:
         return rtParamsCache;
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
-        return rtScratchPad;
+    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
+        if (subStreamID < 0)
+            subStreamID = 0;
+        if (subStreamID >= numNumaNodes - 1)
+            subStreamID = numNumaNodes - 1;
+        return rtScratchPads[subStreamID];
+    }
+
+    std::vector<DnnlScratchPadPtr> getScratchPads() const {
+        return rtScratchPads;
     }
 
     static const dnnl::engine& getEngine();
 
     bool isGraphQuantized() const {
         return isGraphQuantizedFlag;
+    }
+
+    ov::threading::IStreamsExecutor::Ptr getStreamExecutor() const {
+        return streamExecutor;
+    }
+
+    // ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
+    //     return cpuStreamExecutor;
+    // }
+
+    int getNumNumaNodes() const {
+        return numNumaNodes;
     }
 
 private:
@@ -59,6 +95,13 @@ private:
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
 
     bool isGraphQuantizedFlag = false;
+
+    std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
+
+    ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
+    // ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // stream executor for current graph
+
+    int numNumaNodes;
 };
 
 }  // namespace intel_cpu
