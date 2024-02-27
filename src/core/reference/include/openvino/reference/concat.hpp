@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/op/op.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov {
 namespace reference {
