@@ -513,7 +513,7 @@ jobs:
 
   TensorFlow_Models_Tests_Nightly:
     name: TensorFlow Models tests
-    if: ${{ github.event_name == 'schedule' }}
+   # if: ${{ github.event_name == 'schedule' }}
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     strategy:
       max-parallel: 2
