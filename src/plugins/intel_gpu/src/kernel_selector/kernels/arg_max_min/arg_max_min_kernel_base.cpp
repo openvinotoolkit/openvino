@@ -5,9 +5,8 @@
 #include "arg_max_min_kernel_base.h"
 
 namespace kernel_selector {
-bool ArgMaxMinKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ARG_MAX_MIN ||
-        o.GetType() != KernelType::ARG_MAX_MIN) {
+bool ArgMaxMinKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ARG_MAX_MIN) {
         return false;
     }
 
@@ -51,8 +50,8 @@ void ArgMaxMinKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -64,7 +63,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
     GetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -80,7 +79,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
                      (uint32_t)orgParams.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      (uint32_t)orgParams.outputs.size(),
-                     orgParams.has_dynamic_tensors());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }

@@ -77,17 +77,16 @@ void CumSumKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
-                                                   const optional_params& options) const {
+KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<cum_sum_params>(params);
     cum_sum_params& newParams = *static_cast<cum_sum_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -99,13 +98,13 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
                      "", false, false, 1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-bool CumSumKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::CUM_SUM || o.GetType() != KernelType::CUM_SUM) {
+bool CumSumKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::CUM_SUM) {
         return false;
     }
 

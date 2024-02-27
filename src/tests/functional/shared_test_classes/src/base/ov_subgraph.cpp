@@ -22,13 +22,11 @@
 
 #include "common_test_utils/graph_comparator.hpp"
 
-#include "ov_models/utils/ov_helpers.hpp"
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "functional_test_utils/crash_handler.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
@@ -437,17 +435,13 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     update_ref_model();
     match_parameters();
 
-    auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
-    auto inferRequestRef = compiledModelRef.create_infer_request();
+    std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs_ref;
     for (const auto& param : functionRefs->get_parameters()) {
-        inferRequestRef.set_tensor(param->get_default_output(), inputs.at(matched_parameters[param]));
+        inputs_ref[param] = inputs.at(matched_parameters[param]);
     }
-    inferRequestRef.infer();
 
-    auto outputs = std::vector<ov::Tensor>{};
-    for (const auto& output : functionRefs->outputs()) {
-        outputs.push_back(inferRequestRef.get_tensor(output));
-    }
+    auto outputs = ov::test::utils::infer_on_template(functionRefs, inputs_ref);
+
     if (is_report_stages) {
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> duration = end_time - start_time;

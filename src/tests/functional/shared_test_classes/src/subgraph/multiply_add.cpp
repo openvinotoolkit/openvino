@@ -5,7 +5,6 @@
 #include "shared_test_classes/subgraph/multiply_add.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {

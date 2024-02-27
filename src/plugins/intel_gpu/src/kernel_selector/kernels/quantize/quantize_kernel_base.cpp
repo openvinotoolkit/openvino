@@ -9,7 +9,7 @@
 
 namespace kernel_selector {
 
-bool QuantizeKernelBase::Validate(const Params& p, const optional_params&) const {
+bool QuantizeKernelBase::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 5)
         return false;
@@ -40,18 +40,18 @@ void QuantizeKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData QuantizeKernelBase::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::QUANTIZE);
 
     KernelData kd = KernelData::Default<quantize_params>(params);
     quantize_params& newParams = *static_cast<quantize_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

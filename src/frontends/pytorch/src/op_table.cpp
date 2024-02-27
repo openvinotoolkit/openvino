@@ -24,6 +24,8 @@ OP_CONVERTER(translate_adaptive_max_pool2d);
 OP_CONVERTER(translate_adaptive_max_pool1d);
 OP_CONVERTER(translate_add);
 OP_CONVERTER(translate_add_);
+OP_CONVERTER(translate_mul);
+OP_CONVERTER(translate_mul_);
 OP_CONVERTER(translate_addcmul);
 OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_alias_copy);
@@ -428,6 +430,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::gru", op::translate_gru},
         {"aten::gt", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten::hardsigmoid", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>},
+        {"aten::hardsigmoid_",
+         op::quantizable_op<op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSigmoid>>>},
         {"aten::hardswish", op::quantizable_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>},
         {"aten::hardswish_", op::quantizable_op<op::inplace_op<op::translate_1to1_match_1_inputs<opset10::HSwish>>>},
         {"aten::hardtanh", op::quantizable_op<op::translate_hardtanh>},
@@ -440,6 +444,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::index_add_", op::inplace_op<op::translate_index_add>},
         {"aten::index_select", op::translate_index_select},
         {"aten::instance_norm", op::translate_instance_norm},
+        {"aten::inverse", op::translate_inverse},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
         {"aten::is_grad_enabled", op::return_false_scalar},
@@ -494,10 +499,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::min", op::translate_min},
         {"aten::minimum", op::translate_minimum},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::mul_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::multiply", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
-        {"aten::multiply_", op::inplace_translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
+        {"aten::mul", op::translate_mul},
+        {"aten::mul_", op::translate_mul_},
+        {"aten::multiply", op::translate_mul},
+        {"aten::multiply_", op::translate_mul_},
         {"aten::multinomial", op::translate_multinomial},
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},

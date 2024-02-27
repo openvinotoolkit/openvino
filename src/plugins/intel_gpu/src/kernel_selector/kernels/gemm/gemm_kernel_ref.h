@@ -13,8 +13,8 @@ public:
     using Parent = GemmKernelBase;
     GemmKernelRef() : GemmKernelBase("gemm_ref") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -23,9 +23,9 @@ protected:
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     DispatchData SetDefault(const gemm_params& params) const override;
     JitConstants GetJitConstants(const gemm_params& params) const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 };
 }  // namespace kernel_selector

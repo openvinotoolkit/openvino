@@ -298,6 +298,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
+        {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
         {"MatrixDiag", CreatorFunction(translate_matrix_diag_op)},
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},
