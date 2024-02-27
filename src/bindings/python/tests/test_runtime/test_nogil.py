@@ -8,7 +8,7 @@ import os
 import io
 import threading
 import numpy as np
-import openvino as ov
+import openvino.properties as props
 
 from openvino import Core, Model, AsyncInferQueue, PartialShape, Layout, serialize
 from openvino.runtime import opset13 as ops
@@ -50,10 +50,9 @@ def check_gil_released_safe(func, is_assign=False, args=[]):  # noqa: B006
         thread.join()
 
 
-device = os.environ.get("TEST_DEVICE") if os.environ.get(
-    "TEST_DEVICE") else "CPU"
+device = os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
 core = Core()
-core.set_property({ov.properties.enable_profiling: True})
+core.set_property({props.enable_profiling: True})
 param = ops.parameter([224, 224])
 model = Model(ops.relu(param), [param])
 compiled_model = core.compile_model(model, device)

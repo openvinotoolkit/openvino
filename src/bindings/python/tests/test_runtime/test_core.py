@@ -7,7 +7,6 @@ import sys
 import numpy as np
 import os
 from pathlib import Path
-import openvino as ov
 
 from openvino import (
     Model,
@@ -53,14 +52,12 @@ def test_compact_api_wrong_path():
             return "test class"
     with pytest.raises(RuntimeError) as e:
         compile_model(TestClass())
-    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(
-        e.value)
+    assert "Path: 'test class' does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path" in str(e.value)
 
 
 def test_core_class(device):
     input_shape = [1, 3, 4, 4]
-    compiled_model = generate_relu_compiled_model(
-        device, input_shape=input_shape)
+    compiled_model = generate_relu_compiled_model(device, input_shape=input_shape)
 
     request = compiled_model.create_infer_request()
     input_data = np.random.rand(*input_shape).astype(np.float32) - 0.5
@@ -122,8 +119,7 @@ def test_compact_api(model_type, device_name, config, request):
 
     model = request.getfixturevalue(model_type)
     if device_name is not None:
-        compiled_model = compile_model(
-            model=model, device_name=device_name, config=config)
+        compiled_model = compile_model(model=model, device_name=device_name, config=config)
     else:
         compiled_model = compile_model(model=model, config=config)
 
@@ -146,8 +142,7 @@ def test_read_model_from_ir(request, tmp_path):
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_from_tensor(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(
-        request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, is_xml_path=True, is_bin_path=True)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
     arr = np.ones(shape=(10), dtype=np.int8)
@@ -162,15 +157,13 @@ def test_read_model_with_wrong_input():
     core = Core()
     with pytest.raises(RuntimeError) as e:
         core.read_model(model=3, weights=3)
-    assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(
-        e.value)
+    assert "Provided python object type <class 'int'> isn't supported as 'model' argument." in str(e.value)
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
 def test_read_model_as_path(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(
-        request.node.name, tmp_path, True, True)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path, True, True)
     relu_model = get_relu_model()
     serialize(relu_model, xml_path, bin_path)
 
@@ -218,14 +211,10 @@ def test_get_version(device):
     version = core.get_versions(device)
     assert isinstance(version, dict), "Returned version must be a dictionary"
     assert device in version, f"{device} plugin version wasn't found in versions"
-    assert hasattr(version[device],
-                   "major"), "Returned version has no field 'major'"
-    assert hasattr(version[device],
-                   "minor"), "Returned version has no field 'minor'"
-    assert hasattr(
-        version[device], "description"), "Returned version has no field 'description'"
-    assert hasattr(
-        version[device], "build_number"), "Returned version has no field 'build_number'"
+    assert hasattr(version[device], "major"), "Returned version has no field 'major'"
+    assert hasattr(version[device], "minor"), "Returned version has no field 'minor'"
+    assert hasattr(version[device], "description"), "Returned version has no field 'description'"
+    assert hasattr(version[device], "build_number"), "Returned version has no field 'build_number'"
 
 
 def test_available_devices(device):
@@ -242,7 +231,7 @@ def test_available_devices(device):
 def test_get_property(device):
     core = Core()
     conf = core.get_property(device, props.supported_properties())
-    assert ov.properties.enable_profiling in conf
+    assert props.enable_profiling in conf
 
 
 @pytest.mark.skipif(
@@ -251,14 +240,14 @@ def test_get_property(device):
 )
 def test_get_property_list_of_str():
     core = Core()
-    param = core.get_property("CPU", ov.properties.device.capabilities)
+    param = core.get_property("CPU", props.device.capabilities)
     assert isinstance(param, list), (
-        f"Parameter value for {ov.properties.device.capabilities} "
+        f"Parameter value for {props.device.capabilities} "
         f"metric must be a list but {type(param)} is returned"
     )
     assert all(
         isinstance(v, str) for v in param
-    ), f"Not all of the parameter values for {ov.properties.device.capabilities} metric are strings!"
+    ), f"Not all of the parameter values for {props.device.capabilities} metric are strings!"
 
 
 @pytest.mark.skipif(
@@ -267,14 +256,14 @@ def test_get_property_list_of_str():
 )
 def test_get_property_tuple_of_two_ints():
     core = Core()
-    param = core.get_property("CPU", ov.properties.range_for_streams)
+    param = core.get_property("CPU", props.range_for_streams)
     assert isinstance(param, tuple), (
-        f"Parameter value for {ov.properties.range_for_streams} "
+        f"Parameter value for {props.range_for_streams} "
         f"metric must be tuple but {type(param)} is returned"
     )
     assert all(
         isinstance(v, int) for v in param
-    ), f"Not all of the parameter values for {ov.properties.range_for_stream}s metric are integers!"
+    ), f"Not all of the parameter values for {props.range_for_stream}s metric are integers!"
 
 
 @pytest.mark.skipif(
@@ -283,15 +272,14 @@ def test_get_property_tuple_of_two_ints():
 )
 def test_get_property_tuple_of_three_ints():
     core = Core()
-    param = core.get_property(
-        "CPU", ov.properties.range_for_async_infer_requests)
+    param = core.get_property("CPU", props.range_for_async_infer_requests)
     assert isinstance(param, tuple), (
-        f"Parameter value for {ov.properties.range_for_async_infer_requests} "
+        f"Parameter value for {props.range_for_async_infer_requests} "
         f"metric must be tuple but {type(param)} is returned"
     )
     assert all(isinstance(v, int) for v in param), (
         "Not all of the parameter values for "
-        f"{ov.properties.range_for_async_infer_requests} metric are integers!"
+        f"{props.range_for_async_infer_requests} metric are integers!"
     )
 
 
@@ -301,9 +289,9 @@ def test_get_property_tuple_of_three_ints():
 )
 def test_get_property_str():
     core = Core()
-    param = core.get_property("CPU", ov.properties.device.full_name)
+    param = core.get_property("CPU", props.device.full_name)
     assert isinstance(param, str), (
-        f"Parameter value for {ov.properties.device.full_name} "
+        f"Parameter value for {props.device.full_name} "
         f"metric must be string but {type(param)} is returned"
     )
 
@@ -317,16 +305,14 @@ def test_query_model(device):
     assert [
         key for key in query_model.keys() if key not in ops_model_names
     ] == [], "Not all network layers present in query_model results"
-    assert device in next(iter(set(query_model.values()))
-                          ), "Wrong device for some layers"
+    assert device in next(iter(set(query_model.values()))), "Wrong device for some layers"
 
 
 @pytest.mark.dynamic_library()
 def test_register_plugin():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
-    full_lib_name = lib_name + \
-        ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
 
     core = Core()
     core.register_plugin(lib_name, device)
@@ -339,8 +325,7 @@ def test_register_plugin():
 def test_register_plugins():
     device = "TEST_DEVICE"
     lib_name = "test_plugin"
-    full_lib_name = lib_name + \
-        ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
+    full_lib_name = lib_name + ".dll" if sys.platform == "win32" else "lib" + lib_name + ".so"
     plugins_xml = plugins_path(device, full_lib_name)
 
     core = Core()
