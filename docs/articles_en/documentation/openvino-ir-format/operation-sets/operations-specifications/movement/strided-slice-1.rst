@@ -18,64 +18,64 @@ StridedSlice
 
 The operation takes inputs with the following properties:
 
-   * The N-dimensional input tensor to slice.
-   * begin, end, and stride inputs - 1D lists of integers of the same length M. Stride input cannot contain any zeros.
-   * begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask inputs - bitmasks, 1D lists of integers (0 or 1). Each mask can have a unique length. ellipsis_mask can have up to one occurrence of the value 1.
-   * new_axis_mask, shrink_axis_mask, ellipsis_mask are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
+   * The N-dimensional :math:`input` tensor to slice.
+   * :math:`begin, end, stride` inputs - 1D lists of integers of the same length M. **Stride input cannot contain any zeros.**
+   * :math:`begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask inputs` - bitmasks, 1D lists of integers (0 or 1). **Each mask can have a unique length**. ellipsis_mask can have up to one occurrence of the value 1.
+   * :math:`new_axis_mask, shrink_axis_mask, ellipsis_mask` are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
 
 The basic slicing operation accumulates output elements as follows:
 
    * The operation iterates over the values of begin, end, and stride. At every step, the operation uses the i-th element of begin, end, and stride to perform the slicing.
-   * Let slicing_index = begin[i]. This value determines the first index to start slicing. This sliced element is added to the output.
-   * If begin[i] == end[i], only a single element is added to the output. The corresponding output dimension is then equal to 1 (in other words, the dimension is kept).
-   * At each step, the slicing_index is incremented by the value of stride[i]. As long as the slicing_index < end[i], the element corresponding to the slicing_index is added to the output.
-   * Whenever slicing_index >= end[i], the slicing stops, and the corresponding element is not added to the output.
+   * Let :math:`slicing_index = begin[i]`. This value determines the first index to start slicing. This sliced element is added to the output.
+   * If :math:`begin[i] == end[i]`, only a single element is added to the output. The corresponding output dimension is then equal to 1 (in other words, the dimension is kept).
+   * At each step, the :math:`slicing_index` is incremented by the value of :math:`stride[i]`. As long as the :math:`slicing_index < end[i]`, the element corresponding to the :math:`slicing_index` is added to the output.
+   * Whenever :math:`slicing_index >= end[i]`, the slicing stops, and the corresponding element is not added to the output.
 
-Notice that the basic slicing operation assumes N = M (that is, i-th slicing step corresponds to i-th dimension), as no masks are used. The description above assumes that begin[i] <= end[i] and stride[i] > 0, and that begin[i] >= 0 and end[i] >= 0.
+Notice that the basic slicing operation assumes N = M (that is, i-th slicing step corresponds to i-th dimension), as no masks are used.
 
 .. note:: Negative Values in Begin and End (Negative Values Adjusting)
 
-   Negative values represent indexing from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if data = [0, 1, 2, 3], size(data) = 4, and begin(i) = -1 for some i, this value will be modified to be begin(i) = -1 + 4 = 3. Note that if begin(i) = -5 for some i, this value will be modified to -5 + 4 = -1, and might cause an error.
+   Negative values represent indexing from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 .. note:: Indexing in Reverse
 
-   If stride[i] < 0, the indexing will happen in reverse. At each step, the value of stride[i] will be subtracted from the slicing_index. As long as the slicing_index > end[i], the corresponding element is added to the output. Whenever slicing_index <= end[i], the slicing stops. Note that when slicing in reverse, it is impossible to select the first element of the dimension, as that would require end[i] = -1, which has a different meaning.
+   If :math:`stride[i] < 0`, the indexing will happen in reverse. At each step, the value of :math:`stride[i]` will be subtracted from the :math:`slicing_index`. As long as the :math:`slicing_index > end[i]`, the corresponding element is added to the output. Whenever :math:`slicing_index <= end[i]`, the slicing stops.
 
 .. note:: Value Out-of-Bounds (Silent Clamping)
 
    If a value in begin or end is out of bounds for the corresponding dimension, it is silently clamped. In other words:
 
-      * If begin[i] >= dim, begin[i] = dim. If begin[i] < 0 (after Negative Values Adjusting), begin[i] = 0.
-      * If end[i] >= dim, end[i] = dim. If end[i] < 0 (after Negative Values Adjusting), end[i] = 0.
+      * If :math:`begin[i] >= size(dim)`, then :math:`begin[i] = size(dim)`. If :math:`begin[i] < 0` (after Negative Values Adjusting), then :math:`begin[i] = 0`.
+      * If :math:`end[i] >= size(dim)`, then :math:`end[i] = size(dim)`. If :math:`end[i] < 0` (after Negative Values Adjusting), then :math:`end[i] = 0`.
 
    If slicing in reverse, the clamping behavior changes to the following:
 
-      * If begin[i] >= dim, begin[i] = dim - 1. If begin[i] < 0 (after Negative Values Adjusting), begin[i] = 0.
-      * If end[i] >= dim, end[i] = dim. If end[i] < 0 (after Negative Values Adjusting), end[i] = -1.
+      * If :math:`begin[i] >= size(dim)`, then :math:`begin[i] = size(dim) - 1`. If :math:`begin[i] < 0` (after Negative Values Adjusting), then :math:`begin[i] = 0`.
+      * If :math:`end[i] >= size(dim)`, then :math:`end[i] = size(dim)`. If :math:`end[i] < 0` (after Negative Values Adjusting), then :math:`end[i] = -1`.
 
-The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended with zeros.
+The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. **If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended with zeros.**
 
 During the i-th slicing step:
 
-   * If the begin_mask[i] is set to one, the value of begin[i] is set to 0 (dim - 1 if slicing in reverse).
-   * If the end_mask[i] is set to one, the value of end[i] is set to dim (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value).
-   * If the new_axis_mask[i] is set to one, the values of begin[i], end[i], and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step.
-   * If the shrink_axis_mask[i] is set to one, the values of begin[i] MUST EQUAL end[i] (Note that this would normally result in a size 1 dimension), and the stride[i] value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining.
-   * If the ellipsis_mask[i] is set to one, the begin[i], end[i], and stride[i] ARE IGNORED, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is dim - (M - new_axes - 1). The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write [0, :, :, :, :, :, :, :, :, :, 0], but with ellipsis, it is only necessary to write [0, ..., 0].
+   * If the :math:`begin_mask[i]` is set to one, the value of :math:`begin[i]` is set to 0 (size(dim) - 1 if slicing in reverse).
+   * If the :math:`end_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value).
+   * If the :math:`new_axis_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step.
+   * If the :math:`shrink_axis_mask[i]` is set to one, the values of :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the **stride[i]** value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining.
+   * If the :math:`ellipsis_mask[i]` is set to one, the :math:`begin[i], end[i], and stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new_axis_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`.
 
 .. note:: The i-th Slicing Step and Dimension Modification
 
    The i-th slicing step does not necessarily correspond to the i-th dimension modification. Let i be the index of the slicing step, and j be the corresponding processed dimension.
-   For these cases:
+   For trivial cases:
 
       * Every time all of the masks are not set (set to 0), j is incremented by one.
-      * Every time begin_mask[i] or end_mask[i] is set to one, j is incremented by one.
-      * Every time shrink_axis_mask[i] is set to one, j is incremented by one.
+      * Every time :math:`begin_mask[i]` or :math:`end_mask[i]` is set to one, j is incremented by one.
+      * Every time :math:`shrink_axis_mask[i]` is set to one, j is incremented by one.
 
    However:
 
-      * Every time new_axis_mask[i] is set to one, j is not incremented.
-      * When the value of one occurs at ellipsis_mask[i], j is incremented by size(dim) - (size(begin) - sum(new_axis_mask) - 1).
+      * Every time :math:`new_axis_mask[i]` is set to one, j is not incremented.
+      * When the value of one occurs at :math:`ellipsis_mask[i]`, j is incremented by :math:`size(dim) - (M - sum(new_axis_mask) - 1)`.
 
 **Attributes**
 
