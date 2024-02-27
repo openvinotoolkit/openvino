@@ -37,8 +37,8 @@ OutputVector translate_inv_op(const NodeContext& node) {
         auto x_real = make_shared<v8::Gather>(x, gather_index_real, minus_one)->output(0);
         auto x_imag = make_shared<v8::Gather>(x, gather_index_imag, minus_one)->output(0);
 
-        auto scale = make_shared<v1::Add>(make_shared<v1::Multiply>(x_real, x_real),
-                                                make_shared<v1::Multiply>(x_imag, x_imag));
+        auto scale =
+            make_shared<v1::Add>(make_shared<v1::Multiply>(x_real, x_real), make_shared<v1::Multiply>(x_imag, x_imag));
 
         auto y_real = make_shared<v1::Divide>(x_real, scale);
         auto y_imag = make_shared<v1::Divide>(make_shared<v0::Negative>(x_imag), scale);
