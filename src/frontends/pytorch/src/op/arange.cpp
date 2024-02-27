@@ -92,7 +92,8 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     ov::Output<Node> step = one;
 
     if (num_inputs == 1) {
-        // arange = torch.ops.aten.arange.default(_local_scalar_dense, dtype = torch.int8, device = device(type='cpu'), pin_memory = False);
+        // arange = torch.ops.aten.arange.default(_local_scalar_dense, dtype = torch.int8, device = device(type='cpu'),
+        // pin_memory = False);
         end = context.get_input(0);
     } else if (num_inputs == 2) {
         start = context.get_input(0);

@@ -78,9 +78,9 @@ OutputVector translate_sum_fx(const NodeContext& context) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, dtype));
     } else if ((data.get_element_type() == element::boolean || data.get_element_type() == element::u8) ||
-        (data_dtype.is<element::Type>() &&
-         (data_dtype.as<element::Type>() == element::boolean || data_dtype.as<element::Type>() == element::u8))) {
-    // PyTorch sum converts bool and uint8 to i64 for preventing overflow
+               (data_dtype.is<element::Type>() && (data_dtype.as<element::Type>() == element::boolean ||
+                                                   data_dtype.as<element::Type>() == element::u8))) {
+        // PyTorch sum converts bool and uint8 to i64 for preventing overflow
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::i64));
     }
     Output<Node> axes;

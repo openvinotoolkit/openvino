@@ -175,10 +175,10 @@ OutputVector translate_amin(const NodeContext& context) {
     // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
-    auto dims = context.get_input(1);  
+    auto dims = context.get_input(1);
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
-    keep_dims = context.const_input<bool>(2);
+        keep_dims = context.const_input<bool>(2);
     }
     auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dims, keep_dims));
     if (!context.input_is_none(3)) {
@@ -193,10 +193,10 @@ OutputVector translate_amax(const NodeContext& context) {
     // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
-    auto dims = context.get_input(1);    
+    auto dims = context.get_input(1);
     bool keep_dims = false;
     if (!context.input_is_none(2)) {
-    keep_dims = context.const_input<bool>(2);
+        keep_dims = context.const_input<bool>(2);
     }
     auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dims, keep_dims));
     if (!context.input_is_none(3)) {

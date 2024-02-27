@@ -16,7 +16,10 @@ namespace op {
 using namespace ov::op;
 
 namespace {
-OutputVector translate_rsub_common(const NodeContext& context, Output<Node> self, Output<Node> other, const Output<Node>& alpha) {
+OutputVector translate_rsub_common(const NodeContext& context,
+                                   Output<Node> self,
+                                   Output<Node> other,
+                                   const Output<Node>& alpha) {
     align_eltwise_input_types(context, self, other);
     if (alpha.get_node()) {
         // reverse aten::sub other - self * alpha
@@ -25,7 +28,7 @@ OutputVector translate_rsub_common(const NodeContext& context, Output<Node> self
     }
     return {context.mark_node(std::make_shared<v1::Subtract>(other, self))};
 }
-}
+}  // namespace
 
 OutputVector translate_rsub(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
