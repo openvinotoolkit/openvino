@@ -556,7 +556,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
                                                            config.threadsPerStream,
-                                                           IStreamsExecutor::Config::PreferredCoreType::ANY,
+                                                           ov::hint::SchedulingCoreType::ANY_CORE,
                                                            cpu_reservation,
                                                            streams_info_table};
 

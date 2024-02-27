@@ -55,30 +55,20 @@ public:
      * @brief Defines IStreamsExecutor configuration
      */
     struct OPENVINO_RUNTIME_API Config {
-    public:
-        enum PreferredCoreType {
-            ANY,
-            LITTLE,
-            BIG,
-            ROUND_ROBIN  // used w/multiple streams to populate the Big cores first, then the Little, then wrap around
-                         // (for large #streams)
-        };
-
     private:
-        std::string _name;            //!< Used by `ITT` to name executor threads
-        int _streams = 1;             //!< Number of streams.
-        int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
-                                                                         //!< No binding by default
-        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
+        std::string _name;             //!< Used by `ITT` to name executor threads
+        int _streams = 1;              //!< Number of streams.
+        int _threads_per_stream = 0;   //!< Number of threads per stream that executes `ov_parallel` calls
+        int _threadBindingStep = 1;    //!< In case of @ref CORES binding offset type
+                                       //!< thread binded to cores with defined step
         int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
                                        //!< starting from offset
         int _threads = 0;              //!< Number of threads distributed between streams.
                                        //!< Reserved. Should not be used.
-        PreferredCoreType _thread_preferred_core_type =
-            PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
-                                     //!< Core type priority: physical PCore, ECore, logical PCore
+        ov::hint::SchedulingCoreType _thread_preferred_core_type =
+            ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
+                                                     //!< ANY_CORE is valid in all machines. Core type priority:
+                                                     //!< physical PCore, ECore, logical PCore
         bool _cpu_reservation = false;
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
@@ -114,7 +104,7 @@ public:
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
                int threads_per_stream = 0,
-               PreferredCoreType thread_preferred_core_type = PreferredCoreType::ANY,
+               ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
                std::vector<std::vector<int>> streams_info_table = {})
             : _name{name},
@@ -169,9 +159,6 @@ public:
         std::vector<std::vector<int>> get_stream_processor_ids() const {
             return _stream_processor_ids;
         }
-        ThreadBindingType get_thread_binding_type() const {
-            return _threadBindingType;
-        }
         int get_thread_binding_step() const {
             return _threadBindingStep;
         }
@@ -180,7 +167,7 @@ public:
         }
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
-                _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
+                _threads_per_stream == config._threads_per_stream &&
                 _thread_preferred_core_type == config._thread_preferred_core_type) {
                 return true;
             } else {

@@ -124,12 +124,12 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
 
     // additional latency-case logic for hybrid processors:
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
-        if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
+        if (streamConfig._thread_preferred_core_type == ov::hint::SchedulingCoreType::ANY_CORE) {
             // by default the latency case uses (faster) Big cores only, depending on the compute ratio
             const bool big_only = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] / 2);
             // selecting the preferred core type
             if (big_only) {
-                streamConfig._thread_preferred_core_type = IStreamsExecutor::Config::PreferredCoreType::BIG;
+                streamConfig._thread_preferred_core_type = ov::hint::SchedulingCoreType::PCORE_ONLY;
                 const int hyper_threading_threshold =
                     2;  // min #cores, for which the hyper-threading becomes useful for the latency case
                 // additionally selecting the #cores to use in the "Big-only" case
@@ -137,9 +137,9 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
                                 ? proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC]
                                 : proc_type_table[0][MAIN_CORE_PROC];
             }
-        } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
+        } else if (streamConfig._thread_preferred_core_type == ov::hint::SchedulingCoreType::PCORE_ONLY) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
-        } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
+        } else if (streamConfig._thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
             num_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
         }
     }
@@ -147,7 +147,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     const auto threads = streamConfig._threads ? streamConfig._threads : num_cores;
     int threads_per_stream = streamConfig._streams ? std::max(1, threads / streamConfig._streams) : threads;
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0 &&
-        streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
+        streamConfig._thread_preferred_core_type == ov::hint::SchedulingCoreType::ANY_CORE) {
         if (streamConfig._streams > 1) {
             threads_per_stream =
                 std::min(std::min(proc_type_table[0][MAIN_CORE_PROC], proc_type_table[0][EFFICIENT_CORE_PROC]),
@@ -240,16 +240,16 @@ void IStreamsExecutor::Config::update_executor_config() {
         const auto total_num_big_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][HYPER_THREADING_PROC];
         const auto total_num_little_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
 
-        if ((total_num_little_cores == 0 && _thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) ||
-            (total_num_big_cores == 0 && _thread_preferred_core_type == IStreamsExecutor::Config::BIG) ||
-            (proc_type_table.size() > 1 && _thread_preferred_core_type == IStreamsExecutor::Config::BIG)) {
-            _thread_preferred_core_type = IStreamsExecutor::Config::ANY;
+        if ((total_num_little_cores == 0 && _thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) ||
+            (total_num_big_cores == 0 && _thread_preferred_core_type == ov::hint::SchedulingCoreType::PCORE_ONLY) ||
+            (proc_type_table.size() > 1 && _thread_preferred_core_type == ov::hint::SchedulingCoreType::PCORE_ONLY)) {
+            _thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE;
         }
 
         int num_cores = total_num_cores;
-        if (_thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
+        if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::PCORE_ONLY) {
             num_cores = total_num_big_cores;
-        } else if (_thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
+        } else if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
             num_cores = total_num_little_cores;
         }
 
@@ -271,7 +271,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         stream_info[STREAM_NUMA_NODE_ID] = 0;
         stream_info[STREAM_SOCKET_ID] = 0;
         int cur_threads = _streams * _threads_per_stream;
-        if (_thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
+        if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
             stream_info[PROC_TYPE] = EFFICIENT_CORE_PROC;
             stream_info[NUMBER_OF_STREAMS] = _streams;
             _streams_info_table.push_back(stream_info);
@@ -287,7 +287,7 @@ void IStreamsExecutor::Config::update_executor_config() {
                 _streams_info_table.push_back(stream_info);
                 stream_info[NUMBER_OF_STREAMS] = 0;
             }
-            if (_thread_preferred_core_type == IStreamsExecutor::Config::BIG &&
+            if (_thread_preferred_core_type == ov::hint::SchedulingCoreType::PCORE_ONLY &&
                 proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
                 core_types = {MAIN_CORE_PROC, HYPER_THREADING_PROC};
             } else {
