@@ -4,6 +4,7 @@
 #include <limits.h>
 
 #include "default_opset.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
 namespace ov {
@@ -27,6 +28,7 @@ Output<Node> idx_node(const std::string& tensor_alias,
     }
 }
 NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
+    printf("run into slice_op\n");
     const auto data = node.get_input("Input");
     const auto axes = node.get_attribute<std::vector<int32_t>>("axes");
 
@@ -55,14 +57,26 @@ NamedOutputs slice_op(const NodeContext& node, const bool& stride_input) {
                 slice_node,
                 std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1),
                 false);
+
+            const auto output_info = node.get_output_port_infos("Out");
+            size_t output_size = output_info[0].second.size();
+
+            if (output_size == 0) {
+                // return a scalar value with shape [0]
+                auto squeeze_node = std::make_shared<ov::opset6::Squeeze>(decreased_node);
+                printf("break here");
+                return node.default_single_output_mapping({squeeze_node}, {"Out"});
+            }
+
             return node.default_single_output_mapping({decreased_node}, {"Out"});
         }
-
+        printf("decrease_axis: %ld\n", decrease_axis.size());
         const auto squeeze_index_node =
             default_opset::Constant::create(element::i32, {decrease_axis.size()}, decrease_axis);
         const auto decreased_node = std::make_shared<default_opset::Squeeze>(slice_node, squeeze_index_node);
         return node.default_single_output_mapping({decreased_node}, {"Out"});
     } else {
+        printf("pd_version c: %ld\n", node.get_version());
         return node.default_single_output_mapping({slice_node}, {"Out"});
     }
 }
