@@ -10,7 +10,7 @@
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
 #include <chrono>
-
+#include "functional_test_utils/skip_tests_config.hpp"
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
 

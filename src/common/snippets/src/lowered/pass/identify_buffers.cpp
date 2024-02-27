@@ -88,7 +88,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 
     for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
         const auto &expr = *expr_it;
-        if (!ov::is_type<op::LoopEnd>(expr->get_node()))
+        if (!ov::is_type<op::LoopEndStatic>(expr->get_node()))
             continue;
 
         const auto buffer_loop_neighbours = get_buffer_loop_neighbours(expr);
@@ -111,7 +111,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -142,7 +142,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
             if (ov::is_type<op::Buffer>(child_expr->get_node())) {
                 buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
                 buffer_count++;
-            } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
+            } else if (ov::is_type<op::LoopEndStatic>(child_expr->get_node())) {
                 loop_count++;
             }
         }
@@ -155,7 +155,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>((*loop_end_it)->get_node());
     const auto loop_begin = loop_end->get_loop_begin();
     BufferMap inner_buffers;
     for (auto it = std::reverse_iterator<LinearIR::constExprIt>(loop_end_it); (*it)->get_node() != loop_begin; ++it) {
