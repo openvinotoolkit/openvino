@@ -78,9 +78,9 @@ if it needs to be optimized further. Optimum Intel provides interfaces that enab
 using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
 and export models to the OpenVINO model format for use in native API applications.
 
-To proceed with Higging Face API, read :doc:`Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>` and :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` example.
+* To proceed with Higging Face API, read :doc:`Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>` and :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` example.
 
-To proceed with Native OpenVINO API, go to :doc:`Inference with Native OpenVINO <llm_inference_native_API>` page.
+* To proceed with Native OpenVINO API, go to :doc:`Inference with Native OpenVINO <llm_inference_native_ov>` page.
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
 
