@@ -139,14 +139,15 @@ DATA_ET bilinear(const DATA_ET* data,
                  const denormalize_fn_t<GRID_ET>& denormalize) {
     const auto y_d = denormalize(y_n, data_shape[2]);
     const auto x_d = denormalize(x_n, data_shape[3]);
-    const auto y_topleft = static_cast<long>(std::floor(y_d));
-    const auto x_topleft = static_cast<long>(std::floor(x_d));
+    const auto y_topleft = std::floor(y_d);
+    const auto x_topleft = std::floor(x_d);
     const auto dy = static_cast<DATA_ET>(y_d - y_topleft);
     const auto dx = static_cast<DATA_ET>(x_d - x_topleft);
-    const auto v00 = get_padded(data, data_shape, n, c, y_topleft, x_topleft);
-    const auto v01 = get_padded(data, data_shape, n, c, y_topleft, (x_topleft + 1));
-    const auto v10 = get_padded(data, data_shape, n, c, (y_topleft + 1), x_topleft);
-    const auto v11 = get_padded(data, data_shape, n, c, (y_topleft + 1), (x_topleft + 1));
+    const auto v00 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft));
+    const auto v01 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft + 1));
+    const auto v10 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft + 1), static_cast<long>(x_topleft));
+    const auto v11 =
+        get_padded(data, data_shape, n, c, static_cast<long>(y_topleft + 1), static_cast<long>(x_topleft + 1));
 
     const auto q0 = (1 - dx) * v00 + dx * v01;
     const auto q1 = (1 - dx) * v10 + dx * v11;
