@@ -1,13 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 import platform
+import sys
 
 import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestUnaryOps(CommonTFLayerTest):
@@ -56,10 +55,7 @@ class TestUnaryOps(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
             tfa.activations.mish(input)
 
             tf.compat.v1.global_variables_initializer()
@@ -114,10 +110,7 @@ class TestUnaryOps(CommonTFLayerTest):
             type = tf.int32
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            input = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(type, shape, 'Input')
             if self.current_op_type == 'Mish':
                 # Mish has no attribute name
                 op_type_to_tf[self.current_op_type](input)
