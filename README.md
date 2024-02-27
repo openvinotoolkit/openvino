@@ -47,7 +47,7 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 
 ### Getting Started
 
-The [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
+[OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
 
 ### Installation
 
