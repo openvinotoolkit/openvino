@@ -63,7 +63,7 @@ public:
             int test_concurrency;
             int test_core_type;
             int test_numa_node_id;
-            int test_max_threads_per_core;
+            int test_max_threads_per_core = 1;
             get_cur_stream_info(i,
                                 test_data._cpu_reservation,
                                 test_data._proc_type_table,
