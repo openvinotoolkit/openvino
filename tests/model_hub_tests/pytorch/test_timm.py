@@ -75,7 +75,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
     def teardown_class(self):
         # remove all downloaded files from cache
         cleanup_dir(hf_hub_cache_dir)
-        #super().teardown_method()
 
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
@@ -89,8 +88,8 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("mode", ["trace"]) # disable "export" for now
     @pytest.mark.parametrize("name", get_all_models())
+    @pytest.mark.parametrize("mode", ["trace", "export"])
     def test_convert_model_all_models(self, mode, name, ie_device):
         self.mode = mode
         self.run(name, None, ie_device)
