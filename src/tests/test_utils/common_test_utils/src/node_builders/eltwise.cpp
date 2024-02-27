@@ -52,8 +52,6 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v13::BitwiseOr>(in0, in1);
     case ov::test::utils::EltwiseTypes::BITWISE_XOR:
         return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
-    case ov::test::utils::EltwiseTypes::CONVERT_OP:
-        return std::make_shared<ov::op::v0::Convert>(in0, ov::element::f32);
     default: {
         OPENVINO_THROW("Incorrect type of Eltwise operation");
     }
