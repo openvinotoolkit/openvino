@@ -55,37 +55,6 @@ Once the model is saved, you can load it with the following command:
 
     model = OVModelForCausalLM.from_pretrained("ov_model")
 
-Obtaining OpenVINO Model Object
-##############################################################
-
-When you use Intel Optimum for loading, the resulting model is a Hugging
-Face model with additional functionalities provided by Optimum.
-The model object created in the snippets above is not a native OpenVINO IR model
-but rather a Hugging Face model adapted to work with OpenVINO's optimizations.
-
-If you need to access the underlying OpenVINO model object directly, you
-can do so through a specific attribute of the Optimum Intel model named ``model``.
-
-To access this native OpenVINO model object, you can assign it to a new variable like this:
-
-.. code-block:: python
-
-    openvino_model = model.model
-
-The first model refers to the Optimum Intel `model` you loaded, and the `.model`
-accesses the native OpenVINO model object within it. Now, `openvino_model` holds
-the native OpenVINO model, allowing you to interact with it directly,
-as you would with a standard OpenVINO model. You can compress the model using `NNCF <https://github.com/openvinotoolkit/nncf>`__
-and infer it with a custom OpenVINO pipeline. For more information, see the :doc:`LLM Weight Compression <weight_compression>` page.
-
-If you want to work with Native OpenVINO after loading the model with Optimum Intel,
-it is recommended to disable model compilation in the loading function.
-Set the compile attribute to False while loading the model:
-
-.. code-block:: python
-
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, compile=False)
-
 Converting a Hugging Face Model to OpenVINO IR
 ##############################################################
 

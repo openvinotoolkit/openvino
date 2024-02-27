@@ -1,6 +1,6 @@
 .. {#native_vs_hugging_face_api}
 
-Hugging Face vs Native OpenVINO API
+Large Language Models Inference Guide
 ========================================
 
 .. meta::
@@ -26,23 +26,23 @@ This guide shows how to use LLMs with OpenVINO, from model loading and conversio
 
 The advantages of using OpenVINO for LLM deployment:
 
-●	OpenVINO requires fewer dependencies than frameworks like
-Hugging Face and PyTorch, resulting in a **smaller binary size and reduced
-memory footprint**, making deployments easier and updates more manageable.
+●	**OpenVINO requires fewer dependencies** than frameworks like
+Hugging Face and PyTorch, resulting in a smaller binary size and reduced
+memory footprint, making deployments easier and updates more manageable.
 
-●	Offers **optimized LLM inference**; provides a full C/C++ API, leading to faster operation
+●	**Offers optimized LLM inference**; provides a full C/C++ API, leading to faster operation
 than Python-based runtimes; includes a Python API for rapid development,
 with the option for further optimization in C++.
 
-●	Provides **compression and precision management techniques** such as 8-bit and 4-bit weight compression,
+●	**Provides compression and precision management techniques** such as 8-bit and 4-bit weight compression,
 including embedding layers, and storage format reduction.
 This includes fp16 precision for non-compressed models and int8/int4 for compressed models, like GPTQ models from Hugging Face.
 
-●	Supports a **wide range of deep learning models and architectures** including text, image,
+●	**Supports a wide range of deep learning models and architectures** including text, image,
 and audio generative models like Llama 2, MPT, OPT, Stable Diffusion, Stable Diffusion XL.
 This enables the development of multimodal applications, allowing for write-once, deploy-anywhere capabilities.
 
-●	**Enhanced inference capabilities**: fused inference primitives such as Scaled
+●	**Enhances inference capabilities**: fused inference primitives such as Scaled
 Dot Product Attention, Rotary Positional Embedding, Group Query Attention, and Mixture of Experts.
 It also offers advanced features like in-place KV-cache, dynamic quantization,
 KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative
