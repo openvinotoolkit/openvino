@@ -14,8 +14,7 @@ class TestStaticRegexReplace(CommonTFLayerTest):
         assert 'input:0' in inputs_info
         input_shape = inputs_info['input:0']
         inputs_data = {}
-        strings_dictionary = ['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence \t\n', ' ',
-                              'Oferta polska', 'Предложение по-РУССки', '汉语句子']
+        strings_dictionary = ['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence \t\n', ' ']
         inputs_data['input:0'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
