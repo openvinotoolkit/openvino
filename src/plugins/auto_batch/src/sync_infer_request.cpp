@@ -58,11 +58,8 @@ void SyncInferRequest::share_tensors_with_batched_req(const std::set<std::size_t
         auto batched_tensor = m_batched_request_wrapper->_infer_request_batched->get_tensor(input);
         if (!batched_tensor._so)
             batched_tensor._so = m_batched_request_wrapper->_infer_request_batched._so;
-        res = create_shared_tensor_on_batched_tensor(batched_tensor,
-                                                     input_id,
-                                                     batched_inputs,
-                                                     m_batch_id,
-                                                     m_batch_size);
+        res =
+            create_shared_tensor_on_batched_tensor(batched_tensor, input_id, batched_inputs, m_batch_id, m_batch_size);
         set_tensor(input, res);
     }
 
