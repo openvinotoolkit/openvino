@@ -14,23 +14,23 @@ Install OpenVINO™ Runtime for macOS
    :maxdepth: 3
    :hidden:
 
-   Use Archive <openvino_docs_install_guides_installing_openvino_from_archive_macos>
-   Use Homebrew <openvino_docs_install_guides_installing_openvino_brew>
-   Use PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
-   Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
-   Use Conan <openvino_docs_install_guides_installing_openvino_conan>
+   Use Archive <install-openvino-macos-header/install-openvino-archive-macos>
+   Use Homebrew <install-openvino-shared/install-openvino-brew>
+   Use PyPI <install-openvino-shared/install-openvino-pip>
+   Use Conda Forge <install-openvino-shared/install-openvino-conda>
+   Use vcpkg <install-openvino-shared/install-openvino-vcpkg>
+   Use Conan <install-openvino-shared/install-openvino-conan>
 
 
 If you want to install OpenVINO™ Runtime on macOS, you have the following options:
 
 
-* :doc:`Install OpenVINO using an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_macos>`
-* :doc:`Install OpenVINO using PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-* :doc:`Install OpenVINO using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
-* :doc:`Install OpenVINO using Homebrew <openvino_docs_install_guides_installing_openvino_brew>`
-* :doc:`Install OpenVINO using vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>`
-* :doc:`Install OpenVINO using Conan Package Manager <openvino_docs_install_guides_installing_openvino_conan>`
+* :doc:`Install OpenVINO using an Archive File <install-openvino-macos-header/install-openvino-archive-macos>`
+* :doc:`Install OpenVINO using PyPI <install-openvino-shared/install-openvino-pip>`
+* :doc:`Install OpenVINO using Conda Forge <install-openvino-shared/install-openvino-conda>`
+* :doc:`Install OpenVINO using Homebrew <install-openvino-shared/install-openvino-brew>`
+* :doc:`Install OpenVINO using vcpkg <install-openvino-shared/install-openvino-vcpkg>`
+* :doc:`Install OpenVINO using Conan Package Manager <install-openvino-shared/install-openvino-conan>`
 
 
 

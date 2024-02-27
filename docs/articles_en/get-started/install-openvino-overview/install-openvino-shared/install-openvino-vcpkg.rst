@@ -23,7 +23,7 @@ Install OpenVINO™ Runtime via vcpkg
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <system_requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
@@ -81,7 +81,7 @@ And running from terminal:
 
 Congratulations! You've just Installed and used OpenVINO in your project! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+:doc:`list of additional configurations <../../configurations-header>`
 to see if your case needs any of them.
 
 Uninstalling OpenVINO
@@ -99,11 +99,11 @@ What's Next?
 
 Now that you've installed OpenVINO Runtime, you can try the following things:
 
-* Learn more about :doc:`OpenVINO Workflow <openvino_workflow>`.
-* To prepare your models for working with OpenVINO, see :doc:`Model Preparation <openvino_docs_model_processing_introduction>`.
-* See pre-trained deep learning models in our :doc:`Open Model Zoo <model_zoo>`.
-* Learn more about :doc:`Inference with OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
-* See sample applications in :doc:`OpenVINO toolkit Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
+* Learn more about :doc:`OpenVINO Workflow <../../../openvino-workflow>`.
+* To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
+* See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
+* Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
+* See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
 * Check out the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
 
 

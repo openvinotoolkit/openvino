@@ -12,7 +12,7 @@ Converting an ONNX Mask R-CNN Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 The instructions below are applicable **only** to the Mask R-CNN model converted to the ONNX file format from the `maskrcnn-benchmark model <https://github.com/facebookresearch/maskrcnn-benchmark>`__.
 
@@ -30,7 +30,7 @@ The instructions below are applicable **only** to the Mask R-CNN model converted
       --transformations_config front/onnx/mask_rcnn.json
 
 
-   Be aware that the height and width specified with the ``input_shape`` command line parameter could be different. For more information about supported input image dimensions    and required pre- and post-processing steps, refer to the `documentation <https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn>`__.
+   Be aware that the height and width specified with the ``input_shape`` command line parameter could be different. For more information about supported input image dimensions    and required pre- and post-processing steps, refer to the `../../../../../../documentation <https://github.com/onnx/models/tree/master/vision/object_detection_segmentation/mask-rcnn>`__.
 
 3. Interpret the outputs of the generated IR file: masks, class indices, probabilities and box coordinates:
 

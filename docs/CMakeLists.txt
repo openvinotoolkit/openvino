@@ -22,11 +22,13 @@ function(build_docs)
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOCS_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/docs")
+    set(ARTICLES_EN_DIR "${OpenVINO_SOURCE_DIR}/docs/articles_en")
     set(SCRIPTS_DIR "${DOCS_SOURCE_DIR}/scripts")
 
     # Preprocessing scripts
     set(REMOVE_XML_SCRIPT "${SCRIPTS_DIR}/remove_xml.py")
     set(FILE_HELPER_SCRIPT "${SCRIPTS_DIR}/filehelper.py")
+    set(ARTICLES_HELPER_SCRIPT "${SCRIPTS_DIR}/articles_helper.py")
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
     set(BREATHE_APIDOC_SCRIPT "${SCRIPTS_DIR}/apidoc.py")
@@ -38,9 +40,9 @@ function(build_docs)
     set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
     list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO articles")
-    list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
+    list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${ARTICLES_HELPER_SCRIPT}
         --filetype=rst
-        --input_dir=${OpenVINO_SOURCE_DIR}
+        --input_dir=${ARTICLES_EN_DIR}
         --output_dir=${SPHINX_SOURCE_DIR}
         --exclude_dir=${SPHINX_SOURCE_DIR})
     list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO articles")

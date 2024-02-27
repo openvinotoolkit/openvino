@@ -13,7 +13,7 @@ Inference Request API in throughput mode. Unlike `demos <https://docs.openvino.a
 does not have other configurable command-line arguments. Feel free to modify sample's
 source code to try out different options.
 
-The reported results may deviate from what :doc:`benchmark_app <openvino_sample_benchmark_tool>`
+The reported results may deviate from what :doc:`benchmark_app <benchmark-tool>`
 reports. One example is model input precision for computer vision tasks. benchmark_app
 sets ``uint8``, while the sample uses default model precision which is usually ``float32``.
 
@@ -54,7 +54,7 @@ Then, it processes and reports performance results.
 
 
 You can see the explicit description of each sample step at
-:doc:`Integration Steps <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+:doc:`Integration Steps <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 section of "Integrate OpenVINO™ Runtime with Your Application" guide.
 
 Running
@@ -172,9 +172,9 @@ Sample Output
 Additional Resources
 ####################
 
-- :doc:`Integrate the OpenVINO™ Runtime with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Integrate the OpenVINO™ Runtime with Your Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 - `Throughput Benchmark Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/benchmark/throughput_benchmark/README.md>`__
 - `Throughput Benchmark C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/benchmark/throughput_benchmark/README.md>`__

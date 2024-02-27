@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation}
+.. {#../../../low-precision-transformations_FoldFakeQuantizeTransformation}
 
 FoldFakeQuantizeTransformation transformation
 =============================================

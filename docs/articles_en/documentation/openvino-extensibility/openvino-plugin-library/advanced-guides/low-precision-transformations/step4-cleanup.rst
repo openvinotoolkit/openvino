@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_step4_cleanup}
+.. {#../low-precision-transformations_step4_cleanup}
 
 Step 4. Cleanup Transformations
 ===============================
@@ -12,20 +12,20 @@ Step 4. Cleanup Transformations
    :maxdepth: 1
    :hidden:
 
-   EliminateFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation>
-   FoldConvertTransformation <openvino_docs_OV_UG_lpt_FoldConvertTransformation>
-   FoldFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation>
-   FuseConvertTransformation <openvino_docs_OV_UG_lpt_FuseConvertTransformation>
-   FuseMultiplyToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation>
-   FuseSubtractToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation>
-   MultiplyToGroupConvolutionTransformation <openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation>
+   EliminateFakeQuantizeTransformation <step4-cleanup/eliminate-fake-quantize>
+   FoldConvertTransformation <step4-cleanup/fold-convert>
+   FoldFakeQuantizeTransformation <step3-main/quantization/fold-fake-quantize>
+   FuseConvertTransformation <step4-cleanup/fuse-convert>
+   FuseMultiplyToFakeQuantizeTransformation <step4-cleanup/fuse-multiply-to-fake-quantize>
+   FuseSubtractToFakeQuantizeTransformation <step4-cleanup/fuse-subtract-to-fake-quantize>
+   MultiplyToGroupConvolutionTransformation <step4-cleanup/multiply-to-group-convolution>
 
 
-* :doc:`EliminateFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation>`
-* :doc:`FoldConvertTransformation <openvino_docs_OV_UG_lpt_FoldConvertTransformation>`
-* :doc:`FoldFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation>`
-* :doc:`FuseConvertTransformation <openvino_docs_OV_UG_lpt_FuseConvertTransformation>`
-* :doc:`FuseMultiplyToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation>`
-* :doc:`FuseSubtractToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation>`
-* :doc:`MultiplyToGroupConvolutionTransformation <openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation>`
+* :doc:`EliminateFakeQuantizeTransformation <step4-cleanup/eliminate-fake-quantize>`
+* :doc:`FoldConvertTransformation <step4-cleanup/fold-convert>`
+* :doc:`FoldFakeQuantizeTransformation <step3-main/quantization/fold-fake-quantize>`
+* :doc:`FuseConvertTransformation <step4-cleanup/fuse-convert>`
+* :doc:`FuseMultiplyToFakeQuantizeTransformation <step4-cleanup/fuse-multiply-to-fake-quantize>`
+* :doc:`FuseSubtractToFakeQuantizeTransformation <step4-cleanup/fuse-subtract-to-fake-quantize>`
+* :doc:`MultiplyToGroupConvolutionTransformation <step4-cleanup/multiply-to-group-convolution>`
 

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_QuantizationGranularity}
+.. {#../../low-precision-transformations_QuantizationGranularity}
 
 QuantizationGranularity Attribute
 =================================

@@ -14,7 +14,7 @@ you to offload certain neural network computation tasks from other devices,
 for more streamlined resource management.
 
 Note that the NPU plugin is currently available only with the Archive distribution of OpenVINO™
-and you need to :doc:`install a proper NPU driver <openvino_docs_install_guides_configurations_for_intel_npu>`
+and you need to :doc:`install a proper NPU driver <../../../get-started/configurations-header/configurations-intel-npu>`
 to use it successfully.
 
 | **Supported Platforms:**
@@ -30,8 +30,8 @@ to use it successfully.
 |    Computation precision for the HW is FP16.
 |
 | For more details on how to get a quantized model, refer to the
-  :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>` and
-  :doc:`NNCF tool quantization guide <basic_quantization_flow>`.
+  :doc:`Model Optimization guide <../../model-optimization>` and
+  :doc:`NNCF tool quantization guide <../../model-optimization-guide/quantizing-models-post-training/basic-quantization-flow>`.
 
 
 
@@ -76,7 +76,7 @@ occurs for subsequent compilation requests, the plugin will import the model
 instead of recompiling it.
 
 For more details about OpenVINO model caching, see the
-:doc:`Model Caching Overview <openvino_docs_OV_UG_Model_caching_overview>`.
+:doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>`.
 
 
 Supported Features and properties
@@ -148,7 +148,7 @@ Additional Resources
 #############################
 
 * `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
-* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
-* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
-* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
-* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/python>`__
+* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
+* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/3d_segmentation_demo/python>`__
+* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/object_detection_demo/cpp>`__
+* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/object_detection_demo/python>`__

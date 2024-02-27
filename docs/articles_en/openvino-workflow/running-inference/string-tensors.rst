@@ -201,7 +201,7 @@ the � replacement symbol is used to signal errors in such invalid Unicode stre
 Additional Resources
 ####################
 
-* Learn about the :doc:`basic steps to integrate inference in your application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`.
+* Learn about the :doc:`basic steps to integrate inference in your application <integrate-openvino-with-your-application>`.
 
 * Use `OpenVINO tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__ to produce models that use string tensors to work with textual information as pre- and post-processing for the large language models.
 

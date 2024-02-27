@@ -14,22 +14,22 @@ Install OpenVINO™ Runtime on Windows
    :maxdepth: 3
    :hidden:
 
-   Use Archive <openvino_docs_install_guides_installing_openvino_from_archive_windows>
-   Use PyPI <openvino_docs_install_guides_installing_openvino_pip>
-   Use Conda Forge <openvino_docs_install_guides_installing_openvino_conda>
-   Use vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>
-   Use Docker <openvino_docs_install_guides_installing_openvino_docker>
-   Use Conan <openvino_docs_install_guides_installing_openvino_conan>
+   Use Archive <install-openvino-windows-header/install-openvino-archive-windows>
+   Use PyPI <install-openvino-shared/install-openvino-pip>
+   Use Conda Forge <install-openvino-shared/install-openvino-conda>
+   Use vcpkg <install-openvino-shared/install-openvino-vcpkg>
+   Use Docker <install-openvino-shared/install-openvino-docker-linux>
+   Use Conan <install-openvino-shared/install-openvino-conan>
 
 
 
 If you want to install OpenVINO™ Runtime on Windows, you have the following options:
 
-* :doc:`Install OpenVINO using an Archive File <openvino_docs_install_guides_installing_openvino_from_archive_windows>`
-* :doc:`Install OpenVINO using PyPI <openvino_docs_install_guides_installing_openvino_pip>`
-* :doc:`Install OpenVINO using Conda Forge <openvino_docs_install_guides_installing_openvino_conda>`
-* :doc:`Install OpenVINO using vcpkg <openvino_docs_install_guides_installing_openvino_vcpkg>`
-* :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker>`
-* :doc:`Install OpenVINO using Conan Package Manager <openvino_docs_install_guides_installing_openvino_conan>`
+* :doc:`Install OpenVINO using an Archive File <install-openvino-windows-header/install-openvino-archive-windows>`
+* :doc:`Install OpenVINO using PyPI <install-openvino-shared/install-openvino-pip>`
+* :doc:`Install OpenVINO using Conda Forge <install-openvino-shared/install-openvino-conda>`
+* :doc:`Install OpenVINO using vcpkg <install-openvino-shared/install-openvino-vcpkg>`
+* :doc:`Install OpenVINO using Docker  <install-openvino-shared/install-openvino-docker-linux>`
+* :doc:`Install OpenVINO using Conan Package Manager <install-openvino-shared/install-openvino-conan>`
 
 

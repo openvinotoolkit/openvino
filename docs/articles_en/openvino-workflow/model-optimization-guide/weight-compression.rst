@@ -206,6 +206,6 @@ Additional Resources
 - `Tune Weight Compression Parameters Example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/tiny_llama_find_hyperparams>`__
 - `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
-- :doc:`Post-training Quantization <ptq_introduction>`
-- :doc:`Training-time Optimization <tmo_introduction>`
+- :doc:`Post-training Quantization <quantizing-models-post-training>`
+- :doc:`Training-time Optimization <compressing-models-during-training>`
 

@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_FoldConvertTransformation}
+.. {#../../low-precision-transformations_FoldConvertTransformation}
 
 FoldConvertTransformation transformation
 ========================================

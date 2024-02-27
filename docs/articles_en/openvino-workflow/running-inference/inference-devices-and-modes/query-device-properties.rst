@@ -33,8 +33,8 @@ of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the t
    static constexpr Property<std::vector<std::string>, PropertyMutability::RO> available_devices{"AVAILABLE_DEVICES"};
 
 
-Refer to the :doc:`Hello Query Device С++ Sample <openvino_sample_hello_query_device>` sources and 
-the :doc:`Multi-Device execution <openvino_docs_OV_UG_Running_on_multiple_devices>` documentation for examples of using 
+Refer to the :doc:`Hello Query Device С++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` sources and 
+the :doc:`Multi-Device execution <multi-device>` ../../../documentation for examples of using 
 setting and getting properties in user applications.
 
 
@@ -90,7 +90,7 @@ The ``ov::CompiledModel`` class is also extended to support the properties:
 * ``ov::CompiledModel::get_property``
 * ``ov::CompiledModel::set_property``
 
-For documentation about OpenVINO common device-independent properties, refer to the ``openvino/runtime/properties.hpp``. 
+For ../../../documentation about OpenVINO common device-independent properties, refer to the ``openvino/runtime/properties.hpp``. 
 Device-specific configuration keys can be found in corresponding device folders (for example, ``openvino/runtime/intel_gpu/properties.hpp``).
 
 Working with Properties via Core

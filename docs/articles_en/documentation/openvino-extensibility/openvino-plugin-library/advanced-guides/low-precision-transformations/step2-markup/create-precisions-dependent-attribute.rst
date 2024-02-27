@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute}
+.. {#../../low-precision-transformations_CreatePrecisionsDependentAttribute}
 
 CreatePrecisionsDependentAttribute transformation
 =================================================

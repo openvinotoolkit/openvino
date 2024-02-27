@@ -34,7 +34,7 @@ Besides functions aligned to C++ API, some of them have their Python counterpart
    :fragment: [properties_example]
 
 
-Refer to Python API documentation on which helper functions or properties are available for different classes.
+Refer to Python API ../../../documentation on which helper functions or properties are available for different classes.
 
 Working with Tensor
 ####################
@@ -180,7 +180,7 @@ To extract low precision values from a tensor into the *numpy* array, you can us
 Release of GIL
 ++++++++++++++++++++
 
-Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. This can help you achieve more parallelism in your application, using Python threads. For more information about GIL, refer to the Python documentation.
+Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. This can help you achieve more parallelism in your application, using Python threads. For more information about GIL, refer to the Python ../../../documentation.
 
 
 .. doxygensnippet:: docs/snippets/ov_python_exclusives.py

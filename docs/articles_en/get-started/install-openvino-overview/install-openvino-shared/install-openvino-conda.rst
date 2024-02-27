@@ -24,7 +24,7 @@ Install OpenVINO™ Runtime from Conda Forge
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <system_requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
 
 
    .. tab-item:: Processor Notes
@@ -68,7 +68,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <openvino_docs_install_guides_configurations_header>`
+:doc:`list of additional configurations <../../configurations-header>`
 to see if your case needs any of them.
 
 Compiling with OpenVINO Runtime from Conda-Forge on Linux
@@ -110,18 +110,18 @@ What's Next?
 ############################################################
 
 Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications!
-To learn more about how to integrate a model in OpenVINO applications, try out some tutorials and sample applications.
+To learn more about how to integrate a model in OpenVINO applications, try out some ../../../learn-openvino/interactive-tutorials-python and sample applications.
 
-Try the :doc:`C++ Quick Start Example <openvino_docs_get_started_get_started_demos>` for step-by-step instructions
+Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
 on building and running a basic image classification C++ application.
 
 .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
    :width: 400
 
-Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C++ example applications to get you started with OpenVINO, such as:
+Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* `Basic object detection with the Hello Reshape SSD C++ sample <openvino_sample_hello_reshape_ssd.html>`__
-* `Object classification sample <openvino_sample_hello_classification.html>`__
+* `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`__
+* `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`__
 
 
 

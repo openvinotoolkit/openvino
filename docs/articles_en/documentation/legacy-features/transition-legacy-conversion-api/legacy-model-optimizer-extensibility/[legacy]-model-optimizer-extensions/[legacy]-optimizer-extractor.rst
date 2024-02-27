@@ -1,4 +1,4 @@
-.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor}
+.. {#../[legacy]-model-optimizer-extensions_Model_Optimizer_Extractor}
 
 [LEGACY] Operation Extractor
 =============================
@@ -13,14 +13,14 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../../openvino-extensibility/frontend-extensions>` article. 
 
 Model Optimizer runs specific extractor for each operation in the model during the model loading.
 
 There are several types of Model Optimizer extractor extensions:
 
 1. The generic one, which is described in this article.
-2. The special extractor for Caffe models with Python layers. This kind of extractor is described in the :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>` guide.
+2. The special extractor for Caffe models with Python layers. This kind of extractor is described in the :doc:`Extending Model Optimizer with Caffe Python Layers <../[legacy]-extending-model-optimizer-with-caffe-python-layers>` guide.
 
 Generic extension provides a generic mechanism for the operation extractor applicable for all frameworks. Model Optimizer provides the ``mo.front.extractor.FrontExtractorOp`` class as a base class to implement the extractor. It has the ``extract`` class method, which gets the only parameter ``Node``, which corresponds to the graph node to extract data from. The operation description in the original framework format is stored in the attribute ``pb`` of the node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to the ``extensions/front/tf/const_ext.py`` file):
 
@@ -108,8 +108,8 @@ A common practice is to use ``update_node_stat()`` method of the dedicated ``Op`
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
-* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
+* :doc:`Model Optimizer Extensibility <../../legacy-model-optimizer-extensibility>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <../../legacy-model-optimizer-extensibility/[legacy]-graph-traversal-and-modification>`
+* :doc:`Model Optimizer Extensions <../[legacy]-model-optimizer-extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <../[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 

@@ -13,7 +13,7 @@ Converting a PyTorch Cascade RCNN R-101 Model
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
    
 The goal of this article is to present a step-by-step guide on how to convert a PyTorch Cascade RCNN R-101 model to OpenVINO IR. First, you need to download the model and convert it to ONNX.
 
@@ -30,7 +30,7 @@ Downloading and Converting Model to ONNX
 
   .. note::
 
-     To set up an environment, refer to the `instructions <https://github.com/open-mmlab/mmdetection/blob/master/docs/en/get_started.md#installation>`__.
+     To set up an environment, refer to the `instructions <https://github.com/open-mmlab/mmdetection/blob/master/docs/en/../../../../../../get-started.md#installation>`__.
 
 * Download the pre-trained `model <https://download.openmmlab.com/mmdetection/v2.0/cascade_rcnn/cascade_rcnn_r101_fpn_1x_coco/cascade_rcnn_r101_fpn_1x_coco_20200317-0b6a2fbf.pth>`__. The model is also available `here <https://github.com/open-mmlab/mmdetection/blob/master/configs/cascade_rcnn/README.md>`__.
 

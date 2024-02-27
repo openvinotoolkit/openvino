@@ -113,7 +113,7 @@ Typical data normalization includes 2 operations for each data item: subtract me
             :fragment: ov:preprocess:mean_scale
 
 
-In Computer Vision area normalization is usually done separately for R, G, B values. To do this, :doc:`layout with 'C' dimension <openvino_docs_OV_UG_Layout_Overview>` shall be defined. Example:
+In Computer Vision area normalization is usually done separately for R, G, B values. To do this, :doc:`layout with 'C' dimension <layout-api-overview>` shall be defined. Example:
 
 
 .. tab-set::
@@ -177,7 +177,7 @@ Converting layout (transposing)
 
 Transposing of matrices/tensors is a typical operation in Deep Learning - you may have a BMP image 640x480, which is an array of ``{480, 640, 3}`` elements, but Deep Learning model can require input with shape ``{1, 3, 480, 640}``.
 
-Conversion can be done implicitly, using the :doc:`layout <openvino_docs_OV_UG_Layout_Overview>` of a user's tensor and the layout of an original model.
+Conversion can be done implicitly, using the :doc:`layout <layout-api-overview>` of a user's tensor and the layout of an original model.
 
 
 .. tab-set::
@@ -197,7 +197,7 @@ Conversion can be done implicitly, using the :doc:`layout <openvino_docs_OV_UG_L
             :fragment: ov:preprocess:convert_layout
 
 
-For a manual transpose of axes without the use of a :doc:`layout <openvino_docs_OV_UG_Layout_Overview>` in the code:
+For a manual transpose of axes without the use of a :doc:`layout <layout-api-overview>` in the code:
 
 
 .. tab-set::
@@ -231,7 +231,7 @@ Resizing Image
 
 Resizing an image is a typical pre-processing step for computer vision tasks. With pre-processing API, this step can also be integrated into an execution graph and performed on a target device.
 
-To resize the input image, it is needed to define ``H`` and ``W`` dimensions of the :doc:`layout <openvino_docs_OV_UG_Layout_Overview>`.
+To resize the input image, it is needed to define ``H`` and ``W`` dimensions of the :doc:`layout <layout-api-overview>`.
 
 
 .. tab-set::
@@ -338,7 +338,7 @@ Pre-processing API also allows adding ``custom`` preprocessing steps into an exe
 
 .. note::
 
-   Custom pre-processing function should only insert node(s) after the input. It is done during model compilation. This function will NOT be called during the execution phase. This may appear to be complicated and require knowledge of :doc:`OpenVINO™ operations <openvino_docs_ops_opset>`.
+   Custom pre-processing function should only insert node(s) after the input. It is done during model compilation. This function will NOT be called during the execution phase. This may appear to be complicated and require knowledge of :doc:`OpenVINO™ operations <../../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
 
 
 If there is a need to insert additional operations to the execution graph right after the input, like some specific crops and/or resizes - Pre-processing API can be a good choice to implement this.
@@ -364,7 +364,7 @@ If there is a need to insert additional operations to the execution graph right 
 C++ references:
 
 * `ov::preprocess::PreProcessSteps::custom() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aa88ce522ef69253e4d978f10c3b566f1>`__
-* :doc:`Available Operations Sets <openvino_docs_ops_opset>`
+* :doc:`Available Operations Sets <../../../../documentation/openvino-ir-format/operation-sets/available-opsets>`
 
 Post-processing
 ####################
@@ -377,7 +377,7 @@ Post-processing uses the reverse: **Model output** -> **Steps** -> **User tensor
 
 Compared to pre-processing, there are not as many operations needed for the post-processing stage. Currently, only the following post-processing operations are supported:
 
-* Convert a :doc:`layout <openvino_docs_OV_UG_Layout_Overview>`.
+* Convert a :doc:`layout <layout-api-overview>`.
 * Convert an element type.
 * Customize operations.
 

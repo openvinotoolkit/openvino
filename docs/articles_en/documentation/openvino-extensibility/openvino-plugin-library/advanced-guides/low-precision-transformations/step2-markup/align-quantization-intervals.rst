@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_AlignQuantizationIntervals}
+.. {#../../low-precision-transformations_AlignQuantizationIntervals}
 
 AlignQuantizationIntervals transformation
 =========================================

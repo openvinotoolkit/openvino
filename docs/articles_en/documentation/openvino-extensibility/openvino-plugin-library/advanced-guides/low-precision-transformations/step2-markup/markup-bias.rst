@@ -1,4 +1,4 @@
-.. {#openvino_docs_OV_UG_lpt_MarkupBias}
+.. {#../../low-precision-transformations_MarkupBias}
 
 MarkupBias transformation
 =========================
