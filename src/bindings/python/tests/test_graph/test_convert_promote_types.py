@@ -13,7 +13,7 @@ from openvino import Type
     ("lhs", "rhs", "promote_unsafe", "pytorch_scalar_promotion", "u64_integer_promotion_target", "expected_output_type"),
     [
         (([], np.float32), ([2], np.float16), False, False, "f32", Type.f32),
-        (([], np.float32), ([2], np.float16), True, True, "f32", Type.f16),
+        (([], np.float32), ([2], np.float16), True, True, Type.f32, Type.f16),
         (([], np.float32), ([2], np.int8), False, True, "f32", Type.f32),
         (([], np.uint64), ([2], np.int8), True, False, "f64", Type.f64),
     ],
@@ -26,6 +26,8 @@ def test_convert_promote_types_param_inputs(lhs, rhs, promote_unsafe, pytorch_sc
     attrs = op.get_attributes()
     assert attrs.get("promote_unsafe") == promote_unsafe
     assert attrs.get("pytorch_scalar_promotion") == pytorch_scalar_promotion
+    if isinstance(u64_integer_promotion_target, Type):
+        u64_integer_promotion_target = u64_integer_promotion_target.to_string()
     assert attrs.get("u64_integer_promotion_target") == u64_integer_promotion_target
     assert op.get_output_size() == 2
     assert op.get_type_name() == "ConvertPromoteTypes"
@@ -40,8 +42,8 @@ def test_convert_promote_types_param_inputs(lhs, rhs, promote_unsafe, pytorch_sc
     [
         ((1, np.float32), ([2], np.float16), False, False, "f32", Type.f32),
         ((1, np.float32), ([2], np.float16), True, True, "f32", Type.f16),
-        ((1, np.float32), ([2], np.int8), False, True, "f32", Type.f32),
-        ((1, np.uint64), ([2], np.int8), True, False, "f64", Type.f64),
+        ((1, np.float32), ([2], np.int8), False, True, Type.f32, Type.f32),
+        ((1, np.uint64), ([2], np.int8), True, False, Type.f64, Type.f64),
     ],
 )
 def test_convert_promote_types_const_inputs(lhs, rhs, promote_unsafe, pytorch_scalar_promotion, u64_integer_promotion_target, expected_output_type):
@@ -52,6 +54,8 @@ def test_convert_promote_types_const_inputs(lhs, rhs, promote_unsafe, pytorch_sc
     attrs = op.get_attributes()
     assert attrs.get("promote_unsafe") == promote_unsafe
     assert attrs.get("pytorch_scalar_promotion") == pytorch_scalar_promotion
+    if isinstance(u64_integer_promotion_target, Type):
+        u64_integer_promotion_target = u64_integer_promotion_target.to_string()
     assert attrs.get("u64_integer_promotion_target") == u64_integer_promotion_target
     assert op.get_output_size() == 2
     assert op.get_type_name() == "ConvertPromoteTypes"

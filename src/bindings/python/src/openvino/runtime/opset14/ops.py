@@ -4,8 +4,9 @@
 
 """Factory functions for ops added to openvino opset14."""
 from functools import partial
+from typing import Union
 
-from openvino.runtime import Node
+from openvino.runtime import Node, Type
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import NodeInput, as_nodes
@@ -20,7 +21,7 @@ def convert_promote_types(
     right_node: NodeInput,
     promote_unsafe: bool = False,
     pytorch_scalar_promotion: bool = False,
-    u64_integer_promotion_target: str = "f32",
+    u64_integer_promotion_target: Union[str, Type] = "f32",
 ) -> Node:
     """Return a node performing conversion to common type based on promotion rules.
 
