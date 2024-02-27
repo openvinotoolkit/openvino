@@ -42,6 +42,7 @@ void get_cur_stream_info(const int stream_id,
             if (streams_info_table[i][NUMBER_OF_STREAMS] == 0) {
                 if (streams_info_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
                     ecore_used = true;
+                    max_threads_per_core = 2;
                 } else if (streams_info_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
                     max_threads_per_core = 2;
                 }
