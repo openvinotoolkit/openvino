@@ -30,7 +30,7 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 
 <details>
   <summary>List of Distributed OpenVINO Components</summary>
-  
+
   * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
     * [inference](./src/inference) - provides an API to infer models on the device.
@@ -68,8 +68,9 @@ Check out these notebooks that show how to optimize and deploy popular models (n
 
 #### OpenVINO Ecosystem
 
--	[🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
+-	  [🤗Optimum Intel](https://github.com/huggingface/optimum-intel) -  a simple interface to optimize Transformers and Diffusers models.
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization and sparsity.
+-   [GenAI Repository](https://github.com/openvinotoolkit/openvino.genai) and [OpenVINO Tokenizers](https://github.com/openvinotoolkit/openvino_tokenizers) - resources and tools for developing and optimizing Generative AI applications.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
 -   [Software Development Kit (SDK) for the Intel® Geti™](https://github.com/openvinotoolkit/geti-sdk) - an interactive video and image annotation tool for computer vision use cases.
 
