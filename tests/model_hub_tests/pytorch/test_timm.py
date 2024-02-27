@@ -18,10 +18,13 @@ from packaging import version
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "xxtiny", "xxs", "pico", "xtiny", "xs", "nano", "tiny", "s", "mini", "small", "lite",
-                   "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
+                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
+        if "x_" in name:
+            # x_small or xx_small should be merged to xsmall and xxsmall
+            name.replace("x_", "x")
         # first: remove datasets
         name_parts = name.split(".")
         _name = "_".join(name.split(".")[:-1]) if len(name_parts) > 1 else name
@@ -69,10 +72,10 @@ class TestTimmConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    def teardown_method(self):
+    def teardown_class(self):
         # remove all downloaded files from cache
         cleanup_dir(hf_hub_cache_dir)
-        super().teardown_method()
+        #super().teardown_method()
 
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",

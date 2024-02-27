@@ -20,7 +20,7 @@ on:
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 30 }}
+    timeout-minutes: 400
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -106,6 +106,8 @@ jobs:
 
       - name: Install OpenVINO Python wheels
         run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
@@ -118,12 +120,22 @@ jobs:
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
-      - name: PyTorch Models Tests
+      - name: PyTorch Models Tests Timm
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_timm.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tests.html --self-contained-html -v -n 4
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TYPE: nightly
+          TEST_DEVICE: CPU
+          USE_SYSTEM_CACHE: False
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: PyTorch Models Tests Not Timm
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "NOT TestTimmConvertModel"
+        env:
+          TYPE: nightly
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
