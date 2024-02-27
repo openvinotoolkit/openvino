@@ -43,13 +43,16 @@ bool HSwish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto count = shape_size(input_shape);
     outputs[0].set_shape(input_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v4_HSwish_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32),
-                      hswish::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      count);
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_HSwish_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      hswish::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      count);
 }
 
 bool HSwish::has_evaluate() const {

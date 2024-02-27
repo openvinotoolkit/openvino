@@ -10,9 +10,6 @@
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/validate.hpp"
 
-#include <typeinfo>
-
-
 namespace ov {
 namespace snippets {
 namespace pass {
@@ -36,7 +33,7 @@ public:
     std::shared_ptr<T> register_pass(const PassPosition& position, Args&&... args) {
         static_assert(std::is_base_of<PassBase, T>::value, "Attempt to insert pass that is not derived from PassBase");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
-        auto rc =  insert_pass_instance(position, pass);
+        auto rc = insert_pass_instance(position, pass);
         rc->set_pass_config(m_pass_config);
         if (!m_pass_config->is_enabled<T>()) {
             m_pass_config->disable<T>();
@@ -48,7 +45,7 @@ public:
     void register_positioned_passes(const std::vector<PositionedPassBase>& pos_passes);
 
 protected:
-    std::shared_ptr<Manager::PassBase> insert_pass_instance(const PassPosition& position, const std::shared_ptr<PassBase>& pass);
+    std::shared_ptr<PassBase> insert_pass_instance(const PassPosition& position, const std::shared_ptr<PassBase>& pass);
 };
 
 } // namespace pass

@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/add.hpp"
 
 namespace ov {
 namespace test {
@@ -51,7 +56,7 @@ protected:
         auto output = ov::Tensor(ov::element::f32, shape, output_data.data());
 
         // Load model
-        Core core;
+        ov::Core core;
         auto compiled_model = core.compile_model(function, "CPU");
 
         // Infer
