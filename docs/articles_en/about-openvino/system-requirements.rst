@@ -35,8 +35,7 @@ CPU
       * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
       * Windows 10
       * Windows 11
-      * macOS 10.15 and above, 64-bit
-      * macOS 11 and above, ARM64
+      * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
       * Ubuntu 18 ARM64
@@ -152,7 +151,7 @@ Operating systems and developer environment
 
    .. tab-item:: macOS
 
-      * macOS 10.15 and above
+      * macOS 12.6 and above
 
       Build environment components:
 

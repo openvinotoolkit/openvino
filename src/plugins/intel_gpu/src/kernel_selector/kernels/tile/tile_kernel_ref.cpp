@@ -77,7 +77,7 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params) const {
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.has_dynamic_tensors());
+                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.is_shape_agnostic);
 
     return {kd};
 }

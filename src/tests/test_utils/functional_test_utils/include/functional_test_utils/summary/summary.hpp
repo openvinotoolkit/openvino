@@ -14,6 +14,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
+extern bool is_print_rel_influence_coef;
+
 struct PassRate {
     enum Statuses { PASSED, FAILED, SKIPPED, CRASHED, HANGED };
     unsigned long passed = 0;

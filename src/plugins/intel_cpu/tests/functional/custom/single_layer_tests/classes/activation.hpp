@@ -10,6 +10,7 @@
 #include "common_test_utils/test_enums.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
