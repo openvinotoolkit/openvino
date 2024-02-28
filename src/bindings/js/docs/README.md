@@ -41,8 +41,10 @@
   ```
 - Build bindings:
   `cmake --build . --config Release --verbose -j4`
-- Install binaries for openvino-node package:
-  `cmake --install .`
+- Install binaries for the *openvino-node* package:
+  ```bash
+  cmake --install .
+  ```
 - Navigate to the *npm* package folder:
    ```bash
    cd ../src/bindings/js/node
