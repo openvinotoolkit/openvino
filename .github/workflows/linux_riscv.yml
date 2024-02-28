@@ -91,6 +91,7 @@ jobs:
           mkdir -p ${CCACHE_SHARE_DIR}
           CACHE_ARCHIVE=$(find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
           echo ${CACHE_ARCHIVE}
+          mkdir -p ${CCACHE_DIR}
           tar -xzvf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
 
       - name: Init submodules for non-Conan dependencies
