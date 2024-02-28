@@ -144,7 +144,9 @@ jobs:
         run: |
           # For Python API: build and wheel packaging
           #python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          pdm install -v -G build
+          pdm venv create --name for-build ${{ env.PYTHON_VERSION }}
+          pdm use --venv for-build
+          pdm install -v -G build --venv for-build
 
           # For running ONNX frontend unit tests
           # python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
@@ -164,6 +166,9 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
+          pdm use --venv for-build
+          eval $(pdm venv activate for-build)
+
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
             -DENABLE_CPPLINT=OFF \

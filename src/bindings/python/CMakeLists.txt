@@ -39,6 +39,8 @@ endif()
 # Settings for FindPython3.cmake
 #
 
+message(STATUS "EEEENV ${Python3_FIND_VIRTUALENV}")
+
 if(NOT DEFINED Python3_USE_STATIC_LIBS)
     set(Python3_USE_STATIC_LIBS OFF)
 endif()

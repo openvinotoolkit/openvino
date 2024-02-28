@@ -80,7 +80,6 @@ def check_python_requirements_pdm(toml_path: str):
     core = Core()
     project = Project(core=core, root_path=directory)
     environment = Environment(project)
-    installed_packages = environment.get_working_set() #return ChainMap
-    #print(parsed_dependencies, installed_packages)
+    installed_packages = environment.get_working_set() #returns ChainMap
 
     return sys.exit(0 if are_dependencies_installed(parsed_dependencies, installed_packages) else 1)
