@@ -166,8 +166,20 @@ class TestTFHubConvertModel(TestConvertModel):
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
                              get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_tf_hub")))
-    @pytest.mark.nightly
+    @pytest.mark.nightly_tf_hub
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
+        assert mark is None or mark == 'skip' or mark == 'xfail', \
+            "Incorrect test case: {}, {}".format(model_name, model_link)
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark == 'xfail':
+            pytest.xfail(reason)
+        self.run(model_name, model_link, ie_device)
+
+    @pytest.mark.parametrize("model_name,model_link,mark,reason",
+                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "nightly_hf")))
+    @pytest.mark.nightly_hf
+    def test_convert_model_hugging_face_nightly(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
             "Incorrect test case: {}, {}".format(model_name, model_link)
         if mark == 'skip':
