@@ -86,6 +86,12 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Restore cache
+        run: |
+          mkdir -p ${CCACHE_SHARE_DIR}
+          CACHE_ARCHIVE=$(find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
+          [ ! -z "$CACHE_ARCHIVE" ] && tar -xzf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -164,10 +170,6 @@ jobs:
       #
       # Build
       #
-      - name: Restore cache
-        run: |
-          CACHE_ARCHIVE=$([ -d $CCACHE_SHARE_DIR ] && find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
-          [ ! -z "$CACHE_ARCHIVE" ] && tar -xzf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
 
       - name: CMake - Configure
         run: |
@@ -219,7 +221,6 @@ jobs:
 
       - name: Save cache
         run: |
-          [ ! -d $CCACHE_SHARE_DIR ] && mkdir -p ${CCACHE_SHARE_DIR}
           pushd ${CCACHE_DIR}
             tar -czvf ${CCACHE_SHARE_DIR}/ccache_riscv64_$(date '+%Y%m%d%S').tar.gz *
           popd
