@@ -205,16 +205,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_reorder_Conv_2D, ConvolutionLayerCPUTest,
                          ConvolutionLayerCPUTest::getTestCaseName);
 
 /* ============= Convolution (3D) ============= */
-const std::vector<CPUSpecificParams> CPUParams_3D = {
-        //conv_sse42_3D, // not supported jit_sse42 for 3d
-        conv_avx2_3D,
-        conv_avx512_3D,
-        conv_avx2_3D_nspc,
-        conv_avx2_3D_nspc_brgconv,
-        conv_avx512_3D_nspc,
-        conv_avx512_3D_nspc_brgconv
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
@@ -224,7 +214,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d()),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D())),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -238,7 +228,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_3D_FP32_fusingScaleShiftAndFakeQuantizePerCh
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d()),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D())),
                                  ::testing::Values(fusingScaleShiftAndFakeQuantizePerChannel),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -252,7 +242,7 @@ INSTANTIATE_TEST_SUITE_P(Conv_3D_FP32_dilated, ConvolutionLayerCPUTest,
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::ValuesIn(inputShapes3d()),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_3D())),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);

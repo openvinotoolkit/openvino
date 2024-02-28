@@ -352,6 +352,19 @@ const std::vector<CPUSpecificParams>& CPUParams_2D() {
     return CPUParams_2D;
 }
 
+const std::vector<CPUSpecificParams>& CPUParams_3D() {
+    static const std::vector<CPUSpecificParams> CPUParams_3D = {
+        //conv_sse42_3D, // not supported jit_sse42 for 3d
+        conv_avx2_3D,
+        conv_avx512_3D,
+        conv_avx2_3D_nspc,
+        conv_avx2_3D_nspc_brgconv,
+        conv_avx512_3D_nspc,
+        conv_avx512_3D_nspc_brgconv
+    };
+    return CPUParams_3D;
+}
+
 const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D() {
     static const std::vector<CPUSpecificParams> CPUParams_GEMM_1D = {
             conv_gemm_1D,

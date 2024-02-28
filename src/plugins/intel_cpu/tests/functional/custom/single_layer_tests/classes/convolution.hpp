@@ -72,6 +72,7 @@ protected:
     const std::vector<CPUSpecificParams>& CPUParams_1x1_1D();
     const std::vector<CPUSpecificParams>& CPUParams_1x1_2D();
     const std::vector<CPUSpecificParams>& CPUParams_2D();
+    const std::vector<CPUSpecificParams>& CPUParams_3D();
     const std::vector<CPUSpecificParams>& CPUParams_GEMM_1D();
     const std::vector<CPUSpecificParams>& CPUParams_GEMM_2D();
     const std::vector<CPUSpecificParams>& CPUParams_GEMM_3D();
