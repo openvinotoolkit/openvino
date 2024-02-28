@@ -20,7 +20,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
-    void createPrimitive() override;
+    // void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -76,7 +76,8 @@ private:
                                const dnnl::memory::desc& inMemDesc,
                                const dnnl::memory::desc& weightMemDesc,
                                const dnnl::memory::desc& outMemDesc,
-                               const dnnl::engine& engine);
+                               const dnnl::engine& engine,
+                               bool constWeight);
     };
     // have to hold reference (shared_ptr) to forward convolution primitive_desc
     // since backward one uses the reference to it as a hint
@@ -91,7 +92,7 @@ private:
     size_t IC = 0;
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims weightDims;
+    VectorDims weiDimsIOHW;
     VectorDims expectedBiasDims {};
 
     bool useACL = false;
@@ -102,10 +103,10 @@ private:
     AttrPtr pAttr;
 
     dnnl::memory::data_type outputDataType = dnnl::memory::data_type::undef;
+    MemoryPtr weightAsIOMemPtr = nullptr;
 
     std::shared_ptr<dnnl::primitive_attr> attr;
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
-
     VectorDims shapeInferInternal(const VectorDims &inDims, std::vector<int32_t> outSpDims) const;
     void initPaddingR(const Shape &inShape, const Shape &outShape);
     std::vector<int32_t> readOutputSpatialDims() const;
@@ -115,7 +116,9 @@ private:
 
     std::string errorPrefix;
 
-    MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
+    //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
+    void createIOWeightBlob();
+    void updateIOWeightBlob();
 };
 
 }   // namespace node
