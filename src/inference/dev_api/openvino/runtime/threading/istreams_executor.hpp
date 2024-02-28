@@ -82,7 +82,6 @@ public:
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
         bool _cpu_reservation = false;
-        int _max_threads_per_core = 1;
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information,
@@ -190,9 +189,6 @@ public:
         }
         int get_thread_binding_offset() const {
             return _threadBindingOffset;
-        }
-        int get_max_threads_per_core() const {
-            return _max_threads_per_core;
         }
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
