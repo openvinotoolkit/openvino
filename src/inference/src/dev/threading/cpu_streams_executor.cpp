@@ -87,7 +87,7 @@ struct CPUStreamsExecutor::Impl {
             auto proc_type_table = get_org_proc_type_table();
             if (get_num_numa_nodes() > 1) {
                 pin_current_thread_to_socket(_numaNodeId);
-            } else if (proc_type_table.size() == 1 && proc_type_table[EFFICIENT_CORE_PROC] == 0 &&
+            } else if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
                        _impl->_config.get_cpu_pinning()) {
                 CpuSet processMask;
                 int ncpus = 0;
