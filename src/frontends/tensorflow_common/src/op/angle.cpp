@@ -40,7 +40,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
         auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
 
         auto x = make_shared<v8::Gather>(x, real_index, gather_axis)->output(0);
-        auto y = make_shared<v8::Gather>(x, imag_index, gather_axis)->output(0);
+        auto y = make_shared<v8::Gather>(x, imag_index, gather_axis)->output(0);}
 
 
     // handle the first condition : x>0
