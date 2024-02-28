@@ -36,6 +36,10 @@ leak:libfontconfig.so
 # leak reported from python wrappers of 3rd parties 
 leak:_pywrap_tensorflow_internal.so
 leak:site-packages/google/protobuf
+
+# leaks from thirdparty libs
 leak:thirdparty/protobuf
 leak:thirdparty/protobuf/protobuf
 leak:thirdparty/gtest
+leak:thirdparty/tbb
+leak:libtbb.so
