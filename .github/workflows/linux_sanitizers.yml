@@ -556,6 +556,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
+    needs: Build
     if: always()
     timeout-minutes: 60
     runs-on: 'aks-linux-16-cores-32gb'
