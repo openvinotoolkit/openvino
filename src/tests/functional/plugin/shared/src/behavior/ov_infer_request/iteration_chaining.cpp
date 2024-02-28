@@ -63,9 +63,6 @@ void OVIterationChaining::SetUp() {
     for (auto&& v : configuration) {
         params.emplace(v.first, v.second);
     }
-    if (target_device == "CPU") {
-        params.emplace(ov::hint::enable_cpu_pinning.name(), true);
-    }
     execNet = core->compile_model(function, target_device, params);
 
     try {

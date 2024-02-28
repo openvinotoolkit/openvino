@@ -92,9 +92,6 @@ std::shared_ptr<ov::Model> OVInferenceChaining::getThirdStaticFunction(const ov:
 
 void OVInferenceChaining::Run() {
     ov::CompiledModel execNet0, execNet1, execNet2;
-    if (target_device == "CPU") {
-        configuration.insert(ov::hint::enable_cpu_pinning(true));
-    }
     OV_ASSERT_NO_THROW(execNet0 = core->compile_model(function0, target_device, configuration));
     OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function1, target_device, configuration));
     OV_ASSERT_NO_THROW(execNet2 = core->compile_model(function2, target_device, configuration));

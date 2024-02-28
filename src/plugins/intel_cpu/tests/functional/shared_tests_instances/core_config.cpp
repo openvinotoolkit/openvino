@@ -17,6 +17,7 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
         // todo: issue: 123320
         test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
         test->convert_precisions.insert({ov::element::f16, ov::element::f32});
+        test->configuration.insert({ov::hint::enable_cpu_pinning.name(), true});
 }
 
 } // namespace test
