@@ -73,7 +73,7 @@
 
 ## Samples
 
-[Samples & notebooks of OpenVINO Node.js API](../../../../samples/js/node/README.md)
+[Samples of OpenVINO Node.js API](../../../../samples/js/node/README.md)
 
 ## See also
 
