@@ -51,7 +51,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{};
+        std::vector<ov::PropertyName> rw_properties{ov::enable_profiling};
         return rw_properties;
     };
     if (name == ov::supported_properties) {
@@ -61,6 +61,12 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         std::vector<ov::PropertyName> supported_properties;
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
+        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
+        return decltype(ov::supported_properties)::value_type(supported_properties);
+    } else if (name == ov::enable_profiling) {
+        auto rw_properties = default_rw_properties();
+
+        std::vector<ov::PropertyName> supported_properties;
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
     } else if (name == ov::hint::performance_mode) {
