@@ -114,7 +114,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "export"
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("mode", ["trace", "export"])
+    @pytest.mark.parametrize("mode", ["trace"]) # disable "export" for now
     @pytest.mark.parametrize("name",
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.nightly

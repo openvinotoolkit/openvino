@@ -90,7 +90,9 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     // Changed data type from unit type to output data type to fix the issue case that
     // the activation function makes cl kernel build error when the output data type
     // and unit type are different and activation param is existed
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType()));
+    bool convert_input_to_output_dt = (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
+    // If input is FP16 and output is FP32, convert input to float before running activation function.
+    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "", false, false, convert_input_to_output_dt));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
@@ -128,7 +130,7 @@ bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) c
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// MakeBaseParamsJitConstants
+// MakeFusedOpsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
                                                   const std::vector<FusedOpsConfiguration> &conf) const {
