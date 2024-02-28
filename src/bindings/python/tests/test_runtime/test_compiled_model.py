@@ -2,6 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import pytest
 import numpy as np
 
@@ -29,6 +30,10 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_model, Model)
 
 
+@pytest.mark.skipif(
+    condition=sys.version_info >= (3, 12),
+    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
+)
 def test_export_import(device):
     core = Core()
 
