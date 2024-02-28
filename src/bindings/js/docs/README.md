@@ -24,7 +24,7 @@
   ```bash
   mkdir build && cd build
   ```
-- Configure binaries building:
+- Configure building of the binaries:
   ```bash
   cmake \
     -DCMAKE_BUILD_TYPE=Release \
