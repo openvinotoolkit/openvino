@@ -16,6 +16,7 @@ class TestStringLower(CommonTFLayerTest):
         assert 'input:0' in inputs_info
         input_shape = inputs_info['input:0']
         inputs_data = {}
+        # TODO: add non ASCII symbols, fix comparator for output string tensors 
         strings_dictionary = ['UPPER CASE SENTENCE', 'lower case sentence', ' UppEr LoweR CAse SENtence', ' ']
         sample_data = rng.choice(strings_dictionary, input_shape)
         inputs_data['input:0'] = sample_data
