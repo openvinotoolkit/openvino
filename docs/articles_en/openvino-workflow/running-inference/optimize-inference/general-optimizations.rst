@@ -5,12 +5,12 @@ General Optimizations
 
 
 .. meta::
-   :description: General optimizations include application-level optimization 
-                 methods that improve data pipelining, pre-processing 
+   :description: General optimizations include application-level optimization
+                 methods that improve data pipelining, pre-processing
                  acceleration and both latency and throughput.
 
 
-This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on. 
+This article covers application-level optimization techniques, such as asynchronous execution, to improve data pipelining, pre-processing acceleration and so on.
 While the techniques (e.g. pre-processing) can be specific to end-user applications, the associated performance improvements are general and shall improve any target scenario -- both latency and throughput.
 
 .. _inputs_pre_processing:
@@ -62,7 +62,7 @@ Below are example-codes for the regular and async-based approaches to compare:
 
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.
-Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2023.3/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_sample_benchmark_tool>` for complete examples of the Async API in action.
+Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2024/omz_demos_object_detection_demo_cpp.html>`__ , `Object Detection Python Demo <https://docs.openvino.ai/2024/omz_demos_object_detection_demo_python.html>`__ (latency-oriented Async API showcase) and :doc:`Benchmark App Sample <openvino_sample_benchmark_tool>` for complete examples of the Async API in action.
 
 .. note::
 
@@ -71,7 +71,7 @@ Refer to the `Object Detection C++ Demo <https://docs.openvino.ai/2023.3/omz_dem
 Notes on Callbacks
 ++++++++++++++++++++
 
-Keep in mind that the ``ov::InferRequest::wait()`` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the ``ov::InferRequest::wait``. The most scalable approach is using callbacks (set via the ``ov::InferRequest::set_callback``) that are executed upon completion of the request. The callback functions will be used by OpenVINO Runtime to notify you of the results (or errors). 
+Keep in mind that the ``ov::InferRequest::wait()`` of the Async API waits for the specific request only. However, running multiple inference requests in parallel provides no guarantees on the completion order. This may complicate a possible logic based on the ``ov::InferRequest::wait``. The most scalable approach is using callbacks (set via the ``ov::InferRequest::set_callback``) that are executed upon completion of the request. The callback functions will be used by OpenVINO Runtime to notify you of the results (or errors).
 This is a more event-driven approach.
 
 A few important points on the callbacks:
@@ -84,7 +84,7 @@ A few important points on the callbacks:
 The "get_tensor" Idiom
 ######################
 
-Each device within OpenVINO may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code. 
+Each device within OpenVINO may have different internal requirements on the memory padding, alignment, etc., for intermediate tensors. The **input/output tensors** are also accessible by the application code.
 As every ``ov::InferRequest`` is created by the particular instance of the ``ov::CompiledModel`` (that is already device-specific) the requirements are respected and the input/output tensors of the requests are still device-friendly.
 To sum it up:
 

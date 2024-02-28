@@ -90,13 +90,13 @@ Prerequisites
 
     import sys
     from pathlib import Path
-    
+
     # clone Segmenter repo
     if not Path("segmenter").exists():
         !git clone https://github.com/rstrudel/segmenter
     else:
         print("Segmenter repo already cloned")
-    
+
     # include path to Segmenter repo to use its functions
     sys.path.append("./segmenter")
 
@@ -432,7 +432,7 @@ Resolving deltas: 100% (117/117), done.
 
     import numpy as np
     import yaml
-    
+
     # Fetch the notebook utils script from the openvino_notebooks repo
     import urllib.request
     urllib.request.urlretrieve(
@@ -453,13 +453,13 @@ config for our model.
     # here we use tiny model, there are also better but larger models available in repository
     WEIGHTS_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/segmenter/checkpoints/ade20k/seg_tiny_mask/checkpoint.pth"
     CONFIG_LINK = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/segmenter/checkpoints/ade20k/seg_tiny_mask/variant.yml"
-    
+
     MODEL_DIR = Path("model/")
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     download_file(WEIGHTS_LINK, directory=MODEL_DIR, show_progress=True)
     download_file(CONFIG_LINK, directory=MODEL_DIR, show_progress=True)
-    
+
     WEIGHT_PATH = MODEL_DIR / "checkpoint.pth"
     CONFIG_PATH = MODEL_DIR / "variant.yaml"
 
@@ -497,7 +497,7 @@ initialize the model.
 .. code:: ipython3
 
     from segmenter.segm.model.factory import load_model
-    
+
     pytorch_model, config = load_model(WEIGHT_PATH)
     # put model into eval mode, to set it for inference
     pytorch_model.eval()
@@ -560,12 +560,12 @@ normalized with given mean and standard deviation provided in
     from PIL import Image
     import torch
     import torchvision.transforms.functional as F
-    
-    
+
+
     def preprocess(im: Image, normalization: dict) -> torch.Tensor:
         """
         Preprocess image: scale, normalize and unsqueeze
-    
+
         :param im: input image
         :param normalization: dictionary containing normalization data from config file
         :return:
@@ -577,7 +577,7 @@ normalized with given mean and standard deviation provided in
         im = F.normalize(im, normalization["mean"], normalization["std"])
         # change dim from [C, H, W] to [1, C, H, W]
         im = im.unsqueeze(0)
-    
+
         return im
 
 Visualization
@@ -601,29 +601,29 @@ corresponding to the inferred labels.
 
     from segmenter.segm.data.utils import dataset_cat_description, seg_to_rgb
     from segmenter.segm.data.ade20k import ADE20K_CATS_PATH
-    
-    
+
+
     def apply_segmentation_mask(pil_im: Image, results: torch.Tensor) -> Image:
         """
         Combine segmentation masks with the image
-    
+
         :param pil_im: original input image
         :param results: tensor containing segmentation masks for each pixel
         :return:
                 pil_blend: image with colored segmentation masks overlay
         """
         cat_names, cat_colors = dataset_cat_description(ADE20K_CATS_PATH)
-    
+
         # 3D array, where each pixel has values for all classes, take index of max as label
         seg_map = results.argmax(0, keepdim=True)
         # transform label id to colors
         seg_rgb = seg_to_rgb(seg_map, cat_colors)
         seg_rgb = (255 * seg_rgb.cpu().numpy()).astype(np.uint8)
         pil_seg = Image.fromarray(seg_rgb[0])
-    
+
         # overlay segmentation mask over original image
         pil_blend = Image.blend(pil_im, pil_seg, 0.5).convert("RGB")
-    
+
         return pil_blend
 
 Validation of inference of original model
@@ -637,15 +637,15 @@ example image ``coco_hollywood.jpg``.
 .. code:: ipython3
 
     from segmenter.segm.model.utils import inference
-    
+
     # load image with PIL
     image = load_image("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg")
     # load_image reads the image in BGR format, [:,:,::-1] reshape transfroms it to RGB
     pil_image = Image.fromarray(image[:,:,::-1])
-    
+
     # preprocess image with normalization params loaded in previous steps
     image = preprocess(pil_image, normalization)
-    
+
     # inference function needs some meta parameters, where we specify that we don't flip images in inference mode
     im_meta = dict(flip=False)
     # perform inference with function from repository
@@ -665,7 +665,7 @@ previous steps.
 
     # combine segmentation mask with image
     blended_image = apply_segmentation_mask(pil_image, original_results)
-    
+
     # show image with segmentation mask overlay
     blended_image
 
@@ -712,15 +712,15 @@ they are not a problem.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     # get input sizes from config file
     batch_size = 2
     channels = 3
     image_size = config["dataset_kwargs"]["image_size"]
-    
+
     # make dummy input with correct shapes obtained from config file
     dummy_input = torch.randn(batch_size, channels, image_size, image_size)
-    
+
     model = ov.convert_model(pytorch_model, example_input=dummy_input, input=([batch_size, channels, image_size, image_size], ))
     # serialize model for saving IR
     ov.save_model(model, MODEL_DIR / "segmenter.xml")
@@ -763,7 +763,7 @@ any additional custom code required to process input.
     class SegmenterOV:
         """
         Class containing OpenVINO model with all attributes required to work with inference function.
-    
+
         :param model: compiled OpenVINO model
         :type model: CompiledModel
         :param output_blob: output blob used in inference
@@ -774,14 +774,14 @@ any additional custom code required to process input.
         :type n_cls: int
         :param normalization:
         :type normalization: dict
-    
+
         """
-    
+
         def __init__(self, model_path: Path, device:str = "CPU"):
             """
             Constructor method.
             Initializes OpenVINO model and sets all required attributes
-    
+
             :param model_path: path to model's .xml file, also containing variant.yml
             :param device: device string for selecting inference device
             """
@@ -791,23 +791,23 @@ any additional custom code required to process input.
             model_xml = core.read_model(model_path)
             self.model = core.compile_model(model_xml, device)
             self.output_blob = self.model.output(0)
-    
+
             # load model configs
             variant_path = Path(model_path).parent / "variant.yml"
             with open(variant_path, "r") as f:
                 self.config = yaml.load(f, Loader=yaml.FullLoader)
-    
+
             # load normalization specs from config
             normalization_name = self.config["dataset_kwargs"]["normalization"]
             self.normalization = STATS[normalization_name]
-    
+
             # load number of classes from config
             self.n_cls = self.config["net_kwargs"]["n_cls"]
-    
+
         def forward(self, data: torch.Tensor) -> torch.Tensor:
             """
             Perform inference on data and return the result in Tensor format
-    
+
             :param data: input data to model
             :return: data inferred by model
             """
@@ -826,7 +826,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -834,7 +834,7 @@ select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -866,7 +866,7 @@ select device from dropdown list for running inference using OpenVINO
 
     # combine segmentation mask with image
     converted_blend = apply_segmentation_mask(pil_image, results)
-    
+
     # show image with segmentation mask overlay
     converted_blend
 
@@ -885,7 +885,7 @@ Benchmarking performance of converted model
 
 
 Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the model.
 
    NOTE: For more accurate performance, it is recommended to run
@@ -928,12 +928,12 @@ to measure the inference performance of the model.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -985,7 +985,7 @@ to measure the inference performance of the model.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'im'!. This input will be filled with random values!
-    [ INFO ] Fill input 'im' with random values 
+    [ INFO ] Fill input 'im' with random values
 
 
 .. parsed-literal::

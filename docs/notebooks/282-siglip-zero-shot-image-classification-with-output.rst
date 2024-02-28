@@ -218,7 +218,7 @@ For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
 API. To convert the PyTorch model to OpenVINO IR format we will use
 ``ov.convert_model`` of `model conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 The ``ov.convert_model`` Python function returns an OpenVINO Model
 object ready to load on the device and start making predictions.
 

@@ -492,7 +492,7 @@ References
 -  `PIP install
    openvino-dev <https://github.com/openvinotoolkit/openvino/blob/releases/2023/2/docs/install_guides/pypi-openvino-dev.md>`__
 -  `Model Conversion
-   API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 -  `U^2-Net <https://github.com/xuebinqin/U-2-Net>`__
 -  U^2-Net research paper: `U^2-Net: Going Deeper with Nested
    U-Structure for Salient Object

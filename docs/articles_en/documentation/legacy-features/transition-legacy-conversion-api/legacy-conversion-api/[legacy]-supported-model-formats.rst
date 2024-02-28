@@ -555,7 +555,7 @@ to OpenVINO IR or ONNX before running inference should be considered the default
    OpenVINO versions of 2023 are mostly compatible with the old instructions,
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
 
-   `OpenVINO 2023.0 <https://docs.openvino.ai/2023.3/Supported_Model_Formats_MO_DG.html>`__ is the last
+   `OpenVINO 2023.0 <https://docs.openvino.ai/archive/2023.0/Supported_Model_Formats.html>`__ is the last
    release officially supporting the MO conversion process for the legacy formats.
 
 

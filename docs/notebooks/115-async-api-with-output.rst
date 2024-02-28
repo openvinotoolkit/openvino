@@ -69,14 +69,14 @@ Imports
     import openvino as ov
     from IPython import display
     import matplotlib.pyplot as plt
-    
+
     # Fetch the notebook utils script from the openvino_notebooks repo
     import urllib.request
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
-    
+
     import notebook_utils as utils
 
 Prepare model and data processing
@@ -98,7 +98,7 @@ each frame of the video.
 
     # directory where model will be downloaded
     base_model_dir = "model"
-    
+
     # model name as named in Open Model Zoo
     model_name = "person-detection-0202"
     precision = "FP16"
@@ -116,7 +116,7 @@ each frame of the video.
 .. parsed-literal::
 
     ################|| Downloading person-detection-0202 ||################
-    
+
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.xml
 
 
@@ -137,7 +137,7 @@ each frame of the video.
 ... 89%, 224 KB, 1678 KB/s, 0 seconds passed
 ... 100%, 248 KB, 1859 KB/s, 0 seconds passed
 
-    
+
     ========== Downloading model/intel/person-detection-0202/FP16/person-detection-0202.bin
 
 
@@ -315,7 +315,7 @@ each frame of the video.
 ... 99%, 3520 KB, 3392 KB/s, 1 seconds passed
 ... 100%, 3549 KB, 3419 KB/s, 1 seconds passed
 
-    
+
 
 
 Load the model
@@ -327,14 +327,14 @@ Load the model
 
     # initialize OpenVINO runtime
     core = ov.Core()
-    
+
     # read the network and corresponding weights from file
     model = core.read_model(model=model_path)
-    
+
     # compile the model for the CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO)
     compiled_model = core.compile_model(model=model, device_name="CPU")
-    
+
     # get input node
     input_layer_ir = model.input(0)
     N, C, H, W = input_layer_ir.shape
@@ -350,7 +350,7 @@ Create functions for data processing
     def preprocess(image):
         """
         Define the preprocess function for input data
-        
+
         :param: image: the orignal input frame
         :returns:
                 resized_image: the image processed
@@ -360,12 +360,12 @@ Create functions for data processing
         resized_image = resized_image.transpose((2, 0, 1))
         resized_image = np.expand_dims(resized_image, axis=0).astype(np.float32)
         return resized_image
-    
-    
+
+
     def postprocess(result, image, fps):
         """
         Define the postprocess function for output data
-        
+
         :param: result: the inference results
                 image: the orignal input frame
                 fps: average throughput calculated for each frame
@@ -381,7 +381,7 @@ Create functions for data processing
                 xmax = int(min((xmax * image.shape[1]), image.shape[1] - 10))
                 ymax = int(min((ymax * image.shape[0]), image.shape[0] - 10))
                 cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
-                cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3) 
+                cv2.putText(image, str(round(fps, 2)) + " fps", (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 3)
         return image
 
 Get the test video
@@ -432,7 +432,7 @@ immediately processed:
     def sync_api(source, flip, fps, use_popup, skip_first_frames):
         """
         Define the main function for video processing in sync mode
-        
+
         :param: source: the video path or the ID of your webcam
         :returns:
                 sync_fps: the inference throughput in sync mode
@@ -456,13 +456,13 @@ immediately processed:
                     break
                 resized_frame = preprocess(frame)
                 infer_request.set_tensor(input_layer_ir, ov.Tensor(resized_frame))
-                # Start the inference request in synchronous mode 
+                # Start the inference request in synchronous mode
                 infer_request.infer()
                 res = infer_request.get_output_tensor(0).data
                 stop_time = time.time()
                 total_time = stop_time - start_time
                 frame_number = frame_number + 1
-                sync_fps = frame_number / total_time 
+                sync_fps = frame_number / total_time
                 frame = postprocess(res, frame, sync_fps)
                 # Display the results
                 if use_popup:
@@ -478,7 +478,7 @@ immediately processed:
                     i = display.Image(data=encoded_img)
                     # Display the image in this notebook
                     display.clear_output(wait=True)
-                    display.display(i)         
+                    display.display(i)
         # ctrl-c
         except KeyboardInterrupt:
             print("Interrupted")
@@ -555,7 +555,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
     def async_api(source, flip, fps, use_popup, skip_first_frames):
         """
         Define the main function for video processing in async mode
-        
+
         :param: source: the video path or the ID of your webcam
         :returns:
                 async_fps: the inference throughput in async mode
@@ -597,7 +597,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 stop_time = time.time()
                 total_time = stop_time - start_time
                 frame_number = frame_number + 1
-                async_fps = frame_number / total_time  
+                async_fps = frame_number / total_time
                 frame = postprocess(res, frame, async_fps)
                 # Display the results
                 if use_popup:
@@ -617,7 +617,7 @@ pipeline (decoding vs inference) and not by the sum of the stages.
                 # Swap CURRENT and NEXT frames
                 frame = next_frame
                 # Swap CURRENT and NEXT infer requests
-                curr_request, next_request = next_request, curr_request         
+                curr_request, next_request = next_request, curr_request
         # ctrl-c
         except KeyboardInterrupt:
             print("Interrupted")
@@ -662,20 +662,20 @@ Compare the performance
 
     width = 0.4
     fontsize = 14
-    
+
     plt.rc('font', size=fontsize)
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-    
+
     rects1 = ax.bar([0], sync_fps, width, color='#557f2d')
     rects2 = ax.bar([width], async_fps, width)
     ax.set_ylabel("frames per second")
-    ax.set_xticks([0, width]) 
+    ax.set_xticks([0, width])
     ax.set_xticklabels(["Sync mode", "Async mode"])
     ax.set_xlabel("Higher is better")
-    
+
     fig.suptitle('Sync mode VS Async mode')
     fig.tight_layout()
-    
+
     plt.show()
 
 
@@ -689,7 +689,7 @@ Compare the performance
 
 
 Asynchronous mode pipelines can be supported with the
-`AsyncInferQueue <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Python_API_exclusives.html#asyncinferqueue>`__
+`AsyncInferQueue <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/python-api-exclusives.html#asyncinferqueue>`__
 wrapper class. This class automatically spawns the pool of
 ``InferRequest`` objects (also called “jobs”) and provides
 synchronization mechanisms to control the flow of the pipeline. It is a
@@ -711,7 +711,7 @@ the possibility of passing runtime values.
     def callback(infer_request, info) -> None:
         """
         Define the callback function for postprocessing
-        
+
         :param: infer_request: the infer_request object
                 info: a tuple includes original frame and starts time
         :returns:
@@ -725,7 +725,7 @@ the possibility of passing runtime values.
         total_time = stop_time - start_time
         frame_number = frame_number + 1
         inferqueue_fps = frame_number / total_time
-        
+
         res = infer_request.get_output_tensor(0).data[0]
         frame = postprocess(res, frame, inferqueue_fps)
         # Encode numpy array to jpg
@@ -741,7 +741,7 @@ the possibility of passing runtime values.
     def inferqueue(source, flip, fps, skip_first_frames) -> None:
         """
         Define the main function for video processing with async infer queue
-        
+
         :param: source: the video path or the ID of your webcam
         :retuns:
             None
@@ -763,7 +763,7 @@ the possibility of passing runtime values.
                     print("Source ended")
                     break
                 resized_frame = preprocess(frame)
-                # Start the inference request with async infer queue 
+                # Start the inference request with async infer queue
                 infer_queue.start_async({input_layer_ir.any_name: resized_frame}, (frame, start_time))
         except KeyboardInterrupt:
             print("Interrupted")
