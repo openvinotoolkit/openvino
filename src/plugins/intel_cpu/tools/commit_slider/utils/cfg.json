@@ -14,7 +14,8 @@
     "utilMap" : {
         "map_builder" : "printMap",
         "log_parser" : "logParser",
-        "break_validator": "breakValidator"
+        "break_validator": "breakValidator",
+        "e2e_preparator": "printMap"
     },
     "extendBuildCommand" : false,
     "commandList" : [

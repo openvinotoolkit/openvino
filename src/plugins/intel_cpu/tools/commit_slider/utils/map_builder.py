@@ -14,7 +14,8 @@ def buildMap(commonPath, subPath=None):
         curPath = path.join(precomPath, item)
         if (subPath is not None and subPath):
             curPath = path.join(curPath, subPath)
-        map[item] = curPath
+        if path.exists(curPath):
+            map[item] = curPath
     return json.dumps(map)
 
 
