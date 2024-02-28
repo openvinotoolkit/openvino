@@ -11,11 +11,7 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
-#include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/multiply_to_group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
@@ -46,7 +42,7 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
 
     init_input_shapes(shape);
 
-    function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
         param.fqOnData,

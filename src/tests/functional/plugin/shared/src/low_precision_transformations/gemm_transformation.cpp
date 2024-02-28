@@ -11,10 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ov_models/builders.hpp"
 
 #include "ov_lpt_models/mat_mul.hpp"
 
@@ -31,8 +27,6 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
 }
 
 void GemmTransformation::SetUp() {
-    abs_threshold = 17;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -43,7 +37,7 @@ void GemmTransformation::SetUp() {
     const float low = 0.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 0.f : -128.f;
     const float high = 255.f; // params.precisionsOnActivations[0] == ov::element::u8 ? 255.f : 127.f;
 
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+    function = ov::builder::subgraph::MatMulFunction::getOriginal(
         netPrecision,
         inputShape,
         low,

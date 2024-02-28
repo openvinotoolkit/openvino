@@ -21,6 +21,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Unknown issues
             R"(.*(LSTMSequence).*mode=.*_RAND_SEQ_LEN_CONST.*)",
             R"(.*(smoke_DetectionOutput5In).*)",
+
+
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
             // TODO: Issue: 54194
@@ -35,12 +37,14 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
+            // Issue: 122177
+            R"(.*LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
             R"(LSTMSequenceCommonZeroClipNonConstantWRB/LSTMSequenceTest.Inference/mode=PURE_SEQ_seq_lengths=2_batch=10_hidden_size=1_.*relu.*)",
             // Expected behavior. GPU plugin doesn't support i64 for eltwise power operation.
-            R"(.*EltwiseLayerTest.*OpType=Pow.*NetType=i64.*)",
+            R"(.*EltwiseLayerTest.*eltwise_op_type=Pow.*model_type=i64.*)",
             // TODO: Issue: 68712
             R"(.*.MatMul.*CompareWithRefs.*IS0=\(1.5\)_IS1=\(1.5\).*transpose_a=0.*transpose_b=1.*CONSTANT.*FP16.*UNSPECIFIED.*UNSPECIFIED.*ANY.*)",
             // Unsupported
@@ -56,14 +60,8 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 90539
             R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
-            // Issue: 124060
-            R"(.*smoke_GridSample/GridSampleLayerTest.Inference/.*model_type=f16.*)",
             // Issue: 119648
             R"(.*smoke_LPT/InterpolateTransformation.*)",
-            // Issue: 128924
-            R"(.*OVClassModelTestP/OVClassModelTestP.ImportModelWithNullContextThrows.*)",
-            // Issue: 129802
-            R"(.*smoke_OVClassBasicTestP/OVClassBasicTestP.registerExistingPluginThrows.*)",
 #if defined(_WIN32)
             R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif

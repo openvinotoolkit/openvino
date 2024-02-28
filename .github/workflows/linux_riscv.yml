@@ -5,6 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -63,8 +64,11 @@ jobs:
       CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
@@ -216,7 +220,7 @@ jobs:
       - name: Check status of all jobs
         if: >-
           ${{
-            contains(needs.*.result, 'failure') || 
+            contains(needs.*.result, 'failure') ||
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1

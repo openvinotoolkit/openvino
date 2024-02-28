@@ -46,7 +46,7 @@ CountNonzeroKernelRef::DispatchData CountNonzeroKernelRef::SetDefault(const coun
     return dispatchData;
 }
 
-DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey CountNonzeroKernelRef::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -65,14 +65,14 @@ void CountNonzeroKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::COUNT_NONZERO);
 
     KernelData kd = KernelData::Default<count_nonzero_params>(params);
     count_nonzero_params& newParams = *static_cast<count_nonzero_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = MakeBaseParamsJitConstants(newParams);
     if (newParams.has_dynamic_tensors()) {
         const auto& input = newParams.inputs[0];
@@ -102,17 +102,17 @@ KernelsData CountNonzeroKernelRef::GetKernelsData(const Params& params, const op
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.inputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority CountNonzeroKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority CountNonzeroKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool CountNonzeroKernelRef::Validate(const Params& p, const optional_params& op) const {
-    if (!KernelBaseOpenCL::Validate(p, op))
+bool CountNonzeroKernelRef::Validate(const Params& p) const {
+    if (!KernelBaseOpenCL::Validate(p))
         return false;
 
     const auto& rp = static_cast<const count_nonzero_params&>(p);

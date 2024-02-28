@@ -455,6 +455,8 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
     S = statesCount(cell_type);
     SC = rnnCellBase->get_hidden_size();
     N = {getInputShapeAtPort(0).getMinDims()[0], getInputShapeAtPort(0).getMaxDims()[0]};
+    if (!is_cell)
+        N_SEQ = {getInputShapeAtPort(sIdx).getMinDims()[0], getInputShapeAtPort(sIdx).getMaxDims()[0]};
 
     const auto& rtInfo = op->get_rt_info();
 
@@ -627,9 +629,11 @@ void RNN::fillCellDesc() {
         inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, inDataTypes[cIdx], memory::format_tag::nc));
         outCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(shapeS, outDataTypes[coIdx], memory::format_tag::nc));
     }
-
+    // The weight and weights_iter would expose nc layout to avoid unnecessary reorder.
+    // The onednn would determine the final layout when prepareParams.
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::nc));
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::nc));
+
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::x));
 
     if (haveAttention(cell_type)) {
@@ -694,7 +698,7 @@ void RNN::fillSequenceDesc() {
     const Shape shapeNDSC {{N.minVal, D, SC}, {N.maxVal, D, SC}};
     Shape shapeNTSC {{N.minVal, T.minVal, SC}, {N.maxVal, T.maxVal, SC}};
     const Shape shapeNTDC {{N.minVal, T.minVal, DC}, {N.maxVal, T.maxVal, DC}};
-    const Shape TShape {VectorDims{N.minVal}, VectorDims{N.maxVal}};
+    const Shape TShape {VectorDims{N_SEQ.minVal}, VectorDims{N_SEQ.maxVal}};
     const Shape WShape {D, G * SC, DC};
     const Shape RShape {D, G * SC, SC};
     const Shape BShape {D, Gb * SC};
@@ -732,8 +736,11 @@ void RNN::fillSequenceDesc() {
     }
 
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(TShape, inDataTypes[sIdx], memory::format_tag::x)); // sequence lengths
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::ntc)); // W
-    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::ntc)); // R
+    // The weight and weights_iter would expose tnc layout to avoid unnecessary reorder.
+    // The onednn would determine the final layout when prepareParams.
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(WShape, inDataTypes[wIdx], memory::format_tag::tnc)); // W
+    inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(RShape, inDataTypes[rIdx], memory::format_tag::tnc)); // R
+
     inCandidate.emplace_back(std::make_shared<DnnlBlockedMemoryDesc>(BShape, inDataTypes[bIdx], memory::format_tag::nc)); // B
 
     if (haveAttention(cell_type)) {
@@ -769,10 +776,10 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
     const size_t ie_w_vec_size = getInputShapeAtPort(wIdx).getElementsCount();
     const size_t ie_r_vec_size = getInputShapeAtPort(rIdx).getElementsCount();
 
-    auto *wInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(wIdx)[0]->getParent().get());
+    auto *wInputNode = dynamic_cast<Input *>(getParentEdgeAt(wIdx)->getParent().get());
     auto wConstBlob = wInputNode->getMemoryPtr();
 
-    auto *rInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(rIdx)[0]->getParent().get());
+    auto *rInputNode = dynamic_cast<Input *>(getParentEdgeAt(rIdx)->getParent().get());
     auto rConstBlob = rInputNode->getMemoryPtr();
 
     std::vector<Prec> ie_w_vec(ie_w_vec_size), ie_r_vec(ie_r_vec_size);
@@ -823,7 +830,7 @@ void RNN::fillBiases(const int *gate_map) {
     if (b_ptr == nullptr)
         OPENVINO_THROW("NotAllocated: Internal blob was not allocated for node ", getName(), ".");
 
-    auto *constInputNode = dynamic_cast<Input *>(getParentEdgesAtPort(bIdx)[0]->getParent().get());
+    auto *constInputNode = dynamic_cast<Input *>(getParentEdgeAt(bIdx)->getParent().get());
     auto constBlob = constInputNode->getMemoryPtr();
     auto const elementsCount = constBlob->getSize() / constBlob->getDesc().getPrecision().size();
 
@@ -845,7 +852,7 @@ void RNN::fillBiases(const int *gate_map) {
 
 void RNN::copyWeightsData() {
     /* Copy Weight data
-     * IE format:
+     * OV format:
      *   W - [gates, out_state_size, in_data_size]
      *   R - [gates, out_state_size, in_state_size]
      *   B - [gates, out_state_size]
@@ -858,10 +865,10 @@ void RNN::copyWeightsData() {
      *   Gate order
      *   ====== LSTM ======
      *   Caffe - IFOC, ONNX   - IOFC
-     *   IE    - FICO, onednn - IFCO
+     *   OV    - FICO, onednn - IFCO
      *
      *   ====== GRU ======
-     *   IE - URO, onednn - URO
+     *   OV - URO, onednn - URO
      */
     const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
     const int gate_map_gru[]  = {0, 1, 2, 3};
@@ -901,9 +908,6 @@ void RNN::copyWeightsData() {
     if (one_of(dataType, memory::data_type::bf16, memory::data_type::f16)) {
         fillWeights<uint16_t>(gate_map, wIdx, rIdx);
     } else if (dataType == memory::data_type::f32) {
-        // WA To avoid different weights layer and iter formats in FP32 case
-        if (T.minVal > 1 || N.maxVal < optimalBatchSize)
-            wFormat = dnnl::memory::format_tag::ldigo;
         fillWeights<float>(gate_map, wIdx, rIdx);
     } else if (dataType == memory::data_type::u8 || dataType == memory::data_type::s8) {
         fillWeights<int8_t>(gate_map, wIdx, rIdx);
@@ -1042,9 +1046,11 @@ void RNN::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
            since internalBlobs are used for the execution, not the initial weights */
         const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
         auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, wFormat);
+        //onednn determines the preferred weight layout.
+        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, memory::format_tag::any);
         auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, wFormat);
+        //onednn determines the preferred weights_iter layout.
+        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, memory::format_tag::any);
         auto biasDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, Gb, SC });
         wDescs[2] = dnnl::memory::desc(biasDims, inDataTypes[bIdx], memory::format_tag::ldgo);
 
@@ -1093,15 +1099,15 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
 
 void RNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
-        auto memPtr = getParentEdgesAtPort(i).front()->getMemoryPtr();
+        auto memPtr = getSrcMemoryAtPort(i);
         if (!memPtr || !memPtr->isAllocated())
             THROW_ERROR("has uninitialized memory at port ", i);
     }
-    if ((is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[1]) ||
-        (!is_cell && DC != getParentEdgesAtPort(0)[0]->getMemory().getDesc().getShape().getStaticDims()[2]))
+    if ((is_cell && DC != getParentEdgeAt(0)->getMemory().getDesc().getShape().getStaticDims()[1]) ||
+        (!is_cell && DC != getParentEdgeAt(0)->getMemory().getDesc().getShape().getStaticDims()[2]))
             THROW_ERROR("has incorrect input size value in the first input.");
 
-    auto dataMemPtr = getParentEdgesAtPort(0).front()->getMemoryPtr();
+    auto dataMemPtr = getSrcMemoryAtPort(0);
     const size_t B = dataMemPtr->getShape().getStaticDims()[0];
     const size_t SL = is_cell ? 1lu : dataMemPtr->getShape().getStaticDims()[1];
     const Shape shapeS_4D{L, D, B, SC};
@@ -1117,27 +1123,6 @@ void RNN::prepareParams() {
         outDataDescs[2] = std::make_shared<DnnlBlockedMemoryDesc>(shapeS_4D, outDataTypes[coIdx], memory::format_tag::ldnc);
     } else if (haveAttention(cell_type)) {
         inDataDescs[2] = std::make_shared<DnnlBlockedMemoryDesc>(Shape{SL, B, 1}, inDataTypes[aIdx], memory::format_tag::tnc);
-    }
-
-    bool wFormatWasChanged = false;
-    // WA To avoid different weights layer and iter formats in FP32 case.
-    if (one_of(inDataTypes[xIdx], memory::data_type::f32) &&
-        (SL != 1 || B < optimalBatchSize)) {
-        if (wFormat != dnnl::memory::format_tag::ldigo) {
-            wFormat = dnnl::memory::format_tag::ldigo;
-            wFormatWasChanged = true;
-        }
-    } else if (wFormat != dnnl::memory::format_tag::any) {
-        wFormat = dnnl::memory::format_tag::any;
-        wFormatWasChanged = true;
-    }
-
-    if (wFormatWasChanged) {
-        auto weightsDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, DC, G, SC });
-        const auto& targetWeightDataType = weightsByinputDataType.at(inDataTypes[xIdx]);
-        wDescs[0] = dnnl::memory::desc(weightsDims, targetWeightDataType, wFormat);
-        auto statesDims = DnnlExtensionUtils::convertToDnnlDims(VectorDims{ L, D, SC, G, SC });
-        wDescs[1] = dnnl::memory::desc(statesDims, targetWeightDataType, wFormat);
     }
 
     const auto attr = initPrimitiveAttr();
@@ -1202,8 +1187,8 @@ void RNN::execute(dnnl::stream strm) {
     if (!execPtr)
         THROW_ERROR("does not have initialized primitive to execute.");
 
-    const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
-    const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
+    const auto src_data_mem = getSrcMemoryAtPort(0);
+    const auto dst_data_mem = getDstMemoryAtPort(0);
 
     auto args = primArgs;
 
@@ -1213,22 +1198,22 @@ void RNN::execute(dnnl::stream strm) {
     int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
     int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
     for (size_t s = 0; s < S; s++) {
-        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->getPrimitive();
+        args[state_i_tags[s]] = getSrcMemoryAtPort(s+1)->getPrimitive();
     }
     if (is_augru) {
         const auto atten_port = is_cell ? 5 : 6;
-        args[DNNL_ARG_AUGRU_ATTENTION] = getParentEdgeAt(atten_port)->getMemoryPtr()->getPrimitive();
+        args[DNNL_ARG_AUGRU_ATTENTION] = getSrcMemoryAtPort(atten_port)->getPrimitive();
     }
 
     if (is_cell) {
         for (size_t s = 0; s < S; s++) {
-            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->getPrimitive();
+            args[state_o_tags[s]] = getDstMemoryAtPort(s)->getPrimitive();
         }
     } else {
         size_t n_ports_with_init_states = outputShapes.size() - 1; // first is a sequence data
         for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
             if (s < outputShapes.size()) {
-                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->getPrimitive();
+                args[state_o_tags[s]] = getDstMemoryAtPort(s+1)->getPrimitive();
             }
         }
     }

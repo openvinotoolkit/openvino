@@ -4,10 +4,12 @@
 #include <gtest/gtest.h>
 
 #include "dummy_node.hpp"
+#include "graph.h"
 #include "nodes/input.h"
 #include "nodes/concat.h"
-
-#include "ov_models/builders.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 using namespace ov::intel_cpu;
 

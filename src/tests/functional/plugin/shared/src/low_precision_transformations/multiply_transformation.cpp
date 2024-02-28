@@ -11,7 +11,6 @@
 #include "transformations/init_node_info.hpp"
 
 #include "ov_lpt_models/multiply_partial_function.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -50,8 +49,6 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void MultiplyTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type precision;
     ov::PartialShape inputShape;
     MultiplyTestValues param;
@@ -78,7 +75,7 @@ void MultiplyTransformation::SetUp() {
             std::vector<ov::PartialShape>{ inputShape1 } :
             std::vector<ov::PartialShape>{ inputShape1, inputShape2 });
 
-    function = ngraph::builder::subgraph::MultiplyPartialFunction::get(
+    function = ov::builder::subgraph::MultiplyPartialFunction::get(
         precision,
         inputShape,
         param.broadcast1,

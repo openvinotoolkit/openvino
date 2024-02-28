@@ -11,10 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ov_models/pass/convert_prc.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -35,9 +31,6 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
 }
 
 void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -46,7 +39,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         netPrecision,
         inputShape,
         testValues.fqOnData,

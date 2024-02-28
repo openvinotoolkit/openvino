@@ -11,10 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ov_models/pass/convert_prc.hpp"
 #include "ov_lpt_models/group_convolution.hpp"
 
 namespace LayerTestsDefinitions {
@@ -43,9 +39,6 @@ std::string GroupConvolutionTransformation::getTestCaseName(const testing::TestP
 }
 
 void GroupConvolutionTransformation::SetUp() {
-    rel_threshold = 0.1;
-    abs_threshold = 0.1;
-
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::pair<ov::PartialShape, ov::Shape> inputShapes;
@@ -58,7 +51,7 @@ void GroupConvolutionTransformation::SetUp() {
     while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
         param.fakeQuantizeOnData.constantShape.pop_back();
     }
-    function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
+    function = ov::builder::subgraph::GroupConvolutionFunction::getOriginal(
         netPrecision,
         inputShapes.first,
         inputShapes.second,

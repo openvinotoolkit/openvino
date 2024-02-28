@@ -4,10 +4,10 @@
 
 #include "shared_test_classes/subgraph/get_output_before_activation.hpp"
 
-#include "ov_models/builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 namespace ov {
 namespace test {
@@ -59,36 +59,29 @@ void OutputBeforeActivation::SetUp() {
     auto input0 = input_parameter[0];
     auto input1 = input_parameter[1];
 
-    ngraph::OutputVector outputs;
-    std::shared_ptr<ngraph::Node> midLayer;
+    ov::OutputVector outputs;
+    std::shared_ptr<ov::Node> midLayer;
     switch (outputType) {
     case ov::test::midOutputType::Sum: {
-        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::ADD);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ov::test::utils::EltwiseTypes::ADD);
         break;
     }
     case ov::test::midOutputType::Sub: {
-        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::SUBTRACT);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ov::test::utils::EltwiseTypes::SUBTRACT);
         break;
     }
     case ov::test::midOutputType::Mul: {
-        midLayer = ov::test::utils::make_eltwise(input0, input1, ngraph::helpers::EltwiseTypes::MULTIPLY);
+        midLayer = ov::test::utils::make_eltwise(input0, input1, ov::test::utils::EltwiseTypes::MULTIPLY);
         break;
     }
     default:
         GTEST_FAIL() << "Unknown midOutputType";
     }
 
-    auto act = ov::test::utils::make_activation(midLayer, element_type, ngraph::helpers::ActivationTypes::Tanh);
+    auto act = ov::test::utils::make_activation(midLayer, element_type, ov::test::utils::ActivationTypes::Tanh);
     outputs.insert(outputs.end(), {midLayer, act});
-    function = std::make_shared<ngraph::Function>(outputs, input_parameter, "output_before_activation");
+    function = std::make_shared<ov::Model>(outputs, input_parameter, "output_before_activation");
 }
-
-// void OutputBeforeActivation::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-//     ov::test::SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
-// }
-// InferenceEngine::Blob::Ptr OutputBeforeActivation::GenerateInput(const InferenceEngine::InputInfo& info) const {
-//     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, -1, 100);
-// }
 
 }  // namespace test
 }  // namespace ov

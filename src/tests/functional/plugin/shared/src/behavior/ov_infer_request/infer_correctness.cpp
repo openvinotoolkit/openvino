@@ -8,15 +8,21 @@
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
-std::shared_ptr<ngraph::Function> GetDefaultGraph() {
+std::shared_ptr<ov::Model> GetDefaultGraph() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 224, 224});
     size_t spatialDims = 2;
     std::vector<ptrdiff_t> padBegin(spatialDims, 0), padEnd(spatialDims, 0);
-    ngraph::Shape strides(spatialDims, 1);
+    ov::Shape strides(spatialDims, 1);
     auto weights = ov::test::utils::deprecated::make_constant<float>(ov::element::f32, {64, 3, 7, 7}, {},
             true);
     auto conv1 = std::make_shared<ov::op::v1::Convolution>(input, weights, strides,
@@ -34,8 +40,8 @@ std::shared_ptr<ngraph::Function> GetDefaultGraph() {
     auto relu1 = std::make_shared<ov::op::v0::Relu>(batchNorm1);
     auto pool = std::make_shared<ov::op::v1::AvgPool>(relu1, strides, ov::Shape{1, 1},
             ov::Shape{1, 1}, ov::Shape{4, 4}, true);
-    return std::make_shared<ngraph::Function>(ngraph::OutputVector{pool},
-            ngraph::ParameterVector{input},
+    return std::make_shared<ov::Model>(ov::OutputVector{pool},
+            ov::ParameterVector{input},
             "autoSampleGraph");
 }
 
@@ -117,7 +123,7 @@ bool OVInferConsistencyTest::IsEqual(std::vector<ov::Tensor>& a,
         }
         try {
             // if not equal will throw exception
-            LayerTestsUtils::LayerTestsCommon::Compare(
+            ov::test::utils::compare_raw_data(
                 a[j].data<float>(), b[j].data<float>(), a[j].get_size(), 1e-2f);
         } catch (...) {
             isEqual = false;

@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API SoftSignDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftSignDecomposition transformation replaces SoftSign with the following graph
  *
  *       Input ---> Abs

@@ -9,7 +9,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,7 +20,7 @@ std::shared_ptr<ov::Model> GatherFunction::getOriginal(
     const std::vector<int>& axis,
     const int64_t batch_dims,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
@@ -89,9 +89,9 @@ std::shared_ptr<ov::Model> GatherFunction::getReference(
     const std::vector<int>& axis,
     const int64_t batch_dims,
     const ov::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ov::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const int opset_version) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -130,4 +130,4 @@ std::shared_ptr<ov::Model> GatherFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

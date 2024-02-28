@@ -1,11 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "preprocess/resize_algorithm.hpp"
+#include "node/include/preprocess/resize_algorithm.hpp"
 
-#include <typeinfo>
-
-#include "openvino/runtime/core.hpp"
+#include <array>
 
 Napi::Value enumResizeAlgorithm(const Napi::CallbackInfo& info) {
     auto enumObj = Napi::Object::New(info.Env());

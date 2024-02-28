@@ -37,7 +37,8 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get Books <#get-books>`__
 -  `Clean Text <#clean-text>`__
@@ -57,7 +58,7 @@ Prerequisites
 
 .. code:: ipython3
 
-    !pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
 
 Get Books
 ---------
@@ -111,7 +112,7 @@ Let’s check that we got the right books by showing a part of the texts:
 
 .. parsed-literal::
 
-    ﻿The Project Gutenberg eBook of Anna Karenina
+    The Project Gutenberg eBook of Anna Karenina
 
     This ebook is for the use of anyone anywhere in the United States and
     most other parts of the world at no cost and with almost no restrictions
@@ -474,7 +475,7 @@ Optimize the Model with OpenVINO
 
 
 The LaBSE model is quite large and can be slow to infer on some
-hardware, so let’s optimize it with OpenVINO. `Model conversion Python
+hardware, so let’s optimize it with OpenVINO. `Model Conversion
 API <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
@@ -856,7 +857,7 @@ OpenVINO, you need to compile the model after reading it. There are two
 main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
 device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Working_with_devices.html>`__,
-like CPU, GPU. Each device may work with different data types,
+like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
 to store multiple copies of the network with optimized for different
@@ -933,7 +934,7 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   Note: To get a more accurate benchmark, use the `Benchmark Python
+   **NOTE**: To get a more accurate benchmark, use the `Benchmark Python
    Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
 
 .. code:: ipython3

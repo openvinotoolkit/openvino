@@ -4,14 +4,11 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 ///
@@ -19,15 +16,12 @@ namespace set_1 {
 ///
 /// \param[in]  node  The ONNX node representing this operation.
 ///
-/// \return     Ngraph node representing this operation.
+/// \return     OV node representing this operation.
 ///
-OutputVector reshape(const Node& node);
+ov::OutputVector reshape(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

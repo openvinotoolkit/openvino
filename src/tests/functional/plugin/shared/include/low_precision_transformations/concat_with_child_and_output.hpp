@@ -13,8 +13,8 @@
 namespace LayerTestsDefinitions {
 class ConcatWithChildAndOutputTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
 typedef std::tuple<

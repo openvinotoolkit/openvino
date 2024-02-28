@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestInv(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], x_shape).astype(np.float32)
+        inputs_data['x:0'] = np.random.choice([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], x_shape).astype(np.float32)
 
         return inputs_data
 
@@ -38,7 +38,7 @@ class TestInv(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_inv_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                         use_new_frontend):
+                                         use_legacy_frontend):
         self._test(*self.create_inv_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

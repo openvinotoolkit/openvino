@@ -10,7 +10,7 @@
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -184,6 +184,14 @@ std::vector<FunctionParameter> OVHeteroSyntheticTest::randomMajorNodeFunctions(
     return results;
 }
 
+std::vector<FunctionParameter> OVHeteroSyntheticTest::withMajorNodesFunctions(const std::function<std::shared_ptr<ov::Model>()>& builder,
+                                                                              const std::unordered_set<std::string>& majorNodes,
+                                                                              bool dynamic_batch) {
+    auto function = builder();
+    std::vector<FunctionParameter> result;
+    result.push_back(FunctionParameter{majorNodes, function, dynamic_batch, 0});
+    return result;
+}
 
 std::vector<FunctionParameter> OVHeteroSyntheticTest::_singleMajorNodeFunctions
     = OVHeteroSyntheticTest::singleMajorNodeFunctions(builders);

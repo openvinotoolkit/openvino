@@ -18,7 +18,7 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const t
     ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = obj.param;
 
     std::ostringstream result;
@@ -27,16 +27,15 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(const t
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
-    abs_threshold = 1.8;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
+    function = ov::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
         netPrecision,
         inputShape,
         fakeQuantizeOnData);

@@ -9,19 +9,19 @@ import subprocess  # nosec
 import typing
 import platform
 import re
+import shutil
 import multiprocessing
+import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
 from shutil import copyfile, rmtree
-from setuptools import setup, find_namespace_packages, Extension
+from setuptools import setup, find_namespace_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from setuptools.command.install import install
-from distutils.command.build import build
-from distutils.command.clean import clean
-from distutils.errors import DistutilsSetupError
-from distutils.file_util import copy_file
-from distutils import log
+from setuptools.command.build import build
+from setuptools.errors import SetupError
+
 
 WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
 WHEEL_LIBS_PACKAGE = "openvino.libs"
@@ -81,6 +81,13 @@ LIB_INSTALL_CFG = {
     "cpu_plugin": {
         "name": "cpu",
         "prefix": f"{BUILD_BASE}/libs.cpu",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "npu_plugin": {
+        "name": "npu",
+        "prefix": f"{BUILD_BASE}/libs.npu",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -197,7 +204,7 @@ class PrebuiltExtension(Extension):
     def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
             nln = "\n"
-            raise DistutilsSetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
+            raise SetupError(f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}")
         super().__init__(name, sources, *args, **kwargs)
         self._needs_stub = False
 
@@ -419,6 +426,16 @@ class PrepareLibs(build_clib):
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
 
+def copy_file(src, dst, verbose=False, dry_run=False):
+    """Custom file copy."""
+    if dry_run:
+        log.info(f"DRY RUN: Would copy '{src}' to '{dst}'")
+    else:
+        shutil.copyfile(src, dst)
+        if verbose:
+            log.info(f"Copied '{src}' to '{dst}'")
+
+
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
     def run(self):
@@ -427,7 +444,7 @@ class CopyExt(build_ext):
 
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
-                raise DistutilsSetupError(f"build_ext can accept PrebuiltExtension only, but got {extension.name}")
+                raise SetupError(f"build_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -448,8 +465,16 @@ class CustomInstall(install):
         install.run(self)
 
 
-class CustomClean(clean):
+class CustomClean(Command):
     """Clean up staging directories."""
+
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
 
     def clean_install_prefix(self, install_cfg):
         for comp, comp_data in install_cfg.items():
@@ -461,7 +486,6 @@ class CustomClean(clean):
     def run(self):
         self.clean_install_prefix(LIB_INSTALL_CFG)
         self.clean_install_prefix(PY_INSTALL_CFG)
-        clean.run(self)
 
 
 def ignore_patterns(*patterns):
@@ -509,7 +533,7 @@ def set_rpath(rpath, binary):
     if sys.platform == "linux":
         with open(os.path.realpath(binary), "rb") as file:
             if file.read(1) != b"\x7f":
-                log.warn(f"WARNING: {binary}: missed ELF header")
+                log.warning(f"WARNING: {binary}: missed ELF header")
                 return
         rpath_tool = "patchelf"
         cmd = [rpath_tool, "--set-rpath", rpath, binary, "--force-rpath"]

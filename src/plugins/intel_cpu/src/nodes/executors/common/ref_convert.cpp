@@ -13,9 +13,12 @@ bool ov::intel_cpu::CommonConvertExecutor::init(const ov::intel_cpu::ConvertPara
     return true;
 }
 
-void ov::intel_cpu::CommonConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
-    cpu_convert(src->getData(),
-                dst->getData(),
+void ov::intel_cpu::CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
+    assert(src.size() == 1);
+    assert(dst.size() == 1);
+
+    cpu_convert(src[0]->getData(),
+                dst[0]->getData(),
                 commonConvertParams.srcPrc,
                 commonConvertParams.origPrc,
                 commonConvertParams.dstPrc,

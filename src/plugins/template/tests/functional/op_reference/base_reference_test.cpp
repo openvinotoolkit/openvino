@@ -5,11 +5,13 @@
 
 #include <gtest/gtest.h>
 
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -38,6 +40,9 @@ void CommonReferenceTest::FillInputs() {
 
     for (size_t i = 0; i < functionParams.size(); i++) {
         const auto& param = functionParams[i];
+        if (param->get_element_type() == ov::element::string) {
+            continue;
+        }
 
         ov::Tensor blob;
         if (param->get_partial_shape().is_static()) {
@@ -92,126 +97,127 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
     const auto& element_type = refBlob.get_element_type();
     switch (element_type) {
     case ov::element::bf16:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::bfloat16, ov::bfloat16>(refBlob.data<const ov::bfloat16>(),
-                                                                               outBlob.data<const ov::bfloat16>(),
-                                                                               actual_comparision_size,
-                                                                               threshold,
-                                                                               abs_threshold);
+        ov::test::utils::compare_raw_data<ov::bfloat16, ov::bfloat16>(refBlob.data<const ov::bfloat16>(),
+                                                                      outBlob.data<const ov::bfloat16>(),
+                                                                      actual_comparision_size,
+                                                                      threshold,
+                                                                      abs_threshold);
         break;
     case ov::element::f16:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::float16, ov::float16>(refBlob.data<const ov::float16>(),
-                                                                             outBlob.data<const ov::float16>(),
-                                                                             actual_comparision_size,
-                                                                             threshold,
-                                                                             abs_threshold);
+        ov::test::utils::compare_raw_data<ov::float16, ov::float16>(refBlob.data<const ov::float16>(),
+                                                                    outBlob.data<const ov::float16>(),
+                                                                    actual_comparision_size,
+                                                                    threshold,
+                                                                    abs_threshold);
         break;
     case ov::element::f8e4m3:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::float8_e4m3, ov::float8_e4m3>(
-            refBlob.data<const ov::float8_e4m3>(),
-            outBlob.data<const ov::float8_e4m3>(),
-            actual_comparision_size,
-            threshold,
-            abs_threshold);
+        ov::test::utils::compare_raw_data<ov::float8_e4m3, ov::float8_e4m3>(refBlob.data<const ov::float8_e4m3>(),
+                                                                            outBlob.data<const ov::float8_e4m3>(),
+                                                                            actual_comparision_size,
+                                                                            threshold,
+                                                                            abs_threshold);
         break;
     case ov::element::f8e5m2:
-        LayerTestsUtils::LayerTestsCommon::Compare<ov::float8_e5m2, ov::float8_e5m2>(
-            refBlob.data<const ov::float8_e5m2>(),
-            outBlob.data<const ov::float8_e5m2>(),
-            actual_comparision_size,
-            threshold,
-            abs_threshold);
+        ov::test::utils::compare_raw_data<ov::float8_e5m2, ov::float8_e5m2>(refBlob.data<const ov::float8_e5m2>(),
+                                                                            outBlob.data<const ov::float8_e5m2>(),
+                                                                            actual_comparision_size,
+                                                                            threshold,
+                                                                            abs_threshold);
         break;
     case ov::element::f32:
-        LayerTestsUtils::LayerTestsCommon::Compare<float, float>(refBlob.data<const float>(),
-                                                                 outBlob.data<const float>(),
-                                                                 actual_comparision_size,
-                                                                 threshold,
-                                                                 abs_threshold);
+        ov::test::utils::compare_raw_data<float, float>(refBlob.data<const float>(),
+                                                        outBlob.data<const float>(),
+                                                        actual_comparision_size,
+                                                        threshold,
+                                                        abs_threshold);
         break;
     case ov::element::f64:
-        LayerTestsUtils::LayerTestsCommon::Compare<double, double>(refBlob.data<const double>(),
-                                                                   outBlob.data<const double>(),
-                                                                   actual_comparision_size,
-                                                                   threshold,
-                                                                   abs_threshold);
+        ov::test::utils::compare_raw_data<double, double>(refBlob.data<const double>(),
+                                                          outBlob.data<const double>(),
+                                                          actual_comparision_size,
+                                                          threshold,
+                                                          abs_threshold);
         break;
     case ov::element::i8:
-        LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(refBlob.data<const int8_t>(),
-                                                                   outBlob.data<const int8_t>(),
-                                                                   actual_comparision_size,
-                                                                   threshold,
-                                                                   abs_threshold);
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(refBlob.data<const int8_t>(),
+                                                          outBlob.data<const int8_t>(),
+                                                          actual_comparision_size,
+                                                          threshold,
+                                                          abs_threshold);
         break;
     case ov::element::i16:
-        LayerTestsUtils::LayerTestsCommon::Compare<int16_t, int16_t>(refBlob.data<const int16_t>(),
-                                                                     outBlob.data<const int16_t>(),
-                                                                     actual_comparision_size,
-                                                                     threshold,
-                                                                     abs_threshold);
+        ov::test::utils::compare_raw_data<int16_t, int16_t>(refBlob.data<const int16_t>(),
+                                                            outBlob.data<const int16_t>(),
+                                                            actual_comparision_size,
+                                                            threshold,
+                                                            abs_threshold);
         break;
     case ov::element::i32:
-        LayerTestsUtils::LayerTestsCommon::Compare<int32_t, int32_t>(refBlob.data<const int32_t>(),
-                                                                     outBlob.data<const int32_t>(),
-                                                                     actual_comparision_size,
-                                                                     threshold,
-                                                                     abs_threshold);
+        ov::test::utils::compare_raw_data<int32_t, int32_t>(refBlob.data<const int32_t>(),
+                                                            outBlob.data<const int32_t>(),
+                                                            actual_comparision_size,
+                                                            threshold,
+                                                            abs_threshold);
         break;
     case ov::element::i64:
-        LayerTestsUtils::LayerTestsCommon::Compare<int64_t, int64_t>(refBlob.data<const int64_t>(),
-                                                                     outBlob.data<const int64_t>(),
-                                                                     actual_comparision_size,
-                                                                     threshold,
-                                                                     abs_threshold);
+        ov::test::utils::compare_raw_data<int64_t, int64_t>(refBlob.data<const int64_t>(),
+                                                            outBlob.data<const int64_t>(),
+                                                            actual_comparision_size,
+                                                            threshold,
+                                                            abs_threshold);
         break;
     case ov::element::boolean:
-        LayerTestsUtils::LayerTestsCommon::Compare<bool, bool>(refBlob.data<const bool>(),
-                                                               outBlob.data<const bool>(),
-                                                               actual_comparision_size,
-                                                               threshold,
-                                                               abs_threshold);
+        ov::test::utils::compare_raw_data<bool, bool>(refBlob.data<const bool>(),
+                                                      outBlob.data<const bool>(),
+                                                      actual_comparision_size,
+                                                      threshold,
+                                                      abs_threshold);
         break;
     case ov::element::u8:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint8_t, uint8_t>(refBlob.data<const uint8_t>(),
-                                                                     outBlob.data<const uint8_t>(),
-                                                                     actual_comparision_size,
-                                                                     threshold,
-                                                                     abs_threshold);
+        ov::test::utils::compare_raw_data<uint8_t, uint8_t>(refBlob.data<const uint8_t>(),
+                                                            outBlob.data<const uint8_t>(),
+                                                            actual_comparision_size,
+                                                            threshold,
+                                                            abs_threshold);
         break;
     case ov::element::u16:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint16_t, uint16_t>(refBlob.data<const uint16_t>(),
-                                                                       outBlob.data<const uint16_t>(),
-                                                                       actual_comparision_size,
-                                                                       threshold,
-                                                                       abs_threshold);
+        ov::test::utils::compare_raw_data<uint16_t, uint16_t>(refBlob.data<const uint16_t>(),
+                                                              outBlob.data<const uint16_t>(),
+                                                              actual_comparision_size,
+                                                              threshold,
+                                                              abs_threshold);
         break;
     case ov::element::u32:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint32_t, uint32_t>(refBlob.data<const uint32_t>(),
-                                                                       outBlob.data<const uint32_t>(),
-                                                                       actual_comparision_size,
-                                                                       threshold,
-                                                                       abs_threshold);
+        ov::test::utils::compare_raw_data<uint32_t, uint32_t>(refBlob.data<const uint32_t>(),
+                                                              outBlob.data<const uint32_t>(),
+                                                              actual_comparision_size,
+                                                              threshold,
+                                                              abs_threshold);
         break;
     case ov::element::u64:
-        LayerTestsUtils::LayerTestsCommon::Compare<uint64_t, uint64_t>(refBlob.data<const uint64_t>(),
-                                                                       outBlob.data<const uint64_t>(),
-                                                                       actual_comparision_size,
-                                                                       threshold,
-                                                                       abs_threshold);
+        ov::test::utils::compare_raw_data<uint64_t, uint64_t>(refBlob.data<const uint64_t>(),
+                                                              outBlob.data<const uint64_t>(),
+                                                              actual_comparision_size,
+                                                              threshold,
+                                                              abs_threshold);
         break;
     case ov::element::i4:
     case ov::element::u4:
-        LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
-                                                                   static_cast<const int8_t*>(outBlob.data()),
-                                                                   actual_comparision_size / 2,
-                                                                   threshold,
-                                                                   abs_threshold);
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 2,
+                                                          threshold,
+                                                          abs_threshold);
         break;
     case ov::element::u1:
-        LayerTestsUtils::LayerTestsCommon::Compare<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
-                                                                   static_cast<const int8_t*>(outBlob.data()),
-                                                                   actual_comparision_size / 8,
-                                                                   threshold,
-                                                                   abs_threshold);
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 8,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
+    case ov::element::string:
+        ov::test::utils::compare_str(refBlob, outBlob);
         break;
     default:
         FAIL() << "Comparator for " << element_type << " element type isn't supported";

@@ -267,8 +267,8 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
     return dispatchData;
 }
 
-bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) return false;
+bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) return false;
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
@@ -308,7 +308,7 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
     return true;
 }
 
-KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/, const optional_params& /*options*/) const {
+KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/) const {
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 

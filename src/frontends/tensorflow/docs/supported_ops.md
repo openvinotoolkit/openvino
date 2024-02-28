@@ -1,4 +1,4 @@
-# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend 
+# TensorFlow Operations Supported by OpenVINO TensorFlow Frontend
 
 Here is a table of operations supported by the TensorFlow Frontend from [tf.raw_ops](https://www.tensorflow.org/api_docs/python/tf/raw_ops).
 A "supported operation" is one that TensorFlow Frontend can convert to the OpenVINO representation.
@@ -67,12 +67,12 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AssertCardinalityDataset                                | NO                            |                               |
 | AssertNextDataset                                       | NO                            |                               |
 | AssertPrevDataset                                       | NO                            |                               |
-| Assign                                                  | YES                           |                               |
-| AssignAdd                                               | NO                            |                               |
-| AssignAddVariableOp                                     | NO                            |                               |
-| AssignSub                                               | NO                            |                               |
-| AssignSubVariableOp                                     | NO                            |                               |
-| AssignVariableOp                                        | YES                           |                               |
+| Assign<sup><mark style="background-color: #00FF00">NEW</mark></sup>              | YES                           |                               |
+| AssignAdd<sup><mark style="background-color: #00FF00">NEW</mark></sup>           | YES                           |                               |
+| AssignAddVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AssignSub<sup><mark style="background-color: #00FF00">NEW</mark></sup>           | YES                           |                               |
+| AssignSubVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AssignVariableOp<sup><mark style="background-color: #00FF00">NEW</mark></sup>    | YES                           |                               |
 | AssignVariableXlaConcatND                               | NO                            |                               |
 | Atan                                                    | YES                           |                               |
 | Atan2                                                   | YES                           |                               |
@@ -232,7 +232,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ConditionalAccumulator                                  | NO                            |                               |
 | ConfigureDistributedTPU                                 | NO                            |                               |
 | ConfigureTPUEmbedding                                   | NO                            |                               |
-| Conj                                                    | NO                            |                               |
+| Conj<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | ConjugateTranspose                                      | YES                           |                               |
 | Const                                                   | YES                           |                               |
 | ConsumeMutexLock                                        | NO                            |                               |
@@ -342,7 +342,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | DirectedInterleaveDataset                               | NO                            |                               |
 | DisableCopyOnRead                                       | NO                            |                               |
 | DistributedSave                                         | NO                            |                               |
-| Div                                                     | YES                           |                               |
+| Div<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | DivNoNan                                                | YES                           |                               |
 | DrawBoundingBoxes                                       | NO                            |                               |
 | DrawBoundingBoxesV2                                     | NO                            |                               |
@@ -594,12 +594,12 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | LogicalOr                                               | YES                           |                               |
 | LookupTableExport                                       | NO                            |                               |
 | LookupTableExportV2                                     | NO                            |                               |
-| LookupTableFind                                         | NO                            |                               |
-| LookupTableFindV2                                       | NO                            |                               |
-| LookupTableImport                                       | NO                            |                               |
-| LookupTableImportV2                                     | NO                            |                               |
-| LookupTableInsert                                       | YES                           |                               |
-| LookupTableInsertV2                                     | YES                           |                               |
+| LookupTableFind<sup><mark style="background-color: #00FF00">NEW</mark></sup>     | YES                           |                               |
+| LookupTableFindV2<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableImport<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableImportV2<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| LookupTableInsert<sup><mark style="background-color: #00FF00">NEW</mark></sup>   | YES                           |                               |
+| LookupTableInsertV2<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | LookupTableRemoveV2                                     | NO                            |                               |
 | LookupTableSize                                         | NO                            |                               |
 | LookupTableSizeV2                                       | NO                            |                               |
@@ -620,7 +620,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatMul                                                  | YES                           |                               |
 | MatchingFiles                                           | NO                            |                               |
 | MatchingFilesDataset                                    | NO                            |                               |
-| MatrixBandPart                                          | NO                            |                               |
+| MatrixBandPart                                          | YES                            |                               |
 | MatrixDeterminant                                       | NO                            |                               |
 | MatrixDiag                                              | YES                           |                               |
 | MatrixDiagPart                                          | NO                            |                               |

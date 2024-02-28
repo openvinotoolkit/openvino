@@ -9,11 +9,11 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestOnesLike(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['x'] = rng.integers(-10, 10, x_shape).astype(self.x_type)
+        inputs_data['x:0'] = rng.integers(-10, 10, x_shape).astype(self.x_type)
         return inputs_data
 
     def create_ones_like_net(self, x_shape, x_type):
@@ -39,7 +39,7 @@ class TestOnesLike(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_ones_like(self, params, ie_device, precision, ir_version, temp_dir,
-                       use_new_frontend):
+                       use_legacy_frontend):
         self._test(*self.create_ones_like_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

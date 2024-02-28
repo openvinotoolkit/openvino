@@ -37,9 +37,20 @@ std::vector<layout> lstm_elt_inst::calc_output_layouts(lstm_elt_node const& node
     OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_elt_node!");
     OPENVINO_ASSERT(input_pshape.rank().get_length() == 2, "input_layout rank should be 2 on dynamic shape.");
 
-    auto lstm_input_size = static_cast<cldnn::tensor::value_type>(input_pshape[1].get_length());
-    auto lstm_batch_size = static_cast<cldnn::tensor::value_type>(input_pshape[0].get_length());
-    auto lstm_hidden_size = static_cast<cldnn::tensor::value_type>(lstm_input_size / 4);
+    int lstm_input_size, lstm_batch_size, lstm_hidden_size;
+    if (input_pshape[input_pshape.size() - 1].is_static()) {
+        lstm_input_size = input_pshape[input_pshape.size() - 1].get_length();
+        lstm_hidden_size = lstm_input_size / 4;
+    } else {
+        lstm_input_size = -1;
+        lstm_hidden_size = -1;
+    }
+
+    if (input_pshape[input_pshape.size() - 2].is_static()) {
+        lstm_batch_size = input_pshape[input_pshape.size() - 2].get_length();
+    } else {
+        lstm_batch_size = -1;
+    }
 
     return {cldnn::layout{ov::PartialShape{lstm_batch_size, 2, 1, lstm_hidden_size}, input_layout.data_type, input_layout.format}};
 }
@@ -62,7 +73,7 @@ std::string lstm_elt_inst::to_string(lstm_elt_node const& node) {
 }
 
 lstm_elt_inst::typed_primitive_inst(network& network, lstm_elt_node const& node) : parent(network, node) {
-    auto input_size = node.input().get_output_layout();
+    auto input_size = node.get_input_layout();
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "input format",
                                   input_size.format.value,

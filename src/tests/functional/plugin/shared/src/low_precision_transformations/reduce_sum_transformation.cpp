@@ -30,8 +30,6 @@ std::string ReduceSumTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceSumTransformation::SetUp() {
-    abs_threshold = 4.1;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -40,11 +38,11 @@ void ReduceSumTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    ngraph::builder::subgraph::DequantizationOperations::Convert convert;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convert;
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 
-    function = ngraph::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceSum>(
+    function = ov::builder::subgraph::ReduceFunction::get<ov::op::v1::ReduceSum>(
         netPrecision,
         inputShape,
         param.fakeQuantize,

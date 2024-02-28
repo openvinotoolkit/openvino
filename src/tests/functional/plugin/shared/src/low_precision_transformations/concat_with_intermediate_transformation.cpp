@@ -10,7 +10,6 @@
 #include <string>
 
 #include "transformations/init_node_info.hpp"
-#include "ov_models/builders.hpp"
 #include "ov_lpt_models/concat.hpp"
 
 namespace LayerTestsDefinitions {
@@ -43,8 +42,6 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type ngPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;
@@ -63,7 +60,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
 
     init_input_shapes({ inputShape1, inputShape });
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
         ngPrecision,
         inputShape,
         transparentIntermediate,

@@ -4,44 +4,38 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 ///
-/// \brief Convert ONNX MaxPool operation to an nGraph node.
+/// \brief Convert ONNX MaxPool operation to an OV node.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
+/// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
-OutputVector max_pool(const Node& node);
+ov::OutputVector max_pool(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
 namespace set_8 {
 ///
-/// \brief Convert ONNX MaxPool operation to an nGraph node.
+/// \brief Convert ONNX MaxPool operation to an OV node.
 ///
 /// \param node   The ONNX node object representing this operation.
 ///
-/// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
+/// \return The vector containing OV nodes producing output of ONNX MaxPool
 ///         operation.
 ///
-OutputVector max_pool(const Node& node);
+ov::OutputVector max_pool(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_8
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

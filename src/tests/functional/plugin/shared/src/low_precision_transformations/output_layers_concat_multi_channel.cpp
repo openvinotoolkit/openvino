@@ -11,13 +11,8 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-#include "ov_models/pass/convert_prc.hpp"
-#include "ov_models/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -54,8 +49,6 @@ std::string OutputLayersConcatMultiChannel::getTestCaseName(
 */
 
 void OutputLayersConcatMultiChannel::SetUp() {
-    rel_threshold = 0.05;
-
     ov::Shape inputShape1;
     ov::element::Type ngPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;

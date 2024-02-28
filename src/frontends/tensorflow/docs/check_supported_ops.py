@@ -5,6 +5,7 @@ import os
 import re
 import sys
 
+not_supported_ops_with_translators = ["WriteFile"]
 
 def run_in_ci():
     if "CI" in os.environ and os.environ["CI"].lower() == "true":
@@ -39,7 +40,8 @@ with open(op_table_src, 'rt') as f:
         match = re.match(pattern, line)
         if match:
             op = line[2:-1]
-            supported_ops.append(op)
+            if op not in not_supported_ops_with_translators:
+                supported_ops.append(op)
 
 # parse a document of supported operations
 documented_ops = {}
@@ -53,6 +55,8 @@ with open(supported_ops_doc, 'rt') as f:
         if table_line > 2 and is_table_line:
             # skip a table header
             documented_op = line.split('|')[1].strip()
+            # remove NEW mark
+            documented_op = documented_op.replace('<sup><mark style="background-color: #00FF00">NEW</mark></sup>', '')
             is_supported = False
             if line.split('|')[2].strip() == 'YES':
                 is_supported = True

@@ -15,7 +15,6 @@
 
 #include "low_precision/layer_transformation.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace LayerTestsUtils {
 
@@ -52,6 +51,10 @@ protected:
 
     // get runtime precision by operation friendly name which can be fused
     std::string get_runtime_precision_by_fused_name(const std::string& layerName);
+
+    // check operation sequence in an execution graph and orderedOpsTypes
+    // orderedOpsTypes can consist only necessary operations (fewer than exist in the execution graph)
+    bool check_execution_order(const std::vector<std::string>& orderedOpsTypes);
 
     std::map<std::string, ov::Node::RTMap> get_runtime_info();
 

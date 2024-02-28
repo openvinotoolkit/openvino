@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <random>
+
 #include "reduction.hpp"
 
 using namespace ov;

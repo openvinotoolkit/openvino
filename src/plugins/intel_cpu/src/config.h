@@ -15,7 +15,6 @@
 #include <bitset>
 #include <map>
 #include <mutex>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -56,6 +55,8 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
+    uint64_t fcDynamicQuantizationGroupSize = 0;
+    ov::element::Type kvCachePrecision = ov::element::f16;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
 #else
@@ -63,7 +64,13 @@ struct Config {
     size_t rtCacheCapacity = 0ul;
 #endif
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
+    int streams = 1;
+    bool streamsChanged = false;
+    int threads = 0;
+    int threadsPerStream = 0;
+    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    bool changedHintPerfMode = false;
     ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
@@ -95,8 +102,6 @@ struct Config {
     void updateProperties();
 
     std::map<std::string, std::string> _config;
-
-    bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;

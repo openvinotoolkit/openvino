@@ -14,7 +14,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using ov::op::v0::Concat;
 using ov::op::v1::Add;

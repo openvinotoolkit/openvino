@@ -129,6 +129,7 @@ TF_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 TFL_FE:
   revalidate:
@@ -143,6 +144,7 @@ PyTorch_FE:
   build:
     - CPU
     - Python_API
+    - TOKENIZERS
 
 C_API:
   build:
@@ -223,5 +225,9 @@ NVIDIA:
   build: []
 
 ONNX_RT:
+  revalidate: []
+  build: []
+
+TOKENIZERS:
   revalidate: []
   build: []

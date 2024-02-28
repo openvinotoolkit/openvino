@@ -20,6 +20,7 @@
 #include "concatenation_inst.h"
 #include "gather_inst.h"
 #include "permute_inst.h"
+#include "strided_slice_inst.h"
 
 #include <vector>
 #include <list>
@@ -84,20 +85,20 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
-            !((impl_param.is_type<concatenation>() || impl_param.is_type<gather>() || impl_param.is_type<permute>()) && impl_param.is_dynamic())) {
+            !((impl_param.is_type<concatenation>() ||
+               impl_param.is_type<gather>() ||
+               impl_param.is_type<permute>() ||
+               impl_param.is_type<strided_slice>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
-        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
-        kernel_params.first.set_dynamic_shape_offsets();
+        kernel_params.is_shape_agnostic = impl_param.is_dynamic();
+        kernel_params.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
         return make_unique<ImplType>(best_kernel);
     }
-
-private:
-    using primitive_impl::get_arguments;
 
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
@@ -228,22 +229,6 @@ protected:
         }
     }
 
-    kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        if (_kernels.size()) {
-            auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[0].params.scalars;
-
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
-
-            return args;
-        }
-
-        kernel_arguments_data args;
-        return args;
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
@@ -259,8 +244,6 @@ protected:
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
-            std::vector<event::ptr> new_events;
-
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
@@ -280,10 +263,10 @@ protected:
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            new_events.push_back(ev);
+            if (_kernel_data.needs_sub_kernels_sync) {
+                tmp_events = {ev};
+            }
             all_events.push_back(ev);
-
-            tmp_events = new_events;
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))

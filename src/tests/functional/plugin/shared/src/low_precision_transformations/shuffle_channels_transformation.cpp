@@ -11,8 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ov_lpt_models/shuffle_channels.hpp"
 
 namespace LayerTestsDefinitions {
@@ -32,7 +30,6 @@ std::string ShuffleChannelsTransformation::getTestCaseName(const testing::TestPa
 }
 
 void ShuffleChannelsTransformation::SetUp() {
-    abs_threshold = 1.0;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
@@ -41,7 +38,7 @@ void ShuffleChannelsTransformation::SetUp() {
 
     init_input_shapes(inputShape);
 
-    function = ngraph::builder::subgraph::ShuffleChannelsFunction::getOriginal(
+    function = ov::builder::subgraph::ShuffleChannelsFunction::getOriginal(
         netPrecision,
         inputShape,
         param.fakeQuantizeOnData,

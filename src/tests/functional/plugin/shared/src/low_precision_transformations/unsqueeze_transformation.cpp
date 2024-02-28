@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>
@@ -14,7 +13,6 @@
 #include "transformations/init_node_info.hpp"
 #include "low_precision_transformations/unsqueeze_transformation.hpp"
 #include "ov_lpt_models/unsqueeze.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -48,8 +46,6 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
     return result.str();
 }
 void UnsqueezeTransformation::SetUp() {
-    abs_threshold = 1.0;
-    rel_threshold = 31.0;
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam unsqueezeParam;
@@ -58,7 +54,7 @@ void UnsqueezeTransformation::SetUp() {
 
     init_input_shapes(unsqueezeParam.shape);
 
-    function = ngraph::builder::subgraph::UnsqueezeFunction::getOriginal(
+    function = ov::builder::subgraph::UnsqueezeFunction::getOriginal(
         netPrecision,
         unsqueezeParam.shape,
         unsqueezeParam.fakeQuantize,
