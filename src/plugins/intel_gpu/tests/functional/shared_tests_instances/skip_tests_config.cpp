@@ -37,8 +37,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*Behavior.*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
             // Not implemented yet:
             R"(.*Behavior.*ExecutableNetworkBaseTest.*canSetConfigToExecNet.*)",
-            // Issue: 122177
-            R"(.*LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
             // TODO: Issue 67408
             R"(.*smoke_LSTMSequenceCommonClip.*LSTMSequenceTest.*Inference.*)",
             // TODO: Issue 114262
@@ -62,9 +60,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 119648
             R"(.*smoke_LPT/InterpolateTransformation.*)",
-#if defined(_WIN32)
-            R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
-#endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // unsupported metrics
             R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
