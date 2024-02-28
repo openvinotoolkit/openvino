@@ -43,7 +43,10 @@
   `cmake --build . --config Release --verbose -j4`
 - Install binaries for openvino-node package:
   `cmake --install .`
-- Go to npm package folder `cd ../src/bindings/js/node`
+- Navigate to the *npm* package folder:
+   ```bash
+   cd ../src/bindings/js/node
+   ```
 - Now you can install dependencies packages and transpile ts to js code. Run `npm install`
 - Run tests `npm run test` to make sure that **openvino-node** built successfully
 
