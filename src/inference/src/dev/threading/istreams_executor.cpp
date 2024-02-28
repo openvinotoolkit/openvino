@@ -172,48 +172,16 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     return streamConfig;
 }
 
-void IStreamsExecutor::Config::reserve_cpu_threads() {
-    int status = _name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
-
-    if (_streams_info_table.size() == 0 || (status == CPU_USED && !_cpu_reservation)) {
-        return;
-    }
-
-    reserve_available_cpus(_streams_info_table, _stream_processor_ids, status);
-}
-
-IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const IStreamsExecutor::Config& initial) {
-    auto config = initial;
-    int status = config._name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
-
-    if (config._streams_info_table.size() == 0 || (status == CPU_USED && !config._cpu_reservation)) {
-        return config;
-    }
-
-    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, status);
-
-    config._streams = 0;
-    config._threads = 0;
-    for (size_t i = 0; i < config._streams_info_table.size(); i++) {
-        if (config._streams_info_table[i][NUMBER_OF_STREAMS] > 0) {
-            config._streams += config._streams_info_table[i][NUMBER_OF_STREAMS];
-            config._threads +=
-                config._streams_info_table[i][NUMBER_OF_STREAMS] * config._streams_info_table[i][THREADS_PER_STREAM];
-        }
-    }
-    config._threads_per_stream = config._streams_info_table[0][THREADS_PER_STREAM];
-    OPENVINO_DEBUG << "[ threading ] " << config._name << " reserve_cpu_threads " << config._streams << "("
-                   << config._threads << ")";
-
-    return config;
-}
-
 void IStreamsExecutor::Config::update_executor_config() {
     const auto proc_type_table = get_proc_type_table();
     bool streams_info_available = false;
 
     if (proc_type_table.empty()) {
         return;
+    }
+
+    if (_cpu_reservation && !_cpu_pinning) {
+        _cpu_pinning = true;
     }
 
     if (!_streams_info_table.empty()) {
@@ -314,8 +282,8 @@ void IStreamsExecutor::Config::update_executor_config() {
         }
     }
 
-    if (_cpu_reservation) {
-        reserve_cpu_threads();
+    if (_cpu_pinning) {
+        reserve_available_cpus(_streams_info_table, _stream_processor_ids, _cpu_reservation ? CPU_USED : NOT_USED);
     }
 
     // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
@@ -361,7 +329,7 @@ void IStreamsExecutor::Config::set_config_zero_stream() {
         socket_id = std::max(0, proc_type_table[0][PROC_SOCKET_ID]);
     }
     _streams_info_table.push_back({1, core_type, 1, numa_id, socket_id});
-    _cpu_reservation = false;
+    _cpu_pinning = false;
 }
 
 }  // namespace threading

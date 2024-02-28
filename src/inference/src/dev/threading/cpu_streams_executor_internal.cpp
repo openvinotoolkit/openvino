@@ -14,7 +14,7 @@ namespace ov {
 namespace threading {
 
 void get_cur_stream_info(const int stream_id,
-                         const bool cpu_reservation,
+                         const bool cpu_pinning,
                          const std::vector<std::vector<int>> proc_type_table,
                          const std::vector<std::vector<int>> streams_info_table,
                          StreamCreateType& stream_type,
@@ -24,7 +24,7 @@ void get_cur_stream_info(const int stream_id,
                          int& max_threads_per_core) {
     int stream_total = 0;
     size_t stream_info_id = 0;
-    bool cpu_reserve = cpu_reservation;
+    bool pinning = cpu_pinning;
     bool ecore_used = false;
     for (size_t i = 0; i < streams_info_table.size(); i++) {
         stream_total += streams_info_table[i][NUMBER_OF_STREAMS];
@@ -54,13 +54,13 @@ void get_cur_stream_info(const int stream_id,
     }
 
 #if defined(__APPLE__)
-    cpu_reserve = false;
+    pinning = false;
 #elif defined(_WIN32)
     if (proc_type_table.size() > 1) {
-        cpu_reserve = false;
+        pinning = false;
     }
 #endif
-    if (cpu_reserve) {
+    if (pinning) {
         stream_type = STREAM_WITH_OBSERVE;
     } else {
         stream_type = STREAM_WITHOUT_PARAM;

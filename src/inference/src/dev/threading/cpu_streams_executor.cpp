@@ -71,7 +71,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif OV_THREAD == OV_THREAD_OMP
             omp_set_num_threads(_impl->_config.get_threads_per_stream());
-            if (!check_open_mp_env_vars(false) && _impl->_config.get_cpu_reservation()) {
+            if (!check_open_mp_env_vars(false) && _impl->_config.get_cpu_pinning()) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
@@ -88,7 +88,7 @@ struct CPUStreamsExecutor::Impl {
             if (get_num_numa_nodes() > 1) {
                 pin_current_thread_to_socket(_numaNodeId);
             } else if (proc_type_table.size() == 1 && proc_type_table[EFFICIENT_CORE_PROC] == 0 &&
-                       _impl->_config.get_cpu_reservation()) {
+                       _impl->_config.get_cpu_pinning()) {
                 CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
@@ -169,7 +169,7 @@ struct CPUStreamsExecutor::Impl {
             int streams_num = _impl->_config.get_streams();
             const auto stream_id = streams_num == 0 ? 0 : _streamId % streams_num;
             get_cur_stream_info(stream_id,
-                                _impl->_config.get_cpu_reservation(),
+                                _impl->_config.get_cpu_pinning(),
                                 org_proc_type_table,
                                 _impl->_config.get_streams_info_table(),
                                 stream_type,

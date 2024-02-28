@@ -45,10 +45,11 @@ public:
                                                        test_data._num_streams,
                                                        test_data._threads_per_stream,
                                                        test_data._core_type,
+                                                       false,
                                                        test_data._cpu_pinning,
                                                        test_data._streams_info_table_in};
 
-        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_reservation());
+        ASSERT_EQ(test_data._cpu_pinning, config.get_cpu_pinning());
         ASSERT_EQ(test_data._streams_info_table, config.get_streams_info_table());
         ASSERT_EQ(test_data._stream_processors, config.get_stream_processor_ids());
     }

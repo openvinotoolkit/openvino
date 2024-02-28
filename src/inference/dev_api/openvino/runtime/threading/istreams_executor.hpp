@@ -69,15 +69,11 @@ public:
             ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
                                                      //!< ANY_CORE is valid in all machines. Core type priority:
                                                      //!< physical PCore, ECore, logical PCore
-        bool _cpu_reservation = false;
+        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
+                                        //!< If it is true, cpu_pinning defaults to true.
+        bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
-
-        /**
-         * @brief Get and reserve cpu ids based on configuration and hardware information,
-         *        streams_info_table must be present in the configuration
-         */
-        void reserve_cpu_threads();
 
          /**
          * @brief Modify _streams_info_table and related configuration according to configuration
@@ -99,6 +95,7 @@ public:
          * @param[in]  threads_per_stream           @copybrief Config::_threads_per_stream
          * @param[in]  thread_preferred_core_type   @copybrief Config::_thread_preferred_core_type
          * @param[in]  cpu_reservation              @copybrief Config::_cpu_reservation
+         * @param[in]  cpu_pinning                  @copybrief Config::_cpu_pinning
          * @param[in]  streams_info_table           @copybrief Config::_streams_info_table
          */
         Config(std::string name = "StreamsExecutor",
@@ -106,12 +103,14 @@ public:
                int threads_per_stream = 0,
                ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
                bool cpu_reservation = false,
+               bool cpu_pinning = false,
                std::vector<std::vector<int>> streams_info_table = {})
             : _name{name},
               _streams{streams},
               _threads_per_stream{threads_per_stream},
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
+              _cpu_pinning{cpu_pinning},
               _streams_info_table{streams_info_table} {
             update_executor_config();
         }
@@ -153,6 +152,9 @@ public:
         bool get_cpu_reservation() const {
             return _cpu_reservation;
         }
+        bool get_cpu_pinning() const {
+            return _cpu_pinning;
+        }
         std::vector<std::vector<int>> get_streams_info_table() const {
             return _streams_info_table;
         }
@@ -184,15 +186,6 @@ public:
         static Config make_default_multi_threaded(const Config& initial);
 
         static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
-
-        /**
-         * @brief Get and reserve cpu ids based on configuration and hardware information
-         *        streams_info_table must be present in the configuration
-         * @param initial Inital configuration
-         * @return configured values
-         */
-        // It will be removed when other plugins will no longer call it.
-        static Config reserve_cpu_threads(const Config& initial);
     };
 
     /**
