@@ -61,10 +61,12 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
+      CCACHE_SHARE_DIR: /mount/caches/ccache/ubuntu22_riscv64
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 50G
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
+      CCACHE_DIR: /__w/openvino/ccache
+
+      if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
       - name: Set apt retries
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
@@ -162,6 +164,10 @@ jobs:
       #
       # Build
       #
+      - name: Restore cache
+        run: |
+          CACHE_ARCHIVE=$(find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
+          [ ! -z "$CACHE_ARCHIVE" ] && tar -xzf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
 
       - name: CMake - Configure
         run: |
@@ -210,6 +216,12 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+
+      - name: Save cache
+        run: |
+          pushd ${CCACHE_DIR}
+            tar -czvf ${CCACHE_SHARE_DIR}/ccache_riscv64_$(date '+%Y%m%d%S').tar.gz *
+          popd
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
