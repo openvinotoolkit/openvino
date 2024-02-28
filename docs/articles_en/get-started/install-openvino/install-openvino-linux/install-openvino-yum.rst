@@ -144,11 +144,11 @@ Run the following command:
 
 .. note::
 
-   You can additionally install Python API using one of the alternative methods (:doc:`conda <../install-openvino-shared/install-openvino-conda>` or :doc:`pip <../install-openvino-shared/install-openvino-pip>`).
+   You can additionally install Python API using one of the alternative methods (:doc:`conda <../install-openvino-conda>` or :doc:`pip <../install-openvino-pip>`).
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../../configurations-header>`
+:doc:`list of additional configurations <../../configurations>`
 to see if your case needs any of them.
 
 With the YUM distribution, you can build OpenVINO sample files, as explained in the

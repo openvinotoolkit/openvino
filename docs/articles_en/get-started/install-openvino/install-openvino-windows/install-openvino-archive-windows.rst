@@ -133,7 +133,7 @@ Step 1: Download and Install OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../../configurations-header>`
+:doc:`list of additional configurations <../../configurations>`
 to see if your case needs any of them.
 
 The ``C:\Program Files (x86)\Intel\openvino_2023`` folder now contains the core components for OpenVINO.
@@ -247,7 +247,7 @@ Use either of the following methods to delete the files:
 Additional Resources
 ####################
 
-* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../../install-openvino-overview>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../../install-openvino>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
 * Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
