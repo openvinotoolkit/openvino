@@ -63,17 +63,15 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 upper_loop->set_increment(loop->get_increment());
             else
                 lower_loop->set_increment(parent_loop->get_increment());
-            // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (!FuseLoops::can_be_fused(upper_loop, lower_loop))
-                continue;
 
-            if (can_be_split(loop, parent_loop)) {
+            const auto& loop_to_split = split_parent ? parent_loop : loop;
+            const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
+            // We don't split loop which are not compatible with parent loop because such loops will not be fused
+            if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
                 loop_was_split = true;
-                const auto& loop_to_split = split_parent ? parent_loop : loop;
-                const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
-                const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
 
+                const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
                                                                       loop_to_split->get_entry_points(),
                                                                       loop_to_split->get_exit_points());

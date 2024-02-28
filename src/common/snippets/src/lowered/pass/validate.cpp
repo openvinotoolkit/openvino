@@ -46,10 +46,8 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
             OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                             "Parameter expects MemoryAccess on output");
             layouts.insert(consumer_input.get_descriptor_ptr()->get_layout());
-        } else if (ov::is_type<op::LoopEnd>(node)) {
-            continue;
         } else {
-            OPENVINO_THROW("Parameter must be connected to MemoryAccess op or LoopEnd");
+            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
         }
     }
     OPENVINO_ASSERT(layouts.size() == 1, "All consumers of Parameter must have the same layout");
@@ -80,10 +78,8 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
             if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
                 OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
                                 "Buffer expects MemoryAccess on output");
-            } else if (ov::is_type<op::LoopEnd>(node)) {
-                continue;
             } else {
-                OPENVINO_THROW("Parameter must be connected to MemoryAccess op or LoopEnd");
+                OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
             }
         }
     }
@@ -164,7 +160,7 @@ Validate::Validate() {
 }
 
 bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateShapes")
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Validate")
 
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto expr = *expr_it;
