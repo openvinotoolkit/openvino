@@ -610,6 +610,8 @@ jobs:
           
           echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/asan/suppressions.supp" >> "$GITHUB_ENV"
           echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
+          echo "PYTHONMALLOC=malloc" >> "$GITHUB_ENV"
+          echo "LD_PRELOAD=/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -656,13 +658,10 @@ jobs:
       #
 
       - name: Install OpenVINO Python wheels
+        if: always()
         run: |
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
-
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
-          fi
 
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
 
@@ -677,6 +676,7 @@ jobs:
           popd
 
       - name: Install Python API tests dependencies
+        if: always()
         run: |
           # To enable pytest parallel features
           python3 -m pip install pytest-xdist[psutil]
@@ -695,7 +695,8 @@ jobs:
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc 
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
             --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
             --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
@@ -709,7 +710,8 @@ jobs:
           fi
           
           # Skips under tickets: 133405, 122666
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
               --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
@@ -718,7 +720,8 @@ jobs:
         if: ${{ always() }}
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
             --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
             --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
@@ -726,7 +729,8 @@ jobs:
       - name: OVC unit tests
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Install Python Layer tests dependencies
@@ -748,7 +752,8 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
           
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -767,7 +772,8 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
           
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -778,13 +784,15 @@ jobs:
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: PyTorch Layer Tests
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -793,7 +801,8 @@ jobs:
       - name: PyTorch torch.export Layer Tests
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -803,7 +812,8 @@ jobs:
       - name: PyTorch torch.compile TORCHFX Layer Tests
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -813,7 +823,8 @@ jobs:
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
@@ -825,7 +836,8 @@ jobs:
         run: |
           # requires 'unit_tests' from 'tools/mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
         env:
           TEST_DEVICE: CPU
@@ -836,7 +848,8 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -847,7 +860,8 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
@@ -856,7 +870,8 @@ jobs:
       - name: JAX Layer Tests - TF FE
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
@@ -864,13 +879,15 @@ jobs:
       - name: TensorFlow 1 Layer Tests - Legacy FE
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
@@ -879,7 +896,8 @@ jobs:
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: always()
         run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so)
+          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
+          export PYTHONMALLOC=malloc
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
