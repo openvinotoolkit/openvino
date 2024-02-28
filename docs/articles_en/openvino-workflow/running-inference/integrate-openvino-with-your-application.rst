@@ -440,7 +440,7 @@ To build your project using CMake with the default build tools currently availab
 Additional Resources
 ####################
 
-* See the :doc:`OpenVINO Samples <../../learn-openvino/openvino-samples>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2023.3/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* See the :doc:`OpenVINO Samples <../../learn-openvino/openvino-samples>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2024/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
 * :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimizie-preprocessing>`
 * :doc:`String Tensors <string-tensors>`
 * :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
