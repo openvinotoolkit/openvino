@@ -5,8 +5,8 @@ Overview of OpenVINO Plugin Library
 
 
 .. meta::
-   :description: Develop and implement independent inference solutions for 
-                 different devices with the components of plugin architecture 
+   :description: Develop and implement independent inference solutions for
+                 different devices with the components of plugin architecture
                  of OpenVINO.
 
 
@@ -28,8 +28,8 @@ Overview of OpenVINO Plugin Library
    openvino-plugin-library/plugin-api-references
 
 
-The plugin architecture of OpenVINO allows to develop and plug independent inference 
-solutions dedicated to different devices. Physically, a plugin is represented as a dynamic library 
+The plugin architecture of OpenVINO allows to develop and plug independent inference
+solutions dedicated to different devices. Physically, a plugin is represented as a dynamic library
 exporting the single ``create_plugin_engine`` function that allows to create a new plugin instance.
 
 OpenVINO Plugin Library
@@ -78,7 +78,7 @@ OpenVINO plugin dynamic library consists of several main components:
     * Provides the device specific remote tensor API and implementation.
 
 
-.. note::  
+.. note::
 
    This ../../documentation is written based on the ``Template`` plugin, which demonstrates plugin development details. Find the complete code of the ``Template``, which is fully compilable and up-to-date, at ``<openvino source dir>/src/plugins/template``.
 
@@ -96,6 +96,6 @@ Detailed Guides
 API References
 ##############
 
-*  `OpenVINO Plugin API <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__api.html>`__
-*  `OpenVINO Transformation API <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ie__transformation__api.html>`__
+*  `OpenVINO Plugin API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__api.html>`__
+*  `OpenVINO Transformation API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ie__transformation__api.html>`__
 
