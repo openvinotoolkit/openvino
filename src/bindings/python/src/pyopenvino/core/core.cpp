@@ -251,13 +251,13 @@ void regclass_Core(py::module m) {
             GIL is released while running this function.
 
             :param model: Model acquired from read_model function.
-            :type model: openvino.runtime.Model
+            :type model: openvino.Model
             :param context: RemoteContext instance.
             :type context: openvino.RemoteContext
             :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
             :type properties: dict
             :return: A compiled model.
-            :rtype: openvino.runtime.CompiledModel
+            :rtype: openvino.CompiledModel
         )");
 
     cls.def(
