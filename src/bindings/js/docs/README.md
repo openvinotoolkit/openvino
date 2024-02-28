@@ -39,8 +39,10 @@
     -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
     ..
   ```
-- Build bindings:
-  `cmake --build . --config Release --verbose -j4`
+- Build the bindings:
+  ```bash
+  cmake --build . --config Release --verbose -j4
+  ```
 - Install binaries for the *openvino-node* package:
   ```bash
   cmake --install .
