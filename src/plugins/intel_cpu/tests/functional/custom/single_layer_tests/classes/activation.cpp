@@ -109,7 +109,8 @@ void ActivationLayerCPUTest::SetUp() {
 
     inType  = inPrecision;
     outType = outPrecision;
-    selectedType = getPrimitiveType() + "_" + netPrecision.to_string();
+    const auto primitiveType = getPrimitiveType(activationType, inType, inputShapes);
+    selectedType = primitiveType.empty() ? "" : getPrimitiveType(activationType, inType, inputShapes) + "_" + netPrecision.to_string();
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    if defined(OPENVINO_ARCH_ARM)
@@ -131,6 +132,26 @@ void ActivationLayerCPUTest::SetUp() {
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
     function = std::make_shared<ov::Model>(ov::NodeVector{activation}, ov::ParameterVector{params}, "Activation");
+}
+
+std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationTypes& activation_type,
+                                                     const ov::element::Type_t& element_type,
+                                                     const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
+#if defined(OV_CPU_WITH_ACL)
+#if defined(OPENVINO_ARCH_ARM64)
+    if ((element_type == ov::element::f32) && (activation_type == utils::ActivationTypes::Relu)) {
+        return "jit";
+    }
+
+    if (activation_type == utils::ActivationTypes::Mish) {
+        // operation is decomposed and executed by different kernels
+        return "";
+    }
+#endif
+    return "acl";
+#else
+    return CPUTestsBase::getPrimitiveType();
+#endif
 }
 
 TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
@@ -155,7 +176,6 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Elu,         {{0.1f}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
-        {Mish,        {{}}},
         {PReLu,       {{-0.01f}}},
         {GeluErf,     {{}}},
         {GeluTanh,    {{}}},
