@@ -140,6 +140,7 @@ public:
         for (auto&& v : configuration) {
             params.emplace(v.first, v.second);
         }
+        params.emplace(ov::hint::enable_cpu_pinning.name(), true);
         execNet = core->compile_model(function, target_device, params);
     }
 
