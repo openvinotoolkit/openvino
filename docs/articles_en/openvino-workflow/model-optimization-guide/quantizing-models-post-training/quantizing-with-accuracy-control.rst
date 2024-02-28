@@ -48,8 +48,8 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_quantization_f
 Prepare validation function
 ############################
 
-The validation function takes two arguments: a model object and a validation dataset, and it returns the accuracy metric value. The type of the model object is different for different frameworks. In OpenVINO, it is an ``openvino.CompiledModel``. In ONNX, it is an ``onnx.ModelProto``.
-The following code snippet shows an example of validation function for OpenVINO and ONNX framework:
+The validation function takes two arguments: a model object and a validation dataset, and it returns the accuracy metric value. The type of the model object varies for different frameworks. In OpenVINO, it is an ``openvino.CompiledModel``. In ONNX, it is an ``onnx.ModelProto``.
+The following code snippet shows an example of a validation function for OpenVINO and ONNX framework:
 
 .. tab-set::
 
@@ -103,6 +103,13 @@ After that the model can be compiled and run with OpenVINO:
          :language: python
          :fragment: [inference]
 
+   .. tab-item:: ONNX
+      :sync: onnx
+
+      .. doxygensnippet:: docs/optimization_guide/nncf/ptq/code/ptq_aa_onnx.py
+         :language: python
+         :fragment: [inference]
+
 To save the model in the OpenVINO Intermediate Representation (IR), use ``openvino.save_model()``. When dealing with an original model in FP32 precision, it's advisable to preserve FP32 precision in the most impactful model operations that were reverted from INT8 to FP32. To do this, consider using compress_to_fp16=False during the saving process. This recommendation is based on the default functionality of ``openvino.save_model()``, which saves models in FP16, potentially impacting accuracy through this conversion.
 
 .. tab-set::
@@ -123,6 +130,7 @@ Examples of NNCF post-training quantization with control of accuracy metric:
 
 * `Post-Training Quantization of Anomaly Classification OpenVINO model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/anomaly_stfpm_quantize_with_accuracy_control>`__
 * `Post-Training Quantization of YOLOv8 OpenVINO Model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/openvino/yolov8_quantize_with_accuracy_control>`__
+* `Post-Training Quantization of YOLOv8 ONNX Model with control of accuracy metric <https://github.com/openvinotoolkit/nncf/blob/develop/examples/post_training_quantization/onnx/yolov8_quantize_with_accuracy_control>`__
 
 See also
 ####################

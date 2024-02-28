@@ -59,3 +59,17 @@ quantized_model = nncf.quantize_with_accuracy_control(
     drop_type=nncf.DropType.ABSOLUTE,
 )
 #! [quantization]
+
+#! [inference]
+import openvino as ov
+
+# convert ONNX model to OpenVINO model
+ov_quantized_model = ov.convert_model(quantized_model)
+
+# compile the model to transform quantized operations to int8
+model_int8 = ov.compile_model(ov_quantized_model)
+
+input_fp32 = ... # FP32 model input
+res = model_int8(input_fp32)
+
+#! [inference]
