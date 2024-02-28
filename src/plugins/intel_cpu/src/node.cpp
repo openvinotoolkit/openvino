@@ -1839,25 +1839,32 @@ void Node::resolveInPlaceDirection() {
                     // thus benefits zero-copy of outputs.
                     size_t numConflicts = 0;
 
+                    // the parent node does not use inPlace memory, but it is an Input.
+                    if (Type::Input == pParent->getType() || Type::MemoryInput == pParent->getType()) {
+                        numConflicts = 2;  // early stop
+                    }
+
                     // search descendants
-                    // note: there are only non-inplace or cyclic-inplace descendants at the moment.
-                    std::function<void(const Node* node, int portIdx)> searchReferencingOutput;
-                    searchReferencingOutput = [&](const Node* node, int portIdx) -> void {
-                        if (numConflicts > 1) return;  // early stop
-                        auto childEdges = node->getChildEdgesAtPort(portIdx);
-                        for (auto& edge : childEdges) {
-                            auto pChild = edge->getChild().get();
-                            if (Type::Output == pChild->getType()) {
-                                numConflicts++;
-                            } else {
-                                auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
-                                if (InplaceDirectionType::CYCLIC == result) {
-                                    return searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                    if (numConflicts <= 1) {
+                        // note: there are only non-inplace or cyclic-inplace descendants at the moment.
+                        std::function<void(const Node* node, int portIdx)> searchReferencingOutput;
+                        searchReferencingOutput = [&](const Node* node, int portIdx) -> void {
+                            if (numConflicts > 1) return;  // early stop
+                            auto childEdges = node->getChildEdgesAtPort(portIdx);
+                            for (auto& edge : childEdges) {
+                                auto pChild = edge->getChild().get();
+                                if (Type::Output == pChild->getType()) {
+                                    numConflicts++;
+                                } else {
+                                    auto result = inPlaceDirection(pChild, PortType::INPUT, edge->getOutputNum());
+                                    if (InplaceDirectionType::CYCLIC == result) {
+                                        return searchReferencingOutput(pChild, pChild->inPlaceInputPort(edge->getOutputNum()));
+                                    }
                                 }
                             }
-                        }
-                    };
-                    searchReferencingOutput(this, inPlaceInpPort);
+                        };
+                        searchReferencingOutput(this, inPlaceInpPort);
+                    }
 
                     // search siblings
                     if (numConflicts <= 1) {
@@ -1880,10 +1887,12 @@ void Node::resolveInPlaceDirection() {
                         auto config = getSelectedPrimitiveDescriptor()->getConfig();
                         config.outConfs[inPlaceInpPort].inPlace(-1);
                         initDescriptor(config);
+                        std::cout << "=============" << getName() << " resolve DOWN" << " with numConflicts=" << numConflicts << std::endl;
                     } else { // the default direction of upstream
                         auto config = getSelectedPrimitiveDescriptor()->getConfig();
                         config.inConfs[inpPort].inPlace(-1);
                         initDescriptor(config);
+                        std::cout << "=============" << getName() << " resolve UP" << " with numConflicts=" << numConflicts << std::endl;
                     }
                 } else {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");

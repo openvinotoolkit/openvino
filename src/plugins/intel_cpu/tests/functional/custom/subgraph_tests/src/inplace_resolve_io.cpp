@@ -218,7 +218,8 @@ class SoftmaxAddReshapeTwoOutputsSubgraphTest : public InplaceResolveIOTestBase 
                               |
                             Result1
 
-Edge Reshape1 -> Result1 cannot be referenced by its upstreams as there are more than one outputs referencing it.
+Hope Reshape0 could resolve downstream, so either edge Reshape1 -> Result1 or Reshape0 -> Result2
+could get a chance to be referenced by infer request.
 */
 public:
     void SetUp() override {
@@ -238,10 +239,12 @@ public:
 
         auto reshape_param_0 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto reshape_0 = std::make_shared<ov::op::v0::Unsqueeze>(soft_max, reshape_param_0);
+        reshape_0->set_friendly_name("reshape_0");
         auto result_2 = std::make_shared<ov::op::v0::Result>(reshape_0);    // dummy output
 
         auto reshape_param_1 = ov::op::v0::Constant::create(ov::element::i32, {1}, {0});
         auto reshape_1 = std::make_shared<ov::op::v0::Unsqueeze>(reshape_0, reshape_param_1);
+        reshape_1->set_friendly_name("reshape_1");
         auto result_1 = std::make_shared<ov::op::v0::Result>(reshape_1);    // target output
 
         function = std::make_shared<ov::Model>(ov::ResultVector{result_0, result_1, result_2}, params, "Subgraph2");

@@ -6,16 +6,14 @@
 #include "dummy_node.hpp"
 #include "graph.h"
 
-#include "nodes/reorder.h"
 #include "nodes/input.h"
-#include "nodes/transpose.h"
+#include "nodes/concat.h"
+#include "nodes/rnn.h"
 
+#include "openvino/op/concat.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/parameter.hpp"
-
-#include "common_test_utils/node_builders/constant.hpp"
-#include "common_test_utils/node_builders/eltwise.hpp"
-#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/gru_sequence.hpp"
 
 using namespace ov::intel_cpu;
 using namespace ov::op;
@@ -50,10 +48,10 @@ public:
 
         ov::ParameterVector params;
         ov::ResultVector results;
-        for (auto& input_shape : input_shapes) 
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(testPrec, input_shape));
+        for (auto& input_shape : input_shapes)
+            params.push_back(std::make_shared<v0::Parameter>(testPrec, input_shape));
         for (size_t i = 0; i < num_consumers; i++) {
-            auto res = std::make_shared<ov::op::v0::Result>(params.front());  // default, will be changed by impl
+            auto res = std::make_shared<v0::Result>(params.front());  // default, will be changed by impl
             res->set_friendly_name("_result" + std::to_string(i));
             results.push_back(res);
         }
@@ -68,10 +66,9 @@ public:
     }
 
 protected:
-    virtual void replicate_impl(std::vector<std::shared_ptr<node::Input>> inputNodes,
-                                std::vector<std::shared_ptr<node::Input>> outputNodes, GraphContext::CPtr context) = 0;
+    virtual void replicate_impl(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) = 0;
 
-    void addEdge (const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) {
+    void addEdge(const NodePtr& parent, const NodePtr& child, size_t parentPort, size_t childPort) {
         auto edge = std::make_shared<Edge>(parent, child, parentPort, childPort);
         Node::addEdge(edge);
         edges.push_back(edge);
@@ -84,16 +81,7 @@ protected:
 
 private:
     void Replicate(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) {
-        std::vector<std::shared_ptr<node::Input>> inputNodes;
-        for (size_t i = 0; i < params.size(); i++) {
-            inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
-        }
-
-        std::vector<std::shared_ptr<node::Input>> outputNodes;
-        for (size_t i = 0; i < results.size(); i++) {
-            outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
-        }
-        replicate_impl(inputNodes, outputNodes, context);
+        replicate_impl(params, results, context);
         for (auto &node : nodesSet) nodes.emplace_back(node);
     }
 
@@ -104,7 +92,7 @@ private:
 
 class RNNConcatCPUTest : public InplaceResolveIOCPUTestBase {
 /*This test runs the following subgraph:
-
+                    param0  param1 param2
                       H_t      X  seq_lens
                      /   \     |     /
                     /     \    |    / 
@@ -119,39 +107,63 @@ class RNNConcatCPUTest : public InplaceResolveIOCPUTestBase {
 Edge Concat -> Result0 can share memory of inference output; Reshape1 -> Result1 can share memory of inference output;
 */
 protected:
-    void replicate_impl(std::vector<std::shared_ptr<node::Input>> inputNodes,
-                        std::vector<std::shared_ptr<node::Input>> outputNodes, GraphContext::CPtr context) override {
+    void replicate_impl(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) override {
+        std::vector<std::shared_ptr<node::Input>> inputNodes;
+        for (size_t i = 0; i < params.size(); i++) {
+            inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
+        }
+
         auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, testPrec, "Softmax0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
+            params[0]->get_output_partial_shape(0), testPrec, "Softmax0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
-        auto dummy_concat = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, testPrec, "Concat" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_DOWN);
+        auto concat = std::make_shared<v0::Concat>(ov::OutputVector{params[0], params[0]}, 0);  // default, the connection will be reset by addEdge
+        auto concatNode = std::make_shared<node::Concat>(concat, context);
 
-        auto dummy_rnnseq = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, testPrec, "RNNSequence" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
+        constexpr size_t input_size = 8;
+        constexpr size_t num_directions = 1;
+        constexpr size_t hidden_size = 3;
+        auto W = std::make_shared<v0::Constant>(testPrec, ov::Shape{num_directions, hidden_size * 3, input_size});
+        auto R = std::make_shared<v0::Constant>(testPrec, ov::Shape{num_directions, hidden_size * 3, hidden_size});
+        auto B = std::make_shared<v0::Constant>(testPrec, ov::Shape{num_directions, hidden_size * 3});
+        auto wNode = std::make_shared<node::Input>(W, context);
+        auto rNode = std::make_shared<node::Input>(R, context);
+        auto bNode = std::make_shared<node::Input>(B, context);
+        auto rnnseq = std::make_shared<v5::GRUSequence>(
+                params[1],   // X
+                params[0],   // H_t
+                params[2],   // sequence_lengths
+                W, R, B,
+                hidden_size, RecurrentSequenceDirection::FORWARD);
+        auto rnnseqNode = std::make_shared<node::RNN>(rnnseq, context);
 
         auto dummy_reshape = std::make_shared<cpu_unit_test::DummyNode>(
-            testShape, testPrec, "Reshape1" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
+            rnnseq->get_output_partial_shape(0), testPrec, "Reshape1" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
+
+        auto outputNode0 = std::make_shared<node::Input>(results.front(), context);
+        auto outputNode1 = std::make_shared<node::Input>(dummy_reshape->getOutputShapeAtPort(0), testPrec, "_result1", "Result", context);
 
         addEdge(inputNodes[0], dummy_softmax, 0, 0);
-        addEdge(inputNodes[0], dummy_rnnseq, 0, 0);
+        addEdge(inputNodes[0], rnnseqNode, 0, 0);
 
-        addEdge(dummy_softmax, dummy_concat, 0, 0);
-        addEdge(dummy_concat, outputNodes[0], 0, 0);
+        addEdge(dummy_softmax, concatNode, 0, 0);
+        addEdge(concatNode, outputNode0, 0, 0);
 
-        addEdge(inputNodes[1], dummy_rnnseq, 0, 1);
-        addEdge(inputNodes[2], dummy_rnnseq, 0, 2);
+        addEdge(inputNodes[1], rnnseqNode, 0, 1);
+        addEdge(inputNodes[2], rnnseqNode, 0, 2);
 
-        addEdge(dummy_rnnseq, dummy_concat, 0, 1);
-        addEdge(dummy_rnnseq, dummy_reshape, 1, 0);
+        addEdge(wNode, rnnseqNode, 0, 3);
+        addEdge(rNode, rnnseqNode, 0, 4);
+        addEdge(bNode, rnnseqNode, 0, 5);
 
-        addEdge(dummy_reshape, outputNodes[1], 0, 0);
+        addEdge(rnnseqNode, dummy_reshape, 0, 0); // Y
+        addEdge(rnnseqNode, concatNode, 1, 1);  // Ho
+
+        addEdge(dummy_reshape, outputNode1, 0, 0);
     }
 };
 
-// hope edge Concat -> Result0 can share memory of inference output; Reshape1 -> Result1 can share memory of inference output;
 TEST_F(RNNConcatCPUTest, smoke_resolve_inplace_io) {
-    auto graph = create_graph(std::vector<ov::PartialShape>(3, ov::PartialShape{-1, -1}), 2);
+    auto graph = create_graph({ov::PartialShape{-1, 1, 3}, ov::PartialShape{-1, 10, 8}, ov::PartialShape{-1}}, 2);
     CheckInplaceDirection(graph, std::string("Concat"), 0/*inport*/, Edge::LOOK::LOOK_UP/*undesired edge look direction*/);
     CheckInplaceDirection(graph, std::string("_result1"), 0/*inport*/, Edge::LOOK::LOOK_UP/*undesired edge look direction*/);
 }
@@ -173,8 +185,17 @@ class SoftmaxAddReshapeOutputCPUTest : public InplaceResolveIOCPUTestBase {
 expect edge Reshape0->Result1 to be referenced by its upstreams, instead of referencing to its upstreams.
 */
 protected:
-    void replicate_impl(std::vector<std::shared_ptr<node::Input>> inputNodes,
-                        std::vector<std::shared_ptr<node::Input>> outputNodes, GraphContext::CPtr context) override {
+    void replicate_impl(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) override {
+        std::vector<std::shared_ptr<node::Input>> inputNodes;
+        for (size_t i = 0; i < params.size(); i++) {
+            inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
+        }
+
+        std::vector<std::shared_ptr<node::Input>> outputNodes;
+        for (size_t i = 0; i < results.size(); i++) {
+            outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
+        }
+
         auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
             testShape, testPrec, "softmax" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
@@ -194,7 +215,6 @@ protected:
     }
 };
 
-// hope edge Reshape0->Result1 to be referenced by its upstreams, instead of referencing to its upstreams.
 TEST_F(SoftmaxAddReshapeOutputCPUTest, smoke_resolve_inplace_io) {
     auto graph = create_graph({ov::PartialShape{2, -1}}, 2);
     CheckInplaceDirection(graph, std::string("_result1"), 0/*inport*/, Edge::LOOK::LOOK_UP/*undesired edge look direction*/);
@@ -218,11 +238,21 @@ class SoftmaxAddReshapeTwoOutputsCPUTest : public InplaceResolveIOCPUTestBase {
                               |
                             Result1
 
-Edge Reshape1 -> Result1 cannot be referenced by its upstreams as there are more than one outputs referencing it.
+Hope Reshape0 could resolve downstream, so either edge Reshape1 -> Result1 or Reshape0 -> Result2
+could get a chance to be referenced by infer request.
 */
 protected:
-    void replicate_impl(std::vector<std::shared_ptr<node::Input>> inputNodes,
-                        std::vector<std::shared_ptr<node::Input>> outputNodes, GraphContext::CPtr context) override {
+    void replicate_impl(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) override {
+        std::vector<std::shared_ptr<node::Input>> inputNodes;
+        for (size_t i = 0; i < params.size(); i++) {
+            inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
+        }
+
+        std::vector<std::shared_ptr<node::Input>> outputNodes;
+        for (size_t i = 0; i < results.size(); i++) {
+            outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
+        }
+
         auto dummy_softmax = std::make_shared<cpu_unit_test::DummyNode>(
             testShape, testPrec, "softmax" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, 0/*look*/);
 
@@ -248,10 +278,9 @@ protected:
     }
 };
 
-// hope edge Reshape1 -> Result1 cannot be referenced by its upstreams as there are more than one outputs referencing it.
 TEST_F(SoftmaxAddReshapeTwoOutputsCPUTest, smoke_resolve_inplace_io) {
     auto graph = create_graph({ov::PartialShape{2, -1}}, 3);
-    CheckInplaceDirection(graph, std::string("reshape1"), 0/*inport*/, Edge::LOOK::LOOK_DOWN/*undesired edge look direction*/);
+    CheckInplaceDirection(graph, std::string("reshape0"), 0/*inport*/, Edge::LOOK::LOOK_UP/*undesired edge look direction*/);
 }
 
 class InputReshapeOutputCPUTest : public InplaceResolveIOCPUTestBase {
@@ -268,8 +297,17 @@ class InputReshapeOutputCPUTest : public InplaceResolveIOCPUTestBase {
 Edge Reshape0 -> Result0 cannot be referenced by its upstreams as its upstream is an input.
 */
 protected:
-    void replicate_impl(std::vector<std::shared_ptr<node::Input>> inputNodes,
-                        std::vector<std::shared_ptr<node::Input>> outputNodes, GraphContext::CPtr context) override {
+    void replicate_impl(ov::ParameterVector params, ov::ResultVector results, GraphContext::CPtr context) override {
+        std::vector<std::shared_ptr<node::Input>> inputNodes;
+        for (size_t i = 0; i < params.size(); i++) {
+            inputNodes.push_back(std::make_shared<node::Input>(params[i], context));
+        }
+
+        std::vector<std::shared_ptr<node::Input>> outputNodes;
+        for (size_t i = 0; i < results.size(); i++) {
+            outputNodes.push_back(std::make_shared<node::Input>(results[i], context));
+        }
+
         auto dummy_reshape = std::make_shared<cpu_unit_test::DummyNode>(
             testShape, testPrec, "reshape0" /*name*/, "DummyNode" /*type*/, context, LayoutType::ncsp, Edge::LOOK::LOOK_BOTH);
 
@@ -278,7 +316,6 @@ protected:
     }
 };
 
-// hope edge Reshape0 -> Result0 cannot be referenced by its upstreams as its upstream is an input.
 TEST_F(InputReshapeOutputCPUTest, smoke_resolve_inplace_io) {
     auto graph = create_graph({ov::PartialShape{2, -1}});
     CheckInplaceDirection(graph, std::string("reshape0"), 0/*inport*/, Edge::LOOK::LOOK_DOWN/*undesired edge look direction*/);
