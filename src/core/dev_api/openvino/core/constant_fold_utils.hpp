@@ -14,7 +14,19 @@ OPENVINO_API
 const element::TypeVector& unsupported_types();
 
 OPENVINO_API
-bool is_type_unsupported(const ov::element::Type& type);
+bool is_type_unsupported(const element::Type& type);
+
+OPENVINO_API
+void save_original_input_precisions(const std::shared_ptr<Node>& node);
+
+OPENVINO_API
+bool has_original_input_precision(const Input<Node>& input);
+
+OPENVINO_API
+element::Type get_original_input_precision(const Input<Node>& input);
+
+OPENVINO_API
+void remove_original_input_precision_attribute(Input<Node>& input);
 
 OPENVINO_API bool node_requires_precision_conversion(const Node* const node);
 
@@ -25,9 +37,9 @@ OPENVINO_API bool node_requires_precision_conversion(const Node* const node);
 /// \param node
 ///
 /// \return New node with f32 inputs if the inputs require conversion or the input node otherwise
-OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(const Node* const node);
+OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(Node* const node);
 
-OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(const Node* const node, const OutputVector& inputs);
+OPENVINO_API std::shared_ptr<Node> convert_to_supported_precision(Node* const node, const OutputVector& inputs);
 
 OPENVINO_API bool evaluate_node_with_unsupported_precision(const Node* node,
                                                            TensorVector& outputs,
