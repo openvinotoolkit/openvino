@@ -137,8 +137,13 @@ class PytorchLayerTest:
                         assert self._check_kind_exist(
                             smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
+            # GPU and some CPU arm platforms default execution precision is FP16, so if we want to check FP32 inference
+            # we need to set explicit precision hint
+            config = None
+            if precision == 'FP32':
+                config = {'INFERENCE_PRECISION_HINT': 'f32'}
             core = Core()
-            compiled = core.compile_model(converted_model, ie_device)
+            compiled = core.compile_model(converted_model, ie_device, config=config)
             infer_res = compiled(deepcopy(ov_inputs))
 
             if hasattr(self, 'skip_framework') and self.skip_framework:

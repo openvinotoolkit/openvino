@@ -93,9 +93,9 @@ class CommonLayerTest:
         #     assert flag, '\n'.join(resp)
 
         config = None
-        # GPU default execution precision is FP16, so if we want to check FP32 inference
+        # GPU and some CPU arm platforms default execution precision is FP16, so if we want to check FP32 inference
         # we need to set explicit precision hint
-        if ie_device == 'GPU' and precision == 'FP32':
+        if precision == 'FP32':
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
         ie_engine = InferAPI(model=path_to_xml,
