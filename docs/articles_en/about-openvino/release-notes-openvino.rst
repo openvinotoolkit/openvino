@@ -77,7 +77,7 @@ Support Change and Deprecation Notices
 
   * `Deployment Manager <https://docs.openvino.ai/2023.3/openvino_docs_install_guides_deployment_manager_tool.html>`__
     is deprecated and will be supported for two years according to our LTS policy.
-    Visit our :doc:`selector tool <../get-started/install-openvino-overview>` to see
+    Visit our :doc:`selector tool <../get-started/install-openvino>` to see
     package distribution options or our :doc:`deployment guide <../openvino-workflow/deployment-locally>`
     ../documentation.
   * Accuracy Checker is deprecated and will be discontinued with 2024.0.

@@ -29,7 +29,7 @@ Basic Usage
       :sync: python
 
       The Python ``benchmark_app`` is automatically installed when you install OpenVINO
-      using :doc:`PyPI <../../get-started/install-openvino-overview/install-openvino-shared/install-openvino-pip>`.
+      using :doc:`PyPI <../../get-started/install-openvino/install-openvino-pip>`.
       Before running ``benchmark_app``, make sure the ``openvino_env`` virtual
       environment is activated, and navigate to the directory where your model is located.
 

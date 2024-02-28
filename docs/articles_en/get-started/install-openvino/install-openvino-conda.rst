@@ -68,7 +68,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../../configurations-header>`
+:doc:`list of additional configurations <../../configurations>`
 to see if your case needs any of them.
 
 Compiling with OpenVINO Runtime from Conda-Forge on Linux

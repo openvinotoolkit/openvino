@@ -13,9 +13,9 @@ Install OpenVINO™ 2024.0
    :maxdepth: 3
    :hidden:
 
-   OpenVINO Runtime on Linux <install-openvino-overview/install-openvino-linux-header>
-   OpenVINO Runtime on Windows <install-openvino-overview/install-openvino-windows-header>
-   OpenVINO Runtime on macOS <install-openvino-overview/install-openvino-macos-header>
+   OpenVINO Runtime on Linux <install-openvino/install-openvino-linux>
+   OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
+   OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
 
 
 .. raw:: html
