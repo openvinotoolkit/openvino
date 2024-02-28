@@ -13,9 +13,11 @@
 #include "openvino/core/interval.hpp"
 
 namespace ov {
-class TableOfEquivalence;
+class LabelTable;
 /// \brief Alias for dimension label type.
 using label_t = uint32_t;
+/// \brief Special label value indicate no label set.
+constexpr label_t no_label = 0;
 
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
@@ -180,11 +182,24 @@ public:
         using std::swap;
         swap(a.m_dimension, b.m_dimension);
         swap(a.m_label, b.m_label);
-        swap(a.m_table_of_equivalence, b.m_table_of_equivalence);
+        swap(a.m_label_table, b.m_label_table);
     }
 
     /// \brief String representation of Dimension
     std::string to_string() const;
+
+    /// Label-related methods of ov::Dimension class
+
+    /// \brief Indicates if meaningful label was set to the Dimension
+    bool has_label() const;
+    /// \brief Returns label of the Dimension
+    ov::label_t get_label() const;
+    /// \brief Sets label value to the Dimension
+    void set_label(const ov::label_t& label);
+    /// \brief Sets Label Table to the Dimension
+    void set_label_table(const std::shared_ptr<LabelTable>& table);
+    /// \brief Returns Label Table
+    std::shared_ptr<LabelTable> get_label_table() const;
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}
@@ -192,10 +207,8 @@ private:
     // The actual numerical value of the dimension.
     Interval m_dimension{};
 
-    // private fields for dimension tracking
-    friend class DimensionTracker;
-    label_t m_label{0};
-    std::shared_ptr<TableOfEquivalence> m_table_of_equivalence = nullptr;
+    label_t m_label{ov::no_label};
+    std::shared_ptr<LabelTable> m_label_table = nullptr;
 };
 
 /// \brief Insert a human-readable representation of a dimension into an output stream.

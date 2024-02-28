@@ -10,7 +10,7 @@
 #include <limits>
 #include <sstream>
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ov;
@@ -197,9 +197,9 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
         dst = Dimension(result_interval);
     }
 
-    if (auto& t = d1.m_table_of_equivalence)
+    if (auto& t = d1.m_label_table)
         t->set_as_equal(d1, d2);
-    else if (auto& t = d2.m_table_of_equivalence)
+    else if (auto& t = d2.m_label_table)
         t->set_as_equal(d1, d2);
 
     dst.m_label = merge_labels(d1.m_label, d2.m_label);
@@ -241,4 +241,24 @@ Dimension::value_type Dimension::get_max_length() const {
 
 Dimension::value_type Dimension::get_min_length() const {
     return dimension_length(m_dimension.get_min_val());
+}
+
+bool Dimension::has_label() const {
+    return m_label != ov::no_label;
+}
+
+ov::label_t Dimension::get_label() const {
+    return m_label;
+}
+
+void Dimension::set_label(const label_t& label) {
+    m_label = label;
+}
+
+void Dimension::set_label_table(const std::shared_ptr<LabelTable>& table) {
+    m_label_table = table;
+}
+
+std::shared_ptr<LabelTable> Dimension::get_label_table() const {
+    return m_label_table;
 }
