@@ -105,7 +105,7 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
 
 **User documentation**
 
-Find latest documentation, from getting started guides to advanced topics, at [docs.openvino.ai](https://docs.openvino.ai/). User documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO.
+Find the latest documentation, from getting started guides to advanced topics, at [docs.openvino.ai](https://docs.openvino.ai/). User documentation contains detailed information about all OpenVINO components, providing you with essential details to create applications using OpenVINO.
 
 **Developer documentation**
 
@@ -123,7 +123,7 @@ We welcome contributions of all kinds!
 
 Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
 To be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
-Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
+Check our [Contribution Guidelines](./CONTRIBUTING.md) for more details.
 
 Ask questions and seek support on:
 
