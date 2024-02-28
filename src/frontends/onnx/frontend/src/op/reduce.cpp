@@ -93,21 +93,11 @@ std::shared_ptr<ov::Node> get_reduction_axes_from_attr(const Node& node) {
 template <typename OpType>
 std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
                                                const ov::Output<ov::Node>& ng_input,
-                                               bool axes_as_attr = true,
-                                               const std::pair<int64_t, int64_t>& axes_range = {
-                                               -std::numeric_limits<int64_t>::max(),
-                                               std::numeric_limits<int64_t>::max()}) {
+                                               bool axes_as_attr = true) {
     const std::int64_t keepdims = node.get_attribute_value<std::int64_t>("keepdims", 1);
 
     const auto reduction_axes = axes_as_attr ? get_reduction_axes_from_attr(node) : get_reduction_axes_from_input(node);
     if (reduction_axes != nullptr) {
-        // Check that axes are within the specified range
-        auto axes_values = std::dynamic_pointer_cast<v0::Constant>(reduction_axes)->cast_vector<int64_t>();
-        for (auto axis : axes_values) {
-            if (axis < axes_range.first || axis > axes_range.second) {
-                throw std::runtime_error("Axis out of range");
-            }
-        }
         return std::make_shared<OpType>(ng_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
         return set_1::identity(node).at(0).get_node_shared_ptr();
@@ -160,19 +150,12 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return {make_ng_reduction_op<v1::ReduceSum>(node, square_node)};
 }
-
 }  // namespace set_1
 
 namespace set_11 {
 ov::OutputVector reduce_l2(const Node& node) {
-    if (node.get_ov_inputs().at(0).get_partial_shape().rank().is_static()) {
-        auto input_rank = node.get_ov_inputs().at(0).get_partial_shape().rank().get_length();
-        return {
-            make_ng_reduction_op<v4::ReduceL2>(node,
-            node.get_ov_inputs().at(0), true, {-input_rank, input_rank - 1})};
-    }
     return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-    }
+}
 }  // namespace set_11
 
 namespace set_13 {
