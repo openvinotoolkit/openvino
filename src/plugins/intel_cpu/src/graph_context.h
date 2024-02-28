@@ -75,10 +75,6 @@ public:
         return streamExecutor;
     }
 
-    // ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
-    //     return cpuStreamExecutor;
-    // }
-
     int getNumNumaNodes() const {
         return numNumaNodes;
     }
@@ -96,7 +92,6 @@ private:
     std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
 
     ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
-    // ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // stream executor for current graph
 
     int numNumaNodes;
 };
