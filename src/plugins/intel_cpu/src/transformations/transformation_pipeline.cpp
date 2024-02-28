@@ -69,7 +69,7 @@
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 #include "transformations/op_conversions/gru_cell_decomposition.hpp"
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
-#include "transformations/op_conversions/gn_decomposition.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/op_conversions/mvn6_decomposition.hpp"
 #include "transformations/op_conversions/normalize_l2_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -485,11 +485,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::NormalizeL2Decomposition);
 
+    // todo: only support f32 in first version
     CPU_SET_CALLBACK_X64(manager,
         [](const_node_ptr &node) -> bool {
-            return !node->is_dynamic() && node->get_output_element_type(0) == element::f32;
+            return !node->is_dynamic() &&
+                ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(node->get_element_type()) != 0;
         },
-        ov::pass::GNDecomposition);
+        ov::pass::GroupNormalizationDecomposition);
+
     CPU_ENABLE_PASS_COMMON(manager, ov::pass::SoftmaxDecomposition);
     CPU_SET_CALLBACK_COMMON(manager,
             [](const_node_ptr &node) -> bool {

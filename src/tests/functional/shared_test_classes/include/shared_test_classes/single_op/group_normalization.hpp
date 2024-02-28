@@ -81,7 +81,7 @@ protected:
         std::transform(shape.second.cbegin(), shape.second.cend(), std::back_inserter(biasShape),
                        [](const ov::Shape& s)->ov::Shape { return {s[1]}; });
         InputShape biasInputShape {
-            ov::PartialShape{shape.first[1]},
+            shape.first.is_dynamic() ? ov::PartialShape{shape.first[1]} : shape.first,
             std::move(biasShape)
         };
         return biasInputShape;

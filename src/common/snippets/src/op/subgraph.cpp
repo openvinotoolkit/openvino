@@ -57,6 +57,8 @@
 #include <memory>
 #include <array>
 
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
+
 using namespace std;
 using namespace ov::op::util;
 
@@ -315,7 +317,7 @@ VectorDims Subgraph::infer_master_shape() {
         OPENVINO_ASSERT(!output_dims.empty(), "Can't calculate master_shape before the first shape inference");
     } else {
         for (const auto& res : body_ptr()->get_results()) {
-            auto reshape = ov::as_type_ptr<op::Reshape>(res->get_input_node_shared_ptr(0))
+            auto reshape = ov::as_type_ptr<op::Reshape>(res->get_input_node_shared_ptr(0));
             auto res_input = reshape ? reshape->input(0) : res->input(0);
             OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
@@ -380,9 +382,10 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    // GroupNormalizationDecomposition should be before canonicalization(rankNorm) as scale/bias shape is C and need special process.
+    // GNDecomposition should be before canonicalization(rankNorm) as scale/bias shape is C and need special process.
     if (config.m_has_domain_sensitive_ops)
         manager.register_pass<snippets::pass::GNDecomposition>();
+
     if (!blocked_input_shapes.empty())
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())
@@ -405,6 +408,12 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
+
+    // ov::pass::Manager magr;
+    // std::string xmlo = "data_flow.xml";
+    // std::string bino = "data_flow.bin";
+    // magr.register_pass<ov::pass::Serialize>(xmlo, bino);
+    // magr.run_passes(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,

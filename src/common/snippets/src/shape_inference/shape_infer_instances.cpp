@@ -252,9 +252,15 @@ ReshapeShapeInfer::ReshapeShapeInfer(const std::shared_ptr<Node>& n) {
 }
 
 Result ReshapeShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes passed ReshapeShapeInfer");
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes is passed in ReshapeShapeInfer");
+    OPENVINO_ASSERT(target_shape.is_static(), "target_shape should be static in ReshapeShapeInfer");
     VectorDims result_shape = target_shape.get_shape();
-    // todo: check static and size is the same
+    const auto input_elems =
+        std::accumulate(input_shapes[0].get().begin(), input_shapes[0].get().end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
+    const auto output_elems =
+        std::accumulate(result_shape.begin(), result_shape.end(), static_cast<int64_t>(1), std::multiplies<int64_t>());
+    OPENVINO_ASSERT(input_elems == output_elems, "Tensor volume should be the same after reshape in ReshapeShapeInfer");
+
     return {{result_shape}, ShapeInferStatus::success};
 }
 

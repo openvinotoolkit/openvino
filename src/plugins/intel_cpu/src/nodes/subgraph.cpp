@@ -641,6 +641,12 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
     SNIPPETS_REGISTER_PASS_RELATIVE(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                     ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
 
+    // ov::pass::Manager magr;
+    // std::string xmlo = "original.xml";
+    // std::string bino = "original.bin";
+    // magr.register_pass<ov::pass::Serialize>(xmlo, bino);
+    // magr.run_passes(snippetAttrs.snippet->body_ptr());
+
     schedule = snippetAttrs.snippet->generate_from_linear_ir(std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                                              backend_passes,
                                                              reinterpret_cast<const void*>(jcp));
