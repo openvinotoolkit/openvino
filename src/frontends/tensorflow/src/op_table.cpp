@@ -190,8 +190,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Pow", CreatorFunction(translate_binary_op<v1::Power>)},
         {"RealDiv", CreatorFunction(translate_binary_op<v1::Divide>)},
         {"SquaredDifference", CreatorFunction(translate_binary_op<v0::SquaredDifference>)},
-        {"Sub", CreatorFunction(translate_binary_op<v1::Subtract>)},
-
+        {"Sub", CreatorFunction(translate_sub_op)},
         // note: ReduceOp translator declaration for each op must to be added in reduce.cpp file
         {"Any", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalOr>)},
         {"All", CreatorFunction(translate_direct_reduce_op<v1::ReduceLogicalAnd>)},
