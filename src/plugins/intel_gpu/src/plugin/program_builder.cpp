@@ -251,7 +251,6 @@ std::vector<cldnn::input_info> ProgramBuilder::GetInputInfo(const std::shared_pt
     for (size_t i = 0; i < op->get_input_size(); i++) {
         auto prevOp = op->get_input_node_ptr(i);
         std::string prevName = layer_type_name_ID(prevOp);
-
         // Note: Currently Split/Variadic Split are divided to multiple crops
         // LSTMCell contains its own body network, and each output has a unique pid
         // But there is no need to maintain output port index for the next node e.g. Result

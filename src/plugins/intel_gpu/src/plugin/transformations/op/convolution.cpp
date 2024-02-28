@@ -4,7 +4,6 @@
 
 #include "intel_gpu/op/convolution.hpp"
 #include <memory>
-#include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "convolution_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"

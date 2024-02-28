@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/op/convolution.hpp"
+#include "openvino/op/util/convolution_base.hpp"
 
 namespace ov {
 namespace intel_gpu {

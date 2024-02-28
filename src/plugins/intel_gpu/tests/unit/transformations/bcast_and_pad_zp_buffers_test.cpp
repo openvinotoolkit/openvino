@@ -12,7 +12,6 @@
 #include "intel_gpu/op/placeholder.hpp"
 
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
-#include "plugin/transformations/utils.hpp"
 
 #include <memory>
 

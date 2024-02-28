@@ -9,7 +9,7 @@
 namespace ov {
 namespace intel_gpu {
 
-// Makes zero-points and compensation parameters of Convolution op broadcasted to corresponding channels size
+// Makes zero-points and compensation parameters of internal::Convolution op broadcasted to corresponding channels size
 // and adds optional padding to align elements count to `alignment` value
 class BroadcastAndPadZeroPointBuffers : public ov::pass::MatcherPass {
 public:
