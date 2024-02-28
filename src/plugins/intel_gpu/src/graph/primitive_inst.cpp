@@ -2072,31 +2072,42 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    instrumentation::perf_counter_key key {
-            _network.get_input_layouts(),
-            _impl_params->input_layouts,
-            _impl_params->output_layouts,
-            get_implementation_name(),
-            stage,
+    GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-            per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-            0,
-#endif
-            cache_hit,
-            memalloc_info
-    };
-
-    auto hash = instrumentation::perf_counter_hash()(key);
-    auto& d = _profiling_data[hash];
-    if (_profiling_info.find(hash) == _profiling_info.end()) {
-        _profiling_info.emplace(hash, key);
+    int64_t curr_iter = -1;
+    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
+        curr_iter = get_network().get_current_iteration_num();
     }
+    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+#else
+    {
+#endif
+        instrumentation::perf_counter_key key {
+                _network.get_input_layouts(),
+                _impl_params->input_layouts,
+                _impl_params->output_layouts,
+                get_implementation_name(),
+                stage,
+#ifdef GPU_DEBUG_CONFIG
+                per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+                0,
+#endif
+                cache_hit,
+                memalloc_info
+        };
 
-    auto& total_time = std::get<0>(d);
-    auto& total_iter = std::get<1>(d);
-    total_time += time;
-    total_iter++;
+        auto hash = instrumentation::perf_counter_hash()(key);
+        auto& d = _profiling_data[hash];
+        if (_profiling_info.find(hash) == _profiling_info.end()) {
+            _profiling_info.emplace(hash, key);
+        }
+
+        auto& total_time = std::get<0>(d);
+        auto& total_iter = std::get<1>(d);
+        total_time += time;
+        total_iter++;
+    }
 }
 
 std::string primitive_inst::get_implementation_name() const {
