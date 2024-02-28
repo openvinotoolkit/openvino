@@ -129,10 +129,10 @@ public:
 #endif // __linux__
 
 #if defined(OV_CPU_WITH_ACL)
-std::mutex Engine::SchedulerGuard::mutex;
-std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+std::mutex Plugin::SchedulerGuard::mutex;
+std::weak_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::ptr;
 
-Engine::SchedulerGuard::SchedulerGuard() {
+Plugin::SchedulerGuard::SchedulerGuard() {
 #if OV_THREAD == OV_THREAD_SEQ
     // To save state for ACL cores in single-thread mode
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
@@ -141,7 +141,7 @@ Engine::SchedulerGuard::SchedulerGuard() {
 #endif
 }
 
-std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+std::shared_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::instance() {
     std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
     auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
     if (scheduler_guard_ptr == nullptr) {
@@ -150,7 +150,7 @@ std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
     return scheduler_guard_ptr;
 }
 
-Engine::SchedulerGuard::~SchedulerGuard() {
+Plugin::SchedulerGuard::~SchedulerGuard() {
     // To save the state of scheduler after ACLScheduler has been executed
     // TODO: find out the cause of the state
     std::lock_guard<std::mutex> lock{this->dest_mutex};
@@ -159,7 +159,7 @@ Engine::SchedulerGuard::~SchedulerGuard() {
 }
 #endif
 
-Engine::Engine() :
+Plugin::Plugin() :
     deviceFullName(getDeviceFullName()),
     specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
@@ -174,7 +174,7 @@ Engine::Engine() :
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
 
-Engine::~Engine() {
+Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
@@ -184,7 +184,7 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.count(ov::num_streams.name());
 }
 
-void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
+void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
     const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams_set = config.streams;
     int streams;
@@ -203,7 +203,7 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     }
 }
 
-void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
@@ -274,8 +274,8 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
 }
 
 std::shared_ptr<ov::ICompiledModel>
-Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const{
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::compile_model");
+Plugin::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const{
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
@@ -361,14 +361,14 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
-void Engine::set_property(const ov::AnyMap &config) {
+void Plugin::set_property(const ov::AnyMap &config) {
     // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and "ifSetExplicitly" flag
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
 }
 
-ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
@@ -449,7 +449,7 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     return get_ro_property(name, options);
 }
 
-ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -553,7 +553,7 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
-ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
     if (model == nullptr) {
@@ -604,7 +604,7 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkModel,
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel,
                                             const ov::AnyMap& config) const{
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
@@ -649,4 +649,4 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"
 #error "Undefined system processor"
 #endif
 
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
+OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
