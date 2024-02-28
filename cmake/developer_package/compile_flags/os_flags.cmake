@@ -356,6 +356,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /WX")
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /WX")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /WX")
+        message(STATUS "add compiler flags /WX")
     endif()
 
     #
@@ -461,6 +462,7 @@ else()
 
     if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_VERSION VERSION_LESS 3.24)
         ov_add_compiler_flags(-Werror)
+        message(STATUS "add compiler flags -Werror")
     endif()
 
     #
