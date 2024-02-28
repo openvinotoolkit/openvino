@@ -81,7 +81,7 @@ And running from terminal:
 
 Congratulations! You've just Installed and used OpenVINO in your project! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../../configurations>`
+:doc:`list of additional configurations <../configurations>`
 to see if your case needs any of them.
 
 Uninstalling OpenVINO
