@@ -234,20 +234,48 @@ std::vector<ScatterElementsUpdateParams> generate_scatter_eu_v12_params() {
     using Data_t = typename element_type_traits<DATA_ET>::value_type;
     using Indices_t = typename element_type_traits<INDICES_ET>::value_type;
     return {
-        {{{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},           // input
-         {{1, 2}, element::Type(INDICES_ET), std::vector<Indices_t>{norm<Indices_t>(-1, 3), 1}},  // indices
-         {{1, 2}, element::Type(DATA_ET), std::vector<Data_t>{5, 24}},                            // updates
-         {{1}, element::Type(INDICES_ET), std::vector<Indices_t>{0}},                             // axis
-         {{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 24, 15, 16}},           // expected
+        {{Shape{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},           // data
+         {Shape{1, 2}, element::Type(INDICES_ET), std::vector<Indices_t>{norm<Indices_t>(-1, 3), 1}},  // indices
+         {Shape{1, 2}, element::Type(DATA_ET), std::vector<Data_t>{5, 24}},                            // updates
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{0}},                             // axis
+         {Shape{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 24, 15, 16}},           // expected
          Reduction::MAX,
          true},
-        {{{2, 3}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},                 // input
-         {{2, 2}, element::Type(INDICES_ET), std::vector<Indices_t>{norm<Indices_t>(-3, 3), 1, 0, 2}},  // indices
-         {{2, 2}, element::Type(DATA_ET), std::vector<Data_t>{1, 22, 24, 6}},                           // updates
-         {{1}, element::Type(INDICES_ET), std::vector<Indices_t>{1}},                                   // axis
-         {{2, 3}, element::Type(DATA_ET), std::vector<Data_t>{1, 22, 13, 24, 15, 6}},                   // expected
+        {{Shape{2, 3}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},
+         {Shape{2, 2}, element::Type(INDICES_ET), std::vector<Indices_t>{norm<Indices_t>(-3, 3), 1, 0, 2}},
+         {Shape{2, 2}, element::Type(DATA_ET), std::vector<Data_t>{1, 22, 24, 6}},
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{1}},
+         {Shape{2, 3}, element::Type(DATA_ET), std::vector<Data_t>{1, 22, 13, 24, 15, 6}},
          Reduction::MIN,
          false},
+        {{Shape{1, 2, 3}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},
+         {Shape{1, 1, 4}, element::Type(INDICES_ET), std::vector<Indices_t>{0, 1, 0, 2}},
+         {Shape{1, 1, 4}, element::Type(DATA_ET), std::vector<Data_t>{23, 38, 32, 7}},
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{2}},
+         {Shape{1, 2, 3}, element::Type(DATA_ET), std::vector<Data_t>{22, 25, 10, 14, 15, 16}},
+         Reduction::MEAN,
+         true},
+        {{Shape{1, 2, 3}, element::Type(DATA_ET), std::vector<Data_t>{11, 12, 13, 14, 15, 16}},
+         {Shape{1, 1, 4}, element::Type(INDICES_ET), std::vector<Indices_t>{0, 1, 0, 0}},
+         {Shape{1, 1, 4}, element::Type(DATA_ET), std::vector<Data_t>{20, 33, 26, 29}},
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{2}},
+         {Shape{1, 2, 3}, element::Type(DATA_ET), std::vector<Data_t>{25, 33, 13, 14, 15, 16}},
+         Reduction::MEAN,
+         false},
+        {{Shape{2, 2, 1}, element::Type(DATA_ET), std::vector<Data_t>{1, 2, 3, 4}},
+         {Shape{1, 5, 1}, element::Type(INDICES_ET), std::vector<Indices_t>{0, 0, 1, 1, 1}},
+         {Shape{1, 5, 1}, element::Type(DATA_ET), std::vector<Data_t>{50, 51, 10, 20, 30}},
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{1}},
+         {Shape{2, 2, 1}, element::Type(DATA_ET), std::vector<Data_t>{101, 60, 3, 4}},
+         Reduction::SUM,
+         false},
+        {{Shape{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{1, 2, 3, 4, 5, 6}},
+         {Shape{4, 1}, element::Type(INDICES_ET), std::vector<Indices_t>{0, 0, 1, 2}},
+         {Shape{4, 1}, element::Type(DATA_ET), std::vector<Data_t>{7, 7, 10, 5}},
+         {Shape{1}, element::Type(INDICES_ET), std::vector<Indices_t>{0}},
+         {Shape{3, 2}, element::Type(DATA_ET), std::vector<Data_t>{49, 2, 30, 4, 25, 6}},
+         Reduction::PROD,
+         true},
     };
 }
 
