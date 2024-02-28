@@ -90,6 +90,8 @@
     "dlbConfig" : {
         "launchedAsJob" : false,
         "toolName" : "{e2e|ac} - specified outside tool, supposed to be downloaded by job",
+        "wheelVersionRequired": true,
+        "wheelVersionsMap": {},
         "appPath" : "path, substituted by job"
     },
     "cachedPathConfig": {
@@ -102,5 +104,14 @@
         "commonPath": "",
         "subPath": "",
         "cashMap" : {}
-    }
+    },
+    "substitutionRules":[
+        {
+            "name": "wheelVersion",
+            "enabled": false,
+            "type": "commit_map | static",
+            "from": "$.json.path.expression.to.cfg.value",
+            "to": "$.json.path.expression.to.commit.map"
+        }
+    ]
 }

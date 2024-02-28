@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 def getMeaningfullCommitTail(commit):
     return commit[:7]
 
-def excludeModelPath(cmdStr):
+def extractModelPath(cmdStr):
     args = cmdStr.split()
     return args[args.index("-m") + 1]
 
@@ -132,6 +132,7 @@ def absolutizePaths(cfg):
         for env in cfg["envVars"]:
             envKey = env["name"]
             envVal = env["val"]
+            # todo: move to substitute rules
             # format ov-path in envvars for e2e case
             if "{gitPath}" in envVal:
                 envVal = envVal.format(gitPath=cfg["gitPath"])
@@ -541,3 +542,43 @@ class DictHolder:
         if dict is not None:
             for k, v in dict.items():
                 setattr(self, k, v)
+
+def formatJSON(content, formatLambda):
+    if isinstance(content, dict):
+        for k, value in content.items():
+            content[k] = formatJSON(value, formatLambda)
+    elif isinstance(content, list):
+        for id, item in enumerate(content):
+            content[id] = formatJSON(item, formatLambda)
+    elif isinstance(content, str):
+        content = formatLambda(content)
+    else:
+        # bool or digit object
+        pass
+    return content
+
+def applySubstitutionRule(cfg: map, rule: map, commit: str):
+    if not rule["enabled"]:
+        return
+    # convert path to list and remove root symbol
+    pathToSrc = rule["from"]
+    pathToDst = rule["to"]
+    pathToSrc = pathToSrc.split(".")
+    pathToDst = pathToDst.split(".")
+    pathToSrc.pop(0)
+    pathToDst.pop(0)
+    # setup positions for substitution
+    srcPos, dstPos = cfg, cfg
+    for item in pathToSrc:
+        srcPos = srcPos[item]
+    for item in pathToDst:
+        dstPos = dstPos[item]
+    formatJSON(
+        cfg,
+        lambda content:
+        content.format(
+            commitHash=srcPos[commit]
+        )
+    )
+
+    

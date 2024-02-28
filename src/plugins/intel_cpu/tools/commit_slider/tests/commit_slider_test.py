@@ -140,3 +140,34 @@ class CommitSliderTest(TestCase):
             e.exception.errType,
             BmValidationError.BmValErrType.LOW_LOCAL_GAP
         )
+
+    @skip_commit_slider_devtest
+    def testForsubstitutionRule(self):
+        from utils.helpers import applySubstitutionRule
+        cfg = {
+                "dst": {
+                    "complex": {
+                        "path": "{commitHash} is one"
+                    }
+                },
+                "src": {
+                    "complex": {
+                        "path": {
+                            "1": "one",
+                            "2": "two"
+                        }
+                    }
+                }
+        }
+        rule = {
+            "name": "testRule",
+            "enabled": True,
+            "type": "map",
+            "from": "$.src.complex.path",
+            "to": "$.dst.complex.path"
+        }
+        applySubstitutionRule(cfg, rule, "1")
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"],
+            "one is one"
+        )
