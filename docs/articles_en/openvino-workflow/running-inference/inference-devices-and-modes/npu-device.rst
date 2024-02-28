@@ -14,7 +14,7 @@ you to offload certain neural network computation tasks from other devices,
 for more streamlined resource management.
 
 Note that the NPU plugin is currently available only with the Archive distribution of OpenVINO™
-and you need to :doc:`install a proper NPU driver <../../../get-started/configurations-header/configurations-intel-npu>`
+and you need to :doc:`install a proper NPU driver <../../../get-started/configurations/configurations-intel-npu>`
 to use it successfully.
 
 | **Supported Platforms:**
