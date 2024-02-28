@@ -18,24 +18,24 @@ NamedOutputs reduce_ops(const NodeContext& node) {
 
     PADDLE_OP_CHECK(node, x.get_partial_shape().rank().is_static(), "reduce_ops: X rank must be static!");
     int64_t input_rank = x.get_partial_shape().rank().get_length();
-    std::vector<int32_t> dims(input_rank);
+    std::vector<int64_t> dims(input_rank);
 
     auto any = node.get_attribute_as_any("dim");
     if (any.is<std::vector<int32_t>>()) {
-        dims = node.get_attribute<std::vector<int32_t>>("dim");
-    } else {
-        auto dim = any.as<std::vector<int64_t>>();
+        auto dim = any.as<std::vector<int32_t>>();
         dims.resize(dim.size());
-        std::transform(dim.begin(), dim.end(), dims.begin(), [](int64_t value) {
-            return static_cast<int32_t>(value);
+        std::transform(dim.begin(), dim.end(), dims.begin(), [](int32_t value) {
+            return static_cast<int64_t>(value);
         });
+    } else {
+        dims = node.get_attribute<std::vector<int64_t>>("dim");
     }
 
     int64_t axis_size = static_cast<int64_t>(dims.size());
     reduce_all = reduce_all || (axis_size == input_rank || axis_size == 0);
 
     if (reduce_all) {
-        dims = std::vector<int32_t>(input_rank);
+        dims = std::vector<int64_t>(input_rank);
         std::iota(dims.begin(), dims.end(), 0);
     }
 
