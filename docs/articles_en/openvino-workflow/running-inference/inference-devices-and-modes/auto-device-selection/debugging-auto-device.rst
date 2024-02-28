@@ -5,7 +5,7 @@ Debugging Auto-Device Plugin
 
 
 .. meta::
-   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™ 
+   :description: In OpenVINO Runtime, you can enable Instrumentation and Tracing Technology API (ITT API) of Intel® VTune™
                  Profiler to control trace data during execution of AUTO plugin.
 
 
@@ -16,45 +16,40 @@ In case of execution problems, just like all other plugins, Auto-Device provides
 
 There are six levels of logs, which can be called explicitly or set via the ``OPENVINO_LOG_LEVEL`` environment variable (can be overwritten by ``compile_model()`` or ``set_property()``):
 
-0 - `ov::log::Level::NO <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
-
-1 - `ov::log::Level::ERR <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
-
-2 - `ov::log::Level::WARNING <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
-
-3 - `ov::log::Level::INFO <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
-
-4 - `ov::log::Level::DEBUG <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
-
-5 - `ov::log::Level::TRACE <https://docs.openvino.ai/nightly/enumov_1_1log_1_1Level.html#doxid-group-ov-runtime-cpp-prop-api-1gga9868e1ed6b0286d17cdb0ab85b2cc66bac2f3f489a00553e7a01d369c103c7251>`__
+0 - ``ov::log::Level::NO``
+1 - ``ov::log::Level::ERR``
+2 - ``ov::log::Level::WARNING``
+3 - ``ov::log::Level::INFO``
+4 - ``ov::log::Level::DEBUG``
+5 - ``ov::log::Level::TRACE``
 
 .. tab-set::
 
    .. tab-item:: Python
       :sync: py
-   
+
       .. doxygensnippet:: docs/snippets/ov_auto.py
          :language: python
          :fragment: [part6]
 
    .. tab-item:: C++
       :sync: cpp
-   
+
       .. doxygensnippet:: docs/snippets/AUTO6.cpp
          :language: cpp
          :fragment: [part6]
-   
+
    .. tab-item:: OS environment variable
       :sync: os-environment-variable
-   
+
       .. code-block:: sh
-   
-         When defining it via the variable, 
+
+         When defining it via the variable,
          a number needs to be used instead of a log level name, e.g.:
-         
+
          Linux
          export OPENVINO_LOG_LEVEL=0
-         
+
          Windows
          set OPENVINO_LOG_LEVEL=0
 
@@ -85,18 +80,20 @@ All major performance calls of both OpenVINO™ Runtime and the AUTO plugin are 
 
 For more information, you can refer to:
 
-* `Intel® VTune™ Profiler User Guide <https://www.intel.com/content/www/us/en/develop/../../../../documentation/vtune-help/top/api-support/instrumentation-and-tracing-technology-apis.html>`__
+* `Intel® VTune™ Profiler User Guide <https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2023-0/instrumentation-and-tracing-technology-apis.html>`__
 
 Analyze Code Performance on Linux
 +++++++++++++++++++++++++++++++++
 
-You can analyze code performance using Intel® VTune™ Profiler. For more information and installation instructions refer to the `installation guide (PDF) <https://software.intel.com/content/www/us/en/develop/download/intel-vtune-install-guide-linux-os.html>`__
+You can analyze code performance using Intel® VTune™ Profiler. For more information and
+installation instructions refer to the
+`Intel® VTune™ Profiler User Guide <https://www.intel.com/content/www/us/en/docs/vtune-profiler/user-guide/2023-0/instrumentation-and-tracing-technology-apis.html>`__
 With Intel® VTune™ Profiler installed you can configure your analysis with the following steps:
 
 1. Open Intel® VTune™ Profiler GUI on the host machine with the following command:
 
    .. code-block:: sh
-   
+
       cd /vtune install dir/intel/oneapi/vtune/2021.6.0/env
       source vars.sh
       vtune-gui

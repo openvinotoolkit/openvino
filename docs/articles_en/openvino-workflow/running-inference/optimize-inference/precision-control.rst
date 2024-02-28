@@ -4,15 +4,19 @@ Precision Control
 =================
 
 
-The choice of data types is essential to the inference runtime, which can have a huge impact on the performance and other metrics. Usually 2 types of precision are identified:
+The choice of data types is essential to the inference runtime, which can have a huge impact on
+the performance and other metrics. Usually 2 types of precision are identified:
 
 1. Model storage precision (IR precision),
 2. Model inference precision.
 
-Inference precision no longer depends on the precision of IR, which means that users
-have several options to find the balance between model performance and accuracy.
+Inference precision no longer depends on the precision of IR, which means that users have
+several options to find the balance between model performance and accuracy.
 
-Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different.
+Essentially, the IR precision becomes a way of compressing the model by reducing the precision
+of the weights, and it does not affect how the devices execute the model. This change clears up
+a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU
+by default, and the behavior between devices was different.
 
 This guide will focus on how to control inference precision. And using lower precision is important for performance because compute bandwidth tends to be higher for smaller data types, and hardware often has special blocks for efficient multiply-accumulate operations with smaller data types only (e.g. Intel Xᵉ Matrix Extensions (XMX) on GPU and Intel Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O operations requires less memory due to the smaller tensor byte size. This guide will focus on how to control inference precision.
 

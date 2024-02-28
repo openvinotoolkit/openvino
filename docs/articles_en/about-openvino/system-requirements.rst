@@ -6,10 +6,10 @@ System Requirements
 
 .. note::
 
-   Certain hardware (including but not limited to GPU, GNA, and latest CPUs) requires manual
-   installation of specific drivers and/or other software components to work correctly and/or
-   to utilize hardware capabilities at their best. This might require updates to operating
-   system, including but not limited to Linux kernel, please refer to their ../documentation
+   Certain hardware, including but not limited to GPU and NPU, requires manual installation of
+   specific drivers and/or other software components to work correctly and/or to utilize
+   hardware capabilities at their best. This might require updates to the operating
+   system, including but not limited to Linux kernel, please refer to their documentation
    for details. These modifications should be handled by user and are not part of OpenVINO
    installation.
 
@@ -68,10 +68,9 @@ GPU
 
    .. tab-item:: Additional considerations
 
-      * The use of of GPU requires drivers that are not included in the Intel®
+      * The use of GPU requires drivers that are not included in the Intel®
         Distribution of OpenVINO™ toolkit package.
-      * A chipset that supports processor graphics is required for Intel® Xeon®
-        processors. Processor graphics are not included in all processors. See
+      * Processor graphics are not included in all processors. See
         `Product Specifications  <https://ark.intel.com/>`__
         for information about your processor.
       * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
