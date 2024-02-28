@@ -21,8 +21,8 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
                                                    const Output<Node>& weights,
                                                    std::shared_ptr<ov::op::v0::Constant> mul_const) {
     // skip in case the transformation can affect nncf/lpt pipelines to insert FakeQuantize
-    if (weights.get_element_type().is_quantized() || !ov::util::get_constant_from_source(weights) ||
-        is_dequantization_node(weights.get_node_shared_ptr())) {
+    if (weights.get_element_type().is_quantized() || is_dequantization_node(weights.get_node_shared_ptr()) ||
+        !ov::op::util::is_on_constant_path(weights)) {
         return nullptr;
     }
 

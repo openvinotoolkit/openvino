@@ -445,6 +445,7 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
 
         if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
             status = false;
+            break;
         } else {
             // not a leaf - continue to search
             for (const auto& input_value : current_node->input_values()) {
