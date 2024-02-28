@@ -1110,6 +1110,10 @@ std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(const dnnl::primitive_des
 }
 
 bool Convolution::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_ACL)
+    if (!fusedWith.empty())
+        return false;
+#endif
     return canFuseSimpleOperation(node);
 }
 
