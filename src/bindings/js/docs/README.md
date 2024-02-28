@@ -16,7 +16,10 @@
 
 ### Build
 
-- Make sure that all submodules are updated `git submodule update --init --recursive`
+- Make sure that all submodules are updated:
+  ```bash
+  git submodule update --init --recursive
+  ```
 - Create the *build* directory:
   ```bash
   mkdir build && cd build
