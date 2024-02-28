@@ -5,27 +5,35 @@ USER root
 # Set apt retries
 RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
+# to prevent apt-get from waiting user input
+ENV DEBIAN_FRONTEND="noninteractive"
+
+# to prevent tzdata from waiting user input
+ENV TZ="Europe/London"
+
 RUN apt-get update && \
     apt-get install --assume-yes --no-install-recommends software-properties-common && \
-    add-apt-repository ppa:deadsnakes/ppa && \
+    add-apt-repository --yes --no-update ppa:git-core/ppa && \
+    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install --assume-yes --no-install-recommends \
         curl \
         # Install git
         git \
         ca-certificates \
-        # Install Python
-        python3-distutils \
+        gpg-agent \
+        tzdata \
+        # For Java API
+        default-jdk \
+        # Pythons
+        python3.8-dev \
+        python3.8-venv \
+        python3.8-distutils \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
-        # For Java API
-        default-jdk \
         && \
     rm -rf /var/lib/apt/lists/*
-
-# Link python3 to python3.11
-RUN rm -f /usr/bin/python3 && ln -s /usr/bin/python3.11 /usr/bin/python3
 
 # Setup pip
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
@@ -34,6 +42,11 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     rm -f get-pip.py
 
 # Install build dependencies
-COPY install_build_dependencies.sh /install_build_dependencies.sh
+ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
+
+# Use Python 3.11 as default instead of Python 3.8
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$PATH"
