@@ -362,8 +362,8 @@ inline double calculate_median(std::vector<double>& abs_values) {
 template <typename ExpectedT, typename ActualT>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
-             const double abs_threshold_ = 0,
-             const double rel_threshold_ = 0) {
+             const double abs_threshold_ = std::numeric_limits<double>::max(),
+             const double rel_threshold_ = std::numeric_limits<double>::max()) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -380,7 +380,7 @@ void compare(const ov::Tensor& expected,
     double abs_threshold = abs_threshold_;
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
-    if (abs_threshold == 0 && rel_threshold == 0) {
+    if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
             abs_threshold = 1.;
             rel_threshold = 1.;
@@ -451,13 +451,8 @@ void compare(const ov::Tensor& expected,
         }
 
         double abs = std::fabs(expected_value - actual_value);
-        double rel = 0;
-        if (expected_value == 0 || actual_value == 0) {
-            rel = (std::abs(expected_value) >= 1 || std::abs(actual_value) >= 1) ? (abs * 1e-2) : abs;
-        } else if (!std::isinf(expected_value)) {
-            rel = (abs / std::fabs(expected_value));
-        }
-
+        double rel =
+            expected_value && actual_value && !std::isinf(expected_value) ? (abs / std::fabs(expected_value)) : 0;
         abs_error.update(abs, i);
         rel_error.update(rel, i);
     }
