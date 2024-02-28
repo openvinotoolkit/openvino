@@ -25,7 +25,10 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         dims = node.get_attribute<std::vector<int32_t>>("dim");
     } else {
         auto dim = any.as<std::vector<int64_t>>();
-        dims = std::vector<int32_t>(dim.begin(), dim.end());
+        dims.resize(dim.size());
+        std::transform(dim.begin(), dim.end(), dims.begin(), [](int64_t value) {
+            return static_cast<int32_t>(value);
+        });
     }
 
     int64_t axis_size = static_cast<int64_t>(dims.size());
