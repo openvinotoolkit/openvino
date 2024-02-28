@@ -70,7 +70,7 @@ jobs:
           echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
           echo "PYTHON_RUN_PREFIX=${{ runner.arch == 'ARM64' && 'python3' || 'pdm run -v' }}" >> "$GITHUB_ENV"
           echo "PYTHON_RUN_TESTS_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m' || 'pdm run -v' }}" >> "$GITHUB_ENV"
-          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -v -G tests' }}" >> "$GITHUB_ENV"
+          echo "PYTHON_INSTALL_PREFIX=${{ runner.arch == 'ARM64' && 'python3 -m pip install' || 'pdm add -v -G tests_ov_api' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_PYTHON_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt' || 'pdm sync -v' }}" >> "$GITHUB_ENV"
           echo "PYTHON_INSTALL_LAYER_REQS=${{ runner.arch == 'ARM64' && 'python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt' || 'pdm sync -L layer.pdm.lock -v --venv layer-test' }}" >> "$GITHUB_ENV"
           
@@ -119,7 +119,7 @@ jobs:
           #Initialize pdm environment
             pdm venv create --name for-test ${{ env.PYTHON_VERSION }}
             pdm use --venv for-test
-            pdm lock -v --strategy no_cross_platform -G tests -G torchvision -G tests_mo
+            pdm lock -v --strategy no_cross_platform -G tests_ov_api -G tests_mo
           fi
 
           # Install the core OV wheel

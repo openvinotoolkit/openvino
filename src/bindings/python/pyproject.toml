@@ -36,12 +36,6 @@ build = [
     "patchelf <= 0.17.2.1; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "wheel >= 0.38.1",
 ]
-torchvision = [
-    "torch>=1.13",
-    "torchvision; platform_machine == 'arm64' and python_version >= '3.8'",
-    "torchvision; platform_machine != 'arm64'",
-    "pillow>=9.0",
-]
 
 linters = [
     "black",
@@ -69,17 +63,8 @@ linters = [
     "Pep8-naming",
     "pydocstyle",
 ]
-tests = [
+tests_ov_api = [
     "numpy>=1.22.4,<1.26",  # Range of numpy for testing
-    # Frontends: TBD split of them
-    "protobuf>=3.18.1,<4.0.0",
-    "onnx==1.14.1",
-    "torch",
-    "torchvision; platform_machine == 'arm64' and python_version >= '3.8'",
-    "torchvision; platform_machine != 'arm64'",
-    "sympy; platform_machine == 'arm64' and python_version >= '3.8'",
-    "sympy; platform_machine != 'arm64'",
-    "pillow",
     # Testing:
     "bandit",
     "pytest>=5.0,<7.5",
@@ -117,6 +102,11 @@ tests_mo = [
 ]
 
 tests_layer = [
+    "torchvision; platform_machine == 'arm64' and python_version >= '3.8'",
+    "torchvision; platform_machine != 'arm64'",
+    "sympy>=1.10; platform_machine == 'arm64' and python_version >= '3.8'",
+    "sympy>=1.10; platform_machine != 'arm64'",
+    "pillow>=9.0",
     "numpy>=1.16.6,<1.27",
     "onnxruntime",
     "requests>=2.25.1",
