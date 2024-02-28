@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/matmul.hpp"
@@ -35,10 +35,9 @@ public:
     };
 
     explicit DimensionTestHelper(const size_t& num_dims) {
-        auto te = make_shared<ov::TableOfEquivalence>();
-        auto dt = ov::DimensionTracker(te);
+        auto te = make_shared<ov::LabelTable>();
         auto dimensions = PartialShape::dynamic(Rank(num_dims));
-        dt.set_up_for_tracking(dimensions);
+        te->set_up_for_tracking(dimensions);
         parameter = make_shared<v0::Parameter>(element::f32, dimensions);
         for (size_t i = 0; i < num_dims; ++i)
             m_map[i] = {dimensions[i], op::util::node_to_get_shape_value_of_indices_from_shape_source(parameter, {i})};

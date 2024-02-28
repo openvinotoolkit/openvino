@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -263,11 +263,11 @@ TEST(type_prop, concat_partial_negative_axis_incorrect) {
 /** \brief Test uses evaluate lower/upper and label of concat op. */
 TEST(type_prop, concat_dynamic_value_and_label_propagation) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 15);
+    marked_1.set_label(15);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -291,11 +291,11 @@ TEST(type_prop, concat_dynamic_value_and_label_propagation) {
 /** \brief Test uses evaluate lower/upper and label of concat op. */
 TEST(type_prop, concat_dynamic_value_and_label_propagation_1) {
     ov::Dimension marked_0 = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 1000);
+    marked_0.set_label(1000);
     ov::PartialShape target_0 = ov::PartialShape{marked_0, 4};
 
     ov::Dimension marked_1 = ov::Dimension(5);
-    ov::DimensionTracker::set_label(marked_1, 1500);
+    marked_1.set_label(1500);
     ov::PartialShape target_1 = ov::PartialShape{4, marked_1, 9};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});

@@ -123,11 +123,11 @@ TYPED_TEST_P(RNNCellTest, default_ctor) {
 TYPED_TEST_P(RNNCellTest, static_labels_dims_shape_infer) {
     RNNCellParams params;
     params.batch_size = Dimension(8);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_label(10);
     params.input_size = Dimension(64);
-    ov::DimensionTracker::set_label(params.input_size, 11);
+    params.input_size.set_label(11);
     params.hidden_size = Dimension(128);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_label(12);
 
     auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);
@@ -141,11 +141,11 @@ TYPED_TEST_P(RNNCellTest, static_labels_dims_shape_infer) {
 TYPED_TEST_P(RNNCellTest, interval_labels_dims_shape_infer) {
     RNNCellParams params;
     params.batch_size = Dimension(8, 16);
-    ov::DimensionTracker::set_label(params.batch_size, 10);
+    params.batch_size.set_label(10);
     params.input_size = Dimension(64, 128);
-    ov::DimensionTracker::set_label(params.input_size, 11);
+    params.input_size.set_label(11);
     params.hidden_size = Dimension(128, 256);
-    ov::DimensionTracker::set_label(params.hidden_size, 12);
+    params.hidden_size.set_label(12);
 
     auto op = this->make_rnn_cell_based_op(params);
     EXPECT_EQ(op->get_output_size(), params.outputs_size);

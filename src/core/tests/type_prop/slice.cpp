@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "sequnce_generator.hpp"
 
@@ -1063,7 +1063,7 @@ TEST(type_prop, slice_v8_dynamic_rank_inputs) {
 
 TEST(type_prop, slice_v8_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3, 7);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -1081,7 +1081,7 @@ TEST(type_prop, slice_v8_dynamic_value_and_label_propagation) {
 
     const auto& output_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, (PartialShape{{3, 7}}));
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_label(), 10);
 }
 
 TEST(type_prop, slice_v8_dynamic_dimension_but_slice_min_is_lt_input_min_size) {

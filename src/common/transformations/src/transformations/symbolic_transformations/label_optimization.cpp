@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -41,10 +41,10 @@ void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m, co
             for (auto& d : shape) {
                 if (d.is_static())
                     continue;
-                auto label = ov::DimensionTracker::get_label(d);
+                auto label = d.get_label();
                 update_label(table, label);
                 if (label != ov::no_label)
-                    ov::DimensionTracker::set_label(d, label);
+                    d.set_label(label);
             }
             op->set_output_type(output.get_index(), output.get_element_type(), shape);
             // value relabeling
@@ -77,7 +77,7 @@ int64_t get_idx_of_label_in_source(const ov::Output<ov::Node>& source, const ov:
     if (rank.is_dynamic())
         return idx;
     for (int64_t i = 0; i < rank.get_length(); ++i) {
-        auto l = ov::DimensionTracker::get_label(pshape[i]);
+        auto l = pshape[i].get_label();
         if (l == label) {
             idx = i;
             break;
@@ -175,13 +175,13 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const LTS_map&
         const auto& lhs_pshape = concat->get_input_partial_shape(0);
         const auto& rhs_pshape = concat->get_input_partial_shape(1);
         if (lhs_pshape.rank().is_static() && rhs_pshape.rank().is_static()) {
-            auto lhs_label = ov::DimensionTracker::get_label(lhs_pshape[idx]);
+            auto lhs_label = lhs_pshape[idx].get_label();
             auto lhs_alternative = get_alternative_source_from_value_or_shape_source(label_shape_source,
                                                                                      lhs_label,
                                                                                      original_output,
                                                                                      label_value_source);
 
-            auto rhs_label = ov::DimensionTracker::get_label(rhs_pshape[idx]);
+            auto rhs_label = rhs_pshape[idx].get_label();
             auto rhs_alternative = get_alternative_source_from_value_or_shape_source(label_shape_source,
                                                                                      rhs_label,
                                                                                      original_output,
@@ -228,7 +228,7 @@ void save_shape_sources(const ov::Output<ov::Node>& output, LTS_map& label_shape
     for (const auto& d : output.get_partial_shape()) {
         if (d.is_static())
             continue;
-        auto label = ov::DimensionTracker::get_label(d);
+        auto label = d.get_label();
         if (label == ov::no_label || label_shape_source.count(label))
             continue;
         label_shape_source[label] = output;

@@ -6,11 +6,11 @@
 
 #include <openvino/core/model.hpp>
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace {
-std::shared_ptr<ov::TableOfEquivalence> get_table(const ov::RTMap& rt_info) {
+std::shared_ptr<ov::LabelTable> get_table(const ov::RTMap& rt_info) {
     const auto& type = ov::SymbolicInfo::get_type_info_static();
     if (!rt_info.count(type))
         return nullptr;
@@ -18,14 +18,12 @@ std::shared_ptr<ov::TableOfEquivalence> get_table(const ov::RTMap& rt_info) {
 }
 }  // namespace
 
-void ov::set_up_symbolic_info(const std::shared_ptr<ov::Model>& model,
-                              const std::shared_ptr<ov::TableOfEquivalence>& table) {
+void ov::set_up_symbolic_info(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::LabelTable>& table) {
     auto& rt_info = model->get_rt_info();
     rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true, table);
 }
 
-void ov::set_up_symbolic_info(const ov::Output<ov::Node>& output,
-                              const std::shared_ptr<ov::TableOfEquivalence>& table) {
+void ov::set_up_symbolic_info(const ov::Output<ov::Node>& output, const std::shared_ptr<ov::LabelTable>& table) {
     auto& rt_info = output.get_tensor().get_rt_info();
     rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true, table);
 }
@@ -36,12 +34,12 @@ bool ov::skip_invalidation(const ov::descriptor::Tensor& tensor) {
     return rt_info.count(type) && rt_info.at(type).as<ov::SymbolicInfo>().get_skip_invalidation();
 }
 
-std::shared_ptr<ov::TableOfEquivalence> ov::table_of_equivalence(const ov::descriptor::Tensor& tensor) {
+std::shared_ptr<ov::LabelTable> ov::table_of_equivalence(const ov::descriptor::Tensor& tensor) {
     const auto& rt_info = tensor.get_rt_info();
     return get_table(rt_info);
 }
 
-std::shared_ptr<ov::TableOfEquivalence> ov::table_of_equivalence(const std::shared_ptr<ov::Model>& model) {
+std::shared_ptr<ov::LabelTable> ov::table_of_equivalence(const std::shared_ptr<ov::Model>& model) {
     const auto& rt_info = model->get_rt_info();
     return get_table(rt_info);
 }

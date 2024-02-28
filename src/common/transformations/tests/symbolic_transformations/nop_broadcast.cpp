@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/maximum.hpp"
@@ -19,19 +19,13 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 
-namespace {
-void label_shape(ov::PartialShape& shape) {
-    auto table = std::make_shared<ov::TableOfEquivalence>(42);
-    auto tracker = ov::DimensionTracker(table);
-    tracker.set_up_for_tracking(shape);
-}
-}  // namespace
-
 TEST_F(TransformationTestsF, NopBroadcastOpset1) {
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+    auto shape = PartialShape::dynamic(4);
 
+    auto table = std::make_shared<ov::LabelTable>(42);
+    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto labeled_input = make_shared<v0::Parameter>(element::f32, shape);
@@ -46,9 +40,6 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
         manager.register_pass<pass::NopBroadcast>();
     }
     {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto relu = make_shared<v0::Relu>(data);
 
@@ -59,10 +50,12 @@ TEST_F(TransformationTestsF, NopBroadcastOpset1) {
 }
 
 TEST_F(TransformationTestsF, NopBroadcastOpset3) {
-    {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+    auto shape = PartialShape::dynamic(4);
 
+    auto table = std::make_shared<ov::LabelTable>(42);
+    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
         auto labeled_input = make_shared<v0::Parameter>(element::f32, shape);
@@ -77,9 +70,6 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
         manager.register_pass<pass::NopBroadcast>();
     }
     {
-        auto shape = PartialShape::dynamic(4);
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto relu = make_shared<v0::Relu>(data);
 
@@ -92,7 +82,7 @@ TEST_F(TransformationTestsF, NopBroadcastOpset3) {
 TEST_F(TransformationTestsF, NopBroadcastNegative) {
     {
         auto shape = PartialShape::dynamic(1);
-        label_shape(shape);  // we label shape with consecutive labels: 42
+        shape[0].set_label(42);
 
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 

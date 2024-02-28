@@ -10,7 +10,7 @@
 ov::TensorLabel get_shape_labels(const ov::PartialShape& p_shape) {
     ov::TensorLabel labels;
     transform(p_shape.cbegin(), p_shape.cend(), back_inserter(labels), [](const ov::Dimension& dim) {
-        return ov::DimensionTracker::get_label(dim);
+        return dim.get_label();
     });
     return labels;
 }
@@ -27,7 +27,7 @@ void set_shape_labels(ov::PartialShape& p_shape, const ov::TensorLabel& labels) 
 
     std::for_each(p_shape.begin(), p_shape.end(), [&label_it](ov::Dimension& dim) {
         if (*label_it > 0) {
-            ov::DimensionTracker::set_label(dim, *label_it);
+            dim.set_label(*label_it);
         }
         ++label_it;
     });

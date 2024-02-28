@@ -6,8 +6,8 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset9.hpp"
@@ -386,7 +386,7 @@ TEST(type_prop, strided_slice_reverse_end_is_int64_min) {
 TEST(type_prop, strided_slice_dynamic_value_and_label_propagation) {
     // Use evaluate upper,lower and labels
     auto marked_0 = Dimension(3, 5);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});

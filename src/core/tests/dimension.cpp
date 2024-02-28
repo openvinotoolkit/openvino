@@ -5,7 +5,7 @@
 #include "openvino/core/dimension.hpp"
 
 #include "gtest/gtest.h"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 
 using namespace std;
 using namespace ov;
@@ -123,23 +123,22 @@ TEST(dimension, division_of_static_dims) {
 }
 
 TEST(dimension, dimension_equality) {
-    auto te = make_shared<TableOfEquivalence>();
-    DimensionTracker dt(te);
+    auto te = make_shared<LabelTable>();
 
     // labeling dimensions
     PartialShape dimensions = PartialShape::dynamic(5);  // A, B, C, D, E
     for (auto& dimension : dimensions)
-        dt.set_up_for_tracking(dimension);
+        te->set_up_for_tracking(dimension);
 
     // checking labels are unique
     for (const auto& dimension : dimensions)
-        EXPECT_NE(DimensionTracker::get_label(dimension), no_label);
+        EXPECT_NE(dimension.get_label(), no_label);
 
     for (const auto& lhs : dimensions) {
         for (const auto& rhs : dimensions) {
             if (&lhs == &rhs)
                 continue;
-            EXPECT_NE(DimensionTracker::get_label(lhs), DimensionTracker::get_label(rhs));
+            EXPECT_NE(lhs.get_label(), rhs.get_label());
             EXPECT_FALSE(te->are_equal(lhs, rhs));
         }
     }
@@ -156,9 +155,9 @@ TEST(dimension, dimension_equality) {
 
     // clear up all the tracking info
     for (auto& dimension : dimensions)
-        DimensionTracker::reset_tracking_info(dimension);
+        LabelTable::reset_tracking_info(dimension);
 
     // checking labels are unique
     for (const auto& dimension : dimensions)
-        EXPECT_EQ(DimensionTracker::get_label(dimension), no_label);
+        EXPECT_EQ(dimension.get_label(), no_label);
 }

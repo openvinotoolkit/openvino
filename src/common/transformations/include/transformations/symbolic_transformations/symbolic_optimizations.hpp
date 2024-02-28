@@ -47,7 +47,7 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    std::shared_ptr<ov::TableOfEquivalence> m_te;
+    std::shared_ptr<ov::LabelTable> m_te;
 };
 
 /**

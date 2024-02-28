@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 using namespace ov;
@@ -570,8 +570,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_b_and_fully_dyn_a_bro
     ov::Dimension dim_0_A = ov::Dimension(-1);
     ov::Dimension dim_0_B = ov::Dimension(2, 4);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    dim_0_A.set_label(10);
+    dim_0_B.set_label(20);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
@@ -593,8 +593,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_a_and_fully_dyn_b_bro
     ov::Dimension dim_0_A = ov::Dimension(2, 4);
     ov::Dimension dim_0_B = ov::Dimension(-1);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    dim_0_A.set_label(10);
+    dim_0_B.set_label(20);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
@@ -657,14 +657,13 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_dims_without_one_broa
 
 TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equivalence_table_broadcast_numpy) {
     // Both params have dynamic interval dimension different labels, use table of equivalence
-    auto table_of_equivalence = std::make_shared<ov::TableOfEquivalence>();
-    ov::DimensionTracker dim_tracker(table_of_equivalence);
+    auto table_of_equivalence = std::make_shared<ov::LabelTable>();
 
     ov::Dimension dim_0_A = ov::Dimension(2, 4);
     ov::Dimension dim_0_B = ov::Dimension(2, 4);
 
-    dim_tracker.set_up_for_tracking(dim_0_A, 10);
-    dim_tracker.set_up_for_tracking(dim_0_B, 20);
+    table_of_equivalence->set_up_for_tracking(dim_0_A, 10);
+    table_of_equivalence->set_up_for_tracking(dim_0_B, 20);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
 
@@ -679,8 +678,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equ
     ov::TensorLabel expected_labels{20, 0, 0, 0};
 
     auto eq_table = table_of_equivalence->get_equivalence_table();
-    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::set<ov::label_t>({10, 20}));
-    EXPECT_EQ(*eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::set<ov::label_t>({10, 20}));
+    EXPECT_EQ(*eq_table[dim_0_A.get_label()], std::set<ov::label_t>({10, 20}));
+    EXPECT_EQ(*eq_table[dim_0_B.get_label()], std::set<ov::label_t>({10, 20}));
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
@@ -691,8 +690,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_fully_dynamic_batch_broadcast_
     ov::Dimension dim_0_A = ov::Dimension(-1);
     ov::Dimension dim_0_B = ov::Dimension(-1);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 20);
+    dim_0_A.set_label(10);
+    dim_0_B.set_label(20);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {-1, 3, 224, 224};
@@ -714,8 +713,8 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_fully_dynamic_batch_broadcast_nump
     ov::Dimension dim_0_A = ov::Dimension(-1);
     ov::Dimension dim_0_B = ov::Dimension(-1);
 
-    ov::DimensionTracker::set_label(dim_0_A, 10);
-    ov::DimensionTracker::set_label(dim_0_B, 10);
+    dim_0_A.set_label(10);
+    dim_0_B.set_label(10);
 
     ov::PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     ov::PartialShape expected_shape = {-1, 3, 224, 224};
@@ -734,7 +733,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_fully_dynamic_batch_broadcast_nump
 
 TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_a_broadcast_numpy) {
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_label(10);
     ov::PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
     ov::PartialShape expected_shape{b, 3, 224, 224};
 
@@ -753,7 +752,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_a_broadcast_numpy) {
 
 TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_b_broadcast_numpy) {
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_label(10);
     ov::PartialShape B = {b, 3, 224, 224}, A = {1, 3, 1, 1};
     ov::PartialShape expected_shape{b, 3, 224, 224};
 
@@ -772,7 +771,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_b_broadcast_numpy) {
 
 TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy) {
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_label(10);
 
     ov::PartialShape pshape_A{b, -1, -1, -1};
     ov::PartialShape pshape_B{3, 1, 1};
@@ -793,7 +792,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_a_broadcast_nu
 
 TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_b_broadcast_numpy) {
     ov::Dimension b = -1;
-    ov::DimensionTracker::set_label(b, 10);
+    b.set_label(10);
 
     ov::PartialShape pshape_A{3, 1, 1};
     ov::PartialShape pshape_B{b, -1, -1, -1};

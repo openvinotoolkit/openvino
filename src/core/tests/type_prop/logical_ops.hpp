@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 
 template <typename T, ov::element::Type_t ELEMENT_TYPE>
 class LogicalOperatorType {

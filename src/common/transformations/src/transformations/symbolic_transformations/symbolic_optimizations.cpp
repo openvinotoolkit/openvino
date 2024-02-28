@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
@@ -30,16 +30,16 @@ using namespace ov::pass;
 using namespace ov::symbol::util;
 
 namespace {
-void symbolic_set_up_for_shape(ov::DimensionTracker& dt, ov::PartialShape& shape) {
+void symbolic_set_up_for_shape(const std::shared_ptr<ov::LabelTable>& te, ov::PartialShape& shape) {
     if (shape.rank().is_dynamic())
         return;
     for (auto& d : shape) {
-        bool is_static = d.is_static(), has_label = ov::DimensionTracker::has_label(d);
+        bool is_static = d.is_static(), has_label = d.has_label();
         if (is_static && has_label)
-            dt.reset_tracking_info(d);  // remove labels from static dims on shapes to reduce label clutter
+            te->reset_tracking_info(d);  // remove labels from static dims on shapes to reduce label clutter
         if (is_static || has_label)
             continue;
-        dt.set_up_for_tracking(d);
+        te->set_up_for_tracking(d);
     }
 }
 
@@ -81,15 +81,15 @@ void special_case_range_label_propagation(const std::shared_ptr<ov::Node>& node)
     auto add_in1_label = add_in1_labels[0];
 
     if (add_in0_label == start_label)
-        ov::DimensionTracker::set_label(output_shape[0], add_in1_label);
+        output_shape[0].set_label(add_in1_label);
     else if (add_in1_label == start_label)
-        ov::DimensionTracker::set_label(output_shape[0], add_in0_label);
+        output_shape[0].set_label(add_in0_label);
     node->set_output_type(0, node->get_output_element_type(0), output_shape);
 }
 }  // namespace
 
 ov::pass::SymbolicPropagation::SymbolicPropagation() {
-    m_te = std::make_shared<ov::TableOfEquivalence>();
+    m_te = std::make_shared<ov::LabelTable>();
 }
 
 bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -97,7 +97,6 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
 
     auto te = m_te;
     ov::set_up_symbolic_info(m, te);
-    ov::DimensionTracker dt(te);
 
     for (const auto& op : m->get_ordered_ops()) {
         // since we disable invalidation with the following two lines, we have to invalidate manually here
@@ -117,7 +116,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
 
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
-            symbolic_set_up_for_shape(dt, shape);
+            symbolic_set_up_for_shape(te, shape);
             ov::descriptor::set_tensor_type(output.get_tensor(), output.get_element_type(), shape);
         }
     }

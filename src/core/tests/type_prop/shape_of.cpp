@@ -5,7 +5,7 @@
 #include "openvino/op/shape_of.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/broadcast.hpp"
 
 using namespace std;
@@ -108,7 +108,7 @@ TEST(type_prop, shape_of_output_type_v3) {
 
 TEST(type_prop, shape_of_1_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -119,12 +119,12 @@ TEST(type_prop, shape_of_1_dynamic_value_and_label_propagation) {
     ASSERT_EQ(bc->get_shape(), (Shape{3, 4}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    ASSERT_EQ(output_shape[0].get_label(), 10);
 }
 
 TEST(type_prop, shape_of_3_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -135,7 +135,7 @@ TEST(type_prop, shape_of_3_dynamic_value_and_label_propagation) {
     ASSERT_EQ(bc->get_shape(), (Shape{3, 4}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    ASSERT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    ASSERT_EQ(output_shape[0].get_label(), 10);
 }
 
 TEST(type_prop, shape_of_3_dynamic_value_propagation_out_i32) {

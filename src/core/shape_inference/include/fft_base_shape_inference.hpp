@@ -6,7 +6,7 @@
 #include "dimension_util.hpp"
 #include "fft_common_validation.hpp"
 #include "openvino/core/axis_vector.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/util/fft_base.hpp"
 #include "utils.hpp"
 
@@ -33,7 +33,7 @@ void apply_dims_from_sizes(const util::FFTBase* op,
                 auto& out_dim = output_shape[(axes)[i]];
                 out_dim = DimType((*output_bounds)[i].first, (*output_bounds)[i].second);
                 if (propagate_labels && labels[i] != ov::no_label) {
-                    DimensionTracker::set_label(out_dim, labels[i]);
+                    out_dim.set_label(labels[i]);
                 }
             }
         }

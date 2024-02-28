@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -19,19 +19,13 @@ using namespace ov;
 using namespace ov::op;
 using namespace std;
 
-namespace {
-void label_shape(ov::PartialShape& shape) {
-    auto table = std::make_shared<ov::TableOfEquivalence>(42);
-    auto tracker = ov::DimensionTracker(table);
-    tracker.set_up_for_tracking(shape);
-}
-}  // namespace
-
 TEST_F(TransformationTestsF, DeReshapeFC) {
-    {
-        auto shape = PartialShape{-1, -1, 40};
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44
+    auto table = std::make_shared<ov::LabelTable>(42);
 
+    auto shape = PartialShape{-1, -1, 40};
+    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+
+    {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
@@ -47,9 +41,6 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
         manager.register_pass<pass::DeReshapeFullyConnected>();
     }
     {
-        auto shape = PartialShape{-1, -1, 40};
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44
-
         auto data = make_shared<v0::Parameter>(element::f32, shape);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
         auto matmul = make_shared<v0::MatMul>(data, second_input);
@@ -59,10 +50,11 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
 }
 
 TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
-    {
-        auto shape = PartialShape{-1, -1, 40};
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44
+    auto table = std::make_shared<ov::LabelTable>(42);
 
+    auto shape = PartialShape{-1, -1, 40};
+    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+    {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
         auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto convert = make_shared<v0::Convert>(in_reshape, element::f32);
@@ -79,9 +71,6 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
         manager.register_pass<pass::DeReshapeFullyConnected>();
     }
     {
-        auto shape = PartialShape{-1, -1, 40};
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44
-
         auto data = make_shared<v0::Parameter>(element::f16, shape);
         auto convert = make_shared<v0::Convert>(data, element::f32);
         auto second_input = make_shared<v0::Parameter>(element::f32, Shape{40, 80});
@@ -92,10 +81,11 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
 }
 
 TEST_F(TransformationTestsF, DeReshapeFCNegative) {
-    {
-        auto shape = PartialShape{-1, -1, 40};
-        label_shape(shape);  // we label shape with consecutive labels: 42, 43, 44
+    auto table = std::make_shared<ov::LabelTable>(42);
 
+    auto shape = PartialShape{-1, -1, 40};
+    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+    {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
         auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
         auto convert = make_shared<v0::Convert>(in_reshape, element::f32);

@@ -7,7 +7,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/core/graph_util.hpp>
-#include <openvino/core/dimension_tracker.hpp>
+#include <openvino/core/dimension.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
@@ -99,7 +99,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             }
             // save label of cropped_shape and check it against first dimension of tokens shape
             cropped_shape_label = pattern_map.at(cropped_shape_m).get_tensor().get_value_label()[0];
-            if (ov::DimensionTracker::get_label(tokens_shape[0]) != cropped_shape_label)
+            if (tokens_shape[0].get_label() != cropped_shape_label)
                 return false;
         }
 
@@ -109,7 +109,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
         };
 
         auto tokens_label_match = [tokens_match, cropped_shape_label](ov::Output<ov::Node> output) -> bool {
-            return tokens_match(output) && ov::DimensionTracker::get_label(output.get_partial_shape()[0]) == cropped_shape_label;
+            return tokens_match(output) && output.get_partial_shape()[0].get_label() == cropped_shape_label;
         };
 
         ov::Output<ov::Node> indices;

@@ -5,7 +5,7 @@
 
 #include "compare.hpp"
 #include "dimension_util.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
@@ -83,8 +83,7 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
     void calculate() {
         // dimensions compare to remove same from product calculation
         auto dim_full_eq = [](const T& lhs, const T& rhs) -> bool {
-            return (lhs == rhs) && DimensionTracker::get_label(lhs) == DimensionTracker::get_label(rhs) &&
-                   (lhs.is_static() || DimensionTracker::has_label(lhs));
+            return (lhs == rhs) && lhs.get_label() == rhs.get_label() && (lhs.is_static() || lhs.has_label());
         };
 
         auto outs = outputs;
@@ -154,7 +153,7 @@ TDim resolve_minus_one_dim(const Product<TDim>& product) {
         }
 
         if (product_out.get_min_length() != 1 || product_out.get_max_length() != 1) {
-            DimensionTracker::reset_tracking_info(minus_one_dim);
+            LabelTable::reset_tracking_info(minus_one_dim);
         }
     }
     return minus_one_dim;
@@ -229,7 +228,7 @@ void set_pattern_labels(const Node* const op, TShape& shape) {
             auto label_iter = labels.begin();
             for (auto& d : shape) {
                 if (*label_iter != no_label) {
-                    DimensionTracker::set_label(d, *label_iter);
+                    d.set_label(*label_iter);
                 }
                 ++label_iter;
             }

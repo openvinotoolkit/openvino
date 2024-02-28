@@ -181,7 +181,7 @@ TYPED_TEST_P(PriorBoxTest, inputs_are_interval_shapes) {
 
 TYPED_TEST_P(PriorBoxTest, preseve_values_and_labels_on_inputs) {
     auto out_size_shape = PartialShape{6, 8};
-    DimensionTracker::set_label(out_size_shape[0], 10);
+    out_size_shape[0].set_label(10);
 
     const auto output_size = std::make_shared<Parameter>(element::i16, out_size_shape);
     const auto image_size = Constant::create(element::i16, Shape{2}, {300, 300});

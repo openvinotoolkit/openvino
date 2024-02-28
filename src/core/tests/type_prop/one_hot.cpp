@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -101,7 +101,7 @@ TEST(type_prop, one_hot_v1_depth_value_label) {
 
     auto labeled_dim = Dimension(4, 6);
     ov::label_t depth_label = 2345664;
-    ov::DimensionTracker::set_label(labeled_dim, depth_label);
+    labeled_dim.set_label(depth_label);
     PartialShape shape_for_depth = PartialShape{labeled_dim};
 
     auto data = make_shared<ov::op::v0::Parameter>(element::i8, shape_for_depth);

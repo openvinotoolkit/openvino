@@ -7,7 +7,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
@@ -42,7 +42,7 @@ TEST(type_prop, eye_batch_shape_constant) {
 TEST(type_prop, eye_rows_param) {
     constexpr label_t row_label = 2;
     auto rows_dim = Dimension{0, 1};
-    DimensionTracker::set_label(rows_dim, row_label);
+    rows_dim.set_label(row_label);
 
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{rows_dim});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {10});
@@ -58,7 +58,7 @@ TEST(type_prop, eye_rows_param) {
 TEST(type_prop, eye_rows_const) {
     constexpr label_t columns_label = 2;
     auto columns_dim = Dimension{0, 1};
-    DimensionTracker::set_label(columns_dim, columns_label);
+    columns_dim.set_label(columns_label);
 
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
     auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{columns_dim});
@@ -74,7 +74,7 @@ TEST(type_prop, eye_rows_const) {
 TEST(type_prop, eye_batch_shape_const) {
     constexpr label_t batch_label = 2;
     auto batch_dim = Dimension{2};
-    DimensionTracker::set_label(batch_dim, batch_label);
+    batch_dim.set_label(batch_label);
 
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto num_columns = num_rows;

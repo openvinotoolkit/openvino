@@ -8,7 +8,7 @@
 #include <iostream>
 #include <vector>
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/util/common_util.hpp"
@@ -158,7 +158,7 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
-            if (const auto& l = ov::DimensionTracker::get_label(d))
+            if (const auto& l = d.get_label())
                 str << "<" << l << ">";
             str << d;
             first = false;

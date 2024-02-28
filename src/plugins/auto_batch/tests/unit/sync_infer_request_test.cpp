@@ -6,7 +6,7 @@
 
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 #include "transformations/utils/utils.hpp"

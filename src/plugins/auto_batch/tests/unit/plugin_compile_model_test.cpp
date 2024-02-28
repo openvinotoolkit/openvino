@@ -5,7 +5,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu_non_zero.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "mock_common.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
@@ -114,7 +114,7 @@ TEST_P(PluginCompileModelTest, PluginCompileModelWithRemoteContextTestCase) {
 TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelTestCase) {
     m_model = ov::test::utils::make_conv_pool_relu_non_zero({1, 1, 32, 32});
     auto batch = ov::Dimension(5);
-    ov::DimensionTracker::set_label(batch, 11);
+    batch.set_label(11);
     auto p_shape = ov::PartialShape{batch, 1, 32, 32};
     m_model->reshape(p_shape);
     ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities));
@@ -123,7 +123,7 @@ TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelTestCase) {
 TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelWithRemoteContextTestCase) {
     m_model = ov::test::utils::make_conv_pool_relu_non_zero({1, 1, 32, 32});
     auto batch = ov::Dimension(5);
-    ov::DimensionTracker::set_label(batch, 11);
+    batch.set_label(11);
     auto p_shape = ov::PartialShape{batch, 1, 32, 32};
     m_model->reshape(p_shape);
     ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities, m_remote_context));

@@ -4,7 +4,7 @@
 
 #include "bound_evaluate.hpp"
 
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/validation_util.hpp"

@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
@@ -108,7 +108,7 @@ TEST(type_prop, gather_v1_negative_axis) {
 
 TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -125,7 +125,7 @@ TEST(type_prop, gather_1_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_label(), 10);
 }
 
 TEST(type_prop, dynamic_value_propagation) {
@@ -342,7 +342,7 @@ TEST(type_prop, gather_7_axis_not_set_positive_batch_dims) {
 
 TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -359,7 +359,7 @@ TEST(type_prop, gather_7_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_label(), 10);
 }
 
 // --------------------- V7 Negative tests ------------------------------
@@ -670,7 +670,7 @@ TEST(type_prop, gather_v8_axis_not_set_positive_batch_dims) {
 /** \brief Check usage of evaluate lower and label on shape inference. */
 TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -687,13 +687,13 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation) {
     EXPECT_EQ(bc->get_shape(), (Shape{3}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_label(), 10);
 }
 
 /** \brief Check usage of evaluate lower/upper and label on shape inference. */
 TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     Dimension marked_0 = Dimension(2, 4);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -710,7 +710,7 @@ TEST(type_prop, gather_v8_dynamic_value_and_label_propagation_interval_dim) {
     EXPECT_EQ(bc->get_output_partial_shape(0), PartialShape({marked_0}));
 
     const auto& output_shape = bc->get_output_partial_shape(0);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), 10);
+    EXPECT_EQ(output_shape[0].get_label(), 10);
 }
 
 TEST(type_prop, gather_v8_use_default_ctor) {

@@ -5,7 +5,7 @@
 #include "openvino/op/matmul.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -535,7 +535,7 @@ TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
 TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
     constexpr ov::label_t my_label = 2;
     auto marked_dim = Dimension(2, 3);
-    ov::DimensionTracker::set_label(marked_dim, my_label);
+    marked_dim.set_label(my_label);
 
     const auto a_shape = PartialShape{Dimension::dynamic(), 5, 3};
     const auto b_shape = PartialShape{3, marked_dim, 2};

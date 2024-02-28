@@ -5,7 +5,7 @@
 #include "openvino/op/scatter_update.hpp"
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -219,7 +219,7 @@ TEST(type_prop, scatter_update_v3_dynamic_data_shape) {
 TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
     auto labeled_dim = Dimension(1, 9);
     ov::label_t label = 222;
-    ov::DimensionTracker::set_label(labeled_dim, label);
+    labeled_dim.set_label(label);
     PartialShape data_shape = PartialShape{-1, {2, 8}, labeled_dim, 4};
     Shape indices_shape{2, 1};
     Shape updates_shape{3, 2, 1, 2, 4};
@@ -240,7 +240,7 @@ TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
 TEST(type_prop, scatter_update_v3_value_label_propagation) {
     auto labeled_dim = Dimension(5, 7);
     ov::label_t label = 2345664;
-    ov::DimensionTracker::set_label(labeled_dim, label);
+    labeled_dim.set_label(label);
     PartialShape data_shape = PartialShape{labeled_dim};
 
     auto data = make_shared<ov::op::v0::Parameter>(element::i8, data_shape);
@@ -255,8 +255,8 @@ TEST(type_prop, scatter_update_v3_value_label_propagation) {
 
     const auto& output_shape = broadcast->get_output_partial_shape(0);
     EXPECT_EQ(output_shape, PartialShape({1, {5, 7}}));
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[0]), ov::no_label);
-    EXPECT_EQ(ov::DimensionTracker::get_label(output_shape[1]), label);
+    EXPECT_EQ(output_shape[0].get_label(), ov::no_label);
+    EXPECT_EQ(output_shape[1].get_label(), label);
 }
 
 TEST(type_prop, scatter_update_v3_partial_value_propagation) {

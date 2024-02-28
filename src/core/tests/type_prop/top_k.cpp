@@ -4,7 +4,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
 
@@ -248,7 +248,7 @@ TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_label_and_not_interval_valu
 TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_labels_k_is_interval) {
     auto k_dim = Dimension{10, 20};
     auto shape = PartialShape{k_dim};
-    ov::DimensionTracker::set_label(k_dim, 20);
+    k_dim.set_label(20);
 
     const auto p_k = std::make_shared<Parameter>(element::i64, shape);
     const auto shape_of_k = std::make_shared<ShapeOf>(p_k);

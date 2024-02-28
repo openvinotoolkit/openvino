@@ -6,7 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -39,14 +39,14 @@ TEST(type_prop, static_value_propagation) {
 
 TEST(type_prop, reshape_static_dimension_stops_label_propagation_for_auto_batch_case) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
-    ov::DimensionTracker::set_label(shape[0], 1);
+    shape[0].set_label(1);
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
 
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_shape(), (Shape{1, 1280}));
-    ASSERT_EQ(ov::no_label, ov::DimensionTracker::get_label(r->get_output_partial_shape(0)[0]));
+    ASSERT_EQ(ov::no_label, r->get_output_partial_shape(0)[0].get_label());
 }
 
 TEST(type_prop, interval_value_propagation) {
@@ -682,7 +682,7 @@ TEST(type_prop, reshape_dynamic_shape_propagation_with_i32_precision) {
 
 TEST(type_prop, reshape_dynamic_value_and_label_propagation) {
     Dimension marked_0 = Dimension(3);
-    ov::DimensionTracker::set_label(marked_0, 10);
+    marked_0.set_label(10);
     PartialShape target_0 = PartialShape{marked_0, 4};
 
     auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1});
@@ -967,7 +967,7 @@ TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_5) {
 
 TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_6) {
     PartialShape data_shape = PartialShape{2, 3, 2, 1, 4};
-    DimensionTracker::set_label(data_shape[1], 11);
+    data_shape[1].set_label(11);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{4, 1, -1, 1, 4});
@@ -997,7 +997,7 @@ TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_7) {
 
 TEST(type_prop, reshape_label_propagation_minus_one_no_special_zero_case_8) {
     PartialShape data_shape = PartialShape{{1, 2}, 4, 2, 3};
-    DimensionTracker::set_label(data_shape[0], 121);
+    data_shape[0].set_label(121);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{4, 2, 3, -1});
@@ -1135,8 +1135,8 @@ TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_6) {
 
 TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_7) {
     auto data_shape = PartialShape{{2, 4}, 12, -1, 1, 2};
-    DimensionTracker::set_label(data_shape[2], 121);
-    DimensionTracker::set_label(data_shape[0], 10);
+    data_shape[2].set_label(121);
+    data_shape[0].set_label(10);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, -1, 3, 4, 3});
@@ -1151,8 +1151,8 @@ TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_7) {
 
 TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_8) {
     auto data_shape = PartialShape{{2, 4}, 4, -1, 1, 3, 3};
-    DimensionTracker::set_label(data_shape[2], 121);
-    DimensionTracker::set_label(data_shape[0], 10);
+    data_shape[2].set_label(121);
+    data_shape[0].set_label(10);
 
     auto input = make_shared<op::v0::Parameter>(element::f32, data_shape);
     auto output_pattern = make_shared<op::v0::Constant>(element::i64, Shape{5}, std::vector<int64_t>{0, -1, 3, 4, 3});
@@ -1182,7 +1182,7 @@ TEST(type_prop, reshape_label_propagation_minus_one_special_zero_case_9) {
 
 TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_1) {
     auto shape = PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[0], 1);
+    shape[0].set_label(1);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
@@ -1194,7 +1194,7 @@ TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_1) {
 
 TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_2) {
     auto shape = ov::PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[2], 2);
+    shape[2].set_label(2);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
@@ -1206,8 +1206,8 @@ TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_2) {
 
 TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_3) {
     auto shape = PartialShape({1, 1280, 1, 1});
-    DimensionTracker::set_label(shape[0], 1);
-    DimensionTracker::set_label(shape[2], 2);
+    shape[0].set_label(1);
+    shape[2].set_label(2);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);
@@ -1219,7 +1219,7 @@ TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_3) {
 
 TEST(type_prop, reshape_tricky_label_propagation_for_auto_batch_case_4) {
     auto shape = PartialShape({1, 1280});
-    DimensionTracker::set_label(shape[0], 1);
+    shape[0].set_label(1);
     auto param = make_shared<op::v0::Parameter>(element::f32, shape);
     auto pattern = op::v0::Constant::create(element::i64, {2}, {-1, 1280});
     auto r = make_shared<op::v1::Reshape>(param, pattern, false);

@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 using namespace ov;
@@ -509,8 +509,8 @@ TYPED_TEST_P(BitwiseOperator, labels_different_interval_b_and_fully_dyn_a_broadc
     Dimension dim_0_lhs = {-1};
     Dimension dim_0_rhs = {2, 4};
 
-    DimensionTracker::set_label(dim_0_lhs, 10);
-    DimensionTracker::set_label(dim_0_rhs, 20);
+    dim_0_lhs.set_label(10);
+    dim_0_rhs.set_label(20);
 
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 1}, pshape_rhs = {dim_0_rhs, 3, 1, 224};
     PartialShape expected_shape = {{2, 4}, 3, 224, 224};
@@ -532,8 +532,8 @@ TYPED_TEST_P(BitwiseOperator, labels_different_interval_a_and_fully_dyn_b_broadc
     Dimension dim_0_lhs = {2, 4};
     Dimension dim_0_rhs = {-1};
 
-    DimensionTracker::set_label(dim_0_lhs, 10);
-    DimensionTracker::set_label(dim_0_rhs, 20);
+    dim_0_lhs.set_label(10);
+    dim_0_rhs.set_label(20);
 
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 1}, pshape_rhs = {dim_0_rhs, 3, 1, 224};
     PartialShape expected_shape = {{2, 4}, 3, 224, 224};
@@ -596,14 +596,13 @@ TYPED_TEST_P(BitwiseOperator, labels_different_interval_dims_without_one_broadca
 
 TYPED_TEST_P(BitwiseOperator, labels_different_interval_batch_without_one_equivalence_table_broadcast_numpy) {
     // Both params have dynamic interval dimension different labels, use table of equivalence
-    auto table_of_equivalence = std::make_shared<TableOfEquivalence>();
-    DimensionTracker dim_tracker(table_of_equivalence);
+    auto table_of_equivalence = std::make_shared<LabelTable>();
 
     Dimension dim_0_lhs = {2, 4};
     Dimension dim_0_rhs = {2, 4};
 
-    dim_tracker.set_up_for_tracking(dim_0_lhs, 10);
-    dim_tracker.set_up_for_tracking(dim_0_rhs, 20);
+    table_of_equivalence->set_up_for_tracking(dim_0_lhs, 10);
+    table_of_equivalence->set_up_for_tracking(dim_0_rhs, 20);
 
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 1}, pshape_rhs = {dim_0_rhs, 3, 1, 224};
 
@@ -618,8 +617,8 @@ TYPED_TEST_P(BitwiseOperator, labels_different_interval_batch_without_one_equiva
     TensorLabel expected_labels{20, 0, 0, 0};
 
     auto eq_table = table_of_equivalence->get_equivalence_table();
-    EXPECT_EQ(*eq_table[DimensionTracker::get_label(dim_0_lhs)], std::set<label_t>({10, 20}));
-    EXPECT_EQ(*eq_table[DimensionTracker::get_label(dim_0_rhs)], std::set<label_t>({10, 20}));
+    EXPECT_EQ(*eq_table[dim_0_lhs.get_label()], std::set<label_t>({10, 20}));
+    EXPECT_EQ(*eq_table[dim_0_rhs.get_label()], std::set<label_t>({10, 20}));
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
@@ -630,8 +629,8 @@ TYPED_TEST_P(BitwiseOperator, labels_different_fully_dynamic_batch_broadcast_num
     Dimension dim_0_lhs = {-1};
     Dimension dim_0_rhs = {-1};
 
-    DimensionTracker::set_label(dim_0_lhs, 10);
-    DimensionTracker::set_label(dim_0_rhs, 20);
+    dim_0_lhs.set_label(10);
+    dim_0_rhs.set_label(20);
 
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 1}, pshape_rhs = {dim_0_rhs, 3, 1, 224};
     PartialShape expected_shape = {-1, 3, 224, 224};
@@ -653,8 +652,8 @@ TYPED_TEST_P(BitwiseOperator, labels_equal_fully_dynamic_batch_broadcast_numpy) 
     Dimension dim_0_lhs = {-1};
     Dimension dim_0_rhs = {-1};
 
-    DimensionTracker::set_label(dim_0_lhs, 10);
-    DimensionTracker::set_label(dim_0_rhs, 10);
+    dim_0_lhs.set_label(10);
+    dim_0_rhs.set_label(10);
 
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 1}, pshape_rhs = {dim_0_rhs, 3, 1, 224};
     PartialShape expected_shape = {-1, 3, 224, 224};
@@ -673,7 +672,7 @@ TYPED_TEST_P(BitwiseOperator, labels_equal_fully_dynamic_batch_broadcast_numpy) 
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_a_broadcast_numpy) {
     Dimension dim_0_lhs = -1;
-    DimensionTracker::set_label(dim_0_lhs, 10);
+    dim_0_lhs.set_label(10);
     PartialShape pshape_lhs = {dim_0_lhs, 3, 224, 224}, pshape_rhs = {1, 3, 1, 1};
     PartialShape expected_shape{dim_0_lhs, 3, 224, 224};
 
@@ -692,7 +691,7 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_a_broadcast_numpy) {
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_b_broadcast_numpy) {
     Dimension dim_0_rhs = -1;
-    DimensionTracker::set_label(dim_0_rhs, 10);
+    dim_0_rhs.set_label(10);
     PartialShape pshape_rhs = {dim_0_rhs, 3, 224, 224}, pshape_lhs = {1, 3, 1, 1};
     PartialShape expected_shape{dim_0_rhs, 3, 224, 224};
 
@@ -711,7 +710,7 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_b_broadcast_numpy) {
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy) {
     Dimension dim_0_lhs = -1;
-    DimensionTracker::set_label(dim_0_lhs, 10);
+    dim_0_lhs.set_label(10);
 
     PartialShape pshape_lhs{dim_0_lhs, -1, -1, -1};
     PartialShape pshape_rhs{3, 1, 1};
@@ -732,7 +731,7 @@ TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_a_broadcast_numpy
 
 TYPED_TEST_P(BitwiseOperator, labels_dyn_batch_and_higher_rank_b_broadcast_numpy) {
     Dimension dim_0_rhs = -1;
-    DimensionTracker::set_label(dim_0_rhs, 10);
+    dim_0_rhs.set_label(10);
 
     PartialShape pshape_lhs{3, 1, 1};
     PartialShape pshape_rhs{dim_0_rhs, -1, -1, -1};

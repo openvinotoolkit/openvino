@@ -567,12 +567,12 @@ TYPED_TEST_P(FFTConstantAxesAndShapeOfSignalSizeTest, constant_axes_and_shape_of
                                                                 {2, 0, -1},
                                                                 {{6, 8}, -1, 4},
                                                                 {ov::no_label, 11, 22, ov::no_label, ov::no_label}};
-    ov::DimensionTracker::set_label(params.input_shape[1], 11);
+    params.input_shape[1].set_label(11);
 
     auto data = std::make_shared<op::v0::Parameter>(element::f32, params.input_shape);
     auto axes_input = op::v0::Constant::create<int64_t>(element::i64, Shape{params.axes.size()}, params.axes);
 
-    ov::DimensionTracker::set_label(params.signal_size[0], 22);
+    params.signal_size[0].set_label(22);
 
     auto param_of_shape = std::make_shared<op::v0::Parameter>(element::f32, params.signal_size);
     auto signal_size_input = std::make_shared<op::v3::ShapeOf>(param_of_shape, element::i64);

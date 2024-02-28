@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/shape_of.hpp"
@@ -100,7 +100,7 @@ bool evaluate_label(const Node* shape_of_node, TensorLabelVector& output_labels)
     labels.reserve(shape.size());
 
     for (const auto& d : shape) {
-        const auto label = ov::DimensionTracker::get_label(d);
+        const auto label = d.get_label();
         labels.emplace_back(label);
         common_label |= label;
     }

@@ -8,7 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -29,7 +29,7 @@ TYPED_TEST_SUITE_P(BroadcastTests);
 
 TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
     ov::Dimension marked = ov::Dimension(3);
-    ov::DimensionTracker::set_label(marked, 10);
+    marked.set_label(10);
     ov::PartialShape target = ov::PartialShape{1, 2, marked, 4};
 
     auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
@@ -47,7 +47,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
     auto bc = make_shared<TypeParam>(param, target_shape);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
     ASSERT_EQ(bc->get_shape(), (ov::Shape{3, 5}));
-    ASSERT_EQ(ov::DimensionTracker::get_label(bc->get_output_partial_shape(0)[0]), 10);
+    ASSERT_EQ(bc->get_output_partial_shape(0)[0].get_label(), 10);
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy) {

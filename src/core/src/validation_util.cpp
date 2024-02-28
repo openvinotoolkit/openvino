@@ -10,7 +10,7 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
@@ -299,7 +299,7 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
             }
             resulting_pshape[i] = {low, up};
             if (!labels.empty() && labels[i])
-                DimensionTracker::set_label(resulting_pshape[i], labels[i]);
+                resulting_pshape[i].set_label(labels[i]);
         }
         pshape = ov::PartialShape(resulting_pshape);
         shape_defined = true;

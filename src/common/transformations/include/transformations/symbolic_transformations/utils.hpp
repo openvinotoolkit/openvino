@@ -39,7 +39,7 @@ TRANSFORMATIONS_API bool get_labels(const ov::Output<ov::Node>& output, ov::Tens
 TRANSFORMATIONS_API bool are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs);
 
 /// \brief Compares dimensions: if dimensions are static compares values of dimensions, if dimensions are dynamic
-/// compares their respective labels using TableOfEquivalence
+/// compares their respective labels using LabelTable
 ///
 /// \param lhs   Dimension object to compare
 /// \param rhs   Dimension object to compare

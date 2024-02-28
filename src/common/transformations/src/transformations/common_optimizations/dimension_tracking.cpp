@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/label_table.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -22,12 +22,11 @@
 #include "openvino/op/shape_of.hpp"
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& m,
-                                                       const ov::DimensionTracker& dt) {
-    ov::label_t i = 1;
+                                                       const std::shared_ptr<ov::LabelTable>& te) {
     for (auto& parameter : m->get_parameters()) {
         ov::PartialShape new_shape = ov::PartialShape::dynamic(parameter->get_partial_shape().rank());
         for (auto& dim : new_shape)
-            dt.set_up_for_tracking(dim, i++);
+            te->set_up_for_tracking(dim);
         parameter->set_partial_shape(new_shape);
     }
     m->validate_nodes_and_infer_types();
@@ -41,11 +40,11 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& pa
         std::unordered_set<ov::label_t> intersection_in_all_three_sources_of_batch;
         auto mapped_batches = map[parameter];
         for (auto& dim : shape) {
-            const auto& dim_label = ov::DimensionTracker::get_label(dim);
+            const auto& dim_label = dim.get_label();
             if (batches.count(dim_label) && mapped_batches.count(dim_label)) {
                 intersection_in_all_three_sources_of_batch.insert(dim_label);
             } else {
-                ov::DimensionTracker::reset_tracking_info(dim);
+                ov::LabelTable::reset_tracking_info(dim);
             }
         }
     } else {
@@ -53,11 +52,11 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& pa
         //     1) It is our first time marking batch for this node
         //     2) This node was marked as 'no_batch' previously. 'no_batch' has higher priority, batch won't be set
         for (auto& dim : shape) {
-            const auto& dim_label = ov::DimensionTracker::get_label(dim);
+            const auto& dim_label = dim.get_label();
             if (batches.count(dim_label)) {  // this is one of the batches
                 map[parameter].insert(dim_label);
             } else {
-                ov::DimensionTracker::reset_tracking_info(dim);
+                ov::LabelTable::reset_tracking_info(dim);
             }
         }
     }
@@ -71,10 +70,10 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::op:
     TensorLabel p_labels, r_labels;
 
     for (const auto& dim : result->get_output_partial_shape(0))
-        if (const auto& label = ov::DimensionTracker::get_label(dim))
+        if (const auto& label = dim.get_label())
             r_labels.push_back(label);
     for (const auto& dim : parameter->get_partial_shape()) {
-        if (const auto& label = ov::DimensionTracker::get_label(dim)) {
+        if (const auto& label = dim.get_label()) {
             if (std::find(r_labels.begin(), r_labels.end(), label) != r_labels.end()) {
                 mark_batch(parameter, map, std::unordered_set<label_t>{label});
                 return;
@@ -90,7 +89,7 @@ void ov::batch_util::mark_no_batch(const std::shared_ptr<ov::op::v0::Parameter>&
         map.erase(parameter);
     auto& shape = parameter->get_partial_shape();
     for (auto& dim : shape)
-        ov::DimensionTracker::reset_tracking_info(dim);
+        ov::LabelTable::reset_tracking_info(dim);
     parameter->set_partial_shape(shape);
     parameter->validate_and_infer_types();
 }
@@ -123,7 +122,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             if (type_input_port_batch_index.count(curr_node->get_type_info())) {
                 auto batch_placement = type_input_port_batch_index[curr_node->get_type_info()];
                 const auto& shape = curr_node->input_value(batch_placement.first).get_partial_shape();
-                const auto& batch_dim_label = ov::DimensionTracker::get_label(shape[batch_placement.second]);
+                const auto& batch_dim_label = shape[batch_placement.second].get_label();
                 if (batch_dim_label == 0)
                     mark_no_batch(parameter, parameter_to_batch_labels);
                 else
@@ -135,7 +134,7 @@ P2Btype ov::batch_util::find_batch(const std::shared_ptr<ov::Model>& f) {
             for (const auto& output : curr_node->outputs()) {
                 const auto& output_shape = output.get_partial_shape();
                 bool name_stays = std::any_of(output_shape.cbegin(), output_shape.cend(), [](const Dimension& d) {
-                    return ov::DimensionTracker::get_label(d) != 0;
+                    return d.get_label() != 0;
                 });
                 all_outputs_labeled &= name_stays;
             }
@@ -180,11 +179,11 @@ void ov::batch_util::restore_original_dimensions(
         OPENVINO_ASSERT(batch_marked_shape.size() == original_shape.size());
 
         for (size_t n = 0; n < batch_marked_shape.size(); ++n) {
-            if (const auto& label = ov::DimensionTracker::get_label(batch_marked_shape[n])) {
+            if (const auto& label = batch_marked_shape[n].get_label()) {
                 if (leave_batch_dynamic)
                     original_shape[n] = Dimension::dynamic();
                 if (!clear_labels)
-                    ov::DimensionTracker::set_label(original_shape[n], label);
+                    original_shape[n].set_label(label);
             }
         }
         item.first->set_partial_shape(original_shape);
@@ -203,9 +202,9 @@ void ov::batch_util::restore_original_dimensions(
             auto labeled_rank = labeled_shape.rank(), current_rank = current_shape.rank();
             if (labeled_rank.is_static() && current_rank.is_static() && labeled_rank == current_rank) {
                 for (size_t i = 0; i < labeled_shape.size(); ++i) {
-                    auto label = ov::DimensionTracker::get_label(labeled_shape[i]);
+                    auto label = labeled_shape[i].get_label();
                     if (label != ov::no_label)
-                        ov::DimensionTracker::set_label(current_shape[i], label);
+                        current_shape[i].set_label(label);
                 }
                 item.first->set_output_type(0, item.first->get_element_type(), current_shape);
             }
@@ -222,7 +221,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool name_stays = false;
             bool others_are_static = true;
             for (const auto& dim : input_shape)
-                if (ov::DimensionTracker::get_label(dim) == 0)
+                if (dim.get_label() == 0)
                     others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
@@ -234,7 +233,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
             bool name_stays = false;
             bool others_are_static = true;
             for (const auto& dim : output_shape)
-                if (ov::DimensionTracker::get_label(dim) == 0)
+                if (dim.get_label() == 0)
                     others_are_static = others_are_static && dim.is_static();
                 else
                     name_stays = true;
@@ -250,7 +249,7 @@ bool ov::batch_util::check_batch_tracks_through_all_the_nodes(const std::shared_
     for (const auto& result : results) {
         const auto& input_shape = result->get_input_partial_shape(0);
         bool name_stays = std::any_of(input_shape.cbegin(), input_shape.cend(), [](const ov::Dimension& d) {
-            return ov::DimensionTracker::get_label(d);
+            return d.get_label();
         });
         failed_to_propagate_batch |= !name_stays;
     }
@@ -297,8 +296,7 @@ std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> collect_origi
 
 bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(FindBatch);
-    auto te = std::make_shared<ov::TableOfEquivalence>();
-    ov::DimensionTracker dt(te);
+    auto te = std::make_shared<ov::LabelTable>();
 
     bool model_has_changed = false;
     if (detach_do)
@@ -308,7 +306,7 @@ bool ov::pass::FindBatch::run_on_model(const std::shared_ptr<ov::Model>& m) {
     if (parameter_to_shape.empty())
         return model_has_changed;
 
-    ov::batch_util::mark_with_unique_dimension_labels(m, dt);
+    ov::batch_util::mark_with_unique_dimension_labels(m, te);
 
     ov::batch_util::find_batch(m);
 
