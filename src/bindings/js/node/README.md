@@ -23,7 +23,7 @@ For more details, refer to the [Developer documentation](https://github.com/open
 ## Documentation & Samples
 
 - [OpenVINO Node.js API](https://docs.openvino.ai/2024/api/nodejs_api/nodejs_api.html)
-- [notebooks & samples openvino-node package usage](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md)
+- [Samples of OpenVINO Node.js API](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md)
 
 ## See also
 
