@@ -356,6 +356,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!in_tensor)
         OPENVINO_THROW("Failed to set empty tensor for port!");
+    auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
 
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
@@ -367,9 +368,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     }
     auto name = get_port_name(in_port);
     auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
-    bool is_input = ov::op::util::is_parameter(in_port.get_node());
+    bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
-        const auto netInPrc = in_port.get_element_type();
+        const auto netInPrc = port.get_element_type();
         if (netInPrc != tensor->get_element_type()) {
             OPENVINO_THROW("ParameterMismatch: Failed to set tensor for input with precision: ",
                            tensor->get_element_type(),
@@ -377,7 +378,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            netInPrc);
         }
 
-        const auto& shape = in_port.get_partial_shape();
+        const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
             OPENVINO_THROW("Can't set the input tensor with name: ",
@@ -414,7 +415,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
             m_external_ptr.erase(name);
         }
     } else {
-        const auto netOutPrc = in_port.get_element_type();
+        const auto netOutPrc = port.get_element_type();
         if (netOutPrc != tensor->get_element_type()) {
             OPENVINO_THROW("ParameterMismatch: Failed to set tensor for output with precision: ",
                            tensor->get_element_type(),
@@ -422,7 +423,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            netOutPrc);
         }
 
-        const auto& shape = in_port.get_partial_shape();
+        const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
@@ -455,7 +456,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         m_outputs[name] = tensor;
         m_outputControlBlocks.erase(name); // now the memory is under user's control
     }
-    ov::ISyncInferRequest::set_tensor(in_port, tensor);
+    ov::ISyncInferRequest::set_tensor(port, tensor);
 }
 
 void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ITensor>>& tensors) {
