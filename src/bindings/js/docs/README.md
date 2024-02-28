@@ -55,7 +55,10 @@
   ```bash
   npm install
   ```
-- Run tests `npm run test` to make sure that **openvino-node** built successfully
+- Run tests to make sure that **openvino-node** has been built successfully:
+  ```bash
+  npm run test
+  ``` 
 
 ## Usage
 
