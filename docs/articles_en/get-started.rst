@@ -5,16 +5,16 @@ GET STARTED
 
 
 .. meta::
-   :description: Learn how to install Intel® Distribution of OpenVINO™ toolkit 
-                 on Windows, macOS, and Linux operating systems, using various 
+   :description: Learn how to install Intel® Distribution of OpenVINO™ toolkit
+                 on Windows, macOS, and Linux operating systems, using various
                  installation methods.
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   Install OpenVINO <get-started/install-openvino-overview>
-   Additional Hardware Setup <get-started/configurations-header>
+   Install OpenVINO <get-started/install-openvino>
+   Additional Hardware Setup <get-started/configurations>
    Troubleshooting <get-started/troubleshooting-install-config>
    System Requirements <about-openvino/system-requirements>
 
@@ -25,10 +25,10 @@ GET STARTED
 
    <p id="GSG_introtext">Welcome to OpenVINO! This guide introduces installation and learning materials for Intel® Distribution of OpenVINO™ toolkit. The guide walks through the following steps:<br />
      <a href="notebooks/201-vision-monodepth-with-output.html" >Quick Start Example</a>
-     <a href="get-started/install-openvino-overview.html" >Install OpenVINO</a>
+     <a href="get-started/install-openvino.html" >Install OpenVINO</a>
      <a href="#learn-openvino" >Learn OpenVINO</a>
    </p>
-   <div style="clear:both;"> </div> 
+   <div style="clear:both;"> </div>
 
 .. _quick-start-example:
 
@@ -44,16 +44,16 @@ Try out OpenVINO's capabilities with this `quick start example <notebooks/201-vi
 
 2. Install OpenVINO
 ###################
-   
-See the :doc:`installation overview page <get-started/install-openvino-overview>` for options to install OpenVINO and set up a development environment on your device.
-   
+
+See the :doc:`installation overview page <get-started/install-openvino>` for options to install OpenVINO and set up a development environment on your device.
+
 .. _get-started-learn-openvino/interactive-tutorials-python:
 
 3. Learn OpenVINO
 #################
-   
+
 OpenVINO provides a wide array of examples and documentation showing how to work with models, run inference, and deploy applications. Step through the sections below to learn the basics of OpenVINO and explore its advanced optimization features. For further details, visit :doc:`OpenVINO documentation <documentation>`.
-   
+
 OpenVINO users of all experience levels can try `Intel® DevCloud <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__ , a free web-based service for developing, testing, and running OpenVINO applications on an online cluster of the latest Intel® hardware.
 
 .. _openvino-basics:
@@ -62,7 +62,7 @@ OpenVINO Basics
 +++++++++++++++
 
 Learn the basics of working with models and inference in OpenVINO. Begin with “Hello World” Interactive Tutorials that show how to prepare models, run inference, and retrieve results using the OpenVINO API. Then, explore other examples from the Open Model Zoo and OpenVINO Code Samples that can be adapted for your own application.
-   
+
 .. _interactive-learn-openvino/interactive-tutorials-python:
 
 Interactive Tutorials - Jupyter Notebooks
@@ -81,7 +81,7 @@ OpenVINO Code Samples
 ---------------------
 
 View :doc:`sample code <learn-openvino/openvino-samples>` for various C++ and Python applications that can be used as a starting point for your own application. For C++ developers, step through the :doc:`Get Started with C++ Samples <learn-openvino/openvino-samples/get-started-demos>` to learn how to build and run an image classification program that uses OpenVINO’s C++ API.
-      
+
 .. _integrate-openvino:
 
 Integrate OpenVINO With Your Application
@@ -124,7 +124,7 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
 * :doc:`Performance Hints <openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` automatically adjust runtime parameters to prioritize for low latency or high throughput
 * :doc:`Dynamic Shapes <openvino-workflow/running-inference/dynamic-shapes>` reshapes models to accept arbitrarily-sized inputs, increasing flexibility for applications that encounter different data shapes
 * :doc:`Benchmark Tool <learn-openvino/openvino-samples/benchmark-tool>` characterizes model performance in various hardware and pipeline configurations
-   
+
 .. _additional-about-openvino/additional-resources:
 
 Additional Resources

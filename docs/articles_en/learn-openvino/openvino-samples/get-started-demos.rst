@@ -11,9 +11,9 @@ Get Started with Samples
 
 To use OpenVINO samples, install OpenVINO using one of the following distributions:
 
-* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino-overview/install-openvino-linux-header/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino-overview/install-openvino-windows-header/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino-overview/install-openvino-macos-header/install-openvino-archive-macos>`
-* :doc:`APT <../../get-started/install-openvino-overview/install-openvino-linux-header/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino-overview/install-openvino-linux-header/install-openvino-yum>` for Linux
-* :doc:`Docker image <../../get-started/install-openvino-overview/install-openvino-shared/install-openvino-docker-linux>`
+* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-linux/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-windows/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-macos/install-openvino-archive-macos>`
+* :doc:`APT <../../get-started/install-openvino/install-openvino-linux/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-linux/install-openvino-yum>` for Linux
+* :doc:`Docker image <../../get-started/install-openvino/install-openvino-docker-linux>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 
 If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
@@ -412,7 +412,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. note::
 
-   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/configurations-header/configurations-intel-gpu>`, as described earlier on this page.
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/configurations/configurations-intel-gpu>`, as described earlier on this page.
    * Running on GPU is not compatible with macOS.
 
 .. tab-set::

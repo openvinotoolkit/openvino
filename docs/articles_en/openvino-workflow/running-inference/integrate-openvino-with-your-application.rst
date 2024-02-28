@@ -21,7 +21,7 @@ Integrate OpenVINO™ with Your Application
 
 Following these steps, you can implement a typical OpenVINO™ Runtime inference
 pipeline in your application. Before proceeding, make sure you have
-:doc:`installed OpenVINO Runtime <../../get-started/install-openvino-overview>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1`` for Windows PowerShell, or ``setupvars.bat`` for Windows CMD), otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
+:doc:`installed OpenVINO Runtime <../../get-started/install-openvino>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1`` for Windows PowerShell, or ``setupvars.bat`` for Windows CMD), otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
 
 
 .. image:: ../../_static/images/IMPLEMENT_PIPELINE_with_API_C.svg
