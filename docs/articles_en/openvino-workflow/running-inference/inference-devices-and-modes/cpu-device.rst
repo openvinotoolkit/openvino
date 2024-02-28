@@ -14,7 +14,7 @@ CPU Device
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developers ../../../documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
+- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
@@ -274,7 +274,7 @@ Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 CPU plugin supports a full set of the preprocessing operations, providing high performance implementations for them.
-For more details, see :doc:`preprocessing API guide <../optimize-inference/optimizie-preprocessing>`.
+For more details, see :doc:`preprocessing API guide <../optimize-inference/optimize-preprocessing>`.
 
 
 .. dropdown:: The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
@@ -374,7 +374,7 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU ../../../about-openvino/additional-resources.
+User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU.
 
 - ``ov::inference_num_threads`` limits number of logical processors used for CPU inference.
   If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
@@ -545,7 +545,7 @@ Additional Resources
 
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 * :doc:`Optimization guide <../optimize-inference>`
-* `CPU plugin developers ../../../documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__
+* `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__
 
 
 

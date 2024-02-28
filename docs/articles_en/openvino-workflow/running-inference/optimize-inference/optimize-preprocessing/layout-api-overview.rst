@@ -5,8 +5,8 @@ Layout API Overview
 
 
 .. meta::
-   :description: The layout enables the application to interpret each particular 
-                 dimension of input/ output tensor properly and the input size 
+   :description: The layout enables the application to interpret each particular
+                 dimension of input/ output tensor properly and the input size
                  can be resized to fit the model.
 
 
@@ -18,7 +18,7 @@ Below is a list of cases where input/output layout is important:
 
 * Performing model modification:
 
-  * Applying the :doc:`preprocessing <../optimizie-preprocessing>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
+  * Applying the :doc:`preprocessing <../optimize-preprocessing>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
   * Setting/getting a batch for a model.
 
 * Doing the same operations as used during the model conversion phase. For more information, refer to the :doc:`Model Optimizer Embedding Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>` guide.
@@ -132,7 +132,7 @@ A layout has some pre-defined dimension names, widely used in computer vision:
 * ``H``/``Height`` - height
 * ``W``/``Width`` - width
 
-These names are used in :doc:`PreProcessing API <../optimizie-preprocessing>`. There is a set of helper functions to get appropriate dimension index from a layout.
+These names are used in :doc:`PreProcessing API <../optimize-preprocessing>`. There is a set of helper functions to get appropriate dimension index from a layout.
 
 
 .. tab-set::
@@ -206,5 +206,5 @@ OpenVINO provides helpers which provide a simple interface to get layout from Mo
 See also
 ####################
 
-* API Reference: `ov::Layout <classov_1_1Layout.html#doxid-classov-1-1-layout>`__ C++ class 
+* API Reference: ``ov::Layout`` C++ class
 

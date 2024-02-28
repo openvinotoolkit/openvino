@@ -201,7 +201,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 Q9. What does the message "Mean file for topologies with multiple inputs is not supported" mean?
 #####################################################################################################################################################
 
-**A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <../../../../openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing>` for details.
+**A:** Model Optimizer does not support mean file processing for topologies with more than one input. In this case, you need to perform preprocessing of the inputs for a generated Intermediate Representation in OpenVINO Runtime to perform subtraction for every input of your multi-input model. See the :doc:`Overview of Preprocessing <../../../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>` for details.
 
 .. _question-11:
 
