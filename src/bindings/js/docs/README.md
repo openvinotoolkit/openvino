@@ -59,8 +59,14 @@
 
 ## Usage
 
-- Add `openvino-node` package in your project, specify in **package.json**: `"openvino-node": "file:*path-to-current-directory*"`
-- Require by: `const ov = require('openvino-node');`
+- Add the **openvino-node** package to your project by specifying it in **package.json**: 
+  ```json
+  "openvino-node": "file:*path-to-current-directory*"
+  ```
+- Make sure to require it:
+  ```
+  const ov = require('openvino-node');
+  ```
 
 ## Samples
 
