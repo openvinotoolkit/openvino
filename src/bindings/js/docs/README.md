@@ -51,7 +51,10 @@
    ```bash
    cd ../src/bindings/js/node
    ```
-- Now you can install dependencies packages and transpile ts to js code. Run `npm install`
+- Now, you can install dependencies packages and transpile ts to js code:
+  ```bash
+  npm install
+  ```
 - Run tests `npm run test` to make sure that **openvino-node** built successfully
 
 ## Usage
