@@ -238,6 +238,7 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kern
         h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(scratch)], reinterpret_cast<uintptr_t>(nullptr));
     }
 
+    // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
     h->mov(h->r12, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
     h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(amx_tile_config)], h->r12);
 
