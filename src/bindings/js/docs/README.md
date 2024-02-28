@@ -17,7 +17,10 @@
 ### Build
 
 - Make sure that all submodules are updated `git submodule update --init --recursive`
-- Create build dir `mkdir build && cd build`
+- Create the *build* directory:
+  ```bash
+  mkdir build && cd build
+  ```
 - Configure binaries building:
   ```bash
   cmake \
