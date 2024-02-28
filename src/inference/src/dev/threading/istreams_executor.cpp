@@ -118,13 +118,14 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     const bool latency_case = static_cast<size_t>(streamConfig._streams) <= numa_nodes;
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
-    int num_cores = !latency_case && numa_nodes == 1
-                        ? proc_type_table[0][ALL_PROC]
-                        : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+    int num_cores = proc_type_table[0][ALL_PROC];
+    // int num_cores = !latency_case && numa_nodes == 1
+    //                     ? proc_type_table[0][ALL_PROC]
+    //                     : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
 
     if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
         if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::ANY) {
-            num_cores = proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+            num_cores = proc_type_table[0][ALL_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::BIG) {
             num_cores = proc_type_table[0][MAIN_CORE_PROC];
         } else if (streamConfig._thread_preferred_core_type == IStreamsExecutor::Config::LITTLE) {
@@ -156,7 +157,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     }
     streamConfig._threads_per_stream = threads_per_stream;
     streamConfig._threads = streamConfig._threads_per_stream * streamConfig._streams;
-    streamConfig._max_threads_per_core = 2;
     streamConfig.update_executor_config();
     return streamConfig;
 }
