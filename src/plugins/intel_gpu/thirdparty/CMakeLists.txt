@@ -82,6 +82,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+        message(STATUS "onednn CMAKE_CXX_FLAGS=" ${CMAKE_CXX_FLAGS})
+        message(STATUS "onednn CMAKE_C_FLAGS=" ${CMAKE_C_FLAGS})
+        message(STATUS "onednn CMAKE_COMPILE_WARNING_AS_ERROR=" ${CMAKE_COMPILE_WARNING_AS_ERROR})
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
