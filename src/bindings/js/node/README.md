@@ -18,7 +18,7 @@ const { addon: ov } = require('openvino-node');
 
 ## Build From Sources
 
-For details see [Developer documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
+For more details, refer to the [Developer documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
 
 ## Documentation & Samples
 
