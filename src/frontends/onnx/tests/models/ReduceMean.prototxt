@@ -5,7 +5,7 @@ graph {
     output: "output"
     op_type: "ReduceMean"
   }
-  name: "BitwiseXorGraph"
+  name: "ReduceMeanGraph"
   input {
     name: "a"
     type {
