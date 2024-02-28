@@ -415,4 +415,3 @@ yysung53/dpr,text_similarity,skip,Load problem
 Zetatech/pvt-tiny-224,pvt
 ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem
-baichuan-inc/Baichuan2-7B-Base,baichuan
