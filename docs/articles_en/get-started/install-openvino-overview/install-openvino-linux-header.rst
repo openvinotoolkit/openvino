@@ -5,8 +5,8 @@ Install OpenVINO™ Runtime on Linux
 
 
 .. meta::
-   :description: Learn how to install OpenVINO™ Runtime on Linux operating system. 
-                 You can use an archive, a PyPi package, APT, YUM, Conda Forge, 
+   :description: Learn how to install OpenVINO™ Runtime on Linux operating system.
+                 You can use an archive, a PyPi package, APT, YUM, Conda Forge,
                  Homebrew or a Docker image.
 
 
@@ -23,6 +23,7 @@ Install OpenVINO™ Runtime on Linux
    Use Homebrew <openvino_docs_install_guides_installing_openvino_brew>
    Use Conan <openvino_docs_install_guides_installing_openvino_conan>
    Use Docker <openvino_docs_install_guides_installing_openvino_docker>
+   Use npm <openvino_docs_install_guides_installing_openvino_npm>
 
 
 If you want to install OpenVINO™ Runtime on Linux, you have the following options:
@@ -36,8 +37,5 @@ If you want to install OpenVINO™ Runtime on Linux, you have the following opti
 * :doc:`Install OpenVINO using Homebrew <openvino_docs_install_guides_installing_openvino_brew>`
 * :doc:`Install OpenVINO using Docker <openvino_docs_install_guides_installing_openvino_docker>`
 * :doc:`Install OpenVINO using Conan Package Manager <openvino_docs_install_guides_installing_openvino_conan>`
-
-
-
-
+* :doc:`Install OpenVINO using npm <openvino_docs_install_guides_installing_openvino_npm>`
 
