@@ -52,9 +52,9 @@ Imports
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0"
-    
+
     %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6"
-    
+
     %pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" "easydict" "munch" "natsort"
     %pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
     %pip install -q scikit-image
@@ -86,7 +86,7 @@ Imports
     ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.33.1 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.1 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
-    
+
 
 .. parsed-literal::
 
@@ -98,7 +98,7 @@ Imports
     import time
     import warnings
     from pathlib import Path
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
@@ -109,7 +109,7 @@ Imports
     from PIL import Image
     from paddle.static import InputSpec
     from ppgan.apps import RealSRPredictor
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -130,7 +130,7 @@ Settings
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     OUTPUT_DIR.mkdir(exist_ok=True)
-    
+
     model_path = MODEL_DIR / MODEL_NAME
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
@@ -312,7 +312,7 @@ Convert PaddlePaddle Model to ONNX
     2024-02-09 23:42:19 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
-Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
@@ -320,12 +320,12 @@ Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://doc
 .. code:: ipython3
 
     print("Exporting ONNX model to OpenVINO IR... This may take a few minutes.")
-    
+
     model = ov.convert_model(
         onnx_path,
         input=input_shape
     )
-    
+
     # Serialize model in IR format
     ov.save_model(model, str(ir_path))
 
@@ -358,14 +358,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -469,7 +469,7 @@ between both versions.
     bicubic_pil = Image.fromarray(image_bicubic)
     gif_image_path = OUTPUT_DIR / Path(IMAGE_PATH.stem + "_comparison.gif")
     final_image_path = OUTPUT_DIR / Path(IMAGE_PATH.stem + "_super.png")
-    
+
     result_pil.save(
         fp=str(gif_image_path),
         format="GIF",
@@ -478,7 +478,7 @@ between both versions.
         duration=1000,
         loop=0,
     )
-    
+
     result_pil.save(fp=str(final_image_path), format="png")
     DisplayImage(open(gif_image_path, "rb").read(), width=1920 // 2)
 
@@ -512,24 +512,24 @@ open it directly from the images directory, and play it locally.
         image_super.shape[0] // 2,
         image_super.shape[1] // 2,
     )
-    
+
     out_video = cv2.VideoWriter(
         str(result_video_path),
         FOURCC,
         90,
         (video_target_width, video_target_height),
     )
-    
+
     resized_result_image = cv2.resize(image_super, (video_target_width, video_target_height))[
         :, :, (2, 1, 0)
     ]
     resized_bicubic_image = cv2.resize(image_bicubic, (video_target_width, video_target_height))[
         :, :, (2, 1, 0)
     ]
-    
+
     progress_bar = ProgressBar(total=video_target_width)
     progress_bar.display()
-    
+
     for i in range(2, video_target_width):
         # Create a frame where the left part (until i pixels width) contains the
         # superresolution image, and the right part (from i pixels width) contains
@@ -540,7 +540,7 @@ open it directly from the images directory, and play it locally.
                 resized_bicubic_image[:, i:, :],
             )
         )
-    
+
         # Create a small black border line between the superresolution
         # and bicubic part of the image.
         comparison_frame[:, i - 1 : i + 1, :] = 0
@@ -563,7 +563,7 @@ you use the Google Colab
     if 'google.colab' in str(get_ipython()):
         # Save a file
         from google.colab import files
-    
+
         # Save the file to the local file system
         with open(result_video_path, 'r') as f:
             files.download(result_video_path)
