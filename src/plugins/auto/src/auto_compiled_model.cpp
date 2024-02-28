@@ -52,7 +52,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         std::vector<ov::PropertyName> rw_properties{};
         return rw_properties;
     };
-    if (name == ov::supported_properties) {
+    if (name == ov::supported_properties || name == ov::enable_profiling) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
