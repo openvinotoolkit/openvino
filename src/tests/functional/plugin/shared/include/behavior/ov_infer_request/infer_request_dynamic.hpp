@@ -13,7 +13,6 @@
 #include <memory>
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/shape.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include <string>
 #include <thread>
 #include "base/ov_behavior_test_utils.hpp"

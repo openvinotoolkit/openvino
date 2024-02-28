@@ -340,9 +340,9 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    int size_needed = WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
     std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
     return strTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
@@ -354,9 +354,9 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
     const char* str = string.c_str();
 #    ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    int size_needed = MultiByteToWideChar(CP_ACP, 0, str, strSize, NULL, 0);
     std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    MultiByteToWideChar(CP_ACP, 0, str, strSize, &wstrTo[0], size_needed);
     return wstrTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;

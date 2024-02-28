@@ -54,7 +54,7 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2023.3/openvino_ir.html>`__ is the
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__ is the
 proprietary model format of OpenVINO. It is produced after converting a
 model with model conversion API. Model conversion API translates the
 frequently used deep learning operations to their respective similar
@@ -73,7 +73,7 @@ These model formats can be read, compiled, and converted to OpenVINO IR,
 either automatically or explicitly.
 
 For more details, refer to `Model
-Preparation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Preparation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 documentation.
 
 .. code:: ipython3
@@ -504,7 +504,7 @@ inputs. Doing so at the model preparation stage, not at runtime, can be
 beneficial in terms of performance and memory consumption.
 
 For more information refer to `Setting Input
-Shapes <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model.html>`__
+Shapes <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting-input-shapes.html>`__
 documentation.
 
 .. code:: ipython3
@@ -666,9 +666,9 @@ Convert Models from memory
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
-`PyTorch <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__,
-`TensorFlow <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__,
-`PaddlePaddle <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+`PyTorch <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
+`TensorFlow <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
+`PaddlePaddle <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
 frameworks conversion guides.
 
 .. code:: ipython3
@@ -722,7 +722,7 @@ OVC or can be replaced with functionality from ``ov.PrePostProcessor``
 class. Refer to `Optimize Preprocessing
 notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/118-optimize-preprocessing/118-optimize-preprocessing.ipynb>`__
 for more information about `Preprocessing
-API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing.html>`__.
 Here is the migration guide from legacy model preprocessing to
 Preprocessing API.
 
@@ -736,7 +736,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
+overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 
@@ -885,6 +885,6 @@ the new conversion API. Instead, we recommend performing the cut in the
 original framework. Examples of model cutting of TensorFlow protobuf,
 TensorFlow SavedModel, and ONNX formats with tools provided by the
 Tensorflow and ONNX frameworks can be found in `documentation
-guide <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html#cutting-off-parts-of-a-model>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html#cutting-off-parts-of-a-model>`__.
 For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing
 the original model code to perform the model cut.
