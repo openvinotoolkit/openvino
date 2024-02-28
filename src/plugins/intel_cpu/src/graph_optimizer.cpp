@@ -1505,9 +1505,9 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
         }
 
 #if defined(OV_CPU_WITH_ACL)
-        if(!parentNode->getFusedWith().empty()) {
+        if (!parentNode->getFusedWith().empty()) {
             parent++;
-            continue;       
+            continue;
         }
 #endif
 
