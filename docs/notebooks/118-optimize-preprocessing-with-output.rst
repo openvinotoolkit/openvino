@@ -9,9 +9,9 @@ instrument, that enables integration of preprocessing steps into an
 execution graph and performing it on a selected device, which can
 improve device utilization. For more information about Preprocessing
 API, see this
-`overview <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Preprocessing_Overview.html#>`__
+`overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Overview.html#>`__
 and
-`details <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Preprocessing_Details.html>`__
+`details <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__
 
 This tutorial include following steps:
 
@@ -23,7 +23,8 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Settings <#settings>`__
 -  `Imports <#imports>`__
@@ -39,7 +40,7 @@ This tutorial include following steps:
 
    -  `Convert model to OpenVINO IR with model conversion
       API <#convert-model-to-openvino-ir-with-model-conversion-api>`__
-   -  `Create PrePostProcessor
+   -  `Create ``PrePostProcessor``
       Object <#create-prepostprocessor-object>`__
    -  `Declare User’s Data Format <#declare-users-data-format>`__
    -  `Declaring Model Layout <#declaring-model-layout>`__
@@ -105,10 +106,14 @@ Imports
 
 .. parsed-literal::
 
-    2023-11-14 23:00:32.637266: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-11-14 23:00:32.671311: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 23:03:22.538807: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 23:03:22.573455: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-11-14 23:00:33.179278: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    2024-02-09 23:03:23.087260: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Setup image and device
@@ -189,12 +194,12 @@ and save it to the disk.
 
 .. parsed-literal::
 
-    2023-11-14 23:00:37.345835: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2023-11-14 23:00:37.345869: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2023-11-14 23:00:37.345874: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2023-11-14 23:00:37.346012: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2023-11-14 23:00:37.346027: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2023-11-14 23:00:37.346030: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-02-09 23:03:26.685646: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-02-09 23:03:26.685683: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-02-09 23:03:26.685688: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-02-09 23:03:26.685821: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-02-09 23:03:26.685836: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-02-09 23:03:26.685841: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -268,7 +273,7 @@ Graph modifications of a model shall be performed after the model is
 read from a drive and before it is loaded on the actual device.
 
 Pre-processing support following operations (please, see more details
-`here <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aeacaf406d72a238e31a359798ebdb3b7>`__)
+`here <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess15PreProcessStepsE>`__)
 
 -  Mean/Scale Normalization
 -  Converting Precision
@@ -304,7 +309,7 @@ Create ``PrePostProcessor`` Object
 
 
 The
-`PrePostProcessor() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
+`PrePostProcessor() <https://docs.openvino.ai/2023.3/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
@@ -329,7 +334,7 @@ about user’s input tensor will be initialized to same data
 (type/shape/etc) as model’s input parameter. User application can
 override particular parameters according to application’s data. Refer to
 the following
-`page <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
+`page <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv4N2ov10preprocess15InputTensorInfoE>`__
 for more information about parameters for overriding.
 
 Below is all the specified input information:
@@ -355,7 +360,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7fbffd787d70>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7ff8b271c1b0>
 
 
 
@@ -367,7 +372,7 @@ Declaring Model Layout
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
 may be specified is input data
-`layout <https://docs.openvino.ai/2023.0/openvino_docs_OV_UG_Layout_Overview.html#doxid-openvino-docs-o-v-u-g-layout-overview>`__.
+`layout <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
 
 .. code:: ipython3
 
@@ -386,7 +391,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7fbffd7870b0>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7ff7b1f9dd70>
 
 
 
@@ -397,7 +402,7 @@ Preprocessing Steps
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
-`here <https://docs.openvino.ai/2023.0/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
+`here <https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
 
 Perform the following:
 
@@ -406,7 +411,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.0/classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
+   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 
@@ -427,7 +432,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7fc0a02556b0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7ff7b1f9d230>
 
 
 
@@ -646,6 +651,10 @@ Compare performance
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0152 seconds per image, FPS: 65.58
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0187 seconds per image, FPS: 53.52
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.53
+
+
+.. parsed-literal::
+
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0183 seconds per image, FPS: 54.77
 

@@ -1,7 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "async_reader.hpp"
+#include "node/include/async_reader.hpp"
+
+#include "node/include/model_wrap.hpp"
 
 void ReaderWorker::Execute() {
     ov::Core core;
@@ -14,7 +16,7 @@ void ReaderWorker::Execute() {
 
 void ReaderWorker::OnOK() {
     Napi::HandleScope scope(Env());
-    Napi::Object mw = ModelWrap::get_class_constructor(Env()).New({});
+    Napi::Object mw = ModelWrap::get_class(Env()).New({});
     ModelWrap* m = Napi::ObjectWrap<ModelWrap>::Unwrap(mw);
     m->set_model(_model);
 

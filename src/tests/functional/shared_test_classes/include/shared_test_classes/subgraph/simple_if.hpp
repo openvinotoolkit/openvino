@@ -8,7 +8,6 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -39,7 +38,7 @@ protected:
 
 class SimpleIfNotConstConditionTest : public SimpleIfTest {
 public:
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 protected:
     void SetUp() override;

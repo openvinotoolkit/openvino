@@ -20,6 +20,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -30,6 +31,7 @@
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
@@ -72,6 +74,10 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                 continue;
             }
             unsupported_operations.insert(op_type);
+        } else if (const auto& variable = ov::as_type_ptr<Variable>(node)) {
+            auto op_type = variable->get_decoder()->get_op_type();
+            auto op_name = variable->get_name();
+            failures[op_type] = "Variable or resource `" + op_name + "` is not initialized, model is inconsistent";
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             auto fw_node_attrs = fw_node->get_attrs();
@@ -507,6 +513,10 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
     manager.register_pass<pass::BlockLSTMReplacer>();
@@ -549,5 +559,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                    std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }

@@ -34,7 +34,7 @@ std::vector<std::vector<ov::Shape>> input_shapes_0d_static = {
         {{}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast0D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast0D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy0D),
                                            ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
@@ -60,7 +60,7 @@ std::vector<std::vector<ov::Shape>> input_shapes_1d_static = {
         {{1}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast1D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy1D),
                                            ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
@@ -70,7 +70,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast1D,
                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         BroadcastLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_PrecTransformation, BroadcastLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_PrecTransformation, BroadcastLayerTest,
         ::testing::Combine(
             ::testing::Values(targetShapesNumpy1D[0]),
             ::testing::Values(ov::AxisSet{}), //not used in numpy mode
@@ -92,10 +92,10 @@ std::vector<std::vector<ov::Shape>> input_shapes_2d_static = {
         {{3, 1}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast2D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast2D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy2D),
-                                           ::testing::Values(ngraph::AxisSet{}),  // not used in numpy mode
+                                           ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
                                            ::testing::Values(ov::op::BroadcastType::NUMPY),
                                            ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_2d_static)),
                                            ::testing::ValuesIn(inputPrecisions),
@@ -115,7 +115,7 @@ std::vector<std::vector<ov::Shape>> input_shapes_3d_static = {
 };
 
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast3D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast3D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy3D),
                                            ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
@@ -133,7 +133,7 @@ std::vector<std::vector<ov::Shape>> input_shapes_6d_static = {
         {{1, 2, 1, 4, 1, 6}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast6D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast6D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy6D),
                                            ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
@@ -151,7 +151,7 @@ std::vector<std::vector<ov::Shape>> input_shapes_5d_static = {
         {{1, 2, 1, 4, 1}}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestNumpyBroadcast5D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestNumpyBroadcast5D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesNumpy5D),
                                            ::testing::Values(ov::AxisSet{}),  // not used in numpy mode
@@ -175,7 +175,7 @@ std::vector<std::vector<size_t>> targetShapesBidi = {
         {1, 1, 4, 4}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestBidirectionalBroadcast,
+INSTANTIATE_TEST_SUITE_P(smoke_TestBidirectionalBroadcast,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesBidi),
                                            ::testing::Values(ov::AxisSet{}),  // not used in bidirectional mode
@@ -191,7 +191,7 @@ std::vector<std::vector<ov::Shape>> inShapesExplicit1D = { {{4}} };
 std::vector<std::vector<size_t>> targetShapesExplicit1D = { {4, 2, 4}, {4, 2, 4, 1} };
 std::vector<ov::AxisSet> axes1D = { {0}, {2} };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast1D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast1D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit1D),
                                            ::testing::ValuesIn(axes1D),
@@ -228,7 +228,7 @@ std::vector<std::vector<ov::Shape>> inShapesExplicit2D = { {{2, 4}} };
 std::vector<std::vector<size_t>> targetShapesExplicit2D = { {2, 2, 4}, {2, 2, 4, 1}};
 std::vector<ov::AxisSet> axes2D = { {1, 2}, {0, 2} };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast2D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast2D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit2D),
                                            ::testing::ValuesIn(axes2D),
@@ -243,7 +243,7 @@ std::vector<std::vector<ov::Shape>> inShapesExplicit3D = { {{2, 2, 2}} };
 std::vector<std::vector<size_t>> targetShapesExplicit3D = { {2, 2, 2, 2} };
 std::vector<ov::AxisSet> axes3D = { {0, 1, 2}, {0, 1, 3}, {0, 2, 3}, {1, 2, 3} };
 
-INSTANTIATE_TEST_CASE_P(smoke_TestExplicitBroadcast3D,
+INSTANTIATE_TEST_SUITE_P(smoke_TestExplicitBroadcast3D,
                         BroadcastLayerTest,
                         ::testing::Combine(::testing::ValuesIn(targetShapesExplicit3D),
                                            ::testing::ValuesIn(axes3D),

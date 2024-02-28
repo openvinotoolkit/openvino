@@ -1,10 +1,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "model_wrap.hpp"
+#include "node/include/model_wrap.hpp"
 
-#include "addon.hpp"
-#include "node_output.hpp"
+#include "node/include/addon.hpp"
+#include "node/include/errors.hpp"
+#include "node/include/node_output.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -12,7 +13,7 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
       _core{},
       _compiled_model{} {}
 
-Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
+Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
                        {InstanceMethod("getName", &ModelWrap::get_name),
@@ -22,29 +23,17 @@ Napi::Function ModelWrap::get_class_constructor(Napi::Env env) {
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
-Napi::Object ModelWrap::init(Napi::Env env, Napi::Object exports) {
-    const auto& prototype = get_class_constructor(env);
-
-    const auto ref = new Napi::FunctionReference();
-    *ref = Napi::Persistent(prototype);
-    const auto data = env.GetInstanceData<AddonData>();
-    data->model_prototype = ref;
-
-    exports.Set("Model", prototype);
-    return exports;
-}
-
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
     _model = model;
 }
 
 Napi::Object ModelWrap::wrap(Napi::Env env, std::shared_ptr<ov::Model> model) {
     Napi::HandleScope scope(env);
-    const auto prototype = env.GetInstanceData<AddonData>()->model_prototype;
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to model prototype.");
     }
-    const auto& model_js = prototype->New({});
+    const auto& model_js = prototype.New({});
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
@@ -111,7 +100,7 @@ Napi::Value ModelWrap::get_inputs(const Napi::CallbackInfo& info) {
     auto cm_inputs = _model->inputs();  // Output<Node>
     Napi::Array js_inputs = Napi::Array::New(info.Env(), cm_inputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& input : cm_inputs)
         js_inputs[i++] = Output<ov::Node>::wrap(info.Env(), input);
 
@@ -122,7 +111,7 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     auto cm_outputs = _model->outputs();  // Output<Node>
     Napi::Array js_outputs = Napi::Array::New(info.Env(), cm_outputs.size());
 
-    size_t i = 0;
+    uint32_t i = 0;
     for (auto& out : cm_outputs)
         js_outputs[i++] = Output<ov::Node>::wrap(info.Env(), out);
 

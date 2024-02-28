@@ -8,9 +8,8 @@
 
 namespace kernel_selector {
 
-bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::BATCH_TO_SPACE ||
-        o.GetType() != KernelType::BATCH_TO_SPACE) {
+bool BatchToSpaceKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::BATCH_TO_SPACE) {
         return false;
     }
 
@@ -26,7 +25,7 @@ bool BatchToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
     return true;
 }
 
-CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params, const optional_params&) const {
+CommonDispatchData BatchToSpaceKernelBase::SetDefault(const batch_to_space_params& params) const {
     const auto& out = params.outputs[0];
 
     CommonDispatchData dispatchData;
@@ -98,16 +97,16 @@ JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params
     return jit;
 }
 
-KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<batch_to_space_params>(params);
     batch_to_space_params& newParams = *static_cast<batch_to_space_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
-    auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -115,7 +114,7 @@ KernelsData BatchToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
 
     return { kd };
 }

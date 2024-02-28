@@ -81,25 +81,11 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         ov::replace_node(past_node, new_read_value_node);
 
         if (pattern_map.count(gather_past) > 0) {
-            // TODO: Enable code below once KVCache custom op supports rearrange internally
-            // For now Gather is kept as standalone op
-            #if 0
-            auto gather_node = pattern_map.at(gather_past).get_node_shared_ptr();
-            auto gather_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(gather_node->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
-            kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
-                                                          concat_node->get_input_node_shared_ptr(1),
-                                                          gather_node->get_input_node_shared_ptr(1),
-                                                          variable,
-                                                          concat_axis,
-                                                          gather_axis,
-                                                          concat_node->get_output_element_type(0));
-            #else
             kv_cache_node = std::make_shared<op::KVCache>(pattern_map.at(gather_past).get_node_shared_ptr(),
                                                           concat_node->get_input_node_shared_ptr(1),
                                                           variable,
                                                           concat_axis,
                                                           new_read_value_node->get_output_element_type(0));
-            #endif
         } else {
             kv_cache_node = std::make_shared<op::KVCache>(new_read_value_node,
                                                           concat_node->get_input_node_shared_ptr(1),

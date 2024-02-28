@@ -12,12 +12,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SubtractTransformation propagates dequantization operations through Subtract operation.
  *
  * For more details about the transformation, refer to
  * [SubtractTransformation](@ref openvino_docs_OV_UG_lpt_SubtractTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API SubtractTransformation : public LayerTransformation {
 public:

@@ -20,12 +20,14 @@ const char* ov_property_key_intel_gpu_dev_object_handle = "DEV_OBJECT_HANDLE";
 const char* ov_property_key_intel_gpu_va_plane = "VA_PLANE";
 
 inline bool check_intel_gpu_property_value_is_ptr(std::string& key) {
-    if ((key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
-        (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle) ||
-        (key == ov_property_key_intel_gpu_dev_object_handle))
-        return true;
-    else
-        return false;
+#ifdef _WIN32
+    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
+           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle) ||
+           (key == ov_property_key_intel_gpu_dev_object_handle);
+#else
+    return (key == ov_property_key_intel_gpu_ocl_context) || (key == ov_property_key_intel_gpu_ocl_queue) ||
+           (key == ov_property_key_intel_gpu_va_device) || (key == ov_property_key_intel_gpu_mem_handle);
+#endif
 }
 
 //!< Properties of intel gpu cannot be compeletly handled by (char*) type, because it contains non-char pointer which

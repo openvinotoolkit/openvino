@@ -9,9 +9,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ov_models/builders.hpp"
-#include "ov_models/preprocess/preprocess_builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -27,6 +25,21 @@ public:
 
 protected:
     void SetUp() override;
+};
+
+using postprocessParamsTuple = std::tuple<ov::builder::preprocess::postprocess_func,  // Function with postprocessing
+                                          std::string>;                               // Device name
+
+class PostProcessTest : public testing::WithParamInterface<postprocessParamsTuple>,
+                        virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<postprocessParamsTuple>& obj);
+
+protected:
+    void SetUp() override;
+
+public:
+    std::string func_name;
 };
 
 }  // namespace test

@@ -27,6 +27,8 @@
 
 namespace ov {
 class Model;
+class CompiledModel;
+class ICompiledModel;
 
 std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
@@ -42,9 +44,11 @@ class ModelAccessor;
  */
 class OPENVINO_API Model : public std::enable_shared_from_this<Model> {
     friend class frontend::FrontEnd;
+    friend class ov::CompiledModel;
+    friend class ov::ICompiledModel;
     friend std::shared_ptr<Model> clone_ov_model(const Model& func,
                                                  std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
-    std::shared_ptr<void> m_shared_object;  // Frontend plugin shared object handle.
+    std::shared_ptr<void> m_shared_object;  // plugin shared object handle.
 
 public:
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
@@ -220,26 +224,6 @@ public:
     /// This method returns -1 if an the passed output is not related to the Results of a model.
     /// \param value Output containing Node
     int64_t get_result_index(const ov::Output<const ov::Node>& value) const;
-
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluate the model on inputs, putting results in outputs.
-    /// \param output_tensors Tensors for the outputs to compute. One for each result
-    /// \param input_tensors Tensors for the inputs. One for each inputs.
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the model. This additional information can be shared across nodes.
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    bool evaluate(const ov::HostTensorVector& output_tensors,
-                  const ov::HostTensorVector& input_tensors,
-                  ov::EvaluationContext& evaluation_context) const;
-
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluate the model on inputs, putting results in outputs.
-    /// \param output_tensors Tensors for the outputs to compute. One for each result
-    /// \param input_tensors Tensors for the inputs. One for each inputs.
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    bool evaluate(const ov::HostTensorVector& output_tensors, const ov::HostTensorVector& input_tensors) const;
 
     /// \brief Evaluate the model on inputs, putting results in outputs.
     /// \param output_tensors Tensors for the outputs to compute. One for each result

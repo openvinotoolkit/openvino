@@ -19,13 +19,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 add_library(${TARGET_NAME}
-    $<TARGET_OBJECTS:ngraph_obj>
-    $<TARGET_OBJECTS:ngraph_obj_version>
+    $<TARGET_OBJECTS:openvino_core_obj>
+    $<TARGET_OBJECTS:openvino_core_obj_version>
     $<TARGET_OBJECTS:openvino_frontend_common_obj>
-    $<TARGET_OBJECTS:inference_engine_obj>
-    $<TARGET_OBJECTS:inference_engine_obj_version>
-    $<TARGET_OBJECTS:inference_engine_transformations_obj>
-    $<TARGET_OBJECTS:inference_engine_lp_transformations_obj>
+    $<TARGET_OBJECTS:openvino_runtime_obj>
+    $<TARGET_OBJECTS:openvino_transformations_obj>
+    $<TARGET_OBJECTS:openvino_lp_transformations_obj>
     $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_OBJECTS:openvino_proxy_plugin_obj>>)
 
 add_library(openvino::runtime ALIAS ${TARGET_NAME})
@@ -38,8 +37,7 @@ ov_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime lib
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include/ie>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/include>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::reference
                                              openvino::shape_inference
@@ -88,13 +86,18 @@ ov_register_plugins(MAIN_TARGET ${TARGET_NAME})
 export(TARGETS ${TARGET_NAME} NAMESPACE openvino::
        APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
+if(BUILD_SHARED_LIBS)
+    set(archive_comp CORE_DEV)
+else()
+    set(archive_comp CORE)
+endif()
+
 install(TARGETS ${TARGET_NAME} EXPORT OpenVINOTargets
         RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
-        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_${archive_comp}} ${OV_CPACK_COMP_${archive_comp}_EXCLUDE_ALL}
         LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${OV_CPACK_COMP_CORE} ${OV_CPACK_COMP_CORE_EXCLUDE_ALL}
         NAMELINK_COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR}
-                             ${OV_CPACK_INCLUDEDIR}/ie)
+        INCLUDES DESTINATION ${OV_CPACK_INCLUDEDIR})
 
 # OpenVINO runtime library dev
 
@@ -106,16 +109,22 @@ add_library(openvino_runtime_dev INTERFACE)
 add_library(openvino::runtime::dev ALIAS openvino_runtime_dev)
 
 target_include_directories(openvino_runtime_dev INTERFACE
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>)
 
 target_link_libraries(openvino_runtime_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
 ov_set_threading_interface_for(openvino_runtime_dev)
 set_target_properties(openvino_runtime_dev PROPERTIES EXPORT_NAME runtime::dev)
 
-ov_developer_package_export_targets(TARGET openvino::runtime::dev
+ov_developer_package_export_targets(TARGET openvino_runtime_dev
                                     INSTALL_INCLUDE_DIRECTORIES "${OpenVINO_SOURCE_DIR}/src/inference/dev_api/")
+
+file(GLOB_RECURSE dev_api_src "${CMAKE_CURRENT_SOURCE_DIR}/OpenVINO_SOURCE_DIR}/src/inference/dev_api/openvino/*.hpp")
+ov_add_clang_format_target(openvino_runtime_dev_clang FOR_SOURCES ${plugin_api_src})
+
+ov_ncc_naming_style(FOR_TARGET openvino_runtime_dev
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src/inference/dev_api/openvino"
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Install static libraries for case BUILD_SHARED_LIBS=OFF
 ov_install_static_lib(openvino_runtime_dev ${OV_CPACK_COMP_CORE})
@@ -140,7 +149,7 @@ if(ENABLE_PLUGINS_XML)
             ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
 
     if(ENABLE_TESTS)
-        # for InferenceEngineUnitTest
+        # for ov_inference_unit_tests
         install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
                 DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
     endif()
@@ -184,26 +193,13 @@ string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 set(OV_TBB_DIR "${OV_TBB_DIR_INSTALL}")
 set(OV_TBBBIND_DIR "${OV_TBBBIND_DIR_INSTALL}")
 
-configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig.cmake.in"
-                              "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-                              INSTALL_DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-                              PATH_VARS ${PATH_VARS} ${INSTALL_PATH_VARS})
-
 configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig.cmake.in"
                               "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
                               INSTALL_DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
                               PATH_VARS ${PATH_VARS} ${INSTALL_PATH_VARS})
 
-configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
-               "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake" @ONLY)
 configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
                "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake" @ONLY)
-
-install(FILES "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-              "${CMAKE_BINARY_DIR}/InferenceEngineConfig-version.cmake"
-        DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
 
 install(FILES "${CMAKE_BINARY_DIR}/share/OpenVINOConfig.cmake"
               "${CMAKE_BINARY_DIR}/OpenVINOConfig-version.cmake"

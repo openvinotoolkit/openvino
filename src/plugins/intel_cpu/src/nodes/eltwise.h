@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
 #include <string>
 #include <vector>
 #include <memory>
-#include <caseless.hpp>
-#include "executors/eltwise_list.hpp"
+
+#include "dnnl_postops_composer_legacy.h"
+#include "nodes/executors/eltwise.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -114,13 +114,15 @@ public:
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
+    bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    const std::vector<float>& getScales() const { return scales; }
+    const std::vector<float>& getShifts() const { return shifts; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 

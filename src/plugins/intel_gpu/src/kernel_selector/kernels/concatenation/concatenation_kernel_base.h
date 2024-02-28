@@ -20,30 +20,16 @@ struct concatenation_params : public base_params {
 
     size_t kernel_split_id = 0;
     MultiDataTensor original_input_layouts;
+    bool kernelPerInput = true;
 
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         k.EnableConcatAxis(axis);
-        return k;
-    }
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// concatenation_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct concatenation_optional_params : optional_params {
-    concatenation_optional_params() : optional_params(KernelType::CONCATENATION) {}
-    bool kernelPerInput = true;
-
-    ParamsKey GetSupportedKey() const override {
-        ParamsKey k = optional_params::GetSupportedKey();
-
         if (kernelPerInput) {
             k.EnableConcatKernelPerInput();
         } else {
             k.EnableConcatOneKernel();
         }
-
         return k;
     }
 };
@@ -59,10 +45,10 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const concatenation_params& params) const;
     virtual DispatchData SetDefault(const concatenation_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     int32_t GetConcatChannelIndex(const concatenation_params& params) const;
     Tensor::DataChannelName GetConcatChannel(const concatenation_params& params) const;
     virtual size_t GetAlignment(const concatenation_params& /*params*/) const {

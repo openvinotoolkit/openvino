@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "caseless.hpp"
+#include "utils/caseless.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -99,8 +99,9 @@ enum class Type {
     ExperimentalDetectronROIFeatureExtractor,
     ExperimentalDetectronPriorGridGenerator,
     ExperimentalDetectronGenerateProposalsSingleImage,
-    GenerateProposals,
     ExtractImagePatches,
+    GenerateProposals,
+    Inverse,
     NonMaxSuppression,
     MatrixNms,
     MulticlassNms,
@@ -254,7 +255,7 @@ enum class Algorithm {
     ColorConvertI420toBGR,
 };
 
-extern const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl;
+extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_name_tbl;
 
 Type TypeFromName(const std::string& type);
 

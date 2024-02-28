@@ -7,20 +7,10 @@
 #include <openvino/runtime/auto/properties.hpp>
 #include <thread>
 
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
-#ifdef _WIN32
-#    include "gpu/gpu_context_api_dx.hpp"
-#elif defined ENABLE_LIBVA
-#    include <gpu/gpu_context_api_va.hpp>
-#endif
-#include "gpu/gpu_config.hpp"
-#include "gpu/gpu_context_api_ocl.hpp"
-
 using namespace ov::test::behavior;
-using namespace InferenceEngine::PluginConfigParams;
 
 namespace {
 
@@ -57,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassCommon,
                          ::testing::Values(std::make_pair("openvino_intel_gpu_plugin", "GPU")));
 
 // //
-// // IE Class GetMetric
+// // OV Class GetMetric
 // //
 
 INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVGetMetricPropsTest,
@@ -77,12 +67,6 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(OVCheckGetSupportedROMetricsPropsTests::configureProperties(
                         { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         ::testing::Combine(::testing::Values("HETERO", "BATCH"),
-                                            ::testing::Values(ov::AnyMap({}))),
-                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
@@ -117,12 +101,12 @@ TEST_P(OVGetMetricPropsTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::device_total_mem_size.name()));
     auto t = p.as<uint64_t>();
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::device_total_mem_size.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -134,11 +118,11 @@ TEST_P(OVGetMetricPropsTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(UARCH_VERSION)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::uarch_version.name()));
     auto t = p.as<std::string>();
 
     std::cout << "GPU device uarch: " << t << std::endl;
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(UARCH_VERSION));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::uarch_version.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -150,12 +134,12 @@ TEST_P(OVGetMetricPropsTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
     ov::Core ie;
     ov::Any p;
 
-    ASSERT_NO_THROW(p = ie.get_property(target_device, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
+    ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_gpu::execution_units_count.name()));
     auto t = p.as<int>();
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
-    OV_ASSERT_PROPERTY_SUPPORTED(GPU_METRIC_KEY(EXECUTION_UNITS_COUNT));
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_gpu::execution_units_count.name());
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -353,12 +337,10 @@ TEST_P(OVClassGetPropertyTest_GPU, GetAndSetInferencePrecisionNoThrow) {
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto forced_precision_deprecated = ov::element::f16;
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::hint::inference_precision(forced_precision_deprecated)));
     OV_ASSERT_NO_THROW(value = ie.get_property(target_device, ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision_deprecated);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OVClassGetPropertyTest_GPU, GetAndSetModelPriorityNoThrow) {
@@ -643,7 +625,7 @@ TEST_P(OVGetMetricPropsTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     std::vector<std::thread> threads(2);
     // key: thread id, value: executable network
     std::map<uint32_t, ov::CompiledModel> exec_net_map;
-    std::vector<std::shared_ptr<ngraph::Function>> networks;
+    std::vector<std::shared_ptr<ov::Model>> networks;
     networks.emplace_back(simpleNetwork);
     networks.emplace_back(simpleNetwork);
 
@@ -689,12 +671,11 @@ INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest,
 
 using OVGetMetricPropsTest_CACHING_PROPERTIES = OVClassBaseTestP;
 TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::vector<ov::PropertyName> caching_properties = {};
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),
         ov::intel_gpu::execution_units_count.name(),
-        ov::intel_gpu::driver_version.name(),
         ov::hint::inference_precision.name(),
         ov::hint::execution_mode.name(),
     };
@@ -712,8 +693,6 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
         ASSERT_TRUE(std::find(caching_properties.begin(), caching_properties.end(), property_name) !=
                     caching_properties.end());
     }
-
-    OV_ASSERT_PROPERTY_SUPPORTED(ov::internal::caching_properties);
 }
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVGetMetricPropsTest,
@@ -741,7 +720,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSetDefaultDeviceIDPropTest,
                          ::testing::Values(std::make_pair("GPU", "1")));
 
 //
-// IE Class GetConfig
+// OV Class GetConfig
 //
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVPropertiesDefaultSupportedTests,

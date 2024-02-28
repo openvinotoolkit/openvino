@@ -7,6 +7,7 @@
 #include "bound_evaluate.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/less.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/op/select.hpp"
 #include "openvino/reference/divide.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -242,17 +242,20 @@ bool Divide::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     using namespace ov::element;
-    return IF_TYPE_OF(v1_Divide_evaluate,
-                      OV_PP_ET_LIST(f16, bf16, f32, i32, i64, u32, u64),
-                      divide::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      inputs[1],
-                      outputs[0],
-                      inputs[0].get_shape(),
-                      inputs[1].get_shape(),
-                      get_autob(),
-                      is_pythondiv());
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_Divide_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      divide::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      inputs[1],
+                                      outputs[0],
+                                      inputs[0].get_shape(),
+                                      inputs[1].get_shape(),
+                                      get_autob(),
+                                      is_pythondiv());
     return true;
 }
 

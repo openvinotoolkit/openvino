@@ -22,13 +22,13 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "pugixml.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 namespace {  // helpers
 template <typename Container>
 std::string join(const Container& c, const char* glue = ", ") {
@@ -192,7 +192,6 @@ private:
 
 void ngfunction_2_ir(pugi::xml_node& node,
                      const ov::Model& model,
-                     const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_write_handler,
                      int64_t version,
                      bool deterministic);
@@ -303,7 +302,6 @@ public:
 class XmlSerializer : public ov::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     const std::string& m_node_type_name;
-    const std::map<std::string, ngraph::OpSet>& m_custom_opsets;
     ConstantWriter& m_constant_write_handler;
     int64_t m_version;
     bool m_deterministic;
@@ -423,7 +421,6 @@ class XmlSerializer : public ov::AttributeVisitor {
 public:
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
-                  const std::map<std::string, ngraph::OpSet>& custom_opsets,
                   ConstantWriter& constant_write_handler,
                   int64_t version,
                   bool deterministic = false,
@@ -431,7 +428,6 @@ public:
                   ov::element::Type output_element_type = ov::element::dynamic)
         : m_xml_node(data),
           m_node_type_name(node_type_name),
-          m_custom_opsets(custom_opsets),
           m_constant_write_handler(constant_write_handler),
           m_version(version),
           m_deterministic(deterministic),
@@ -516,17 +512,52 @@ public:
         } else if (const auto& a =
                        ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>>(&adapter)) {
             m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-        } else if (const auto& a =
-                       ov::as_type<ov::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+        } else if (ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter) ||
+                   ov::is_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter)) {
             if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-                const int64_t size = a->get()->size();
-                size_t new_size;
-                int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
-                                                                size,
-                                                                &new_size,
+                auto a1 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>>(&adapter);
+                auto a2 = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::SharedStringAlignedBuffer>>>(&adapter);
+                size_t new_size = 0;
+                size_t inter_size = 0;
+                // write a header of packed string tensor
+                std::shared_ptr<uint8_t> header_ptr = nullptr;
+                size_t header_size = 0;
+                if (a1) {
+                    a1->get_header(header_ptr, header_size);
+                } else {
+                    a2->get_header(header_ptr, header_size);
+                }
+
+                int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                header_size,
+                                                                &inter_size,
                                                                 m_compress_to_fp16,
                                                                 m_output_element_type);
+                new_size += inter_size;
 
+                // write raw strings part
+                size_t num_elements = 0;
+                if (a1) {
+                    num_elements = a1->get()->get_num_elements();
+                } else {
+                    num_elements = a2->get()->get_num_elements();
+                }
+                for (size_t ind = 0; ind < num_elements; ++ind) {
+                    const char* raw_string_ptr;
+                    size_t raw_string_size;
+                    if (a1) {
+                        a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    } else {
+                        a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                    }
+
+                    m_constant_write_handler.write(raw_string_ptr,
+                                                   raw_string_size,
+                                                   &inter_size,
+                                                   m_compress_to_fp16,
+                                                   m_output_element_type);
+                    new_size += inter_size;
+                }
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
             }
@@ -626,21 +657,11 @@ public:
             // to layer above (m_xml_node.parent()) as in ngfunction_2_ir() layer (m_xml_node) with empty attributes
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
-            ngfunction_2_ir(xml_body,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(xml_body, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
             xml_body.remove_attribute("name");
             xml_body.remove_attribute("version");
         } else if (name == "net") {
-            ngfunction_2_ir(m_xml_node,
-                            *adapter.get(),
-                            m_custom_opsets,
-                            m_constant_write_handler,
-                            m_version,
-                            m_deterministic);
+            ngfunction_2_ir(m_xml_node, *adapter.get(), m_constant_write_handler, m_version, m_deterministic);
         } else {
             OPENVINO_THROW("Unsupported Model name.");
         }
@@ -686,33 +707,19 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
     return edges;
 }
 
-std::string get_opset_name(const ov::Node* n, const std::map<std::string, ngraph::OpSet>& custom_opsets) {
+std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // Try to find opset name from RT info
+    // TODO: remove it one day: try to find opset name from RT info
+    // It's a dirty hack to TypeRelaxed and similar template internal operations
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
-            const std::string& opset_name = opset_it->second.as<std::string>();
-            if (custom_opsets.find(opset_name) != custom_opsets.end()) {
-                return opset_name;
-            }
+            return opset_it->second.as<std::string>();
         }
     }
 
-    if (n->get_type_info().version_id != nullptr) {
-        return n->get_type_info().version_id;
-    }
-
-    for (const auto& custom_opset : custom_opsets) {
-        std::string name = custom_opset.first;
-        ngraph::OpSet opset = custom_opset.second;
-        if (opset.contains_op_type(n)) {
-            return name;
-        }
-    }
-
-    return "experimental";
+    return n->get_type_info().version_id == nullptr ? "experimental" : n->get_type_info().version_id;
 }
 
 std::string get_precision_name(const ov::element::Type& elem_type) {
@@ -754,6 +761,10 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "BOOL";
     case ::ov::element::Type_t::nf4:
         return "NF4";
+    case ::ov::element::Type_t::f8e4m3:
+        return "F8E4M3";
+    case ::ov::element::Type_t::f8e5m2:
+        return "F8E5M2";
     case ::ov::element::Type_t::string:
         return "STRING";
     default:
@@ -782,11 +793,6 @@ std::string generate_unique_name(const std::unordered_set<std::string>& unique_n
         suffix++;
         return generate_unique_name(unique_names, base_name, suffix);
     }
-}
-
-template <typename T>
-bool is_name_auto_generated(const T& n) {
-    return n.get_friendly_name() == n.get_name();
 }
 
 // TODO: remove when CNNNetwork will be supporting not-unique names
@@ -918,12 +924,12 @@ void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::
 
 void ngfunction_2_ir(pugi::xml_node& netXml,
                      const ov::Model& model,
-                     const std::map<std::string, ngraph::OpSet>& custom_opsets,
                      ConstantWriter& constant_node_write_handler,
                      int64_t version,
                      bool deterministic) {
     // If determinism is not required, include auto-generated names into xml
-    if (!deterministic || !is_name_auto_generated(model)) {
+    // model name is not critical for hash computing
+    if (!deterministic) {
         netXml.append_attribute("name").set_value(model.get_friendly_name().c_str());
     }
     netXml.append_attribute("version").set_value(static_cast<long long>(version));
@@ -944,8 +950,10 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& param : model.get_parameters()) {
             result.emplace_back(param);
         }
+        auto model_sinks = model.get_sinks();
         for (auto&& node : sorted_ops) {
-            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) && !ov::op::util::is_sink(node))
+            if (!ov::op::util::is_parameter(node) && !ov::op::util::is_output(node) &&
+                std::find(model_sinks.begin(), model_sinks.end(), node) == model_sinks.end())
                 result.emplace_back(node);
         }
         for (const auto& sink : model.get_sinks()) {
@@ -966,12 +974,13 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         // If determinism is not required, include auto-generated names into xml
-        if (!deterministic || !is_name_auto_generated(*node)) {
+        // layer name is not critical for hash computing
+        if (!deterministic) {
             layer.append_attribute("name").set_value(get_node_unique_name(unique_names, node).c_str());
         }
         layer.append_attribute("type").set_value(translate_type_name(node_type_name).c_str());
         if (!exec_graph) {
-            layer.append_attribute("version").set_value(get_opset_name(node, custom_opsets).c_str());
+            layer.append_attribute("version").set_value(get_opset_name(node).c_str());
         }
 
         // <layers/data> general attributes
@@ -1097,7 +1106,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
             PaddingsFixer fixed_node(node);
             XmlSerializer visitor(data,
                                   node_type_name,
-                                  custom_opsets,
                                   constant_node_write_handler,
                                   version,
                                   deterministic,
@@ -1171,7 +1179,6 @@ void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
                    std::shared_ptr<ov::Model> model,
                    ov::pass::Serialize::Version ver,
-                   const std::map<std::string, ngraph::OpSet>& custom_opsets,
                    bool deterministic = false) {
     auto version = static_cast<int64_t>(ver);
 
@@ -1194,7 +1201,7 @@ void serializeFunc(std::ostream& xml_file,
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(bin_file);
-    XmlSerializer visitor(net_node, name, custom_opsets, constant_write_handler, version, deterministic);
+    XmlSerializer visitor(net_node, name, constant_write_handler, version, deterministic);
     visitor.on_attribute(name, model);
 
     xml_doc.save(xml_file);
@@ -1216,7 +1223,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             disable_fp16_compression(node);
 
     if (m_xmlFile && m_binFile) {
-        serializeFunc(*m_xmlFile, *m_binFile, model, m_version, m_custom_opsets);
+        serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
         auto xmlDir = ov::util::get_directory(m_xmlPath);
         if (xmlDir != m_xmlPath)
@@ -1230,7 +1237,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
         try {
-            serializeFunc(xml_file, bin_file, model, m_version, m_custom_opsets);
+            serializeFunc(xml_file, bin_file, model, m_version);
         } catch (const ov::AssertFailure&) {
             // optimization decision was made to create .bin file upfront and
             // write to it directly instead of buffering its content in memory,
@@ -1247,43 +1254,24 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-pass::Serialize::Serialize(std::ostream& xmlFile,
-                           std::ostream& binFile,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
     : m_xmlFile{&xmlFile},
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-      m_version{version},
-      m_custom_opsets{custom_opsets} {}
+      m_version{version} {}
 
-pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlFile, binFile, std::map<std::string, ngraph::OpSet>{}, version) {}
-
-pass::Serialize::Serialize(const std::string& xmlPath,
-                           const std::string& binPath,
-                           std::map<std::string, ngraph::OpSet> custom_opsets,
-                           pass::Serialize::Version version)
+pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version},
-      m_custom_opsets{custom_opsets} {}
+      m_version{version} {}
 
-pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
-    : pass::Serialize::Serialize(xmlPath, binPath, std::map<std::string, ngraph::OpSet>{}, version) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-OPENVINO_SUPPRESS_DEPRECATED_START
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       std::map<std::string, ngraph::OpSet>&& custom_opsets,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
                                        Serialize::Version version)
     : m_stream(stream),
-      m_custom_opsets(std::move(custom_opsets)),
       m_custom_data_serializer(custom_data_serializer),
       m_version(version) {
     if (version != Serialize::Version::UNSPECIFIED && version != Serialize::Version::IR_V10 &&
@@ -1291,12 +1279,6 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
         OPENVINO_THROW("Unsupported version");
     }
 }
-
-pass::StreamSerialize::StreamSerialize(std::ostream& stream,
-                                       const std::function<void(std::ostream&)>& custom_data_serializer,
-                                       Serialize::Version version)
-    : StreamSerialize(stream, {}, custom_data_serializer, version) {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
@@ -1341,7 +1323,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
     ConstantWriter constant_write_handler(m_stream);
-    XmlSerializer visitor(net_node, name, m_custom_opsets, constant_write_handler, version);
+    XmlSerializer visitor(net_node, name, constant_write_handler, version);
     std::shared_ptr<ov::Model> fun = model;
     visitor.on_attribute(name, fun);
 
@@ -1408,7 +1390,7 @@ bool pass::Hash::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::ostream bin(&binHash);
 
     // Determinism is important for hash calculation
-    serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, {}, true);
+    serializeFunc(xml, bin, model, Serialize::Version::UNSPECIFIED, true);
 
     uint64_t seed = 0;
     seed = hash_combine(seed, xmlHash.getResult());

@@ -13,7 +13,6 @@
 
 #include <gtest/gtest.h>
 
-#include "ov_models/subgraph_builders.hpp"
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -21,10 +20,8 @@
 #include "functional_test_utils/crash_handler.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "openvino/util/file_util.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -68,7 +65,8 @@ public:
         set_api_entity();
         auto test_name = this->GetFullTestName();
         k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1.0 : 0.0;
-        std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
+        if (ov::test::utils::is_print_rel_influence_coef)
+            std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
         api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
         crashHandler->StartTimer();
     }
@@ -148,7 +146,7 @@ public:
 
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -161,6 +159,9 @@ protected:
     std::shared_ptr<ov::Model> function;
 };
 
+// DEPRECATED
+// Replace the usage by `ov::test::utils::create_core()`
+// in NVIDIA and NPU plugin
 inline ov::Core createCoreWithTemplate() {
     ov::test::utils::PluginCache::get().reset();
     ov::Core core;
@@ -249,14 +250,21 @@ public:
     }
 };
 
-#define SKIP_IF_NOT_IMPLEMENTED(...)                   \
-{                                                      \
-    try {                                              \
-        __VA_ARGS__;                                   \
-    } catch (const InferenceEngine::NotImplemented&) { \
-        GTEST_SKIP();                                  \
-    }                                                  \
-}
+class OVClassSeveralDevicesTests : public OVPluginTestBase,
+                                   public OVClassNetworkTest,
+                                   public ::testing::WithParamInterface<std::vector<std::string>> {
+public:
+    std::vector<std::string> target_devices;
+
+    void SetUp() override {
+        target_device = ov::test::utils::DEVICE_MULTI;
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        APIBaseTest::SetUp();
+        OVClassNetworkTest::SetUp();
+        target_devices = GetParam();
+    }
+};
+
 } // namespace behavior
 } // namespace test
 } // namespace ov

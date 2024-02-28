@@ -23,7 +23,7 @@ target_link_libraries(${TARGET_NAME}
                 openvino::util
                 openvino::runtime
         PRIVATE
-                cnpy)
+                openvino::cnpy)
 
 add_dependencies(${TARGET_NAME} test_builtin_extensions)
 

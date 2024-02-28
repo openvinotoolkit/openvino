@@ -417,18 +417,14 @@ int main(int argc, char* argv[]) {
             OPENVINO_SUPPRESS_DEPRECATED_START
             // the rest are individual per-device settings (overriding the values set with perf modes)
             auto set_throughput_streams = [&]() {
-                std::string key = getDeviceTypeFromName(device) + "_THROUGHPUT_STREAMS";
+                std::string key = ov::num_streams.name();
                 auto it_device_nstreams = device_nstreams.find(device);
                 if (it_device_nstreams != device_nstreams.end()) {
                     // set to user defined value
-                    if (supported(key)) {
-                        device_config[key] = it_device_nstreams->second;
-                    } else if (supported(ov::num_streams.name())) {
-                        // Use API 2.0 key for streams
-                        key = ov::num_streams.name();
+                    if (supported(ov::num_streams.name())) {
+                        // Use OpenVINO API key for streams
                         device_config[key] = it_device_nstreams->second;
                     } else if (is_virtual_device(device)) {
-                        key = ov::num_streams.name();
                         update_device_config_for_virtual_device(it_device_nstreams->second,
                                                                 device_config,
                                                                 ov::num_streams);
@@ -448,22 +444,18 @@ int main(int argc, char* argv[]) {
                                   "information look at README."
                                << slog::endl;
 
-                    if (supported(key)) {
-                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                    } else if (supported(ov::num_streams.name())) {
-                        // Use API 2.0 key for streams
-                        key = ov::num_streams.name();
+                    if (supported(ov::num_streams.name())) {
+                        // Use OpenVINO API key for streams
                         device_config[key] = ov::streams::AUTO;
                     } else if (is_virtual_device(device)) {
                         // Set nstreams to default value auto if no nstreams specified from cmd line.
                         for (auto& hwdevice : hardware_devices) {
-                            std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
-                            auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
+                            ov::Any value = ov::streams::AUTO;
                             setDeviceProperty(core,
                                               hwdevice,
                                               device_config,
                                               ov::num_streams(ov::streams::AUTO),
-                                              std::make_pair(key, value));
+                                              std::make_pair(key, value.as<std::string>()));
                         }
                     }
                 }
@@ -503,9 +495,11 @@ int main(int argc, char* argv[]) {
             };
 
             auto set_nthreads_pin = [&](const std::string& str) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
                 auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
+                OPENVINO_SUPPRESS_DEPRECATED_END
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     device_config[property.first] = property.second;
@@ -837,11 +831,6 @@ int main(int argc, char* argv[]) {
                 for (auto& item : devices_properties) {
                     slog::info << "  " << item.first << ": " << slog::endl;
                     for (auto& item2 : item.second.as<ov::AnyMap>()) {
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        if (item2.first == ov::supported_properties || item2.first == "SUPPORTED_CONFIG_KEYS)" ||
-                            item2.first == "SUPPORTED_METRICS")
-                            continue;
-                        OPENVINO_SUPPRESS_DEPRECATED_END
                         slog::info << "    " << item2.first << ": " << item2.second.as<std::string>() << slog::endl;
                     }
                 }

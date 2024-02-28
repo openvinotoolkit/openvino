@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include "op/batch_norm.hpp"
 #include "op/bitshift.hpp"
 #include "op/bitwise_and.hpp"
+#include "op/bitwise_not.hpp"
 #include "op/bitwise_or.hpp"
 #include "op/bitwise_xor.hpp"
 #include "op/blackmanwindow.hpp"
@@ -72,6 +73,7 @@
 #include "op/gather.hpp"
 #include "op/gather_elements.hpp"
 #include "op/gather_nd.hpp"
+#include "op/gelu.hpp"
 #include "op/gemm.hpp"
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
@@ -92,6 +94,7 @@
 #include "op/is_finite.hpp"
 #include "op/is_inf.hpp"
 #include "op/is_nan.hpp"
+#include "op/layer_normalization.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/less_or_equal.hpp"
@@ -110,6 +113,7 @@
 #include "op/mean.hpp"
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
+#include "op/mish.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
 #include "op/neg.hpp"
@@ -190,8 +194,9 @@
 
 using namespace ov::frontend::onnx;
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 
 const char* OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
 
@@ -275,7 +280,7 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by nGraph";
+        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by OpenVINO";
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
@@ -285,7 +290,8 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
         if (it == std::end(op.second)) {
-            throw error::UnsupportedVersion{op.first, version, domain};
+            OPENVINO_THROW("Unsupported operator version: " + (domain.empty() ? "" : domain + ".") + op.first + ":" +
+                           std::to_string(version));
         }
         result.emplace(op.first, it->second);
     }
@@ -355,6 +361,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("BatchNormalization", 7, batch_norm);
     REGISTER_OPERATOR("BitShift", 1, bitshift);
     REGISTER_OPERATOR("BitwiseAnd", 1, bitwise_and);
+    REGISTER_OPERATOR("BitwiseNot", 1, bitwise_not);
     REGISTER_OPERATOR("BitwiseOr", 1, bitwise_or);
     REGISTER_OPERATOR("BitwiseXor", 1, bitwise_xor);
     REGISTER_OPERATOR("BlackmanWindow", 1, blackmanwindow);
@@ -397,14 +404,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Gather", 1, gather);
     REGISTER_OPERATOR("GatherElements", 1, gather_elements);
     REGISTER_OPERATOR("GatherND", 1, gather_nd);
+    REGISTER_OPERATOR("Gelu", 1, gelu);
     REGISTER_OPERATOR("Gemm", 1, gemm);
     REGISTER_OPERATOR("Gemm", 6, gemm);
     REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
     REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
     REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
     REGISTER_OPERATOR("Greater", 1, greater);
-    REGISTER_OPERATOR("Greater_Or_Equal", 1, greater_or_equal);
-    REGISTER_OPERATOR("Greater_Or_Equal", 16, greater_or_equal);
+    REGISTER_OPERATOR("GreaterOrEqual", 1, greater_or_equal);
+    REGISTER_OPERATOR("GreaterOrEqual", 16, greater_or_equal);
     REGISTER_OPERATOR("GridSample", 1, grid_sample);
     REGISTER_OPERATOR("GroupNormalization", 1, group_normalization);
     REGISTER_OPERATOR("GRU", 1, gru);
@@ -421,6 +429,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("IsFinite", 1, is_finite);
     REGISTER_OPERATOR("IsInf", 1, is_inf);
     REGISTER_OPERATOR("IsNaN", 1, is_nan)
+    REGISTER_OPERATOR("LayerNormalization", 1, layer_normalization);
     REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
     REGISTER_OPERATOR("Less", 1, less);
     REGISTER_OPERATOR("LessOrEqual", 1, less_or_equal);
@@ -444,6 +453,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("MeanVarianceNormalization", 9, mean_variance_normalization);
     REGISTER_OPERATOR("Min", 1, min);
     REGISTER_OPERATOR("Min", 8, min);
+    REGISTER_OPERATOR("Mish", 1, mish);
     REGISTER_OPERATOR("Mod", 1, mod);
     REGISTER_OPERATOR("Mul", 1, mul);
     REGISTER_OPERATOR("Mul", 7, mul);
@@ -577,9 +587,10 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Attention", 1, attention);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "BiasGelu", 1, bias_gelu);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedConv", 1, fused_conv);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "FusedGemm", 1, fusedgemm);
-    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "EmbedLayerNormalization", 1, embed_layer_normalization);
+    REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "GatherND", 1, gather_nd);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "SkipLayerNormalization", 1, skip_layer_normalization);
     REGISTER_OPERATOR_WITH_DOMAIN(MICROSOFT_DOMAIN, "Trilu", 1, trilu);
 
@@ -587,6 +598,7 @@ OperatorsBridge::OperatorsBridge() {
                                        VersionRange::since(1),
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
+    register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,
@@ -598,6 +610,6 @@ OperatorsBridge::OperatorsBridge() {
 
 #undef REGISTER_OPERATOR
 #undef REGISTER_OPERATOR_WITH_DOMAIN
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

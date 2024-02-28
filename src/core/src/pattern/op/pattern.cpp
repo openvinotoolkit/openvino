@@ -107,6 +107,16 @@ std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Ty
         });
     };
 }
+
+std::function<bool(Output<Node>)> all_of(const std::vector<std::function<bool(Output<Node>)>>& predicates) {
+    return [=](Output<Node> output) -> bool {
+        for (auto& p : predicates) {
+            if (!p(output))
+                return false;
+        }
+        return true;
+    };
+}
 }  // namespace pattern
 }  // namespace pass
 }  // namespace ov

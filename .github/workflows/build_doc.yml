@@ -1,6 +1,7 @@
 name: Documentation
 on:
   pull_request:
+  merge_group:
 
 env:
   DOXY_VER: '1.9.6'
@@ -20,7 +21,7 @@ jobs:
           lfs: 'true'
 
       - name: Install apt-get dependencies
-        uses: awalsh128/cache-apt-pkgs-action@v1.3.1
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.1
         with:
           packages: graphviz texlive liblua5.2-0 libclang1-9 libclang-cpp9
           version: 3.0
@@ -54,7 +55,7 @@ jobs:
 
       - name: Cache documentation
         id: cache_sphinx_docs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: build/docs/_build/.doctrees
           key: sphinx-docs-cache

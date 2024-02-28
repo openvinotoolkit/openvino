@@ -34,6 +34,7 @@
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
 #include "loop_inst.h"
+#include "dft_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -59,7 +60,7 @@ static size_t get_post_ops_count(const program_node& node) {
 static bool is_reduce_blocked_axes(reduce_node const& node) {
     auto prim = node.get_primitive();
     auto reduce_axes = prim->axes;
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto num_spatial = format::spatial_num(node.get_output_layout().format);
     auto dims = node.get_output_layout().format.dimension();
 
@@ -140,24 +141,31 @@ bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, dat
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
+                                                                       int32_t src_port,
                                                                        const layout& in_layout,
                                                                        const layout& out_layout) {
     if (in_layout == out_layout)
         return std::make_pair(nullptr, true);
 
-    cache_key ckey{ src_id, out_layout };
+    cache_key ckey{ src_id + "." + std::to_string(src_port), out_layout };
     auto itr = _cached_reorders.find(ckey);
     if (itr != _cached_reorders.end())
         return std::make_pair(itr->second, true);
 
     auto count = _cached_reorders.size();
     std::stringstream ss;
-    ss << src_id << "_reorder_" << count;
+    ss << src_id << "_" << std::to_string(src_port) << "_reorder_" << count;
 
-    auto reorder = std::make_shared<cldnn::reorder>(ss.str(), src_id, out_layout);
+    auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
 
     return std::make_pair(reorder, false);
+}
+
+std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
+                                                                       const layout& in_layout,
+                                                                       const layout& out_layout) {
+    return get_reorder(src_id, 0, in_layout, out_layout);
 }
 
 std::pair<std::shared_ptr<primitive>, bool> reorder_factory::get_weights_reorder(primitive_id input_id,
@@ -911,7 +919,30 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 }
 
 static bool is_node_for_onednn(gemm_node const& node) {
-    return layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
+    auto gemm_prim = node.get_primitive();
+
+    for (size_t idx = 0; idx < gemm_prim->output_order.size(); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->output_order[idx]))
+            return false;
+    }
+
+    if (gemm_prim->transpose_input0 > 1 || gemm_prim->transpose_input0 > 1)
+        return false;
+
+    for (size_t idx = 0; idx < (gemm_prim->input0_order.size() - 2); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->input0_order[idx]))
+            return false;
+    }
+
+    for (size_t idx = 0; idx < (gemm_prim->input1_order.size() - 2); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->input1_order[idx]))
+            return false;
+    }
+
+    return true;
 }
 
 // This function is needed to avoid performance regressions for the convolutions with byxf layout
@@ -982,7 +1013,7 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 
         if (dep.first->is_type<convolution>()) {
             auto& conv_dep = dep.first->as<convolution>();
-            if (!convolution_byxf_opt(conv_dep.input().get_output_layout(),
+            if (!convolution_byxf_opt(conv_dep.get_input_layout(),
                                       conv_dep.get_output_layout(),
                                       conv_dep.weights().get_output_layout(),
                                       conv_dep)) {
@@ -1000,7 +1031,7 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
 }
 
 format layout_optimizer::imad_case(convolution_node const& node) const {
-    auto dims_count = format::dimension(node.input().get_output_layout().format);
+    auto dims_count = format::dimension(node.get_input_layout().format);
 
     bool is_grouped = node.get_groups() > 1;
     bool is_dw = is_depthwise(node);
@@ -1125,7 +1156,7 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         } else if (output_layout.format == format::bfzyx) {
             expected_format = cldnn::format::bfzyx;
         } else if (_optimization_attributes.bs_fs_yx_bsv16_fsv16_network &&
-                convolution_bs_fs_yx_bsv16_fsv16_opt(node.input().get_output_layout(), output_layout, weights_layout, prim)) {
+                convolution_bs_fs_yx_bsv16_fsv16_opt(node.get_input_layout(), output_layout, weights_layout, prim)) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (_optimization_attributes.fs_b_yx_fsv32_network && !node.get_transposed() &&
                 ((convolution_fs_b_yx_fsv32_opt(input_layout,
@@ -1673,6 +1704,11 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 impl_candidate = impl_types::ocl;
         }
 
+        if (node.is_type<gemm>()) {
+            if (!is_node_for_onednn(node.as<gemm>()))
+                impl_candidate = impl_types::ocl;
+        }
+
         preferred_impl = impl_candidate;
     } else if (node.is_type<prior_box>()) {
         preferred_impl = impl_types::ocl;
@@ -1800,13 +1836,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
-
-        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
-            auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.input().get_output_layout();
-            if (input_layout.format.dimension() > 4) {
-                expected = format::bfyx;
-                node.set_preferred_input_fmt(0, format::bfyx);
+        if (node.is_type<fully_connected>()) {
+            if (allow_new_shape_infer) {
+                // Plain input format is enforced because no available shape agnostic kernel supporting blocked format.
+                // The condition will be relaxed once more shape agnostic kernels for other formats are enabled (e.g., fsv->bfyx FC optimized kernel(i8)))
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
+                node.set_preferred_input_fmt(0, expected);
+            } else {
+                auto& fc_node = node.as<fully_connected>();
+                auto input_layout = fc_node.get_input_layout();
+                if (input_layout.format.dimension() > 4) {
+                    expected = format::bfyx;
+                    node.set_preferred_input_fmt(0, format::bfyx);
+                }
             }
         }
     } else if (node.is_type<gather>()) {
@@ -1815,6 +1857,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         node.set_preferred_input_fmt(0, format::get_default_format(node.as<gather>().get_primitive()->input_rank));
     } else if (node.is_type<loop>()) {
         expected = format::get_default_format(node.get_output_layout().get_rank());
+    } else if (node.is_type<dft>()) {
+        if (node.as<dft>().get_primitive()->mode == dft_mode::real &&
+            node.as<dft>().get_primitive()->direction == dft_direction::forward) {
+            node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
+        }
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {
@@ -2063,7 +2110,7 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
 }
 
 bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
@@ -2112,7 +2159,7 @@ size_t layout_optimizer::get_optimized_conv_count(const std::pair<format::type, 
 }
 
 bool layout_optimizer::is_format_optimized(const deconvolution_node& node, const format& format) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
     auto prim = node.get_primitive();
 

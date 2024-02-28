@@ -33,7 +33,9 @@
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
 // Copied from linux libc sys/stat.h:
-#    define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    if !defined(__MINGW32__) && !defined(__MINGW64__)
+#        define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+#    endif
 #else
 #    include <dirent.h>
 #    include <dlfcn.h>
@@ -83,31 +85,32 @@ std::string ov::util::get_file_ext(const std::string& s) {
 }
 
 std::string ov::util::get_directory(const std::string& s) {
-    std::string rc = s;
     // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos ? pos : 1);
-        return rc;
+        return s.substr(0, pos ? pos : 1);
     }
     // Windows-style separator
     pos = s.find_last_of('\\');
     if (pos != std::string::npos) {
-        rc = s.substr(0, pos);
-        return rc;
+        return s.substr(0, pos);
+    } else if (s.empty()) {
+        return {};
+    } else {
+        return {'.'};
     }
-    return rc;
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 std::wstring ov::util::get_directory(const std::wstring& s) {
-    std::wstring rc = s;
     auto pos = s.find_last_of(ov::util::FileTraits<wchar_t>::file_separator);
     if (pos != std::wstring::npos) {
-        rc = s.substr(0, pos);
-        return rc;
+        return s.substr(0, pos);
+    } else if (s.empty()) {
+        return {};
+    } else {
+        return {L'.'};
     }
-    return rc;
 }
 #endif
 
@@ -146,7 +149,11 @@ std::wstring join_paths(const std::wstring& s1, const std::wstring& s2) {
         } else if (s1.size() > 0) {
             rc = s1;
             if (rc[rc.size() - 1] != '/') {
+#    ifndef _WIN32
                 rc += '/';
+#    else
+                rc += '\\';
+#    endif
             }
             rc += s2;
         } else {
@@ -333,9 +340,9 @@ void ov::util::convert_path_win_style(std::string& path) {
 
 std::string ov::util::wstring_to_string(const std::wstring& wstr) {
 #    ifdef _WIN32
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
+    int size_needed = WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
     std::string strTo(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
+    WideCharToMultiByte(CP_ACP, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL);
     return strTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
@@ -347,9 +354,9 @@ std::wstring ov::util::string_to_wstring(const std::string& string) {
     const char* str = string.c_str();
 #    ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    int size_needed = MultiByteToWideChar(CP_ACP, 0, str, strSize, NULL, 0);
     std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    MultiByteToWideChar(CP_ACP, 0, str, strSize, &wstrTo[0], size_needed);
     return wstrTo;
 #    else
     std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;

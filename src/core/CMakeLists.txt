@@ -21,12 +21,13 @@ add_subdirectory(shape_inference)
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES
-        $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
-        $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/dev_api
+        $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/include)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -45,7 +46,8 @@ target_include_directories(openvino_core_dev INTERFACE
     $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>)
 
 target_link_libraries(openvino_core_dev INTERFACE openvino::itt openvino::util)
 
@@ -71,44 +73,44 @@ endif()
 # Create static or shared library depending on BUILD_SHARED_LIBS
 #
 
-add_library(ngraph_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(openvino_core_obj OBJECT ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(ENABLE_SYSTEM_PUGIXML)
     # system pugixml has /usr/include as include directories
     # we cannot use them as system ones, leads to compilation errors
-    set_target_properties(ngraph_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
+    set_target_properties(openvino_core_obj PROPERTIES NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
-target_compile_definitions(ngraph_obj PRIVATE IMPLEMENT_OPENVINO_API)
+target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API)
 
-ov_build_target_faster(ngraph_obj
+ov_build_target_faster(openvino_core_obj
     UNITY
     PCH PRIVATE "src/precomp.hpp")
 
-ov_add_version_defines(src/version.cpp ngraph_obj)
+ov_add_version_defines(src/version.cpp openvino_core_obj)
 
-target_link_libraries(ngraph_obj PRIVATE openvino::reference openvino::util
+target_link_libraries(openvino_core_obj PRIVATE openvino::reference openvino::util
                                          openvino::pugixml openvino::shape_inference openvino::core::dev)
 
-ov_mark_target_as_cc(ngraph_obj)
+ov_mark_target_as_cc(openvino_core_obj)
 
-# ngraph is public API => need to mark this library as important for ABI free
-ov_abi_free_target(ngraph_obj)
+# openvino_core is public API => need to mark this library as important for ABI free
+ov_abi_free_target(openvino_core_obj)
 
-ov_ncc_naming_style(FOR_TARGET ngraph_obj
+ov_ncc_naming_style(FOR_TARGET openvino_core_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-ov_add_clang_format_target(ngraph_clang FOR_SOURCES ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${DEV_HEADERS})
+ov_add_clang_format_target(openvino_core_clang FOR_SOURCES ${LIBRARY_SRC} ${PUBLIC_HEADERS} ${DEV_HEADERS})
 
 if(NOT BUILD_SHARED_LIBS)
-    target_compile_definitions(ngraph_obj PUBLIC OPENVINO_STATIC_LIBRARY)
+    target_compile_definitions(openvino_core_obj PUBLIC OPENVINO_STATIC_LIBRARY)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # ngraph is linked against openvino::reference, openvino::shape_inference static libraries
-    # which include ngraph headers with dllimport attribute. Linker complains about it
+    # openvino_core is linked against openvino::reference, openvino::shape_inference static libraries
+    # which include openvino_core headers with dllimport attribute. Linker complains about it
     # but no way to fix this: linking with no attribute defaults to dllexport and we have
-    # multiple defitions for ngraph symbols.
+    # multiple defitions for openvino_core symbols.
     #
     # The possible way is to use object libraries for openvino::reference
     # but it's not convinient since these libraries are exported from build tree
@@ -119,10 +121,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(link_type PUBLIC)
     endif()
 
-    target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
+    target_link_options(openvino_core_obj ${link_type} "/IGNORE:4217,4286")
 endif()
 
-# some sources are located in ngraph, while headers are in inference_engine_transformations
+# TODO: try to remove this and move smart reshape to transformations
+# some sources are located in openvino_core, while headers are in openvino_transformations
 file(GLOB_RECURSE smart_reshape_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/smart_reshape/*.cpp)
 file(GLOB_RECURSE rt_info_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/rt_info/*.cpp)
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precision.cpp"
@@ -133,18 +136,11 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps_impl.cpp"
                             "${CMAKE_CURRENT_SOURCE_DIR}/src/model.cpp" # for SmartReshape
                             ${smart_reshape_srcs} ${rt_info_srcs}
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
-                                      PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-add_library(ngraph INTERFACE)
-target_link_libraries(ngraph INTERFACE openvino::runtime)
-# Add an alias so that library can be used inside the build tree, e.g. when testing
-add_library(openvino::core ALIAS ngraph)
-
-target_include_directories(ngraph INTERFACE $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>)
+target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
@@ -157,17 +153,3 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         FILES_MATCHING
             PATTERN "*.hpp"
             PATTERN "*.h")
-
-configure_package_config_file(${OpenVINO_SOURCE_DIR}/cmake/templates/ngraphConfig.cmake.in
-    ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
-    INSTALL_DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR})
-
-write_basic_package_version_file(${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-    VERSION ${OpenVINO_VERSION_MAJOR}.${OpenVINO_VERSION_MINOR}.${OpenVINO_VERSION_PATCH}
-    COMPATIBILITY SameMajorVersion)
-
-install(FILES ${CMAKE_BINARY_DIR}/ngraphConfig.cmake
-              ${CMAKE_BINARY_DIR}/ngraphConfigVersion.cmake
-        DESTINATION ${OV_CPACK_OPENVINO_CMAKEDIR}
-        COMPONENT ${OV_CPACK_COMP_CORE_DEV}
-        ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})

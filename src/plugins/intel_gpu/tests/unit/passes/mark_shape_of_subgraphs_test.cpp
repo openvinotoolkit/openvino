@@ -280,3 +280,41 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
         ASSERT_EQ(5, output_ptr2[i]);
     }
 }
+
+TEST(mark_shape_of_subgraphs, gather_compressed_no_mark) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto decompression_scale = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    auto decompression_zero_point = engine.allocate_memory({ ov::PartialShape{1}, data_types::f32, format::bfyx });
+    set_values(data_0, {0});
+    set_values(data_1, {2});
+    set_values(decompression_scale, {2});
+    set_values(decompression_zero_point, {2});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("data_1", data_1));
+    topology.add(data("decompression_scale", decompression_scale));
+    topology.add(data("decompression_zero_point", decompression_zero_point));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(gather("gather_compressed", input_info("shape_of"), input_info("data_0"), 0,
+                        input_info("decompression_scale"), input_info("decompression_zero_point"), ov::element::f32, 0, {}));
+    topology.add(eltwise("eltwise", input_info("gather_compressed"), input_info("data_1"), eltwise_mode::sum));
+    topology.add(concatenation("concat", {input_info("eltwise"), input_info("data_1")}, 0));
+    topology.add(broadcast("broadcast", input_info("input"), input_info("concat"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("gather_compressed")));
+    ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("concat")));
+}

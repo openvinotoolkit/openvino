@@ -55,9 +55,8 @@ void InferAPI2::change_batch_size(int multiplier, int cur_iter) {
     }
 }
 
-void InferAPI2::set_config(const std::string &device, const std::string &property, int nstreams) {
-    config[device + "_" + property] = std::to_string(nstreams);
-    ie.set_property(device, config);
+void InferAPI2::set_config(const std::string &device, const ov::AnyMap& properties) {
+    ie.set_property(device, properties);
 }
 
 unsigned int InferAPI2::get_property(const std::string &name) {
@@ -85,10 +84,6 @@ void InferAPI2::set_input_params(const std::string &model) {
     inputs = network->inputs();
 }
 
-std::shared_ptr<InferApiBase> create_infer_api_wrapper(const int &api_version) {
-    if (api_version == 2) {
-        return std::make_shared<InferAPI2>(InferAPI2());
-    } else {
-        throw std::logic_error("Unsupported API version");
-    }
+std::shared_ptr<InferApiBase> create_infer_api_wrapper() {
+    return std::make_shared<InferAPI2>(InferAPI2());
 }

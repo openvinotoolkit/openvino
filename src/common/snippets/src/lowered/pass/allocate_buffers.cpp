@@ -64,21 +64,22 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
     }
 }
 
-bool AllocateBuffers::run(lowered::LinearIR& linear_ir) {
+bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
     m_buffer_scratchpad_size = 0;
-    PassPipeline pipeline;
+
     if (m_is_optimized_mode) {
         BufferClusters buffer_clusters;
+        PassPipeline pipeline;
         pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<IdentifyBuffers>();
         pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
         pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
         pipeline.register_pass<NormalizeBufferIDs>();
+        pipeline.run(linear_ir);
     } else {
-        pipeline.register_pass<InitBuffersDefault>(m_buffer_scratchpad_size);
+        InitBuffersDefault(m_buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
-    pipeline.run(linear_ir);
 
     return m_buffer_scratchpad_size > 0;
 }

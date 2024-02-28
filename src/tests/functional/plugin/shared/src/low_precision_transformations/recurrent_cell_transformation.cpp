@@ -9,27 +9,23 @@
 #include <vector>
 #include <string>
 
-#include <ie_core.hpp>
-
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_lpt_models/recurrent_cell.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
-    ngraph::element::Type netPrecision;
-    std::vector<ngraph::PartialShape> activationsShape;
-    std::vector<ngraph::Shape> weightsShape;
+    ov::element::Type netPrecision;
+    std::vector<ov::PartialShape> activationsShape;
+    std::vector<ov::Shape> weightsShape;
     std::string targetDevice;
     RecurrentCellTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, activationsShape, weightsShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, activationsShape[0], targetDevice, params) <<
-        "FQ_X_" << param.fakeQuantize_X << "_" <<
+    result << get_test_case_name_by_params(netPrecision, activationsShape[0], targetDevice, params) <<
+           "FQ_X_" << param.fakeQuantize_X << "_" <<
         "DQ_X_" << param.dequantization_X << "_" <<
         "FQ_W_" << param.fakeQuantize_W << "_" <<
         "DQ_W_" << param.dequantization_W;
@@ -37,15 +33,17 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
 }
 
 void RecurrentCellTransformation::SetUp() {
-    ngraph::element::Type precision;
-    std::vector<ngraph::PartialShape> activations_shapes;
-    std::vector<ngraph::Shape> weights_shapes;
+    ov::element::Type precision;
+    std::vector<ov::PartialShape> activations_shapes;
+    std::vector<ov::Shape> weights_shapes;
     RecurrentCellTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
 
     std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::RecurrentCellFunction::get(precision,
+    init_input_shapes(activations_shapes);
+
+    function = ov::builder::subgraph::RecurrentCellFunction::get(precision,
                                                                       activations_shapes,
                                                                       weights_shapes,
                                                                       param.RNNType,
@@ -69,23 +67,21 @@ void RecurrentCellTransformation::SetUp() {
                                                                       });
 }
 
-void RecurrentCellTransformation::Run() {
-    LayerTestsCommon::Run();
-
-    if (!executableNetwork)
-        return;
+void RecurrentCellTransformation::run() {
+    LayerTransformation::run();
 
     const auto params = std::get<5>(GetParam());
-    const auto actualPrecision = getRuntimePrecisionByType(params.layerName);
+    const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ngraph::element::f16) {
+    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
         expectedPrecision = "FP16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }
 
 TEST_P(RecurrentCellTransformation, CompareWithRefImpl) {
-    Run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

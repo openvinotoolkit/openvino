@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "base_reference_test.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/slice.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;
@@ -1159,6 +1163,38 @@ static RefPreprocessParams post_convert_layout_by_dims_multi() {
     return res;
 }
 
+static RefPreprocessParams post_convert_color_rgb_to_bgr() {
+    RefPreprocessParams res("post_convert_color_rgb_to_bgr");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        auto p = PrePostProcessor(f);
+        p.output().model().set_layout("NHWC").set_color_format(ColorFormat::RGB);
+        p.output().postprocess().convert_color(ColorFormat::BGR);
+        p.build();
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
+static RefPreprocessParams post_convert_color_bgr_to_rgb() {
+    RefPreprocessParams res("post_convert_color_bgr_to_rgb");
+    res.function = []() {
+        auto f = create_simple_function(element::f32, Shape{2, 1, 1, 3});
+        auto p = PrePostProcessor(f);
+        p.output().model().set_layout("NHWC").set_color_format(ColorFormat::BGR);
+        p.output().postprocess().convert_color(ColorFormat::RGB);
+        p.build();
+        return f;
+    };
+
+    res.inputs.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{1, 2, 3, 4, 5, 6});
+    res.expected.emplace_back(Shape{2, 3, 1, 1}, element::f32, std::vector<float>{3, 2, 1, 6, 5, 4});
+    return res;
+}
+
 static RefPreprocessParams pre_and_post_processing() {
     RefPreprocessParams res("pre_and_post_processing");
     res.function = []() {
@@ -1382,6 +1418,8 @@ std::vector<RefPreprocessParams> allPreprocessTests() {
                                             postprocess_2_inputs_basic(),
                                             post_convert_layout_by_dims(),
                                             post_convert_layout_by_dims_multi(),
+                                            post_convert_color_rgb_to_bgr(),
+                                            post_convert_color_bgr_to_rgb(),
                                             pre_and_post_processing(),
                                             rgb_to_bgr(),
                                             bgr_to_rgb(),

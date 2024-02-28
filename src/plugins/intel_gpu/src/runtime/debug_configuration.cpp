@@ -115,6 +115,12 @@ static void print_help_messages() {
     message_list.emplace_back("OV_GPU_DumpProfilingData", "Enables dump of extended profiling information to specified directory."
                               " Please use OV_GPU_DumpProfilingDataPerIter=1 env variable to collect performance per iteration."
                               " Note: Performance impact may be significant as this option enforces host side sync after each primitive");
+    message_list.emplace_back("OV_GPU_DumpProfilingDataIteration", "Enable collecting profiling data only at iterations with requested range. "
+                              "For example for dump profiling data only when iteration is from 10 to 20, you can use "
+                              "OV_GPU_DumpProfilingDataIteration='10..20'. Additionally, you can dump profiling data only "
+                              "from one specific iteration by giving the same values for the start and end, and the open "
+                              "ended range is also available by range from given start to the last iteration as -1. e.g. "
+                              "OV_GPU_DumpProfilingDataIteration='10..-1'");
     message_list.emplace_back("OV_GPU_DumpGraphs", "1) dump ngraph before and after transformation. 2) dump graph in model compiling."
                               "3) dump graph in execution.");
     message_list.emplace_back("OV_GPU_DumpSources", "Dump opencl sources");
@@ -136,6 +142,7 @@ static void print_help_messages() {
                               " For example fc:onednn gemm:onednn reduce:ocl do:cpu"
                               " For primitives fc, gemm, do, reduce, concat are supported. Separated by space.");
     message_list.emplace_back("OV_GPU_MaxKernelsPerBatch", "Maximum number of kernels in a batch during compiling kernels");
+    message_list.emplace_back("OV_GPU_ImplsCacheCapacity", "The maximum number of entries in the kernel impl cache");
     message_list.emplace_back("OV_GPU_DisableAsyncCompilation", "Disable async compilation");
     message_list.emplace_back("OV_GPU_DisableWinogradConv", "Disable Winograd convolution");
     message_list.emplace_back("OV_GPU_DisableDynamicImpl", "Disable dynamic implementation");
@@ -196,6 +203,7 @@ debug_configuration::debug_configuration()
         , base_batch_for_memory_estimation(-1)
         , serialize_compile(0)
         , max_kernels_per_batch(0)
+        , impls_cache_capacity(-1)
         , disable_async_compilation(0)
         , disable_winograd_conv(0)
         , disable_dynamic_impl(0)
@@ -225,6 +233,8 @@ debug_configuration::debug_configuration()
     get_gpu_debug_env_var("DisableOnednnOptPostOps", disable_onednn_opt_post_ops);
     get_gpu_debug_env_var("DumpProfilingData", dump_profiling_data);
     get_gpu_debug_env_var("DumpProfilingDataPerIter", dump_profiling_data_per_iter);
+    std::string dump_prof_data_iter_str;
+    get_gpu_debug_env_var("DumpProfilingDataIteration", dump_prof_data_iter_str);
     get_gpu_debug_env_var("DryRunPath", dry_run_path);
     get_gpu_debug_env_var("DumpRuntimeMemoryPool", dump_runtime_memory_pool);
     get_gpu_debug_env_var("BaseBatchForMemEstimation", base_batch_for_memory_estimation);
@@ -236,6 +246,7 @@ debug_configuration::debug_configuration()
     std::string forced_impl_types_str;
     get_gpu_debug_env_var("ForceImplTypes", forced_impl_types_str);
     get_gpu_debug_env_var("MaxKernelsPerBatch", max_kernels_per_batch);
+    get_gpu_debug_env_var("ImplsCacheCapacity", impls_cache_capacity);
     get_gpu_debug_env_var("DisableAsyncCompilation", disable_async_compilation);
     get_gpu_debug_env_var("DisableWinogradConv", disable_winograd_conv);
     get_gpu_debug_env_var("DisableDynamicImpl", disable_dynamic_impl);
@@ -254,6 +265,28 @@ debug_configuration::debug_configuration()
     if (help > 0) {
         print_help_messages();
         exit(0);
+    }
+
+    if (dump_prof_data_iter_str.length() > 0) {
+        dump_prof_data_iter_str = " " + dump_prof_data_iter_str + " ";
+        std::istringstream iss(dump_prof_data_iter_str);
+        char dot;
+        int64_t start, end;
+        bool is_valid_range = false;
+        if (iss >> start >> dot >> dot >> end) {
+            if (start <= end || end == -1) {
+                try {
+                    is_valid_range = true;
+                    dump_prof_data_iter_params.start = start;
+                    dump_prof_data_iter_params.end = end;
+                } catch(const std::exception& ex) {
+                    is_valid_range = false;
+                }
+            }
+        }
+        if (!is_valid_range)
+            std::cout << "OV_GPU_DumpProfilingDataIteration was ignored. It cannot be parsed to valid iteration range." << std::endl;
+        dump_prof_data_iter_params.is_enabled = is_valid_range;
     }
 
     if (dump_layers_str.length() > 0) {
@@ -351,6 +384,24 @@ const debug_configuration *debug_configuration::get_instance() {
     return instance.get();
 #else
     return nullptr;
+#endif
+}
+
+bool debug_configuration::is_target_dump_prof_data_iteration(int64_t iteration) const {
+#ifdef GPU_DEBUG_CONFIG
+    if (iteration < 0)
+        return true;
+
+    if (dump_prof_data_iter_params.start > iteration)
+        return false;
+
+    if (dump_prof_data_iter_params.start <= dump_prof_data_iter_params.end &&
+        dump_prof_data_iter_params.end < iteration)
+        return false;
+
+    return true;
+#else
+    return false;
 #endif
 }
 

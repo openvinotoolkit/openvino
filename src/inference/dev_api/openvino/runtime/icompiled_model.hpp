@@ -15,6 +15,7 @@
 
 #include "openvino/core/node_output.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -22,15 +23,10 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
-namespace InferenceEngine {
-class ICompiledModelWrapper;
-}  // namespace InferenceEngine
-
 namespace ov {
 
 class CoreImpl;
 class IPlugin;
-class IExecutableNetworkWrapper;
 class IAsyncInferRequest;
 
 /**
@@ -150,12 +146,6 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
-    friend ov::IExecutableNetworkWrapper;
-    friend InferenceEngine::ICompiledModelWrapper;
-
-    // FIXME: Remove after removing IE API
-    std::vector<std::shared_ptr<const ov::Node>> _parameters;
-    std::vector<std::shared_ptr<const ov::Node>> _results;
 
 protected:
     /**
@@ -189,6 +179,8 @@ protected:
     const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
+
+    static void set_model_shared_object(ov::Model& model, const std::shared_ptr<void>& shared_object);
 };
 
 }  // namespace ov
