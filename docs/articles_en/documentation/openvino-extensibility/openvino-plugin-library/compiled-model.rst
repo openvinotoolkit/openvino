@@ -5,14 +5,14 @@ Compiled Model
 
 
 .. meta::
-   :description: Use the ov::CompiledModel class as the base class for a compiled 
+   :description: Use the ov::CompiledModel class as the base class for a compiled
                  model and to create an arbitrary number of ov::InferRequest objects.
 
 ov::CompiledModel class functionality:
 
 * Compile an ov::Model instance to a backend specific graph representation
 * Create an arbitrary number of ov::InferRequest objects
-* Hold some common ../../../about-openvino/additional-resources shared between different instances of ov::InferRequest. For example:
+* Hold some common resources shared between different instances of ov::InferRequest. For example:
 
   * ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
   * ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
@@ -20,7 +20,7 @@ ov::CompiledModel class functionality:
 CompiledModel Class
 ###################
 
-OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows: 
+OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows:
 
 .. doxygensnippet:: src/plugins/template/src/compiled_model.hpp
    :language: cpp
@@ -58,8 +58,8 @@ The function accepts a const shared pointer to ``ov::Model`` object and applies 
    :fragment: [compiled_model:compile_model]
 
 
-.. note::  
-    
+.. note::
+
    After all these steps, the backend specific graph is ready to create inference requests and perform inference.
 
 export_model()
@@ -88,8 +88,8 @@ While the public OpenVINO API has a single interface for inference request, whic
 
   * For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the ``m_request_executor`` executor.
   * For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
-   
-.. important:: 
+
+.. important::
 
    It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 

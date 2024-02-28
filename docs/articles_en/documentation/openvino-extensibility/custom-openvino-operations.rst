@@ -1,6 +1,6 @@
 .. {#openvino_docs_Extensibility_UG_add_openvino_ops}
 
-Custom OpenVINO™ Operations
+Custom OpenVINO Operations
 =============================
 
 

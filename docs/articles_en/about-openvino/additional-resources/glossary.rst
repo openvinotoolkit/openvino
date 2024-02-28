@@ -115,7 +115,7 @@ Glossary of terms used in OpenVINO™
 
 | *plugin / Inference Device / Inference Mode*
 |   OpenVINO makes hardware available for inference based on several core components.
-    They used to be called "plugins" in earlier versions of ../../documentation and you may
+    They used to be called "plugins" in earlier versions of documentation and you may
     still find this term in some articles. Because of their role in the software,
     they are now referred to as Devices and Modes ("virtual" devices). For a detailed
     description of the concept, refer to

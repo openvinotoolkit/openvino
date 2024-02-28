@@ -5,7 +5,7 @@ IsInf
 
 
 .. meta::
-  :description: Learn about IsInf - an element-wise, comparison operation, which 
+  :description: Learn about IsInf - an element-wise, comparison operation, which
                 can be performed on a single tensor in OpenVINO.
 
 **Versioned name**: *IsInf-10*
@@ -22,6 +22,7 @@ IsInf
 
   * **Description**: specifies rules used for mapping values with negative infinity.
   * **Range of values**:
+
     * ``false`` - map negative infinity to ``false``
     * ``true`` - map negative infinity to ``true``
   * **Type**: ``boolean``
@@ -32,6 +33,7 @@ IsInf
 
   * **Description**: specifies rules used for mapping values with positive infinity.
   * **Range of values**:
+
     * ``false`` - map positive infinity to ``false``
     * ``true`` - map positive infinity to ``true``
   * **Type**: ``boolean``
