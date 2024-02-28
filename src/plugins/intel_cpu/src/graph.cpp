@@ -37,6 +37,7 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
+#include "utils/profiler.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #if defined(OV_CPU_ARM_ENABLE_FP16)
@@ -973,6 +974,7 @@ bool Graph::ProcessDynNodes() {
 }
 
 void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
+    PROFILE(_prof, "Graph::PushInputData");
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap.find(name);
     if (input_itr != inputNodesMap.end()) {
@@ -1005,6 +1007,7 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
+    PROFILE(_prof, "Graph::PullOutputData");
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
@@ -1304,6 +1307,7 @@ public:
 
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
+    PROFILE(_prof0, std::string("Graph::InferDynamic_#") + std::to_string(infer_count));
 
     std::set<size_t> syncIndsWorkSet;
     for (const auto& nodeIndx : syncNodesInds) {
@@ -1323,12 +1327,16 @@ void Graph::InferDynamic(SyncInferRequest* request) {
     size_t inferCounter = 0;
 
     for (auto stopIndx : syncIndsWorkSet) {
-        updateNodes->run(stopIndx);
+        {
+            PROFILE(_prof, "updateNodes");
+            updateNodes->run(stopIndx);
+        }
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
+            PROFILE(_prof, node->getTypeStr(), node->getName());
             if (request)
                 request->throw_if_canceled();
             ExecuteNode(node, stream);
@@ -1391,6 +1399,7 @@ void Graph::ParalleMtNuma(size_t num_nodes,
             splitter(num_nodes, num_nodes, socket_id, i0, i1);
             executor->run_sub_stream(
                 [socket_id, i0, i1, &func, &nodes_remain]() {
+                    PROFILE(_prof, std::to_string(i0));
                     for (size_t i = i0; i < i1; i++) {
                         func(socket_id, i);
                         nodes_remain--;
@@ -1399,14 +1408,20 @@ void Graph::ParalleMtNuma(size_t num_nodes,
                 socket_id - 1);
         }
         // run in main stream (current socket)
+        {
         size_t i0{0}, i1{0};
         splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
+        PROFILE(_prof, std::to_string(i0));
         for (size_t i = i0; i < i1; i++) {
             func(0, i);
             nodes_remain--;
         }
+        }
 
+        {
+            PROFILE(_prof, "wait");
         while (nodes_remain.load() > 0) {
+        }
         }
     }
 }
@@ -1425,7 +1440,7 @@ void Graph::Infer(SyncInferRequest* request) {
         OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
     }
 
-    if (infer_count != -1) infer_count++;
+    infer_count++;
 }
 
 void Graph::SortTopologically() {
