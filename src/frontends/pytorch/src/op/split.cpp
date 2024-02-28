@@ -25,11 +25,11 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
 
     std::shared_ptr<ov::Node> chunk;
     auto dim_val = context.const_input<int>(2);
-    auto shape = context.get_input(0).get_shape();
+    auto shape = context.get_input(0).get_partial_shape();
     if (dim_val < 0) {
-        dim_val = static_cast<int>(shape.size()) + dim_val;
+        dim_val = static_cast<int>(shape.rank().get_length()) + dim_val;
     }
-    int num_splits = static_cast<int>(shape[dim_val]) / num_chunks;
+    int num_splits = static_cast<int>(shape[dim_val].get_length()) / num_chunks;
 
     chunk = context.mark_node(std::make_shared<v1::Split>(context.get_input(0), dim, num_splits));
 

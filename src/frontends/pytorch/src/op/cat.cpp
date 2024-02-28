@@ -106,9 +106,7 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     auto dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     std::deque<Output<Node>> list_elems;
     auto num_elements = context.get_input_size();
-    if (num_elements > 2)
-        num_elements = num_elements - 1;
-    for (size_t i = 0; i < num_elements; i++) {
+    for (size_t i = 0; i < num_elements - 1; i++) {
         auto stack_input =
             context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(i)), dim));
         list_elems.push_back(stack_input);
@@ -116,6 +114,14 @@ OutputVector translate_stack_fx(const NodeContext& context) {
     int64_t axis = 0;
     if (context.get_input_size() > 2)
         axis = context.const_input<int64_t>(context.get_input_size() - 1);
+    if (!context.get_input_type(context.get_input_size() - 1).is<type::List>()) {
+        // axis can be not present and that means that last input will have List type
+        axis = context.const_input<int64_t>(context.get_input_size() - 1);
+    } else {
+        auto stack_input =
+            context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(context.get_input_size() - 1)), dim));
+        list_elems.push_back(stack_input);
+    }
     return translate_cat_common(context, list_elems, axis, true);
 }
 
