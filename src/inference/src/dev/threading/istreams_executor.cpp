@@ -115,7 +115,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     }
 
     const auto numa_nodes = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : proc_type_table.size();
-    const bool latency_case = static_cast<size_t>(streamConfig._streams) <= numa_nodes;
+    // const bool latency_case = static_cast<size_t>(streamConfig._streams) <= numa_nodes;
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
     int num_cores = proc_type_table[0][ALL_PROC];
