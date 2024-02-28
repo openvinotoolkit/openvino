@@ -754,6 +754,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.div.Scalar", op::translate_div_fx},
         {"aten.div.Tensor", op::translate_div_fx},
         {"aten.div.Tensor_mode", op::translate_div_fx},
+        {"aten.elu.default", op::translate_elu},
+        {"aten.elu_.default", op::inplace_op<op::translate_elu>},
         {"aten.embedding.default", op::translate_embedding},
         {"aten.empty.memory_format", op::translate_empty},
         {"aten.eq.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Equal>},
@@ -779,6 +781,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ge.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten.gelu.default", op::translate_gelu_fx},
         {"aten.glu.default", op::translate_glu},
+        {"aten.grid_sampler_2d.default", op::translate_grid_sampler},
         {"aten.gt.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten.gt.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Greater>},
         {"aten.hardsigmoid.default", op::translate_1to1_match_1_inputs<opset10::HSigmoid>},
@@ -867,6 +870,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.unbind.int", op::translate_unbind_int_fx},
         {"aten.unfold.default", op::translate_unfold},
         {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
+        {"aten.upsample_bilinear2d.default", op::translate_upsample_bilinear2d},
         {"aten.upsample_nearest2d.default", op::translate_upsample_nearest2d},
         {"aten.var.correction", op::translate_var_fx},
         {"aten.var_mean.correction", op::translate_var_mean_fx},
@@ -885,7 +889,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"prim::PythonOp", op::translate_pythonop},
         {"prim::requires_grad", op::return_false_scalar},
         {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
-        {"torchvision::deform_conv2d", op::translate_deform_conv},
+        {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
     };

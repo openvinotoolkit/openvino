@@ -96,6 +96,8 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.div.Scalar": None,
             "torch.ops.aten.div.Tensor": None,
             "torch.ops.aten.div.Tensor_mode": None,
+            "torch.ops.aten.elu.default": None,
+            "torch.ops.aten.elu_.default": None,
             "torch.ops.aten.embedding.default": None,
             "torch.ops.aten.empty.memory_format": None,
             "torch.ops.aten.eq.Scalar": None,
@@ -119,6 +121,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.ge.Tensor": None,
             "torch.ops.aten.gelu.default": None,
             "torch.ops.aten.glu.default": None,
+            "torch.ops.aten.grid_sampler_2d.default": None,
             "torch.ops.aten.gt.Scalar": None,
             "torch.ops.aten.gt.Tensor": None,
             "torch.ops.aten.hardsigmoid.default": None,
@@ -207,12 +210,14 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.unbind.int": None,
             "torch.ops.aten.unfold.default": None,
             "torch.ops.aten.unsqueeze.default": None,
+            "torch.ops.aten.upsample_bilinear2d.default": None,
             "torch.ops.aten.upsample_nearest2d.default": None,
             "torch.ops.aten.var.correction": None,
             "torch.ops.aten.var_mean.correction": None,
             "torch.ops.aten.view.default": None,
             "torch.ops.aten.where.self": None,
             "torch.ops.aten.zeros_like.default": None,
+            "torch.ops.torchvision.deform_conv2d.default": None,
         }
 
         for op in _get_disabled_ops(options):
