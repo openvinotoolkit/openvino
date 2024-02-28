@@ -10,7 +10,7 @@ Install the **openvino-node** package:
 npm install openvino-node
 ```
 
-Use openvino-node package
+Use the **openvino-node** package
 
 ```ts
 const { addon: ov } = require('openvino-node');
