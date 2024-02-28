@@ -165,3 +165,10 @@ This step is essential for interpreting the model's output.
 
   # Example output:
   ['<s> Quick brown fox was walking through the forest. He was looking for something']
+
+Additional Resources
+####################
+
+- `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+- `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+- `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
