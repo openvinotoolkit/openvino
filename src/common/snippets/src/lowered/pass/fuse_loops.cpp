@@ -22,7 +22,7 @@ bool is_loop_id_found(const std::vector<size_t>& ids, size_t id) {
 using LoopManager = LinearIR::LoopManager;
 using LoopInfoPtr = LoopManager::LoopInfoPtr;
 
-FuseLoops::FuseLoops() : Pass() {}
+FuseLoops::FuseLoops() : RangedPass() {}
 
 bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_manager,
                                           const size_t loop_lower_id,
@@ -44,20 +44,29 @@ bool FuseLoops::loop_ports_are_compatible(const LinearIR::LoopManagerPtr& loop_m
 }
 
 bool FuseLoops::can_be_fused(const LoopInfoPtr& loop_current, const LoopInfoPtr& loop_target) {
-    auto current_work_amount = loop_current->get_work_amount();
-    auto target_work_amount = loop_target->get_work_amount();
-    // Loop fusion is supported only if Loops have equal increments and the equal/broadcastable work amounts.
+    const auto current_work_amount = loop_current->get_work_amount();
+    const auto target_work_amount = loop_target->get_work_amount();
+    const auto current_increment = loop_current->get_increment();
+    const auto target_increment = loop_target->get_increment();
+    // Loop fusion is supported only if Loops have equal/broadcastable increments and work amounts.
     // Note: For example, Broadcastable work amounts are possible in the following case:
     //     Relu_0 [16x1]     Relu_1 [16x128]
     //                \           /
     //                 Add [16x128]
     // Because of expression order in linear IR and work of MarkLoop algorithm, there are 2 Inner Loops:
-    //  - Relu_0 with work amount `1` and increment `vector size`
+    //  - Relu_0 with work amount `1` and increment `1`
     //  - Relu_1 and Add with work amount `128` and increment `vector size`
     // We can fuse them into one Loop with work amount `128` and increment `vector size`
-    const auto supported_work_amount = current_work_amount == target_work_amount || current_work_amount == 1 || target_work_amount == 1;
-    const auto supported_increment = loop_current->get_increment() == loop_target->get_increment();
-    return supported_work_amount && supported_increment;
+
+    // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
+    // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
+    // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
+    const bool first_iter_handlers_match = loop_current->get_handlers().get_first_iter_handelrs().empty() ==
+                                           loop_target->get_handlers().get_first_iter_handelrs().empty();
+    const bool equal_parameters = current_work_amount == target_work_amount && current_increment == target_increment;
+    const bool current_bcastable = current_work_amount == 1 && current_increment == 1;
+    const bool target_bcastable = target_work_amount == 1 && target_increment == 1;
+    return first_iter_handlers_match && (equal_parameters || current_bcastable || target_bcastable);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LinearIR::LoopManagerPtr& loop_manager, size_t loop_id,
@@ -123,12 +132,6 @@ bool FuseLoops::fuse_upper_into_current(LinearIR& linear_ir, const LinearIR::Loo
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
     std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, target_loop_id, current_loop_id, false);
-    // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
-    loop_current->set_work_amount(std::max(loop_current->get_work_amount(), loop_target->get_work_amount()));
-    // If one of the Loops is outer for nested loops that splits the same dimension,
-    // after fusion new common Loop save this status
-    loop_current->set_outer_splited_loop(loop_current->get_outer_splited_loop() || loop_target->get_outer_splited_loop());
-
     const auto insertion_place = current_loop_begin_pos;
     const auto is_move_needed = target_loop_end_pos != current_loop_begin_pos;
     if (is_move_needed)
@@ -168,11 +171,6 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
     LinearIR::constExprIt target_loop_begin_pos, target_loop_end_pos;
     std::tie(target_loop_begin_pos, target_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, target_loop_id);
     loop_manager->fuse_loops(target_loop_begin_pos, target_loop_end_pos, current_loop_id, target_loop_id);
-    // Update work_amount for Loop (increment is constant because increments must be the identical for fusion):
-    loop_current->set_work_amount(std::max(loop_current->get_work_amount(), loop_target->get_work_amount()));
-    // If one of the Loops is outer for nested loops that splits the same dimension,
-    // after fusion new common Loop save this status
-    loop_current->set_outer_splited_loop(loop_current->get_outer_splited_loop() || loop_target->get_outer_splited_loop());
 
     const auto insertion_place = current_loop_end_pos;
     const auto is_move_needed = insertion_place != target_loop_begin_pos;
@@ -184,15 +182,12 @@ bool FuseLoops::fuse_lower_into_current(LinearIR& linear_ir, const LinearIR::Loo
     return true;
 }
 
-bool FuseLoops::run(LinearIR& linear_ir) {
+bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::FuseLoops")
-    if (linear_ir.empty())
-        return false;
-
     const auto& loop_manager = linear_ir.get_loop_manager();
     std::set<size_t> prev_fused_loops;
 
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<ov::op::v0::Parameter>(node) ||
