@@ -48,7 +48,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                     ov::device::priorities,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::enable_profiling};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
@@ -62,7 +63,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
         return ret;
     };
-    if (name == ov::supported_properties) {
+    if (name == ov::supported_properties || name == ov::enable_profiling) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
