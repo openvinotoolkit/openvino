@@ -40,6 +40,13 @@ NamedOutputs scale(const NodeContext& node) {
         result_node = std::make_shared<ov::opset6::Add>(node_multiply, bias);
     }
 
+    const auto output_info = node.get_output_port_infos("Out");
+    size_t output_size = output_info[0].second.size();
+    if (output_size == 0) {
+        auto squeeze_node = std::make_shared<ov::opset6::Squeeze>(result_node);
+        return node.default_single_output_mapping({squeeze_node}, {"Out"});
+    }
+
     return node.default_single_output_mapping({result_node}, {"Out"});
 }
 
