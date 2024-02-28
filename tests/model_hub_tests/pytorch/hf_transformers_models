@@ -128,7 +128,7 @@ hf-internal-testing/tiny-random-DonutSwinModel,donut-swin
 hf-internal-testing/tiny-random-EfficientFormerForImageClassification,efficientformer
 hf-internal-testing/tiny-random-flaubert,flaubert
 hf-internal-testing/tiny-random-FocalNetModel,focalnet
-hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,gpt_bigcode,xfail,Conversion is failed for: aten::mul
+hf-internal-testing/tiny-random-GPTBigCodeForCausalLM,gpt_bigcode
 hf-internal-testing/tiny-random-GPTJModel,gptj
 hf-internal-testing/tiny-random-groupvit,groupvit
 hf-internal-testing/tiny-random-IBertModel,ibert
@@ -415,3 +415,4 @@ yysung53/dpr,text_similarity,skip,Load problem
 Zetatech/pvt-tiny-224,pvt
 ZinengTang/tvlt-base,tvlt,xfail,Conversion is failed for aten::cat: Argument element types are inconsistent
 zuppif/resnetd-18,resnetd,skip,Load problem
+baichuan-inc/Baichuan2-7B-Base,baichuan

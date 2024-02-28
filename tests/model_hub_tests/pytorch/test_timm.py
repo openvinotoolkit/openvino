@@ -6,20 +6,18 @@ import os
 import pytest
 import timm
 import torch
-from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir, get_models_list
+from models_hub_common.utils import get_models_list
 
 from torch_utils import TestTorchConvertModel, process_pytest_marks
-from openvino import convert_model
-from torch.export import export
-from packaging import version
 
 
 def filter_timm(timm_list: list) -> list:
     unique_models = dict()
     filtered_list = []
-    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico", "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini",
-                   "small", "lite", "medium", "m", "big", "large", "l", "xlarge", "xl", "huge", "xxlarge", "gigantic", "giant", "enormous"]
+    ignore_list = ["base", "atto", "femto", "xxtiny", "xxsmall", "xxs", "pico",
+                   "xtiny", "xmall", "xs", "nano", "tiny", "s", "mini", "small",
+                   "lite", "medium", "m", "big", "large", "l", "xlarge", "xl",
+                   "huge", "xxlarge", "gigantic", "giant", "enormous"]
     ignore_set = set(ignore_list)
     for name in sorted(timm_list):
         if "x_" in name:
@@ -53,7 +51,7 @@ torch.manual_seed(0)
 
 
 class TestTimmConvertModel(TestTorchConvertModel):
-    def load_model_impl(self, model_name, model_link):
+    def load_model(self, model_name, model_link):
         m = timm.create_model(model_name, pretrained=True)
         cfg = timm.get_pretrained_cfg(model_name)
         shape = [1] + list(cfg.input_size)
@@ -71,10 +69,6 @@ class TestTimmConvertModel(TestTorchConvertModel):
         else:
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
-
-    def teardown_class(self):
-        # remove all downloaded files from cache
-        cleanup_dir(hf_hub_cache_dir)
 
     @pytest.mark.parametrize("name", ["mobilevitv2_050.cvnets_in1k",
                                       "poolformerv2_s12.sail_in1k",
