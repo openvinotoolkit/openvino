@@ -1489,8 +1489,7 @@ static bool is_post_op_supported(const std::shared_ptr<Node> &node) {
                   Algorithm::EltwiseSqrt,
                   Algorithm::EltwiseTanh,
                   Algorithm::EltwiseSigmoid,
-                  Algorithm::EltwiseClamp
-            );
+                  Algorithm::EltwiseClamp);
 }
 #endif
 
