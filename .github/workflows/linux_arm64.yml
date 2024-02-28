@@ -371,7 +371,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
-      event: ${{ github.event_name }}
+      model_scope: 'precommit'
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
