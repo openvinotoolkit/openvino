@@ -68,7 +68,7 @@ public:
         return m_primitive ? m_primitive->implType() : undef;
     }
 
-    void moveMemToNumaNode(int numaNodeID) {
+    void moveMemToNumaNode(int numaNodeID) override {
         if (curNodeNode == numaNodeID) {
             return;
         }
@@ -83,7 +83,7 @@ public:
 
         if (m_primArgs.count(DNNL_ARG_BIAS)) {
             if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID))
-                std::cout << "move DNNL_ARG_WEIGHTS to node " << numaNodeID << " failed\n";
+                std::cout << "move DNNL_ARG_BIAS to node " << numaNodeID << " failed\n";
         }
         curNodeNode = numaNodeID;
     }
