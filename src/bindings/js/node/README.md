@@ -4,7 +4,7 @@ Use OpenVINO JavaScript API for your Node.js application.
 
 ## Usage
 
-Install openvino-node package
+Install the **openvino-node** package:
 
 ```sh
 npm install openvino-node
