@@ -1,6 +1,6 @@
 # OpenVINO™ Node.js Bindings
 
-Use OpenVINO Runtime from your Node.js application uses OpenVINO JavaScript API
+Use OpenVINO JavaScript API for your Node.js application.
 
 ## Usage
 
