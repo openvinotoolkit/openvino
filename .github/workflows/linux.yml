@@ -501,15 +501,28 @@ jobs:
   #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
   #   volumes:
   #     - /mount:/mount
-  TensorFlow_Models_Tests:
+  TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
+      runner: 'ubuntu-20.04-8-cores'
+      model_scope: 'precommit'
+
+  TensorFlow_Models_Tests_Nightly:
+    name: TensorFlow Models tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    strategy:
+      max-parallel: 2
+      matrix:
+        MODEL_SCOPE: ['nightly_hf', 'nightly_tf_hub']
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: ${{ matrix.MODEL_SCOPE }}
 
   # TODO: Switch back to self-hosted runners
   # container:
@@ -755,7 +768,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
