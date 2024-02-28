@@ -123,7 +123,7 @@ jobs:
       - name: PyTorch Models Tests Timm and Torchvision
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel"
         env:
           TYPE: nightly
           TEST_DEVICE: CPU
