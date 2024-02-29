@@ -10,6 +10,10 @@ namespace test {
 namespace snippets {
 namespace {
 
+// todo: Remove the architecture constraint after isa sve_128 being supported. Because for now ARM Snippets only support isa asimd,
+// but dnnl injector jit_uni_eltwise_injector_f32 requires isa being at least sve_128. So dnnl emitters used by these test cases
+// are not supported for ARM architecture now.
+#if defined(OPENVINO_ARCH_X86_64)
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_TwoResults, EltwiseTwoResults,
                         ::testing::Combine(
                              ::testing::Values(InputShape {{}, {{1, 64, 10, 10}}}),
@@ -27,6 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Eltwise_TwoResults_Dynamic, EltwiseTwoRe
                              ::testing::Values(2),
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          EltwiseTwoResults::getTestCaseName);
+#endif
 
 } // namespace
 } // namespace snippets

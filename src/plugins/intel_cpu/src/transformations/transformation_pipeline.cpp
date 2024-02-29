@@ -140,7 +140,11 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
 #include "cpu/x64/cpu_isa_traits.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#include "cpu/aarch64/cpu_isa_traits.hpp"
+#endif
 #include "openvino/core/validation_util.hpp"
 
 namespace ov {
@@ -780,8 +784,16 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets(void) {
-    if (snippetsMode == Config::SnippetsMode::Disable ||
-        !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) // snippets are implemented only for relevant platforms (avx2+ extensions)
+    auto isSnippetsSupported = [](const ov::element::Type &inferencePrecision){
+#if defined(OPENVINO_ARCH_X86_64)
+        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+#elif defined(OPENVINO_ARCH_ARM64)
+        return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd) && inferencePrecision == ov::element::f32;
+#endif
+        return false;
+    };
+
+    if (snippetsMode == Config::SnippetsMode::Disable || !isSnippetsSupported(inferencePrecision))
         return;
 
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
@@ -805,7 +817,7 @@ void Transformations::MainSnippets(void) {
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
-    CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
+    CPU_REGISTER_PASS_COMMON(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 
     // - MHA has BRGEMM that is supported only on AVX512 platforms
     // - CPU Plugin Subgraph supports only f32, bf16 (and quantized) BRGEMM
