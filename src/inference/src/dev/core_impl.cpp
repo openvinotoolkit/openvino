@@ -994,6 +994,18 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::strin
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
 
+void validate_batch_device_name(const std::string& deviceName) {
+    auto name = deviceName;
+    auto pos = name.find(",");
+    // for trailing comma such as "gpu,", we do not treat it as multi-device.
+    if (pos == name.length() - 1) {
+        name.erase(pos, 1);
+    }
+    if (name.find(",") != std::string::npos) {
+        OPENVINO_THROW("BATCH accepts only one device in list but got \"", deviceName, "\"");
+    }
+}
+
 std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                                                                    std::string& deviceName,
                                                                    ov::AnyMap& config) const {
@@ -1008,6 +1020,7 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
 
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
         deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
+        validate_batch_device_name(deviceNameWithoutBatch);
         if (deviceName.find("(") == std::string::npos) {
             auto supported_properties = ICore::get_property(deviceNameWithoutBatch, ov::supported_properties, {});
             if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_batch_size) ==
