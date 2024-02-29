@@ -167,7 +167,7 @@ Run the following command:
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the
-:doc:`list of additional configurations <../../configurations>`
+:doc:`list of additional configurations <../configurations>`
 to see if your case needs any of them.
 
 With the APT distribution, you can build OpenVINO sample files, as explained in the

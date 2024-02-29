@@ -236,7 +236,7 @@ Step 1: Download and Install the OpenVINO Core Components
 
 Congratulations, you have finished the installation! For some use cases you may still
 need to install additional components. Check the description below, as well as the
-:doc:`list of additional configurations <../../configurations>`
+:doc:`list of additional configurations <../configurations>`
 to see if your case needs any of them.
 
 The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO.
@@ -338,7 +338,7 @@ To delete the files:
 Additional Resources
 ###########################################################
 
-* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../../troubleshooting-install-config>`
+* :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../troubleshooting-install-config>`
 * Converting models for use with OpenVINO™: :doc:`Convert a Model <../../../openvino-workflow/model-preparation>`
 * Writing your own OpenVINO™ applications: :doc:`OpenVINO™ Runtime User Guide <../../../openvino-workflow/running-inference>`
 * Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
