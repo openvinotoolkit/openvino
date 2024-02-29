@@ -85,12 +85,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         message(STATUS "onednn CMAKE_CXX_FLAGS=" ${CMAKE_CXX_FLAGS})
         message(STATUS "onednn CMAKE_C_FLAGS=" ${CMAKE_C_FLAGS})
         message(STATUS "onednn CMAKE_COMPILE_WARNING_AS_ERROR=" ${CMAKE_COMPILE_WARNING_AS_ERROR})
-        set(CMAKE_CXX_FLAGS_NEW CMAKE_CXX_FLAGS)
-        set(CMAKE_C_FLAGS_NEW CMAKE_C_FLAGS)
+        set(CMAKE_CXX_FLAGS_NEW "${CMAKE_CXX_FLAGS}")
+        set(CMAKE_C_FLAGS_NEW "${CMAKE_C_FLAGS}")
         if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
             string(REPLACE "/WX" "" CMAKE_CXX_FLAGS_NEW "${CMAKE_CXX_FLAGS_NEW}")
             string(REPLACE "/WX" "" CMAKE_C_FLAGS_NEW "${CMAKE_C_FLAGS_NEW}")
         endif()
+        message(STATUS "onednn CMAKE_CXX_FLAGS_NEW=" ${CMAKE_CXX_FLAGS_NEW})
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
