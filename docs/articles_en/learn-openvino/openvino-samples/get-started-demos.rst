@@ -11,8 +11,8 @@ Get Started with Samples
 
 To use OpenVINO samples, install OpenVINO using one of the following distributions:
 
-* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-linux/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-windows/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-macos/install-openvino-archive-macos>`
-* :doc:`APT <../../get-started/install-openvino/install-openvino-linux/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-linux/install-openvino-yum>` for Linux
+* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-archive-macos>`
+* :doc:`APT <../../get-started/install-openvino/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-yum>` for Linux
 * :doc:`Docker image <../../get-started/install-openvino/install-openvino-docker-linux>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 

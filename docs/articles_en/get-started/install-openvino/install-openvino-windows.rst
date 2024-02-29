@@ -14,7 +14,7 @@ Install OpenVINO™ Runtime on Windows
    :maxdepth: 3
    :hidden:
 
-   Use Archive <install-openvino-windows/install-openvino-archive-windows>
+   Use Archive <install-openvino-archive-windows>
    Use PyPI <install-openvino-pip>
    Use Conda Forge <install-openvino-conda>
    Use vcpkg <install-openvino-vcpkg>
@@ -25,7 +25,7 @@ Install OpenVINO™ Runtime on Windows
 
 If you want to install OpenVINO™ Runtime on Windows, you have the following options:
 
-* :doc:`Install OpenVINO using an Archive File <install-openvino-windows/install-openvino-archive-windows>`
+* :doc:`Install OpenVINO using an Archive File <install-openvino-archive-windows>`
 * :doc:`Install OpenVINO using PyPI <install-openvino-pip>`
 * :doc:`Install OpenVINO using Conda Forge <install-openvino-conda>`
 * :doc:`Install OpenVINO using vcpkg <install-openvino-vcpkg>`
