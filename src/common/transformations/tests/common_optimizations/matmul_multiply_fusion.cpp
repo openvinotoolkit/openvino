@@ -10,8 +10,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/rt_info/dequantization_node.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 
 using namespace ov;
 
@@ -134,12 +134,12 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionWithQuantizedWeights) {
         auto data = std::make_shared<opset8::Parameter>(element::i8, Shape{2, 3});
         auto weights = opset8::Constant::create(element::i8, Shape{2, 3}, {1, 2, 3, 4, 5, 6});
         std::shared_ptr<ov::op::v0::MatMul> matmul = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::MatMul>>(
-                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
-                std::vector<ov::element::Type>{ov::element::f32},
-                ov::op::TemporaryReplaceOutputType(data, ov::element::f32).get(),
-                ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
-                false,
-                true);
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(data, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+            false,
+            true);
 
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 2}, {4, 5});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
