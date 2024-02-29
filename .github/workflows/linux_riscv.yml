@@ -258,6 +258,32 @@ jobs:
           du -h -d2 ${CCACHE_SHARE_DIR}
 
 
+  Cleanup_Caches:
+    needs: [Smart_CI]
+    runs-on: aks-linux-2-cores-8gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
+    env:
+      CACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
+
+    steps:
+      - name: Pre-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${CACHE_PATH}
+
+      - name: Cleanup cache
+        run: |
+          [ ! -z "${CACHE_PATH}" ] && find ${CACHE_PATH} ! -type d -amin +10 -delete
+
+      - name: Post-Collecting Cache Info
+        run: |
+          echo "Cache info: "
+          du -h -d2 ${CACHE_PATH}
+
+
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
     needs: [Smart_CI, Build]
