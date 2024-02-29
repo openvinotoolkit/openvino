@@ -52,33 +52,6 @@ std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args
     return std::make_shared<Concat>(new_args, m_axis);
 }
 
-inline std::vector<const void*> get_in_buffers(const TensorVector& inputs) {
-    std::vector<const void*> arg_bufs;
-    arg_bufs.reserve(inputs.size());
-    std::transform(inputs.begin(),
-                   inputs.end(),
-                   std::back_inserter(arg_bufs),
-                   [](const ov::Tensor& input) -> const void* {
-                       return input.data();
-                   });
-    return arg_bufs;
-}
-
-template <typename T>
-void evaluate_concat(const Concat* node,
-                     TensorVector& outputs,
-                     const TensorVector& inputs,
-                     const std::vector<Shape>& arg_shapes,
-                     const Shape& out_shape) {
-    const auto arg_bufs = get_in_buffers(inputs);
-    reference::concat(arg_bufs,
-                      outputs.front().data(),
-                      arg_shapes,
-                      out_shape,
-                      ov::util::normalize(node->get_axis(), out_shape.size()),
-                      outputs.front().get_element_type());
-}
-
 bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v0_Concat_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
@@ -86,23 +59,28 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto inputs_count = inputs.size();
     std::vector<Shape> arg_shapes;
     std::vector<PartialShape> input_shapes;
+    std::vector<const char*> arg_bufs;
     arg_shapes.reserve(inputs_count);
     input_shapes.reserve(inputs_count);
+    arg_bufs.reserve(inputs_count);
 
     for (auto& input : inputs) {
         const auto& input_shape = input.get_shape();
         arg_shapes.emplace_back(input_shape);
         input_shapes.emplace_back(input_shape);
+        arg_bufs.emplace_back(static_cast<const char*>(input.data()));
     }
 
     const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
     outputs.front().set_shape(out_shape);
-
-    if (outputs.front().get_element_type() == ov::element::string) {
-        evaluate_concat<std::string>(this, outputs, inputs, arg_shapes, out_shape);
-    } else {
-        evaluate_concat<char>(this, outputs, inputs, arg_shapes, out_shape);
-    }
+    const auto elem_type = outputs.front().get_element_type();
+    reference::concat(arg_bufs,
+                      static_cast<char*>(outputs.front().data()),
+                      arg_shapes,
+                      out_shape,
+                      ov::util::normalize(this->get_axis(), out_shape.size()),
+                      elem_type.size(),
+                      elem_type);
 
     return true;
 }

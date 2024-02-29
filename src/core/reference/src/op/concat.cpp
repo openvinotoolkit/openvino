@@ -38,30 +38,26 @@ inline void copy_single_input_elements(const std::string* arg,
 }  // namespace
 
 template <bool IS_STRING>
-inline void copy_elements(const void* arg,
-                          void* out,
+inline void copy_elements(const char* arg,
+                          char* out,
                           size_t in_offset,
                           size_t out_offset,
                           size_t num_of_elements,
                           size_t elem_size) {
-    return IS_STRING ? copy_single_input_elements(static_cast<const std::string*>(arg),
-                                                  static_cast<std::string*>(out),
+    return IS_STRING ? copy_single_input_elements(reinterpret_cast<const std::string*>(arg),
+                                                  reinterpret_cast<std::string*>(out),
                                                   in_offset,
                                                   out_offset,
                                                   num_of_elements)
-                     : copy_single_input_elements(static_cast<const char*>(arg),
-                                                  static_cast<char*>(out),
-                                                  in_offset,
-                                                  out_offset,
-                                                  num_of_elements,
-                                                  elem_size);
+                     : copy_single_input_elements(arg, out, in_offset, out_offset, num_of_elements, elem_size);
 }
 
-void concat(const std::vector<const void*>& args,
-            void* out,
+void concat(const std::vector<const char*>& args,
+            char* out,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
+            size_t elem_size,
             const ov::element::Type& elem_type) {
     const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
     const auto& shape_sizes = calculate_shape_sizes(in_shapes);
@@ -74,7 +70,7 @@ void concat(const std::vector<const void*>& args,
             const size_t size = shape_sizes[in_index] / steps;
             const size_t in_offset = step * size;
 
-            copy_func(args[in_index], out, in_offset, out_offset, size, elem_type.size());
+            copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
 
             out_offset += size;
         }

@@ -11,12 +11,13 @@
 
 namespace ov {
 namespace reference {
-void concat(const std::vector<const void*>& args,
-            void* out,
+void concat(const std::vector<const char*>& args,
+            char* out,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
-            const ov::element::Type& elem_type);
+            size_t elem_size,
+            const ov::element::Type& elem_type = ov::element::Type_t::undefined);
 
 }  // namespace reference
 }  // namespace ov
