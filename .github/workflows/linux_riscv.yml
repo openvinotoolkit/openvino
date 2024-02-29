@@ -63,7 +63,7 @@ jobs:
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       CCACHE_SHARE_DIR: /mount/caches/ccache/ubuntu22_riscv64
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
+      CCACHE_MAXSIZE: 5G
       CCACHE_DIR: /__w/openvino/ccache
 
       if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
@@ -172,6 +172,8 @@ jobs:
       #
       # Build
       #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake - Configure
         run: |
