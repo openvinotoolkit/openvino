@@ -4,6 +4,7 @@
 
 #include "deconvolution_inst.h"
 #include "eltwise_inst.h"
+#include "impls/onednn/utils.hpp"
 #include "quantize_inst.h"
 #include "primitive_onednn_base.h"
 #include "implementation_map.hpp"
@@ -56,14 +57,27 @@ protected:
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
 
-        auto input_weights_layout = impl_params.get_input_layout(1);
-        auto grouped_weights = format::is_grouped(input_weights_layout.format) || cldnn_prim->grouped_weights_shape;
-        format out_fmt = onednn::find_format(pd.weights_desc(0), grouped_weights);
+        auto source_weights_layout = impl_params.get_input_layout(1);
+        auto grouped_weights = format::is_grouped(source_weights_layout.format) || cldnn_prim->grouped_weights_shape;
+        auto target_weights_desc = pd.weights_desc(0);
 
-        auto output_weights_layout = input_weights_layout;
-        output_weights_layout.format = out_fmt;
+        auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(source_weights_layout, target_weights_desc);
+        OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
 
-        return std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, grouped_weights);
+        auto source_weights_desc = onednn::layout_to_memory_desc(source_weights_layout);
+
+        const bool weights_format = true;
+        auto traits = convert_memory_desc_to_traits(target_weights_desc, weights_format, cldnn_prim->grouped_weights_shape);
+
+        auto target_weights_layout = source_weights_layout;
+        target_weights_layout.format = format(traits);
+
+        return std::make_shared<WeightsReorderParamsOneDNN>(source_weights_layout,
+                                                            target_weights_layout,
+                                                            source_weights_desc,
+                                                            target_weights_desc,
+                                                            false,
+                                                            grouped_weights);
     }
 
 public:

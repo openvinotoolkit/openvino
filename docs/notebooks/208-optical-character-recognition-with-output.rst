@@ -7,9 +7,9 @@ This tutorial demonstrates how to perform optical character recognition
 tutorial, which shows only text detection.
 
 The
-`horizontal-text-detection-0001 <https://docs.openvino.ai/2023.3/omz_models_model_horizontal_text_detection_0001.html>`__
+`horizontal-text-detection-0001 <https://docs.openvino.ai/2024/omz_models_model_horizontal_text_detection_0001.html>`__
 and
-`text-recognition-resnet <https://docs.openvino.ai/2023.3/omz_models_model_text_recognition_resnet_fc.html>`__
+`text-recognition-resnet <https://docs.openvino.ai/2024/omz_models_model_text_recognition_resnet_fc.html>`__
 models are used together for text detection and then text recognition.
 
 In this tutorial, Open Model Zoo tools including Model Downloader, Model
