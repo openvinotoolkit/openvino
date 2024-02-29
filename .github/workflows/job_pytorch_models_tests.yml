@@ -20,7 +20,7 @@ on:
 jobs:
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    timeout-minutes: 400
+    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 30 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -125,7 +125,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel"
         env:
-          TYPE: nightly
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
@@ -135,7 +135,7 @@ jobs:
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
         env:
-          TYPE: nightly
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
           OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
