@@ -29,8 +29,8 @@ public:
 
     ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    std::set<std::string> m_batched_inputs;
-    std::set<std::string> m_batched_outputs;
+    std::set<std::size_t> m_batched_inputs;
+    std::set<std::size_t> m_batched_outputs;
     ov::SoPtr<ov::IRemoteContext> m_remote_context;
 
     std::shared_ptr<MockAutoBatchCompileModel> m_auto_batch_compile_model;
@@ -95,8 +95,8 @@ public:
         m_config = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}};
 
         m_device_info = {"CPU", {}, m_batch_size};
-        m_batched_inputs = {"Parameter_0"};
-        m_batched_outputs = {"Convolution_20"};
+        m_batched_inputs = {};
+        m_batched_outputs = {};
 
         m_i_compile_model_with_batch = std::make_shared<NiceMock<MockICompiledModel>>(m_model, m_auto_batch_plugin);
         m_compile_model_with_batch = {m_i_compile_model_with_batch, {}};
@@ -147,15 +147,12 @@ public:
 
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
-        for (size_t i = 0; i < params.size(); i++) {
-            m_batched_inputs.insert(ov::op::util::get_ie_output_name(params[i]->output(0)));
+        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+            m_batched_inputs.insert(input_id);
         }
         const auto& results = model->get_results();
-        for (size_t i = 0; i < results.size(); i++) {
-            const auto& output = results[i];
-            const auto& node = output->input_value(0);
-            m_batched_outputs.insert(
-                ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            m_batched_outputs.insert(output_id);
         }
     }
 };

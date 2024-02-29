@@ -13,6 +13,7 @@
 #include <string>
 #include <utility>
 #include <stdexcept>
+#include "intel_gpu/runtime/optionals.hpp"
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -305,29 +306,33 @@ struct format {
         g_os_y_is_x_osv8_isv4,
 
         format_num,  ///< number of format types
+        custom,      ///< means that this format is created based on custom format traits and may have no corresponding label
         any        = -1
     };
 
     /// @brief Get format traits for particular @p format::type
     static const format_traits& traits(type fmt);
+
+    /// @brief Get traits for current format
+    const format_traits& traits() const;
     /// @brief Returns number of batch dimensions for a @p format.
-    static size_t batch_num(type fmt) { return traits(fmt).batch_num; }
+    static size_t batch_num(const format& fmt) { return fmt.traits().batch_num; }
     /// @brief Returns number of feature dimensions for a @p format.
-    static size_t feature_num(type fmt) { return traits(fmt).feature_num; }
+    static size_t feature_num(const format& fmt) { return fmt.traits().feature_num; }
     /// @brief Returns number of spatial dimensions for a @p format.
-    static size_t spatial_num(type fmt) { return traits(fmt).spatial_num; }
+    static size_t spatial_num(const format& fmt) { return fmt.traits().spatial_num; }
     /// @brief Returns number of group dimensions for a @p format.
-    static size_t group_num(type fmt) { return traits(fmt).group_num; }
+    static size_t group_num(const format& fmt) { return fmt.traits().group_num; }
     /// @brief Returns an order of dimensions for a @ format.
-    static const std::string& order(type fmt) { return traits(fmt).order; }
+    static const std::string& order(const format& fmt) { return fmt.traits().order; }
     /// @brief Returns an internal orders of dimensions for a @p format.
-    static const std::string& internal_order(type fmt) { return traits(fmt).internal_order; }
+    static const std::string& internal_order(const format& fmt) { return fmt.traits().internal_order; }
     /// @brief Returns block sizes for @p format.
-    static const std::vector<std::pair<size_t, int>>& block_sizes(type fmt) { return traits(fmt).block_sizes; }
+    static const std::vector<std::pair<size_t, int>>& block_sizes(const format& fmt) { return fmt.traits().block_sizes; }
     /// @brief Returns number of dimensions contained within a @p format
-    static size_t dimension(type fmt) { return order(fmt).size(); }
+    static size_t dimension(const format& fmt) { return order(fmt).size(); }
     /// @brief Checks if @p format is a winograd format
-    static bool is_winograd(type fmt) {
+    static bool is_winograd(const format& fmt) {
         return (fmt == winograd_2x3_s1_data ||
                 fmt == winograd_2x3_s1_weights ||
                 fmt == winograd_2x3_s1_fused_weights ||
@@ -335,7 +340,7 @@ struct format {
                 fmt == image_2d_weights_winograd_6x3_s1_fbxyb ||
                 fmt == image_2d_weights_winograd_6x3_s1_xfbyb); }
     /// @brief Checks if @p format is of image2d type
-    static bool is_image_2d(type fmt) {
+    static bool is_image_2d(const format& fmt) {
         return (fmt == image_2d_weights_c4_fyx_b ||
                 fmt == image_2d_weights_c1_b_fyx ||
                 fmt == image_2d_weights_winograd_6x3_s1_fbxyb ||
@@ -344,8 +349,10 @@ struct format {
                 fmt == image_2d_rgba);
     }
     /// @brief Checks if @p format is weights format
-    static bool is_weights_format(type fmt) {
-        const auto internal_order = traits(fmt).internal_order;
+    static bool is_weights_format(const format& fmt) {
+        if (fmt == format::custom)
+            return true;
+        const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
         for (const auto& c : weights_chars) {
             if (internal_order.find_first_of(c) != std::string::npos) {
@@ -355,7 +362,7 @@ struct format {
         return false;
     }
     /// @brief Checks if @p format is simple data format
-    static bool is_simple_data_format(type fmt) {
+    static bool is_simple_data_format(const format& fmt) {
         return (fmt == yxfb || fmt == byxf ||
                 fmt == byfx || fmt == bxfy ||
                 fmt == bfyx || fmt == fyxb ||
@@ -365,7 +372,7 @@ struct format {
     }
 
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
-    static bool is_default_format(type fmt);
+    static bool is_default_format(const format& fmt);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
 
@@ -380,46 +387,46 @@ struct format {
                               bool is_nv12 = false);
 
     /// @brief Checks if @p format is of grouped type
-    static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
+    static bool is_grouped(const format& fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type
-    static bool is_image(type fmt) { return (is_image_2d(fmt)); }
+    static bool is_image(const format& fmt) { return (is_image_2d(fmt)); }
     /// @brief Checks if @p format is blocked format
-    static bool is_blocked(type fmt) { return !(block_sizes(fmt).empty()); }
+    static bool is_blocked(const format& fmt) { return !(block_sizes(fmt).empty()); }
     /// @brief Checks if @p format is blocked format which has single inner block
-    static bool is_single_blocked(type fmt) { return (block_sizes(fmt).size() == 1); }
+    static bool is_single_blocked(const format& fmt) { return (block_sizes(fmt).size() == 1); }
     /// @brief Checks if @p format is blocked format which has multiple inner blocks
-    static bool is_multi_blocked(type fmt) { return (block_sizes(fmt).size() > 1); }
+    static bool is_multi_blocked(const format& fmt) { return (block_sizes(fmt).size() > 1); }
     /// @brief Checks if @p format is nv12 format
-    static bool is_nv12(type fmt) { return (fmt == nv12); }
+    static bool is_nv12(const format& fmt) { return (fmt == nv12); }
 
     /// @brief Returns number of batch dimensions.
-    size_t batch_num() const { return traits(value).batch_num; }
+    size_t batch_num() const { return traits().batch_num; }
     /// @brief Returns number of feature dimensions.
-    size_t feature_num() const { return traits(value).feature_num; }
+    size_t feature_num() const { return traits().feature_num; }
     /// @brief Returns number of spatial dimensions.
-    size_t spatial_num() const { return traits(value).spatial_num; }
+    size_t spatial_num() const { return traits().spatial_num; }
     /// @brief Returns number of group dimensions.
-    size_t group_num() const { return traits(value).group_num; }
+    size_t group_num() const { return traits().group_num; }
     /// @brief Returns an order of dimensions.
-    const std::vector<uint64_t>& dims_order() const { return traits(value)._order; }
+    const std::vector<uint64_t>& dims_order() const { return traits()._order; }
     /// @brief Returns an order of dimensions in form of string.
-    const std::string& order() const { return traits(value).order; }
+    const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.
-    const std::string& internal_order() const { return traits(value).internal_order; }
+    const std::string& internal_order() const { return traits().internal_order; }
     /// @brief Returns block sizes as vector of pairs of dimension and block size for that dimension.
-    const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits(value).block_sizes; }
+    const std::vector<std::pair<size_t, int>>& block_sizes() const { return traits().block_sizes; }
     /// @brief Returns number of dimensions contained within this format
-    size_t dimension() const { return order(value).size(); }
+    size_t dimension() const { return traits()._order.size(); }
     /// @brief Checks if @p format is a winograd format
-    bool is_winograd() const { return is_winograd(value); }
+    bool is_winograd() const { return is_winograd(*this); }
     /// @brief Checks if @p format is of image 2d type
-    bool is_image_2d() const { return is_image_2d(value); }
+    bool is_image_2d() const { return is_image_2d(*this); }
     /// @brief Checks if @p format is of image type
-    bool is_image() const { return is_image(value); }
+    bool is_image() const { return is_image(*this); }
     /// @brief Checks if @p format is blocked format
-    bool is_blocked() { return is_blocked(value); }
+    bool is_blocked() { return is_blocked(*this); }
     /// @brief Checks if @p format is a nv12 format
-    bool is_nv12() const { return is_nv12(value); }
+    bool is_nv12() const { return is_nv12(*this); }
 
     /// @brief Transforms dimension from internal order to external order
     size_t internal_to_external(size_t idx) const {
@@ -430,8 +437,15 @@ struct format {
     }
 
     type value;
+
+    optional_value<format_traits> custom_traits = {};
+
     /// @brief Implicit conversion from format::type.
-    constexpr format(type t) : value(t) {}
+    format(type t) : value(t) {}
+
+    /// @brief custom format from format_traits.
+    explicit format(const format_traits& traits) : value(format::custom), custom_traits(traits) {}
+
     /// @brief Implicit conversion to format::type.
     constexpr operator type() const { return value; }
 
