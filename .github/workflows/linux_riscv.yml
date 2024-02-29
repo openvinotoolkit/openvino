@@ -42,6 +42,9 @@ jobs:
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
   Build:
+    strategy:
+      matrix:
+        it: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     needs: Smart_CI
     timeout-minutes: 150
     defaults:
