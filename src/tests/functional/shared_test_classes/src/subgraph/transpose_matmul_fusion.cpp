@@ -15,21 +15,20 @@ void TransposeMatMulFusion::SetUp() {
     targetDevice = GetParam();
 
     ov::PartialShape shape1{1, 3, 128, 64};
-    ov::PartialShape shape2{1, 3, 64, 128};
+    ov::Shape shape2{1, 3, 64, 128};
 
     InputShape input_shape1 = {shape1, {Shape{1, 3, 128, 64}}};
-    InputShape input_shape2 = {shape2, {Shape{1, 3, 64, 128}}};
-    init_input_shapes({input_shape1, input_shape2});
+    init_input_shapes({input_shape1});
 
     const auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape1);
-    const auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape2);
+    const auto const2 = ov::op::v0::Constant::create(ov::element::f32, shape2, std::vector<float>(1, shape_size(shape2)));
     const auto order = ov::op::v0::Constant::create(ov::element::i32, Shape{4}, {0, 1, 3, 2});
     const auto transpose1 = std::make_shared<ov::op::v1::Transpose>(param1, order);
-    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(param2, order);
+    const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(const2, order);
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(transpose1, transpose2, false, false);
     const auto constant = op::v0::Constant::create(element::f32, Shape{1}, {9});
     const auto mul = std::make_shared<ov::op::v1::Multiply>(matmul, constant);
-    function = std::make_shared<ov::Model>(mul, ov::ParameterVector{param1, param2});
+    function = std::make_shared<ov::Model>(mul, ov::ParameterVector{param1});
 }
 
 void TransposeMatMulFusion::TearDown() {
@@ -44,7 +43,7 @@ void TransposeMatMulFusion::TearDown() {
         EXPECT_NE(layer_type, "Transpose");
         EXPECT_NE(layer_type, "Permute");
     }
-    ASSERT_EQ(num_ops, 5); // two Inputs, one Eltwise, one MatMul and one Output
+    ASSERT_EQ(num_ops, 3); // one Input, one MatMul and one Output
 }
 
 }  // namespace test
