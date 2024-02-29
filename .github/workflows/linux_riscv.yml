@@ -235,31 +235,21 @@ jobs:
             tar -czvf ${CCACHE_SHARE_DIR}/ccache_riscv64_$(date '+%Y%m%d%S').tar.gz *
           popd
 
-  Cleanup_Caches:
-    needs: [Build]
-    runs-on: aks-linux-2-cores-8gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount:/mount
-    env:
-      CACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
-
-    steps:
       - name: Pre-Collecting Cache Info
         run: |
           echo "Cache info: "
-          du -h -d2 ${CACHE_PATH}
+          du -h -d2 ${CCACHE_SHARE_DIR}
 
       - name: Cleanup cache
         run: |
           echo "Delete cache files if they have not been used in over 60 mins"
-          [ ! -z "${CACHE_PATH}" ] && find ${CACHE_PATH} ! -type d -atime +60m -delete
+          [ ! -z "${CCACHE_SHARE_DIR}" ] && find ${CCACHE_SHARE_DIR} ! -type d -atime +60m -delete
 
       - name: Post-Collecting Cache Info
         run: |
           echo "Cache info: "
-          du -h -d2 ${CACHE_PATH}
+          du -h -d2 ${CCACHE_SHARE_DIR}
+
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
