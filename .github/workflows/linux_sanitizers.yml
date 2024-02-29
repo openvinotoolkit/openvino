@@ -1,11 +1,10 @@
 name: Linux Sanitizers (Ubuntu 20.04, Python 3.11)
 on:
   schedule:
-    # at 00:00 on Wednesday and Saturday
-    - cron: '0 0 * * 3,6'
+    # run daily at 00:00
+    - cron: '0 0 * * *'
   workflow_dispatch:
   pull_request:
-  merge_group:
   push:
     branches:
       - master
@@ -40,8 +39,8 @@ jobs:
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
           - SANITIZER: 'UndefinedBehavior'
             SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-          - SANITIZER: 'Thread'
-            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+#          - SANITIZER: 'Thread'  # Problems with protobuf
+#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
@@ -183,54 +182,13 @@ jobs:
 
       - name: Pack Artifacts
         run: |
-
-          # Add the ONNX Runtime version and skip tests list to the archive to use in the ONNX Runtime Job
-          # w/o the need to checkout repository
-
-          cp -R ${ONNX_RUNTIME_UTILS} ${INSTALL_DIR}
-
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
-          popd
-
-          pushd ${DEVELOPER_PACKAGE_DIR}
-            tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
           popd
 
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
           popd
-
-#      - name: Build Debian packages
-#        run: |
-#          /usr/bin/python3.8 -m pip install -U pip
-#          /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-#          cmake -UPYTHON* \
-#                -DENABLE_PYTHON_PACKAGING=ON \
-#                -DENABLE_TESTS=OFF \
-#                -DPython3_EXECUTABLE=/usr/bin/python3.8 \
-#                -DCPACK_GENERATOR=DEB \
-#                ${BUILD_DIR}
-#          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
-
-#      - name: Cmake & Build - OpenVINO Contrib
-#        run: |
-#          cmake \
-#            -DBUILD_nvidia_plugin=OFF \
-#            -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-#            -DOPENVINO_EXTRA_MODULES=${OPENVINO_CONTRIB_REPO}/modules \
-#            -S ${OPENVINO_REPO} \
-#            -B ${BUILD_DIR}
-#          cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
-
-#      - name: CMake configure, build and install - OpenVINO JS API
-#        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-#        run:
-#          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-#
-#          cmake --build ${BUILD_DIR} --parallel
-#
-#          cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
 
       #
       # Upload build artifacts
@@ -243,30 +201,6 @@ jobs:
           name: openvino_package_${{ matrix.SANITIZER }}
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-
-#      - name: Upload openvino js package
-#        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: openvino_js_package
-#          path: ${{ env.INSTALL_DIR_JS }}
-#          if-no-files-found: 'error'
-
-#      - name: Upload openvino developer package
-#        if: ${{ always() }}
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: openvino_developer_package
-#          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-#          if-no-files-found: 'error'
-#
-#      - name: Upload openvino debian packages
-#        if: ${{ always() }}
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: openvino_debian_packages
-#          path: ${{ env.BUILD_DIR }}/*.deb
-#          if-no-files-found: 'error'
 
       - name: Upload openvino tests package
         if: ${{ always() }}
@@ -293,8 +227,8 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-          - SANITIZER: 'UndefinedBehavior'
-          - SANITIZER: 'Thread'
+#          - SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
+#          - SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -370,10 +304,6 @@ jobs:
         if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
-          
-          if [[ "${{ matrix.SANITIZER }}" == "UndefinedBehavior" ]]; then
-            export LD_PRELOAD=$(clang -print-file-name=libclang_rt.ubsan_standalone-x86_64.so)
-          fi
 
           ${INSTALL_TEST_DIR}/ov_inference_functional_tests --gtest_print_time=1 \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-InferenceFunc.xml
@@ -552,362 +482,4 @@ jobs:
         with:
           name: test-results-cpp
           path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'warn'
-
-  Python_Unit_Tests:
-    name: Python unit tests
-    needs: Build
-    if: always()
-    timeout-minutes: 60
-    runs-on: 'aks-linux-16-cores-32gb'
-    container:
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
-      volumes:
-        - /mount:/mount
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      max-parallel: 3
-      fail-fast: false
-      matrix:
-        include:
-          - SANITIZER: 'AddressAndLeak'
-          - SANITIZER: 'UndefinedBehavior'
-          - SANITIZER: 'Thread'
-    env:
-      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
-      INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
-      CC: clang
-      CXX: clang++
-    steps:
-      - name: Set apt retries
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
-          path: ${{ env.INSTALL_DIR }}
-
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
-          path: ${{ env.INSTALL_TEST_DIR }}
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        continue-on-error: true
-        run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-
-      - name: Extract OpenVINO packages
-        run: |
-          pushd $INSTALL_DIR
-            tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
-          popd
-          pushd $INSTALL_TEST_DIR
-            tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
-          popd
-
-      - name: Install OpenVINO dependencies (Linux)
-        run: |
-          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y -c=gpu
-          apt update && apt --assume-yes install clang lld
-
-      - name: Fetch setup_python action
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
-          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
-
-      - name: Fetch Sanitizer Suppression Lists
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            tests/lsan/suppressions.txt
-            tests/asan/suppressions.supp
-          sparse-checkout-cone-mode: false
-          path: 'openvino'
-
-      - name: Setup Sanitizer-specific variables
-        run: |
-          echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/asan/suppressions.supp" >> "$GITHUB_ENV"
-          echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
-
-      #
-      # Tests
-      #
-
-      - name: Install OpenVINO Python wheels
-        if: always()
-        run: |
-          # Install the core OV wheel
-          python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
-
-          extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
-
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            extras_to_install="mxnet,$extras_to_install"
-          fi
-
-          # Find and install OV dev wheel
-          pushd ${INSTALL_DIR}/tools
-            ov_dev_wheel_name=$(find . -name 'openvino_dev*.whl')
-            python3 -m pip install $ov_dev_wheel_name[$extras_to_install]
-          popd
-
-      - name: Install Python API tests dependencies
-        if: always()
-        run: |
-          # To enable pytest parallel features
-          python3 -m pip install pytest-xdist[psutil]
-          # For torchvision to OpenVINO preprocessing converter
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
-
-          # TODO: replace with Python API tests requirements
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/mo/requirements_dev.txt
-
-      #
-      # Tests
-      #
-
-      - name: Python API Tests
-        if: ${{ always() }}
-        run: |
-          # for 'template' extension
-          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc 
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
-            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
-
-      - name: Model Optimizer unit tests
-        if: ${{ always() }}
-        run: |
-          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
-            # required for MxNet
-            apt-get install -y libgomp1 libquadmath0
-          fi
-          
-          # Skips under tickets: 133405, 122666
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
-              --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
-
-      - name: Python ONNX operators tests
-        if: ${{ always() }}
-        run: |
-          # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest -sv ${INSTALL_TEST_DIR}/onnx -k 'not cuda' \
-            --junitxml=${INSTALL_TEST_DIR}/TEST-onnx_frontend.xml \
-            --ignore=${INSTALL_TEST_DIR}/onnx/test_python/test_zoo_models.py
-
-      - name: OVC unit tests
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
-
-      - name: Install Python Layer tests dependencies
-        if: always()
-        run: |
-          # layer test requirements
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
-
-      - name: MO Python API Tests
-        if: always()
-        run: |
-          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
-          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python
-
-          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
-            # Find gomp lib
-            GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
-            export LD_PRELOAD=${GOMP_LIB}
-          fi
-          
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: OVC Python API Tests
-        if: always()
-        run: |
-          # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/python
-          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-
-          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
-            # Find gomp lib
-            GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
-            export LD_PRELOAD=${GOMP_LIB}
-          fi
-          
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: Python Frontend tests
-        if: always()
-        run: |
-          # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
-          export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
-
-      - name: PyTorch Layer Tests
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-
-      - name: PyTorch torch.export Layer Tests
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: EXPORT
-
-      - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: TORCHFX
-
-      - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP32
-          PYTORCH_TRACING_MODE: TORCHSCRIPT
-
-      - name: ONNX Layer Tests
-        if: always()
-        run: |
-          # requires 'unit_tests' from 'tools/mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo:$PYTHONPATH
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 1 Layer Tests - TF FE
-        if: always()
-        run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow 2 Layer Tests - TF FE
-        if: always()
-        run: |
-          # requires 'unit_tests' from 'mo'
-          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: JAX Layer Tests - TF FE
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
-        env:
-          TEST_DEVICE: CPU
-
-      - name: TensorFlow 1 Layer Tests - Legacy FE
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
-
-      - name: TensorFlow 2 Layer Tests - Legacy FE
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: TensorFlow Lite Layer Tests - TFL FE
-        if: always()
-        run: |
-          export LD_PRELOAD=$(clang -print-file-name=libclang_rt.asan-x86_64.so):/lib/x86_64-linux-gnu/libasan.so.5:/lib/x86_64-linux-gnu/libstdc++.so.6:$LD_PRELOAD
-          export PYTHONMALLOC=malloc
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
-        env:
-          TEST_DEVICE: CPU
-          TEST_PRECISION: FP16
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-python
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'warn'

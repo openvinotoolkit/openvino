@@ -1,8 +1,5 @@
 src:*/thirdparty/*
 src:thirdparty/*
-src:thirdparty/**
 src:*/gtest/*
-src:**/gtest/*
-src:**/gtest.cc
-src:**/gtest.cc
-src:**/googletest/*
+src:*/gtest.cc
+src:*/googletest/*
