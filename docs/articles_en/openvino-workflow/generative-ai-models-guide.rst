@@ -170,15 +170,6 @@ For more details on compression options, refer to the :doc:`weight compression g
    OpenVINO also supports 4-bit models from Hugging Face `Transformers <https://github.com/huggingface/transformers>`__ library optimized
    with `GPTQ <https://github.com/PanQiWei/AutoGPTQ>`__. In this case, there is no need for an additional model optimization step because model conversion will automatically preserve the INT4 optimization results, allowing model inference to benefit from it.
 
-Another optimization that is applied by default when using ``OVModelForCausalLM`` class is transformation of the model to a stateful form.
-This transformation further improves inference performance and decreases amount of allocated runtime memory in long running text generation scenarious.
-It is achieved by hiding inputs and outputs of the model that represent past KV-cache tensors, and handling them inside the model in a more efficient way.
-This feature is activated automatically for a wide range of supported text generation models, keeping not supported models in a regular, stateless form.
-
-Model usage are identical for stateful and stateless models as long as Optimum-Intel API is used because KV-cache handling is an internal detail of the text-generation API of Transformers library.
-But a form of a model matterns in case when exported from Optimum-Intel OpenVINO model IR is used in an application implemented with native OpenVINO API, because stateful and stateless models have different number of inputs and outputs.
-Please refer to a dedicated section of this document below for more information about using native OpenVINO API.
-
 Below are some examples of using Optimum-Intel for model conversion and inference:
 
 * `Stable Diffusion v2.1 using Optimum-Intel OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/236-stable-diffusion-v2/236-stable-diffusion-v2-optimum-demo.ipynb>`__

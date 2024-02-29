@@ -26,10 +26,10 @@ A suite of advanced algorithms for Neural Network inference optimization with mi
 
 More resources:
 
-* :doc:`Documentation <../openvino-workflow/model-optimization-guide/compressing-models-during-training>`  
-* `GitHub <https://github.com/openvinotoolkit/nncf>`__  
-* `PyPI <https://pypi.org/project/nncf/>`__  
-* `Conda Forge <https://anaconda.org/conda-forge/nncf/>`__  
+* :doc:`Documentation <../openvino-workflow/model-optimization-guide/compressing-models-during-training>`
+* `GitHub <https://github.com/openvinotoolkit/nncf>`__
+* `PyPI <https://pypi.org/project/nncf/>`__
+* `Conda Forge <https://anaconda.org/conda-forge/nncf/>`__
 
 
 **OpenVINO™ Training Extensions**
@@ -40,27 +40,27 @@ More resources:
 
 * :doc:`Overview <openvino-ecosystem/openvino-training-extensions>`
 * `GitHub <https://github.com/openvinotoolkit/training_extensions>`__
-* `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/../get-started/introduction.html>`__
+* `Documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__
 
 **OpenVINO™ Security Add-on**
 
-A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
+A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.
 
 More resources:
 
 * :doc:`Documentation <openvino-ecosystem/openvino-security-add-on>`
-* `GitHub <https://github.com/openvinotoolkit/security_addon>`__  
+* `GitHub <https://github.com/openvinotoolkit/security_addon>`__
 
 **Dataset Management Framework (Datumaro)**
 
 A framework and CLI tool to build, transform, and analyze datasets.
 
 More resources:
- 
+
 * :doc:`Overview <openvino-ecosystem/datumaro>`
-* `PyPI <https://pypi.org/project/datumaro/>`__  
-* `GitHub <https://github.com/openvinotoolkit/datumaro>`__  
-* `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__ 
+* `PyPI <https://pypi.org/project/datumaro/>`__
+* `GitHub <https://github.com/openvinotoolkit/datumaro>`__
+* `Documentation <https://openvinotoolkit.github.io/datumaro/stable/docs/get-started/introduction.html>`__
 
 
 

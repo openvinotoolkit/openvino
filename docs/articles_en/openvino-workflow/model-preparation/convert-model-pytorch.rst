@@ -84,7 +84,7 @@ In practice, the code to evaluate or test the PyTorch model is usually provided 
    category_name = weights.meta["categories"][class_id]
    print(f"{category_name}: {100 * score:.1f}% (with OpenVINO)")
 
-Check out more examples in :doc:`interactive Python ../../learn-openvino/interactive-tutorials-python <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
 
 .. note::
 
@@ -121,10 +121,10 @@ If your model has a ``dict`` input, such as, ``{"x": a, "y": b, "z": c}``, it wi
 
    An important consequence of flattening is that only ``tuple`` and ``dict`` with a fixed number of elements and key values are supported. The structure of such inputs should be fully described in the ``example_input`` parameter of ``convert_model``. The flattening on outputs should be reproduced with the given ``example_input`` and cannot be changed once the conversion is done.
 
-Check out more examples of model conversion with non-tensor data types in the following ../../learn-openvino/interactive-tutorials-python:
+Check out more examples of model conversion with non-tensor data types in the following tutorials:
 
-* `Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output.html>`__
-* `Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output.html>`__
+* `Video Subtitle Generation using Whisper and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/227-whisper-subtitles-generation>`__
+* `Visual Question Answering and Image Captioning using BLIP and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/233-blip-visual-language-processing>`__
 
 
 Exporting a PyTorch Model to ONNX Format

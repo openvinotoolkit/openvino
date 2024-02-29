@@ -147,7 +147,7 @@ Put all CSV files together for ``stage 2`` to generate resulting OpenVINO binari
 
 Device-agnostic Conditional Compilation (POC)
 #############################################
-In some cases, adopting conditional compilation is necessary to support multiple different ``SKUs``(Stock Keeping Unit: is usually a string of numbers and alphabets used by the manufacturer to identify their product), but there may be limitations in collecting statistics information for every target hardware. To achieve this, conditional compilation must be capable of running a model on an accelerator with all previous SKUs.
+In some cases, adopting conditional compilation is necessary to support multiple different ``SKUs`` (Stock Keeping Unit: is usually a string of numbers and alphabets used by the manufacturer to identify their product), but there may be limitations in collecting statistics information for every target hardware. To achieve this, conditional compilation must be capable of running a model on an accelerator with all previous SKUs.
 
 Conditional compilation requires the initial collection of statistical information to exclude unused code regions, such as ops and kernels. To do this, all included ops and kernels must be executed at least once. For multiple SKUs, it is necessary for all ops and kernels that will be used by any of the SKUs to be encountered at least once in the profiling data. If the profiling is done on a CPU platform, it is impossible without using an emulator.
 
@@ -163,11 +163,7 @@ Considering that JIT kernels can be affected by L1/L2/L3 cache size and the numb
 
 - L2/L3 cache emulation
 
-  Hack the function of get cache size
-
-    ``unsigned int dnnl::impl::cpu::platform::get_per_core_cache_size(int level)``
-
-  to make it return emulated cache size in analyzed stage, the simplest way is to leverage environment variable to pass the emulated cache size, for example:
+  Hack the function of get cache size ``unsigned int dnnl::impl::cpu::platform::get_per_core_cache_size(int level)`` to make it return emulated cache size in analyzed stage, the simplest way is to leverage environment variable to pass the emulated cache size, for example:
 
   .. code-block:: cpp
 
