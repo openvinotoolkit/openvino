@@ -22,16 +22,13 @@
         <model name="yolo-v3-tf" precision="FP32" source="omz" />
         <model name="face-reidentification-retail-0095" precision="FP32" source="omz" />
         <model name="yolo-v1-tiny-tf" precision="FP32" source="omz" />
-        <model name="googlenet-v1-tf" precision="FP32" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP32" source="omz" />
         <model name="pedestrian-detection-adas-0002" precision="FP32" source="omz" />
-        <model name="brain-tumor-segmentation-0002" precision="FP32" source="omz" />
         <model name="face-detection-retail-0004" precision="FP32" source="omz" />
         <model name="googlenet-v2-tf" precision="FP32" source="omz" />
         <model name="ctdet_coco_dlav0_512" precision="FP32" source="omz" />
         <model name="ctpn" precision="FP32" source="omz" />
         <model name="i3d-rgb-tf" precision="FP32" source="omz" />
-        <model name="mobilenet-v2-1.4-224" precision="FP32" source="omz" />
         <model name="ssdlite_mobilenet_v2" precision="FP32" source="omz" />
         <model name="resnest-50-pytorch" precision="FP32" source="omz" />
         <model name="levit-128s" precision="FP32" source="omz" />
@@ -59,16 +56,13 @@
         <model name="yolo-v3-tf" precision="FP16" source="omz" />
         <model name="face-reidentification-retail-0095" precision="FP16" source="omz" />
         <model name="yolo-v1-tiny-tf" precision="FP16" source="omz" />
-        <model name="googlenet-v1-tf" precision="FP16" source="omz" />
         <model name="yolo-v2-tiny-tf" precision="FP16" source="omz" />
         <model name="pedestrian-detection-adas-0002" precision="FP16" source="omz" />
-        <model name="brain-tumor-segmentation-0002" precision="FP16" source="omz" />
         <model name="face-detection-retail-0004" precision="FP16" source="omz" />
         <model name="googlenet-v2-tf" precision="FP16" source="omz" />
         <model name="ctdet_coco_dlav0_512" precision="FP16" source="omz" />
         <model name="ctpn" precision="FP16" source="omz" />
         <model name="i3d-rgb-tf" precision="FP16" source="omz" />
-        <model name="mobilenet-v2-1.4-224" precision="FP16" source="omz" />
         <model name="ssdlite_mobilenet_v2" precision="FP16" source="omz" />
         <model name="resnest-50-pytorch" precision="FP16" source="omz" />
         <model name="levit-128s" precision="FP16" source="omz" />
