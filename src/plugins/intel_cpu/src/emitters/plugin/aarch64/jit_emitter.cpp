@@ -98,14 +98,6 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
                                    const std::vector<size_t>& out_idxs,
                                    const std::vector<size_t>& pool_aux_vec_idxs,
                                    const std::vector<size_t>& pool_aux_gpr_idxs) const {
-    if (pool_aux_vec_idxs.size() < get_aux_vecs_count()) {
-        OPENVINO_THROW("Failed to allocate required number of vector registers");
-    }
-
-    if (pool_aux_gpr_idxs.size() < get_aux_gprs_count()) {
-        OPENVINO_THROW("Failed to allocate required number of gpr registers");
-    }
-
     using namespace Xbyak_aarch64::util;
     const bool is_vec_input = (in_out_type_ == emitter_in_out_map::vec_to_vec) ||
                               (in_out_type_ == emitter_in_out_map::vec_to_gpr);

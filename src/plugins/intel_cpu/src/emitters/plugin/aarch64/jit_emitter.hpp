@@ -10,6 +10,7 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
+#include "emitters/utils.hpp"
 #include "node.h"
 
 
@@ -156,6 +157,8 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
+
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 
     static inline size_t get_asimd_vectors_count() {
         return 32;
