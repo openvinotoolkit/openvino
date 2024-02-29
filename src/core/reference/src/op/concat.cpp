@@ -17,33 +17,32 @@ std::vector<size_t> calculate_shape_sizes(const std::vector<Shape>& in_shapes) {
     });
     return sizes;
 }
-inline void copy_single_input_elements(const char* arg,
-                                       char* out,
-                                       size_t in_offset,
-                                       size_t out_offset,
-                                       size_t num_of_elements,
-                                       size_t elem_size) {
+void copy_single_input_elements(const char* arg,
+                                char* out,
+                                size_t in_offset,
+                                size_t out_offset,
+                                size_t num_of_elements,
+                                size_t elem_size) {
     std::memcpy(&out[out_offset * elem_size], &arg[in_offset * elem_size], num_of_elements * elem_size);
 }
 
-inline void copy_single_input_elements(const std::string* arg,
-                                       std::string* out,
-                                       size_t in_offset,
-                                       size_t out_offset,
-                                       size_t num_of_elements) {
+void copy_single_input_elements(const std::string* arg,
+                                std::string* out,
+                                size_t in_offset,
+                                size_t out_offset,
+                                size_t num_of_elements) {
     const auto src_begin = std::next(arg, in_offset);
     const auto out_ptr = std::next(out, out_offset);
     std::copy_n(src_begin, num_of_elements, out_ptr);
 }
-}  // namespace
 
 template <bool IS_STRING>
-inline void copy_elements(const char* arg,
-                          char* out,
-                          size_t in_offset,
-                          size_t out_offset,
-                          size_t num_of_elements,
-                          size_t elem_size) {
+void copy_elements(const char* arg,
+                   char* out,
+                   size_t in_offset,
+                   size_t out_offset,
+                   size_t num_of_elements,
+                   size_t elem_size) {
     return IS_STRING ? copy_single_input_elements(reinterpret_cast<const std::string*>(arg),
                                                   reinterpret_cast<std::string*>(out),
                                                   in_offset,
@@ -51,6 +50,7 @@ inline void copy_elements(const char* arg,
                                                   num_of_elements)
                      : copy_single_input_elements(arg, out, in_offset, out_offset, num_of_elements, elem_size);
 }
+}  // namespace
 
 void concat(const std::vector<const char*>& args,
             char* out,
