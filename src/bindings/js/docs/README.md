@@ -68,7 +68,7 @@
   ```
 - Make sure to require it:
   ```
-  const ov = require('openvino-node');
+  const { addon: ov } = require('openvino-node');
   ```
 
 ## Samples
