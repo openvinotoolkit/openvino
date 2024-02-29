@@ -24,17 +24,17 @@ different conditions:
 | **single-device inference**
 |    Define just one device responsible for the entire inference workload. It supports a range of
      processors by means of the following plugins embedded in the Runtime library:
-|    - :doc:`CPU <inference-devices-and-modes/cpu-device>`
-|    - :doc:`GPU <inference-devices-and-modes/gpu-device>`
-|    - :doc:`NPU <inference-devices-and-modes/npu-device>`
+|    :doc:`CPU <inference-devices-and-modes/cpu-device>`
+|    :doc:`GPU <inference-devices-and-modes/gpu-device>`
+|    :doc:`NPU <inference-devices-and-modes/npu-device>`
 
 | **automated inference modes**
 |    Assume certain level of automation in selecting devices for inference. They may potentially
      increase your deployed solution's performance and portability. The automated modes are:
-|    - :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
-|    - :doc:`Multi-Device Execution (MULTI) <inference-devices-and-modes/multi-device>`
-|    - :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
-|    - :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
+|    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
+|    :doc:`Multi-Device Execution (MULTI) <inference-devices-and-modes/multi-device>`
+|    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
+|    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
 
 
 

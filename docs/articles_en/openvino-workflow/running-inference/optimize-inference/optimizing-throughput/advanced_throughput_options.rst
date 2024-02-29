@@ -5,22 +5,22 @@ Advanced Throughput Options: Streams and Batching
 
 
 .. meta::
-   :description: With OpenVINO streams a device may handle processing multiple 
-                 inference requests and the batching helps to saturate the 
+   :description: With OpenVINO streams a device may handle processing multiple
+                 inference requests and the batching helps to saturate the
                  device and leads to higher throughput.
- 
+
 
 OpenVINO Streams
 ####################
 
-As explained in the :doc:`common-optimizations section <general-optimizations>`, running multiple inference requests asynchronously is important for general application efficiency.
-Internally, every device implements a queue, which acts as a buffer, storing the inference requests until retrieved by the device at its own pace. 
+As explained in the :doc:`common-optimizations section <../general-optimizations>`, running multiple inference requests asynchronously is important for general application efficiency.
+Internally, every device implements a queue, which acts as a buffer, storing the inference requests until retrieved by the device at its own pace.
 The devices may actually process multiple inference requests in parallel in order to improve the device utilization and overall throughput.
 This configurable method of this device-side parallelism is commonly referred as **streams**.
 
 .. note::
 
-   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../dynamic-shapes>`, while individual requests can have different shapes.
+   Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, while individual requests can have different shapes.
 
 .. note::
 
@@ -40,9 +40,9 @@ A few general considerations:
 * Keep in mind that the streams also inflate the model load (compilation) time.
 
 For efficient asynchronous execution, the streams are actually handling the inference with a special pool of the threads (a thread per stream).
-Each time you start inference requests (potentially from different application threads), they are actually muxed into an inference queue of the particular ``ov:Compiled_Model``. 
+Each time you start inference requests (potentially from different application threads), they are actually muxed into an inference queue of the particular ``ov:Compiled_Model``.
 If there is a vacant stream, it pulls the request from the queue and actually expedites that to the on-device execution.
-There are further device-specific details, like for the CPU, in the :doc:`internals <optimizing-low-level-implementation>` section.
+There are further device-specific details, like for the CPU, in the :doc:`internals <../optimizing-low-level-implementation>` section.
 
 Batching
 ####################
@@ -57,7 +57,7 @@ There are several primary methods of using the batching to help application perf
 
   * Although this gives flexibility with the possible batching strategies, the approach requires redesigning the application logic.
 
-* **Sending individual requests**, while configuring OpenVINO to collect and perform inference on the requests in batch :doc:`automatically <../inference-devices-and-modes/automatic-batching>`.
+* **Sending individual requests**, while configuring OpenVINO to collect and perform inference on the requests in batch :doc:`automatically <../../inference-devices-and-modes/automatic-batching>`.
 
 In both cases, the optimal batch size is very device-specific. As explained below, the optimal batch size also depends on the model, inference precision and other factors.
 
@@ -76,17 +76,17 @@ One possible throughput optimization strategy is to **set an upper bound for lat
 
 .. note::
 
-   When playing with :doc:`dynamically-shaped inputs <../dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
+   When playing with :doc:`dynamically-shaped inputs <../../dynamic-shapes>`, use only the streams (no batching), as they tolerate individual requests having different shapes.
 
 .. note::
 
-   Using the :doc:`High-Level Performance Hints <high-level-performance-hints>` is the alternative, portable and future-proof option, allowing OpenVINO to find the best combination of streams and batching for a given scenario and a model. 
+   Using the :doc:`High-Level Performance Hints <../high-level-performance-hints>` is the alternative, portable and future-proof option, allowing OpenVINO to find the best combination of streams and batching for a given scenario and a model.
 
 Number of Streams Considerations
 ++++++++++++++++++++++++++++++++
 
 * Select the number of streams that is **less or equal** to the number of requests that the application would be able to run simultaneously.
-* To avoid wasting ../../../about-openvino/additional-resources, the number of streams should be enough to meet the *average* parallel slack rather than the peak load.
+* To avoid wasting resources, the number of streams should be enough to meet the *average* parallel slack rather than the peak load.
 * Use the `ov::streams::AUTO <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gaddb29425af71fbb6ad3379c59342ff0e>`__ as a more portable option (that also respects the underlying hardware configuration).
 * It is very important to keep these streams busy, by running as many inference requests as possible (for example, start the newly-arrived inputs immediately):
 

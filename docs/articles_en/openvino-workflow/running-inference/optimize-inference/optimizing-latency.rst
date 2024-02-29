@@ -24,17 +24,14 @@ As expected, the easiest way to achieve **low latency is by running only one inf
 
 However, some conventional "root" devices (i.e., CPU or GPU) can be in fact internally composed of several "sub-devices". In many cases, letting OpenVINO leverage the "sub-devices" transparently helps to improve application's throughput (e.g., serve multiple clients simultaneously) without degrading latency. For example, multi-socket CPUs can deliver as many requests at the same minimal latency as there are NUMA nodes in the system. Similarly, a multi-tile GPU, which is essentially multiple GPUs in a single package, can deliver a multi-tile scalability with the number of inference requests, while preserving the single-tile latency.
 
-Typically, human expertise is required to get more "throughput" out of the device, even in the inherently latency-oriented cases. OpenVINO can take this configuration burden via :doc:`high-level performance hints <high-level-performance-hints>`, the `ov::hint::PerformanceMode::LATENCY <enumov_1_1hint_1_1PerformanceMode.html#doxid-group-ov-runtime-cpp-prop-api-1gga032aa530efa40760b79af14913d48d73a501069dd75f76384ba18f133fdce99c2>`__ specified for the ``ov::hint::performance_mode`` property for the ``compile_model``.
+Typically, human expertise is required to get more "throughput" out of the device, even in the inherently latency-oriented cases. OpenVINO can take this configuration burden via :doc:`high-level performance hints <high-level-performance-hints>`, the `ov::hint::PerformanceMode::LATENCY <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.properties.hint.PerformanceMode.html#openvino.properties.hint.PerformanceMode.LATENCY>`__ specified for the ``ov::hint::performance_mode`` property for the ``compile_model``.
 
 .. note::
 
    :doc:`OpenVINO performance hints <high-level-performance-hints>` is a recommended way for performance configuration, which is both device-agnostic and future-proof.
 
 
-* feature support by device
-
-
-When multiple models are to be used simultaneously, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional ``ov::hint::model_priority`` may help to define relative priorities of the models. Refer to the ../../../documentation on the :ref:`OpenVINO feature support for devices <../../../about-openvino/compatibility-and-support/supported-devices>` to check if your device supports the feature.
+**When multiple models are to be used simultaneously**, consider running inference on separate devices for each of them. Finally, when multiple models are executed in parallel on a device, using additional ``ov::hint::model_priority`` may help to define relative priorities of the models. Refer to the ../../../documentation on the :ref:`OpenVINO feature support for devices <../../../about-openvino/compatibility-and-support/supported-devices>` to check if your device supports the feature.
 
 **First-Inference Latency and Model Load/Compile Time**
 
