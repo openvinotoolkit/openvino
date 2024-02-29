@@ -28,5 +28,5 @@ VSCode extension to run these notebook samples
 
 ## See Also
 
-* [OpenVINO™ JavaScript API Developer Documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
-* [OpenVINO™ README](https://github.com/openvinotoolkit/openvino/blob/master/README.md)
+* [OpenVINO™ JavaScript API Developer Documentation](../../../src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
+* [OpenVINO™ README](../../../README.md)
