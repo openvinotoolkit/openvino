@@ -178,6 +178,9 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("TRANSPOSE_INPUT0", params.transpose_input0),
         MakeJitConstant("TRANSPOSE_INPUT1", params.transpose_input1),
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
+        MakeJitConstant("INDIRECT_INPUT0", params.indirect_input0),
+        MakeJitConstant("INDIRECT_INPUT1", params.indirect_input1),
+        MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
 
     auto get_output_size = [this](const std::vector<int64_t>& output_order_idx, const int target_idx) {
@@ -200,6 +203,13 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
                 return "";
         }
     };
+    if (params.indirect_input0 || params.indirect_input1) {
+        jit.AddConstant(MakeJitConstant("BEAM_TABLE", params.inputs[params.inputs.size() - 1]));
+    }
+
+    if (params.inputs.size() == 4 || (!params.indirect_input0 && !params.indirect_input1 && params.inputs.size() == 3)) {
+        jit.AddConstant(MakeJitConstant("BIAS_TERM", 1));
+    }
 
     jit.AddConstants({
         MakeJitConstant("TRANSPOSE_X_LAST", 0),
@@ -241,9 +251,8 @@ void GemmKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
-                                                 const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -253,7 +262,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     KernelData k_data = KernelData::Default<gemm_params>(params);
     GetUpdateDispatchDataFunc(k_data);
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -269,7 +278,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     prim_params.has_dynamic_tensors());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }
@@ -278,7 +287,7 @@ JitConstants GemmKernelBase::GetFusedPrimitivesJitConstants(const gemm_params&, 
     return {};
 }
 
-bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
+bool GemmKernelBase::Validate(const Params& p) const {
     const gemm_params& params = static_cast<const gemm_params&>(p);
 
     if (params.GetType() != KernelType::GEMM) {

@@ -16,10 +16,10 @@ OPS = {
 
 class TestResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'images' in inputs_info, "Test error: inputs_info must contain `x`"
-        images_shape = inputs_info['images']
+        assert 'images:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        images_shape = inputs_info['images:0']
         inputs_data = {}
-        inputs_data['images'] = np.random.randint(0, 10, images_shape)
+        inputs_data['images:0'] = np.random.randint(0, 10, images_shape)
         return inputs_data
 
     def create_resize_net(self, images_shape, images_type, size_value, align_corners, half_pixel_centers,
@@ -58,8 +58,8 @@ class TestResize(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_resize_basic(self, images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         params = dict(images_shape=images_shape, images_type=images_type, size_value=size_value, align_corners=align_corners, half_pixel_centers=half_pixel_centers, resize_op=OPS[resize_op])
         self._test(*self.create_resize_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

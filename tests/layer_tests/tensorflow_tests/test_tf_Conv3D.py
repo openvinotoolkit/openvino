@@ -15,9 +15,9 @@ class TestConv3D(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_new_frontend - common parameter
+    # use_legacy_frontend - common parameter
     def create_conv3d_placeholder_const_net(self, input_shape, input_filter, input_strides, input_padding, dilations,
-                                            ir_version, use_new_frontend):
+                                            ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -76,8 +76,8 @@ class TestConv3D(CommonTFLayerTest):
     @pytest.mark.parametrize("padding", ['SAME', 'VALID'])
     @pytest.mark.nightly
     def test_conv3d_placeholder_const(self, params, padding, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_conv3d_placeholder_const_net(**params, input_padding=padding, ir_version=ir_version,
-                                                             use_new_frontend=use_new_frontend),
+                                                             use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, input_padding=padding, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

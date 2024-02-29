@@ -7,6 +7,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -165,7 +166,7 @@ protected:
             // TODO: ConvertAUGRUSequenceToTensorIterator
             throw std::runtime_error("ConvertAUGRUSequenceToTensorIterator not implemented yet.");
         } else {
-            bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+            bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, false);
         }
     }

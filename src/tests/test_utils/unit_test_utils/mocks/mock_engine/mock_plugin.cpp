@@ -174,7 +174,7 @@ ov::SupportedOpsMap MockPlugin::query_model(const std::shared_ptr<const ov::Mode
 std::queue<std::shared_ptr<ov::IPlugin>> targets;
 std::mutex targets_mutex;
 
-OPENVINO_PLUGIN_API void CreatePluginEngine(std::shared_ptr<ov::IPlugin>& plugin) {
+OPENVINO_PLUGIN_API void create_plugin_engine(std::shared_ptr<ov::IPlugin>& plugin) {
     std::shared_ptr<ov::IPlugin> internal_plugin;
     if (targets.empty()) {
         internal_plugin = std::make_shared<MockInternalPlugin>();

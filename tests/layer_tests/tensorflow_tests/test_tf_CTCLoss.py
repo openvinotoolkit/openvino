@@ -63,9 +63,9 @@ class TestCTCLoss(CommonTFLayerTest):
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_ctcloss_placeholder_const(self, params, preprocess_collapse_repeated, ctc_merge_repeated,
                                        ie_device, precision, ir_version, temp_dir,
-                                       use_new_frontend):
+                                       use_legacy_frontend):
         self._test(*self.create_ctcloss_placeholder_const_net(**params,
                                                               preprocess_collapse_repeated=preprocess_collapse_repeated,
                                                               ctc_merge_repeated=ctc_merge_repeated),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

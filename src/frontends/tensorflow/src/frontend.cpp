@@ -20,6 +20,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -73,6 +74,10 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                 continue;
             }
             unsupported_operations.insert(op_type);
+        } else if (const auto& variable = ov::as_type_ptr<Variable>(node)) {
+            auto op_type = variable->get_decoder()->get_op_type();
+            auto op_name = variable->get_name();
+            failures[op_type] = "Variable or resource `" + op_name + "` is not initialized, model is inconsistent";
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             auto fw_node_attrs = fw_node->get_attrs();
@@ -554,5 +559,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                    std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }

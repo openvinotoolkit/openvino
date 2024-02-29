@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ReshapeTo1D;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReshapeTo1D transformation looks for Reshape from nD to 1D tensor and replaces its pattern to [-1]
  */
 
