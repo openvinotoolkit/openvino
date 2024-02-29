@@ -57,6 +57,7 @@ jobs:
             tar -xzf openvino_package.tar.gz -C $INSTALL_DIR
           popd
 
+      - name: Checkout Setup Python action and install dependencies script
         uses: actions/checkout@v4
         with:
           sparse-checkout: |
