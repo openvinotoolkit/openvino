@@ -547,7 +547,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
-            callable(indexes, &call_args);
+            callable(&call_args, indexes);
         });
 }
 
@@ -571,7 +571,7 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 tmp /= work_size[j];
             }
 
-            schedule.get_callable<kernel>()(indexes.data(), &call_args);
+            schedule.get_callable<kernel>()(&call_args, indexes.data());
         }
     });
 }

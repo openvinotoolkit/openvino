@@ -749,7 +749,7 @@ Compare performance time of the converted and optimized models
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 
    **NOTE**: For more accurate performance, run ``benchmark_app`` in a
    terminal/command prompt after closing other applications. Run

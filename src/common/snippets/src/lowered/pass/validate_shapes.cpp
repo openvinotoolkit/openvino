@@ -13,10 +13,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool ValidateShapes::run(LinearIR& linear_ir) {
+bool ValidateShapes::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ValidateShapes")
 
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         const auto num_inputs = expr->get_input_count();
         const auto& port_connectors = expr->get_input_port_connectors();
         const auto& port_descriptors = expr->get_input_port_descriptors();

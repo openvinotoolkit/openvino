@@ -16,11 +16,11 @@ namespace pass {
  * @brief Decomposes Softmax to a range of low-level operations on linear IR
  * @ingroup snippets
  */
-class SoftmaxDecomposition : public Pass {
+class SoftmaxDecomposition : public RangedPass {
 public:
-    OPENVINO_RTTI("SoftmaxDecomposition", "Pass")
+    OPENVINO_RTTI("SoftmaxDecomposition", "RangedPass")
     explicit SoftmaxDecomposition(size_t vector_size);
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
     size_t m_vector_size;
