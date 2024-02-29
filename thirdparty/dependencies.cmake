@@ -90,7 +90,9 @@ if(ENABLE_INTEL_GPU)
             set_target_properties(OpenCL::OpenCL PROPERTIES
                 INTERFACE_COMPILE_DEFINITIONS "${opencl_interface_definitions}")
         endif()
+        message(STATUS "OpenCL used")
     else()
+        message(STATUS "thirdparty/ocl used")
         add_subdirectory(thirdparty/ocl)
     endif()
 
