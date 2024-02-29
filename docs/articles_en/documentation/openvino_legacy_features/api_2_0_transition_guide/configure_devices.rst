@@ -469,4 +469,4 @@ API 2.0 Python properties
 
 Ask questions
 -------------
-- Got to "Forum", "Support", "Github"
+- Go to "Forum", "Support", "Github"
