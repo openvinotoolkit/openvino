@@ -60,8 +60,10 @@ protected:
         auto source_weights_layout = impl_params.get_input_layout(1);
         auto grouped_weights = format::is_grouped(source_weights_layout.format) || cldnn_prim->grouped_weights_shape;
         auto target_weights_desc = pd.weights_desc(0);
-        OPENVINO_ASSERT(onednn::keep_weights_reorder_shape_consistent(source_weights_layout, target_weights_desc),
-                        "[GPU] Input shape and output shape of weight reorder should be same.");
+
+        auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(source_weights_layout, target_weights_desc);
+        OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
+
         auto source_weights_desc = onednn::layout_to_memory_desc(source_weights_layout);
 
         const bool weights_format = true;

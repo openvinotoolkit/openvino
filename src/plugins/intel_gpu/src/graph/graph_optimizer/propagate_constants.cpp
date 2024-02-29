@@ -12,7 +12,6 @@
 #include "intel_gpu/runtime/itt.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "reorder_inst.h"
-#include "permute_inst.h"
 #include "graph/impls/onednn/utils.hpp"
 #endif // ENABLE_ONEDNN_FOR_GPU
 #include <vector>

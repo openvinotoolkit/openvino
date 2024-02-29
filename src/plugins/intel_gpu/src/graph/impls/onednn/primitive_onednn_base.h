@@ -487,6 +487,11 @@ protected:
         auto& engine = instance.get_network().get_engine();
         auto dnnl_engine = engine.get_onednn_engine();
 
+        OPENVINO_ASSERT(mem_args.inputs.size() == 1);
+        OPENVINO_ASSERT(mem_args.outputs.size() == 1);
+        OPENVINO_ASSERT(_scratchpad_md.get_size() == 0);
+        OPENVINO_ASSERT(instance.get_fused_primitives_onednn().empty());
+
         {
             auto input = mem_args.inputs[0];
             layout l = input->get_layout();
@@ -500,9 +505,6 @@ protected:
             auto offset = onednn::get_offset(std::move(l), _pd.dnnl::primitive_desc_base::dst_desc(0));
             args.insert({DNNL_ARG_DST, output->get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
         }
-
-        OPENVINO_ASSERT(_scratchpad_md.get_size() == 0);
-        OPENVINO_ASSERT(instance.get_fused_primitives_onednn().empty());
 
         return args;
     }

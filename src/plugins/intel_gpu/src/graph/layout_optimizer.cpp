@@ -1573,8 +1573,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         preferred_impl = impl_types::onednn;
 
-        if ((std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
-            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end())) {
+        if (std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
+            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end()) {
             preferred_impl = impl_types::ocl;
         }
 
