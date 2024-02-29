@@ -106,13 +106,46 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
 }
 
 std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
-        { cldnn::format::bfyx, dnnl::memory::format_tag::nchw },
+        /// weights format for onednnn
+        { cldnn::format::oiyx,  dnnl::memory::format_tag::oihw },
+        { cldnn::format::ioyx,  dnnl::memory::format_tag::iohw },
+        { cldnn::format::yxio,  dnnl::memory::format_tag::hwio },
+        { cldnn::format::oizyx, dnnl::memory::format_tag::oidhw },
+        { cldnn::format::iozyx, dnnl::memory::format_tag::iodhw },
+        { cldnn::format::iyxo,  dnnl::memory::format_tag::ihwo },
+        { cldnn::format::oyxi,  dnnl::memory::format_tag::ohwi },
+        { cldnn::format::oyix,  dnnl::memory::format_tag::acbd },
+        { cldnn::format::oxiy,  dnnl::memory::format_tag::adbc },
+        { cldnn::format::goiyx,  dnnl::memory::format_tag::goihw },
+        { cldnn::format::gioyx,  dnnl::memory::format_tag::giohw },
+        { cldnn::format::gyxio,  dnnl::memory::format_tag::ghwio },
+        { cldnn::format::giozyx, dnnl::memory::format_tag::giodhw },
+        { cldnn::format::goizyx,  dnnl::memory::format_tag::goidhw },
+
+        { cldnn::format::os_iyx_osv16,  dnnl::memory::format_tag::Oihw16o },
+        { cldnn::format::gs_oiyx_gsv8,  dnnl::memory::format_tag::Goihw8g },
+        { cldnn::format::gs_oiyx_gsv16,  dnnl::memory::format_tag::Goihw16g },
+        { cldnn::format::gs_oiyx_gsv32,  dnnl::memory::format_tag::Goihw32g },
+        { cldnn::format::gs_oizyx_gsv16,  dnnl::memory::format_tag::Goidhw16g },
+        { cldnn::format::gs_oizyx_gsv32,  dnnl::memory::format_tag::Goidhw32g },
+        { cldnn::format::g_os_iyx_osv16,  dnnl::memory::format_tag::gOihw16o },
+
+        { cldnn::format::os_is_yx_osv16_isv16,  dnnl::memory::format_tag::OIhw16o16i },
+        { cldnn::format::os_is_yx_isv16_osv16,  dnnl::memory::format_tag::OIhw16i16o },
+        { cldnn::format::os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::OIdhw16i16o },
+        { cldnn::format::is_os_zyx_isv16_osv16,  dnnl::memory::format_tag::IOdhw16i16o },
+
+        { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
+
+        { cldnn::format::bfyx,  dnnl::memory::format_tag::nchw },
+        { cldnn::format::byxf,  dnnl::memory::format_tag::nhwc },
+        { cldnn::format::byfx,  dnnl::memory::format_tag::acbd },
+        { cldnn::format::bxfy,  dnnl::memory::format_tag::adbc },
+        { cldnn::format::fyxb,  dnnl::memory::format_tag::bcda },
+        { cldnn::format::fbyx,  dnnl::memory::format_tag::bacd },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
-        { cldnn::format::byxf, dnnl::memory::format_tag::nhwc },
-        { cldnn::format::byfx, dnnl::memory::format_tag::acbd },
-        { cldnn::format::bxfy, dnnl::memory::format_tag::adbc },
-        { cldnn::format::fyxb, dnnl::memory::format_tag::bcda },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
+        { cldnn::format::bfwzyx, dnnl::memory::format_tag::abcdef },
         { cldnn::format::b_fs_yx_fsv2, dnnl::memory::format_tag::undef },
         { cldnn::format::b_fs_yx_fsv4, dnnl::memory::format_tag::aBcd4b },
         { cldnn::format::b_fs_yx_fsv8, dnnl::memory::format_tag::aBcd8b },
@@ -427,6 +460,108 @@ bool is_per_tensor(cldnn::data_node& node, int32_t& zp_val) {
 
 template bool is_per_tensor<int8_t>(cldnn::data_node& node, int32_t& zp_val);
 template bool is_per_tensor<uint8_t>(cldnn::data_node& node, int32_t& zp_val);
+
+
+static std::string get_external_order(const std::vector<size_t>& order, bool is_weights, bool is_grouped) {
+    cldnn::format default_fmt = format::get_default_format(order.size(), is_weights, is_grouped);
+    const auto& default_order = default_fmt.order();
+
+    std::string external_order(order.size(), '?');
+
+    for (size_t i = 0; i < order.size(); i++) {
+        external_order[i] = default_order[order[i]];
+    }
+
+    return external_order;
+}
+
+cldnn::format_traits convert_memory_desc_to_traits(const dnnl::memory::desc& desc, bool is_weights, bool is_grouped) {
+    OPENVINO_ASSERT(desc.get_format_kind() == dnnl::memory::format_kind::blocked, "[GPU] Only blocked memory desc type is supported");
+    auto ndims = desc.get_ndims();
+    auto inner_nblks = desc.get_inner_nblks();
+    auto inner_blks = desc.get_inner_blks();
+    auto inner_idxs = desc.get_inner_idxs();
+    auto strides = desc.get_strides();
+
+    std::vector<std::pair<int64_t, size_t>> stride_order;
+    for (size_t i = 0; i < strides.size(); i++) {
+        stride_order.emplace_back(strides[i], i);
+    }
+
+    // sort by strides in descending order
+    std::sort(stride_order.begin(), stride_order.end(), [](const std::pair<int64_t, size_t>& first, const std::pair<int64_t, size_t>& second) {
+        return first.first > second.first;
+    });
+
+    std::vector<size_t> order;
+    for (const auto& p : stride_order) {
+        order.push_back(p.second);
+    }
+
+    std::vector<std::pair<size_t, int>> block_sizes(inner_nblks);
+    for (int i = 0; i < inner_nblks; i++) {
+        block_sizes[i] = std::make_pair(inner_idxs[i], inner_blks[i]);
+    }
+
+    // all fmts has at least batch and feature dim for now
+    const int batch_num = 1;
+    const int feature_num = 1;
+    const int group_num = is_grouped ? 1 : 0;
+    const int spatial_size = std::max<int>(ndims - batch_num - feature_num - group_num, 0);
+
+    std::string internal_order = is_weights ?
+                                    (is_grouped ? "oixyz???g" : "oixyz") :
+                                    "bfxyzwuv";
+
+    const size_t max_spatial = 2 + (is_weights ? 3 : 6);
+    const size_t last_spatial_offset = 2 + spatial_size;
+    for (size_t i = last_spatial_offset; i < max_spatial; i++) {
+        internal_order[i] = '?';
+    }
+    std::string outer_order = get_external_order(order, is_weights, is_grouped);
+
+    format_traits traits;
+    traits.batch_num = batch_num;
+    traits.feature_num = feature_num;
+    traits.spatial_num = spatial_size;
+    traits.group_num = group_num;
+    traits._order = order;
+    traits.order = outer_order;
+    traits.internal_order = internal_order;
+    traits.block_sizes = block_sizes;
+    traits.str = "custom";
+
+    return traits;
+}
+
+bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::memory::desc& desc) {
+    if (layout.is_dynamic())
+        return false;
+
+    auto shape = layout.get_shape();
+    auto dims = desc.get_dims();
+    std::vector<ov::Dimension::value_type> target_dims;
+    std::vector<ov::Dimension::value_type> filtered_target_dims;
+    std::transform(shape.begin(), shape.end(), std::back_inserter(target_dims),
+                   [](size_t v) { return static_cast<ov::Dimension::value_type>(v); });
+    std::copy_if(target_dims.begin(), target_dims.end(), std::back_inserter(filtered_target_dims),
+                 [](ov::Dimension::value_type i) { return i != 1; });
+
+    std::vector<ov::Dimension::value_type> desc_dims;
+    std::vector<ov::Dimension::value_type> filtered_desc_dims;
+    std::transform(dims.cbegin(), dims.cend(), std::back_inserter(desc_dims),
+                   [](dnnl::memory::dim v) { return static_cast<ov::Dimension::value_type>(v); });
+    std::copy_if(desc_dims.begin(), desc_dims.end(), std::back_inserter(filtered_desc_dims),
+                 [](ov::Dimension::value_type i) { return i != 1; });
+
+    // Check whether they have same values and orders.
+    if (filtered_target_dims == filtered_desc_dims) {
+        layout.set_partial_shape(desc_dims);
+        return true;
+    } else {
+        return false;
+    }
+}
 
 }  // namespace onednn
 }  // namespace cldnn
