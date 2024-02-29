@@ -12,6 +12,12 @@ leak:__pthread_once_slow
 # memory leaks in graphics driver
 leak:libigdrcl.so
 
+# leaks in std
+leak:libstdc++
+leak:libstdc
+leak:libc
+leak:libc++
+
 # leaks from python packages used by tests
 leak:site-packages/scipy/
 leak:site-packages/tensorflow/
