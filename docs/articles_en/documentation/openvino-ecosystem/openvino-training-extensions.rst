@@ -13,7 +13,7 @@ OpenVINO™ Training Extensions
 OpenVINO™ Training Extensions provide a suite of advanced algorithms to train
 Deep Learning models and convert them using the `OpenVINO™
 toolkit <https://software.intel.com/en-us/openvino-toolkit>`__ for optimized
-inference. It allows you to export and convert the models to the needed format. OpenVINO Training Extensions independently create and train the model. It is open-sourced and available on `GitHub <https://github.com/openvinotoolkit/training_extensions>`__. Read the OpenVINO Training Extensions `documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/../../get-started/introduction.html>`__ to learn more.
+inference. It allows you to export and convert the models to the needed format. OpenVINO Training Extensions independently create and train the model. It is open-sourced and available on `GitHub <https://github.com/openvinotoolkit/training_extensions>`__. Read the OpenVINO Training Extensions `documentation <https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html>`__ to learn more.
 
 Detailed Workflow
 #################

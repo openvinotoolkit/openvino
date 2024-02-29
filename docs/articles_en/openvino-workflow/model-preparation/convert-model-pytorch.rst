@@ -123,8 +123,8 @@ If your model has a ``dict`` input, such as, ``{"x": a, "y": b, "z": c}``, it wi
 
 Check out more examples of model conversion with non-tensor data types in the following tutorials:
 
-* `Video Subtitle Generation using Whisper and OpenVINO™ <notebooks/227-whisper-subtitles-generation-with-output.html>`__
-* `Visual Question Answering and Image Captioning using BLIP and OpenVINO <notebooks/233-blip-visual-language-processing-with-output.html>`__
+* `Video Subtitle Generation using Whisper and OpenVINO™ <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/227-whisper-subtitles-generation>`__
+* `Visual Question Answering and Image Captioning using BLIP and OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/233-blip-visual-language-processing>`__
 
 
 Exporting a PyTorch Model to ONNX Format
