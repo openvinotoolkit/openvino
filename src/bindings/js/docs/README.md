@@ -67,16 +67,17 @@
   "openvino-node": "file:*path-to-current-directory*"
   ```
 - Make sure to require it:
-  ```
+  ```js
   const { addon: ov } = require('openvino-node');
   ```
 
 ## Samples
 
-[Samples of OpenVINO Node.js API](../../../../samples/js/node/README.md)
+[OpenVINO™ Node.js Bindings Examples of Usage](../../../../samples/js/node/README.md)
 
-## See also
+## See Also
 
 * [OpenVINO™ README](../../../../README.md)
 * [OpenVINO™ Core Components](../../../README.md)
 * [OpenVINO™ JavaScript API](../README.md)
+* [OpenVINO™ Node.js Bindings](../node/README.md)
