@@ -53,20 +53,6 @@ set(PADDLEDET_OPS_SHA256 "5cc079eda295ed78b58fba8223c51d85a931a7069ecad51c6af5c2
 
 DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 
-function(GET_PADDLE_VERSION output_variable)
-    execute_process(
-        COMMAND ${PYTHON_EXECUTABLE} -c "import paddle; print(paddle.__version__)"
-        RESULT_VARIABLE result
-        OUTPUT_VARIABLE ${output_variable}
-        ERROR_QUIET
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-    if(NOT result EQUAL "0")
-        message(FATAL_ERROR "Failed to get version of PaddlePaddle")
-    endif()
-endfunction()
-
 # If 'paddlepaddle' is not found, code will still be compiled
 # but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
