@@ -69,39 +69,39 @@ Performance Information F.A.Q.
         - BERT
         - question / answer
         - 128
-      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
+      * - `bert-large-uncased-whole-word-masking-squad-int8-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/bert-large-uncased-whole-word-masking-squad-int8-0001>`__
         - BERT-large
         - question / answer
         - 384
-      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/efficientdet-d0-tf>`__
+      * - `efficientdet-d0 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/efficientdet-d0-tf>`__
         - Efficientdet
         - classification
         - 512x512
-      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
+      * - `mask_rcnn_resnet50_atrous_coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco>`__
         - Mask R-CNN ResNet 50 Atrous
         - object instance segmentation
         - 800x1365
-      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
+      * - `mobilenet-v2 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mobilenet-v2-pytorch>`__
         - Mobilenet V2 PyTorch
         - classification
         - 224x224
-      * - `resnet-50 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/resnet-50-tf>`__
+      * - `resnet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
         - ResNet-50_v1_ILSVRC-2012
         - classification
         - 224x224
-      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
+      * - `ssd-mobilenet-v1-coco <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd_mobilenet_v1_coco>`__
         - ssd-mobilenet-V1-coco onnx model
         - object detection
         - 300x300
-      * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
+      * - `ssd-resnet34-1200-onnx <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/ssd-resnet34-1200-onnx>`__
         - ssd-resnet34 onnx model
         - object detection
         - 1200x1200
-      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
+      * - `unet-camvid-onnx-0001 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/intel/unet-camvid-onnx-0001>`__
         - U-Net
         - semantic segmentation
         - 368x480
-      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
+      * - `yolo-v3-tiny <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/yolo-v3-tiny-tf>`__
         - YOLO v3 Tiny
         - object detection
         - 416x416

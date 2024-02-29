@@ -71,6 +71,6 @@ This topic provides a complete list of available sets of operations supported in
 See Also
 ########
 
-:doc:`Operation Sets in OpenVINO <../operation-sets>`
-:doc:`OpenVINO IR format <../../openvino-ir-format>`
+* :doc:`Operation Sets in OpenVINO <../operation-sets>`
+* :doc:`OpenVINO IR format <../../openvino-ir-format>`
 
