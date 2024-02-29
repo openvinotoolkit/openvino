@@ -66,4 +66,4 @@ where:
     shift1_{ch}' = shift1_{ch} + scale2_{ch} * shift2_{ch} / scale1_{ch}
 
 
-.. image:: ../../../../../../_static/images/add.transformed.png
+.. image::  /../../../docs/sphinx_setup/_static/images/add.transformed.png
