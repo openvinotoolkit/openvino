@@ -6,12 +6,13 @@
 
 #include <random>
 
-#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
-#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/multi_add.hpp"
 #include "common_test_utils/subgraph_builders/nested_branch_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/nested_split_conv_concat.hpp"
-#include "common_test_utils/ov_plugin_cache.hpp"
-#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "openvino/op/util/op_types.hpp"
 
 namespace ov {
@@ -19,6 +20,7 @@ namespace test {
 namespace behavior {
 
 static std::vector<std::function<std::shared_ptr<ov::Model>()>> builders = {
+    [] {return ov::test::utils::make_multi_add();},
     [] {return ov::test::utils::make_split_multi_conv_concat();},
     [] {return ov::test::utils::make_nested_split_conv_concat();},
     [] {return ov::test::utils::make_cplit_conv_concat_nested_in_branch();},
