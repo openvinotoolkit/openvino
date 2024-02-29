@@ -17,38 +17,25 @@ std::vector<size_t> calculate_shape_sizes(const std::vector<Shape>& in_shapes) {
     });
     return sizes;
 }
-void copy_single_input_elements(const char* arg,
-                                char* out,
-                                size_t in_offset,
-                                size_t out_offset,
-                                size_t num_of_elements,
-                                size_t elem_size) {
-    std::memcpy(&out[out_offset * elem_size], &arg[in_offset * elem_size], num_of_elements * elem_size);
-}
 
-void copy_single_input_elements(const std::string* arg,
-                                std::string* out,
-                                size_t in_offset,
-                                size_t out_offset,
-                                size_t num_of_elements) {
-    const auto src_begin = std::next(arg, in_offset);
-    const auto out_ptr = std::next(out, out_offset);
-    std::copy_n(src_begin, num_of_elements, out_ptr);
-}
-
-template <bool IS_STRING>
 void copy_elements(const char* arg,
                    char* out,
                    size_t in_offset,
                    size_t out_offset,
                    size_t num_of_elements,
                    size_t elem_size) {
-    return IS_STRING ? copy_single_input_elements(reinterpret_cast<const std::string*>(arg),
-                                                  reinterpret_cast<std::string*>(out),
-                                                  in_offset,
-                                                  out_offset,
-                                                  num_of_elements)
-                     : copy_single_input_elements(arg, out, in_offset, out_offset, num_of_elements, elem_size);
+    std::memcpy(out + (out_offset * elem_size), arg + (in_offset * elem_size), num_of_elements * elem_size);
+}
+
+void copy_string_elements(const char* arg,
+                          char* out,
+                          size_t in_offset,
+                          size_t out_offset,
+                          size_t num_of_elements,
+                          size_t) {
+    const auto src_begin = std::next(reinterpret_cast<const std::string*>(arg), in_offset);
+    const auto out_ptr = std::next(reinterpret_cast<std::string*>(out), out_offset);
+    std::copy_n(src_begin, num_of_elements, out_ptr);
 }
 }  // namespace
 
@@ -62,7 +49,7 @@ void concat(const std::vector<const char*>& args,
     const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
     const auto& shape_sizes = calculate_shape_sizes(in_shapes);
 
-    const auto copy_func = elem_type == ov::element::string ? copy_elements<true> : copy_elements<false>;
+    const auto copy_func = elem_type == ov::element::string ? copy_string_elements : copy_elements;
 
     size_t out_offset = 0;
     for (size_t step = 0; step < steps; ++step) {
@@ -76,6 +63,5 @@ void concat(const std::vector<const char*>& args,
         }
     }
 }
-
 }  // namespace reference
 }  // namespace ov
