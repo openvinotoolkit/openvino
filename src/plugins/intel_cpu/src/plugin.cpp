@@ -18,16 +18,16 @@
 #include "weights_cache.hpp"
 
 #if defined(__linux__)
-# include <sys/auxv.h>
-# include <signal.h>
-# include <sys/mman.h>
+#    include <signal.h>
+#    include <sys/auxv.h>
+#    include <sys/mman.h>
 #endif
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
-#include "nodes/executors/acl/acl_ie_scheduler.hpp"
-#include "arm_compute/runtime/CPP/CPPScheduler.h"
+#    include "arm_compute/runtime/CPP/CPPScheduler.h"
+#    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
 using namespace ov::threading;
@@ -46,31 +46,31 @@ static std::string getDeviceFullName() {
     // TODO: extract actual device name
     brand_string = "ARM CPU";
 #elif defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    const unsigned int addr_list[3] = { 0x80000002, 0x80000003, 0x80000004 };
+    const unsigned int addr_list[3] = {0x80000002, 0x80000003, 0x80000004};
     unsigned int regs[4];
     for (auto addr : addr_list) {
         regs[0] = addr;
-#ifdef _WIN32
+#    ifdef _WIN32
         __cpuid(reinterpret_cast<int*>(regs), regs[0]);
-#else
+#    else
         __cpuid(regs[0], regs[0], regs[1], regs[2], regs[3]);
-#endif
+#    endif
         char* ch = reinterpret_cast<char*>(&regs[0]);
         for (size_t j = 0; j < sizeof(regs); j++)
             if (ch[j] != '\0')
                 brand_string += ch[j];
     }
 #else
-# error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
+#    error "Unkown CPU architecture. Please, add support to openvino/core/visibility.hpp"
 #endif
     return brand_string;
 }
 
 #if defined(__linux__)
 
-#ifndef AT_MINSIGSTKSZ
-# define AT_MINSIGSTKSZ 51
-#endif
+#    ifndef AT_MINSIGSTKSZ
+#        define AT_MINSIGSTKSZ 51
+#    endif
 
 class SigAltStackSetup {
     stack_t new_stack{0};
@@ -83,8 +83,7 @@ public:
 
         auto minsigstksz = getauxval(AT_MINSIGSTKSZ);
         auto new_size = minsigstksz + SIGSTKSZ;
-        void * altstack =  mmap(NULL, new_size, PROT_READ | PROT_WRITE,
-                                MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
+        void* altstack = mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
         if (altstack == MAP_FAILED) {
             return;
         }
@@ -121,27 +120,27 @@ class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#else // __linux__
+#else   // __linux__
 class CPUSpecialSetup {
 public:
     CPUSpecialSetup() = default;
 };
-#endif // __linux__
+#endif  // __linux__
 
 #if defined(OV_CPU_WITH_ACL)
-std::mutex Engine::SchedulerGuard::mutex;
-std::weak_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::ptr;
+std::mutex Plugin::SchedulerGuard::mutex;
+std::weak_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::ptr;
 
-Engine::SchedulerGuard::SchedulerGuard() {
-#if OV_THREAD == OV_THREAD_SEQ
+Plugin::SchedulerGuard::SchedulerGuard() {
+#    if OV_THREAD == OV_THREAD_SEQ
     // To save state for ACL cores in single-thread mode
     arm_compute::Scheduler::set(arm_compute::Scheduler::Type::ST);
-#else
+#    else
     arm_compute::Scheduler::set(std::make_shared<ACLScheduler>());
-#endif
+#    endif
 }
 
-std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
+std::shared_ptr<Plugin::SchedulerGuard> Plugin::SchedulerGuard::instance() {
     std::lock_guard<std::mutex> lock{SchedulerGuard::mutex};
     auto scheduler_guard_ptr = SchedulerGuard::ptr.lock();
     if (scheduler_guard_ptr == nullptr) {
@@ -150,7 +149,7 @@ std::shared_ptr<Engine::SchedulerGuard> Engine::SchedulerGuard::instance() {
     return scheduler_guard_ptr;
 }
 
-Engine::SchedulerGuard::~SchedulerGuard() {
+Plugin::SchedulerGuard::~SchedulerGuard() {
     // To save the state of scheduler after ACLScheduler has been executed
     // TODO: find out the cause of the state
     std::lock_guard<std::mutex> lock{this->dest_mutex};
@@ -159,9 +158,7 @@ Engine::SchedulerGuard::~SchedulerGuard() {
 }
 #endif
 
-Engine::Engine() :
-    deviceFullName(getDeviceFullName()),
-    specialSetup(new CPUSpecialSetup) {
+Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(IStreamsExecutor::Config::PreferredCoreType::BIG, [] {
@@ -174,7 +171,7 @@ Engine::Engine() :
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
 }
 
-Engine::~Engine() {
+Plugin::~Plugin() {
     executor_manager()->clear("CPU");
     executor_manager()->clear("CPUStreamsExecutor");
     executor_manager()->clear("CPUCallbackExecutor");
@@ -184,7 +181,7 @@ static bool streamsSet(const ov::AnyMap& config) {
     return config.count(ov::num_streams.name());
 }
 
-void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const{
+void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const {
     const int latency_streams = get_default_latency_streams(config.latencyThreadingMode);
     int streams_set = config.streams;
     int streams;
@@ -203,7 +200,7 @@ void Engine::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     }
 }
 
-void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
+void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) const {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
         // load model_prefer_threads from cache
@@ -231,7 +228,7 @@ void Engine::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
 
 static bool shouldEnableLPT(const ov::AnyMap& modelConfig, const Config& engineConfig) {
     const auto& enableLPT = modelConfig.find(ov::intel_cpu::lp_transforms_mode.name());
-    if (enableLPT == modelConfig.end()) // model config has higher priority
+    if (enableLPT == modelConfig.end())  // model config has higher priority
         return engineConfig.lpTransformsMode == Config::LPTransformsMode::On;
 
     try {
@@ -253,8 +250,9 @@ static ov::element::Type getInferencePrecision(const ov::AnyMap& modelConfig,
 
 static Config::ModelType getModelType(const std::shared_ptr<const Model>& model) {
     return op::util::has_op_with_type<op::v1::Convolution>(model) ||
-           op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model) ?
-           Config::ModelType::CNN : Config::ModelType::Unknown;
+                   op::util::has_op_with_type<op::v1::ConvolutionBackpropData>(model)
+               ? Config::ModelType::CNN
+               : Config::ModelType::Unknown;
 }
 
 static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const Config& engineConfig) {
@@ -273,13 +271,13 @@ static Config::SnippetsMode getSnippetsMode(const ov::AnyMap& modelConfig, const
         OPENVINO_THROW("Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK");
 }
 
-std::shared_ptr<ov::ICompiledModel>
-Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& orig_config) const{
-    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::compile_model");
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& orig_config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
 
     // verification of supported input
-    for (const auto &ii : model->inputs()) {
+    for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
         static const std::set<ov::element::Type_t> supported_precisions = {ov::element::Type_t::u8,
                                                                            ov::element::Type_t::i8,
@@ -361,14 +359,15 @@ Engine::compile_model(const std::shared_ptr<const ov::Model>& model, const ov::A
     return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
 }
 
-void Engine::set_property(const ov::AnyMap &config) {
-    // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and "ifSetExplicitly" flag
+void Plugin::set_property(const ov::AnyMap& config) {
+    // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and
+    // "ifSetExplicitly" flag
     streamsExplicitlySetForEngine = streamsSet(config);
 
     engConfig.readProperties(config);
 }
 
-ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
     if (name == ov::optimal_number_of_infer_requests) {
         const auto streams = engConfig.streamExecutorConfig.get_streams();
         return decltype(ov::optimal_number_of_infer_requests)::value_type(
@@ -442,14 +441,15 @@ ov::Any Engine::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::internal::exclusive_async_requests.name()) {
         return engConfig.exclusiveAsyncRequests;
     } else if (name == ov::hint::dynamic_quantization_group_size) {
-        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(engConfig.fcDynamicQuantizationGroupSize);
+        return decltype(ov::hint::dynamic_quantization_group_size)::value_type(
+            engConfig.fcDynamicQuantizationGroupSize);
     } else if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
     }
     return get_ro_property(name, options);
 }
 
-ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
+ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& options) const {
     auto RO_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
     };
@@ -458,34 +458,36 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
     };
 
     if (name == ov::supported_properties) {
-        std::vector<ov::PropertyName> roProperties {RO_property(ov::supported_properties.name()),
-                                                    RO_property(ov::available_devices.name()),
-                                                    RO_property(ov::range_for_async_infer_requests.name()),
-                                                    RO_property(ov::range_for_streams.name()),
-                                                    RO_property(ov::execution_devices.name()),
-                                                    RO_property(ov::device::full_name.name()),
-                                                    RO_property(ov::device::capabilities.name()),
-                                                    RO_property(ov::device::type.name()),
-                                                    RO_property(ov::device::architecture.name()),
+        std::vector<ov::PropertyName> roProperties{
+            RO_property(ov::supported_properties.name()),
+            RO_property(ov::available_devices.name()),
+            RO_property(ov::range_for_async_infer_requests.name()),
+            RO_property(ov::range_for_streams.name()),
+            RO_property(ov::execution_devices.name()),
+            RO_property(ov::device::full_name.name()),
+            RO_property(ov::device::capabilities.name()),
+            RO_property(ov::device::type.name()),
+            RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
-                                                    RW_property(ov::affinity.name()),
-                                                    RW_property(ov::inference_num_threads.name()),
-                                                    RW_property(ov::enable_profiling.name()),
-                                                    RW_property(ov::hint::inference_precision.name()),
-                                                    RW_property(ov::hint::performance_mode.name()),
-                                                    RW_property(ov::hint::execution_mode.name()),
-                                                    RW_property(ov::hint::num_requests.name()),
-                                                    RW_property(ov::hint::enable_cpu_pinning.name()),
-                                                    RW_property(ov::hint::scheduling_core_type.name()),
-                                                    RW_property(ov::hint::enable_hyper_threading.name()),
-                                                    RW_property(ov::device::id.name()),
-                                                    RW_property(ov::intel_cpu::denormals_optimization.name()),
-                                                    RW_property(ov::log::level.name()),
-                                                    RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-                                                    RW_property(ov::hint::dynamic_quantization_group_size.name()),
-                                                    RW_property(ov::hint::kv_cache_precision.name()),
+        std::vector<ov::PropertyName> rwProperties{
+            RW_property(ov::num_streams.name()),
+            RW_property(ov::affinity.name()),
+            RW_property(ov::inference_num_threads.name()),
+            RW_property(ov::enable_profiling.name()),
+            RW_property(ov::hint::inference_precision.name()),
+            RW_property(ov::hint::performance_mode.name()),
+            RW_property(ov::hint::execution_mode.name()),
+            RW_property(ov::hint::num_requests.name()),
+            RW_property(ov::hint::enable_cpu_pinning.name()),
+            RW_property(ov::hint::scheduling_core_type.name()),
+            RW_property(ov::hint::enable_hyper_threading.name()),
+            RW_property(ov::device::id.name()),
+            RW_property(ov::intel_cpu::denormals_optimization.name()),
+            RW_property(ov::log::level.name()),
+            RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RW_property(ov::hint::dynamic_quantization_group_size.name()),
+            RW_property(ov::hint::kv_cache_precision.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -499,11 +501,12 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO}};
+            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
+                             ov::PropertyMutability::RO}};
     } else if (name == ov::device::full_name) {
         return decltype(ov::device::full_name)::value_type(deviceFullName);
     } else if (name == ov::available_devices) {
-        const std::vector<std::string> availableDevices = { "" };
+        const std::vector<std::string> availableDevices = {""};
         return decltype(ov::available_devices)::value_type(availableDevices);
     } else if (name == ov::device::capabilities) {
         std::vector<std::string> capabilities;
@@ -524,12 +527,14 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
         const std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, parallel_get_max_threads());
         return decltype(ov::range_for_streams)::value_type(range);
     } else if (name == ov::internal::caching_properties) {
-        std::vector<ov::PropertyName> cachingProperties = { ov::device::full_name };
+        std::vector<ov::PropertyName> cachingProperties = {ov::device::full_name};
         return decltype(ov::internal::caching_properties)::value_type(std::move(cachingProperties));
     } else if (name == ov::intel_cpu::denormals_optimization) {
-        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode == Config::DenormalsOptMode::DO_On);
+        return decltype(ov::intel_cpu::denormals_optimization)::value_type(engConfig.denormalsOptMode ==
+                                                                           Config::DenormalsOptMode::DO_On);
     } else if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
-        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(engConfig.fcSparseWeiDecompressionRate);
+        return decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type(
+            engConfig.fcSparseWeiDecompressionRate);
     } else if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (name == ov::device::type) {
@@ -546,14 +551,14 @@ ov::Any Engine::get_ro_property(const std::string& name, const ov::AnyMap& optio
 #elif defined(OPENVINO_ARCH_RISCV64)
         return decltype(ov::device::architecture)::value_type{"riscv"};
 #else
-#error "Undefined system processor"
+#    error "Undefined system processor"
 #endif
     }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
 
-ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
+ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
     if (model == nullptr) {
@@ -570,17 +575,12 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
-    auto context =
-        std::make_shared<GraphContext>(conf, fake_w_cache, false);
+    auto context = std::make_shared<GraphContext>(conf, fake_w_cache, false);
 
     auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
-            Transformations transformation(model,
-                                           enableLPT,
-                                           conf.inferencePrecision,
-                                           snippetsMode,
-                                           engConfig);
+            Transformations transformation(model, enableLPT, conf.inferencePrecision, snippetsMode, engConfig);
             transformation.UpToLpt();
             transformation.PostLpt();
             transformation.Snippets();
@@ -604,14 +604,12 @@ ov::SupportedOpsMap Engine::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkModel,
-                                            const ov::AnyMap& config) const{
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
-    ModelDeserializer deserializer(networkModel,
-        [this](const std::string& model, const ov::Tensor& weights) {
-            return get_core()->read_model(model, weights, true);
-        });
+    ModelDeserializer deserializer(networkModel, [this](const std::string& model, const ov::Tensor& weights) {
+        return get_core()->read_model(model, weights, true);
+    });
 
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
@@ -634,8 +632,8 @@ std::shared_ptr<ov::ICompiledModel> Engine::import_model(std::istream& networkMo
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov
 
 using namespace ov::intel_cpu;
 
@@ -646,7 +644,7 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_intel_cpu_plugin"
 #elif defined(OPENVINO_ARCH_RISCV64)
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"};
 #else
-#error "Undefined system processor"
+#    error "Undefined system processor"
 #endif
 
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
+OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
