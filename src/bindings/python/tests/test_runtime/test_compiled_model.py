@@ -15,12 +15,14 @@ from tests.utils.helpers import (
 from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
 
+import openvino.properties as props
+
 
 def test_get_property(device):
     model = get_relu_model([1, 3, 32, 32])
     core = Core()
     compiled_model = core.compile_model(model, device, {})
-    network_name = compiled_model.get_property("NETWORK_NAME")
+    network_name = compiled_model.get_property(props.model_name)
     assert network_name == "test_model"
 
 
@@ -37,8 +39,8 @@ def test_get_runtime_model(device):
 def test_export_import(device):
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -57,8 +59,8 @@ def test_export_import_advanced(device):
 
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
