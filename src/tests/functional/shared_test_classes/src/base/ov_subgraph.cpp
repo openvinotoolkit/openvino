@@ -7,7 +7,6 @@
 
 #include <chrono>
 #include <fstream>
-#include <future>
 #include <thread>
 
 #ifdef _WIN32
