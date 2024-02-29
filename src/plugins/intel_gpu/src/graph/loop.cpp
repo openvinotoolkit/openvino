@@ -867,7 +867,7 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
     auto sliced_layout = sliced_data_prim->get_output_layout(io_prim_map.internal_id.idx);
     auto concat_mem_shape = concat_layout.get_shape();
     auto sliced_mem_shape = sliced_layout.get_shape();
-    const auto& elem_type = ov::element::Type(concat_layout.data_type);
+    auto elem_size = ov::element::Type(concat_layout.data_type).size();
     const auto stride = io_prim_map.stride;
     const auto axis = io_prim_map.axis;
     const auto step = std::abs(stride);
@@ -877,14 +877,14 @@ void loop_inst::concatenated_memory_mapping::concat_mem(const int64_t curent_ite
                         concat_mem_shape.to_string(), ") != curent_iterations(",
                         curent_iterations, ") * sliced_mem_shape[axis](", sliced_mem_shape.to_string(), ")");
     std::vector<ov::Shape> shapes_to_concat(curr_iters, sliced_mem_shape);
-    std::vector<const void*> pointers_to_data(curr_iters);
+    std::vector<const char*> pointers_to_data(curr_iters);
     for (size_t i = 0; i < curr_iters; i++) {
         auto mem = sliced_mems[i];
-        pointers_to_data[stride > 0 ? i : (curr_iters - i - 1)] = reinterpret_cast<const void*>(mem->lock(stream));
+        pointers_to_data[stride > 0 ? i : (curr_iters - i - 1)] = reinterpret_cast<const char*>(mem->lock(stream));
     }
 
-    void* concat_data = reinterpret_cast<void*>(concatenated_mem->lock(stream));
-    ov::reference::concat(pointers_to_data, concat_data, shapes_to_concat, concat_mem_shape, axis, elem_type);
+    char* concat_data = reinterpret_cast<char*>(concatenated_mem->lock(stream));
+    ov::reference::concat(pointers_to_data, concat_data, shapes_to_concat, concat_mem_shape, axis, elem_size);
 
     for (size_t i = 0; i < curr_iters; i++) {
         sliced_mems[i]->unlock(stream);

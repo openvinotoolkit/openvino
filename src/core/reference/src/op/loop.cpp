@@ -207,17 +207,17 @@ void loop(const std::shared_ptr<Model>& func,
             std::vector<Shape> shapes_to_concat(values_to_concat[i].size(), shape);
             shape.at(concat_desc->m_axis) = values_to_concat[i].size();
             out[concat_desc->m_output_index].set_shape(shape);
-            std::vector<const void*> pointers_on_values;
+            std::vector<const char*> pointers_on_values;
             pointers_on_values.reserve(values_to_concat[i].size());
             for (const auto& vec : values_to_concat[i]) {
-                pointers_on_values.push_back(vec.data());
+                pointers_on_values.push_back(static_cast<char*>(vec.data()));
             }
             reference::concat(pointers_on_values,
-                              out[concat_desc->m_output_index].data(),
+                              static_cast<char*>(out[concat_desc->m_output_index].data()),
                               shapes_to_concat,
                               shape,
                               concat_desc->m_axis,
-                              out[concat_desc->m_output_index].get_element_type());
+                              out[concat_desc->m_output_index].get_element_type().size());
         }
     } else {
         OPENVINO_THROW("ExecutionCondition is false. Zero count of iteration not supported.");
