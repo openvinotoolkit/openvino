@@ -85,6 +85,12 @@ if(ENABLE_ONEDNN_FOR_GPU)
         message(STATUS "onednn CMAKE_CXX_FLAGS=" ${CMAKE_CXX_FLAGS})
         message(STATUS "onednn CMAKE_C_FLAGS=" ${CMAKE_C_FLAGS})
         message(STATUS "onednn CMAKE_COMPILE_WARNING_AS_ERROR=" ${CMAKE_COMPILE_WARNING_AS_ERROR})
+        set(CMAKE_CXX_FLAGS_NEW CMAKE_CXX_FLAGS)
+        set(CMAKE_C_FLAGS_NEW CMAKE_C_FLAGS)
+        if(CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+            string(REPLACE "/WX" "" CMAKE_CXX_FLAGS_NEW "${CMAKE_CXX_FLAGS_NEW}")
+            string(REPLACE "/WX" "" CMAKE_C_FLAGS_NEW "${CMAKE_C_FLAGS_NEW}")
+        endif()
 
         ExternalProject_Add(onednn_gpu_build
             # Directory Options:
@@ -99,8 +105,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                 "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
                 "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
-                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
+                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_NEW}"
+                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS_NEW}"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
@@ -119,7 +125,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_TYPE=STATIC"
                 "-DDNNL_EXPERIMENTAL_PROFILING=ON"
                 "-DONEDNN_BUILD_GRAPH=OFF"
-                "-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF"
                 # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
                 # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
                 "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
