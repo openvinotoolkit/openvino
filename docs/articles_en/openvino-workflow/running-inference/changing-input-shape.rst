@@ -22,8 +22,7 @@ The following instructions are for cases where you need to change the model inpu
 The reshape method
 ########################
 
-The reshape method is used as ``ov::Model::reshape`` in C++ and
-`Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
+The reshape method is used as ``ov::Model::reshape`` in C++ and ``Model.reshape``
 in Python. The method updates input shapes and propagates them down to the outputs
 of the model through all intermediate layers. The code below is an example of how
 to set a new batch size with the ``reshape`` method:
@@ -75,7 +74,7 @@ When using the ``reshape`` method, you may take one of the approaches:
 
 
    To do the opposite - to resize input image to match the input shapes of the model,
-   use the :doc:`pre-processing API <optimize-inference/optimizie-preprocessing>`.
+   use the :doc:`pre-processing API <optimize-inference/optimize-preprocessing>`.
 
 
 2. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
@@ -207,10 +206,10 @@ There are other approaches to change model input shapes during the stage of
 Additional Resources
 ####################
 
-* :doc:`Extensibility ../../documentation <../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
-* `ov::Model::reshape <classov_1_1Model.html#doxid-classov-1-1-model-1aa21aff80598d5089d591888a4c7f33ae>`__ - in OpenVINO Runtime C++ API
-* `Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
+* :doc:`Extensibility documentation <../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
+* ``ov::Model::reshape`` - in OpenVINO Runtime C++ API
+* ``Model.reshape`` - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <dynamic-shapes>`
 * :doc:`OpenVINO samples <../../learn-openvino/openvino-samples>`
-* :doc:`Preprocessing API <optimize-inference/optimizie-preprocessing>`
+* :doc:`Preprocessing API <optimize-inference/optimize-preprocessing>`
 

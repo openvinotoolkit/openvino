@@ -148,7 +148,7 @@ Additional Resources
 #############################
 
 * `Vision colorization Notebook <notebooks/222-vision-image-colorization-with-output.html>`__
-* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
-* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/3d_segmentation_demo/python>`__
-* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/object_detection_demo/cpp>`__
-* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_../../../documentation/legacy-features/model-zoo/tree/master/demos/object_detection_demo/python>`__
+* `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
+* `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
+* `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__
+* `Object Detection Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/python>`__

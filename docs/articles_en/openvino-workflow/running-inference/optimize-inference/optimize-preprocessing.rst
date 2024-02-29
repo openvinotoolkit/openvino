@@ -8,13 +8,13 @@ Optimize Preprocessing
    :maxdepth: 1
    :hidden:
 
-   optimizie-preprocessing/preprocessing-api-details
-   optimizie-preprocessing/layout-api-overview
-   optimizie-preprocessing/integrate-save-preprocessing-use-case
-   Torchvision preprocessing converter <optimizie-preprocessing/torchvision-preprocessing-converter>
+   optimize-preprocessing/preprocessing-api-details
+   optimize-preprocessing/layout-api-overview
+   optimize-preprocessing/integrate-save-preprocessing-use-case
+   Torchvision preprocessing converter <optimize-preprocessing/torchvision-preprocessing-converter>
 
 .. meta::
-   :description: The preprocessing entails additional operations to transform 
+   :description: The preprocessing entails additional operations to transform
                  the input data that does not fit the model input tensor.
 
 
@@ -48,9 +48,9 @@ Preprocessing API
 
 Intuitively, preprocessing API consists of the following parts:
 
-1. **Tensor** - declares user data format, like shape, :doc:`layout <optimizie-preprocessing/layout-api-overview>`, precision, color format from actual user's data.
+1. **Tensor** - declares user data format, like shape, :doc:`layout <optimize-preprocessing/layout-api-overview>`, precision, color format from actual user's data.
 2. **Steps** - describes sequence of preprocessing steps which need to be applied to user data.
-3. **Model** - specifies model data format. Usually, precision and shape are already known for model, only additional information, like :doc:`layout <optimizie-preprocessing/layout-api-overview>` can be specified.
+3. **Model** - specifies model data format. Usually, precision and shape are already known for model, only additional information, like :doc:`layout <optimize-preprocessing/layout-api-overview>` can be specified.
 
 .. note::
 
@@ -59,7 +59,7 @@ Intuitively, preprocessing API consists of the following parts:
 PrePostProcessor Object
 +++++++++++++++++++++++
 
-The `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ class allows specifying preprocessing and postprocessing steps for a model read from disk.
+The ``ov::preprocess::PrePostProcessor`` class allows specifying preprocessing and postprocessing steps for a model read from disk.
 
 .. tab-set::
 
@@ -105,7 +105,7 @@ Below is all the specified input information:
 
 * Precision is ``U8`` (unsigned 8-bit integer).
 * Data represents tensor with the ``{1,480,640,3}`` shape.
-* :doc:`Layout <optimizie-preprocessing/layout-api-overview>` is "NHWC". It means: ``height=480``, ``width=640``, ``channels=3``.
+* :doc:`Layout <optimize-preprocessing/layout-api-overview>` is "NHWC". It means: ``height=480``, ``width=640``, ``channels=3``.
 * Color format is ``BGR``.
 
 
@@ -114,7 +114,7 @@ Below is all the specified input information:
 Declaring Model Layout
 ++++++++++++++++++++++
 
-Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data :doc:`layout <optimizie-preprocessing/layout-api-overview>`
+Model input already has information about precision and shape. Preprocessing API is not intended to modify this. The only thing that may be specified is input data :doc:`layout <optimize-preprocessing/layout-api-overview>`
 
 
 .. tab-set::
@@ -163,7 +163,7 @@ Perform the following:
 
 1. Convert ``U8`` to ``FP32`` precision.
 2. Convert current color format from ``BGR`` to ``RGB``.
-3. Resize to ``height``/ ``width`` of a model. Be aware that if a model accepts dynamic size e.g., ``{?, 3, ?, ?}``, ``resize`` will not know how to resize the picture. Therefore, in this case, target ``height``/ ``width`` should be specified. For more details, see also the `ov::preprocess::PreProcessSteps::resize() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a40dab78be1222fee505ed6a13400efe6>`__.
+3. Resize to ``height``/ ``width`` of a model. Be aware that if a model accepts dynamic size e.g., ``{?, 3, ?, ?}``, ``resize`` will not know how to resize the picture. Therefore, in this case, target ``height``/ ``width`` should be specified. For more details, see also the ``ov::preprocess::PreProcessSteps::resize()``.
 4. Subtract mean from each channel. In this step, color format is already ``RGB``, so ``100.5`` will be subtracted from each ``Red`` component, and ``101.5`` will be subtracted from each ``Blue`` one.
 5. Divide each pixel data to appropriate scale value. In this example, each ``Red`` component will be divided by 50, ``Green`` by 51, and ``Blue`` by 52 respectively.
 6. Keep in mind that the last ``convert_layout`` step is commented out as it is not necessary to specify the last layout conversion. The ``PrePostProcessor`` will do such conversion automatically.
@@ -197,7 +197,6 @@ The ``model`` will accept ``U8`` input with the shape of ``{1, 480, 640, 3}`` an
 Additional Resources
 ####################
 
-* :doc:`Preprocessing Details <optimizie-preprocessing/preprocessing-api-details>`
-* :doc:`Layout API overview <optimizie-preprocessing/layout-api-overview>`
-* `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__ C++ class ../../../documentation
+* :doc:`Preprocessing Details <optimize-preprocessing/preprocessing-api-details>`
+* :doc:`Layout API overview <optimize-preprocessing/layout-api-overview>`
 

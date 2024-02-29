@@ -112,7 +112,7 @@ Additional Resources
 * :doc:`Layout API overview <layout-api-overview>`
 * :doc:`Model Optimizer - Optimize Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`
 * :doc:`Model Caching Overview <../optimizing-latency/model-caching-overview>`
-* The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2023.3/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__ C++ class ../../../../documentation
-* The `ov::pass::Serialize <https://docs.openvino.ai/2023.3/classov_1_1pass_1_1Serialize.html#doxid-classov-1-1pass-1-1-serialize.html>`__ - pass to serialize model to XML/BIN
-* The `ov::set_batch <https://docs.openvino.ai/2023.3/namespaceov.html#doxid-namespaceov-1a3314e2ff91fcc9ffec05b1a77c37862b.html>`__ - update batch dimension for a given model
+* The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__ C++ class documentation
+* The `ov::pass::Serialize <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1pass_1_1_serialize.html>`__ - pass to serialize model to XML/BIN
+* The ``ov::set_batch`` - update batch dimension for a given model
 
