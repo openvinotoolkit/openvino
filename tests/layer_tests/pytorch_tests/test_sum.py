@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestSum(PytorchLayerTest):
@@ -92,10 +92,11 @@ class TestSum(PytorchLayerTest):
     @pytest.mark.parametrize("axes,keep_dims",
                              [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
     @pytest.mark.parametrize("dtype", [None, "float32", "int64"])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("input_dtype", ["float32", "uint8", "bool", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_sum(self, axes, keep_dims, out, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(axes, keep_dims, out, dtype, input_dtype),
                    ie_device, precision, ir_version,

@@ -7,7 +7,7 @@
 from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
-from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map
+from openvino.frontend.pytorch.utils import maybe_convert_max_int, make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const
 
 import torch
 
@@ -21,11 +21,11 @@ class TorchFXPythonDecoder (Decoder):
         self.m_decoders = []
         self.pt_module = pt_module
         self.fx_gm = fx_gm
-        self.input_types = input_types
+        self.input_types = [OVAny(pt_to_ov_type_map[str(t)])
+                            for t in input_types]
         self.input_shapes = input_shapes
 
         self._input_signature = []
-        self._output_names = []
 
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
 
@@ -39,25 +39,15 @@ class TorchFXPythonDecoder (Decoder):
                     self._input_signature.append(self._nodes[i].name)
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
-                    args = self._nodes[i].args
-                    if isinstance(args[0], tuple):
-                        args = args[0]
-                    if isinstance(args[0], dict):
-                        for name, output in args[0].items():
-                            self._outputs.append(self._nodes.index(output))
-                            self._output_names.append(name)
-                    else:
-                        for output in args:
-                            self._outputs.append(self._nodes.index(output))
+                    uargs = self.unpack_containers(self._nodes[i].args)
+                    self._outputs = [(arg[0], self._nodes.index(arg[1])) for arg in uargs if arg[1] is not None]
 
         elif issubclass(type(pt_module), torch.fx.Node):
 
             self._nodes = nodes  # passed from outer context
 
             # FIXME: Quadratic complexity nodes*nodes considering the outer loop over all nodes
-            for i in range(len(self._nodes)):
-                if self._nodes[i] == pt_module:
-                    self._outputs = [i]
+            self._outputs = [("", self._nodes.index(pt_module))]
 
             # None in inputs mean the input is inlined or None (also considered inlined)
             self._inputs = [self._nodes.index(
@@ -65,15 +55,20 @@ class TorchFXPythonDecoder (Decoder):
 
             # FIXME: Find a better way to pass nested tuples to OV frontend. This is a temporary solution to flatten arguments.
             new_inputs = []
+            self.input_types = []
             for i in range(len(pt_module.args)):
-                if isinstance(pt_module.args[i], list) and any([isinstance(a, torch.fx.Node) for a in pt_module.args[i]]):
+                if isinstance(pt_module.args[i], (list, tuple)) and any([isinstance(a, torch.fx.Node) for a in pt_module.args[i]]):
                     for arg in pt_module.args[i]:
                         if arg in self._nodes:
                             new_inputs.append(self._nodes.index(arg))
                         else:
                             new_inputs.append((arg,))
+                        self.input_types.append(OVAny(DecoderType.List(
+                            TorchFXPythonDecoder.get_type_for_value(arg))))
                 else:
                     new_inputs.append(self._inputs[i])
+                    self.input_types.append(
+                        TorchFXPythonDecoder.get_type_for_value(self._inputs[i]))
             self._inputs = new_inputs
 
     def inputs(self):
@@ -84,6 +79,24 @@ class TorchFXPythonDecoder (Decoder):
         return isinstance(self._inputs[index], tuple)
 
     @staticmethod
+    def unpack_containers(arg):
+        if isinstance(arg, (tuple, list)):
+            res = []
+            for e in arg:
+                res.extend(TorchFXPythonDecoder.unpack_containers(e))
+            return res
+        elif isinstance(arg, dict):
+            res = []
+            for k, e in arg.items():
+                unpacked = TorchFXPythonDecoder.unpack_containers(e)
+                if len(unpacked) == 1:
+                    unpacked[0] = (k, unpacked[0][1])
+                res.extend(unpacked)
+            return res
+        else:
+            return [("", arg)]
+
+    @staticmethod
     def arg_to_constant(arg):
         if isinstance(arg, list):
             if len(arg) > 0:
@@ -91,7 +104,7 @@ class TorchFXPythonDecoder (Decoder):
                     arg[0]).__name__], Shape([len(arg)]), arg)
             else:
                 # TODO: which type should we use if list is empty? Need a signaling value here
-                return make_constant(int, Shape([0]), [])
+                return make_constant(OVType.i32, Shape([0]), [])
         elif isinstance(arg, bool):
             return make_constant(OVType.boolean, Shape([]), [arg])
         elif isinstance(arg, int):
@@ -103,10 +116,10 @@ class TorchFXPythonDecoder (Decoder):
                 []), [arg])  # TODO: f32? why not f64?
         return None
 
-    
     def inlined_input(self, index):
         assert index < len(self._inputs), "Requested input doesn't exist"
-        assert isinstance(self._inputs[index], tuple), "Requested input which is not inlined"
+        assert isinstance(
+            self._inputs[index], tuple), "Requested input which is not inlined"
         assert self._inputs[index][0] is not None, "Requested None inlined input"
         constant = None
         arg = self._inputs[index][0]
@@ -144,13 +157,13 @@ class TorchFXPythonDecoder (Decoder):
 
     def get_input_type(self, index):
         if index < len(self.input_types):
-            return OVAny(pt_to_ov_type_map[str(self.input_types[index])])
+            return self.input_types[index]
         input = self._raw_input(index)
         return self.get_type_for_value(input)
 
     def get_output_debug_name(self, index):
-        if self._output_names is not None and index < len(self._output_names):
-            return self._output_names[index]
+        if self._outputs is not None and index < len(self._outputs) and self._outputs[index][0]:
+            return self._outputs[index][0]
         name = getattr(self.pt_module, "name", "output")
         return name + ":" + str(index)
 
@@ -168,7 +181,8 @@ class TorchFXPythonDecoder (Decoder):
                 return PartialShape(len(value.meta['tensor_meta'].shape) * [-1])
         return PartialShape.dynamic()
 
-    def get_type_for_value(self, value):
+    @staticmethod
+    def get_type_for_value(value):
         if issubclass(type(value), torch.fx.Node):
             if ('tensor_meta' in value.meta.keys()):
                 if value.meta['tensor_meta'] and isinstance(value.meta['tensor_meta'], torch.Tensor):
@@ -259,10 +273,10 @@ class TorchFXPythonDecoder (Decoder):
         return self.pt_module.schema()
 
     def outputs(self):
-        return self._outputs
+        return [o[1] for o in self._outputs]
 
     def _raw_outputs(self):
-        return [self._nodes[x] for x in self._outputs]
+        return [self._nodes[x[1]] for x in self._outputs]
 
     def _raw_output(self, index):
         return self._raw_outputs()[index]
@@ -293,7 +307,7 @@ class TorchFXPythonDecoder (Decoder):
         if self.pt_module.op == 'get_attr':
             # Extract Constant from FX module field
             ret = fetch_attr(self.fx_gm, self.pt_module.target)
-            ov_const = op.Constant(ret.numpy(force=True), shared_memory=True)
+            ov_const = torch_tensor_to_ov_const(ret, shared_memory=True)
             return ov_const.outputs()
 
         if not self.get_op_type() == 'prim::Constant':
