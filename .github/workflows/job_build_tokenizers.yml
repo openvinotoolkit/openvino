@@ -22,8 +22,7 @@ jobs:
     name: OpenVINO Tokenizers
     timeout-minutes: 25
     runs-on: ${{ inputs.runner }}
-    container:
-      image: ${{ inputs.image }}
+    container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
         shell: bash
