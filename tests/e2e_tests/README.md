@@ -31,7 +31,7 @@ following actions:
 
 #### Launch tests
 
-Module [test_base.py](https://github.com/openvinotoolkit/openvino/tree/master/tests/e2e_tests/test_base.py) is main entry-point to run E2E OSS tests.  
+[test_base.py](https://github.com/openvinotoolkit/openvino/tree/master/tests/e2e_tests/test_base.py) is the main script to run end-to-end tests.
 Run all end-to-end tests in `pipelines/`:
 ```bash
 pytest test_base.py
