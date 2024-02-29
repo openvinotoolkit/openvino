@@ -5,18 +5,18 @@ RNNSequence
 
 
 .. meta::
-  :description: Learn about RNNSequence-5 - a sequence processing operation, which 
+  :description: Learn about RNNSequence-5 - a sequence processing operation, which
                 can be performed on six required input tensors.
 
 **Versioned name**: *RNNSequence-5*
 
 **Category**: *Sequence processing*
 
-**Short description**: *RNNSequence* operation represents a series of RNN cells. Each cell is implemented as `RNNCell <#RNNCell>`__ operation.
+**Short description**: *RNNSequence* operation represents a series of RNN cells. Each cell is implemented as :doc:`RNNCell <rnn-cell-3>` operation.
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in `RNNCell <#RNNCell>`__ operation. *RNNSequence* represents a sequence of RNN cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX RNN operator defined `RNNCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#rnn>`__.
+A single cell in the sequence is implemented in the same way as in :doc:`RNNCell <rnn-cell-3>` operation. *RNNSequence* represents a sequence of RNN cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX RNN operator defined `RNNCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#rnn>`__.
 
 
 **Attributes**
