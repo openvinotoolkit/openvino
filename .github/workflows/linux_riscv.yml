@@ -63,7 +63,7 @@ jobs:
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
       CCACHE_SHARE_DIR: /mount/caches/ccache/ubuntu22_riscv64
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 5G
+      CCACHE_MAXSIZE: 1G
       CCACHE_DIR: /__w/openvino/ccache
 
       if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
@@ -222,6 +222,9 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
+
+      - name: Clean ccache
+        run: ${CCACHE_DIR} --cleanup --evict-older-than 7200s
 
       - name: Save cache
         run: |
