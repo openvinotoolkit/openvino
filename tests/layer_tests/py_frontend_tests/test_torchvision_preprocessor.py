@@ -66,6 +66,10 @@ def test_normalize():
     assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
+@pytest.mark.skipif(
+    condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+    reason="Ticket: 114816",
+)
 @pytest.mark.parametrize(
     ("target_size", "interpolation", "tolerance"),
     [
@@ -78,8 +82,6 @@ def test_normalize():
     ],
 )
 def test_resize(target_size, interpolation, tolerance):
-    if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
-        pytest.skip("Ticket: 114816")
     test_input = np.random.randint(255, size=target_size, dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [
@@ -219,9 +221,11 @@ def test_pipeline_1():
     assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
+@pytest.mark.skipif(
+    condition=platform.machine() in ("arm", "armv7l", "aarch64", "arm64", "ARM64"),
+    reason="Ticket: 114816",
+)
 def test_pipeline_2():
-    if platform.machine() in ["arm", "armv7l", "aarch64", "arm64", "ARM64"]:
-        pytest.skip("Ticket: 114816")
     test_input = np.random.randint(255, size=(224, 224, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(
         [

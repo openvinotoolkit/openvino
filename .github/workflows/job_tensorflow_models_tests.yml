@@ -1,4 +1,4 @@
-name: TensorFlow Hub Models tests
+name: TensorFlow Models tests
 
 on:
   workflow_call:
@@ -12,15 +12,15 @@ on:
         type: string
         required: false
         default: '{"image": null}'
-      event:
-        description: 'Event that triggered the workflow. E.g., "schedule" for nightly runs'
+      model_scope:
+        description: 'Scope of models for testing.'
         type: string
         required: true
 
 jobs:
-  TensorFlow_Hub_Models_Tests:
-    name: TensorFlow Hub Models tests
-    timeout-minutes: ${{ inputs.event == 'schedule' && 400 || 25 }}
+  TensorFlow_Models_Tests:
+    name: TensorFlow Models tests
+    timeout-minutes: ${{ inputs.model_scope != 'precommit' && 400 || 25 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
@@ -47,19 +47,19 @@ jobs:
           fi
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -108,22 +108,21 @@ jobs:
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
-      - name: Install TF Hub tests requirements
-        run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/requirements.txt
+      - name: Install TF Models tests requirements
+        run: python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/requirements.txt
 
-      - name: TensorFlow Hub Tests - TF FE
+      - name: TensorFlow Models Tests - TF FE
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tf_hub_tests/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-tf_hub_tf_fe.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/tensorflow/ -m ${{ inputs.model_scope }} --html=${INSTALL_TEST_DIR}/TEST-tf_fe_models_${{ inputs.model_scope }}.html --self-contained-html -v
         env:
-          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: test-results-tensorflow-hub-models
+          name: test-results-tensorflow-models-${{ inputs.model_scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'
