@@ -13,10 +13,8 @@ Automatic Device Selection
    :maxdepth: 1
    :hidden:
 
-   Debugging Auto-Device Plugin <auto-device-selection/gpu-remote-tensor-apirst>
+   Debugging Auto-Device Plugin <auto-device-selection/debugging-auto-device>
 
-
-.. _how-auto-works:
 
 The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device,
 which does not bind to a specific type of hardware, but rather selects the processing unit
@@ -71,7 +69,7 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
 unable to support the initial model compilation stage. The models with dynamic
-input/output or stateful :doc:`stateful<../stateful-models-intro>`
+input/output or stateful :doc:`stateful <../stateful-models-intro>`
 operations will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
@@ -300,7 +298,9 @@ You can also exclude hardware devices from AUTO, for example, to reserve CPU for
 
 AUTO will then query all available devices and remove CPU from the candidate list.
 
-Note that if you choose to exclude CPU from device candidate list, CPU will not be able to support the initial model compilation stage. See more information in :ref:`How AUTO Works <how-auto-works>`.
+Note that if you choose to exclude CPU from device candidate list, CPU will not be able to
+support the initial model compilation stage. See more information in
+`How AUTO Works <#auto-device-selection>`__.
 
 
 Performance Hints for AUTO
@@ -308,11 +308,15 @@ Performance Hints for AUTO
 
 The ``ov::hint::performance_mode`` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is ``LATENCY``.
 
-The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an asynchronous inference pipeline. For information on asynchronous inference, see the :doc:`Async API ../../../documentation <../integrate-openvino-with-your-application/inference-request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
+The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an
+asynchronous inference pipeline. For information on asynchronous inference, see the
+:doc:`Async API documentation < ./../../integrate-openvino-with-your-application/
+
+       ../integrate-openvino-with-your-application/inference-request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
 
 * :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
-* `Notebook - Asynchronous Inference with OpenVINO™ <notebooks/115-async-api-with-output.html>`__
-* `Notebook - Automatic Device Selection with OpenVINO <notebooks/106-auto-device-with-output.html>`__
+* `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/115-async-api-with-output.html>`__
+* `Notebook - Automatic Device Selection with OpenVINO <./../../../notebooks/106-auto-device-with-output.html>`__
 
 LATENCY
 --------------------
@@ -507,7 +511,7 @@ For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino
 Additional Resources
 ####################
 
-- :doc:`Debugging AUTO <auto-device-selection/gpu-remote-tensor-apirst>`
+- :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
 - :doc:`Running on Multiple Devices Simultaneously <multi-device>`
 - :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 

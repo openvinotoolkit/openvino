@@ -22,7 +22,8 @@ The following instructions are for cases where you need to change the model inpu
 The reshape method
 ########################
 
-The reshape method is used as ``ov::Model::reshape`` in C++ and ``Model.reshape``
+The reshape method is used as ``ov::Model::reshape`` in C++ and
+`Model.reshape <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__
 in Python. The method updates input shapes and propagates them down to the outputs
 of the model through all intermediate layers. The code below is an example of how
 to set a new batch size with the ``reshape`` method:
@@ -207,8 +208,8 @@ Additional Resources
 ####################
 
 * :doc:`Extensibility documentation <../../documentation/openvino-extensibility>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
-* ``ov::Model::reshape`` - in OpenVINO Runtime C++ API
-* ``Model.reshape`` - in OpenVINO Runtime Python API.
+* `ov::Model::reshape <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_model.html#doxid-classov-1-1-model-1aa21aff80598d5089d591888a4c7f33ae>`__ - in OpenVINO Runtime C++ API
+* `Model.reshape <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <dynamic-shapes>`
 * :doc:`OpenVINO samples <../../learn-openvino/openvino-samples>`
 * :doc:`Preprocessing API <optimize-inference/optimize-preprocessing>`

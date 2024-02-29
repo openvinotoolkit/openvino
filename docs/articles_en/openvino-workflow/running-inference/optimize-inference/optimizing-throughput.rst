@@ -5,8 +5,8 @@ Optimizing for Throughput
 
 
 .. meta::
-   :description: Throughput-oriented approaches in OpenVINO involve 
-                 execution of a large number of inference requests 
+   :description: Throughput-oriented approaches in OpenVINO involve
+                 execution of a large number of inference requests
                  simultaneously which improves the device utilization.
 
 
@@ -14,7 +14,7 @@ Optimizing for Throughput
    :maxdepth: 1
    :hidden:
 
-   Advanced Throughput Options <optimizing-throughput-advanced>
+   Advanced Throughput Options <optimizing-throughput/advanced_throughput_options>
 
 
 As described in the section on the :doc:`latency-specific optimizations <optimizing-latency>`, one of the possible use cases is delivering every single request with minimal delay.
@@ -29,7 +29,7 @@ Basic and Advanced Ways of Leveraging Throughput
 There are two ways of leveraging throughput with individual devices:
 
 * **Basic (high-level)** flow with :doc:`OpenVINO performance hints <high-level-performance-hints>` which is inherently **portable and future-proof**.
-* **Advanced (low-level)** approach of explicit  **batching** and **streams**. For more details, see the :doc:`runtime inference optimizations <optimizing-throughput-advanced>`
+* **Advanced (low-level)** approach of explicit  **batching** and **streams**. For more details, see the :doc:`Advanced Throughput Options <optimizing-throughput/advanced_throughput_options>`
 
 In both cases, the application should be designed to execute multiple inference requests in parallel, as described in the following section.
 
@@ -43,20 +43,20 @@ In general, most throughput-oriented inference applications should:
 * Expose substantial amounts of *input* parallelism (e.g. process multiple video- or audio- sources, text documents, etc).
 * Decompose the data flow into a collection of concurrent inference requests that are aggressively scheduled to be executed in parallel:
 
-  * Setup the configuration for the *device* (for example, as parameters of the ``ov::Core::compile_model``) via either previously introduced :doc:`low-level explicit options <optimizing-throughput-advanced>` or :doc:`OpenVINO performance hints <high-level-performance-hints>` (**preferable**):
-    
+  * Setup the configuration for the *device* (for example, as parameters of the ``ov::Core::compile_model``) via either previously introduced :doc:`low-level explicit options <./optimizing-throughput/advanced_throughput_options>` or :doc:`OpenVINO performance hints <high-level-performance-hints>` (**preferable**):
+
     .. tab-set::
- 
+
        .. tab-item:: Python
           :sync: py
-    
+
           .. doxygensnippet:: docs/snippets/ov_auto_batching.py
              :language: python
              :fragment: [compile_model]
-    
+
        .. tab-item:: C++
           :sync: cpp
-    
+
           .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
              :language: cpp
              :fragment: [compile_model]
@@ -74,7 +74,7 @@ Just like with other throughput-oriented scenarios, there are several major pre-
 * Using the :ref:`Asynchronous API <async_api>` and :doc:`callbacks <../integrate-openvino-with-your-application/inference-request>` in particular.
 * Providing the multi-device (and hence the underlying devices) with enough data to crunch. As the inference requests are naturally independent data pieces, the multi-device performs load-balancing at the "requests" (outermost) level to minimize the scheduling overhead.
 
-Keep in mind that the resulting performance is usually a fraction of the "ideal" (plain sum) value, when the devices compete for certain ../../../about-openvino/additional-resources such as the memory-bandwidth, which is shared between CPU and iGPU.
+Keep in mind that the resulting performance is usually a fraction of the "ideal" (plain sum) value, when the devices compete for certain resources such as the memory-bandwidth, which is shared between CPU and iGPU.
 
 .. note::
 
