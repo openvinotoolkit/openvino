@@ -13,7 +13,6 @@ Optimize Inference
    optimize-inference/precision-control
    optimize-inference/optimizing-latency
    optimize-inference/optimizing-throughput
-   Advanced Throughput Options <optimize-inference/optimizing-throughput_advanced>
    optimize-inference/optimize-preprocessing
    optimize-inference/optimizing-low-level-implementation
    Optimizing memory usage <optimize-inference/optimizing-memory-usage>
