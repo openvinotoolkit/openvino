@@ -145,6 +145,7 @@ class CommitSliderTest(TestCase):
     def testForsubstitutionRule(self):
         from utils.helpers import applySubstitutionRule
         cfg = {
+                "wrongDst": "{commitHash} is unchanged",
                 "dst": {
                     "complex": {
                         "path": "{commitHash} is one"
@@ -153,8 +154,8 @@ class CommitSliderTest(TestCase):
                 "src": {
                     "complex": {
                         "path": {
-                            "1": "one",
-                            "2": "two"
+                            "one": "1",
+                            "two": "2"
                         }
                     }
                 }
@@ -166,8 +167,35 @@ class CommitSliderTest(TestCase):
             "from": "$.src.complex.path",
             "to": "$.dst.complex.path"
         }
-        applySubstitutionRule(cfg, rule, "1")
+        applySubstitutionRule(cfg, rule, "one")
         self.assertEqual(
             cfg["dst"]["complex"]["path"],
-            "one is one"
+            "1 is one"
+        )
+        self.assertEqual(
+            cfg["wrongDst"],
+            "{commitHash} is unchanged"
+        )
+
+    @skip_commit_slider_devtest
+    def testForDeepUpdate(self):
+        from utils.helpers import deepMapUpdate
+        cfg = {
+            "another": {
+                "path": "not updated"
+            },
+            "path": {
+                "to": {
+                    "placeholder": "not updated"
+                }
+            }
+        }
+        cfg = deepMapUpdate(cfg, ["path", "to", "placeholder"], "updated")
+        self.assertEqual(
+            cfg["path"]["to"]["placeholder"],
+            "updated"
+        )
+        self.assertEqual(
+            cfg["another"]["path"],
+            "not updated"
         )

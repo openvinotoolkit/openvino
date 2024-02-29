@@ -573,12 +573,19 @@ def applySubstitutionRule(cfg: map, rule: map, commit: str):
         srcPos = srcPos[item]
     for item in pathToDst:
         dstPos = dstPos[item]
-    formatJSON(
-        cfg,
+    dstPos = formatJSON(
+        dstPos,
         lambda content:
         content.format(
             commitHash=srcPos[commit]
         )
     )
+    cfg = deepMapUpdate(cfg, pathToDst, dstPos)
 
-    
+def deepMapUpdate(content: map, path: list, substitution):
+    if not path:
+        return substitution
+    else:
+        root = path.pop(0)
+        content[root] = deepMapUpdate(content[root], path, substitution)
+        return content
