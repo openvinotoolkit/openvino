@@ -37,14 +37,13 @@ KERNEL(slice_ref)(OPTIONAL_SHAPE_INFO_ARG
 
     long slice_step[INPUT0_DIMS];
     long slice_start[INPUT0_DIMS];
-    #pragma unroll
-    for(int i = 0; i < INPUT0_DIMS; ++i) {
+
+    unroll_for(int i = 0; i < INPUT0_DIMS; ++i) {
         slice_step[i] = 1;
         slice_start[i] = 0;
     }
 
-    #pragma unroll
-    for(int i = 0; i < AXES_BUFFER_SIZE; ++i) {
+    unroll_for(int i = 0; i < AXES_BUFFER_SIZE; ++i) {
         const long axis = axes_buff[i];
         slice_step[axis] = step_buff[i];
         slice_start[axis] = start_buff[i];

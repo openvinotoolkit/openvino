@@ -95,7 +95,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                                      SliceKernelRefNeededInputs::kStart,
                                      params.compile_time_start,
                                      params.start_data_type,
-                                     params.inputs));
+                                     params.inputs),
+                        "[GPU][SliceOp]: Slice op definition does not contain start input!");
 
         // NOTE: Stop input is not used by the slice kernel, as this information
         // is implicitely passed with output shape.
@@ -104,7 +105,8 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
                                      SliceKernelRefNeededInputs::kStep,
                                      params.compile_time_step,
                                      params.step_data_type,
-                                     params.inputs));
+                                     params.inputs),
+                        "[GPU][SliceOp]: Slice op definition does not contain step input!");
 
         const auto input_rank = params.inputs[0].Dimentions();
         if (!PrepareInput(arg,
@@ -139,6 +141,7 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
     }
 
 private:
+    // Returns true if input was prepared(was avaiable in node def), false otherwise.
     static bool PrepareInput(const slice_node& arg,
                              SliceKernelRefNeededInputs::InputIndices idx,
                              std::vector<std::int64_t>& out_compile_time_buff,

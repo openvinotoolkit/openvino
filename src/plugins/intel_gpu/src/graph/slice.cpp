@@ -18,8 +18,8 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
 
     const bool axes_in_runtime =
         ((node_inputs.size() == InputIndices::kInputsNum) && !node_inputs[InputIndices::kAxes].first->is_constant());
-    const bool start_in_runtime = node_inputs[InputIndices::kStart].first->is_dynamic();
-    const bool step_in_runtime = node_inputs[InputIndices::kStep].first->is_dynamic();
+    const bool start_in_runtime = !node_inputs[InputIndices::kStart].first->is_constant();
+    const bool step_in_runtime = !node_inputs[InputIndices::kStep].first->is_constant();
 
     inputs.neededIndexes.push_back(InputIndices::kData);
     if (start_in_runtime)
