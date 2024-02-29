@@ -107,8 +107,8 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
-
 }  // namespace set_7
+
 namespace set_9 {
 // This version supports ONNX BatchNormalization-7 and BatchNormalization-9
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
@@ -127,8 +127,8 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
 }
-
 }  // namespace set_9
+
 namespace set_14 {
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
@@ -139,13 +139,34 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     auto var = inputs.at(4);
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
+    int training_mode{node.get_attribute_value<int>("training_mode", 0)};
 
     CHECK_VALID_NODE(node,
-                     node.get_outputs_size() == 1,
-                     "Inference set in flag training_mode, but expected more than a single output");
+                     training_mode == false && node.get_outputs_size() == 1,
+                     "Training mode of BatchNormalization is not supported.");
     return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
+}
 }  // namespace set_14
-namespace set_15 {}  // namespace set_15
+
+namespace set_15 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector inputs{node.get_ov_inputs()};
+    auto x = inputs.at(0);
+    auto scale = inputs.at(1);
+    auto bias = inputs.at(2);
+    auto mean = inputs.at(3);
+    auto var = inputs.at(4);
+
+    double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
+    int training_mode{node.get_attribute_value<int>("training_mode", 0)};
+
+    CHECK_VALID_NODE(node,
+                     training_mode == false && node.get_outputs_size() == 1,
+                     "Training mode of BatchNormalization is not supported.");
+    return {std::make_shared<v5::BatchNormInference>(x, scale, bias, mean, var, epsilon)};
+}
+}  // namespace set_15
+
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
