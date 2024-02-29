@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
+#include <chrono>
 #include <fstream>
+#include <future>
 #include <thread>
 
 #ifdef _WIN32
@@ -471,27 +472,37 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
+    std::exception_ptr expected_outputs_error, actual_output_error;
 
 #ifndef NDEBUG
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    std::thread t_device([this, &actualOutputs] {
+    std::thread t_device([this, &actualOutputs, &actual_output_error] {
+        // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
+        // If exception has been not caught then application will be terminated with crash. (CVS-133676)
         try {
             actualOutputs = get_plugin_outputs();
-        } catch (const std::exception& ex) {
-            FAIL() << ex.what();
+        } catch (...) {
+            actual_output_error = std::current_exception();
         }
     });
-    std::thread t_ref([this, &expectedOutputs] {
+    std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
         try {
             expectedOutputs = calculate_refs();
-        } catch (const std::exception& ex) {
-            FAIL() << ex.what();
+        } catch (...) {
+            expected_outputs_error = std::current_exception();
         }
     });
     t_device.join();
     t_ref.join();
+
+    if (actual_output_error) {
+        std::rethrow_exception(actual_output_error);
+    }
+    if (expected_outputs_error) {
+        std::rethrow_exception(expected_outputs_error);
+    }
 #endif
 
     if (expectedOutputs.empty()) {
