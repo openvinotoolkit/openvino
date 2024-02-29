@@ -243,7 +243,7 @@ jobs:
       - name: Cleanup cache
         run: |
           echo "Delete cache files if they have not been used in over 1 hour"
-          [ ! -z "${CCACHE_SHARE_DIR}" ] && find ${CCACHE_SHARE_DIR} ! -type d -atime +3600s -delete
+          [ ! -z "${CCACHE_SHARE_DIR}" ] && find ${CCACHE_SHARE_DIR} ! -type d -amin +60 -delete
 
       - name: Post-Collecting Cache Info
         run: |
