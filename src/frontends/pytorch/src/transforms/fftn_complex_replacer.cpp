@@ -7,11 +7,11 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/dft.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/dft.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/select.hpp"
@@ -76,7 +76,7 @@ FFTNComplexReplacer::FFTNComplexReplacer() {
             dim = std::make_shared<v4::Range>(const_0, input_rank_scalar, const_1, element::i32);
         }
 
-        // Handle s parameter containing vector of intigers indicating signal sizes for dimensions.
+        // Handle s parameter containing vector of integers indicating signal sizes for dimensions.
         std::shared_ptr<ov::Node> s;
         if (!s_use_default) {
             // Values for s were provided. Replace -1 values with default full size in given dimension.

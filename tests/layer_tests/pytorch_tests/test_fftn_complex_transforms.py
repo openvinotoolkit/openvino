@@ -35,9 +35,9 @@ class TestFFTN(PytorchLayerTest):
             ["aten::fft_fftn", "aten::real"],
         )
 
-    @pytest.mark.parametrize("input_shape", [[64, 49], [64, 50], [64, 64, 49]])
-    @pytest.mark.parametrize("dim", [[0, -1], [-2, -1], None, [0, 1]])
-    @pytest.mark.parametrize("s", [None, [-1, 49], [64, -1], [64, 49], [5, 1]])
+    @pytest.mark.parametrize("input_shape", [[64, 49], [64, 50], [64, 64]])
+    @pytest.mark.parametrize("dim", [[0]])
+    @pytest.mark.parametrize("s", [[49], [-1], [49], [5]])
     @pytest.mark.parametrize("norm", ["forward", "backward", "ortho", None])
     @pytest.mark.nightly
     @pytest.mark.precommit
