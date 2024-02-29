@@ -5,7 +5,7 @@ Loop
 
 
 .. meta::
-  :description: Learn about Loop-5 - an infrastructure operation, which 
+  :description: Learn about Loop-5 - an infrastructure operation, which
                 can be performed on two required and one optional input tensor.
 
 **Versioned name**: *Loop-5*
@@ -115,6 +115,7 @@ Loop operation description in the IR also has several special sections: ``body``
 
       * **Description**: if *axis* is specified for ``output`` entry, then it is an axis to concatenate the body ``Result`` output across all iterations.
       If *axis* is specified for ``input`` entry, then it is an axis to iterate through, it triggers the slicing of the input tensor.
+
       * **Range of values**: an integer. Negative value means counting dimension from the end.
       * **Type**: ``int``
       * **Default value**: None
