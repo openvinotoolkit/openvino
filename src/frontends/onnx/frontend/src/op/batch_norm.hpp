@@ -15,10 +15,30 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
+namespace set_6 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_6
+
 namespace set_7 {
 ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_7
+
+namespace set_9 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_9
+
+namespace set_14 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_14
+
+namespace set_15 {
+ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node);
+
+}  // namespace set_15
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
