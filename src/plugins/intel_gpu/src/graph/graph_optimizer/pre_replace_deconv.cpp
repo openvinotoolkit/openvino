@@ -20,6 +20,7 @@ void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;
 
     auto& stream = p.get_stream();
+    const auto supports_immad = p.get_engine().get_device_info().supports_immad;
 
     auto itr = p.nodes_map.begin();
     while (itr != p.nodes_map.end()) {
@@ -28,6 +29,9 @@ void pre_replace_deconv::run(program& p) {
         // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
             if (node->is_dynamic())
+                continue;
+
+            if (supports_immad)
                 continue;
 
             auto& deconv_node = node->as<deconvolution>();
