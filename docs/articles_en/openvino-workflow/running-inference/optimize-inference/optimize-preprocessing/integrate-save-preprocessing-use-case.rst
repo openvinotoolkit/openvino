@@ -114,4 +114,5 @@ Additional Resources
 * :doc:`Model Caching Overview <../optimizing-latency/model-caching-overview>`
 * The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__ C++ class documentation
 * The `ov::pass::Serialize <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1pass_1_1_serialize.html>`__ - pass to serialize model to XML/BIN
+* The ``ov::set_batch`` - update batch dimension for a given model
 

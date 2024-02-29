@@ -88,7 +88,7 @@ When comparing the OpenVINO Runtime performance with the framework or another re
 -	Wrap the exact inference execution (for examples, see :doc:`Benchmark app <../../learn-openvino/openvino-samples/benchmark-tool>`).
 -	Do not include model loading time.
 -	Ensure that the inputs are identical for OpenVINO Runtime and the framework. For example, watch out for random values that can be used to populate the inputs.
--	In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing>`.
+-	In situations when any user-side pre-processing should be tracked separately, consider :doc:`image pre-processing and conversion <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`.
 -  When applicable, leverage the :doc:`Dynamic Shapes support <../../openvino-workflow/running-inference/dynamic-shapes>`.
 -	If possible, demand the same accuracy. For example, TensorFlow allows ``FP16`` execution, so when comparing to that, make sure to test the OpenVINO Runtime with the ``FP16`` as well.
 
@@ -100,7 +100,7 @@ Both :doc:`C++ and Python <../../learn-openvino/openvino-samples/benchmark-tool>
 versions of the *benchmark_app* support a ``-pc`` command-line parameter that outputs internal execution breakdown.
 
 For example, the table shown below is part of performance counters for quantized
-`TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_../../documentation/legacy-features/model-zoo/tree/master/models/public/resnet-50-tf>`__
+`TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__
 model inference on :doc:`CPU Plugin <../../openvino-workflow/running-inference/inference-devices-and-modes/cpu-device>`.
 Keep in mind that since the device is CPU, the ``realTime`` wall clock and the ``cpu`` time layers are the same.
 Information about layer precision is also stored in the performance counters.

@@ -18,7 +18,7 @@ Below is a full list of pre-processing API capabilities:
 Addressing Particular Input/Output
 ++++++++++++++++++++++++++++++++++
 
-If the model has only one input, then simple `ov::preprocess::PrePostProcessor::input() <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor-1a611b930e59cd16176f380d21e755cda1>`__ will get a reference to pre-processing builder for this input (a tensor, the steps, a model):
+If the model has only one input, then simple ``ov::preprocess::PrePostProcessor::input()`` will get a reference to pre-processing builder for this input (a tensor, the steps, a model):
 
 
 .. tab-set::
@@ -79,16 +79,16 @@ Or by it's index.
 
 C++ references:
 
-* `ov::preprocess::InputTensorInfo <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info>`__
-* `ov::preprocess::OutputTensorInfo <classov_1_1preprocess_1_1OutputTensorInfo.html#doxid-classov-1-1preprocess-1-1-output-tensor-info>`__
-* `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
+* ``ov::preprocess::InputTensorInfo``
+* ``ov::preprocess::OutputTensorInfo``
+* ``ov::preprocess::PrePostProcessor``
 
 Supported Pre-processing Operations
 +++++++++++++++++++++++++++++++++++
 
 C++ references:
 
-* `ov::preprocess::PreProcessSteps <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps>`__
+* ``ov::preprocess::PreProcessSteps``
 
 Mean/Scale Normalization
 ------------------------
@@ -135,8 +135,8 @@ In Computer Vision area normalization is usually done separately for R, G, B val
 
 C++ references:
 
-* `ov::preprocess::PreProcessSteps::mean() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aef1bb8c1fc5eb0014b07b78749c432dc>`__
-* `ov::preprocess::PreProcessSteps::scale() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aeacaf406d72a238e31a359798ebdb3b7>`__
+* ``ov::preprocess::PreProcessSteps::mean()``
+* ``ov::preprocess::PreProcessSteps::scale()``
 
 
 Converting Precision
@@ -168,8 +168,8 @@ To integrate precision conversion into an execution graph as a pre-processing st
 
 C++ references:
 
-* `ov::preprocess::InputTensorInfo::set_element_type() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
-* `ov::preprocess::PreProcessSteps::convert_element_type() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aac6316155a1690609eb320637c193d50>`__
+* ```ov::preprocess::InputTensorInfo::set_element_type()``
+* ```ov::preprocess::PreProcessSteps::convert_element_type()``
 
 
 Converting layout (transposing)
@@ -221,10 +221,10 @@ It performs the same transpose. However, the approach where source and destinati
 
 C++ references:
 
-* `ov::preprocess::PreProcessSteps::convert_layout() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a0f65fdadca32e90f5ef3a323b640b978>`__
-* `ov::preprocess::InputTensorInfo::set_layout() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a6f70eb97d02e90a30cd748573abd7b4b>`__
-* `ov::preprocess::InputModelInfo::set_layout() <classov_1_1preprocess_1_1InputModelInfo.html#doxid-classov-1-1preprocess-1-1-input-model-info-1af309bac02af20d048e349a2d421c1169>`__
-* `ov::Layout <classov_1_1Layout.html#doxid-classov-1-1-layout>`__
+* ``ov::preprocess::PreProcessSteps::convert_layout()``
+* ``ov::preprocess::InputTensorInfo::set_layout()``
+* ``ov::preprocess::InputModelInfo::set_layout()``
+* ``ov::Layout``
 
 Resizing Image
 --------------------
@@ -272,8 +272,8 @@ When original model has known spatial dimensions (``width``+``height``), target 
 
 
 C++ references:
-* `ov::preprocess::PreProcessSteps::resize()`
-* `ov::preprocess::ResizeAlgorithm`
+* ``ov::preprocess::PreProcessSteps::resize()``
+* ``ov::preprocess::ResizeAlgorithm``
 
 
 Color Conversion
@@ -327,8 +327,8 @@ In this example, the original ``input`` is split to ``input/y`` and ``input/uv``
 
 C++ references:
 
-* `ov::preprocess::ColorFormat <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aef1bb8c1fc5eb0014b07b78749c432dc>`__
-* `ov::preprocess::PreProcessSteps::convert_color <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aac6316155a1690609eb320637c193d50>`__
+* ``ov::preprocess::ColorFormat``
+* ``ov::preprocess::PreProcessSteps::convert_color``
 
 
 Custom Operations
@@ -363,7 +363,7 @@ If there is a need to insert additional operations to the execution graph right 
 
 C++ references:
 
-* `ov::preprocess::PreProcessSteps::custom() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aa88ce522ef69253e4d978f10c3b566f1>`__
+* ``ov::preprocess::PreProcessSteps::custom()``
 * :doc:`Available Operations Sets <../../../../documentation/openvino-ir-format/operation-sets/available-opsets>`
 
 Post-processing
@@ -405,8 +405,8 @@ Usage of these operations is similar to pre-processing. See the following exampl
 
 C++ references:
 
-* `ov::preprocess::PostProcessSteps <classov_1_1preprocess_1_1PostProcessSteps.html#doxid-classov-1-1preprocess-1-1-post-process-steps>`__
-* `ov::preprocess::OutputModelInfo <classov_1_1preprocess_1_1OutputModelInfo.html#doxid-classov-1-1preprocess-1-1-output-model-info>`__
-* `ov::preprocess::OutputTensorInfo <classov_1_1preprocess_1_1OutputTensorInfo.html#doxid-classov-1-1preprocess-1-1-output-tensor-info>`__
+* ``ov::preprocess::PostProcessSteps``
+* ``ov::preprocess::OutputModelInfo``
+* ``ov::preprocess::OutputTensorInfo``
 
 
