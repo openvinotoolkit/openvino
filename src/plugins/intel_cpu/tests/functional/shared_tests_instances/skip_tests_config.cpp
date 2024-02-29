@@ -176,21 +176,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=1_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=18_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
-        // Issue: 121228
-        R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*bf16.*)",
-        // Issue: 121313
-        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
-        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Issue: 122321
         R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
-        // Issue: 122177
-        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
-        // Issue: 122081
-        R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.Inference/.*_TS=\(3.2.5.7\).*)",
-        // Issue: 122094
-        R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321
@@ -224,15 +213,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
-        // Issue: 121709
-        retVector.emplace_back(
-            R"(smoke_ConversionLayerTest/ConversionLayerTest.Inference/conversionOpType=Convert_IS.*_inputPRC=f16_targetPRC=(u|i)8_trgDev=CPU.*)");
-        // Issue: 121710
-        retVector.emplace_back(
-            R"(smoke_GRUCellCommon/GRUCellTest.Inference/decomposition0_batch=5_.*WType=CONSTANT_RType=CONSTANT_BType=CONSTANT_netPRC=f16_targetDevice=CPU_.*)");
-        // Issue: 121715
-        retVector.emplace_back(
-            R"(smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
         retVector.emplace_back(
             R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
         // TODO: enable once streams / tput mode is supported
@@ -286,6 +266,10 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_ARM)
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
+    // not supported
+    retVector.emplace_back(R"(.*fma.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*int_jit.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*dyn.*EltwiseChainTest.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -303,10 +287,6 @@ std::vector<std::string> disabledTestPatterns() {
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
-#endif
-
-#if defined(_WIN32)
-    retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
 #endif
 
     if (!ov::with_cpu_x86_avx512_core()) {
