@@ -91,26 +91,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_empty_fusing, ConvolutionLayerCPUTes
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<fusingSpecificParams> fusingParamsSet_dynBatch{
-        emptyFusingSpec,
-        fusingAddPerChannel,
-        fusingReluScaleShift
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_dynBatch, ConvolutionLayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::Combine(
-                                         convParams_ExplicitPadding_2D(),
-                                         ::testing::Values(ElementType::f32),
-                                         ::testing::Values(ElementType::undefined),
-                                         ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapes2d_dynBatch()),
-                                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_2D())),
-                                 ::testing::ValuesIn(fusingParamsSet_dynBatch),
-                                 ::testing::Values(empty_plugin_config)),
-                         ConvolutionLayerCPUTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(Conv_2D_FP32_dilated_empty_fusing, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
