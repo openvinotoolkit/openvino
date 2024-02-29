@@ -7,8 +7,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/util/log.hpp"
-#include "utils.hpp"
+#include "openvino/op/subtract.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -18,35 +17,30 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 
-ov::OutputVector translate_rank_op(const NodeContext &node) {
-  default_op_checks(node, 1, {"Rank"}, true);
-  auto input = node.get_input(0);
-  auto complex_type_mark =
-      as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
-  auto input_shape = make_shared<v3::ShapeOf>(input, ov::element::i32);
-  if (complex_type_mark) {
-    input = complex_type_mark->input_value(0);
+ov::OutputVector translate_rank_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"Rank"}, true);
+    auto input = node.get_input(0);
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex_type_mark) {
+        input = complex_type_mark->input_value(0);
+        auto input_shape = make_shared<v3::ShapeOf>(input, ov::element::i32);
 
-    auto unsqueeze_input_rank =
-        make_shared<v3::ShapeOf>(input_shape, ov::element::i32);
-    auto input_rank_with_complex =
-        make_shared<v0::Squeeze>(unsqueeze_input_rank);
-    // Squeeze again to eliminate the extra dimension
-    auto input_rank = make_shared<v0::Squeeze>(
-        input_rank_with_complex,
-        make_shared<v0::Constant>(ov::element::i32, Shape{1},
-                                  input_shape->get_input_size() - 1));
+        auto unsqueeze_input_rank = make_shared<v3::ShapeOf>(input_shape, ov::element::i32);
+        auto input_rank_with_complex = make_shared<v0::Squeeze>(unsqueeze_input_rank);
+        // eliminate the extra dimension
+        auto input_rank = make_shared<v1::Subtract>(input_rank_with_complex,
+                                                    make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1));
+        set_node_name(node.get_name(), input_rank);
+        return {input_rank->output(0)};
+    }
+    auto input_shape = make_shared<v3::ShapeOf>(input, ov::element::i32);
+    auto unsqueeze_input_rank = make_shared<v3::ShapeOf>(input_shape, ov::element::i32);
+    auto input_rank = make_shared<v0::Squeeze>(unsqueeze_input_rank);
     set_node_name(node.get_name(), input_rank);
     return {input_rank};
-  }
-  auto unsqueeze_input_rank =
-      make_shared<v3::ShapeOf>(input_shape, ov::element::i32);
-  auto input_rank = make_shared<v0::Squeeze>(unsqueeze_input_rank);
-  set_node_name(node.get_name(), input_rank);
-  return {input_rank};
 }
 
-} // namespace op
-} // namespace tensorflow
-} // namespace frontend
-} // namespace ov
+}  // namespace op
+}  // namespace tensorflow
+}  // namespace frontend
+}  // namespace ov
