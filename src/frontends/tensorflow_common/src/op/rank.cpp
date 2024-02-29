@@ -28,8 +28,8 @@ ov::OutputVector translate_rank_op(const NodeContext& node) {
         auto unsqueeze_input_rank = make_shared<v3::ShapeOf>(input_shape, ov::element::i32);
         auto input_rank_with_complex = make_shared<v0::Squeeze>(unsqueeze_input_rank);
         // eliminate the extra dimension
-        auto input_rank = make_shared<v1::Subtract>(input_rank_with_complex,
-                                                    make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
+        auto input_rank =
+            make_shared<v1::Subtract>(input_rank_with_complex, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
         set_node_name(node.get_name(), input_rank);
         return {input_rank->output(0)};
     }
