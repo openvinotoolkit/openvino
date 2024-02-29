@@ -62,24 +62,6 @@ OutputVector translate_bitwise_xor(const NodeContext& context) {
     return {xor_x};
 };
 
-OutputVector translate_bitwise_not_fx(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
-    auto x = context.get_input(0);
-    if (x.get_element_type() != element::boolean) {
-        auto x_bool = context.mark_node(std::make_shared<ov::op::v0::Convert>(x, element::boolean));
-        auto not_x = context.mark_node(std::make_shared<ov::op::v1::LogicalNot>(x_bool));
-        if (!context.input_is_none(1)) {
-            context.mutate_input(1, not_x);
-        }
-        return {not_x};
-    }
-    auto not_x = context.mark_node(std::make_shared<ov::op::v1::LogicalNot>(x));
-    if (!context.input_is_none(1)) {
-        context.mutate_input(1, not_x);
-    }
-    return {not_x};
-};
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

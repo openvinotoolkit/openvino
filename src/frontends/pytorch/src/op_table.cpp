@@ -244,7 +244,6 @@ OP_CONVERTER(translate_addcmul_fx);
 OP_CONVERTER(translate_addmm_fx);
 OP_CONVERTER(translate_any_fx);
 OP_CONVERTER(translate_arange_fx);
-OP_CONVERTER(translate_bitwise_not_fx);
 OP_CONVERTER(translate_batch_norm_legit_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
@@ -739,7 +738,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.avg_pool3d.default", op::translate_avg_poolnd},
         {"aten.baddbmm.default", op::translate_addmm_fx},
         {"aten.bitwise_and.Tensor", op::translate_bitwise_and},
-        {"aten.bitwise_not.default", op::translate_bitwise_not_fx},
+        {"aten.bitwise_not.default", op::translate_bitwise_not},
         {"aten.bitwise_or.Tensor", op::translate_bitwise_or},
         {"aten.bitwise_xor.Tensor", op::translate_bitwise_xor},
         {"aten.bmm.default", op::translate_1to1_match_2_inputs_align_types<opset10::MatMul>},
