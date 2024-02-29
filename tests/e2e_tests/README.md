@@ -14,7 +14,7 @@ The documentation provides necessary information about environment setup for e2e
      
 ### Add model from TensorFlow Hub repo to end-to-end validation:
 To add new test for model from TF Hub repo just add new line into pipelines/production/tf_hub/precommit.yml
-This line should contain: model name, and its link to download. Example:
+This line should contain comma separated model name and its link
 ```
 my_model_name,https://www.example.com/model
 ```
