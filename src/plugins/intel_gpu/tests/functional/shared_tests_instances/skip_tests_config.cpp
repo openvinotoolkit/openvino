@@ -84,7 +84,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Issue: 129991
             R"(.*StridedSliceLayerTest.*TS=.*2.2.4.1*.*)",
             // Issue: CVS-133173
-            R"(.*smoke_GatherCompressedWeights_basic.*GatherWeightsDecompression.Inference.*data_shape=\[15,32\]_indices_shape=\[\?\.\?\]_\[2\.3\].*output_precision=f32.*)",
+            R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.Inference/data_shape=\[15,32\]_indices_shape=\[\?.\?\]_\[2.3\].*output_precision=f32.*)",
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.6.8\)\}_LL=\(6.5.6\)_A=\(4.1.2.3.4.5\)\(5.4.3.0.1.0\)\(2.1.3.1.3.0\)_AL=\(3.3.5\)_BI=7_PCR=1_CMR=1_U=0_PF=f32_PI=i64.*)",
             R"(.*smoke_LPT/BatchToSpaceTransformation.CompareWithRefImpl/f16_GPU_\[4,3,50,86\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high\{ 2.55 \}_precision=.*)",
             R"(.*smoke_LPT/BatchToSpaceTransformation.CompareWithRefImpl/(f32|f16)_GPU_\[4,3,50,86\]_level=256_shape=\[1,3,1,1\]_input_low=\{ 0, 0, 0 \}_input_high=\{ 255, 127.5, 85 \}_output_low=\{ 0, 0, 0 \}_output_high\{ 255, 127.5, 85 \}_precision=.*)",
