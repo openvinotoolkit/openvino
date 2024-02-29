@@ -357,6 +357,9 @@ Read-only properties
 - ``ov::device::full_name``
 - ``ov::device::capabilities``
 
+.. note::
+   ``ov::affinity`` is replaced by ``ov::hint::enable_cpu_pinning``. As such, it is deprecated in the 2024.0 release and will be removed in the 2025 release.
+
 External Dependencies
 ###########################################################
 
@@ -404,7 +407,16 @@ User can use the following properties to limit available CPU resource for model 
 
    ``ov::hint::scheduling_core_type`` and ``ov::hint::enable_hyper_threading`` only support Intel® x86-64 CPU on Linux and Windows in current release.
 
-By default, OpenVINO Runtime will enable CPU threads pinning for better performance. User also can use property ``ov::hint::enable_cpu_pinning`` to switch it off. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel.
+In some use cases, OpenVINO Runtime will enable CPU threads pinning by default for better performance. User can also turn it on or off using property ``ov::hint::enable_cpu_pinning``. Disable threads pinning might be beneficial in complex applications with several workloads executed in parallel. The following table describes the default setting for ``ov::hint::enable_cpu_pinning`` in different use cases.
+
+==================================================== ================================
+ Use Case                                             Default Setting of CPU Pinning 
+==================================================== ================================
+ All use cases with Windows OS                        False
+ Stream contains both Pcore and Ecore with Linux OS   False
+ Stream only contains Pcore or Ecore with Linux OS    True
+ All use cases with Mac OS                            False
+==================================================== ================================
 
 .. tab-set::
 
@@ -427,7 +439,7 @@ user can check the :doc:`optimization guide <openvino_docs_deployment_optimizati
 
 .. note::
 
-   ``ov::hint::enable_cpu_pinning`` only support Linux in current release.
+   ``ov::hint::enable_cpu_pinning`` is not supported on multi-socket platforms with Windows OS.
 
 Denormals Optimization
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
