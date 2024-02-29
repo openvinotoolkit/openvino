@@ -105,8 +105,9 @@ jobs:
         run: |
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
-
-          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
+          
+          # Ticket: 126287
+          if [[ "${{ runner.arch }}" != "ARM64" ]] && [[ "${{ runner.os }}" != "macOS" ]]; then
             python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
           fi
 
