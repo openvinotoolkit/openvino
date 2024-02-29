@@ -16,7 +16,7 @@ The documentation provides necessary information about environment setup for e2e
 To add new test for model from TF Hub repo just add new line into pipelines/production/tf_hub/precommit.yml
 This line should contain comma separated model name and its link
 ```
-my_model_name,https://www.example.com/model
+movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
 ```
 
 ### Main entry-point 
