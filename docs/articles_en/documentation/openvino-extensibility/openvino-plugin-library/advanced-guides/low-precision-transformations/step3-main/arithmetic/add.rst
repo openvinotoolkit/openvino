@@ -25,9 +25,9 @@ If dequantization operations on the full branch have a `FakeQuantize` operation 
 
 Depending on the plugin instruction set, low precision inference for the `Add` operation can be implemented in two logical steps in one plugin kernel:
 
-  * Inference step #1: Operations in the full branch, for example, `Convolution` and `FakeQuantize` with fused dequantization operations, and `Add` can be inferred in the original precision.
+* Inference step #1: Operations in the full branch, for example, `Convolution` and `FakeQuantize` with fused dequantization operations, and `Add` can be inferred in the original precision.
 
-  * Inference step #2: Inference step #1 result can be added with the empty branch tensor in low precision.
+* Inference step #2: Inference step #1 result can be added with the empty branch tensor in low precision.
 
 This approach allows to infer the `Add` operation in the optimal way.
 
@@ -41,9 +41,11 @@ The subgraph with quantized `Add` operation before transformation:
     y_{ch,i}=(scale1_{ch} * (x1_{ch,i} - shift1_{ch})) + (scale2_{ch} * (x2_{ch,i} - shift2_{ch}))
 
 
-.. image:: openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations/step3-main/arithmetic/img/add.common.png
+.. image::  ./../../../../../../_static/images/add.common.png
 
-## Subgraph after transformation
+Subgraph after transformation
+#############################################
+
 The subgraph with the `Add` operation after the transformation:
 
 .. math::
@@ -63,4 +65,4 @@ where:
     shift1_{ch}' = shift1_{ch} + scale2_{ch} * shift2_{ch} / scale1_{ch}
 
 
-.. image:: openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations/step3-main/arithmetic/img/add.transformed.png
+.. image:: ./../../../../../../_static/images/add.transformed.png
