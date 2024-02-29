@@ -6,7 +6,7 @@ Install OpenVINO™ Runtime on Windows
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Windows operating
-                 system. You can use an archive, a PyPi package, Conda Forge,
+                 system. You can use an archive, a PyPi package, npm package, Conda Forge,
                  or a Docker image.
 
 
