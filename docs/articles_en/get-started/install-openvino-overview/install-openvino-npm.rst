@@ -12,7 +12,7 @@ Install Intel® Distribution of OpenVINO™ Toolkit from npm Registry
 
    Note that the npm distribution:
 
-   * offers the Python API only
+   * offers the JavaScript API only
    * is dedicated to users of all major OSes: Windows, Linux, and macOS
      (all x86_64 / arm64 architectures)
    * Windows and Linux do not offer support for GNA and NPU inference
