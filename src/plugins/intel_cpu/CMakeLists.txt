@@ -22,7 +22,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # oneDNN arm64: unary minus operator applied to unsigned type, result still unsigned
     ov_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    # -Wno-delete-non-abstract-non-virtual-dtor is not fully supported by clang
+    ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
 endif()
 
 set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
