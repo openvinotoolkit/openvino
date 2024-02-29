@@ -21,7 +21,7 @@ Inputs Pre-Processing with OpenVINO
 In many cases, a network expects a pre-processed image. It is advised not to perform any unnecessary steps in the code:
 
 * Model conversion API can efficiently incorporate the mean and normalization (scale) values into a model (for example, to the weights of the first convolution). For more details, see the :doc:`relevant model conversion API command-line parameters <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
-* Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimizie-preprocessing>`
+* Let OpenVINO accelerate other means of :doc:`Image Pre-processing and Conversion <optimize-preprocessing>`
 * Data which is already in the "on-device" memory can be input directly by using the :doc:`remote tensors API of the GPU Plugin <../inference-devices-and-modes/gpu-device/remote-tensor-api-gpu-plugin>`.
 
 .. _async_api:
@@ -29,7 +29,7 @@ In many cases, a network expects a pre-processed image. It is advised not to per
 Prefer OpenVINO Async API
 #########################
 
-The API of the inference requests offers Sync and Async execution. While the `ov::InferRequest::infer() <classov_1_1InferRequest.html#doxid-classov-1-1-infer-request-1abcb7facc9f7c4b9226a1fd343e56958d>`__ is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <../integrate-openvino-with-your-application/inference-request>`.
+The API of the inference requests offers Sync and Async execution. While the ``ov::InferRequest::infer()`` is inherently synchronous and executes immediately (effectively serializing the execution flow in the current application thread), the Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()``. For more information, see the :doc:`API examples <../integrate-openvino-with-your-application/inference-request>`.
 
 A typical use case for the ``ov::InferRequest::infer()`` is running a dedicated application thread per source of inputs (e.g. a camera), so that every step (frame capture, processing, parsing the results, and associated logic) is kept serial within the thread.
 In contrast, the ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` allow the application to continue its activities and poll or wait for the inference completion when really needed. Therefore, one reason for using an asynchronous code is "efficiency".

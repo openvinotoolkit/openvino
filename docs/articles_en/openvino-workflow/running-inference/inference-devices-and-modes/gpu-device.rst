@@ -19,7 +19,7 @@ GPU Device
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
 
-- `GPU plugin developers ../../../documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
+- `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 - `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
 - `Accelerate Deep Learning Inference with Intel® Processor Graphics <https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics>`__
 
@@ -367,7 +367,7 @@ With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DT
 
 For usage examples, refer to the :doc:`RemoteTensor API<gpu-device/remote-tensor-api-gpu-plugin>`.
 
-For more details, see the :doc:`preprocessing API<../optimize-inference/optimizie-preprocessing>`.
+For more details, see the :doc:`preprocessing API<../optimize-inference/optimize-preprocessing>`.
 
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
@@ -478,6 +478,6 @@ Additional Resources
 
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 * :doc:`Optimization guide <../optimize-inference>`.
-* `GPU plugin developers ../../../documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
+* `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 
 

@@ -237,7 +237,7 @@ The ``ov::Model`` object represents any models inside the OpenVINO™ Runtime.
 For more details please read article about :doc:`OpenVINO™ Model representation <integrate-openvino-with-your-application/model-representation>`.
 
 The code above creates a compiled model associated with a single hardware device from the model object.
-It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware ../../about-openvino/additional-resources).
+It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware).
 To learn how to change the device configuration, read the :doc:`Query device properties <inference-devices-and-modes/query-device-properties>` article.
 
 Step 3. Create an Inference Request
@@ -245,7 +245,7 @@ Step 3. Create an Inference Request
 
 ``ov::InferRequest`` class provides methods for model inference in OpenVINO™ Runtime.
 Create an infer request using the following code (see
-:doc:`InferRequest detailed ../../documentation <integrate-openvino-with-your-application/inference-request>` for more details):
+:doc:`InferRequest documentation <integrate-openvino-with-your-application/inference-request>` for more details):
 
 .. tab-set::
 
@@ -441,7 +441,7 @@ Additional Resources
 ####################
 
 * See the :doc:`OpenVINO Samples <../../learn-openvino/openvino-samples>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2024/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
-* :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimizie-preprocessing>`
+* :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
 * :doc:`String Tensors <string-tensors>`
 * :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
 

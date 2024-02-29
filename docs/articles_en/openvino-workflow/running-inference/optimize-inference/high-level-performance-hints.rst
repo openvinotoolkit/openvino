@@ -15,7 +15,7 @@ The preferred way to configure performance in OpenVINO Runtime is using performa
 
 The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
 
-Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO <groupov_runtime_cpp_prop_api.html#doxid-group-ov-runtime-cpp-prop-api-1gaddb29425af71fbb6ad3379c59342ff0e>`__ was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
+Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when ``ov::streams::AUTO`` was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 Performance Hints: Latency and Throughput
@@ -129,7 +129,7 @@ To make your application fully scalable, make sure to query the ``ov::optimal_nu
 Prefer Async API
 ################
 
-The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request ../../../documentation <../integrate-openvino-with-your-application/inference-request>`.
+The API of the inference requests offers Sync and Async execution. The ``ov::InferRequest::infer()`` is inherently synchronous and simple to operate (as it serializes the execution flow in the current application thread). The Async "splits" the ``infer()`` into ``ov::InferRequest::start_async()`` and ``ov::InferRequest::wait()`` (or callbacks). For more information on synchronous and asynchronous modes, refer to the :doc:`OpenVINO Inference Request <../integrate-openvino-with-your-application/inference-request>`.
 
 Although the synchronous API can be easier to start with, it is recommended to use the asynchronous (callbacks-based) API in production code. It is the most general and scalable way to implement the flow control for any possible number of requests. The ``THROUGHPUT`` and ``LATENCY`` performance hints automatically configure the Asynchronous pipeline to use the optimal number of processing streams and inference requests.
 
@@ -163,7 +163,7 @@ For example, use ``ov::hint::PerformanceMode::THROUGHPUT`` to prepare a general 
 Testing Performance of the Hints with the Benchmark_App
 #######################################################
 
-Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>`is the best way to evaluate the functionality of the performance hints for a particular device:
+Using the :doc:`benchmark_app sample <../../../learn-openvino/openvino-samples/benchmark-tool>` is the best way to evaluate the functionality of the performance hints for a particular device:
 
 * benchmark_app **-hint tput** -d 'device' -m 'path to your model'
 * benchmark_app **-hint latency** -d 'device' -m 'path to your model'
