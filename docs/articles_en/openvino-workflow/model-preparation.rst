@@ -96,8 +96,7 @@ Convert a Model with Python: ``convert_model``
 ##############################################
 
 Model Conversion API in Python uses the ``openvino.convert_model`` function, to turn a model
-into the `openvino.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__
-object and load it to memory. Now it can be: saved to a drive with ``openvino.save_model``
+into the openvino.Model object and load it to memory. Now it can be: saved to a drive with ``openvino.save_model``
 or further :doc:`optimized with NNCF <model-optimization>` before saving.
 
 

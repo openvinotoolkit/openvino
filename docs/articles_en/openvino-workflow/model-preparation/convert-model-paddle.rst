@@ -144,5 +144,5 @@ For the list of supported standard layers, refer to the :doc:`Supported Operatio
 Additional Resources
 ####################
 
-Check out more examples of model conversion in :doc:`interactive Python ../../learn-openvino/interactive-tutorials-python <../../learn-openvino/interactive-tutorials-python>`.
+Check out more examples of model conversion in :doc:`interactive Python tutorials <../../learn-openvino/interactive-tutorials-python>`.
 
