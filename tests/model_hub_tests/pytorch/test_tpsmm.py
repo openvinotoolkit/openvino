@@ -25,7 +25,7 @@ class TestThinPlateSplineMotionModel(TestTorchConvertModel):
             ["git", "checkout", "c616878812c9870ed81ac72561be2676fd7180e2"], cwd=self.repo_dir.name)
         # verify model on random weights
 
-    def load_model_impl(self, model_name, model_link):
+    def load_model(self, model_name, model_link):
         sys.path.append(self.repo_dir.name)
         from modules.inpainting_network import InpaintingNetwork
         from modules.keypoint_detector import KPDetector
