@@ -59,6 +59,19 @@ int getNumNonConstInputs(const std::shared_ptr<const Node> &node) {
     }
     return num_non_const_inputs;
 }
+bool isFullyConnected(const std::shared_ptr<const ov::Node>& node) {
+    if (!ov::is_type<ov::op::v0::MatMul>(node))
+        return false;
+    const auto out_activations = node->input_value(0);
+    const auto out_weights = node->input_value(1);
+    const auto rank_a = out_activations.get_partial_shape().rank();
+    const auto rank_w = out_weights.get_partial_shape().rank();
+    return out_weights.get_partial_shape().is_static() &&
+           rank_a.is_static() && rank_w.is_static() &&
+           rank_a.get_length() != 1 && rank_w.get_length() != 1 &&
+           rank_a.get_length() <= 3 && rank_w.get_length() <= 3 &&
+           ov::op::util::is_on_constant_path(out_weights);
+}
 bool SupportsFusingWithConvolution_SumActivation(const std::shared_ptr<const Node> &node) {
     // todo: Do all PReLUs are fused? Not sure about round and softRelu
     // EltwiseRoundHalfToEven, EltwiseRoundHalfAwayFromZero, EltwiseSoftRelu
@@ -256,14 +269,15 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
     const bool is_dq_scales = ov::is_type<ov::opset1::Multiply>(node) && canMatMulBeExecutedInI8;
     if (is_bias || is_dq_scales) {
         for (const auto &in : node->inputs()) {
-            const auto& parent = in.get_source_output().get_node_shared_ptr();
-            const auto& parent_pshape = in.get_source_output().get_partial_shape();
+            const auto& parent_out = in.get_source_output();
+            const auto& parent = parent_out.get_node_shared_ptr();
+            const auto& parent_pshape = parent_out.get_partial_shape();
             if (ov::is_type<ov::op::v0::MatMul>(parent) && parent_pshape.rank().is_static()) {
                 if (parent->get_output_target_inputs(0).size() > 1)
                     break;
                 const auto bias_port = 1 - in.get_index();
                 const auto bias_out = node->input_value(bias_port);
-                if (!ov::op::util::is_on_constant_path(bias_out) || (bias_out.get_target_inputs().size() > 1))
+                if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out))
                     break;
                 const auto& bias_pshape = bias_out.get_partial_shape();
                 if (((bias_pshape[fusingAxis] == parent_pshape[fusingAxis]) || (is_dq_scales && bias_pshape[fusingAxis] == 1)) &&
@@ -493,20 +507,15 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
             }
             SetNodeFusingType(node, NodeFusingType::FusedWithMisc);
         } else if (isSuitableMatMulParent(node)) {
-            const auto out_acts = node->input_value(0);
-            const auto out_weights = node->input_value(1);
-            const auto rank_a = out_acts.get_partial_shape().rank().get_length();
-            const auto rank_w = out_weights.get_partial_shape().rank().get_length();
-            const auto out_rank = node->get_output_partial_shape(0);
-            const bool is_fc = out_weights.get_partial_shape().is_static() && ov::op::util::is_on_constant_path(out_weights) &&
-                               rank_a != 1 && rank_w != 1 && rank_a <= 3 && rank_w <= 3;
+            const bool is_fc = isFullyConnected(node);
             const bool is_i8 = canBeMatMulExecutedInInt8(node->get_input_element_type(0), node->get_input_element_type(1));
+            const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
-                channelAxis = out_rank.is_static() ? (out_rank.size() == 3 ? 2 : 1) : DEFAULT_AXIS;
+                channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
             } else {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
-                channelAxis = out_rank.is_static() ? out_rank.size() - 1 : DEFAULT_AXIS;
+                channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
             }
         } else if (isSuitableSubtractAsZeroPointsParent(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
