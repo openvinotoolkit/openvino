@@ -48,10 +48,6 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     auto& engine = get_test_engine();
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    if (engine.get_device_info().supports_immad) {
-        // Onednn currently does NOT support out_of_order : skip this test
-        return;
-    }
 
     auto stream = std::shared_ptr<cldnn::stream>(engine.create_stream(cfg));
 

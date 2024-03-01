@@ -235,7 +235,6 @@ ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, 
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& ocl_stream::get_onednn_stream() {
-    OPENVINO_ASSERT(queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
@@ -306,6 +305,8 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         ocl::rethrow_or_exit(err, _engine.get_device_info());
     }
 
+    _parallel_kernels++;
+
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
@@ -370,6 +371,10 @@ event::ptr ocl_stream::create_base_event() {
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
+event::ptr ocl_stream::create_ocl_event(cl::Event event) {
+    return std::make_shared<ocl_event>(event, ++_queue_counter);
+}
+
 void ocl_stream::flush() const {
     try {
         get_cl_queue().flush();
@@ -432,11 +437,27 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
 void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output) {
     bool needs_barrier = false;
+    size_t i = 0;
+    std::stringstream ss;
     for (auto& dep : deps) {
+        auto casted = dynamic_cast<ocl_base_event*>(dep.get());
+        if (casted) {
+            ss << casted << " " << casted->get_queue_stamp() << ", ";
+        } else {
+            ss << "not ocl_base_event, ";
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "Sync events call (size=" << deps.size() << "): " << ss.str() << "\n";
+    for (auto& dep : deps) {
+        auto casted = dynamic_cast<ocl_base_event*>(dep.get());
+        if (!casted)
+            GPU_DEBUG_TRACE_DETAIL << "Can't cast " << i << "'th event\n";
+
         auto* ocl_base_ev = downcast<ocl_base_event>(dep.get());
         if (ocl_base_ev->get_queue_stamp() > _last_barrier) {
             needs_barrier = true;
         }
+        i++;
     }
 
     if (needs_barrier) {
@@ -450,6 +471,8 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
         }
 
         _last_barrier = ++_queue_counter;
+        GPU_DEBUG_TRACE_DETAIL << "Barrier enqueued " << _last_barrier << " (kernels enqueued before " << _parallel_kernels << ")\n";
+        _parallel_kernels = 0;
     }
 }
 

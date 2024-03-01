@@ -78,18 +78,21 @@ public:
     void enqueue_barrier() override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
+    event::ptr create_ocl_event(cl::Event event = cl::Event());
 
     const cl::UsmHelper& get_usm_helper() const { return _engine.get_usm_helper(); }
 
     static QueueTypes detect_queue_type(void* queue_handle);
+    sync_methods get_sync_method() { return sync_method; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
 #endif
 
-private:
+    std::atomic<uint64_t> _parallel_kernels{0};
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 
+private:
     const ocl_engine& _engine;
     ocl_queue_type _command_queue;
     std::atomic<uint64_t> _queue_counter{0};

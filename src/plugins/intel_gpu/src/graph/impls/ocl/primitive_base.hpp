@@ -260,11 +260,13 @@ protected:
             const auto& gws = params.workGroups.global;
             const auto& lws = params.workGroups.local;
 
-            GPU_DEBUG_TRACE_DETAIL << "Enqueue kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
+
+
+            GPU_DEBUG_TRACE_DETAIL << "Enqueued kernel " << kd_idx << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
                                    << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
-            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
             if (_kernel_data.needs_sub_kernels_sync) {
                 tmp_events = {ev};
             }

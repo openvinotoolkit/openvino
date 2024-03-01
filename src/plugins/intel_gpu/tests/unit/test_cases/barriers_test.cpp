@@ -43,10 +43,6 @@ TEST(DISABLED_oooq_test, simple) {
 
     ExecutionConfig cfg = get_test_default_config(*eng);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-    if (eng->get_device_info().supports_immad) {
-        // Onednn currently does NOT support out_of_order queue-type
-        return;
-    }
 
     network net{ *eng, tpl, cfg };
 

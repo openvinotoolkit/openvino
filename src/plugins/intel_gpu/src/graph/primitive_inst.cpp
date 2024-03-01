@@ -1596,6 +1596,9 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             _outputs = allocate_outputs();
         }
     }
+    if (_node) {
+        GPU_DEBUG_TRACE_DETAIL << _node->type()->to_string(*_node) << "\n";
+    }
     if (_impl) {
         _impl->set_node_params(node);
         if (_impl->is_dynamic() && !_impl->is_cpu()) {

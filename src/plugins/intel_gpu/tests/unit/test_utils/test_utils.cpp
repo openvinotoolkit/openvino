@@ -293,11 +293,6 @@ cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
                                                 std::initializer_list<ov::AnyMap::value_type> values) {
     ExecutionConfig config(values);
 
-    // Onednn engine currently does NOT support out_of_order
-    if (engine.get_device_info().supports_immad) {
-        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    }
-
     return config;
 }
 
