@@ -4,6 +4,7 @@ on:
     # run daily at 00:00
     - cron: '0 0 * * *'
   workflow_dispatch:
+  pull_request:
 
 concurrency:
   # github.ref is not unique in post-commit
@@ -44,11 +45,9 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
       CXX: clang++
@@ -91,10 +90,6 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
-          # default-jdk - Java API
-          apt update && apt install --assume-yes --no-install-recommends default-jdk
-          
-          # use clang as a default compiler
           apt --assume-yes install clang lld
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
@@ -150,7 +145,6 @@ jobs:
             -DENABLE_OV_PYTORCH_FRONTEND=ON \
             -DENABLE_OV_ONNX_FRONTEND=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-            -DENABLE_ONEDNN_FOR_GPU=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
@@ -165,7 +159,6 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Remove unused files to free space
