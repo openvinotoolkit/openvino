@@ -8420,8 +8420,8 @@ public:
                 float c = 0.f;
                 for (size_t ic = 0; ic < input_channels; ic++) {
                     for (size_t k = 0; k < spatial_size; k++) {
-                        int azp_offset = (g * input_channels + ic) % azp_total;
-                        int wzp_offset = (g * output_channels + oc) % wzp_total;
+                        size_t azp_offset = (g * input_channels + ic) % azp_total;
+                        size_t wzp_offset = (g * output_channels + oc) % wzp_total;
                         const auto w_offset = g * output_channels * input_channels * spatial_size
                                             + oc * input_channels * spatial_size
                                             + ic * spatial_size
