@@ -157,26 +157,8 @@ OutputVector translate_addv2_op(const NodeContext& node) {
         lhs = complex_type_mark_lhs->input_value(0);
         rhs = complex_type_mark_rhs->input_value(0);
 
-        // Extract real and imaginary parts of the complex numbers
-        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
-        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
-        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-        auto lhs_real = make_shared<v8::Gather>(lhs, gather_index_real, minus_one)->output(0);
-        auto lhs_imag = make_shared<v8::Gather>(lhs, gather_index_imag, minus_one)->output(0);
-        auto rhs_real = make_shared<v8::Gather>(rhs, gather_index_real, minus_one)->output(0);
-        auto rhs_imag = make_shared<v8::Gather>(rhs, gather_index_imag, minus_one)->output(0);
-
-        // Perform addition for complex numbers: 
-        auto result_real = make_shared<v1::Add>(lhs_real, rhs_real);
-        auto result_imag = make_shared<v1::Add>(lhs_imag, rhs_imag);
-
-        // Concatenate real and imaginary parts to form the complex result
-        auto real_unsqueeze = make_shared<v0::Unsqueeze>(result_real, minus_one);
-        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(result_imag, minus_one);
-        auto concat_result = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
-
-        // Wrap the complex result with ComplexTypeMark and return
-        auto complex_result = make_shared<ComplexTypeMark>(concat_result->output(0), complex_type_mark_lhs->get_complex_part_type());
+        // Wrap the result with ComplexTypeMark and return
+        auto complex_result = make_shared<ComplexTypeMark>(result, complex_type_mark_lhs->get_complex_part_type());
         return {complex_result};
     }
 
