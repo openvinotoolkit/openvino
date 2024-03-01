@@ -7,7 +7,7 @@ Stateful models and State API
    :maxdepth: 1
    :hidden:
 
-   stateful-models-intro/obtaining-stateful-openvino-model
+   stateful-models/obtaining-stateful-openvino-model
 
 A "stateful model" is a model that implicitly preserves data between two consecutive inference
 calls. The tensors saved from one run are kept in an internal memory buffer called a
@@ -116,7 +116,7 @@ states.
 .. image:: ../../_static/images/stateful_model_init_subgraph.svg
    :alt: diagram of how initial state value is set or reset
    :align: center
-   :scale: 80 %
+   :scale: 100 %
 
 | **Resetting states**
 | Whenever it is necessary to set the initial value of a state or reset it, an initializing
