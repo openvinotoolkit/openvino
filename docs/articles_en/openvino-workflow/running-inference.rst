@@ -12,7 +12,7 @@ Running Inference with OpenVINO™
    running-inference/inference-devices-and-modes
    running-inference/changing-input-shape
    running-inference/dynamic-shapes
-   running-inference/stateful-models-intro
+   running-inference/stateful-models
    running-inference/string-tensors
    Optimize Inference <running-inference/optimize-inference>
 
