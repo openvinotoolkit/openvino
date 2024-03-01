@@ -1,6 +1,6 @@
 # CMake Options for Custom Compilation
 
-This document provides description and default values for CMake options that can be used to build a custom OpenVINO runtime using the open source version. For instructions on how to create a custom runtime from the prebuilt OpenVINO release package, refer to the [deployment manager] documentation. To understand all the dependencies when creating a custom runtime from the open source repository, refer to the [OpenVINO Runtime Introduction].
+This document provides description and default values for CMake options that can be used to build a custom OpenVINO runtime using the open source version. To understand all the dependencies when creating a custom runtime from the open source repository, refer to the [OpenVINO Runtime Introduction].
 
 ## Table of contents:
 
@@ -182,8 +182,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[deployment manager]:https://docs.openvino.ai/2023.3/openvino_docs_install_guides_deployment_manager_tool.html
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

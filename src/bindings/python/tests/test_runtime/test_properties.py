@@ -556,7 +556,7 @@ def test_single_property_setting(device):
             hints.performance_mode: hints.PerformanceMode.LATENCY,
             hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
-            "ENABLE_MMAP": "NO",
+            "ENABLE_MMAP": False,
         },
     ],
 )

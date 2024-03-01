@@ -51,6 +51,7 @@ void regclass_RemoteContext(py::module m) {
            const ov::Shape& shape,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
             return RemoteTensorWrapper(self.context.create_tensor(type, shape, _properties));
         },
         py::arg("type"),
@@ -60,6 +61,8 @@ void regclass_RemoteContext(py::module m) {
             Allocates memory tensor in device memory or wraps user-supplied memory handle
             using the specified tensor description and low-level device-specific parameters.
             Returns the object that implements the RemoteTensor interface.
+
+            GIL is released while running this function.
 
             :param type: Defines the element type of the tensor.
             :type type: openvino.Type
@@ -76,6 +79,7 @@ void regclass_RemoteContext(py::module m) {
         [](RemoteContextWrapper& self, const ov::element::Type& type, const ov::Shape& shape) {
             return self.context.create_host_tensor(type, shape);
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("type"),
         py::arg("shape"),
         R"(
@@ -83,6 +87,8 @@ void regclass_RemoteContext(py::module m) {
             current context. For example, GPU context may allocate USM host memory
             (if corresponding extension is available), which could be more efficient
             than regular host memory.
+
+            GIL is released while running this function.
 
             :param type: Defines the element type of the tensor.
             :type type: openvino.Type
@@ -124,13 +130,17 @@ void regclass_VAContext(py::module m) {
     cls.def(
         "create_tensor_nv12",
         [](VAContextWrapper& self, const size_t height, const size_t width, const uint32_t nv12_surface) {
-            ov::AnyMap tensor_params = {
-                {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
-                {ov::intel_gpu::dev_object_handle.name(), nv12_surface},
-                {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
-            auto y_tensor = self.context.create_tensor(ov::element::u8, {1, height, width, 1}, tensor_params);
-            tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
-            auto uv_tensor = self.context.create_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, tensor_params);
+            ov::RemoteTensor y_tensor, uv_tensor;
+            {
+                py::gil_scoped_release release;
+                ov::AnyMap tensor_params = {
+                    {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
+                    {ov::intel_gpu::dev_object_handle.name(), nv12_surface},
+                    {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
+                y_tensor = self.context.create_tensor(ov::element::u8, {1, height, width, 1}, tensor_params);
+                tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
+                uv_tensor = self.context.create_tensor(ov::element::u8, {1, height / 2, width / 2, 2}, tensor_params);
+            }
             return py::make_tuple(VASurfaceTensorWrapper(y_tensor), VASurfaceTensorWrapper(uv_tensor));
         },
         py::arg("height"),
@@ -139,6 +149,8 @@ void regclass_VAContext(py::module m) {
         R"(
             This function is used to obtain a NV12 tensor from NV12 VA decoder output.
             The result contains two remote tensors for Y and UV planes of the surface.
+
+            GIL is released while running this function.
 
             :param height: A height of Y plane.
             :type height: int
@@ -162,12 +174,15 @@ void regclass_VAContext(py::module m) {
                                  {ov::intel_gpu::va_plane.name(), plane}};
             return VASurfaceTensorWrapper(self.context.create_tensor(type, shape, params));
         },
+        py::call_guard<py::gil_scoped_release>(),
         py::arg("type"),
         py::arg("shape"),
         py::arg("surface"),
         py::arg("plane") = 0,
         R"(
             Create remote tensor from VA surface handle.
+
+            GIL is released while running this function.
 
             :param type: Defines the element type of the tensor.
             :type type: openvino.Type

@@ -8,7 +8,7 @@
 
 namespace ov {
 namespace test {
-TEST_P(GRUSequenceTest, DISABLED_Inference) {
+TEST_P(GRUSequenceTest, Inference) {
     run();
 };
 }  // namespace test
