@@ -7,7 +7,6 @@
 
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/multiply.hpp"
