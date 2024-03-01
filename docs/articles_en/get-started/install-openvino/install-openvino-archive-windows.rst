@@ -52,7 +52,7 @@ System Requirements
 
       .. important::
 
-          When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
+         When installing Python, make sure you click the option **Add Python 3.x to PATH** to `add Python <https://docs.python.org/3/using/windows.html#installation-steps>`__ to your `PATH` environment variable.
 
 
 
@@ -139,7 +139,7 @@ to see if your case needs any of them.
 The ``C:\Program Files (x86)\Intel\openvino_2023`` folder now contains the core components for OpenVINO.
 If you used a different path in Step 1, you will find the ``openvino_2023`` folder there.
 The path to the ``openvino_2023`` directory is also referred as ``<INSTALL_DIR>``
-throughout the OpenVINO ../../../documentation.
+throughout the OpenVINO documentation.
 
 
 
@@ -187,36 +187,36 @@ You must update several environment variables before you can compile and run Ope
 What's Next?
 ####################
 
-Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python.
+Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications! Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials.
 
 .. tab-set::
 
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the `Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      Try the :doc:`Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>` to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
       Visit the :ref:`Tutorials <notebook ../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * `OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`__
-      * `Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`__
-      * `Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`__
+      * :doc:`OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`
+      * :doc:`Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`
+      * :doc:`Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the `C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>`_ for step-by-step instructions on building and running a basic image classification C++ application.
+      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>` for step-by-step instructions on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
       Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`_
-      * `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`_
+      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`
+      * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`
 
 
 .. _uninstall-from-windows:

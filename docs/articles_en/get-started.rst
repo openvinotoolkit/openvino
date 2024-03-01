@@ -68,7 +68,7 @@ Learn the basics of working with models and inference in OpenVINO. Begin with �
 Interactive Tutorials - Jupyter Notebooks
 -----------------------------------------
 
-Start with :doc:`interactive Python learn-openvino/interactive-tutorials-python <learn-openvino/interactive-tutorials-python>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
+Start with :doc:`interactive Python <learn-openvino/interactive-tutorials-python>` that show the basics of model inferencing, the OpenVINO API, how to convert models to OpenVINO format, and more.
 
 * `Hello Image Classification <notebooks/001-hello-world-with-output.html>`__ - Load an image classification model in OpenVINO and use it to apply a label to an image
 * `OpenVINO Runtime API Tutorial <notebooks/002-openvino-api-with-output.html>`__ - Learn the basic Python API for working with models in OpenVINO
@@ -101,7 +101,6 @@ Model Compression and Quantization
 
 Use OpenVINO’s model compression tools to reduce your model’s latency and memory footprint while maintaining good accuracy.
 
-* Tutorial - `OpenVINO Post-Training Model Quantization <notebooks/111-yolov5-quantization-migration-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in TensorFlow with OpenVINO NNCF <notebooks/305-tensorflow-quantization-aware-training-with-output.html>`__
 * Tutorial - `Quantization-Aware Training in PyTorch with NNCF <notebooks/302-pytorch-quantization-aware-training-with-output.html>`__
 * :doc:`Model Optimization Guide <openvino-workflow/model-optimization>`

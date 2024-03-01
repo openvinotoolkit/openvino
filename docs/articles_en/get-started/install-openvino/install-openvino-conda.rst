@@ -110,7 +110,7 @@ What's Next?
 ############################################################
 
 Now that you've installed OpenVINO Runtime, you are ready to run your own machine learning applications!
-To learn more about how to integrate a model in OpenVINO applications, try out some ../../../learn-openvino/interactive-tutorials-python and sample applications.
+To learn more about how to integrate a model in OpenVINO applications, try out some tutorials and sample applications.
 
 Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions
 on building and running a basic image classification C++ application.
@@ -120,8 +120,8 @@ on building and running a basic image classification C++ application.
 
 Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`__
-* `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`__
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`
+* :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`
 
 
 

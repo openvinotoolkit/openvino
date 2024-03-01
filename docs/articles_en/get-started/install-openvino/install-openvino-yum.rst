@@ -208,7 +208,7 @@ What's Next?
 #############
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications!
-Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python:
+Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
 * Try the `C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>`_
   for step-by-step instructions on building and running a basic image classification C++ application.
