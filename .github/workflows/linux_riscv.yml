@@ -260,9 +260,12 @@ jobs:
 
   Cleanup_Caches:
     needs: [Smart_CI]
-    runs-on: aks-linux-4-cores-16gb
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-32gb
     container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
       volumes:
         - /mount:/mount
     env:
