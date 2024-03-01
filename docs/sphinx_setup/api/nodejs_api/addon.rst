@@ -55,14 +55,13 @@ Properties
 .. rubric:: Core
 
 
-
 .. code-block:: json
 
    Core: CoreConstructor
 
 .. rubric:: Type declaration
 
-- CoreConstructor: :doc:`CoreConstructor <CoreConstructor>`
+- CoreConstructor: :doc:`CoreConstructor <./openvino-node/interfaces/CoreConstructor>`
 -  Defined in
    `addon.ts:165 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L165>`__
 
@@ -77,7 +76,7 @@ Properties
 
 .. rubric:: Type declaration
 
-- PartialShapeConstructor: :doc:`PartialShapeConstructor <PartialShapeConstructor>`
+- PartialShapeConstructor: :doc:`PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>`
 -  Defined in
    `addon.ts:167 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L167>`__
 
@@ -90,7 +89,7 @@ Properties
 
 .. rubric:: Type declaration
 
-- TensorConstructor: :doc:`TensorConstructor <TensorConstructor>`
+- TensorConstructor: :doc:`TensorConstructor <./openvino-node/interfaces/TensorConstructor>`
 
 -  Defined in
    `addon.ts:166 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L166>`__
@@ -105,7 +104,7 @@ Properties
 
 .. rubric:: Type declaration
 
-- element:typeof :doc:`element <../enums/element>`
+- element:typeof :doc:`element <./openvino-node/enums/element>`
 -  Defined in
    `addon.ts:173 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L173>`__
 
@@ -124,8 +123,8 @@ Properties
 .. rubric:: Type declaration
 
 
-- PrePostProcessor: :doc:`PrePostProcessorConstructor <PrePostProcessorConstructor>`
-- resizeAlgorithm:typeof :doc:`resizeAlgorithm <../enums/resizeAlgorithm>`
+- PrePostProcessor: :doc:`PrePostProcessorConstructor <./openvino-node/interfaces/PrePostProcessorConstructor>`
+- resizeAlgorithm:typeof :doc:`resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>`
 
 -  Defined in
    `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L169>`__
