@@ -381,8 +381,9 @@ void compare(const ov::Tensor& expected,
     double rel_threshold = rel_threshold_;
     size_t shape_size_cnt = shape_size(expected_shape);
     if (abs_threshold == std::numeric_limits<double>::max() && rel_threshold == std::numeric_limits<double>::max()) {
+        rel_threshold = 0.1;
         if (sizeof(ExpectedT) == 1 || sizeof(ActualT) == 1) {
-            abs_threshold = 1.;
+            abs_threshold = expected.get_element_type() == ov::element::Type_t::boolean ? 0. : 1.;
         } else {
             auto elem_type = expected.get_element_type();
             if (elem_type.is_real()) {
@@ -392,19 +393,15 @@ void compare(const ov::Tensor& expected,
                 }
                 auto abs_median = calculate_median(abs_values);
 
-                abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
-                if (elem_type == ov::element::Type_t::f32 || elem_type == ov::element::Type_t::f64) {
-                    abs_threshold = abs_median * 0.05 < 1e-5 ? 1e-5 : 0.05 * abs_median;
-                } else if (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) {
-                    abs_threshold = abs_median * 0.05 < 1e-3 ? 1e-3 : 0.05 * abs_median;
-                }
+                // for f32, f64 - 1e-5
+                double min_threshold =
+                    (elem_type == ov::element::Type_t::bf16 || elem_type == ov::element::Type_t::f16) ? 1e-3 : 1e-5;
+                abs_threshold = abs_median * 0.05 < min_threshold ? min_threshold : 0.05 * abs_median;
             } else if (elem_type == ov::element::Type_t::boolean) {
                 abs_threshold = 0.;
             } else if (elem_type.is_integral_number()) {
                 abs_threshold = 1.0;
             }
-
-            rel_threshold = 0.1;
 
             if (std::is_integral<ExpectedT>::value) {
                 abs_threshold = std::ceil(abs_threshold);
@@ -422,7 +419,7 @@ void compare(const ov::Tensor& expected,
     auto max_type_actual = std::numeric_limits<ActualT>::max();
     auto min_type_expected = std::numeric_limits<ExpectedT>::min();
     auto min_type_actual = std::numeric_limits<ActualT>::min();
-    Error abs_error(abs_threshold), rel_error(rel_threshold), rel_error1(rel_threshold), rel_error2(rel_threshold);
+    Error abs_error(abs_threshold), rel_error(rel_threshold);
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
