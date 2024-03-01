@@ -9,6 +9,7 @@
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
+
 namespace {
 const std::vector<ov::element::Type_t> ovExecGraphInfoElemTypes = {
         ov::element::i8,
@@ -29,12 +30,12 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVCompiledGraphImportExportTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(ovExecGraphInfoElemTypes),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::test::utils::target_device),
+                                 ::testing::Values(ov::AnyMap({}))),
                          OVCompiledGraphImportExportTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelImportExportTestP,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 const std::vector<ov::element::Type> nPrc = {
     ov::element::i8,
@@ -55,6 +56,6 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model,
                          OVCompiledModelGraphUniqueNodeNamesTest,
                          ::testing::Combine(::testing::ValuesIn(nPrc),
                                             ::testing::Values(ov::Shape{1, 2, 5, 5}),
-                                            ::testing::Values(targetDevice)),
+                                            ::testing::Values(ov::test::utils::target_device)),
                          OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName);
 }  // namespace

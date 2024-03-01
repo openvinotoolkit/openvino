@@ -21,11 +21,18 @@ public:
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
-    BrgemmKernel(size_t M, size_t N, size_t K, size_t lda, size_t ldb, size_t ldc, bool b_transposed = false);
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 bool b_transposed = false,
+                 ov::element::Type inType = ov::element::bf16);
     // execute all M
     void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
-    // execute m_blk
-    void executeGemmPackedB(bool is_M_tail, void* a, void* repacked_b, void* c, void* wsp, void* scratch_a);
+    // execute by m_blk
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -44,14 +51,13 @@ public:
 
 private:
     size_t M = 0, M_blk = 0, M_tail = 0;
-    size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_tail = 0;
+    size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0;
     bool b_transposed = false;
     size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
-    static constexpr size_t N_blk = 32;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {

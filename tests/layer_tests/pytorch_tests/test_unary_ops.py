@@ -5,9 +5,11 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 OPS = {
+    "aten::abs": torch.abs,
+    "aten::abs_": torch.abs_,
     "aten::rsqrt": torch.rsqrt,
     "aten::sqrt": torch.sqrt,
     "aten::exp": torch.exp,
@@ -20,6 +22,8 @@ OPS = {
     "aten::floor_": torch.floor_,
     "aten::sigmoid": torch.sigmoid,
     "aten::sigmoid_": torch.sigmoid_,
+    "aten::reciprocal": torch.reciprocal,
+    "aten::reciprocal_": torch.reciprocal_,
     "aten::cos": torch.cos,
     "aten::cos_": torch.cos_,
     "aten::sin": torch.sin,
@@ -66,19 +70,22 @@ class TestUnaryOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     @pytest.mark.parametrize("op_type",
     [
+        "aten::abs",
         "aten::rsqrt",
         "aten::sqrt",
         "aten::exp",
         "aten::relu",
-        "aten::relu_",
+        skip_if_export("aten::relu_"),
         "aten::ceil",
-        "aten::ceil_",
+        skip_if_export("aten::ceil_"),
         "aten::floor",
-        "aten::floor_",
+        skip_if_export("aten::floor_"),
         "aten::sigmoid",
+        "aten::reciprocal",
         # trigonometry
         "aten::cos",
         "aten::sin",
@@ -104,8 +111,10 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.parametrize("op_type",
     [
         # some pytorch inplace ops do not support int
+        "aten::abs_",
         "aten::exp_",
         "aten::sigmoid_",
+        "aten::reciprocal_",
         # trigonometry
         "aten::cos_",
         "aten::sin_",

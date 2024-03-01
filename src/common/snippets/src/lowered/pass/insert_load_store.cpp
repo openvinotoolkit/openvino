@@ -20,13 +20,13 @@ using LoopInfoPtr = LoopManager::LoopInfoPtr;
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const PortDescriptorPtr& port_desc) const {
-    const auto layout = port_desc->get_layout();
-    const auto shape = port_desc->get_shape();
+    const auto& layout = port_desc->get_layout();
+    const auto& shape = port_desc->get_shape();
     // Find last dimension by layout
-    const auto last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
+    const auto& last_dim_idx = std::find(layout.begin(), layout.end(), layout.size() - 1);
     OPENVINO_ASSERT(last_dim_idx != layout.end() && *last_dim_idx < shape.size(), "Load/Store expression have incorrect layout");
-    const auto dim = shape[*last_dim_idx];
-    return dim == 1 ? 1 : m_vector_size;
+    const auto& dim = shape[*last_dim_idx];
+    return std::min(dim, m_vector_size);
 }
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
@@ -72,11 +72,11 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
     return true;
 }
 
-bool InsertLoadStore::run(LinearIR& linear_ir) {
+bool InsertLoadStore::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoadStore")
 
     bool modified = false;
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<ov::op::v0::Parameter>(node)) {

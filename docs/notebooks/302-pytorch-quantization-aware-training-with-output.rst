@@ -599,7 +599,7 @@ dataset for performing basic quantization. Optionally, additional
 parameters like ``subset_size``, ``preset``, ``ignored_scope`` can be
 provided to improve quantization result if applicable. More details
 about supported parameters can be found on this
-`page <https://docs.openvino.ai/2023.3/basic_quantization_flow.html#tune-quantization-parameters>`__
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html#tune-quantization-parameters>`__
 
 .. code:: ipython3
 
@@ -907,7 +907,7 @@ Benchmark Model Performance by Computing Inference Time
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and

@@ -5,6 +5,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 
 #include <memory>
+#include <mutex>
 
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"

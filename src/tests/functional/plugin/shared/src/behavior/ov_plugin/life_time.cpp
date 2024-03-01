@@ -39,7 +39,7 @@ static void release_order_test(std::vector<std::size_t> order, const std::string
                                std::shared_ptr<ov::Model> function) {
     ov::AnyVector objects;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, deviceName);
         auto request = compiled_model.create_infer_request();
 
@@ -70,7 +70,7 @@ TEST_P(OVHoldersTest, Orders) {
 TEST_P(OVHoldersTest, LoadedState) {
     std::vector<ov::VariableState> states;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         auto request = compiled_model.create_infer_request();
         try {
@@ -82,7 +82,7 @@ TEST_P(OVHoldersTest, LoadedState) {
 TEST_P(OVHoldersTest, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         auto request = compiled_model.create_infer_request();
         tensor = request.get_input_tensor();
@@ -92,7 +92,7 @@ TEST_P(OVHoldersTest, LoadedTensor) {
 TEST_P(OVHoldersTest, LoadedAny) {
     ov::Any any;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         any = compiled_model.get_property(ov::supported_properties.name());
     }
@@ -103,7 +103,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     ov::RemoteContext ctx;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         auto compiled_model = core.compile_model(function, target_device);
         try {
             ctx = compiled_model.get_context();
@@ -114,7 +114,7 @@ TEST_P(OVHoldersTest, LoadedRemoteContext) {
 TEST_P(OVHoldersTestWithConfig, LoadedTensor) {
     ov::Tensor tensor;
     {
-        ov::Core core = createCoreWithTemplate();
+        ov::Core core = ov::test::utils::create_core();
         ov::AnyMap property;
         property[ov::intel_auto::device_bind_buffer.name()] = true;
         if (target_device.find("AUTO") != std::string::npos)
@@ -148,7 +148,7 @@ void OVHoldersTestOnImportedNetwork::TearDown() {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device);
@@ -160,7 +160,7 @@ TEST_P(OVHoldersTestOnImportedNetwork, LoadedTensor) {
 }
 
 TEST_P(OVHoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     std::stringstream stream;
     {
         auto compiled_model = core.compile_model(function, target_device);

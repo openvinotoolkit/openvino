@@ -238,7 +238,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
         )V0G0N";
     ov::CompiledModel compiled_model;
     {
-        ov::Core tmp_core = createCoreWithTemplate();
+        ov::Core tmp_core = ov::test::utils::create_core();
         compiled_model = tmp_core.compile_model(model, ov::Tensor(), target_device, configuration);
     }
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
@@ -291,7 +291,7 @@ TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
 
 TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     ov::preprocess::InputInfo& input = ppp.input();
     input.model().set_layout("??HW");
@@ -302,7 +302,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
 
 TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     ov::preprocess::OutputInfo& output = ppp.output();
     output.postprocess().convert_element_type(ov::element::u8);
@@ -693,7 +693,7 @@ public:
 TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);
@@ -704,7 +704,7 @@ TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
 TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
@@ -715,7 +715,7 @@ TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
 TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);

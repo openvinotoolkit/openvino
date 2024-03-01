@@ -131,7 +131,8 @@ struct MHAKernel {
         auto q_len = query.size(2);
         auto head_size = query.size(3);
         auto kv_len = present_key.size(2);
-
+        auto Hk = present_key.size(1);
+        size_t h_each_group_len = H / Hk;
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
@@ -150,7 +151,7 @@ struct MHAKernel {
                 if (auto_causal)
                     ncausal = kv_len - q_len + m + 1;
                 for (size_t n = 0; n < ncausal; n++) {
-                    auto* k = &present_key.at<T>({b, h, n, 0}, true);
+                    auto* k = &present_key.at<T>({b, h / h_each_group_len, n, 0}, true);
                     attn_score[n] = dot_product(q, k, head_size, k_stride_s) * d_scale;
 
                     // apply alibi tensor
@@ -159,7 +160,7 @@ struct MHAKernel {
 
                     // apply attention mask (maybe combined with causal_mask)
                     if (attention_mask)
-                        attn_score[n] += attention_mask.at<float>({b, h, m, n}, true);
+                        attn_score[n] += attention_mask.at<T>({b, h, m, n}, true);
 
                     // apply causal_mask
                     if (causal_mask) {
@@ -181,7 +182,7 @@ struct MHAKernel {
                 // linearly combine value
                 word_vec.assign(head_size, 0.0f);
                 for (size_t n = 0; n < ncausal; n++) {
-                    auto* v = &present_value.at<T>({b, h, n, 0}, true);
+                    auto* v = &present_value.at<T>({b, h / h_each_group_len, n, 0}, true);
                     accumulate(word_vec.data(), v, head_size, attn_score[n]);
                 }
 
@@ -225,6 +226,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         size_t ldb;
         size_t ldc;
         bool b_transposed;
+        ov::element::Type in_type;
         size_t hash() const {
             using namespace dnnl::impl;
             using namespace dnnl::impl::primitive_hashing;
@@ -236,11 +238,12 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             seed = hash_combine(seed, ldb);
             seed = hash_combine(seed, ldc);
             seed = hash_combine(seed, b_transposed);
+            seed = hash_combine(seed, in_type.hash());
             return seed;
         }
         bool operator==(const brgemmKey& rhs) const {
             return (rhs.M == M) && (rhs.N == N) && (rhs.K == K) && (rhs.lda == lda) && (rhs.ldb == ldb) &&
-                   (rhs.ldc == ldc) && (rhs.b_transposed == b_transposed);
+                   (rhs.ldc == ldc) && (rhs.b_transposed == b_transposed) && (rhs.in_type == in_type);
         }
     };
 
@@ -258,23 +261,26 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return dnnl_dims;
     }
 
-    void prepare_multiquery_prim(dnnl::stream strm,
-                                 PlainTensor& query,
-                                 PlainTensor& present_key,
-                                 bool has_out_transpose) {
-        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
-        if (qkv_dt != dt::bf16)
-            OPENVINO_THROW("Brgemm multi-query kernel only supports BF16");
+    void prepare_brgemm_prim(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key, bool has_out_transpose) {
+        auto in_type = precision_of<T>::value;
+        auto qkv_dt = in_type == ov::element::f32 ? dt::f32 : dt::bf16;
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
         auto head_size = query.size(3);
         auto kv_len = present_key.size(2);
         auto Hk = present_key.size(1);
-        brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true};
+        brgemmKey qk_key = {q_len, kv_len, head_size, query.stride(2), present_key.stride(2), kv_len, true, in_type};
 
         auto builder = [](const brgemmKey& key) -> std::shared_ptr<BrgemmKernel> {
-            return std::make_shared<BrgemmKernel>(key.M, key.N, key.K, key.lda, key.ldb, key.ldc, key.b_transposed);
+            return std::make_shared<BrgemmKernel>(key.M,
+                                                  key.N,
+                                                  key.K,
+                                                  key.lda,
+                                                  key.ldb,
+                                                  key.ldc,
+                                                  key.b_transposed,
+                                                  key.in_type);
         };
 
         auto cache = this->context->getParamsCache();
@@ -298,7 +304,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                             kv_len,
                             present_key.stride(2),
                             static_cast<size_t>(out_md.get_strides()[ldc_index]),
-                            false};
+                            false,
+                            in_type};
 
         auto wv_result = cache->getOrCreate(wv_key, builder);
         if (!wv_result.first) {
@@ -315,11 +322,11 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         // allocate scratch a/b, notice get_scratch_a_size/get_scratch_b_size returns in bytes
         size_t data_size = sizeof(T);
-        qk_scratch_a.resize<bfloat16>({nthr, qk_gemm_ptr->get_scratch_a_size() / data_size});
-        wv_scratch_a.resize<bfloat16>({nthr, wv_gemm_ptr->get_scratch_a_size() / data_size});
+        qk_scratch_a.resize<T>({nthr, qk_gemm_ptr->get_scratch_a_size() / data_size});
+        wv_scratch_a.resize<T>({nthr, wv_gemm_ptr->get_scratch_a_size() / data_size});
 
-        qk_scratch_b.resize<bfloat16>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
-        wv_scratch_b.resize<bfloat16>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
+        qk_scratch_b.resize<T>({B, Hk, qk_gemm_ptr->get_scratch_b_size() / data_size});
+        wv_scratch_b.resize<T>({B, Hk, wv_gemm_ptr->get_scratch_b_size() / data_size});
         if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
             attn_score = dnnl::memory(attn_md, strm.get_engine());
             attn_weight = dnnl::memory(weight_md, strm.get_engine());
@@ -332,53 +339,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         return;
     }
 
-    void prepare_prim(dnnl::stream strm,
-                      PlainTensor& query,
-                      PlainTensor& present_key,
-                      PlainTensor& present_value,
-                      size_t B,
-                      size_t H,
-                      size_t Hk,
-                      size_t q_len,
-                      size_t kv_len,
-                      size_t S,
-                      bool has_out_transpose) {
-        auto qkv_dt = precision_of<T>::value == ov::element::f32 ? dt::f32 : dt::bf16;
-        dnnl::memory::desc cur_q_md(make_dnnl_dims({B, H, q_len, S}), qkv_dt, query.get_strides<dnnl::memory::dim>());
-        dnnl::memory::desc cur_k_md(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_key.get_strides<dnnl::memory::dim>());
-        if (cur_q_md == q_md && cur_k_md == k_md)
-            return;
-
-        q_md = cur_q_md;
-        k_md = cur_k_md;
-        dnnl::memory::desc attn_md(make_dnnl_dims({B, H, q_len, kv_len}), dt::f32, tag::abcd);
-        k_md = k_md.permute_axes({0, 1, 3, 2});
-        auto qk_pd = dnnl::matmul::primitive_desc(strm.get_engine(), q_md, k_md, attn_md);
-        qk_prim = dnnl::matmul(qk_pd);
-
-        weight_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, kv_len}), qkv_dt, tag::abcd);
-        v_md = dnnl::memory::desc(make_dnnl_dims({B, Hk, kv_len, S}), qkv_dt, present_value.get_strides<dnnl::memory::dim>());
-        out_md = dnnl::memory::desc(make_dnnl_dims({B, H, q_len, S}), qkv_dt, tag::abcd);
-        if (has_out_transpose)
-            out_md = out_md.permute_axes({0, 2, 1, 3});
-        auto wv_pd = dnnl::matmul::primitive_desc(strm.get_engine(), weight_md, v_md, out_md);
-        wv_prim = dnnl::matmul(wv_pd);
-
-        if (!attn_score || attn_md.get_size() > attn_score.get_desc().get_size()) {
-            attn_score = dnnl::memory(attn_md, strm.get_engine());
-            attn_weight = dnnl::memory(weight_md, strm.get_engine());
-        }
-    }
-
-    void exec_multiquery(PlainTensor& query,
-                         PlainTensor& present_key,
-                         PlainTensor& present_value,
-                         const PlainTensor& alibi_mask,
-                         const PlainTensor& attention_mask,
-                         PlainTensor& output_emb,
-                         bool has_out_transpose,
-                         bool auto_causal,
-                         float d_scale = 0.0f) {
+    void execute_brgemm(PlainTensor& query,
+                        PlainTensor& present_key,
+                        PlainTensor& present_value,
+                        const PlainTensor& alibi_mask,
+                        const PlainTensor& attention_mask,
+                        PlainTensor& output_emb,
+                        bool has_out_transpose,
+                        bool auto_causal,
+                        float d_scale = 0.0f) {
         const auto B = query.size(0);
         const auto H = query.size(1);
         const auto q_len = query.size(2);
@@ -388,15 +357,17 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         size_t h_each_group_len = H / Hk;
         PlainTensor score, weight;
         score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        weight.resize({B, H, q_len, kv_len}, static_cast<bfloat16*>(attn_weight.get_data_handle()));
+        weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+        bool is_bf16 = precision_of<T>::value == ov::element::bf16;
         // packed k, v
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
-            bfloat16* k_ptr = &present_key.at<bfloat16>({b, h, 0, 0});
-            bfloat16* v_ptr = &present_value.at<bfloat16>({b, h, 0, 0});
-            qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<bfloat16>({b, h, 0}));
-            wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<bfloat16>({b, h, 0}));
+            T* k_ptr = &present_key.at<T>({b, h, 0, 0});
+            T* v_ptr = &present_value.at<T>({b, h, 0, 0});
+            qk_gemm_ptr->copy_buffer_b(k_ptr, &qk_scratch_b.at<T>({b, h, 0}));
+            if (is_bf16)
+                wv_gemm_ptr->copy_buffer_b(v_ptr, &wv_scratch_b.at<T>({b, h, 0}));
         });
 
         // attention
@@ -405,14 +376,15 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
             size_t tid = parallel_get_thread_num();
-            bfloat16* q_ptr = &query.at<bfloat16>({b, h, m_start, 0});
+            T* q_ptr = &query.at<T>({b, h, m_start, 0});
             float* c_ptr = &score.at<float>({b, h, m_start, 0});
-            qk_gemm_ptr->executeGemmPackedB(m_cnt < m_block_size,
-                                            q_ptr,
-                                            &qk_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}),
-                                            c_ptr,
-                                            wsp.data() + tid * wsp_size_per_thread,
-                                            qk_scratch_a ? &qk_scratch_a.at<bfloat16>({tid, 0}) : nullptr);
+            T* k_ptr = &qk_scratch_b.at<T>({b, h / h_each_group_len, 0});
+            qk_gemm_ptr->executeGemm(m_cnt < m_block_size,
+                                     q_ptr,
+                                     k_ptr,
+                                     c_ptr,
+                                     wsp.data() + tid * wsp_size_per_thread,
+                                     qk_scratch_a ? &qk_scratch_a.at<T>({tid, 0}) : nullptr);
             float* alibi_ptr = nullptr;
             auto alibi_stride = 0;
             if (alibi_mask) {
@@ -439,7 +411,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
                 attn_softmax(&score.at<float>({b, h, m, 0}),
-                             &weight.at<bfloat16>({b, h, m, 0}),
+                             &weight.at<T>({b, h, m, 0}),
                              d_scale,
                              alibi_ptr + m * alibi_stride,
                              attn_mask_ptr + m * attn_mask_stride,
@@ -450,35 +422,26 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                              precision_of<T>::value,
                              precision_of<T>::value);
             }
-            bfloat16* w_ptr = &weight.at<bfloat16>({b, h, m_start, 0});
+            T* w_ptr = &weight.at<T>({b, h, m_start, 0});
+            PlainTensor& sdpa_out = is_bf16 ? fp32_out : output_emb;
             float* fp32_out_ptr =
-                has_out_transpose ? &fp32_out.at<float>({b, m_start, h, 0}) : &fp32_out.at<float>({b, h, m_start, 0});
-            wv_gemm_ptr->executeGemmPackedB(m_cnt < m_block_size,
-                                            w_ptr,
-                                            &wv_scratch_b.at<bfloat16>({b, h / h_each_group_len, 0}),
-                                            fp32_out_ptr,
-                                            wsp.data() + tid * wsp_size_per_thread,
-                                            wv_scratch_a ? &wv_scratch_a.at<bfloat16>({tid, 0}) : nullptr);
+                has_out_transpose ? &sdpa_out.at<float>({b, m_start, h, 0}) : &sdpa_out.at<float>({b, h, m_start, 0});
+            T* v_ptr = is_bf16 ? &wv_scratch_b.at<T>({b, h / h_each_group_len, 0})
+                               : &present_value.at<T>({b, h / h_each_group_len, 0, 0});
+            wv_gemm_ptr->executeGemm(m_cnt < m_block_size,
+                                     w_ptr,
+                                     v_ptr,
+                                     fp32_out_ptr,
+                                     wsp.data() + tid * wsp_size_per_thread,
+                                     wv_scratch_a ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
+            if (is_bf16) {
+                cpu_convert(&fp32_out.at<float>({b, h, m_start, 0}),
+                            &output_emb.at<T>({b, h, m_start, 0}),
+                            ov::element::f32,
+                            ov::element::bf16,
+                            m_cnt * head_size);
+            }
         });
-        cpu_convert(&fp32_out.at<float>({0, 0, 0, 0}),
-                    &output_emb.at<bfloat16>({0, 0, 0, 0}),
-                    ov::element::f32,
-                    ov::element::bf16,
-                    B * H * q_len * head_size);
-    }
-
-    void exec_qk(dnnl::stream strm, PlainTensor& query, PlainTensor& present_key) {
-        dnnl::memory q(q_md, strm.get_engine(), query.ptr<T>());
-        dnnl::memory k(k_md, strm.get_engine(), present_key.ptr<T>());
-        qk_prim.execute(strm, {{DNNL_ARG_SRC, q},
-                               {DNNL_ARG_WEIGHTS, k},
-                               {DNNL_ARG_DST, attn_score}});
-    }
-
-    void exec_kv(dnnl::stream strm, PlainTensor& present_value, PlainTensor& output_emb) {
-        dnnl::memory v(v_md, strm.get_engine(), present_value.ptr<T>());
-        dnnl::memory out(out_md, strm.get_engine(), output_emb.ptr<T>());
-        wv_prim.execute(strm, {{DNNL_ARG_SRC, attn_weight}, {DNNL_ARG_WEIGHTS, v}, {DNNL_ARG_DST, out}});
     }
 
     PlainTensor causal_mask;
@@ -505,61 +468,20 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     bool has_out_transpose,
                     bool auto_causal,
                     float d_scale = 0.0f) {
-        auto B = query.size(0);
-        auto H = query.size(1);
-        auto q_len = query.size(2);
         auto head_size = query.size(3);
-        auto Hk = present_key.size(1);
-        auto kv_len = present_key.size(2);
-        bool is_multi_query = H != Hk;
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
 
-        if (is_multi_query) {
-            prepare_multiquery_prim(strm, query, present_key, has_out_transpose);
-            exec_multiquery(query,
-                            present_key,
-                            present_value,
-                            alibi_mask,
-                            attention_mask,
-                            output_emb,
-                            has_out_transpose,
-                            auto_causal,
-                            d_scale);
-            return;
-        }
-        prepare_prim(strm, query, present_key, present_value, B, H, Hk, q_len, kv_len, head_size, has_out_transpose);
-        exec_qk(strm, query, present_key);
-
-        PlainTensor score;
-        score.resize({B, H, q_len, kv_len}, static_cast<float*>(attn_score.get_data_handle()));
-        PlainTensor weight;
-        weight.resize({B, H, q_len, kv_len}, static_cast<T*>(attn_weight.get_data_handle()));
-        // softmax
-        parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t m) {
-            // apply attention mask & sofmax
-            auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-            uint8_t* attn_mask_ptr = nullptr;
-            auto attn_mask_stride = 0;
-            if (attention_mask) {
-                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<T>({b, h, 0, 0}, true));
-                if (attention_mask.size(2) > 1)
-                    attn_mask_stride = attention_mask.stride(2) * sizeof(T);
-            }
-            attn_softmax(&score.at<float>({b, h, m, 0}),
-                         &weight.at<T>({b, h, m, 0}),
-                         d_scale,
-                         alibi_mask ? &alibi_mask.at<float>({b, h, m, 0}, true) : nullptr,
-                         attn_mask_ptr + m * attn_mask_stride,
-                         causal_mask ? &causal_mask.at<uint8_t>({b, h, m, 0}, true) : nullptr,
-                         select_nfltmax_at_0,
-                         ncausal,
-                         kv_len,
-                         precision_of<T>::value,
-                         precision_of<T>::value);
-        });
-
-        exec_kv(strm, present_value, output_emb);
+        prepare_brgemm_prim(strm, query, present_key, has_out_transpose);
+        execute_brgemm(query,
+                       present_key,
+                       present_value,
+                       alibi_mask,
+                       attention_mask,
+                       output_emb,
+                       has_out_transpose,
+                       auto_causal,
+                       d_scale);
     }
 };
 
@@ -980,7 +902,7 @@ void ScaledDotProductAttention::createPrimitive() {
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&](const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
-        std::shared_ptr<Executor> executor;
+        std::shared_ptr<Executor> executor = nullptr;
         if (rtPrecision == ov::element::bf16) {
 #ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
@@ -988,8 +910,14 @@ void ScaledDotProductAttention::createPrimitive() {
         } else {
 #ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
+#elif defined(OPENVINO_ARCH_X86_64)
+            if (with_cpu_x86_avx512_core()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
+            }
 #else
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context);
+            executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
 #endif
         }
         return executor;
@@ -998,7 +926,7 @@ void ScaledDotProductAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        OPENVINO_THROW("ScaleDotAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }

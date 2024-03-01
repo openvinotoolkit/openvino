@@ -21,7 +21,7 @@ public:
                  WeightsSharing::Ptr w_cache,
                  bool isGraphQuantized)
         : config(config),
-          weightsCache(w_cache),
+          weightsCache(std::move(w_cache)),
           isGraphQuantizedFlag(isGraphQuantized) {
         rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
         rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());

@@ -72,6 +72,8 @@ void LSTMSequenceTest::SetUp() {
     ov::element::Type model_type;
     std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction,
                 WRBType, model_type, targetDevice) = this->GetParam();
+
+    max_seq_lengths = seq_lengths;
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
     std::vector<ov::Shape> inputShapes = {
             {batch, seq_lengths, input_size},
@@ -115,7 +117,7 @@ void LSTMSequenceTest::SetUp() {
         seq_lengths_node->set_friendly_name("seq_lengths");
         params.push_back(param);
     } else if (mode == SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST ||
-                mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
+               mode == SequenceTestsMode::PURE_SEQ_RAND_SEQ_LEN_CONST) {
         ov::test::utils::InputGenerateData in_data;
         in_data.start_from = 0;
         in_data.range = seq_lengths;
@@ -174,5 +176,26 @@ void LSTMSequenceTest::SetUp() {
         EXPECT_EQ(ti_found, false);
     }
 }
+
+void LSTMSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& func_inputs = function->inputs();
+    ov::test::utils::InputGenerateData in_data;
+    in_data.start_from = 0;
+    in_data.range = 10;
+
+    for (size_t i = 0; i < func_inputs.size(); ++i) {
+        ov::Tensor tensor;
+
+        if (i == 3) {
+            in_data.range = max_seq_lengths;
+        } else {
+            in_data.range = 10;
+        }
+
+        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+
+        inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
+    }}
 }  // namespace test
 }  // namespace ov

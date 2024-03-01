@@ -1573,7 +1573,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
-                                        bool disable_type_conversion) {
+                                        bool disable_type_conversion,
+                                        bool convert_input_to_output_dt) {
     JitConstants res = {};
     if (params.empty()) {
         return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
@@ -1602,7 +1603,14 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
 
         if (i == 0) {
             activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
-            res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
+            if (convert_input_to_output_dt) {
+                // Convert the input to the output data type to fix that cl kernel build failed for an ambiguous issue of the fmax/fmin functions
+                // occurring by the different data types between input and output.
+                res_activation = "ACTIVATION_FUNC" + activation_suffix
+                                + "(" + (use_type_parameter? "jit_type, ":"") + "convert_" + toCLType(out_dt) + "(input), params)";
+            } else {
+                res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
+            }
         } else {
             res_activation = "ACTIVATION" + activation_suffix + "(" + (use_type_parameter ? "jit_type, " : "") +
                              res_activation + ", ACTIVATION_PARAMS" + activation_suffix + ")";

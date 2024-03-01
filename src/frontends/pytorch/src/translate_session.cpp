@@ -323,10 +323,24 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
     }
 }
 
+namespace {
+bool is_number(const std::string& s) {
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it))
+        ++it;
+    return !s.empty() && it == s.end();
+}
+}  // namespace
+
 size_t TranslateSession::decode_tensor_name(const Output<Node>& output) {
     // any_name should always return numerical value even if there is a word value exist in names
-    const auto& name = output.get_any_name();
+    auto name = output.get_any_name();
+    auto pos = name.find("_");
+    if (pos != std::string::npos) {
+        name = name.substr(0, pos);
+    }
     // numbers after "_" will be ignored by stoll function
+    FRONT_END_GENERAL_CHECK(is_number(name), "Tensor name is not a number: ", name);
     return static_cast<size_t>(std::stoll(name));
 }
 

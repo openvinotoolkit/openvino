@@ -8,7 +8,7 @@ import pytest
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-class TestVar(PytorchLayerTest):
+class TestVarMean(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
@@ -56,7 +56,7 @@ class TestVar(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["var", "var_mean", "std", "std_mean"])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_var2args(self, unbiased, op_type, ie_device, precision, ir_version):
+    def test_op2args(self, unbiased, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(unbiased, op_type=op_type), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
@@ -67,5 +67,5 @@ class TestVar(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["var", "var_mean", "std", "std_mean"])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_var(self, unbiased, dim, keepdim, op_type, ie_device, precision, ir_version):
+    def test_op(self, unbiased, dim, keepdim, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(unbiased, dim, keepdim, two_args_case=False, op_type=op_type), ie_device, precision, ir_version)

@@ -5,7 +5,7 @@ OpenVINO provides bindings for several languages:
  * [c](./c)
  * [python](./python)
  * [javascript](./js)
-   * [nodejs](./js/nodejs)
+   * [node.js](./js/node)
 
 ## See also
  * [OpenVINO™ README](../../README.md)

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
@@ -39,9 +39,10 @@ class TestAdd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("op_type", ["add", "add_"])
+    @pytest.mark.parametrize("op_type", ["add", skip_if_export("add_")])
     def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
@@ -110,6 +111,7 @@ class TestAddTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_add_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
@@ -134,6 +136,7 @@ class TestAddLists(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_add(self, ie_device, precision, ir_version):
@@ -169,5 +172,6 @@ class TestAddBool(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_add(self, lhs_type, rhs_type, ie_device, precision, ir_version):
         self._test(*self.create_model(lhs_type, rhs_type), ie_device, precision, ir_version)

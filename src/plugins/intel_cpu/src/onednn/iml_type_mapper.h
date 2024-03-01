@@ -42,6 +42,12 @@ enum impl_desc_type {
     //mlas backend
     mlas = 1<<26,
 
+    asimd  = 1<<27,
+    sve128 = 1<<28,
+    sve256 = 1<<29,
+    sve384 = 1<<30,
+    sve512 = 1<<31,
+
     // real types
     ref_any             = ref  | any,
 
@@ -100,7 +106,13 @@ enum impl_desc_type {
     dw_acl             = _dw | acl,
     gemm_acl           = gemm | acl,
     winograd_acl       = winograd | acl,
-    gemm_mlas          = gemm | mlas
+    gemm_mlas          = gemm | mlas,
+
+    jit_asimd          = jit | asimd,
+    jit_sve128        = jit | sve128,
+    jit_sve256        = jit | sve256,
+    jit_sve384        = jit | sve384,
+    jit_sve512        = jit | sve512
 };
 
 std::vector<std::string> extractTypeAndImplName(const std::string& priority);

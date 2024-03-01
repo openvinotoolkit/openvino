@@ -90,7 +90,7 @@ OutputVector translate_scatter(const NodeContext& context) {
 
     auto reduction = v12::ScatterElementsUpdate::Reduction::NONE;
     auto input_num = context.get_input_size();
-    // 5 argument can be reduction represened as string or out represented as Tensor
+    // 5 argument can be reduction represented as string or out represented as Tensor
     if (input_num > 4 && !context.input_is_none(4) && context.get_input_type(4).is<type::Str>()) {
         auto reduce_mode = context.const_input<std::string>(4);
         reduction = get_reduction_mode(reduce_mode);

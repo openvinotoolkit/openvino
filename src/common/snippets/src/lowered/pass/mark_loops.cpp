@@ -14,13 +14,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-MarkLoops::MarkLoops(size_t vector_size) : Pass(), m_vector_size(vector_size) {}
+MarkLoops::MarkLoops(size_t vector_size) : RangedPass(), m_vector_size(vector_size) {}
 
-bool MarkLoops::run(LinearIR& linear_ir) {
+bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::MarkLoops")
-    if (linear_ir.empty())
-        return false;
-
     const auto& lowering_config = linear_ir.get_config();
     const auto& loop_manager = linear_ir.get_loop_manager();
     auto loop_depth = lowering_config.m_loop_depth;
@@ -41,7 +38,7 @@ bool MarkLoops::run(LinearIR& linear_ir) {
                lhs_desc->get_shape() != rhs_desc->get_shape();
     };
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
         if (is_not_start_point(node))
@@ -55,7 +52,7 @@ bool MarkLoops::run(LinearIR& linear_ir) {
             const auto& prev_expr = *loop_end_pos;
             loop_end_pos++;
             // If iterator is the last, we should finish Loop
-            if (loop_end_pos == linear_ir.end())
+            if (loop_end_pos == end)
                 break;
 
             // If iterator is the last, we should finish Loop

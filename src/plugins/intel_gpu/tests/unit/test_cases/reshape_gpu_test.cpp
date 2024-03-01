@@ -502,7 +502,7 @@ void test_calc_output_shape(bool is_caching_test) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(reshape("reshape", input_info("input"), tensor(1, 1, 0, -1)));
+    topology.add(reshape("reshape", input_info("input"), tensor(1, 1, 1, -1)));
 
     set_values(input, {-1.f, 2.f, -3.f, 4.f});
 

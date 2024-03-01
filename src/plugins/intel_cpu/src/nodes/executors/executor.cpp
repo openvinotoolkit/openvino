@@ -15,10 +15,11 @@ std::string ExecutorTypeToString(const ExecutorType type) {
         CASE(Undefined);
         CASE(Graph);
         CASE(Common);
-        CASE(x64);
+        CASE(jit_x64);
         CASE(Dnnl);
         CASE(Acl);
         CASE(Mlas);
+        CASE(jit_aarch64);
     }
 #undef CASE
     return "Undefined";
@@ -29,10 +30,11 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     CASE(Undefined);
     CASE(Graph);
     CASE(Common);
-    CASE(x64);
+    CASE(jit_x64);
     CASE(Dnnl);
     CASE(Acl);
     CASE(Mlas);
+    CASE(jit_aarch64);
 #undef CASE
     return ExecutorType::Undefined;
 }

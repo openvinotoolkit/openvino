@@ -13,14 +13,10 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool CleanupLoopOffsets::run(LinearIR& linear_ir) {
+bool CleanupLoopOffsets::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
-    if (linear_ir.empty())
-        return false;
     bool is_modified = false;
-    // Note: it doesn't make sense to check the last expression - it must always be Result
-    const auto before_last = std::prev(linear_ir.end());
-    for (auto expr_it = linear_ir.begin(); expr_it != before_last; expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& node = expr_it->get()->get_node();
         if (auto loop_end = as_type_ptr<op::LoopEndStatic>(node)) {
             auto next_expr_it = std::next(expr_it);

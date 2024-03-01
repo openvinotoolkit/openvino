@@ -13,12 +13,13 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool NormalizeBufferIDs::run(LinearIR& linear_ir) {
+bool NormalizeBufferIDs::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::NormalizeBufferIDs");
 
     // [ original Buffer ID -> normalized ]
     std::map<size_t, size_t> buffer_ids;
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         const auto op = expr->get_node();
         if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
             const auto buffer_id = buffer->get_id();

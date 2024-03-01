@@ -56,7 +56,7 @@ models will be stored.
 
     import sys
     import importlib.util
-    
+
     %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
     if sys.platform == "win32":
         if importlib.util.find_spec("tensorflow_datasets"):
@@ -69,7 +69,7 @@ models will be stored.
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -79,13 +79,13 @@ models will be stored.
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
-    
+
 
 .. parsed-literal::
 
@@ -96,41 +96,41 @@ models will be stored.
 
     from pathlib import Path
     import logging
-    
+
     import tensorflow as tf
     import tensorflow_datasets as tfds
     from tensorflow.keras import layers
     from tensorflow.keras import models
-    
+
     from nncf import NNCFConfig
     from nncf.tensorflow.helpers.model_creation import create_compressed_model
     from nncf.tensorflow.initialization import register_default_init_args
     from nncf.common.logging.logger import set_log_level
     import openvino as ov
-    
+
     set_log_level(logging.ERROR)
-    
+
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     MODEL_DIR.mkdir(exist_ok=True)
     OUTPUT_DIR.mkdir(exist_ok=True)
-    
+
     BASE_MODEL_NAME = "ResNet-18"
-    
+
     fp32_h5_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".h5")
     fp32_ir_path = Path(OUTPUT_DIR / "saved_model").with_suffix(".xml")
     int8_pb_path = Path(OUTPUT_DIR / (BASE_MODEL_NAME + "_int8")).with_suffix(".pb")
     int8_ir_path = int8_pb_path.with_suffix(".xml")
-    
+
     BATCH_SIZE = 128
     IMG_SIZE = (64, 64)  # Default Imagenet image size
     NUM_CLASSES = 10  # For Imagenette dataset
-    
+
     LR = 1e-5
-    
+
     MEAN_RGB = (0.485 * 255, 0.456 * 255, 0.406 * 255)  # From Imagenet dataset
     STDDEV_RGB = (0.229 * 255, 0.224 * 255, 0.225 * 255)  # From Imagenet dataset
-    
+
     fp32_pth_url = "https://storage.openvinotoolkit.org/repositories/nncf/openvino_notebook_ckpts/305_resnet18_imagenette_fp32_v1.h5"
     _ = tf.keras.utils.get_file(fp32_h5_path.resolve(), fp32_pth_url)
     print(f'Absolute path where the model weights are saved:\n {fp32_h5_path.resolve()}')
@@ -160,7 +160,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    
+
      8192/134604992 [..............................] - ETA: 0s
 
 .. parsed-literal::
@@ -171,7 +171,7 @@ models will be stored.
 .. parsed-literal::
 
     
-   311296/134604992 [..............................] - ETA: 57s 
+   311296/134604992 [..............................] - ETA: 57s
 
 .. parsed-literal::
 
@@ -2506,7 +2506,7 @@ models will be stored.
 .. parsed-literal::
 
     
- 99196928/134604992 [=====================>........] - ETA: 9s 
+ 99196928/134604992 [=====================>........] - ETA: 9s
 
 .. parsed-literal::
 
@@ -3390,12 +3390,12 @@ Download size: 94.18 MiB
         image = image / STDDEV_RGB
         label = tf.one_hot(label, NUM_CLASSES)
         return image, label
-    
-    
+
+
     train_dataset = (train_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE)
                                   .batch(BATCH_SIZE)
                                   .prefetch(tf.data.experimental.AUTOTUNE))
-    
+
     validation_dataset = (validation_dataset.map(preprocessing, num_parallel_calls=tf.data.experimental.AUTOTUNE)
                                             .batch(BATCH_SIZE)
                                             .prefetch(tf.data.experimental.AUTOTUNE))
@@ -3411,34 +3411,34 @@ Define a Floating-Point Model
         def layer(input_tensor):
             x = layers.BatchNormalization(epsilon=2e-5)(input_tensor)
             x = layers.Activation('relu')(x)
-    
+
             # Defining shortcut connection.
             if cut == 'pre':
                 shortcut = input_tensor
             elif cut == 'post':
-                shortcut = layers.Conv2D(filters, (1, 1), strides=strides, kernel_initializer='he_uniform', 
+                shortcut = layers.Conv2D(filters, (1, 1), strides=strides, kernel_initializer='he_uniform',
                                          use_bias=False)(x)
-    
+
             # Continue with convolution layers.
             x = layers.ZeroPadding2D(padding=(1, 1))(x)
             x = layers.Conv2D(filters, (3, 3), strides=strides, kernel_initializer='he_uniform', use_bias=False)(x)
-    
+
             x = layers.BatchNormalization(epsilon=2e-5)(x)
             x = layers.Activation('relu')(x)
             x = layers.ZeroPadding2D(padding=(1, 1))(x)
             x = layers.Conv2D(filters, (3, 3), kernel_initializer='he_uniform', use_bias=False)(x)
-    
+
             # Add residual connection.
             x = layers.Add()([x, shortcut])
             return x
-    
+
         return layer
-    
-    
+
+
     def ResNet18(input_shape=None):
         """Instantiates the ResNet18 architecture."""
         img_input = layers.Input(shape=input_shape, name='data')
-    
+
         # ResNet18 bottom
         x = layers.BatchNormalization(epsilon=2e-5, scale=False)(img_input)
         x = layers.ZeroPadding2D(padding=(3, 3))(x)
@@ -3447,7 +3447,7 @@ Define a Floating-Point Model
         x = layers.Activation('relu')(x)
         x = layers.ZeroPadding2D(padding=(1, 1))(x)
         x = layers.MaxPooling2D((3, 3), strides=(2, 2), padding='valid')(x)
-    
+
         # ResNet18 body
         repetitions = (2, 2, 2, 2)
         for stage, rep in enumerate(repetitions):
@@ -3461,15 +3461,15 @@ Define a Floating-Point Model
                     x = residual_conv_block(filters, stage, block, strides=(1, 1), cut='pre')(x)
         x = layers.BatchNormalization(epsilon=2e-5)(x)
         x = layers.Activation('relu')(x)
-    
+
         # ResNet18 top
         x = layers.GlobalAveragePooling2D()(x)
         x = layers.Dense(NUM_CLASSES)(x)
         x = layers.Activation('softmax')(x)
-    
+
         # Create the model.
         model = models.Model(img_input, x)
-    
+
         return model
 
 .. code:: ipython3
@@ -3493,13 +3493,13 @@ model and a training pipeline.
 
     # Load the floating-point weights.
     fp32_model.load_weights(fp32_h5_path)
-    
+
     # Compile the floating-point model.
     fp32_model.compile(
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name='acc@1')]
     )
-    
+
     # Validate the floating-point model.
     test_loss, acc_fp32 = fp32_model.evaluate(
         validation_dataset,
@@ -3518,7 +3518,7 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    
+
       0/Unknown - 1s 0s/sample - loss: 1.0472 - acc@1: 0.7891
 
 .. parsed-literal::
@@ -3544,7 +3544,7 @@ model and a training pipeline.
 
 .. parsed-literal::
 
-    
+
     Accuracy of FP32 model: 0.822
 
 
@@ -3625,7 +3625,7 @@ demonstrated here.
         loss=tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1),
         metrics=[tf.keras.metrics.CategoricalAccuracy(name='acc@1')]
     )
-    
+
     # Validate the INT8 model.
     test_loss, test_acc = int8_model.evaluate(
         validation_dataset,
@@ -3635,7 +3635,7 @@ demonstrated here.
 
 .. parsed-literal::
 
-    
+
       0/Unknown - 1s 0s/sample - loss: 1.0468 - acc@1: 0.7656
 
 .. parsed-literal::
@@ -3673,10 +3673,10 @@ training pipeline are required. Here is a simple example.
 .. code:: ipython3
 
     print(f"\nAccuracy of INT8 model after initialization: {test_acc:.3f}")
-    
+
     # Train the INT8 model.
     int8_model.fit(train_dataset, epochs=2)
-    
+
     # Validate the INT8 model.
     test_loss, acc_int8 = int8_model.evaluate(
         validation_dataset, callbacks=tf.keras.callbacks.ProgbarLogger(stateful_metrics=['acc@1']))
@@ -3687,7 +3687,7 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
     Accuracy of INT8 model after initialization: 0.812
 
 
@@ -3698,13 +3698,13 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
   1/101 [..............................] - ETA: 11:46 - loss: 0.6168 - acc@1: 0.9844
 
 .. parsed-literal::
 
     
-  2/101 [..............................] - ETA: 41s - loss: 0.6303 - acc@1: 0.9766  
+  2/101 [..............................] - ETA: 41s - loss: 0.6303 - acc@1: 0.9766
 
 .. parsed-literal::
 
@@ -4084,7 +4084,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 78/101 [======================>.......] - ETA: 9s - loss: 0.7080 - acc@1: 0.9334 
+ 78/101 [======================>.......] - ETA: 9s - loss: 0.7080 - acc@1: 0.9334
 
 .. parsed-literal::
 
@@ -4214,7 +4214,7 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
   1/101 [..............................] - ETA: 41s - loss: 0.5798 - acc@1: 1.0000
 
 .. parsed-literal::
@@ -4595,7 +4595,7 @@ training pipeline are required. Here is a simple example.
 .. parsed-literal::
 
     
- 77/101 [=====================>........] - ETA: 9s - loss: 0.6759 - acc@1: 0.9520 
+ 77/101 [=====================>........] - ETA: 9s - loss: 0.6759 - acc@1: 0.9520
 
 .. parsed-literal::
 
@@ -4725,7 +4725,7 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
       0/Unknown - 0s 0s/sample - loss: 1.0568 - acc@1: 0.7812
 
 .. parsed-literal::
@@ -4751,9 +4751,9 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    
+
     Accuracy of INT8 model after fine-tuning: 0.816
-    
+
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: 0.006
 
 
@@ -4765,7 +4765,7 @@ Export Models to OpenVINO Intermediate Representation (IR)
 Use model conversion Python API to convert the models to OpenVINO IR.
 
 For more information about model conversion, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 Executing this command may take a while.
 
@@ -4795,7 +4795,7 @@ Benchmark Model Performance by Computing Inference Time
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO. By default,
 Benchmark Tool runs inference for 60 seconds in asynchronous mode on
 CPU. It returns inference speed as latency (milliseconds per image) and
@@ -4814,17 +4814,17 @@ throughput (frames per second) values.
 
     ov.save_model(model_ir_fp32, fp32_ir_path, compress_to_fp16=False)
     ov.save_model(model_ir_int8, int8_ir_path, compress_to_fp16=False)
-    
-    
+
+
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if 'FPS' in line]
         print(*parsed_output, sep='\n')
-    
-    
+
+
     print('Benchmark FP32 model (IR)')
     benchmark_output = ! benchmark_app -m $fp32_ir_path -d CPU -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
-    
+
     print('\nBenchmark INT8 model (IR)')
     benchmark_output = ! benchmark_app -m $int8_ir_path -d CPU -api async -t 15 -shape [1,64,64,3]
     parse_benchmark_output(benchmark_output)
@@ -4838,7 +4838,7 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     [ INFO ] Throughput:   2822.70 FPS
-    
+
     Benchmark INT8 model (IR)
 
 

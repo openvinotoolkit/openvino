@@ -76,7 +76,7 @@ Imports
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
+
 
 .. parsed-literal::
 
@@ -136,7 +136,7 @@ Convert Model to OpenVINO Intermediate Representation format
 
 
 `Model conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 facilitates the transition between training and deployment environments,
 performs static model analysis, and adjusts deep learning models for
 optimal execution on end-point target devices.
@@ -144,11 +144,11 @@ optimal execution on end-point target devices.
 .. code:: ipython3
 
     import torch
-    
+
     ir_xml_name = checkpoint + ".xml"
     MODEL_DIR = "model/"
     ir_xml_path = Path(MODEL_DIR) / ir_xml_name
-    
+
     MAX_SEQ_LENGTH = 128
     input_info = [(ov.PartialShape([1, -1]), ov.Type.i64), (ov.PartialShape([1, -1]), ov.Type.i64)]
     default_input = torch.ones(1, MAX_SEQ_LENGTH, dtype=torch.int64)
@@ -156,7 +156,7 @@ optimal execution on end-point target devices.
         "input_ids": default_input,
         "attention_mask": default_input,
     }
-    
+
     ov_model = ov.convert_model(model, input=input_info, example_input=inputs)
     ov.save_model(ov_model, ir_xml_path)
 
@@ -168,14 +168,14 @@ optimal execution on end-point target devices.
 
 
 OpenVINO™ Runtime uses the `Infer
-Request <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Infer_request.html>`__
+Request <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__
 mechanism which enables running models on different devices in
 asynchronous or synchronous manners. The model graph is sent as an
 argument to the OpenVINO API and an inference request is created. The
 default inference mode is AUTO but it can be changed according to
 requirements and hardware available. You can explore the different
 inference modes and their usage `in
-documentation. <https://docs.openvino.ai/2023.3/openvino_docs_Runtime_Inference_Modes_Overview.html>`__
+documentation. <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html>`__
 
 .. code:: ipython3
 
@@ -191,14 +191,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -225,7 +225,7 @@ select device from dropdown list for running inference using OpenVINO
         Parameters: Logits array
         Returns: Probabilities
         """
-    
+
         e_x = np.exp(x - np.max(x))
         return e_x / e_x.sum()
 
@@ -244,7 +244,7 @@ Inference
         Parameters: Text to be processed
         Returns: Label: Positive or Negative.
         """
-    
+
         input_text = tokenizer(
             input_text,
             truncation=True,
@@ -293,7 +293,7 @@ Read from a text file
         filename='notebook_utils.py'
     )
     from notebook_utils import download_file
-    
+
     # Download the text from the openvino_notebooks storage
     vocab_file_path = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/text/food_reviews.txt",
@@ -324,11 +324,11 @@ Read from a text file
 .. parsed-literal::
 
     User Input:  The food was horrible.
-    
-    Label:  NEGATIVE 
-    
+
+    Label:  NEGATIVE
+
     User Input:  We went because the restaurant had good reviews.
-    Label:  POSITIVE 
-    
+    Label:  POSITIVE
+
     Total Time:  0.03  seconds
 

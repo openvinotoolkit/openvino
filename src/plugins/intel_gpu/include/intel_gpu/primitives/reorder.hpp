@@ -65,6 +65,7 @@ struct WeightsReorderParams {
         ib >> _transposed;
         ib >> _grouped;
     }
+    virtual ~WeightsReorderParams() = default;
 
 protected:
     layout _in_layout;
@@ -267,7 +268,7 @@ struct reorder : public primitive_base<reorder> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<reorder>::save(ob);
-        ob << make_data(&output_format, sizeof(format));
+        ob << output_format;
         ob << mean;
         ob << subtract_per_feature;
         ob << make_data(&mean_mode, sizeof(reorder_mean_mode));
@@ -283,7 +284,7 @@ struct reorder : public primitive_base<reorder> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<reorder>::load(ib);
-        ib >> make_data(&output_format, sizeof(format));
+        ib >> output_format;
         ib >> mean;
         ib >> subtract_per_feature;
         ib >> make_data(&mean_mode, sizeof(reorder_mean_mode));

@@ -142,7 +142,7 @@
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/torch_tests/**/*']
+        '!tests/model_hub_tests/pytorch/**/*']
 
 'category: TFL FE':
 - 'src/frontends/tensorflow_lite/**/*'
@@ -156,7 +156,7 @@
 - 'tests/layer_tests/py_frontend_tests/test_torch_decoder.py'
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
 - any: ['tests/model_hub_tests/**',
-        '!tests/model_hub_tests/tf_hub_tests/**/*']
+        '!tests/model_hub_tests/tensorflow/**/*']
 
 'category: tools':
 - any: ['tools/**',

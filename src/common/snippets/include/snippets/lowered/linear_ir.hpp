@@ -70,11 +70,11 @@ public:
     std::shared_ptr<LinearIR> clone() const;
     static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
                                                LinearIR::container::const_iterator end,
-                                               ExressionMap& expression_map);
+                                               ExpressionMap& expression_map);
 
-    const container& get_ops() const {return m_expressions; }
-    const io_container& get_IO_ops() const {return m_io_expressions; }
-    Config get_config() {return m_config; }
+    const container& get_ops() const { return m_expressions; }
+    const io_container& get_IO_ops() const { return m_io_expressions; }
+    const Config& get_config() const { return m_config; }
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;

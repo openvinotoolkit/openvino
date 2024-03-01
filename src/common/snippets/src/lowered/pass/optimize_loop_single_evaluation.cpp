@@ -13,13 +13,11 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool OptimizeLoopSingleEvaluation::run(LinearIR& linear_ir) {
+bool OptimizeLoopSingleEvaluation::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::OptimizeLoopSingleEvaluation")
-    if (linear_ir.empty())
-        return false;
-
     bool is_modified = false;
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         if (auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node())) {
             // *1* solo vector/tail loop + empty outer loop
             //      => skip increments (both counter & ptr) : set evaluate_once flag

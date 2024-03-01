@@ -46,7 +46,7 @@ Imports
 .. code:: ipython3
 
     import platform
-    
+
     if platform.system() == "Windows":
         %pip install -q "paddlepaddle>=2.5.1,<2.6.0"
     else:
@@ -73,7 +73,7 @@ Imports
     paddleclas 2.5.1 requires easydict, which is not installed.
     paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
-    
+
 
 .. parsed-literal::
 
@@ -97,13 +97,13 @@ Imports
     --2024-02-09 22:36:08--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-mu.intel.com (proxy-mu.intel.com)... 10.217.247.236
     Connecting to proxy-mu.intel.com (proxy-mu.intel.com)|10.217.247.236|:911... connected.
-    Proxy request sent, awaiting response... 
+    Proxy request sent, awaiting response...
 
 .. parsed-literal::
 
     404 Not Found
     2024-02-09 22:36:08 ERROR 404: Not Found.
-    
+
 
 
 .. parsed-literal::
@@ -116,20 +116,20 @@ Imports
     import time
     import tarfile
     from pathlib import Path
-    
+
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     from paddleclas import PaddleClas
     from PIL import Image
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
-    
+
     from notebook_utils import download_file
 
 
@@ -168,9 +168,9 @@ PaddleHub. This may take a while.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_close.png",
         directory="data"
     )
-    
+
     IMAGE_FILENAME = img.as_posix()
-    
+
     MODEL_NAME = "MobileNetV3_large_x1_0"
     MODEL_DIR = Path("model")
     if not MODEL_DIR.exists():
@@ -271,8 +271,8 @@ the same method.
 .. code:: ipython3
 
     preprocess_ops = classifier.predictor.preprocess_ops
-    
-    
+
+
     def process_image(image):
         for op in preprocess_ops:
             image = op(image)
@@ -341,7 +341,7 @@ accept path to PaddlePaddle model and returns OpenVINO Model class
 instance which represents this model. Obtained model is ready to use and
 loading on device using ``ov.compile_model`` or can be saved on disk
 using ``ov.save_model`` function. See the `Model Conversion
-Guide <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 for more information about the Model Conversion API.
 
 .. code:: ipython3
@@ -363,7 +363,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -371,7 +371,7 @@ select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -400,23 +400,23 @@ information.
     core = ov.Core()
     model = core.read_model(model_xml)
     compiled_model = core.compile_model(model=model, device_name="CPU")
-    
+
     # Get model output
     output_layer = compiled_model.output(0)
-    
+
     # Read, show, and preprocess input image
     # See the "Show Inference on PaddlePaddle Model" section for source of process_image
     image = Image.open(IMAGE_FILENAME)
     plt.imshow(image)
     input_image = process_image(np.array(image))[None,]
-    
+
     # Do inference
     ov_result = compiled_model([input_image])[output_layer][0]
-    
+
     # find the top three values
     top_indices = np.argsort(ov_result)[-3:][::-1]
     top_scores = ov_result[top_indices]
-    
+
     # Convert the inference results to class names, using the same labels as the PaddlePaddle classifier
     for index, softmax_probability in zip(top_indices, top_scores):
         print(f"{class_id_map[index]}, {softmax_probability:.5f}")
@@ -442,13 +442,13 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
 
     num_images = 50
-    
+
     image = Image.open(fp=IMAGE_FILENAME)
 
 .. code:: ipython3
@@ -456,7 +456,7 @@ Note that many optimizations are possible to improve the performance.
     # Show device information
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device_name in devices:
         device_full_name = core.get_property(device_name, "FULL_DEVICE_NAME")
         print(f"{device_name}: {device_full_name}")
@@ -490,7 +490,7 @@ Note that many optimizations are possible to improve the performance.
 .. parsed-literal::
 
     PaddlePaddle model on CPU: 0.0075 seconds per image, FPS: 133.16
-    
+
     PaddlePaddle result:
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
@@ -528,18 +528,18 @@ select device from dropdown list for running inference using OpenVINO
     # Show inference speed on OpenVINO IR model
     compiled_model = core.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
-    
-    
+
+
     start = time.perf_counter()
     input_image = process_image(np.array(image))[None,]
     for _ in range(num_images):
         ie_result = compiled_model([input_image])[output_layer][0]
         top_indices = np.argsort(ie_result)[-5:][::-1]
         top_softmax = ie_result[top_indices]
-    
+
     end = time.perf_counter()
     time_ir = end - start
-    
+
     print(
         f"OpenVINO IR model in OpenVINO Runtime ({device.value}): {time_ir/num_images:.4f} "
         f"seconds per image, FPS: {num_images/time_ir:.2f}"
@@ -554,7 +554,7 @@ select device from dropdown list for running inference using OpenVINO
 .. parsed-literal::
 
     OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0030 seconds per image, FPS: 328.87
-    
+
     OpenVINO result:
     Labrador retriever, 0.74909
     German short-haired pointer, 0.02368
@@ -574,4 +574,4 @@ References
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+   support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__

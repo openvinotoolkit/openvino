@@ -267,7 +267,7 @@ class TestScatterAdd(PytorchLayerTest):
     @pytest.mark.parametrize("src", [torch.arange(1, 26).reshape(5, 5)])
     @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("inplace", [True, False])
-    def test_scatter_reduce(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
+    def test_scatter_add(self, dim, index, src, dtype, inplace, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))
         if index is None:

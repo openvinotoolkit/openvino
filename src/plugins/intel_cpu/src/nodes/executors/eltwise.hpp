@@ -11,6 +11,22 @@
 namespace ov {
 namespace intel_cpu {
 
+struct EltwiseData {
+    Algorithm algo;
+    dnnl::algorithm onednnAlgorithm;
+    float alpha;
+    float beta;
+    float gamma;
+
+    bool operator==(const EltwiseData& rhs) const noexcept {
+        return algo == rhs.algo &&
+               onednnAlgorithm == rhs.onednnAlgorithm &&
+               alpha == rhs.alpha &&
+               beta == rhs.beta &&
+               gamma == rhs.gamma;
+    }
+};
+
 struct EltwiseAttrs {
     Algorithm algorithm;
     float alpha;

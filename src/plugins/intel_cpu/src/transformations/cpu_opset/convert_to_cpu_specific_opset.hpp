@@ -15,11 +15,9 @@
 #include "common/pass/convert_to_swish_cpu.hpp"
 #include "common/pass/move_fc_reshape_to_weights.hpp"
 #include "transformations/convert_precision.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/pass/rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
-#include "common/pass/ngram_fusion.hpp"
 #include "transformations/defs.hpp"
 
 #include "itt.hpp"
@@ -37,7 +35,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
     CPU_REGISTER_PASS_COMMON(manager, ConvertTileToSeqTiles);
-    CPU_REGISTER_PASS_X64(manager, ConvertToPowerStatic);
+    CPU_REGISTER_PASS_COMMON(manager, ConvertToPowerStatic);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToLeakyRelu);
     CPU_REGISTER_PASS_COMMON(manager, ConvertToSwishCPU);
     CPU_REGISTER_PASS_COMMON(manager, OptimizeSequenceTransposes);
@@ -50,8 +48,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc) {
                              type_to_fuse_map{{}},
                              false,
                              false);
-    auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(manager, ov::pass::SymbolicOptimizations, false);
-    symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
 
     manager.run_passes(nGraphFunc);

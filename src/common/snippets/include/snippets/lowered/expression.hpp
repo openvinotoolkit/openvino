@@ -19,7 +19,7 @@ namespace lowered {
 
 class LinearIR;
 using ExpressionPtr = std::shared_ptr<Expression>;
-using ExressionMap = std::unordered_map<Expression*, ExpressionPtr>;
+using ExpressionMap = std::unordered_map<Expression*, ExpressionPtr>;
 class Expression : public std::enable_shared_from_this<Expression> {
     friend class LinearIR;
     friend class ExpressionPort;
@@ -63,7 +63,7 @@ public:
     void set_loop_ids(const std::vector<size_t>& loops);
     virtual ExpressionPtr clone_with_new_inputs(const std::vector<PortConnectorPtr>& new_inputs,
                                                 const std::shared_ptr<Node>& new_node) const;
-    ExpressionPtr clone_with_new_inputs(const ExressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
+    ExpressionPtr clone_with_new_inputs(const ExpressionMap& expr_map, const std::shared_ptr<Node>& new_node) const;
 
 protected:
     Expression(const Expression& other);

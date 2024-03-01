@@ -39,6 +39,7 @@ class TestLogSoftmax(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_log_softmax(self, input_dtype, convert_dtype, dim, ie_device, precision, ir_version):
         self.input_dtype = input_dtype

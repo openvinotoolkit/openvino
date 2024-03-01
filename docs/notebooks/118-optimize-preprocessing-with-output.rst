@@ -9,9 +9,9 @@ instrument, that enables integration of preprocessing steps into an
 execution graph and performing it on a selected device, which can
 improve device utilization. For more information about Preprocessing
 API, see this
-`overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Overview.html#>`__
+`overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing.html>`__
 and
-`details <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Details.html>`__
+`details <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/preprocessing-api-details.html>`__
 
 This tutorial include following steps:
 
@@ -88,13 +88,13 @@ Imports
 
     import time
     from pathlib import Path
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     import tensorflow as tf
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -140,7 +140,7 @@ Setup image and device
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -148,7 +148,7 @@ Setup image and device
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -182,12 +182,12 @@ and save it to the disk.
 .. code:: ipython3
 
     model_name = "InceptionResNetV2"
-    
+
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     model_path = model_dir / model_name
-    
+
     model = tf.keras.applications.InceptionV3()
     model.save(model_path)
 
@@ -273,7 +273,7 @@ Graph modifications of a model shall be performed after the model is
 read from a drive and before it is loaded on the actual device.
 
 Pre-processing support following operations (please, see more details
-`here <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess15PreProcessStepsE>`__)
+`here <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv3N2ov10preprocess15PreProcessStepsE>`__)
 
 -  Mean/Scale Normalization
 -  Converting Precision
@@ -292,13 +292,13 @@ The options for preprocessing are not required.
 .. code:: ipython3
 
     ir_path = model_dir / "ir_model" / f"{model_name}.xml"
-    
+
     ppp_model = None
-    
+
     if ir_path.exists():
         ppp_model = core.read_model(model=ir_path)
         print(f"Model in OpenVINO format already exists: {ir_path}")
-    else: 
+    else:
         ppp_model = ov.convert_model(model_path,
                                      input=[1,299,299,3])
         ov.save_model(ppp_model, str(ir_path))
@@ -309,14 +309,14 @@ Create ``PrePostProcessor`` Object
 
 
 The
-`PrePostProcessor() <https://docs.openvino.ai/2023.3/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
+`PrePostProcessor() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
 .. code:: ipython3
 
     from openvino.preprocess import PrePostProcessor
-    
+
     ppp = PrePostProcessor(ppp_model)
 
 Declare User’s Data Format
@@ -334,7 +334,7 @@ about user’s input tensor will be initialized to same data
 (type/shape/etc) as model’s input parameter. User application can
 override particular parameters according to application’s data. Refer to
 the following
-`page <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv4N2ov10preprocess15InputTensorInfoE>`__
+`page <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv4N2ov10preprocess15InputTensorInfoE>`__
 for more information about parameters for overriding.
 
 Below is all the specified input information:
@@ -372,13 +372,13 @@ Declaring Model Layout
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
 may be specified is input data
-`layout <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
+`layout <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizie-preprocessing/layout-api-overview.html>`__.
 
 .. code:: ipython3
 
     input_layer_ir = next(iter(ppp_model.inputs))
     print(f"The input shape of the model is {input_layer_ir.shape}")
-    
+
     ppp.input().model().set_layout(ov.Layout('NHWC'))
 
 
@@ -402,7 +402,7 @@ Preprocessing Steps
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
-`here <https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
+`here <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html>`__.
 
 Perform the following:
 
@@ -411,7 +411,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   `PreProcessSteps.resize() <https://docs.openvino.ai/2023.3/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
+   `PreProcessSteps.resize() <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 
@@ -421,7 +421,7 @@ then such conversion will be added explicitly.
 .. code:: ipython3
 
     from openvino.preprocess import ResizeAlgorithm
-    
+
     ppp.input().preprocess().convert_element_type(ov.Type.f32) \
                             .resize(ResizeAlgorithm.RESIZE_LINEAR)\
                             .mean([127.5,127.5,127.5])\
@@ -461,7 +461,7 @@ configuration for debugging purposes.
           resize to model width/height: ([1,?,?,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           mean (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           scale (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
-    
+
 
 
 Load model and perform inference
@@ -475,12 +475,12 @@ Load model and perform inference
         image = cv2.imread(image_path)
         input_tensor = np.expand_dims(image, 0)
         return input_tensor
-    
-    
+
+
     compiled_model_with_preprocess_api = core.compile_model(model=ppp_model, device_name=device.value)
-    
+
     ppp_output_layer = compiled_model_with_preprocess_api.output(0)
-    
+
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
@@ -508,22 +508,22 @@ Load image and fit it to model input
 
     def manual_image_preprocessing(path_to_image, compiled_model):
         input_layer_ir = next(iter(compiled_model.inputs))
-    
+
         # N, H, W, C = batch size, height, width, number of channels
         N, H, W, C = input_layer_ir.shape
-        
+
         # load  image, image will be resized to model input size and converted to RGB
         img = tf.keras.preprocessing.image.load_img(image_path, target_size=(H, W), color_mode='rgb')
-    
+
         x = tf.keras.preprocessing.image.img_to_array(img)
         x = np.expand_dims(x, axis=0)
-    
+
         # will scale input pixels between -1 and 1
         input_tensor = tf.keras.applications.inception_resnet_v2.preprocess_input(x)
-    
+
         return input_tensor
-    
-    
+
+
     input_tensor = manual_image_preprocessing(image_path, compiled_model)
     print(f"The shape of the image is {input_tensor.shape}")
     print(f"The data type of the image is {input_tensor.dtype}")
@@ -543,7 +543,7 @@ Perform inference
 .. code:: ipython3
 
     output_layer = compiled_model.output(0)
-    
+
     result = compiled_model(input_tensor)[output_layer]
 
 Compare results
@@ -560,18 +560,18 @@ Compare results on one image
 
     def check_results(input_tensor, compiled_model, imagenet_classes):
         output_layer = compiled_model.output(0)
-    
+
         results = compiled_model(input_tensor)[output_layer][0]
-    
+
         top_indices = np.argsort(results)[-5:][::-1]
         top_softmax = results[top_indices]
-    
+
         for index, softmax_probability in zip(top_indices, top_softmax):
             print(f"{imagenet_classes[index]}, {softmax_probability:.5f}")
-    
+
         return top_indices, top_softmax
-    
-    
+
+
     # Convert the inference result to a class name.
     imagenet_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
@@ -579,13 +579,13 @@ Compare results on one image
     )
     imagenet_classes = imagenet_filename.read_text().splitlines()
     imagenet_classes = ['background'] + imagenet_classes
-    
+
     # get result for inference with preprocessing api
     print("Result of inference with Preprocessing API:")
     res = check_results(ppp_input_tensor, compiled_model_with_preprocess_api, imagenet_classes)
-    
+
     print("\n")
-    
+
     # get result for inference with the manual preparing of the image
     print("Result of inference with manual image setup:")
     res = check_results(input_tensor, compiled_model, imagenet_classes)
@@ -605,8 +605,8 @@ Compare results on one image
     n02108915 French bulldog, 0.01915
     n02111129 Leonberg, 0.00825
     n02097047 miniature schnauzer, 0.00294
-    
-    
+
+
     Result of inference with manual image setup:
     n02098413 Lhasa, Lhasa apso, 0.76843
     n02099601 golden retriever, 0.19322
@@ -624,24 +624,24 @@ Compare performance
 
     def check_performance(compiled_model, preprocessing_function=None):
         num_images = 1000
-    
+
         start = time.perf_counter()
-    
+
         for _ in range(num_images):
             input_tensor = preprocessing_function(image_path, compiled_model)
             compiled_model(input_tensor)
-    
+
         end = time.perf_counter()
         time_ir = end - start
-    
+
         return time_ir, num_images
-    
+
     time_ir, num_images = check_performance(compiled_model, manual_image_preprocessing)
     print(
         f"IR model in OpenVINO Runtime/CPU with manual image preprocessing: {time_ir/num_images:.4f} "
         f"seconds per image, FPS: {num_images/time_ir:.2f}"
     )
-    
+
     time_ir, num_images = check_performance(compiled_model_with_preprocess_api, prepare_image_api_preprocess)
     print(
         f"IR model in OpenVINO Runtime/CPU with preprocessing API: {time_ir/num_images:.4f} "

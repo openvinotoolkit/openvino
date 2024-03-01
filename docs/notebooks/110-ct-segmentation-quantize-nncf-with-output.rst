@@ -14,7 +14,7 @@ scratch; the data is from
 This third tutorial in the series shows how to:
 
 -  Convert an Original model to OpenVINO IR with `model conversion
-   API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 -  Quantize a PyTorch model with NNCF
 -  Evaluate the F1 score metric of the original model and the quantized
    model
@@ -647,7 +647,7 @@ Compare Performance of the FP32 IR Model and Quantized Models
 
 To measure the inference performance of the ``FP32`` and ``INT8``
 models, we use `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - OpenVINO’s inference performance measurement tool. Benchmark tool is a
 command line application, part of OpenVINO development tools, that can
 be run in the notebook with ``! benchmark_app`` or

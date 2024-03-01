@@ -17,8 +17,8 @@ const std::vector<ov::AnyMap> inproperties = {
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesIncorrectTests,
                         ::testing::Combine(
-                                ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(generate_ov_configs(inproperties))),
+                                ::testing::Values(ov::test::utils::target_device),
+                                ::testing::ValuesIn(inproperties)),
                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
@@ -27,28 +27,28 @@ const std::vector<ov::AnyMap> default_properties = {
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesDefaultTests,
         ::testing::Combine(
-                ::testing::Values(targetDevice),
+                ::testing::Values(ov::test::utils::target_device),
                 ::testing::ValuesIn(default_properties)),
         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVCompiledModelPropertiesDefaultSupportedTests,
-                         ::testing::Values(targetDevice),
+                         ::testing::Values(ov::test::utils::target_device),
                          OVCompiledModelPropertiesDefaultSupportedTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesTests,
         ::testing::Combine(
-                ::testing::Values(targetDevice),
+                ::testing::Values(ov::test::utils::target_device),
                 ::testing::ValuesIn(default_properties)),
         OVClassCompiledModelPropertiesTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelEmptyPropertiesTests,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 // OV Class Load network
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCompiledModelIncorrectDevice,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
         {ov::hint::model_priority(ov::hint::Priority::HIGH)},
@@ -58,7 +58,7 @@ const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
-                         ::testing::Combine(::testing::Values(targetDevice),
+                         ::testing::Combine(::testing::Values(ov::test::utils::target_device),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
 } // namespace

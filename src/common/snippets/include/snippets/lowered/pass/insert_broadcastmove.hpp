@@ -16,10 +16,10 @@ namespace pass {
  * @brief Injects explicit Movebroadcast operations when the most varying dim is broadcasted
  * @ingroup snippets
  */
-class InsertBroadcastMove : public Pass {
+class InsertBroadcastMove : public RangedPass {
 public:
-    OPENVINO_RTTI("InsertBroadcastMove", "Pass")
-    bool run(LinearIR& linear_ir) override;
+    OPENVINO_RTTI("InsertBroadcastMove", "RangedPass")
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 };
 
 } // namespace pass

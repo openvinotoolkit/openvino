@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 
 notebooks_path = "notebooks"
 repo_directory = "notebooks"
@@ -13,11 +14,18 @@ notebooks_colab = "https://colab.research.google.com/github/openvinotoolkit/open
 file_with_binder_notebooks = Path('../../docs/notebooks/notebooks_with_binder_buttons.txt').resolve(strict=True)
 file_with_colab_notebooks = Path('../../docs/notebooks/notebooks_with_colab_buttons.txt').resolve(strict=True)
 openvino_notebooks_ipynb_list = Path('../../docs/notebooks/all_notebooks_paths.txt').resolve(strict=True)
-binder_image_source = "https://mybinder.org/badge_logo.svg"
-colab_image_source = "https://colab.research.google.com/assets/colab-badge.svg"
-github_image_source = "https://badgen.net/badge/icon/github?icon=github&label"
-
-# Templates
+binder_image_source = Path('../../docs/sphinx_setup/_static/images/launch_in_binder.svg').resolve(strict=True)
+binder_image_source_data = open(binder_image_source, 'rb').read()
+binder_image_source_data_base64 = base64.b64encode(binder_image_source_data)
+binder_image_base64 = binder_image_source_data_base64.decode()
+colab_image_source = Path('../../docs/sphinx_setup/_static/images/open_in_colab.svg').resolve(strict=True)
+colab_image_source_data = open(colab_image_source, 'rb').read()
+colab_image_source_data_base64 = base64.b64encode(colab_image_source_data)
+colab_image_base64 = colab_image_source_data_base64.decode()
+github_image_source = Path('../../docs/sphinx_setup/_static/images/view_on_github.svg').resolve(strict=True)
+github_image_source_data = open(github_image_source, 'rb').read()
+github_image_source_data_base64 = base64.b64encode(github_image_source_data)
+github_image_base64 = github_image_source_data_base64.decode()
 
 binder_colab_template = """
 This Jupyter notebook can be launched on-line, opening an interactive environment in a browser window.

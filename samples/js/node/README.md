@@ -1,13 +1,16 @@
-# OpenVINO™ JavaScript API examples of usage
+# OpenVINO™ Node.js Bindings Examples of Usage
 
-## Installation of openvino-node package
-From *openvino/src/bindings/js/node* run `npm i` to download OpenVINO™ runtime, install requirements, build bindings and compile TypeScript code to JavaScript
+## Install
 
-On the *.nix systems run `source openvino/src/bindings/js/node/scripts/setupvars.sh` to add path to OpenVINO™ runtime libraries in `LD_LIBRARY_PATH` variable
+To run samples, install dependencies first. In current directory run:
+```bash
+npm install
+```
 
 Note: Perform these steps also before running notebooks.
 
 ## Samples
+
   - hello_classification
   - hello_reshape_ssd
   - classification_sample_async
@@ -17,10 +20,13 @@ Note: Perform these steps also before running notebooks.
 Use [Node.js Notebooks (REPL)](https://marketplace.visualstudio.com/items?itemName=donjayamanne.typescript-notebook)
 VSCode extension to run these notebook samples
 
-Make sure that `LD_LIBRARY_PATH` variable contains path to OpenVINO runtime folder
-
 - ./notebooks
-  -   001-hello-world.nnb
-  -   003-hello-segmentation.nnb
-  -   004-hello-detection.nnb
-  -   213-question-answering.nnb
+  - 001-hello-world.nnb
+  - 003-hello-segmentation.nnb
+  - 004-hello-detection.nnb
+  - 213-question-answering.nnb
+
+## See Also
+
+* [OpenVINO™ JavaScript API Developer Documentation](../../../src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
+* [OpenVINO™ README](../../../README.md)

@@ -604,7 +604,7 @@ OpenVINO IR model + more inference threads
 There is a possibility to add a config for any device (CPU in this
 case). We will increase the number of threads to an equal number of our
 cores. There are `more
-options <https://docs.openvino.ai/2023.3/api/c_cpp_api/group__ov__runtime__cpp__prop__api.html>`__
+options <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__runtime__cpp__prop__api.html>`__
 to be changed, so it’s worth playing with them to see what works best in
 our case. In some cases, this optimization may worsen the performance.
 If it is the case, don’t use it.
@@ -642,7 +642,7 @@ OpenVINO IR model in latency mode
 
 
 OpenVINO offers a virtual device called
-`AUTO <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__,
+`AUTO <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__,
 which can select the best device for us based on a performance hint.
 There are three different hints: ``LATENCY``, ``THROUGHPUT``, and
 ``CUMULATIVE_THROUGHPUT``. As this notebook is focused on the latency
@@ -773,6 +773,6 @@ object detection model. Even if you experience much better performance
 after running this notebook, please note this may not be valid for every
 hardware or every model. For the most accurate results, please use
 ``benchmark_app`` `command-line
-tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that ``benchmark_app`` cannot measure the impact of some tricks
 above, e.g., shared memory.

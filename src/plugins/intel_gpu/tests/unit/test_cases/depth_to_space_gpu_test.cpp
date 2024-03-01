@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 #include <cstddef>
 
@@ -422,4 +423,59 @@ TEST(depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
 
 TEST(export_import_depth_to_space_fp32_gpu, d1822_bs2_depth_first) {
     test_depth_to_space_fp32_gpu_d1822_bs2_depth_first<float>(true);
+}
+
+static void test_depth_to_space_fp16_input_fp32_output(bool is_caching_test) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
+    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 1, 3, 2 } });
+
+    size_t block_size = 1;
+
+    set_values(input, {
+        1.0f, 2.0f, 3.0f, 4.0f, 5.0f,
+        2.0f, 2.0f, 3.0f, 4.0f, 6.0f,
+        3.0f, 3.0f, 3.0f, 5.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f
+    });
+    set_values(weights, {
+        ov::float16(1.0f), ov::float16(2.0f), ov::float16(1.0f),
+        ov::float16(2.0f), ov::float16(1.0f), ov::float16(2.0f)
+    });
+
+    // Apply existed topology that makes kernel build failure because of input and output data types are different.
+    topology topology;
+    topology.add(cldnn::input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("weights", weights));
+    topology.add(cldnn::reorder("reorder_input", input_info("input"), cldnn::layout(data_types::f16, format::byxf, { 1, 1, 4, 5 })));
+    topology.add(cldnn::convolution("conv", input_info("reorder_input"), "weights", "", 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(cldnn::depth_to_space("depth_to_space", input_info("conv"), block_size, depth_to_space_mode::depth_first));
+    topology.add(cldnn::activation("activate", input_info("depth_to_space"), cldnn::activation_func::relu_negative_slope, {0.25f, 0.f}));
+    topology.add(cldnn::reorder("convert:output", input_info("activate"), format::any, data_types::f32, {}, reorder_mean_mode::subtract, padding(), true));
+    topology.add(cldnn::reorder("result:output/sink_port_0", input_info("convert:output"), format::bfyx, data_types::f32, {}, reorder_mean_mode::subtract, padding(), false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
+
+    auto output = outputs.at("result:output/sink_port_0").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        24.0f, 24.0f, 32.0f, 28.0f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(depth_to_space_gpu, fp16_input_fp32_output) {
+    test_depth_to_space_fp16_input_fp32_output(false);
 }

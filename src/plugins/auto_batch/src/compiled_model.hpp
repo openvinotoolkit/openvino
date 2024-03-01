@@ -36,8 +36,8 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const ov::AnyMap& config,
                   const DeviceInformation& device_info,
-                  const std::set<std::string>& batched_inputs,
-                  const std::set<std::string>& batched_outputs,
+                  const std::set<std::size_t>& batched_inputs,
+                  const std::set<std::size_t>& batched_outputs,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                   const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                   const ov::SoPtr<ov::IRemoteContext>& context);
@@ -73,8 +73,8 @@ protected:
     mutable std::atomic_size_t m_num_requests_created = {0};
     std::atomic<std::uint32_t> m_time_out = {0};  // in ms
 
-    const std::set<std::string> m_batched_inputs;
-    const std::set<std::string> m_batched_outputs;
+    const std::set<std::size_t> m_batched_inputs;
+    const std::set<std::size_t> m_batched_outputs;
 
     ov::SoPtr<ov::ICompiledModel> m_compiled_model_with_batch;
     ov::SoPtr<ov::ICompiledModel> m_compiled_model_without_batch;

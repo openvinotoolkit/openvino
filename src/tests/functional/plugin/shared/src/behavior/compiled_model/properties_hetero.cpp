@@ -25,7 +25,7 @@ void OVClassHeteroCompiledModelGetMetricTest::SetCpuAffinity(ov::Core& core, std
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     auto heteroExeNetwork = ie.compile_model(actualNetwork, heteroDeviceName);
     auto deviceExeNetwork = ie.compile_model(actualNetwork, target_device);
@@ -61,7 +61,7 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricN
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
 
     setHeteroNetworkAffinity(target_device);
 
@@ -76,7 +76,7 @@ TEST_P(OVClassHeteroCompiledModelGetMetricTest_TARGET_FALLBACK, GetMetricNoThrow
 }
 
 TEST_P(OVClassHeteroCompiledModelGetMetricTest_EXEC_DEVICES, GetMetricNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::vector<std::string> expectedTargets = {target_device};
 
     SetCpuAffinity(ie, expectedTargets);

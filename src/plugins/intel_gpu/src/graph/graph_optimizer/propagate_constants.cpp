@@ -5,10 +5,15 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
 #include "intel_gpu/runtime/itt.hpp"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "reorder_inst.h"
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 #include <vector>
 #include <list>
 #include <memory>
@@ -151,6 +156,29 @@ void propagate_constants::add_constant(program& prog, program_node& node) {
 
     // if a non-tirivial constant has a trivial input, add this input as an input for our network
     add_deps_to_tpl(prog, node.get_dependencies());
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Add reorder to transpose when the impl type of reorder is onednn and the weights for deconvolution should be transposed.
+    bool is_reorder_weights = node.is_type<reorder>() && node.as<reorder>().get_primitive()->weights_reorder_params;
+    if (is_reorder_weights) {
+        const auto& weights_params = node.as<reorder>().get_primitive()->weights_reorder_params;
+        auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_params);
+        if (onednn_weights_params != nullptr && onednn_weights_params->should_be_transposed()) {
+            auto& prev = node.get_dependency(0);
+            cldnn::primitive_id rotate_reorder_id = prev.id() + "_rotate_reorder";
+            auto grouped = weights_params->get_grouped();
+            auto layout = weights_params->get_input_layout().convert_to_weights_layout(grouped);
+            auto rotate_weights_params = std::make_shared<WeightsReorderParams>(layout, layout, true, grouped);
+            auto rotate_prim = std::make_shared<cldnn::reorder>(rotate_reorder_id, prev.id(), rotate_weights_params);
+            auto& rotate_node = prog.get_or_create(rotate_prim);
+            prog.add_intermediate(rotate_node, node, 0);
+            prog.get_or_create(rotate_prim).recalc_output_layouts(false);
+            nodes.insert(prog.get_node_ptr(rotate_node.id()));
+            GPU_DEBUG_LOG << "Added " << rotate_reorder_id << " for transposing weights before "
+                << node.id() << std::endl;
+        }
+    }
+#endif // ENABLE_ONEDNN_FOR_GPU
 }
 
 void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps) {

@@ -1,50 +1,35 @@
-# OpenVINO Node.js API
+# OpenVINO™ Node.js Bindings
 
-## Components
-
-- [include](./include/) - header files for current API.
-- [lib](./lib/) - TypeScript sources for current API.
-- [src](./src/) - C++ sources for current API.
-- [tests](./tests/) - tests directory for current API.
-
-## Build
-
-- Make sure that all submodules are updated `git submodule update --init --recursive`
-- Create build dir `mkdir build && cd build`
-- Configure binaries building:
-  ```bash
-  cmake \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DENABLE_FASTER_BUILD=ON \
-    -DCPACK_GENERATOR=NPM \
-    -DENABLE_SYSTEM_TBB=OFF -UTBB* \
-    -DENABLE_TESTS=OFF \
-    -DENABLE_SAMPLES=OFF \
-    -DENABLE_WHEEL=OFF \
-    -DENABLE_PYTHON=OFF \
-    -DENABLE_INTEL_GPU=OFF \
-    -DCMAKE_INSTALL_PREFIX=../src/bindings/js/node/bin \
-    ..
-  ```
-- Build bindings:
-  `cmake --build . --config Release --verbose -j4`
-- Install binaries for openvino-node package:
-  `cmake --install .`
-- Go to npm package folder `cd ../src/bindings/js/node`
-- Now you can install dependencies packages and transpile ts to js code. Run `npm install`
-- Run tests `npm run test` to make sure that **openvino-node** built successfully
+Use OpenVINO JavaScript API for your Node.js application.
 
 ## Usage
 
-- Add `openvino-node` package in your project, specify in **package.json**: `"openvino-node": "file:*path-to-current-directory*"`
-- Require by: `const ov = require('openvino-node');`
+Install the **openvino-node** package:
+```bash
+npm install openvino-node
+```
 
-## Samples
+Use the **openvino-node** package:
+```js
+const { addon: ov } = require('openvino-node');
+```
 
-[Samples & notebooks of OpenVINO Node.js API](../../../../samples/js/node/README.md)
+## Build From Sources
 
-## See also
+For more details, refer to the [OpenVINO™ JavaScript API Developer Documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
 
-* [OpenVINO™ README](../../../../README.md)
-* [OpenVINO™ Core Components](../../../README.md)
-* [OpenVINO™ JavaScript API](../README.md)
+## Documentation & Samples
+
+- [OpenVINO™ Node.js API](https://docs.openvino.ai/2024/api/nodejs_api/nodejs_api.html)
+- [OpenVINO™ Node.js Bindings Examples of Usage](https://github.com/openvinotoolkit/openvino/blob/master/samples/js/node/README.md)
+
+## See Also
+
+* [OpenVINO™ README](https://github.com/openvinotoolkit/openvino/blob/master/README.md)
+* [OpenVINO™ Core Components](https://github.com/openvinotoolkit/openvino/blob/master/src/README.md)
+* [OpenVINO™ Python API](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/python/README.md)
+* [OpenVINO™ Other Bindings](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/README.md)
+
+[License](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE)
+
+Copyright © 2018-2024 Intel Corporation

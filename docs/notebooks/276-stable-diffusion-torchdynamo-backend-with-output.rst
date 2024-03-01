@@ -20,7 +20,7 @@ fantastic world of diffusion models for everyone!
 
 This notebook demonstrates how to run stable diffusion model using
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ library and
-`OpenVINO TorchDynamo backend <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html>`__
+`OpenVINO TorchDynamo backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
 for Text-to-Image and Image-to-Image generation tasks.
 
 Notebook contains the following steps:
@@ -151,8 +151,8 @@ OpenVINO TorchDynamo backend
 
 
 The `OpenVINO TorchDynamo
-backend <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html>`__
-lets you enable `OpenVINO <https://docs.openvino.ai/2023.3/home.html>`__
+backend <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html>`__
+lets you enable `OpenVINO <https://docs.openvino.ai/2024/home.html>`__
 support for PyTorch models with minimal changes to the original PyTorch
 script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
@@ -170,7 +170,7 @@ model files to a hard drive, after the first application run. This makes
 them available for the following application executions, reducing the
 first-inference latency. Read more about available `Environment
 Variables
-options <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html#environment-variables>`__
+options <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#environment-variables>`__
 
 .. code:: ipython3
 
@@ -227,13 +227,13 @@ backend:
     pipe.unet = torch.compile(pipe.unet, backend="openvino", options={"device": device.value, "model_caching": model_caching.value})
 
    **NOTE**: Read more about available `OpenVINO
-   backends <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html#how-to-use>`__
+   backends <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#how-to-use>`__
 
 ..
 
    **NOTE**: Currently, PyTorch does not support torch.compile feature
    on Windows officially. Please follow `these
-   instructions <https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html#windows-support>`__
+   instructions <https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html#windows-support>`__
    if you want to access it on Windows.
 
 Run Image generation

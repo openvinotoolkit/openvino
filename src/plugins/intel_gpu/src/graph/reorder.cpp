@@ -7,7 +7,9 @@
 #include "json_object.h"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 #include <algorithm>
 #include <string>
 
@@ -180,6 +182,12 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
     auto ofmt = desc->output_format == format::any ? ifmt : desc->output_format;
 
     if (desc->weights_reorder_params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
+        if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
+        }
+#endif // ENABLE_ONEDNN_FOR_GPU
         return { desc->weights_reorder_params->get_output_layout() };
     } else {
         return { layout(input_layout.get<ShapeType>(), desc->output_data_types[0].value(), ofmt, desc->output_paddings[0]) };

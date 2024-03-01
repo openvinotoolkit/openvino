@@ -149,7 +149,7 @@ hardware.
 
 
 The Pytorch model is converted to `OpenVINO IR
-format <https://docs.openvino.ai/2023.3/openvino_ir.html>`__. This
+format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__. This
 method provides much more insight to how to set up a pipeline from model
 loading to model converting, compiling and running inference with
 OpenVINO, so that you could conveniently use OpenVINO to optimize and

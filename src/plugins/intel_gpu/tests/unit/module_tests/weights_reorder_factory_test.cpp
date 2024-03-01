@@ -24,9 +24,11 @@ TEST(weights_factory, impl_types) {
     program::init_primitives();
     ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape));
     ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::any, shape_types::static_shape));
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    ASSERT_NO_THROW(WeightsReordersFactory::get(impl_types::onednn, shape_types::static_shape));
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
     ASSERT_ANY_THROW(WeightsReordersFactory::get(impl_types::cpu, shape_types::static_shape));
-    ASSERT_ANY_THROW(WeightsReordersFactory::get(impl_types::onednn, shape_types::static_shape));
 }
 
 TEST(weights_factory, shape_types) {

@@ -3,7 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "hash_table.hpp"
+#include "openvino/frontend/tensorflow/hash_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
 

@@ -6,19 +6,11 @@
 
 #include "conformance.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
 namespace test {
 namespace conformance {
-
-inline const std::vector<ov::AnyMap> generate_ov_configs(const std::vector<ov::AnyMap>& config = {}) {
-    std::vector<ov::AnyMap> resultConfig;
-    for (auto configItem : config) {
-        configItem.insert(ov::test::conformance::pluginConfig.begin(), ov::test::conformance::pluginConfig.end());
-        resultConfig.push_back(configItem);
-    }
-    return resultConfig;
-}
 
 inline const std::string get_plugin_lib_name_by_device(const std::string& deviceName) {
     const std::map<std::string, std::string> devices{
@@ -33,8 +25,8 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
             { "NVIDIA", "openvino_nvidia_gpu_plugin" },
     };
     if (devices.find(deviceName) == devices.end()) {
-        if (std::string(targetPluginName) != "") {
-            return targetPluginName;
+        if (std::string(ov::test::utils::target_plugin_name) != "") {
+            return ov::test::utils::target_plugin_name;
         }
         throw std::runtime_error("Incorrect device name");
     }
@@ -43,7 +35,7 @@ inline const std::string get_plugin_lib_name_by_device(const std::string& device
 
 inline std::vector<std::pair<std::string, std::string>> generate_ov_pairs_plugin_name_by_device() {
     std::vector<std::pair<std::string, std::string>> res;
-    std::string device(ov::test::conformance::targetDevice);
+    std::string device(ov::test::utils::target_device);
     std::string real_device = device.substr(0, device.find(':'));
     res.push_back(std::make_pair(get_plugin_lib_name_by_device(real_device),
                                     real_device));

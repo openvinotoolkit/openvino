@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestArange(PytorchLayerTest):
@@ -108,9 +108,10 @@ class TestArange(PytorchLayerTest):
         return model_class, ref_net, "aten::arange"
 
     @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
     @pytest.mark.parametrize("end", [1, 2, 3])
-    @pytest.mark.parametrize("use_out", [True, False])
+    @pytest.mark.parametrize("use_out", [skip_if_export(True), False])
     def test_arange_end_only(self, dtype, end, use_out, ie_device, precision, ir_version):
         self._test(*self.create_model(dtype, 1, use_out), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"end": end})
@@ -131,6 +132,7 @@ class TestArange(PytorchLayerTest):
                    kwargs_to_prepare_input={"end": end, "start": start, "step": step, "dtype": dtype})
 
     @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "int8", "uint8"])
     @pytest.mark.parametrize("end", [1, 2, 3])
     def test_arange_end_only_with_prim_dtype(self, dtype, end, ie_device, precision, ir_version):

@@ -620,7 +620,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatMul                                                  | YES                           |                               |
 | MatchingFiles                                           | NO                            |                               |
 | MatchingFilesDataset                                    | NO                            |                               |
-| MatrixBandPart                                          | NO                            |                               |
+| MatrixBandPart                                          | YES                            |                               |
 | MatrixDeterminant                                       | NO                            |                               |
 | MatrixDiag                                              | YES                           |                               |
 | MatrixDiagPart                                          | NO                            |                               |

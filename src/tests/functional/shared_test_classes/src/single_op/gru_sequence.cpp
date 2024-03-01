@@ -78,7 +78,7 @@ void GRUSequenceTest::SetUp() {
         inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
         inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
         1lu;
-
+    max_seq_lengths = seq_lengths;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]),
                                std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1])};
@@ -149,6 +149,22 @@ void GRUSequenceTest::SetUp() {
     } else {
         bool ti_found = is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
+    }
+}
+
+void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& func_inputs = function->inputs();
+    ov::test::utils::InputGenerateData in_data;
+
+    for (size_t i = 0; i < func_inputs.size(); ++i) {
+        ov::Tensor tensor;
+        if (i == 2) {
+            in_data.range = max_seq_lengths;
+        }
+
+        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
     }
 }
 } //  namespace test

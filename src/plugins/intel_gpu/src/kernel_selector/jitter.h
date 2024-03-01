@@ -310,7 +310,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         Datatype output_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
-                                        bool disable_type_conversion = false);
+                                        bool disable_type_conversion = false,
+                                        bool convert_input_to_output_dt = false);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
 

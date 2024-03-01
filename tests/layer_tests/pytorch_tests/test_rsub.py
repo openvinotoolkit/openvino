@@ -40,7 +40,7 @@ class TestRsub(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data):
+    def test_rsub1(self, ie_device, precision, ir_version, input_data):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
@@ -55,7 +55,7 @@ class TestRsub(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_rsub(self, ie_device, precision, ir_version, input_data):
+    def test_rsub2(self, ie_device, precision, ir_version, input_data):
         self.input_data = []
         for input in input_data:
             if type(input) is list:
@@ -103,6 +103,7 @@ class TestRsubTypes(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_shape"), [[2, 3], [3], [2, 3, 4]])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

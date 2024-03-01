@@ -57,7 +57,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = m_config;
 
-    ExressionMap expression_map;
+    ExpressionMap expression_map;
     cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
         cloned->m_node2expression_map[expr->get_node()] = expr;
@@ -172,7 +172,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
-                                              ExressionMap& expression_map) {
+                                              ExpressionMap& expression_map) {
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;

@@ -12,18 +12,18 @@ using namespace ov::test::conformance;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, CoreThreadingTest,
-                         testing::Values(std::tuple<Device, Config>{targetDevice, {{ov::enable_profiling(false)}}}),
+                         testing::Values(std::tuple<Device, Config>{ov::test::utils::target_device, {{ov::enable_profiling(false)}}}),
                          CoreThreadingTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin,
                          CoreThreadingTestsWithIter,
-                         testing::Combine(testing::Values(std::tuple<Device, Config>{targetDevice, {{ov::enable_profiling(false)}}}),
+                         testing::Combine(testing::Values(std::tuple<Device, Config>{ov::test::utils::target_device, {{ov::enable_profiling(false)}}}),
                                           testing::Values(4),
                                           testing::Values(50)),
                          CoreThreadingTestsWithIter::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, CoreThreadingTestsWithCacheEnabled,
-    testing::Combine(testing::Values(std::tuple<Device, Config>{targetDevice, {{ov::enable_profiling(false)}}}),
+    testing::Combine(testing::Values(std::tuple<Device, Config>{ov::test::utils::target_device, {{ov::enable_profiling(false)}}}),
                      testing::Values(20),
                      testing::Values(10)),
     CoreThreadingTestsWithCacheEnabled::getTestCaseName);

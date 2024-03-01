@@ -16,7 +16,7 @@ using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model_mandatory, OVClassCompiledModelGetPropertyTest,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 //
 // Executable Network GetConfig / SetConfig
@@ -24,15 +24,15 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model_mandatory, OVClassCompiledModelGetIncorrectPropertyTest,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model_mandatory, OVClassCompiledModelGetConfigTest,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 INSTANTIATE_TEST_SUITE_P(
         ov_compiled_model, OVClassCompiledModelSetIncorrectConfigTest,
-        ::testing::Values(targetDevice));
+        ::testing::Values(ov::test::utils::target_device));
 
 
 } // namespace

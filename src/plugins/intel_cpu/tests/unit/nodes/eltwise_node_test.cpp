@@ -17,7 +17,7 @@ TEST(EltwisePrecisionHelperTest, get_precision_mixed) {
         src_prc[i] = ov::element::i32;
     }
 
-    std::vector<ov::intel_cpu::node::Eltwise::EltwiseData> eltwise_data = {
+    std::vector<ov::intel_cpu::EltwiseData> eltwise_data = {
         {Algorithm::EltwiseMultiply},
         {Algorithm::EltwiseMulAdd}
     };
@@ -33,7 +33,7 @@ TEST(EltwisePrecisionHelperTest, get_precision_single) {
         src_prc[i] = ov::element::i32;
     }
 
-    std::vector<ov::intel_cpu::node::Eltwise::EltwiseData> eltwise_data = {
+    std::vector<ov::intel_cpu::EltwiseData> eltwise_data = {
         {Algorithm::EltwiseMultiply},
         {Algorithm::EltwiseMod}
     };
