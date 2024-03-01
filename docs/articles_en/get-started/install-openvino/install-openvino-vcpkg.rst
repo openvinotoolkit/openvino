@@ -104,7 +104,7 @@ Now that you've installed OpenVINO Runtime, you can try the following things:
 * See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
-* Check out the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
+* Check out the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .
 
 
 
