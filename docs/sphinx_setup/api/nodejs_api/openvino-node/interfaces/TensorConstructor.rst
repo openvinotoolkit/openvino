@@ -19,7 +19,7 @@ Interface TensorConstructor
 
 .. code-block:: json
 
-   new TensorConstructor(type, shape, tensorData?): Tensor
+   new Tensor(type, shape, tensorData?): Tensor
 
 **Parameters**
 
