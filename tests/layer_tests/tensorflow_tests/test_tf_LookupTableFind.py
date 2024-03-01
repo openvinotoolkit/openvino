@@ -67,11 +67,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
         dict(keys_type=np.int32, values_type=tf.string, all_keys=[20, 10, 33, -22, 44, 11],
              all_values=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              default_value='UNKNOWN', invalid_key=1000),
-        pytest.param(dict(keys_type=str, values_type=np.int64,
-                          all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
-                          all_values=[200, 100, 0, -3, 10, 1],
-                          default_value=0, invalid_key='AbraCadabra'),
-                     marks=pytest.mark.xfail(reason="132669 - Support LookupTableFindV2 with string key")),
+        dict(keys_type=str, values_type=np.int64,
+             all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
+             all_values=[200, 100, 0, -3, 10, 1],
+             default_value=0, invalid_key='AbraCadabra'),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
