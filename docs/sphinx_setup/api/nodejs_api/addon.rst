@@ -30,6 +30,7 @@ Property addon
    Tensor <./openvino-node/interfaces/Tensor>
    TensorConstructor <./openvino-node/interfaces/TensorConstructor>
 
+
 The **openvino-node** package exports ``addon`` which contains the following properties:
 
 .. code-block:: json
