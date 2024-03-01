@@ -53,13 +53,7 @@ torch.manual_seed(0)
 
 
 class TestTorchHubConvertModel(TestTorchConvertModel):
-    def setup_class(self):
-        self.cache_dir = tempfile.TemporaryDirectory()
-        # set temp dir for torch cache
-        if os.environ.get('USE_SYSTEM_CACHE', 'True') == 'False':
-            torch.hub.set_dir(str(self.cache_dir.name))
-
-    def load_model_impl(self, model_name, model_link):
+    def load_model(self, model_name, model_link):
         m = torch.hub.load("pytorch/vision", model_name,
                            weights='DEFAULT', skip_validation=True)
         m.eval()
@@ -97,11 +91,6 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             fw_outputs = [fw_outputs.numpy(force=True)]
         return fw_outputs
 
-    def teardown_method(self):
-        # cleanup tmpdir
-        self.cache_dir.cleanup()
-        super().teardown_method()
-
     @pytest.mark.parametrize("model_name", ["efficientnet_b7", "raft_small", "swin_v2_s"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, ie_device):
@@ -114,9 +103,9 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "export"
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("mode", ["trace"]) # disable "export" for now
     @pytest.mark.parametrize("name",
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, mode, name, ie_device):
         self.mode = mode
