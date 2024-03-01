@@ -183,10 +183,7 @@ TDim disallow_pooling_start_in_padding(const size_t stride,
 }
 
 template <class TDim>
-TDim allow_pooling_start_in_padding(const size_t stride,
-                                    const TDim& dim,
-                                    const TDim* data_dim,
-                                    const size_t pads_begin) {
+TDim allow_pooling_start_in_padding(const size_t, const TDim& dim, const TDim*, const size_t) {
     return dim;
 }
 

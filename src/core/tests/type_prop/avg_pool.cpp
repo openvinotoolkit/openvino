@@ -718,13 +718,13 @@ TEST(type_prop, avg_pool_ceil_torch_xfail) {
     const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
 
     OV_EXPECT_THROW(
-        auto ap = make_shared<ov::op::v1::AvgPool>(param,
-                                                   window_movement_strides,
-                                                   pads_begin,
-                                                   pads_end,
-                                                   kernel,
-                                                   true,
-                                                   ov::op::RoundingType::CEIL_TORCH);
+        std::ignore = make_shared<ov::op::v1::AvgPool>(param,
+                                                       window_movement_strides,
+                                                       pads_begin,
+                                                       pads_end,
+                                                       kernel,
+                                                       true,
+                                                       ov::op::RoundingType::CEIL_TORCH);
         ,
         ov::NodeValidationFailure,
         HasSubstr(
