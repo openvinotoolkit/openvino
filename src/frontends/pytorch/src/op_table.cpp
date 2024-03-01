@@ -64,6 +64,7 @@ OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_div_);
+OP_CONVERTER(translate_dot);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
@@ -384,7 +385,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::translate_div_},
-        {"aten::dot", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten::dot", op::translate_dot},
         {"aten::dropout", op::skip_node},
         {"aten::dropout_", op::skip_node},
         // aten::einsum - Supported in limited set of patterns
