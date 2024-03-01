@@ -5,6 +5,7 @@ import itertools
 import warnings
 from copy import deepcopy
 import os
+import platform
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -137,13 +138,8 @@ class PytorchLayerTest:
                         assert self._check_kind_exist(
                             smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
-            # GPU and some CPU arm platforms default execution precision is FP16, so if we want to check FP32 inference
-            # we need to set explicit precision hint
-            config = None
-            if precision == 'FP32':
-                config = {'INFERENCE_PRECISION_HINT': 'f32'}
             core = Core()
-            compiled = core.compile_model(converted_model, ie_device, config=config)
+            compiled = core.compile_model(converted_model, ie_device)
             infer_res = compiled(deepcopy(ov_inputs))
 
             if hasattr(self, 'skip_framework') and self.skip_framework:
@@ -179,7 +175,28 @@ class PytorchLayerTest:
                 assert ov_tensor_format.shape == fw_tensor.shape, f"Shapes are not equal: ov={ov_tensor_format.shape} vs fw={fw_tensor.shape}"
 
             # Compare Ie results with Framework results
-            fw_eps = custom_eps if precision == 'FP32' else 5e-2
+            # CNN model on CPU arm platforms default execution precision is FP16
+            arm_platform = False
+            arm_cnn_model = False
+            if platform.machine() in [
+                "arm", "armv7l", "aarch64", "arm64", "ARM64"]:
+                arm_platform = True
+                arm_cnn_types = ["Convolution", "ConvolutionBackpropData"]
+                for op in converted_model.get_ops():
+                    op_type = op.get_type_info().name
+                    if op_type in arm_cnn_types:
+                        arm_cnn_model = True
+                        break
+            if precision == 'FP32':
+                if not arm_platform:
+                    fw_eps = custom_eps
+                elif arm_cnn_model:
+                    fw_eps = custom_eps
+                else:
+                    fw_eps = 5e-2
+            else:
+                fw_eps = 5e-2
+
             is_ok = True
             quantized_ops = False
             if 'quantized_ops' in kwargs and kwargs['quantized_ops'] is not None:

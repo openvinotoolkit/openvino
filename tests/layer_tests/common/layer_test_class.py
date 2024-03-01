@@ -4,6 +4,7 @@
 import itertools
 import os
 import re
+import platform
 import warnings
 from pathlib import Path
 
@@ -93,9 +94,9 @@ class CommonLayerTest:
         #     assert flag, '\n'.join(resp)
 
         config = None
-        # GPU and some CPU arm platforms default execution precision is FP16, so if we want to check FP32 inference
+        # GPU default execution precision is FP16, so if we want to check FP32 inference
         # we need to set explicit precision hint
-        if precision == 'FP32':
+        if ie_device == 'GPU' and precision == 'FP32':
             config = {'INFERENCE_PRECISION_HINT': 'f32'}
 
         ie_engine = InferAPI(model=path_to_xml,
@@ -119,11 +120,25 @@ class CommonLayerTest:
         # Framework infer:
         fw_res = self.get_framework_results(inputs_dict=inputs_dict, model_path=model_path)
 
+        # CNN model on CPU arm platforms default execution precision is FP16
+        arm_platform = False
+        arm_cnn_model = False
+        if platform.machine() in [
+                "arm", "armv7l", "aarch64", "arm64", "ARM64"
+        ]:
+            arm_platform = True
+            arm_cnn_model = ie_engine.cnn_model_type_check()
+
         if 'custom_eps' in kwargs and kwargs['custom_eps'] is not None:
             custom_eps = kwargs['custom_eps']
         else:
             if precision == 'FP32':
-                custom_eps = 1e-4
+                if not arm_platform:
+                    custom_eps = 1e-4
+                elif arm_cnn_model:
+                    custom_eps = 1e-4
+                else:
+                    custom_eps = 5e-2
             else:
                 custom_eps = 5e-2
         # Compare Ie results with Framework results
