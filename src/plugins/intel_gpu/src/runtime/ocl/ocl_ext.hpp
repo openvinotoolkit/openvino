@@ -31,6 +31,8 @@ typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
 
+#include <sstream>
+
 /********************************************
 * cl_intel_required_subgroup_size extension *
 *********************************************/
@@ -925,23 +927,23 @@ public:
 
     void allocateHost(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_host(nullptr, size, 0, &error));
-        if (error != CL_SUCCESS)
-            detail::errHandler(error, "[CL_EXT] UsmHost in cl extensions constructor failed");
+        auto ptr = _usmHelper.allocate_host(nullptr, size, 0, &error);
+        _check_error(size, ptr, error, "Host");
+        _allocate(ptr);
     }
 
     void allocateShared(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_shared(nullptr, size, 0, &error));
-        if (error != CL_SUCCESS)
-            detail::errHandler(error, "[CL_EXT] UsmShared in cl extensions constructor failed");
+        auto ptr = _usmHelper.allocate_shared(nullptr, size, 0, &error);
+        _check_error(size, ptr, error, "Shared");
+        _allocate(ptr);
     }
 
     void allocateDevice(size_t size) {
         cl_int error = CL_SUCCESS;
-        _allocate(_usmHelper.allocate_device(nullptr, size, 0, &error));
-        if (error != CL_SUCCESS)
-            detail::errHandler(error, "[CL_EXT] UsmDevice in cl extensions constructor failed");
+        auto ptr = _usmHelper.allocate_device(nullptr, size, 0, &error);
+        _check_error(size, ptr, error, "Device");
+        _allocate(ptr);
     }
 
     void freeMem() {
@@ -958,9 +960,18 @@ protected:
 
 private:
     void _allocate(void* ptr) {
-        if (!ptr)
-            throw std::runtime_error("[CL ext] Can not allocate nullptr for USM type.");
         _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, ptr);
+    }
+
+    void _check_error(size_t size, void* ptr, cl_int error, const char* usm_type) {
+        if (ptr == nullptr || error != CL_SUCCESS) {
+            std::stringstream sout;
+            sout << "[CL ext] Can not allocate " << size << " bytes for USM " << usm_type << ". ptr: " << ptr << ", error: " << error << std::endl;
+            if (ptr == nullptr)
+                throw std::runtime_error(sout.str());
+            else
+                detail::errHandler(error, sout.str().c_str());
+        }
     }
 };
 

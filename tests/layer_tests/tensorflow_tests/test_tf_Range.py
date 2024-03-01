@@ -11,13 +11,13 @@ class TestRange(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
         if self.negative_delta:
-            inputs_data['start'] = np.random.randint(1, 10, []).astype(self.input_type)
-            inputs_data['limit'] = np.random.randint(-10, 0, []).astype(self.input_type)
-            inputs_data['delta'] = np.random.randint(-5, -1, []).astype(self.input_type)
+            inputs_data['start:0'] = np.random.randint(1, 10, []).astype(self.input_type)
+            inputs_data['limit:0'] = np.random.randint(-10, 0, []).astype(self.input_type)
+            inputs_data['delta:0'] = np.random.randint(-5, -1, []).astype(self.input_type)
         else:
-            inputs_data['start'] = np.random.randint(1, 10, []).astype(self.input_type)
-            inputs_data['limit'] = np.random.randint(10, 30, []).astype(self.input_type)
-            inputs_data['delta'] = np.random.randint(1, 5, []).astype(self.input_type)
+            inputs_data['start:0'] = np.random.randint(1, 10, []).astype(self.input_type)
+            inputs_data['limit:0'] = np.random.randint(10, 30, []).astype(self.input_type)
+            inputs_data['delta:0'] = np.random.randint(1, 5, []).astype(self.input_type)
 
         return inputs_data
 

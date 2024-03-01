@@ -68,12 +68,6 @@ INSTANTIATE_TEST_SUITE_P(
                         { ov::device::uuid.name(), ov::device::luid.name(), ov::device::gops.name(), ov::device::type.name(), ov::device::full_name.name() }))),
     OVCheckGetSupportedROMetricsPropsTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_HeteroAutoBatchOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
-                         ::testing::Combine(::testing::Values("HETERO", "BATCH"),
-                                            ::testing::Values(ov::AnyMap({}))),
-                        OVCheckChangePropComplieModleGetPropTests_DEVICE_ID::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(nightly_gpuOVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          OVCheckChangePropComplieModleGetPropTests_DEVICE_ID,
                          ::testing::Combine(::testing::Values("GPU"),
@@ -677,7 +671,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest,
 
 using OVGetMetricPropsTest_CACHING_PROPERTIES = OVClassBaseTestP;
 TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::vector<ov::PropertyName> caching_properties = {};
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),

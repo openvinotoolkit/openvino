@@ -20,7 +20,6 @@ ov_add_target(
             openvino::runtime
             openvino::runtime::dev
         PRIVATE
-            ov_models
             openvino::pugixml
 )
 

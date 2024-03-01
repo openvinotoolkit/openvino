@@ -15,10 +15,6 @@ struct adaptive_pooling_params : public base_params {
     int64_t outputs_num = 1;
 };
 
-struct adaptive_pooling_optional_params : public optional_params {
-    adaptive_pooling_optional_params() : optional_params(KernelType::ADAPTIVE_POOLING) {}
-};
-
 class AdaptivePoolingRef : public KernelBaseOpenCL {
 public:
     AdaptivePoolingRef() : KernelBaseOpenCL("adaptive_pooling_gpu_ref") {}
@@ -26,10 +22,10 @@ public:
 
     using DispatchData = CommonDispatchData;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

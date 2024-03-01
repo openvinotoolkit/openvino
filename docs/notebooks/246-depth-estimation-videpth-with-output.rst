@@ -64,7 +64,7 @@ repository <https://github.com/isl-org/VI-Depth>`__ for the
 pre-processing, model transformations and basic utility code. A part of
 it has already been kept as it is in the `utils <utils>`__ directory. At
 the same time we will learn how to perform `model
-conversion <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__
+conversion <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__
 for converting a model in a different format to the standard OpenVINO™
 IR model representation *via* another format.
 
