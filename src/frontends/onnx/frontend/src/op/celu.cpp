@@ -23,7 +23,6 @@ namespace set_1 {
 ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
     auto alpha_node = node.get_attribute_as_constant<float>("alpha", 1.0f);
     auto x_celu = node.get_ov_inputs().at(0);
-    x_celu = std::make_shared<v0::Convert>(x_celu, element::f32);
 
     auto divide_node = std::make_shared<v1::Divide>(x_celu, alpha_node);
     auto elu_node = std::make_shared<v0::Elu>(divide_node, 1.0);
