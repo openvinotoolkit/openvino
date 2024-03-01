@@ -266,14 +266,9 @@ jobs:
           popd
 
       - name: Install dependencies (Linux)
-        continue-on-error: true
         run: |
           $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
           apt update && apt --assume-yes install clang lld
-          
-          if [[ "${{ matrix.SANITIZER }}" == "UndefinedBehavior" ]]; then
-            echo "LD_PRELOAD=$(clang -print-file-name=libclang_rt.ubsan_standalone-x86_64.so)" >> "$GITHUB_ENV"
-          fi
 
       - name: Fetch Sanitizer Suppression Lists
         uses: actions/checkout@v4
