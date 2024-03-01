@@ -31,6 +31,7 @@ from openvino.runtime.opset1.ops import concat
 from openvino.runtime.opset13.ops import constant
 from openvino.runtime.opset1.ops import convert
 from openvino.runtime.opset1.ops import convert_like
+from openvino.runtime.opset14.ops import convert_promote_types
 from openvino.runtime.opset1.ops import convolution
 from openvino.runtime.opset1.ops import convolution_backprop_data
 from openvino.runtime.opset1.ops import cos
