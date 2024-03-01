@@ -138,8 +138,8 @@ By contributing to the project, you agree to the license and copyright terms the
 
 **Telemetry**
 
-To help us improve, OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. Visit our [telemetry page](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html) to learn more.
-You can opt-out at any time by running the command:
+OpenVINO™ collects software performance and usage data to improve OpenVINO™ tools. This data is collected directly by OpenVINO™ or through the use of Google Analytics 4. Visit our [telemetry page](https://docs.openvino.ai/nightly/openvino_docs_telemetry_information.html) to learn more.
+You can opt out at any time by running the command:
 
 ``` bash
 opt_in_out --opt_out
