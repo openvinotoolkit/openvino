@@ -208,9 +208,9 @@ What's Next?
 #############
 
 Now that you've installed OpenVINO Runtime, you're ready to run your own machine learning applications!
-Learn more about how to integrate a model in OpenVINO applications by trying out the following ../../../learn-openvino/interactive-tutorials-python:
+Learn more about how to integrate a model in OpenVINO applications by trying out the following tutorials:
 
-* Try the `C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>`_
+* Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>`
   for step-by-step instructions on building and running a basic image classification C++ application.
 
   .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
@@ -218,8 +218,8 @@ Learn more about how to integrate a model in OpenVINO applications by trying out
 
 * Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-  * `Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`_
-  * `Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`_
+  * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
+  * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
 
 You can also try the following things:
 
@@ -228,7 +228,7 @@ You can also try the following things:
 * See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
-* Take a glance at the OpenVINO product home page: https://software.intel.com/en-us/openvino-toolkit.
+* Take a glance at the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .
 
 
 
