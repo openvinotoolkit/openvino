@@ -206,8 +206,8 @@ void append_spatial_shape(const TOp* op,
                           TRShape& out_shape) {
     using namespace ov::util;
     const auto spatial_num = data_shape.size() - spatial_dim_offset;
-    const auto is_ceil_mode =
-        op->get_rounding_type() == RoundingType::CEIL || op->get_rounding_type() == RoundingType::CEIL_TORCH;
+    const auto is_ceil_torch_mode = op->get_rounding_type() == RoundingType::CEIL_TORCH;
+    const auto is_ceil_mode = op->get_rounding_type() == RoundingType::CEIL || is_ceil_torch_mode;
     const auto is_auto_pad = (op->get_auto_pad() == PadType::SAME_UPPER) || (op->get_auto_pad() == PadType::SAME_LOWER);
 
     using TDim = typename TShape::value_type;
@@ -218,9 +218,8 @@ void append_spatial_shape(const TOp* op,
     const auto& stride = op->get_strides();
 
     // Torch CEIL rounding disallows the last pooling operation from starting in the pads area.
-    auto set_pooling_ceil_behavior = op->get_rounding_type() == RoundingType::CEIL_TORCH
-                                         ? &disallow_pooling_start_in_padding<TDim>
-                                         : &allow_pooling_start_in_padding<TDim>;
+    auto set_pooling_ceil_behavior =
+        is_ceil_torch_mode ? &disallow_pooling_start_in_padding<TDim> : &allow_pooling_start_in_padding<TDim>;
 
     for (size_t i = 0; i < spatial_num; ++i, ++data_dim) {
         if (data_dim->is_static() || !is_auto_pad) {
