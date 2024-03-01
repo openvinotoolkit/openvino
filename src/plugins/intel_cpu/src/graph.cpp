@@ -1344,7 +1344,6 @@ void Graph::InferDynamic(SyncInferRequest* request) {
     }
 }
 
-
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
     if (!node->parallelWith.empty()) {
         // run nodes in parallel
@@ -1409,18 +1408,18 @@ void Graph::ParalleMtNuma(size_t num_nodes,
         }
         // run in main stream (current socket)
         {
-        size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
-        PROFILE(_prof, std::to_string(i0));
-        for (size_t i = i0; i < i1; i++) {
-            func(0, i);
-            nodes_remain--;
-        }
+            size_t i0{0}, i1{0};
+            splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
+            PROFILE(_prof, std::to_string(i0));
+            for (size_t i = i0; i < i1; i++) {
+                func(0, i);
+                nodes_remain--;
+            }
         }
 
         {
             PROFILE(_prof, "wait");
-        while (nodes_remain.load() > 0) {
+            while (nodes_remain.load() > 0) {
         }
         }
     }
@@ -1467,7 +1466,9 @@ void Graph::SortTopologically() {
 
                 // make sure parallel nodes are always enqueue together
                 for (auto& n : node->parallelWith) {
-                    sorted.push_back(n);
+                    if(std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
+                        sorted.push_back(n);
+                    }
                 }
             } else {
                 for (size_t i = 0; i < node->getChildEdges().size(); i++) {
