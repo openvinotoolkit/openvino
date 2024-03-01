@@ -563,4 +563,5 @@ class TestTransformersModel(TestTorchConvertModel):
                              process_pytest_marks(os.path.join(os.path.dirname(__file__), "hf_transformers_models")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, ie_device):
+        self.mode = "export"
         self.run(model_name=name, model_link=None, ie_device=ie_device)

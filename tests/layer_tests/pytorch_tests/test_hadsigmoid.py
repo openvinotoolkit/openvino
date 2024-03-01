@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestHardSigmoid(PytorchLayerTest):
@@ -31,6 +31,6 @@ class TestHardSigmoid(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("shape", [[1, 10], [1, 2, 3], [1, 2, 3, 4], [1, 2, 3, 4, 5]])
     @pytest.mark.parametrize("dtype", ["float32", "float64"])
-    @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     def test_hardsigmoid(self, shape, dtype, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(inplace), ie_device, precision, ir_version, kwargs_to_prepare_input={"shape": shape, "dtype": dtype})
