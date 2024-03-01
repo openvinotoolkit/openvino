@@ -23,20 +23,20 @@ Install OpenVINO™ Runtime from Conan Package Manager
    .. tab-item:: System Requirements
       :sync: system-requirements
 
-      Full requirement listing is available in:
-      :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | Full requirement listing is available in:
+      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
 
    .. tab-item:: Processor Notes
       :sync: processor-notes
 
-      To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
-      `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
+      | To see if your processor includes the integrated graphics technology and supports iGPU inference, refer to:
+      | `Product Specifications <https://ark.intel.com/content/www/us/en/ark.html>`__
 
    .. tab-item:: Software
       :sync: software
 
-      There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
-      `Conan distribution page <https://conan.io/downloads>`__
+      | There are many ways to work with Conan Package Manager. Before you proceed, learn more about it on the
+      | `Conan distribution page <https://conan.io/downloads>`__
 
 Installing OpenVINO Runtime with Conan Package Manager
 ############################################################
@@ -93,6 +93,6 @@ Additional Resources
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
-* Check out the OpenVINO product `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
+* Check out the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__.
 
 

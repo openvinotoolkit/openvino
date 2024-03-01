@@ -142,15 +142,15 @@ Get started with Python
 
 Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-* :doc:`OpenVINO Python API Tutorial <https://docs.openvino.ai/2024/notebooks/002-openvino-api-with-output>`
-* :doc:`Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2024/notebooks/001-hello-world-with-output>`
-* :doc:`Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2024/notebooks/205-vision-background-removal-with-output>`
+* `OpenVINO Python API Tutorial <https://docs.openvino.ai/2024/notebooks/002-openvino-api-with-output.html>`__
+* `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/2024/notebooks/001-hello-world-with-output.html>`__
+* `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/2024/notebooks/205-vision-background-removal-with-output.html>`__
 
 
 
 Additional Resources
 ####################
 
-- Intel® Distribution of OpenVINO™ toolkit home page: https://software.intel.com/en-us/openvino-toolkit
+- Intel® Distribution of OpenVINO™ `toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
 

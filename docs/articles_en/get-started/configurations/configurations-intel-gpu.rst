@@ -128,25 +128,28 @@ Below are the required steps to make it work with OpenVINO:
 Additional Resources
 ####################
 
-The following Intel® Graphics Driver versions were used during OpenVINO's internal validation:
+.. The following Intel® Graphics Driver versions were used during OpenVINO's internal validation:
 
-+------------------+-------------------------------------------------------------------------------------------+
-| Operation System | Driver version                                                                            |
-+==================+===========================================================================================+
-| Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
-+------------------+-------------------------------------------------------------------------------------------+
-| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
-+------------------+-------------------------------------------------------------------------------------------+
-| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
-+------------------+-------------------------------------------------------------------------------------------+
-| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__       |
-+------------------+-------------------------------------------------------------------------------------------+
-| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__       |
-+------------------+-------------------------------------------------------------------------------------------+
+.. <The table below is out of date and we do not have an updated list of drivers used for validation as of 2024.0 release date.>
+.. <The table will be updated when an updated list of drivers is available>
+
+.. +------------------+-------------------------------------------------------------------------------------------+
+.. | Operation System | Driver version                                                                            |
+.. +==================+===========================================================================================+
+.. | Ubuntu 22.04     | `22.43.24595.30 <https://github.com/intel/compute-runtime/releases/tag/22.43.24595.30>`__ |
+.. +------------------+-------------------------------------------------------------------------------------------+
+.. | Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__       |
+.. +------------------+-------------------------------------------------------------------------------------------+
+.. | Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__       |
+.. +------------------+-------------------------------------------------------------------------------------------+
+.. | CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__       |
+.. +------------------+-------------------------------------------------------------------------------------------+
+.. | RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__       |
+.. +------------------+-------------------------------------------------------------------------------------------+
 
 
-What’s Next?
-############
+.. What’s Next?
+.. ############
 
 * :doc:`GPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/gpu-device>`
 * :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <../install-openvino/install-openvino-archive-linux>`

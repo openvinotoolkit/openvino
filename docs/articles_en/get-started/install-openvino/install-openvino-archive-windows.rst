@@ -199,11 +199,11 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
-      Visit the :ref:`Tutorials <notebook ../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+      Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * :doc:`OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output>`
-      * :doc:`Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output>`
-      * :doc:`Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output>`
+      * :doc:`OpenVINO Python API Tutorial <../../../notebooks/002-openvino-api-with-output>`
+      * :doc:`Basic image classification program with Hello Image Classification <../../../notebooks/001-hello-world-with-output>`
+      * :doc:`Convert a PyTorch model and use it for image background removal <../../../notebooks/205-vision-background-removal-with-output>`
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
@@ -250,7 +250,7 @@ Additional Resources
 * :doc:`Troubleshooting Guide for OpenVINO Installation & Configuration <../install-openvino>`
 * Converting models for use with OpenVINO™: :ref:`Model Optimizer Developer Guide <deep learning model optimizer>`
 * Writing your own OpenVINO™ applications: :ref:`OpenVINO™ Runtime User Guide <deep learning openvino runtime>`
-* Sample applications: :ref:`OpenVINO™ Toolkit Samples Overview <code samples>`
-* Pre-trained deep learning models: :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <model zoo>`
+* Sample applications: :doc:`OpenVINO™ Toolkit Samples Overview <../../../learn-openvino/openvino-samples>`
+* Pre-trained deep learning models: :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../../documentation/legacy-features/model-zoo>`
 * IoT libraries and code samples in the GitHUB repository: `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__
 

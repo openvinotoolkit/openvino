@@ -37,8 +37,8 @@ Install OpenVINO™ Runtime from Conda Forge
    .. tab-item:: Software
       :sync: software
 
-      There are many ways to work with Conda. Before you proceed, learn more about it on the
-      `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
+      | There are many ways to work with Conda. Before you proceed, learn more about it on the
+      | `Anaconda distribution page <https://www.anaconda.com/products/individual/>`__
 
 
 Installing OpenVINO Runtime with Anaconda Package Manager
