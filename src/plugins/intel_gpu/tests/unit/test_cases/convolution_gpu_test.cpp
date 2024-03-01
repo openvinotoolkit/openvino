@@ -8405,8 +8405,8 @@ public:
 
     VF<float> get_compensation(VF<WeightsT> w_tensor, VF<InputT> azp_tensor, VF<WeightsT> wzp_tensor,
                                  int64_t groups, size_t output_channels, size_t input_channels, size_t spatial_size) {
-        size_t azp_total = azp_tensor.size();
-        size_t wzp_total = wzp_tensor.size();
+        size_t azp_total = std::max<size_t>(azp_tensor.size(), 1);
+        size_t wzp_total = std::max<size_t>(wzp_tensor.size(), 1);
         const size_t groups_count = std::max<int64_t>(groups, 1);
         VF<float> compensation(output_channels * groups_count);
 
@@ -8414,6 +8414,9 @@ public:
         const WeightsT* w = w_tensor.data();
         const WeightsT* wzp = !wzp_tensor.empty() ? wzp_tensor.data() : nullptr;
         const InputT* azp = !azp_tensor.empty() ? azp_tensor.data() : nullptr;
+
+        if (!azp)
+            return {};
 
         for (size_t g = 0; g < groups_count; g++) {
             for (size_t oc = 0; oc < output_channels; oc++) {
