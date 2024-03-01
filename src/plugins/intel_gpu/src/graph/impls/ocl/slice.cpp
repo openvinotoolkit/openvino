@@ -90,32 +90,38 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
 
     static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
         auto params = get_default_params<kernel_selector::slice_params>(impl_param, impl_param.is_dynamic());
+        const auto input_rank = params.inputs[0].Dimentions();
 
-        OPENVINO_ASSERT(PrepareInput(arg,
-                                     SliceKernelRefNeededInputs::kStart,
-                                     params.compile_time_start,
-                                     params.start_data_type,
-                                     params.inputs),
-                        "[GPU][SliceOp]: Slice op definition does not contain start input!");
+        if (!PrepareInput(arg,
+                          SliceKernelRefNeededInputs::kStart,
+                          params.compile_time_start,
+                          params.start_data_type,
+                          params.inputs)) {
+            // No kStart input - set it to default:
+            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.compile_time_start = std::vector<int64_t>(input_rank, 0);
+        }
 
         // NOTE: Stop input is not used by the slice kernel, as this information
         // is implicitely passed with output shape.
 
-        OPENVINO_ASSERT(PrepareInput(arg,
-                                     SliceKernelRefNeededInputs::kStep,
-                                     params.compile_time_step,
-                                     params.step_data_type,
-                                     params.inputs),
-                        "[GPU][SliceOp]: Slice op definition does not contain step input!");
+        if (!PrepareInput(arg,
+                          SliceKernelRefNeededInputs::kStep,
+                          params.compile_time_step,
+                          params.step_data_type,
+                          params.inputs)) {
+            // No kStep input - set it to default:
+            params.axes_data_type = kernel_selector::Datatype::INT64;
+            params.compile_time_step = std::vector<int64_t>(input_rank, 1);
+        }
 
-        const auto input_rank = params.inputs[0].Dimentions();
         if (!PrepareInput(arg,
                           SliceKernelRefNeededInputs::kAxes,
                           params.compile_time_axes,
                           params.axes_data_type,
                           params.inputs)) {
             // No kAxes input - set it to default:
-            params.axes_data_type = ov::element::i32;
+            params.axes_data_type = kernel_selector::Datatype::INT64;
             params.compile_time_axes.resize(input_rank);
             std::iota(params.compile_time_axes.begin(), params.compile_time_axes.end(), 0);
         }
@@ -145,7 +151,7 @@ private:
     static bool PrepareInput(const slice_node& arg,
                              SliceKernelRefNeededInputs::InputIndices idx,
                              std::vector<std::int64_t>& out_compile_time_buff,
-                             ov::element::Type_t& out_buff_data_type,
+                             kernel_selector::Datatype& out_buff_data_type,
                              kernel_selector::MultiDataTensor& out_runtime_inputs) {
         const stream& stream = arg.get_program().get_stream();
         const auto& inputs = arg.get_dependencies();
@@ -156,11 +162,11 @@ private:
         const SliceKernelRefNeededInputs kernel_needed_inputs = SliceKernelRefNeededInputs::Create(arg);
         if (kernel_needed_inputs.IsInputNeededInRuntime(idx)) {
             const auto layout = inputs[idx].first->get_output_layout(0);
-            out_buff_data_type = layout.data_type;
+            out_buff_data_type = to_data_type(layout.data_type);
             out_compile_time_buff.clear();
             out_runtime_inputs.push_back(convert_data_tensor(layout));
         } else {
-            out_buff_data_type = ov::element::i32;
+            out_buff_data_type = kernel_selector::Datatype::INT64;
             out_compile_time_buff = extractIntegerData(inputs[idx].first->as<data>(), stream);
         }
 

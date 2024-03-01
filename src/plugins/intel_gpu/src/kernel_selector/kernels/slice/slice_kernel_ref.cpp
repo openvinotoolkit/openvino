@@ -10,36 +10,13 @@ namespace {
 static constexpr size_t MAX_SUPPORTED_DIM = 5;
 static constexpr char JIT_AXES_BUFF_SIZE_NAME[] = "AXES_BUFFER_SIZE";
 
-std::string ovElementTypeToOCLStr(ov::element::Type_t type) {
-#define CASE(TYPE, STR)     \
-    case ov::element::TYPE: \
-        return #STR;
-    switch (type) {
-        CASE(u64, ulong)
-        CASE(i64, long)
-        CASE(u32, uint)
-        CASE(i32, int)
-        CASE(u16, ushort)
-        CASE(i16, short)
-        CASE(u8, char)
-        CASE(i8, uchar)
-
-    default: {
-        OPENVINO_ASSERT(false, "Unknown type!");
-        return "unknown";
-    }
-    }
-
-#undef CASE
-}
-
 // Generates macros:
 // - name_BUFFER
 // - name_VAL0, name_VAL1 ...
 void addJitConstantsForParam(kernel_selector::JitConstants& jit,
                              const std::string& name,
                              const std::vector<std::int64_t>& compile_time_param,
-                             ov::element::Type_t type,
+                             kernel_selector::Datatype type,
                              const std::function<std::string(std::string, size_t)>& dynamic_access_decorator) {
     using namespace kernel_selector;
     const std::string BUFF_CONST_NAME = name + "_BUFFER";
@@ -50,7 +27,7 @@ void addJitConstantsForParam(kernel_selector::JitConstants& jit,
 
     if (compile_time_param.empty()) {
         // Dynamic param:
-        const std::string type_str = ovElementTypeToOCLStr(type);
+        const std::string type_str = toCLType(type);
         jit.AddConstant(
             MakeJitConstant(BUFF_CONST_NAME, "__global const " + type_str + "* restrict " + BUFF_PTR_NAME + ","));
 
