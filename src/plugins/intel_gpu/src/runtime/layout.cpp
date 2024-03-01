@@ -585,13 +585,24 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
-    if (!l1.data_padding && !l2.data_padding && !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
+    if (!l1.data_padding && !l2.data_padding &&
+        !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
         l2.data_type == l1.data_type && l2.count() == l1.count()) {
-        auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
-        auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
+        bool l1_is_single_blocked = format::is_single_blocked(l1.format);
+        bool l2_is_single_blocked = format::is_single_blocked(l2.format);
+
+        bool l1_is_feature_blocked = (l1_is_single_blocked && format::block_sizes(l1.format).at(0).first == 1) || !l1_is_single_blocked;
+        bool l2_is_feature_blocked = (l2_is_single_blocked && format::block_sizes(l2.format).at(0).first == 1) || !l2_is_single_blocked;
+
+        auto l1_inner_blk = l1_is_single_blocked ? format::block_sizes(l1.format).at(0).second : 1;
+        auto l2_inner_blk = l2_is_single_blocked ? format::block_sizes(l2.format).at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
-        if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
-           (l2.feature() % max_inner_blk == 0)) {
+
+        if (static_cast<size_t>(l2.feature()) == l1.count() &&
+            l2.feature() == l1.feature() &&
+            l2.feature() % max_inner_blk == 0 &&
+            l1_is_feature_blocked &&
+            l2_is_feature_blocked) {
             return true;
         }
 
