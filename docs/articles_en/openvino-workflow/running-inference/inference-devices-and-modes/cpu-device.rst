@@ -320,7 +320,7 @@ Stateful Models
 
 The CPU plugin supports stateful models without any limitations.
 
-For details, see :doc:`stateful models guide <../stateful-models-intro>`.
+For details, see :doc:`stateful models guide <../stateful-models>`.
 
 Supported Properties
 ###########################################################

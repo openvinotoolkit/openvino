@@ -7,7 +7,7 @@ If the original framework does not offer a dedicated API for working with states
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
 either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>` and
 :doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>` operations. You can still
-make such models stateful (:doc:`see benefits <../stateful-models-intro>`),
+make such models stateful (:doc:`see benefits <../stateful-models>`),
 and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
@@ -105,7 +105,8 @@ for the ReadValue operations are set to zeros unless the user specifies otherwis
 Applying LowLatency2 Transformation
 ++++++++++++++++++++++++++++++++++++
 
-1. Get :doc:`ov::Model <../integrate-openvino-with-your-application/model-representation>`, for example:
+1. Get :doc:`ov::Model <../integrate-openvino-with-your-application/model-representation>`,
+   for example:
 
    .. tab-set::
 
@@ -165,10 +166,11 @@ Applying LowLatency2 Transformation
       :alt: diagram of constant subgraph initialization
       :align: center
 
-   **State naming rule:**  the name of a state is a concatenation of several names: the original
-   TensorIterator operation, the parameter of the body, and an additional suffix "variable_" + id
-   (zero-based indexing, new indexing for each TensorIterator). You can use these rules to predict
-   the name of the inserted state after applying the transformation. For example:
+   **State naming rule:**  the name of a state is a concatenation of several names: the
+   original TensorIterator operation, the parameter of the body, and an additional suffix
+   ``"variable_"`` + id (zero-based indexing, new indexing for each TensorIterator). You can
+   use these rules to predict the name of the inserted state after applying the transformation.
+   For example:
 
    .. tab-set::
 

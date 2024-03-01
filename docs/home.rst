@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2023.2
+OpenVINO 2024
 ============================
 
 .. meta::
@@ -14,7 +14,7 @@ OpenVINO 2023.2
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.3
+   OpenVINO 2024.0
 
    .. raw:: html
 
