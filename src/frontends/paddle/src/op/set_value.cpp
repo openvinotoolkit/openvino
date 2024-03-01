@@ -10,8 +10,16 @@ namespace frontend {
 namespace paddle {
 namespace op {
 
-std::shared_ptr<Node> handle_minus_index(const OutputVector& node, const Output<Node>& dim) {
-    const auto new_node = std::make_shared<default_opset::Concat>(node, 0);
+std::shared_ptr<Node> get_tensor_list(const OutputVector& node) {
+    auto tensor_list = node;
+    for (size_t i = 0; i < node.size(); i++) {
+        if (node[i].get_shape().size() == 0) {
+            tensor_list[i] =
+                std::make_shared<default_opset::Unsqueeze>(node[i],
+                                                           default_opset::Constant::create(element::i64, {1}, {0}));
+        }
+    }
+    const auto new_node = std::make_shared<default_opset::Concat>(tensor_list, 0);
     return new_node;
 }
 
@@ -93,9 +101,9 @@ NamedOutputs set_value(const NodeContext& node) {
 
     // get positive starts ends and steps
     if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
-        starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
-        ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
-        steps = std::make_shared<default_opset::Concat>(node.get_ng_inputs("StepsTensorList"), 0);
+        starts = get_tensor_list(node.get_ng_inputs("StartsTensorList"));
+        ends = get_tensor_list(node.get_ng_inputs("EndsTensorList"));
+        steps = get_tensor_list(node.get_ng_inputs("StepsTensorList"));
     } else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
         const auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
         const auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
