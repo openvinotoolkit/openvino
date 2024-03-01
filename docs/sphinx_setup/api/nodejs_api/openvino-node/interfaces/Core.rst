@@ -56,7 +56,7 @@ Methods
 
 .. code-block:: json
 
-   compileModelSync(model, device, config?):CompiledModel
+   compileModelSync(model, device, config?): CompiledModel
 
 
 **Parameters**
