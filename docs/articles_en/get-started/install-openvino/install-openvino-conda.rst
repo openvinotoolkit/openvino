@@ -120,8 +120,8 @@ on building and running a basic image classification C++ application.
 
 Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`
-* :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`
+* :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
+* :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
 
 
 

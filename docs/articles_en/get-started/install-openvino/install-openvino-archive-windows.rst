@@ -194,29 +194,29 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the :doc:`Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output.html>` to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      Try the :doc:`Python Quick Start Example <../../../notebooks/201-vision-monodepth-with-output>` to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
       Visit the :ref:`Tutorials <notebook ../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * :doc:`OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output.html>`
-      * :doc:`Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output.html>`
-      * :doc:`Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output.html>`
+      * :doc:`OpenVINO Python API Tutorial <notebooks/002-openvino-api-with-output>`
+      * :doc:`Basic image classification program with Hello Image Classification <notebooks/001-hello-world-with-output>`
+      * :doc:`Convert a PyTorch model and use it for image background removal <notebooks/205-vision-background-removal-with-output>`
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
 
-      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos.html>` for step-by-step instructions on building and running a basic image classification C++ application.
+      Try the :doc:`C++ Quick Start Example <../../../learn-openvino/openvino-samples/get-started-demos>` for step-by-step instructions on building and running a basic image classification C++ application.
 
       .. image:: https://user-images.githubusercontent.com/36741649/127170593-86976dc3-e5e4-40be-b0a6-206379cd7df5.jpg
          :width: 400
 
       Visit the :ref:`Samples <code samples>` page for other C++ example applications to get you started with OpenVINO, such as:
 
-      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd.html>`
-      * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification.html>`
+      * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
+      * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
 
 
 .. _uninstall-from-windows:
