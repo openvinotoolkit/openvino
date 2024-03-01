@@ -7,7 +7,6 @@ InferRequest
 .. code-block:: json
 
    interface InferRequest {
-       getAvailableDevices(): string[];
        getCompiledModel(): CompiledModel;
        getInputTensor(idx?): Tensor;
        getOutputTensor(idx?): Tensor;
@@ -29,18 +28,6 @@ InferRequest
 Methods
 #####################
 
-
-.. rubric:: getAvailableDevices
-
-
-.. code-block:: json
-
-   getAvailableDevices():string[]
-
-**Returns** string[]
-
-- Defined in
-  `addon.ts:84 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L84>`__
 
 .. rubric:: getCompiledModel
 

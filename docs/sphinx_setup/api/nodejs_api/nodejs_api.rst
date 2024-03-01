@@ -9,7 +9,7 @@ OpenVINO™ Node.js Bindings
    :maxdepth: 3
    :hidden:
 
-   openvino-node <./openvino-node>
+   addon <./addon>
 
 Use OpenVINO JavaScript API for your Node.js application.
 

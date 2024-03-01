@@ -5,6 +5,31 @@ Property addon
    :description: Explore the modules of openvino-node in Node.js API and their implementation
                  in Intel® Distribution of OpenVINO™ Toolkit.
 
+.. toctree::
+   :maxdepth: 3
+   :hidden:
+
+   element <./openvino-node/enums/element>
+   resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>
+   CompiledModel <./openvino-node/interfaces/CompiledModel>
+   Core <./openvino-node/interfaces/Core>
+   CoreConstructor <./openvino-node/interfaces/CoreConstructor>
+   InferRequest <./openvino-node/interfaces/InferRequest>
+   InputInfo <./openvino-node/interfaces/InputInfo>
+   InputModelInfo <./openvino-node/interfaces/InputModelInfo>
+   InputTensorInfo <./openvino-node/interfaces/InputTensorInfo>
+   Model <./openvino-node/interfaces/Model>
+   Output <./openvino-node/interfaces/Output>
+   OutputInfo <./openvino-node/interfaces/OutputInfo>
+   OutputTensorInfo <./openvino-node/interfaces/OutputTensorInfo>
+   PartialShape <./openvino-node/interfaces/PartialShape>
+   PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>
+   PrePostProcessor <./openvino-node/interfaces/PrePostProcessor>
+   PrePostProcessorConstructor <./openvino-node/interfaces/PrePostProcessorConstructor>
+   PreProcessSteps <./openvino-node/interfaces/PreProcessSteps>
+   Tensor <./openvino-node/interfaces/Tensor>
+   TensorConstructor <./openvino-node/interfaces/TensorConstructor>
+
 The **openvino-node** package exports ``addon`` which contains the following properties:
 
 .. code-block:: json
