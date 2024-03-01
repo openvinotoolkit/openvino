@@ -111,6 +111,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.expand.default": None,
             "torch.ops.aten.fake_quantize_per_channel_affine_cachemask.default": None,
             "torch.ops.aten.fill.Scalar": None,
+            "torch.ops.aten.fill_.Scalar": None,
             "torch.ops.aten.fill.Tensor": None,
             "torch.ops.aten.fill_.Tensor": None,
             "torch.ops.aten.flip.default": None,
@@ -225,7 +226,6 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.unbind.int": None,
             "torch.ops.aten.unfold.default": None,
             "torch.ops.aten.unsqueeze.default": None,
-            "torch.ops.aten.upsample_bilinear2d.default": None,
             "torch.ops.aten.upsample_nearest2d.default": None,
             "torch.ops.aten.var.correction": None,
             "torch.ops.aten.var_mean.correction": None,
@@ -233,6 +233,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.where.self": None,
             "torch.ops.aten.zeros_like.default": None,
             "torch.ops.torchvision.deform_conv2d.default": None,
+            "torch.ops.torchvision.roi_align.default": None,
         }
 
         for op in _get_disabled_ops(options):
