@@ -156,16 +156,16 @@ Now that you've installed OpenVINO Runtime, you're ready to run your own machine
    .. tab-item:: Get started with Python
       :sync: get-started-py
 
-      Try the :doc:`Python Quick Start Example <../../notebooks/201-vision-monodepth-with-output>` to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
+      Try the :doc:`Python Quick Start Example <../../../../notebooks/201-vision-monodepth-with-output>` to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
       .. image:: https://user-images.githubusercontent.com/15709723/127752390-f6aa371f-31b5-4846-84b9-18dd4f662406.gif
          :width: 400
 
       Visit the :doc:`Tutorials <../../../learn-openvino/interactive-tutorials-python>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
 
-      * :doc:`OpenVINO Python API Tutorial <../../notebooks/002-openvino-api-with-output>`
-      * :doc:`Basic image classification program with Hello Image Classification <../../notebooks/001-hello-world-with-output>`
-      * :doc:`Convert a PyTorch model and use it for image background removal <../../notebooks/205-vision-background-removal-with-output>`
+      * :doc:`OpenVINO Python API Tutorial <../../../../notebooks/002-openvino-api-with-output>`
+      * :doc:`Basic image classification program with Hello Image Classification <../../../../notebooks/001-hello-world-with-output>`
+      * :doc:`Convert a PyTorch model and use it for image background removal <../../../../notebooks/205-vision-background-removal-with-output>`
 
    .. tab-item:: Get started with C++
       :sync: get-started-cpp
