@@ -17,7 +17,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_rsqrt(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 2);
     auto data = context.get_input(0);
     auto one_const = context.mark_node(v0::Constant::create(element::f32, Shape({}), {1}));
     Output<Node> fake_const_for_type = context.mark_node(v0::Constant::create(element::f32, Shape({}), {.5}));

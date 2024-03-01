@@ -16,7 +16,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_reciprocal(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     auto const_neg_1 = context.mark_node(v0::Constant::create(element::f32, Shape{}, {-1}))->output(0);
     align_eltwise_input_types(context, x, const_neg_1, true);
