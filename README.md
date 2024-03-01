@@ -45,6 +45,7 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 * [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
 </details>
 
+
 ### Getting Started
 
 [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
@@ -98,7 +99,7 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
    -   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
    -	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
    -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
-
+  
 </details>
 
 ### Documentation
@@ -123,7 +124,7 @@ We welcome contributions of all kinds!
 
 Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openvino/issues/17502), if you're looking for a place to start contributing.
 To be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
-Check our [Contribution Guidelines](./CONTRIBUTING.md) for more details.
+Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
 
 Ask questions and seek support on:
 
@@ -147,7 +148,6 @@ opt_in_out --opt_out
 
 ---
 \* Other names and brands may be claimed as the property of others.
-
 
 [OpenVINO™ Runtime]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
 [OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc

@@ -277,7 +277,7 @@ a time and this vector will just consist of ones.
 We use OpenVINO Converter (OVC) below to convert the PyTorch model to
 the OpenVINO Intermediate Representation format (IR), which you can
 infer later with `OpenVINO
-runtime <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 
 .. code:: ipython3
 
