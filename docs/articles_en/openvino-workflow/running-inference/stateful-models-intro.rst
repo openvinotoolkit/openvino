@@ -57,9 +57,9 @@ OpenVINO Stateful Model Representation
 To make a model stateful, OpenVINO replaces looped pairs of `Parameter` and `Result` with its
 own two operations:
 
-* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>`)
+* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>`)
   reads the data from the state and returns it as output.
-* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>`)
+* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>`)
   accepts the data as input and saves it in the state for the next inference call.
 
 Each pair of these operations works with **state**, which is automatically saved between

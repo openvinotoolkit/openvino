@@ -5,8 +5,8 @@ Obtaining a Stateful OpenVINO Model
 
 If the original framework does not offer a dedicated API for working with states, the
 resulting OpenVINO IR model will not be stateful by default. This means it will not contain
-either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>` and
-:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>` operations. You can still
+either a state or the :doc:`Assign <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>` and
+:doc:`ReadValue <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>` operations. You can still
 make such models stateful (:doc:`see benefits <../stateful-models-intro>`),
 and you have three ways to do it:
 
@@ -86,8 +86,8 @@ LowLatency2 Transformation
 ##########################
 
 The LowLatency2 transformation changes the structure of a model containing
-:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/tensor-iterator-1>`
-and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/loop-5>` by automatically detecting
+:doc:`TensorIterator <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/tensor-iterator-1>`
+and :doc:`Loop <../../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/loop-5>` by automatically detecting
 and replacing pairs of Parameter and Results with the Assign and ReadValue operations,
 as illustrated by the following example:
 

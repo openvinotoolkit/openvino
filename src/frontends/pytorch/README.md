@@ -264,7 +264,7 @@ and we will see `torch.randn_like` function call on that line.
 Some operations can be translated incorrectly. For example PyTorch allow to
 pass different data types in the operation while OpenVINO usually requires same
 types for all inputs of the operation (more information about what types
-OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operations-specifications.html)).
+OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs.html)).
 PyTorch has set rules for types alignment, to solve this issue PyTorch Frontend
 has `align_eltwise_input_types` helper function which aligns types of two
 inputs. If this function is not used when needed or if it used incorrectly that
