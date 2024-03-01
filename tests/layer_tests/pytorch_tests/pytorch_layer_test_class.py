@@ -16,7 +16,10 @@ from openvino.runtime import Core, Type, PartialShape
 import torch
 from packaging import version
 import openvino.torch
+import pytest
 
+def skip_if_export(param, reason="Unsupported on torch.export"):
+    return pytest.param(param, marks=pytest.mark.skipif(PytorchLayerTest.use_torch_export(), reason=reason))
 
 class PytorchLayerTest:
     _type_map = {
@@ -39,6 +42,21 @@ class PytorchLayerTest:
             for b in n.blocks():
                 if PytorchLayerTest._check_kind_exist(b, kind):
                     return True
+        return False
+
+    @staticmethod
+    def use_torch_compile_backend():
+        torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+        if torch_compile_env is not None:
+            if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
+                return True
+        return False
+
+    @staticmethod
+    def use_torch_export():
+        torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
+        if torch_compile_env is not None:
+            return torch_compile_env == "EXPORT"
         return False
 
     def _test(self, model, ref_net, kind, ie_device, precision, ir_version, infer_timeout=60, dynamic_shapes=True,
@@ -69,25 +87,12 @@ class PytorchLayerTest:
         else:
             custom_eps = 1e-4
 
-        def use_torch_compile_backend():
-            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
-            if torch_compile_env is not None:
-                if (torch_compile_env == "TORCHFX" or torch_compile_env == "TORCHSCRIPT"):
-                    return True
-            return False
-
-        def use_torch_export():
-            torch_compile_env = os.getenv("PYTORCH_TRACING_MODE")
-            if torch_compile_env is not None:
-                return torch_compile_env == "EXPORT"
-            return False
-
         ov_inputs = flattenize_inputs(inputs)
 
-        if use_torch_compile_backend():
+        if self.use_torch_compile_backend():
             self.torch_compile_backend_test(model, torch_inputs, custom_eps)
         else:
-            if use_torch_export():
+            if self.use_torch_export():
                 from openvino import convert_model
                 from torch.export import export
                 from torch.fx.experimental.proxy_tensor import make_fx
@@ -108,8 +113,10 @@ class PytorchLayerTest:
                     input_types.append(input_data.type())
                     input_shapes.append(input_data.size())
 
-                decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
-                converted_model = convert_model(decoder, example_input=torch_inputs)
+                decoder = TorchFXPythonDecoder(
+                    gm, gm, input_shapes=input_shapes, input_types=input_types)
+                converted_model = convert_model(
+                    decoder, example_input=torch_inputs)
                 self._resolve_input_shape_dtype(
                     converted_model, ov_inputs, dynamic_shapes)
                 smodel = model
@@ -268,7 +275,8 @@ class PytorchLayerTest:
         torch._dynamo.reset()
         with torch.no_grad():
             model.eval()
-            ov_model = torch.compile(model, backend="openvino", options={"testing" : 1})
+            ov_model = torch.compile(
+                model, backend="openvino", options={"testing": 1})
             ov_res = ov_model(*inputs)
 
         if not isinstance(fw_res, (tuple)):
