@@ -10,36 +10,6 @@ OpenVINO Node.js API is distributed as an *openvino-node* npm package that conta
 wrappers with TypeScript types descriptions and a script that downloads the OpenVINO Node.js
 bindings for current OS.⠀
 
-System requirements
-###################
-
-.. list-table::
-   :header-rows: 1
-
-   * - Operating System
-     - Architecture
-     - Software
-   * - Windows, Linux, macOS
-     - x86, ARM (Windows ARM not supported)
-     - `Node.js version 20.5.1 and higher <https://nodejs.org/en/download/>`__
-
-
-Install openvino-node package
-#############################
-
-To install the package, use the following command:
-
-.. code-block:: sh
-
-   npm install openvino-node
-
-
-.. note::
-
-   The *openvino-node* npm package runs in Node.js environment only and provides
-   a subset of :doc:`OpenVINO Runtime C++ API <../c_cpp_api/group__ov__cpp__api>`.
-
-
 Use openvino-node package
 #########################
 
