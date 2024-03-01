@@ -14,19 +14,21 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_dot(const NodeContext& context) {
-    num_inputs_check(context, 2, 3);
     // "aten::dot(Tensor self, Tensor other, *, Tensor(a!) out) -> Tensor(a!)"
 
     auto tensor1 = context.get_input(0);
     auto tensor2 = context.get_input(1);
     align_eltwise_input_types(context, tensor1, tensor2, true);
 
-    auto dot_product = context.mark_node(std::make_shared<v0::MatMul>(tensor1, tensor2));
-
+    OutputVector dot_product;
     if (!context.input_is_none(2)) {
-        context.mutate_input(2, dot_product);
+        dot_product = {context.mark_node(std::make_shared<v0::MatMul>(tensor1, tensor2))};
+        context.mutate_input(2, dot_product[0]);
+    } else {
+        dot_product = translate_1to1_match_2_inputs<v0::MatMul>(context);
     }
-    return {dot_product};
+
+    return dot_product;
 };
 
 }  // namespace op
