@@ -7,7 +7,6 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace CPUTestUtils {

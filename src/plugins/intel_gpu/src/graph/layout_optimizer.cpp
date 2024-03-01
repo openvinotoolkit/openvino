@@ -1377,7 +1377,7 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         bool no_batch_padding = true;
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
-            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
             for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
                 no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
             }
@@ -1566,6 +1566,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         auto input_fmt = input_layout.format;
         auto output_fmt = output_layout.format;
+
+        if (output_fmt == format::custom) {
+            return impl_types::onednn;
+        }
 
         preferred_impl = impl_types::onednn;
 
@@ -1836,13 +1840,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
-
-        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
-            auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.get_input_layout();
-            if (input_layout.format.dimension() > 4) {
-                expected = format::bfyx;
-                node.set_preferred_input_fmt(0, format::bfyx);
+        if (node.is_type<fully_connected>()) {
+            if (allow_new_shape_infer) {
+                // Plain input format is enforced because no available shape agnostic kernel supporting blocked format.
+                // The condition will be relaxed once more shape agnostic kernels for other formats are enabled (e.g., fsv->bfyx FC optimized kernel(i8)))
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
+                node.set_preferred_input_fmt(0, expected);
+            } else {
+                auto& fc_node = node.as<fully_connected>();
+                auto input_layout = fc_node.get_input_layout();
+                if (input_layout.format.dimension() > 4) {
+                    expected = format::bfyx;
+                    node.set_preferred_input_fmt(0, format::bfyx);
+                }
             }
         }
     } else if (node.is_type<gather>()) {

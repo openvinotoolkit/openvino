@@ -278,7 +278,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params) const {
                      (uint32_t)prim_params.inputs.size(),
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     prim_params.has_dynamic_tensors());
+                     prim_params.is_shape_agnostic);
 
     return {k_data};
 }

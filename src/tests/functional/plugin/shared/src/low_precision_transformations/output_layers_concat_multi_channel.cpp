@@ -11,10 +11,8 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
-#include "ov_models/pass/convert_prc.hpp"
 
 namespace LayerTestsDefinitions {
 

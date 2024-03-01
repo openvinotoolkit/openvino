@@ -495,7 +495,7 @@ static shape. The converted model is ready to be loaded on a device for
 inference and can be saved on a disk for next usage via the
 ``save_model`` function. More details about model conversion Python API
 can be found on this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
@@ -2790,7 +2790,7 @@ dataset for performing basic quantization. Optionally, additional
 parameters like ``subset_size``, ``preset``, ``ignored_scope`` can be
 provided to improve quantization result if applicable. More details
 about supported parameters can be found on this
-`page <https://docs.openvino.ai/2023.3/basic_quantization_flow.html#tune-quantization-parameters>`__
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html#tune-quantization-parameters>`__
 
 .. code:: ipython3
 
@@ -2951,7 +2951,7 @@ Compare Performance of the Original and Quantized Models
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 - an inference performance measurement tool in OpenVINO.
 
    **NOTE**: For more accurate performance, it is recommended to run

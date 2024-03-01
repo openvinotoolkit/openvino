@@ -105,6 +105,9 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 if (a_info.cache_hit != b_info.cache_hit)
                     return a_info.cache_hit;
 
+                if (a_info.memalloc_info != b_info.memalloc_info)
+                    return a_info.memalloc_info.length() < b_info.memalloc_info.length();
+
                 size_t total_out_size_a = 0;
                 size_t total_out_size_b = 0;
                 for (auto& ol : a_info.output_layouts) {
@@ -124,9 +127,14 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
+                std::string stage_suffix = "";
+                if (key.cache_hit)
+                    stage_suffix += " (cache_hit) ";
+                if (key.memalloc_info != "")
+                    stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
-                << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << key.stage << stage_suffix << ","
                 << net_in_l_str << ","
                 << in_l_str << ","
                 << out_l_str << ","
@@ -847,7 +855,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     int64_t curr_iter = -1;
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    curr_iter = iteration++;
+    curr_iter = iteration;
 #endif
 
     // Wait for previous execution completion
@@ -1167,6 +1175,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
         get_memory_pool().dump(get_id());
     }
+#ifdef GPU_DEBUG_CONFIG
+    iteration++;
+#endif
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

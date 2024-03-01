@@ -38,6 +38,16 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
             m_io_expressions.push_back(io_expr);
             if (ov::is_type<ov::op::v0::Parameter>(n))
                 last_param = it;
+            switch (io_expr->get_type()) {
+                case IOExpression::io_type::INPUT:
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_output_port_descriptor(0)->get_shape());
+                    break;
+                case IOExpression::io_type::OUTPUT:
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_input_port_descriptor(0)->get_shape());
+                    break;
+                default:
+                    OPENVINO_THROW("Incorrect IO Expression type");
+            }
         }
     }
     m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
@@ -47,7 +57,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = m_config;
 
-    ExressionMap expression_map;
+    ExpressionMap expression_map;
     cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
         cloned->m_node2expression_map[expr->get_node()] = expr;
@@ -59,6 +69,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
     cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    cloned->m_is_dynamic = m_is_dynamic;
     return cloned;
 }
 
@@ -161,7 +172,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
-                                              ExressionMap& expression_map) {
+                                              ExpressionMap& expression_map) {
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
@@ -180,6 +191,10 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
         expression_map[expr.get()] = new_expr;
     }
     return result;
+}
+
+bool LinearIR::is_dynamic() const {
+    return m_is_dynamic;
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {

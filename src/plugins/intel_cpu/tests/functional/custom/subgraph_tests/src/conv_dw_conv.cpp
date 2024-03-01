@@ -6,7 +6,6 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {

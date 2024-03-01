@@ -38,23 +38,24 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO tokenizers extension
         if: ${{ runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -147,18 +148,15 @@ jobs:
       - name: Model Optimizer unit tests
         if: fromJSON(inputs.affected-components).MO.test
         run: |
-          skip_filter=''
-          if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
-          else
-            # Skips under Ticket: 122666
-            skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
           fi
-
+          
+          # Skips under tickets: 133405, 122666
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              "$skip_filter"
+              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
@@ -233,7 +231,7 @@ jobs:
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
@@ -288,7 +286,7 @@ jobs:
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' }}
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
@@ -329,7 +327,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
