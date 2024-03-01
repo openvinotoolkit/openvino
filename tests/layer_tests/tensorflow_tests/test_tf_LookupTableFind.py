@@ -35,6 +35,8 @@ class TestLookupTableFindOps(CommonTFLayerTest):
         self.keys_type = keys_type
         self.all_keys = all_keys
         self.invalid_key = invalid_key
+        if keys_type == str:
+            keys_type = tf.string
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
