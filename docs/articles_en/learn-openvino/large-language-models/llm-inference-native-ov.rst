@@ -10,6 +10,10 @@ In this case, the conversion process is a bit more simplified. You can still use
 
 Model optimization can be performed within Hugging Face or directly using NNCF as described in the :doc:`weight compression guide <weight_compression>`.
 
+.. note::
+
+  It is recommended to use models in 4-bit precision, as maintaining the model in its original precision can significantly decrease performance.
+
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
 * In case of LLMs for text generation, you need to handle tokenization, inference and token selection loop, and de-tokenization. If token selection involves beam search, it also needs to be written.
@@ -17,9 +21,9 @@ Inference code that uses native API cannot benefit from Hugging Face pipelines. 
 
 To write such pipelines, you can follow the examples provided as part of OpenVINO:
 
-* `llama2.openvino <https://github.com/OpenVINO-dev-contest/llama2.openvino>`__
-* `LLM optimization by custom operation embedding for OpenVINO <https://github.com/luo-cheng2021/ov.cpu.llm.experimental>`__
-* `C++ Implementation of Stable Diffusion <https://github.com/yangsu2022/OV_SD_CPP>`__
+* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+* `OpenVINO Latent Consistency Model C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/lcm_dreamshaper_v7/cpp>`__
+* `OpenVINO Stable Diffusion (with LoRA) C++ image generation pipeline <https://github.com/openvinotoolkit/openvino.genai/tree/master/image_generation/stable_diffusion_1_5/cpp>`__
 
 To perform inference, models must be first converted to OpenVINO IR format using Hugging Face Optimum-Intel API.
 
@@ -81,7 +85,7 @@ Learn more in Loading an LLM with OpenVINO.
 
 .. code-block:: python
 
-  optimum-cli export openvino --model nickypro/tinyllama-15M openvino_model
+  optimum-cli export openvino --convert-tokenizer --model TinyLlama/TinyLlama-1.1B-Chat-v1.0 openvino_model
 
 Full OpenVINO Text Generation Pipeline
 ######################################################################
@@ -95,7 +99,6 @@ Use the model and tokenizer converted from the previous step:
 
   import numpy as np
   from openvino import compile_model
-  from openvino_tokenizers import unpack_strings
 
   # Compile the tokenizer, model, and detokenizer using OpenVINO. These files are XML representations of the models optimized for OpenVINO
   compiled_tokenizer = compile_model("openvino_tokenizer.xml")
@@ -158,7 +161,7 @@ This step is essential for interpreting the model's output.
   # Extract token IDs for the final output
   ov_token_ids = input_dict["input_ids"]
   # Decode the model output back to string
-  ov_output = unpack_strings(compiled_detokenizer(ov_token_ids)["string_output"])
+  ov_output = compiled_detokenizer(ov_token_ids)["string_output"]
   print(f"OpenVINO output string: `{ov_output}`")
 
 .. code-block:: python
@@ -166,9 +169,24 @@ This step is essential for interpreting the model's output.
   # Example output:
   ['<s> Quick brown fox was walking through the forest. He was looking for something']
 
+Stateful Model Optimization
+############################
+
+When you use the ``OVModelForCausalLM`` class, the model is transformed into a stateful form by default for optimization.
+This transformation improves inference performance and decreases runtime memory usage in long running text generation tasks.
+It is achieved by hiding the model's inputs and outputs that represent past KV-cache tensors, and handling them inside the model in a more efficient way.
+This feature is activated automatically for many supported text generation models, while unsupported models remain in a regular, stateless form.
+
+Model usage remains the same for stateful and stateless models with the Optimum-Intel API, as KV-cache is handled internally by text-generation API of Transformers library.
+The model's format matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
+This is because stateful and stateless models have a different number of inputs and outputs.
+Learn more about the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
+
 Additional Resources
 ####################
 
-- `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
-- `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-- `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+* `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
+* `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
+* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+* :doc:`Stateful Models Low-Level Details <openvino_docs_OV_UG_stateful_models_intro>`
+* :doc:`Working with Textual Data <openvino_docs_OV_UG_string_tensors>`

@@ -25,13 +25,18 @@ This guide shows how to use LLMs with OpenVINO, from model loading and conversio
 
 The advantages of using OpenVINO for LLM deployment:
 
-●	**OpenVINO requires fewer dependencies** than frameworks like
-Hugging Face and PyTorch, resulting in a smaller binary size and reduced
-memory footprint, making deployments easier and updates more manageable.
-
-●	**Offers optimized LLM inference**; provides a full C/C++ API, leading to faster operation
+●	**OpenVINO offers optimized LLM inference**; provides a full C/C++ API, leading to faster operation
 than Python-based runtimes; includes a Python API for rapid development,
 with the option for further optimization in C++.
+
+●	**Compatible with diverse hardware**, supports CPUs, GPUs, and neural accelerators
+across ARM and x86/x64 architectures, integrated Intel® Processor Graphics,
+discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series;
+features automated optimization to maximize performance on target hardware.
+
+●	**Requires fewer dependencies** than frameworks like
+Hugging Face and PyTorch, resulting in a smaller binary size and reduced
+memory footprint, making deployments easier and updates more manageable.
 
 ●	**Provides compression and precision management techniques** such as 8-bit and 4-bit weight compression,
 including embedding layers, and storage format reduction.
@@ -46,11 +51,6 @@ Dot Product Attention, Rotary Positional Embedding, Group Query Attention, and M
 It also offers advanced features like in-place KV-cache, dynamic quantization,
 KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative
 sampling.
-
-●	**Compatible with diverse hardware**, supports CPUs, GPUs, and neural accelerators
-across ARM and x86/x64 architectures, integrated Intel® Processor Graphics,
-discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series;
-features automated optimization to maximize performance on target hardware.
 
 OpenVINO offers two main paths for Generative AI use cases:
 
