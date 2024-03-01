@@ -136,9 +136,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     const auto& device_name = meta_device.device_name;
     const auto& device_config = meta_device.device_config;
-    if (auto pos = device_name.find("-") != std::string::npos) {
-        OPENVINO_THROW("Invalid device name '", device_name, "' for BATCH");
-    }
     auto device_config_no_auto_batch = device_config;
     // avoid recursive auto-batching
     device_config_no_auto_batch[ov::hint::allow_auto_batching.name()] = false;

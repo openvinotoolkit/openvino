@@ -996,10 +996,8 @@ ov::SoPtr<ov::IRemoteContext> ov::CoreImpl::get_default_context(const std::strin
 
 void validate_batch_device_name(const std::string& deviceName) {
     auto name = deviceName;
-    auto pos = name.find(",");
-    // for trailing comma such as "gpu,", we do not treat it as multi-device.
-    if (pos == name.length() - 1) {
-        name.erase(pos, 1);
+    if (name.find("-") != std::string::npos) {
+        OPENVINO_THROW("Invalid device name '", deviceName, "' for BATCH");
     }
     if (name.find(",") != std::string::npos) {
         OPENVINO_THROW("BATCH accepts only one device in list but got \"", deviceName, "\"");
