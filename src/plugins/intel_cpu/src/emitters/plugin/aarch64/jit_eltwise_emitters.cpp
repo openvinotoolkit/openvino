@@ -360,6 +360,82 @@ std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisi
     return {{element::f32, element::f32}};
 }
 
+/// TANH ///
+jit_tanh_emitter::jit_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& node)
+                                   : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+jit_tanh_emitter::jit_tanh_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
+                                   dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                                   const ov::element::Type exec_prc)
+                                   : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_tanh_emitter::get_inputs_count() const { return 1; }
+
+size_t jit_tanh_emitter::get_aux_vecs_count() const {
+    return jit_sigmoid_injector::get_aux_vecs_count() + 1;
+}
+
+size_t jit_tanh_emitter::get_aux_gprs_count() const {
+    return 1;
+}
+
+void jit_tanh_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
+        emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
+void jit_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
+    if (exec_prc_ != ov::element::f32) {
+        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
+    }
+
+    using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+    TReg src = TReg(in_vec_idxs[0]);
+    TReg dst = TReg(out_vec_idxs[0]);
+
+    TReg aux = TReg(aux_vec_idxs[jit_sigmoid_injector::get_aux_vecs_count()]);
+    std::vector<size_t> in_vec_idxs_injector = { aux.getIdx() };
+
+    h->ld1r(dst.s, table_val2("two"));
+    h->uni_fmul(aux.s, src.s, dst.s);
+
+    jit_sigmoid_injector::emit_impl<dnnl::impl::cpu::aarch64::asimd>(
+        h,
+        host_isa_,
+        entry_map_,
+        exec_prc_,
+        in_vec_idxs_injector,
+        aux_vec_idxs,
+        out_vec_idxs,
+        p_table);
+
+    h->ld1r(aux.s, table_val2("two"));
+    h->uni_fmul(dst.s, aux.s, dst.s);
+    h->ld1r(aux.s, table_val2("one"));
+    h->uni_fsub(dst.s, dst.s, aux.s);
+}
+
+void jit_tanh_emitter::register_table_entries() {
+    jit_sigmoid_injector::push_entry_map(entry_map_);
+
+    push_arg_entry_of("one", dnnl::impl::float2int(0x3f800000), true);
+    push_arg_entry_of("two", dnnl::impl::float2int(0x40000000), true);
+}
+
+std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 /// POWER ///
 jit_power_static_emitter::jit_power_static_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                                    dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
