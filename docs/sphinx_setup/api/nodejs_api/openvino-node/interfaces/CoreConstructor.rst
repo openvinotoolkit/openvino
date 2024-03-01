@@ -4,7 +4,7 @@ Interface CoreConstructor
 .. code-block:: json
 
    interface CoreConstructor {
-       new CoreConstructornew (): Core;
+       new Core(): Core;
    }
 
 - Defined in
@@ -14,7 +14,7 @@ Interface CoreConstructor
 
 .. code-block:: json
 
-   new CoreConstructor(): Core
+   new Core(): Core
 
 **Returns** :doc:`Core <Core>`
 

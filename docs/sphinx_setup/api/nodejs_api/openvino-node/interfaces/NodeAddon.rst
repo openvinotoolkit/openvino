@@ -1,6 +1,11 @@
-Interface NodeAddon
+Property addon
 ===================
 
+.. meta::
+   :description: Explore the modules of openvino-node in Node.js API and their implementation
+                 in Intel® Distribution of OpenVINO™ Toolkit.
+
+The **openvino-node** package exports ``addon`` which contains the following properties:
 
 .. code-block:: json
 
@@ -29,6 +34,9 @@ Properties
 
    Core: CoreConstructor
 
+.. rubric:: Type declaration
+
+- CoreConstructor: :doc:`CoreConstructor <CoreConstructor>`
 -  Defined in
    `addon.ts:165 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L165>`__
 
@@ -41,6 +49,9 @@ Properties
 
    PartialShape: PartialShapeConstructor
 
+.. rubric:: Type declaration
+
+- PartialShapeConstructor: :doc:`PartialShapeConstructor <PartialShapeConstructor>`
 -  Defined in
    `addon.ts:167 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L167>`__
 
@@ -51,6 +62,9 @@ Properties
 
   Tensor: TensorConstructor
 
+.. rubric:: Type declaration
+
+- TensorConstructor: :doc:`TensorConstructor <TensorConstructor>`
 
 -  Defined in
    `addon.ts:166 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L166>`__
@@ -63,6 +77,9 @@ Properties
 
    element: typeof element
 
+.. rubric:: Type declaration
+
+- element:typeof :doc:`element <../enums/element>`
 -  Defined in
    `addon.ts:173 <https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/bindings/js/node/lib/addon.ts#L173>`__
 

@@ -20,7 +20,7 @@ Methods
 
 .. code-block:: json
 
-   tensor():\ OutputTensorInfo
+   tensor(): OutputTensorInfo
 
 **Returns** :doc:`OutputTensorInfo <OutputTensorInfo>`
 

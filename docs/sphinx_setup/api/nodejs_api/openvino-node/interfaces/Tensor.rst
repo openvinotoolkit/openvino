@@ -40,7 +40,7 @@ Methods
 
 .. code-block:: json
 
-   getData():number[]
+   getData(): number[]
 
 
 **Returns** number[]
@@ -54,7 +54,7 @@ Methods
 
 .. code-block:: json
 
-   getElementType():element
+   getElementType(): element
 
 
 **Returns** :doc:`element <../enums/element>`
@@ -66,7 +66,7 @@ Methods
 
 .. code-block:: json
 
-   getShape():number[]
+   getShape(): number[]
 
 
 **Returns** number[]

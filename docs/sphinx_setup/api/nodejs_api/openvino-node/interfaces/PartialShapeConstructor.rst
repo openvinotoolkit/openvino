@@ -4,7 +4,7 @@ Interface PartialShapeConstructor
 .. code-block:: json
 
    interface PartialShapeConstructor {
-       new PartialShapeConstructornew (shape): PartialShape;
+       new PartialShape(shape): PartialShape;
    }
 
 - Defined in
@@ -17,7 +17,7 @@ Interface PartialShapeConstructor
 
 .. code-block:: json
 
-    new PartialShapeConstructor(shape):PartialShape
+    new PartialShapeConstructor(shape): PartialShape
 
 
 **Parameters**

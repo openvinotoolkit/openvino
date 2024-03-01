@@ -53,7 +53,7 @@ Methods
 
 .. code-block:: json
 
-  getAnyName():string
+  getAnyName(): string
 
 
 **Returns** string
@@ -79,7 +79,7 @@ Methods
 
 .. code-block:: json
 
-   getShape():number[]
+   getShape(): number[]
 
 **Returns**
 
@@ -95,7 +95,7 @@ Methods
 
 .. code-block:: json
 
-   toString():string
+   toString(): string
 
 **Returns**
 

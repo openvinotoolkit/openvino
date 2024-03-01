@@ -7,7 +7,7 @@ Interface TensorConstructor
 .. code-block:: json
 
    interface TensorConstructor {
-       new TensorConstructornew (type, shape, tensorData?): Tensor;
+       new Tensor(type, shape, tensorData?): Tensor;
    }
 
 - Defined in

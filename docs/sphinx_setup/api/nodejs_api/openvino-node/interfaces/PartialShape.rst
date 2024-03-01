@@ -34,7 +34,7 @@ Methods
 
 .. code-block:: json
 
-   isDynamic():boolean
+   isDynamic(): boolean
 
 
 **Returns** boolean
@@ -48,7 +48,7 @@ Methods
 
 .. code-block:: json
 
-   isStatic():boolean
+   isStatic(): boolean
 
 
 **Returns** boolean
@@ -62,7 +62,7 @@ Methods
 
 .. code-block:: json
 
-   toString():string
+   toString(): string
 
 
 **Returns** string

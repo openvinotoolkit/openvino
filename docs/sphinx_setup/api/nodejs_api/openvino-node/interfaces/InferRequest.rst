@@ -58,7 +58,7 @@ Methods
 
 .. code-block:: json
 
-   getInputTensor(idx?):Tensor
+   getInputTensor(idx?): Tensor
 
 
 **Parameters**
@@ -79,7 +79,7 @@ Methods
 
 .. code-block:: json
 
-   getOutputTensor(idx?):Tensor
+   getOutputTensor(idx?): Tensor
 
 
 **Parameters**
@@ -100,7 +100,7 @@ Methods
 
 .. code-block:: json
 
-   getTensor(nameOrOutput):Tensor
+   getTensor(nameOrOutput): Tensor
 
 **Parameters**
 
@@ -139,7 +139,7 @@ Methods
    [outputName: string]: Tensor;
    }
 
-- [outputName: string]:Tensor
+- [outputName: string]: Tensor
 
 
 - Defined in
@@ -180,7 +180,7 @@ Methods
 
 .. code-block:: json
 
-   setInputTensor(idxOrTensor, tensor?):void
+   setInputTensor(idxOrTensor, tensor?): void
 
 
 **Parameters**
@@ -204,7 +204,7 @@ Methods
 
 .. code-block:: json
 
-   setOutputTensor(idxOrTensor, tensor?):void
+   setOutputTensor(idxOrTensor, tensor?): void
 
 
 **Parameters**
@@ -227,7 +227,7 @@ Methods
 
 .. code-block:: json
 
-   setTensor(name, tensor):void
+   setTensor(name, tensor): void
 
 **Parameters**
 

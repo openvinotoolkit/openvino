@@ -38,7 +38,7 @@ Methods
   .. code-block:: json
 
      config: {
-         [option: string]:string;
+         [option: string]: string;
      }
 
 

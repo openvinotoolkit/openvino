@@ -5,7 +5,7 @@ Interface PrePostProcessorConstructor
 .. code-block:: json
 
    interface PrePostProcessorConstructor {
-       new PrePostProcessorConstructornew (model): PrePostProcessor;
+       new PrePostProcessor(model): PrePostProcessor;
    }
 
 - Defined in
@@ -16,7 +16,7 @@ Interface PrePostProcessorConstructor
 
 .. code-block:: json
 
-   new PrePostProcessorConstructor(model): PrePostProcessor
+   new PrePostProcessor(model): PrePostProcessor
 
 **Parameters**
 

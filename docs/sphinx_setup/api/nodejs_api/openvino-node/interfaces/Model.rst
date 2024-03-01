@@ -54,7 +54,7 @@ Methods
 
 .. code-block:: json
 
-   getName():string
+   getName(): string
 
 
 **Returns** string
