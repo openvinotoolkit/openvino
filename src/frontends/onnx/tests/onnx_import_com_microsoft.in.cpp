@@ -1276,3 +1276,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_gather_nd) {
     test_case.add_expected_output<int>(Shape{2}, output);
     test_case.run_with_tolerance_as_fp();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_range) {
+    const auto model = convert_model("com.microsoft/range.onnx");
+
+    const std::vector<int64_t> start{0};
+    const std::vector<int64_t> limit{5};
+    const std::vector<int64_t> output{0, 1, 2, 3, 4};
+
+    test_case.add_input<int64_t>(Shape{1}, start);
+    test_case.add_input<int64_t>(Shape{1}, limit);
+    test_case.add_expected_output<int64_t>(Shape{-1}, output);
+
+    test_case.run();
+}
