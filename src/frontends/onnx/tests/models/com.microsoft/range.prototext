@@ -1,0 +1,52 @@
+ir_version: 6
+producer_name: "nGraph ONNX Importer"
+graph {
+    node {
+        input: "start"
+        input: "limit"
+        output: "output"
+        name: "Range_1"
+        op_type: "Range"
+        domain: "com.Microsoft"
+    }
+    name: "test_graph"
+    input {
+        name: "start"
+        type {
+            tensor_type {
+                elem_type: INT64 
+                shape {
+                    dim {
+                        dim_value: 1
+                    }
+                }
+            }
+        }
+    }
+    input {
+        name: "limit"
+        type {
+            tensor_type {
+                elem_type: INT64 
+                shape {
+                    dim {
+                        dim_value: 1
+                    }
+                }
+            }
+        }
+    }
+    output {
+        name: "output"
+        type {
+            tensor_type {
+                elem_type: INT64 
+                shape {
+                    dim {
+                        dim_value: -1
+                    }
+                }
+            }
+        }
+    }
+}
