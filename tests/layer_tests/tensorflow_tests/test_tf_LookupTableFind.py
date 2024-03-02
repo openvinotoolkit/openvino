@@ -71,16 +71,10 @@ class TestLookupTableFindOps(CommonTFLayerTest):
         dict(keys_type=np.int32, values_type=tf.string, all_keys=[20, 10, 33, -22, 44, 11],
              all_values=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
              default_value='UNKNOWN', invalid_key=1000),
-        pytest.param(dict(keys_type=str, values_type=np.int64,
-                          all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
-                          all_values=[200, 100, 0, -3, 10, 1],
-                          default_value=0, invalid_key='AbraCadabra'),
-                     marks=pytest.mark.xfail(
-                         condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                       'aarch64',
-                                                                                                       'arm64',
-                                                                                                       'ARM64'],
-                         reason='Ticket - 126314, 132699')),
+        dict(keys_type=str, values_type=np.int64,
+             all_keys=['PyTorch', 'TensorFlow', 'JAX', 'Lightning', 'MindSpore', 'OpenVINO'],
+             all_values=[200, 100, 0, -3, 10, 1],
+             default_value=0, invalid_key='AbraCadabra'),
     ]
 
     @pytest.mark.parametrize("hash_table_type", [0, 1])
@@ -90,6 +84,12 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        if params['keys_type'] == str and params['values_type'] == np.int64:
+            if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
+                                                                         'aarch64',
+                                                                         'arm64',
+                                                                         'ARM64']:
+                pytest.xfail(reason='126314, 132699: Build tokenizers for ARM and MacOS')
         self._test(*self.create_lookup_table_find_net(hash_table_type=hash_table_type,
                                                       keys_shape=keys_shape, **params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
