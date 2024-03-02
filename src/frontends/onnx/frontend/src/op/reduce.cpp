@@ -190,7 +190,6 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace set_1
 
-<<<<<<< HEAD
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
     Found difference is:
@@ -206,26 +205,10 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
-=======
-namespace set_11 {
-ov::OutputVector reduce_l1(const Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-}
-}  // namespace set_11
-
-namespace set_13 {
-ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
-}
-
-ov::OutputVector reduce_l1(const Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
->>>>>>> a3d2a1964a (added namespace for set_11, 13, 18 in ReduceL1 function header file)
 }
 }  // namespace set_13
 
 namespace set_18 {
-<<<<<<< HEAD
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
@@ -255,12 +238,6 @@ ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     }
 }
 }  // namespace set_20
-=======
-ov::OutputVector reduce_l1(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0))};
-    }
-}  // namespace set_18
->>>>>>> a3d2a1964a (added namespace for set_11, 13, 18 in ReduceL1 function header file)
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
