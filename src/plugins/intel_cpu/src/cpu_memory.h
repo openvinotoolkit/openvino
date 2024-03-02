@@ -460,6 +460,11 @@ using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
+#if defined(__linux__)
+long mbind(void *start, unsigned long len, int mode,
+           const unsigned long *nmask, unsigned long maxnode, unsigned flags);
+#endif
+
 bool mbind_move(void* data, size_t size, int numaNodeID);
 bool mbind_move(const MemoryCPtr mem, int numaNodeID);
 bool mbind_move(const dnnl::memory mem, int numaNodeID);

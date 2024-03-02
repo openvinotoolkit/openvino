@@ -1449,7 +1449,9 @@ void Graph::SortTopologically() {
 
                 // make sure parallel nodes are always enqueue together
                 for (auto& n : node->parallelWith) {
-                    sorted.push_back(n);
+                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
+                        sorted.push_back(n);
+                    }
                 }
             } else {
                 for (size_t i = 0; i < node->getChildEdges().size(); i++) {

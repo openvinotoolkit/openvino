@@ -601,13 +601,16 @@ void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
 #define MPOL_DEFAULT     0
 #define MPOL_BIND        2
 #define MPOL_MF_STRICT  (1<<0)
-#define MPOL_MF_MOVE	(1<<1)
+#define MPOL_MF_MOVE    (1<<1)
 #define __NR_mbind 237
 long mbind(void *start, unsigned long len, int mode,
-    const unsigned long *nmask, unsigned long maxnode, unsigned flags) {
+           const unsigned long *nmask, unsigned long maxnode, unsigned flags) {
     return syscall(__NR_mbind, (long)start, len, mode, (long)nmask,
-				maxnode, flags);
+                   maxnode, flags);
 }
+#endif
+
+#if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
