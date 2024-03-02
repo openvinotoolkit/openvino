@@ -149,16 +149,16 @@ jobs:
           pdm install -v -G build --venv for-build
 
           # For running ONNX frontend unit tests
-          # python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
 
-          # # For running TensorFlow frontend unit tests
-          # python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
+          # For running TensorFlow frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
 
-          # # For running TensorFlow Lite frontend unit tests
-          # python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
+          # For running TensorFlow Lite frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow_lite/tests/requirements.txt
 
-          # # For running Paddle frontend unit tests
-          # python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
+          # For running Paddle frontend unit tests
+          python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/paddle/tests/requirements.txt
 
       #
       # Build
@@ -166,8 +166,11 @@ jobs:
 
       - name: CMake configure - OpenVINO
         run: |
-          pdm use --venv for-build
+          # pdm use --venv for-build
           eval $(pdm venv activate for-build)
+          # Remove actions/setup-python provided env variables that point to globally installed python, use venv
+          unset Python3_ROOT_DIR
+          unset Python_ROOT_DIR
 
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -235,6 +238,10 @@ jobs:
 
       - name: Cmake & Build - OpenVINO Contrib
         run: |
+          eval $(pdm venv activate for-build)
+          # Remove actions/setup-python provided env variables that point to globally installed python, use venv
+          unset Python3_ROOT_DIR
+          unset Python_ROOT_DIR
           cmake \
             -DBUILD_nvidia_plugin=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \

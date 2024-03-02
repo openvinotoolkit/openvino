@@ -54,32 +54,26 @@ def check_python_requirements(requirements_path: str) -> None:
 
 
 def check_python_requirements_pdm(toml_path: str):
-    import tomllib
-    from pdm.environments import PythonLocalEnvironment as Environment
+    from pdm.environments import PythonEnvironment as Environment
     from pdm.project import Project
     from pdm.core import Core
+    from pdm.cli.commands.venv.utils import get_venv_with_name
 
     def are_dependencies_installed(dependencies_to_check, installed_dependencies):
-        print(installed_dependencies)
         for key in dependencies_to_check:
             print(key, key in installed_dependencies)
         return all(key in installed_dependencies for key in dependencies_to_check)
 
-    def parse_packages(packages):
-        pattern = re.compile(r'^([a-zA-Z0-9-_]+)')
-        return [pattern.match(package).group(1) for package in packages]
-
     directory = os.path.dirname(toml_path)
-
-    with open(toml_path, "rb") as toml_file:
-        data = tomllib.load(toml_file)
-    dependencies_to_check = data['tool']['pdm']['dev-dependencies']['build']
-
-    parsed_dependencies = parse_packages(dependencies_to_check)
 
     core = Core()
     project = Project(core=core, root_path=directory)
-    environment = Environment(project)
+
+    venv = get_venv_with_name(project, "for-build")
+    environment = Environment(project, python=str(venv.interpreter))
+
+    dependencies_to_check = project.get_dependencies(group="build").keys()
     installed_packages = environment.get_working_set() #returns ChainMap
 
-    return sys.exit(0 if are_dependencies_installed(parsed_dependencies, installed_packages) else 1)
+    # print(environment.get_working_set())
+    return sys.exit(0 if are_dependencies_installed(dependencies_to_check, installed_packages) else 1)

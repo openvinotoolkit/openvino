@@ -100,8 +100,6 @@ function(ov_check_pip_packages)
         message(SEND_ERROR "Unexpected parameters have passed to the function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
-    message(STATUS "LOOOOOL ${ARG_PDM_PROJECT}")
-
     if(NOT ${ARG_PDM_PROJECT} STREQUAL "")
         if(PDM_FOUND)
             execute_process(
@@ -115,7 +113,7 @@ check_python_requirements_pdm('${ARG_PDM_PROJECT}') ;
                             ERROR_VARIABLE ERROR_TEXT)
         endif()
         message(STATUS " ${EXIT_CODE} ${OUTPUT_TEXT} ${ERROR_TEXT}")
-        if(EXIT_CODE EQUAL 0)
+        if("${EXIT_CODE}" EQUAL 0)
             set(${ARG_RESULT_VAR} ON PARENT_SCOPE)
         else()
             set(${ARG_RESULT_VAR} OFF PARENT_SCOPE)
