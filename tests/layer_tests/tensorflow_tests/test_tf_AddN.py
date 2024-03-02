@@ -56,6 +56,8 @@ class TestAddN(CommonTFLayerTest):
             dict(input_shapes=[[4, 3], [4, 3]]),              # Tests sum of shapes
             marks=pytest.mark.precommit_tf_fe),
         dict(input_shapes=[[3, 4, 5], [3, 4, 5], [3, 4, 5]]), # Tests sum of shapes which may trigger nchw/nhcw transformation
+        dict(input_shapes=[[3+4j, 5, 6j, 4], [4+3j, 6, 7j, 5]]),
+        dict(input_shapes=[[4j]])
     ]
 
     @pytest.mark.parametrize("params", test_data)
