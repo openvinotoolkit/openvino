@@ -42,20 +42,20 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Download OpenVINO tokenizers extension
         if: ${{ runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
@@ -231,7 +231,7 @@ jobs:
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
@@ -327,7 +327,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
