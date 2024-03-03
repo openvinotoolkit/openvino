@@ -33,6 +33,22 @@ function(ov_build_onednn_gpu)
         message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
     endif()
 
+    if(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "300")
+        set(ONEDNN_CL_VERSION "3_0")
+    elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "220")
+        set(ONEDNN_CL_VERSION "2_2")
+    elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "210")
+        set(ONEDNN_CL_VERSION "2_1")
+    elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "200")
+        set(ONEDNN_CL_VERSION "2_0")
+    elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "120")
+        set(ONEDNN_CL_VERSION "1_2")
+    elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "100")
+        set(ONEDNN_CL_VERSION "1_0")
+    else()
+        message(FATAL_ERROR "Unsupported version of OpenCL: ${INTEL_GPU_TARGET_OCL_VERSION}")
+    endif()
+
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         ov_add_compiler_flags(-Wno-undef)
         ov_add_compiler_flags(-Wno-missing-declarations)
@@ -119,6 +135,8 @@ function(ov_build_onednn_gpu)
             "-DDNNL_LIBRARY_TYPE=STATIC"
             "-DDNNL_EXPERIMENTAL_PROFILING=ON"
             "-DONEDNN_BUILD_GRAPH=OFF"
+            # override OpenCL version default set by oneDNN (1.2)
+            "-DOPENCL_VERSION_${ONEDNN_CL_VERSION}=ON"
             # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored
             # Conan's FindOpenCL.cmake module does not set OpenCL_INCLUDE_DIRS, so we need to set it manually
             "-DOpenCL_INCLUDE_DIRS=$<TARGET_PROPERTY:OpenCL::OpenCL,INTERFACE_INCLUDE_DIRECTORIES>"
@@ -156,9 +174,7 @@ function(ov_build_onednn_gpu)
 endfunction()
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    # if(BUILD_SHARED_LIBS OR NOT ENABLE_INTEL_CPU)
-    #     ov_build_onednn_gpu()
-    # else()
+    if(ENABLE_GPU_USE_CPUS_ONEDNN)
         # in case of static libraries, Intel GPU shares oneDNN with CPU plugin
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_cpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
@@ -172,5 +188,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU)
 
         ov_install_static_lib(onednn_gpu_tgt ${OV_CPACK_COMP_CORE})
-    # endif()
+    else()
+        ov_build_onednn_gpu()
+    endif()
 endif()

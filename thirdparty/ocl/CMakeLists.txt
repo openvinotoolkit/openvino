@@ -59,3 +59,6 @@ set(opencl_root_hints "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
 # installation
 
 ov_install_static_lib(OpenCL ${OV_CPACK_COMP_CORE})
+
+install(TARGETS OpenCL EXPORT dnnl-targets
+        ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})

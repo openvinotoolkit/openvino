@@ -63,10 +63,32 @@ function(ov_add_onednn_common)
     # GPU specific options
     #
 
-    if(NOT BUILD_SHARED_LIBS AND ENABLE_ONEDNN_FOR_GPU)
+    if(NOT BUILD_SHARED_LIBS AND ENABLE_ONEDNN_FOR_GPU OR ENABLE_GPU_USE_CPUS_ONEDNN)
         # build oneDNN to be compatible with Intel GPU plugin
         set(DNNL_ENABLE_PRIMITIVE_GPU_ISA "XEHP;XEHPG;XEHPC" CACHE STRING "" FORCE)
         set(DNNL_GPU_RUNTIME "OCL" CACHE STRING "" FORCE)
+
+        # Keep in sync with https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/plugins/intel_gpu/CMakeLists.txt#L30
+        set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
+
+        if(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "300")
+            set(ONEDNN_CL_VERSION "3_0")
+        elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "220")
+            set(ONEDNN_CL_VERSION "2_2")
+        elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "210")
+            set(ONEDNN_CL_VERSION "2_1")
+        elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "200")
+            set(ONEDNN_CL_VERSION "2_0")
+        elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "120")
+            set(ONEDNN_CL_VERSION "1_2")
+        elseif(INTEL_GPU_TARGET_OCL_VERSION STREQUAL "100")
+            set(ONEDNN_CL_VERSION "1_0")
+        else()
+            message(FATAL_ERROR "Unsupported version of OpenCL: ${INTEL_GPU_TARGET_OCL_VERSION}")
+        endif()
+
+        # override OpenCL version default set by oneDNN (1.2)
+        set(OPENCL_VERSION_${ONEDNN_CL_VERSION} ON)
     else()
         set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     endif()
