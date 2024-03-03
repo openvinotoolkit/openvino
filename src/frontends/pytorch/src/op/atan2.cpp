@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/constant.hpp"
@@ -53,13 +52,13 @@ OutputVector translate_atan2_op(const NodeContext& node) {
     auto is_x_zero = make_shared<v1::Equal>(x, const_zero);
     auto is_y_positive = make_shared<v1::Greater>(y, const_zero);
     auto cond3 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_positive);
-    auto const_two = create_same_type_const_scalar<int32_t>(x, 2);
+    auto const_two = v0::Constant::create(element::i32, Shape{}, {2});
     auto pi_div_two = make_shared<v1::Divide>(const_pi, const_two);
     result = make_shared<v1::Select>(cond3, pi_div_two, result);
 
     // handle the fifth condition : x=0 && y<0
     auto cond4 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
-    auto const_minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
+    auto const_minus_two = v0::Constant::create(element::i32, Shape{}, {-2});
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
 
