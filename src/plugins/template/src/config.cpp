@@ -83,6 +83,50 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             log_level = value.as<ov::log::Level>();
         } else if (ov::hint::model_priority == key) {
             model_priority = value.as<ov::hint::Priority>();
+        } else if (ov::optimal_batch_size == key) {
+            try {
+                int tmp_i = value.as<int>();
+                if (tmp_i >= 0)
+                    optimal_batch_size = tmp_i;
+                else
+                    OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<std::string>(), "for property key ", key);
+            }
+        } else if (ov::max_batch_size == key) {
+            try {
+               int tmp_i = value.as<int>();
+                if (tmp_i >= 0)
+                    max_batch_size = tmp_i;
+                else
+                    OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<std::string>(), "for property key ", key);
+            }
+        } else if (ov::loaded_from_cache == key) {
+            loaded_from_cache = value.as<bool>();
+        } else if (ov::enable_mmap == key) {
+            enable_mmap = value.as<bool>();
+        } else if (ov::compilation_num_threads == key) {
+            try {
+                int tmp_i = value.as<int>();
+                if (tmp_i >= 0)
+                    compilation_num_threads = tmp_i;
+                else
+                    OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<std::string>(), "for property key ", key);
+            }
+        } else if (ov::inference_num_threads == key) {
+            try {
+                int tmp_i = value.as<int>();
+                if (tmp_i >= 0)
+                    inference_num_threads = tmp_i;
+                else
+                    OPENVINO_THROW("Incorrect value, it should be unsigned integer: ", key);
+            } catch (const std::exception&) {
+                OPENVINO_THROW("Wrong value ", value.as<std::string>(), "for property key ", key);
+            }
         } else if (throwOnUnsupported) {
             OPENVINO_THROW("Property was not found: ", key);
         }
@@ -116,6 +160,18 @@ ov::Any Configuration::Get(const std::string& name) const {
         return log_level;
     } else if (name == ov::hint::model_priority) {
         return model_priority;
+    } else if (name == ov::optimal_batch_size) {
+        return optimal_batch_size;
+    } else if (name == ov::max_batch_size) {
+        return max_batch_size;
+    } else if (name == ov::loaded_from_cache) {
+        return loaded_from_cache;
+    } else if (name == ov::enable_mmap) {
+        return enable_mmap;
+    } else if (name == ov::compilation_num_threads) {
+        return compilation_num_threads;
+    } else if (name == ov::inference_num_threads) {
+        return inference_num_threads;
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
