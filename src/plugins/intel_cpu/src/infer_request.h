@@ -119,6 +119,7 @@ private:
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map_tmp;
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map_tmp;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs_tmp;
 };
 
 }  // namespace intel_cpu
