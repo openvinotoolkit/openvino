@@ -14,7 +14,7 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 
-bool InsertBroadcastMove::run(LinearIR& linear_ir) {
+bool InsertBroadcastMove::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertBroadcastMove")
     bool modified = false;
 
@@ -32,7 +32,7 @@ bool InsertBroadcastMove::run(LinearIR& linear_ir) {
                ov::is_type<ov::snippets::op::VectorBuffer>(v.get_node_shared_ptr()) ||
                ov::is_type<ov::snippets::op::Fill>(v.get_node_shared_ptr());
     };
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         const auto& descriptors = expr->get_input_port_descriptors();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ public:
 
     ConversionExtension() = delete;
 
-    ConversionExtension(const std::string& op_type, const ov::frontend::CreatorFunction& converter)
+    ConversionExtension(const std::string& op_type, const ov::frontend::tensorflow::CreatorFunctionIndexed& converter)
         : ConversionExtensionBase(op_type),
           m_converter(converter) {}
 

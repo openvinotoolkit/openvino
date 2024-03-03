@@ -562,7 +562,8 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << next->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
-        if (in_layout.format == format::any || out_layout.format == format::any)
+        if (in_layout.format == format::any || out_layout.format == format::any ||
+            in_layout.format == format::custom || out_layout.format == format::custom)
             continue;
 
         auto reorder_pair = rf.get_reorder(predecessor->id(),
@@ -612,7 +613,8 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
         GPU_DEBUG_LOG << dir_msg(direction_e::backwards) << "  " << node->id() << " --> " << next.first->id() << " ## "
                       << fmt_to_str(in_layout.format) << " --> " << fmt_to_str(out_layout.format) << std::endl;
 
-        if (in_layout.format == format::any || out_layout.format == format::any)
+        if (in_layout.format == format::any || out_layout.format == format::any ||
+            in_layout.format == format::custom || out_layout.format == format::custom)
             continue;
 
         auto reorder_pair = rf.get_reorder(predecessor->id(),

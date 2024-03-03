@@ -512,6 +512,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         // so there is no need for output memory reallocation
         if (can_be_optimized()) {
             _max_output_layout_count = variable.get_actual_mem_size() / (dt_size / 8);
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         }
     }
@@ -540,6 +541,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() || _node->is_type<strided_slice>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         } else if (_outputs[0] && dep_memory_ptr(0) &&
                    _network.get_engine().is_the_same_buffer(dep_memory(0), output_memory(0))) {
@@ -569,6 +571,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
         allocation_done_by_other = false;
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return ev;
     }
 
@@ -589,7 +592,6 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     if (updated_params.output_layouts[0].get_buffer_size().count() < updated_layout.get_buffer_size().count())
         updated_params.output_layouts[0] = updated_layout;
-
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
                                << actual_layout.count() << "/" << _max_output_layout_count
@@ -601,11 +603,19 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
             ev = _outputs[0]->fill(_network.get_stream());
         }
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << _max_output_layout_count
                                <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
+        GPU_DEBUG_CODE(std::string memalloc_info = "");
+        GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
+            memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(out_idx) + ":") : "") +
+                              (_outputs[out_idx]->from_memory_pool ? "from_pool" : "new_alloc"));
+        })
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+
         // TODO : need to handle multiple outputs
         _max_output_layout_count = updated_params.output_layouts[0].get_buffer_size().count();
     }
@@ -672,11 +682,12 @@ event::ptr primitive_inst::realloc_if_needed() {
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
             return ev;
-
+        GPU_DEBUG_CODE(std::string memalloc_info = "");
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
                 // can reuse
                 _intermediates_memory[i] = _network.get_engine().reinterpret_buffer(*_intermediates_memory[i], ibuf_layouts[i]);
+               GPU_DEBUG_CODE(memalloc_info += ((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") + "reuse_buffer");
             } else {
                 // TODO: If there is a kernel which requires reset internal buffer in the future,
                 // we'll need additional handle for that purpose like need_reset_output_memory
@@ -689,8 +700,12 @@ event::ptr primitive_inst::realloc_if_needed() {
                     _intermediates_memory.push_back(allocate_internal_buffer(i, need_reset));
                     max_intermediates_memory_sizes.push_back(_intermediates_memory[i]->size());
                 }
+                GPU_DEBUG_CODE(memalloc_info +=
+                               (((_intermediates_memory.size() > 1) ? ("i" + to_string(i) + ":") : "") +
+                                (_intermediates_memory[i]->from_memory_pool ? "from_pool" : "new_alloc")));
             }
         }
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
     }
     return ev;
 }
@@ -1359,7 +1374,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }
@@ -1681,12 +1696,15 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
-                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+                auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
-                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
-                reorder_impl->set_kernels(kernels);
+                if (impl_type == impl_types::ocl) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
+                    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                    reorder_impl->set_kernels(kernels);
+                }
 
                 reorder_inst->set_impl(reorder_impl->clone());
 
@@ -2002,7 +2020,10 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            if (fd.is_type<reorder>())
+                continue;
+
+            OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
     }
 
@@ -2056,31 +2077,43 @@ bool primitive_inst::is_valid_fusion() const {
     return true;
 }
 
-void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode) {
-    instrumentation::perf_counter_key key {
-            _network.get_input_layouts(),
-            _impl_params->input_layouts,
-            _impl_params->output_layouts,
-            get_implementation_name(),
-            stage,
+void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-            per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-            0,
-#endif
-            cache_hit
-    };
-
-    auto hash = instrumentation::perf_counter_hash()(key);
-    auto& d = _profiling_data[hash];
-    if (_profiling_info.find(hash) == _profiling_info.end()) {
-        _profiling_info.emplace(hash, key);
+    int64_t curr_iter = -1;
+    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
+        curr_iter = get_network().get_current_iteration_num();
     }
+    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+#else
+    {
+#endif
+        instrumentation::perf_counter_key key {
+                _network.get_input_layouts(),
+                _impl_params->input_layouts,
+                _impl_params->output_layouts,
+                get_implementation_name(),
+                stage,
+#ifdef GPU_DEBUG_CONFIG
+                per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+                0,
+#endif
+                cache_hit,
+                memalloc_info
+        };
 
-    auto& total_time = std::get<0>(d);
-    auto& total_iter = std::get<1>(d);
-    total_time += time;
-    total_iter++;
+        auto hash = instrumentation::perf_counter_hash()(key);
+        auto& d = _profiling_data[hash];
+        if (_profiling_info.find(hash) == _profiling_info.end()) {
+            _profiling_info.emplace(hash, key);
+        }
+
+        auto& total_time = std::get<0>(d);
+        auto& total_iter = std::get<1>(d);
+        total_time += time;
+        total_iter++;
+    }
 }
 
 std::string primitive_inst::get_implementation_name() const {

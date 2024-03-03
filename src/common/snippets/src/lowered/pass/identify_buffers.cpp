@@ -77,7 +77,7 @@ void IdentifyBuffers::update_adj_matrix(const std::pair<ExpressionPtr, ShiftPtrP
     }
 }
 
-std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool) {
+std::vector<bool> IdentifyBuffers::create_adjacency_matrix(LinearIR::constExprIt begin, LinearIR::constExprIt end, const BufferPool& pool) {
     // The sync point to check for adjacency is Loop because only in Loop we increment pointers.
     // So if some Buffers in the one Loop have conflict (cannot be inplace: the different ptr increment and data sizes)
     // they are called as adjacent
@@ -86,9 +86,9 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
     for (size_t i = 0; i < size; ++i)
         adj[index(size, i, i)] = true;
 
-    for (auto expr_it = linear_ir.cbegin(); expr_it != linear_ir.cend(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto &expr = *expr_it;
-        if (!ov::is_type<op::LoopEnd>(expr->get_node()))
+        if (!ov::is_type<op::LoopEndStatic>(expr->get_node()))
             continue;
 
         const auto buffer_loop_neighbours = get_buffer_loop_neighbours(expr);
@@ -111,7 +111,7 @@ std::vector<bool> IdentifyBuffers::create_adjacency_matrix(const LinearIR& linea
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(loop_end_expr->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_end_expr->get_node());
     const auto input_count = loop_end->get_input_num();
     const auto output_count = loop_end->get_output_num();
 
@@ -142,7 +142,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
             if (ov::is_type<op::Buffer>(child_expr->get_node())) {
                 buffer_neighbours[child_expr] = { data_sizes[i], ptr_increments[i], finalization_offsets[i] };
                 buffer_count++;
-            } else if (ov::is_type<op::LoopEnd>(child_expr->get_node())) {
+            } else if (ov::is_type<op::LoopEndStatic>(child_expr->get_node())) {
                 loop_count++;
             }
         }
@@ -155,7 +155,7 @@ IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_neighbours(const Exp
 }
 
 IdentifyBuffers::BufferMap IdentifyBuffers::get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it) {
-    const auto& loop_end = ov::as_type_ptr<op::LoopEnd>((*loop_end_it)->get_node());
+    const auto& loop_end = ov::as_type_ptr<op::LoopEndStatic>((*loop_end_it)->get_node());
     const auto loop_begin = loop_end->get_loop_begin();
     BufferMap inner_buffers;
     for (auto it = std::reverse_iterator<LinearIR::constExprIt>(loop_end_it); (*it)->get_node() != loop_begin; ++it) {
@@ -214,19 +214,20 @@ auto IdentifyBuffers::coloring(BufferPool& buffers, std::vector<bool>& adj) -> s
     return color_groups;
 }
 
-bool IdentifyBuffers::run(LinearIR& linear_ir) {
+bool IdentifyBuffers::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::IdentifyBuffers")
     // Identify Buffers using Graph coloring algorithm.
     BufferPool buffer_pool;
 
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         if (ov::is_type<op::Buffer>(expr->get_node())) {
             buffer_pool.push_back(expr);
         }
     }
 
     // Creation of Adj matrix
-    auto adj = create_adjacency_matrix(linear_ir, buffer_pool);
+    auto adj = create_adjacency_matrix(begin, end, buffer_pool);
 
     // Graph coloring algorithm
     const auto color_groups = coloring(buffer_pool, adj);
