@@ -94,7 +94,7 @@ private:
 
 private:
     void create_infer_request();
-    void init_tensor(const std::string& name);
+    void init_tensor(const std::string& name, const ov::Output<const ov::Node>& port_tmp);
 
     void push_input_data();
     void redefine_memory_for_input_nodes();
@@ -116,8 +116,8 @@ private:
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_input_ports_map;
-    std::unordered_map<std::string, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map_tmp;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map_tmp;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
 };
 
