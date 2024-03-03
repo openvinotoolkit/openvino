@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,16 @@ LinearIR::LinearIR(const std::shared_ptr<ov::Model>& model, const std::shared_pt
             m_io_expressions.push_back(io_expr);
             if (ov::is_type<ov::op::v0::Parameter>(n))
                 last_param = it;
+            switch (io_expr->get_type()) {
+                case IOExpression::io_type::INPUT:
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_output_port_descriptor(0)->get_shape());
+                    break;
+                case IOExpression::io_type::OUTPUT:
+                    m_is_dynamic = m_is_dynamic || utils::is_dynamic_vdims(io_expr->get_input_port_descriptor(0)->get_shape());
+                    break;
+                default:
+                    OPENVINO_THROW("Incorrect IO Expression type");
+            }
         }
     }
     m_shape_infer = std::make_shared<LIRShapeInfer>(m_expressions, m_io_expressions);
@@ -47,7 +57,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = m_config;
 
-    ExressionMap expression_map;
+    ExpressionMap expression_map;
     cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
         cloned->m_node2expression_map[expr->get_node()] = expr;
@@ -59,6 +69,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     cloned->m_shape_infer_factory = m_shape_infer_factory;
     cloned->m_shape_infer = std::make_shared<LIRShapeInfer>(cloned->m_expressions, cloned->m_io_expressions);
+    cloned->m_is_dynamic = m_is_dynamic;
     return cloned;
 }
 
@@ -104,9 +115,64 @@ ov::NodeVector LinearIR::get_ordered_ops(const std::shared_ptr<ov::Model>& m) {
     return ov::topological_sort(nodes);
 }
 
+namespace {
+using NodeMap = std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>;
+
+std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                                                   NodeMap& node_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    for (const auto& node : sorted_nodes) {
+        if (node_map.count(node.get()) == 0) {
+            // get (already) cloned arguments and clone the node
+            OutputVector cloned_args;
+            for (auto input : node->inputs()) {
+                ov::Output<Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<Node>> cloned_dependencies;
+            for (auto& dependency : node->get_control_dependencies()) {
+                std::shared_ptr<Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
+
+            for (auto output : node->outputs()) {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
+            for (auto input : node->inputs()) {
+                const auto& output_rt_info = input.get_rt_info();
+                auto new_input = cloned_node->input(input.get_index());
+                new_input.get_rt_info() = output_rt_info;
+            }
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+
+    // create and return vector of cloned nodes
+    // order matches input vector (not necessarily topological)
+    std::vector<std::shared_ptr<ov::Node>> cloned_nodes;
+    for (const auto& node : nodes) {
+        cloned_nodes.push_back(node_map.at(node.get()));
+    }
+    return cloned_nodes;
+}
+}  // namespace
+
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
-                                              ExressionMap& expression_map) {
+                                              ExpressionMap& expression_map) {
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
@@ -115,10 +181,8 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
     }
 
     // node_map and expr_map map original node pointer (expression) to a new pointer (expression)
-    ngraph::NodeMap node_map;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::clone_nodes(original_nodes,  node_map);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    NodeMap node_map;
+    clone_nodes(original_nodes, node_map);
 
     for (auto it = begin; it != end; it++) {
         const auto& expr = *it;
@@ -127,6 +191,10 @@ LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterato
         expression_map[expr.get()] = new_expr;
     }
     return result;
+}
+
+bool LinearIR::is_dynamic() const {
+    return m_is_dynamic;
 }
 
 void LinearIR::debug_print(bool tds_as_pointers) const {

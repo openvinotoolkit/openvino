@@ -26,8 +26,6 @@
 using namespace testing;
 using namespace ov::pass;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 class MarkupAvgPoolPrecisionsTransformationTestValues {
 public:
 public:

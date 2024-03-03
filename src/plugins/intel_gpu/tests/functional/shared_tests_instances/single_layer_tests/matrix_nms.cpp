@@ -5,10 +5,11 @@
 #include <tuple>
 #include <string>
 #include <random>
+
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/single_op/matrix_nms.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -128,7 +129,7 @@ void MatrixNmsLayerTestGPU::compare(const std::vector<ov::Tensor> &expectedOutpu
 
 #define CASE(X, Y, _expected_offset, _actual_offset, _size, _threshold)                                              \
     case X:                                                                                                          \
-        LayerTestsUtils::LayerTestsCommon::Compare(                                                                  \
+        ov::test::utils::compare_raw_data(                                                                  \
             reinterpret_cast<const ov::fundamental_type_for<X>*>(expectedBuffer) + _expected_offset,                 \
             reinterpret_cast<const ov::fundamental_type_for<Y>*>(actualBuffer) + _actual_offset, _size, _threshold); \
         break;

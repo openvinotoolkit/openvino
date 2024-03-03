@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "multi_stage_primitive.hpp"
 
+#include "kv_cache_inst.h"
 #include "gemm_inst.h"
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
@@ -11,13 +13,21 @@
 namespace cldnn {
 namespace ocl {
 
-struct gemm_impl : typed_primitive_impl_ocl<gemm> {
-    using parent = typed_primitive_impl_ocl<gemm>;
+// Gemm impl may create 2 versions of the kernel internally
+// 1. default kernel
+// 2. kernel with indirect access to one of the inputs
+// This feature is used to avoid perf drop when we create single kernel which checks batch size in runtime
+// Can be reverted once performance of the kernel is improved
+struct gemm_impl : multi_stage_primitive<gemm> {
+    using parent = multi_stage_primitive<gemm>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gemm_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gemm_params, kernel_selector::gemm_optional_params>;
+    using kernel_params_t = kernel_selector::gemm_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gemm_impl)
+
+    const uint32_t default_gemm = 0;
+    const uint32_t indirect_gemm = 1;
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_impl>(*this);
@@ -27,21 +37,131 @@ struct gemm_impl : typed_primitive_impl_ocl<gemm> {
         parent::load(ib);
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            auto kernel_impl = kernel_selector.GetImplementation(_kernels_data[default_gemm].kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[default_gemm]);
+            if (_kernels_data.size() == 2) {
+                auto bt_kernel_impl = kernel_selector.GetImplementation(_kernels_data[indirect_gemm].kernelName);
+                bt_kernel_impl->GetUpdateDispatchDataFunc(_kernels_data[indirect_gemm]);
+            }
         }
     }
 
+protected:
+    static size_t get_beam_table_id(std::shared_ptr<const gemm> primitive) {
+        return primitive->input_size() == 3 ? 3 : 2;
+    }
+
+    kernel_arguments_data get_arguments(const gemm_inst& instance, size_t stage) const override {
+        kernel_arguments_data args;
+
+        for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
+            args.inputs.push_back(instance.input_memory_ptr(i));
+        }
+
+        if (instance.has_fused_primitives()) {
+            size_t count = instance.get_fused_mem_count();
+            for (size_t i = 0; i < count; i++) {
+                args.fused_op_inputs.push_back(instance.fused_memory(i));
+            }
+        }
+
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
+
+        args.shape_info = instance.shape_info_memory_ptr();
+
+        const auto& desc = instance.get_typed_desc<gemm>();
+        if (stage == indirect_gemm) {
+            args.inputs.push_back(instance.dep_memory_ptr(get_beam_table_id(desc)));
+        }
+
+        return args;
+    }
+
+    void set_arguments_impl(gemm_inst& instance) override {}
+
+    event::ptr execute_stage(const std::vector<event::ptr>& events, gemm_inst& instance, size_t stage) {
+        stream& stream = instance.get_network().get_stream();
+        std::vector<event::ptr> tmp_events(events);
+        std::vector<event::ptr> all_events;
+        size_t kernel_offset = 0;
+        for (size_t s = 0; s < stage; s++) {
+            kernel_offset += _kernels_data[s].kernels.size();
+        }
+        for (size_t kd_idx = 0; kd_idx < _kernels_data[stage].kernels.size(); ++kd_idx) {
+            if (_kernels_data[stage].kernels[kd_idx].skip_execution)
+                continue;
+
+            size_t idx_final = kernel_offset + kd_idx;
+            // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
+            bool needs_completion_event = instance.needs_completion_event();
+
+            auto& params = _kernels_data[stage].kernels[kd_idx].params;
+            auto args = get_arguments(instance, stage);
+            args.scalars = &params.scalars;
+
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
+            }
+
+            stream.set_arguments(*_kernels[idx_final], _kernels_data[stage].kernels[kd_idx].params, args);
+
+            const auto& gws = params.workGroups.global;
+            const auto& lws = params.workGroups.local;
+
+            GPU_DEBUG_TRACE_DETAIL << "Enqueue stage " << stage << " kernel " << idx_final << ": gws=[" << gws[0] << ", " << gws[1] << ", " << gws[2] << "] "
+                                   << "lws=[" << lws[0] << ", " << lws[1] << ", " << lws[2] << "]"
+                                   << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
+
+            auto ev = stream.enqueue_kernel(*_kernels[idx_final], params, args, tmp_events, needs_completion_event);
+            if (_kernels_data[stage].needs_sub_kernels_sync) {
+                tmp_events = {ev};
+            }
+            all_events.push_back(ev);
+        }
+
+        return aggregate_events(all_events, stream, all_events.size() > 1);
+    }
+
+    bool need_indirect_load(const gemm_inst& inst) const {
+        auto desc = inst.get_typed_desc<gemm>();
+        if (!desc->indirect_a && !desc->indirect_b)
+            return false;
+
+        const auto& params = *inst.get_impl_params();
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+            return false;
+
+        const auto& deps = inst.dependencies();
+
+        const auto& indirect_dep = deps[desc->indirect_a ? 0 : 1].first;
+        if (dynamic_cast<const kv_cache_inst*>(indirect_dep) == nullptr)
+            return true;
+
+        auto state_layout = indirect_dep->get_impl_params()->get_input_layout(0);
+        bool is_prefill = state_layout.count() == 0;
+        return !is_prefill;
+    }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, gemm_inst& instance) override {
+        if (need_indirect_load(instance))
+            return execute_stage(events, instance, indirect_gemm);
+        else
+            return execute_stage(events, instance, default_gemm);
+    }
+
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false, bool indirect = false) {
         const auto& primitive = impl_param.typed_desc<gemm>();
 
         auto params = get_default_params<kernel_selector::gemm_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::gemm_optional_params>(impl_param.get_program());
 
         for (size_t i = 1; i < primitive->input_size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
+
+        params.stage_id = indirect ? 1 : 0;
 
         params.alpha = primitive->alpha;
         params.beta = primitive->beta;
@@ -50,6 +170,13 @@ public:
         params.input0_order = primitive->input0_order;
         params.input1_order = primitive->input1_order;
         params.output_order = primitive->output_order;
+
+        params.indirect_input0 = primitive->indirect_a && indirect;
+        params.indirect_input1 = primitive->indirect_b && indirect;
+        if (indirect && (primitive->indirect_a || primitive->indirect_b)) {
+            OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
+            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));
+        }
 
         bool is_quantized = true;
         for (auto& input : impl_param.input_layouts)
@@ -60,7 +187,26 @@ public:
         } else {
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
-        return {params, optional_params};
+
+        params.set_dynamic_shape_offsets();
+        if ((primitive->indirect_a || primitive->indirect_b) && !indirect) {
+            // Need to adjust regular gemm kernel offset to skip beam table input
+            for (auto& fd : params.fused_ops) {
+                if (!fd.has_outer_dep())
+                    continue;
+                auto& fused_op_inputs = fd.tensors;
+                for (auto& fused_input : fused_op_inputs) {
+                    if (fused_input.is_dynamic())
+                        fused_input.SetDynamicShapeOffset(fused_input.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
+                }
+            }
+            for (auto& out : params.outputs) {
+                if (out.is_dynamic()) {
+                    out.SetDynamicShapeOffset(out.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
+                }
+            }
+        }
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -84,9 +230,31 @@ public:
         return static_canonicalize_shapes(impl_params);
     }
 
+    static std::unique_ptr<primitive_impl> create(const typed_program_node<gemm>& arg, const kernel_impl_params& impl_param) {
+        std::vector<kernel_selector::kernel_data> kernels_data;
+        auto& kernel_selector = kernel_selector_t::Instance();
+        auto params = static_canonicalize_shapes(impl_param);
+
+        auto default_kernel_params = get_kernel_params(params, params.is_dynamic(), false);
+        default_kernel_params.is_shape_agnostic = params.is_dynamic();
+        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params));
+        const auto desc = params.typed_desc<gemm>();
+        if (desc->indirect_a || desc->indirect_b) {
+            auto indirect_kernel_params = get_kernel_params(params, params.is_dynamic(), true);
+            indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
+            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
+        }
+        return cldnn::make_unique<gemm_impl>(kernels_data);
+    }
+
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        auto kernel_params = get_kernel_params(impl_param, true, false);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
+
+        if (_kernels_data.size() == 2) {
+            auto kernel_params = get_kernel_params(impl_param, true, true);
+            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
+        }
     }
 };
 
@@ -116,7 +284,7 @@ attach_gemm_impl::attach_gemm_impl() {
         format::bfwzyx,
     };
 
-    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, formats);
+    implementation_map<gemm>::add(impl_types::ocl, shape_types::static_shape, gemm_impl::create, types, formats);
 
     const std::vector<format::type> dyn_formats {
         format::bfyx,
@@ -126,7 +294,7 @@ attach_gemm_impl::attach_gemm_impl() {
 
     implementation_map<gemm>::add(impl_types::ocl,
                                   shape_types::dynamic_shape,
-                                  typed_primitive_impl_ocl<gemm>::create<gemm_impl>, types, dyn_formats);
+                                  gemm_impl::create, types, dyn_formats);
 }
 
 }  // namespace detail

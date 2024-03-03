@@ -415,7 +415,7 @@ static bool can_crop_be_optimized_along_batch(const crop_node& node) {
     const auto& out_padding = crop_layout.data_padding;
 
     // Check format's order is 'bxxx' and only batch size is different
-    if (format::is_simple_data_format(format) && format::traits(format)._order[0] == 0 &&
+    if (format::is_simple_data_format(format) && format.dims_order()[0] == 0 &&
         std::equal(input_shape.begin()+1, input_shape.end(), crop_shape.begin()+1) &&
         !out_padding && !in_padding) {
         return true;
@@ -692,6 +692,14 @@ void prepare_buffer_fusing::run(program& p) {
                 }
                 if (gather_prim) {
                     update_dep(gather_prim);
+                }
+
+                // Fallback to ocl impl since oneDNN doesn't support dynamic paddings
+                for (auto user : node.get_users()) {
+                    if (user->get_preferred_impl_type() == impl_types::onednn) {
+                        GPU_DEBUG_TRACE_DETAIL << user->id() << ": change impl to ocl because of dynamic input paddings\n";
+                        user->set_preferred_impl_type(impl_types::ocl);
+                    }
                 }
             }
         });

@@ -8,6 +8,7 @@
 
 #include "eltwise.hpp"
 #if defined(OV_CPU_WITH_ACL)
+#include "aarch64/jit_eltwise.hpp"
 #include "acl/acl_eltwise.hpp"
 #endif
 
@@ -24,12 +25,12 @@ struct EltwiseExecutorDesc {
 
 const std::vector<EltwiseExecutorDesc>& getEltwiseExecutorsList();
 
-class EltwiseExecutorFactory : public ExecutorFactory {
+class EltwiseExecutorFactory : public ExecutorFactoryLegacy {
 public:
     EltwiseExecutorFactory(const EltwiseAttrs& eltwiseAttrs,
                        const std::vector<MemoryDescPtr>& srcDescs,
                        const std::vector<MemoryDescPtr>& dstDescs,
-                       const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                       const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getEltwiseExecutorsList()) {
             if (desc.builder->isSupported(eltwiseAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);

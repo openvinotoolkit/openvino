@@ -668,7 +668,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding) {
     cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
 
     ExecutionConfig ref_config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(false));
+    ref_config.set_property(ov::intel_gpu::optimize_data(false));
     cldnn::network ref_network(engine, topology, ref_config);
     ref_network.set_input_data("Input", in_input);
     ref_network.set_input_data("Input_idx_1", input_idx1);

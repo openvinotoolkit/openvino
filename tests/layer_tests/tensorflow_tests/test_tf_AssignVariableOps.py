@@ -11,10 +11,10 @@ rng = np.random.default_rng()
 
 class TestAssignVariableOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = rng.uniform(-2.0, 2.0, x_shape).astype(np.float32)
+        inputs_data['x:0'] = rng.uniform(-2.0, 2.0, x_shape).astype(np.float32)
         return inputs_data
 
     def create_assign_variable_ops_net(self, const_shape):
@@ -44,7 +44,7 @@ class TestAssignVariableOps(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_assign_variable_ops(self, const_shape, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         self._test(*self.create_assign_variable_ops_net(const_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

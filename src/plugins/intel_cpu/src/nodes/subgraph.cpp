@@ -31,6 +31,7 @@
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
 #include "utils/cpu_utils.hpp"
+#include "utils/ngraph_utils.hpp"
 
 #include <algorithm>
 #include <array>
@@ -393,9 +394,9 @@ ov::element::Type Snippet::getRuntimePrecision() const {
 
 void Snippet::prepareParams() {
     for (size_t i = 0; i < inputNum; i++)
-        snippetAttrs.inMemBlockedDims[i] = getParentEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        snippetAttrs.inMemBlockedDims[i] = getParentEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
     for (size_t i = 0; i < outputNum; i++)
-        snippetAttrs.outMemBlockedDims[i] = getChildEdgesAtPort(i)[0]->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
+        snippetAttrs.outMemBlockedDims[i] = getChildEdgeAt(i)->getMemory().getDescWithType<BlockedMemoryDesc>()->getBlockDims();
 
     SnippetKey key = {snippetAttrs};
 
@@ -433,7 +434,7 @@ bool Snippet::needPrepareParams() const {
 }
 
 bool Snippet::canBeInPlace() const {
-    if (isDynamic || getParentEdgesAtPort(0)[0]->getParent()->getType() == Type::Input) {
+    if (isDynamic || getParentEdgeAt(0)->getParent()->getType() == Type::Input) {
         return false;
     }
     if (getChildEdges().size() != 1) {
@@ -466,9 +467,9 @@ void Snippet::execute(dnnl::stream strm) {
         OPENVINO_THROW("Can't execute Subgraph node. Primitive didn't created");
     }
     for (size_t i = 0; i < inputNum; i++)
-        srcMemPtrs[i] = getParentEdgeAt(i)->getMemoryPtr();
+        srcMemPtrs[i] = getSrcMemoryAtPort(i);
     for (size_t i = 0; i < outputNum; i++)
-        dstMemPtrs[i] = getChildEdgeAt(i)->getMemoryPtr();
+        dstMemPtrs[i] = getDstMemoryAtPort(i);
 
     execPtr->exec(srcMemPtrs, dstMemPtrs);
 }
@@ -505,10 +506,10 @@ void Snippet::SnippetJitExecutor::exec(const std::vector<MemoryPtr>& inMemPtrs, 
 void Snippet::SnippetJitExecutor::update_ptrs(jit_snippets_call_args& call_args,
     const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
     for (size_t i = 0; i < inMemPtrs.size(); i++)
-        call_args.src_ptrs[i] = reinterpret_cast<const uint8_t*>(inMemPtrs[i]->getData()) + start_offset_in[i];
+        call_args.src_ptrs[i] = inMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
 
     for (size_t i = 0; i < outMemPtrs.size(); i++)
-        call_args.dst_ptrs[i] = reinterpret_cast<uint8_t*>(outMemPtrs[i]->getData()) + start_offset_out[i];
+        call_args.dst_ptrs[i] = outMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
 
     if (buffer_scratchpad_size > 0) {
         call_args.buffer_scratchpad_ptr =
@@ -546,7 +547,7 @@ void Snippet::SnippetJitExecutor::schedule_6d(const std::vector<MemoryPtr>& inMe
             int64_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
-            callable(indexes, &call_args);
+            callable(&call_args, indexes);
         });
 }
 
@@ -570,7 +571,7 @@ void Snippet::SnippetJitExecutor::schedule_nt(const std::vector<MemoryPtr>& inMe
                 tmp /= work_size[j];
             }
 
-            schedule.get_callable<kernel>()(indexes.data(), &call_args);
+            schedule.get_callable<kernel>()(&call_args, indexes.data());
         }
     });
 }

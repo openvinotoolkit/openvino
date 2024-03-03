@@ -44,16 +44,16 @@ ParamsKey MVNKernel_bs_fs_yx_bsv32::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey MVNKernel_bs_fs_yx_bsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey MVNKernel_bs_fs_yx_bsv32::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
     k.requires_subgroup_reduce();
 
     return k;
 }
 
-bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p, const optional_params& options) const {
-    if (!Parent::Validate(p, options))
+bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p) const {
+    if (!Parent::Validate(p))
         return false;
 
     auto params = static_cast<const mvn_params&>(p);
@@ -190,9 +190,8 @@ MVNKernel_bs_fs_yx_bsv32::MultiDispatchData MVNKernel_bs_fs_yx_bsv32::SetDefault
 }
 
 KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params& params,
-                                                                        const optional_params& options,
                                                                         bool has_enough_data) const {
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     constexpr size_t intermediate_bytes = 4;
@@ -210,7 +209,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean first stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_1", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
@@ -234,7 +233,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean second stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_2);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_2", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
@@ -258,7 +257,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Variance first stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_1", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[2];
             FillCLKernelData(kernel,
@@ -281,7 +280,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Variance second stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_2);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_VAR_2", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[3];
             FillCLKernelData(kernel,
@@ -305,7 +304,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_final);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN_BSV32", 1));
             cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[kernels_num - 1];
             FillCLKernelData(kernel,
@@ -332,7 +331,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             // Mean and Variance stage
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_1);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MEAN_VAR_BSV32", 1));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[0];
             FillCLKernelData(kernel,
@@ -361,7 +360,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
             auto cldnn_jit = GetJitConstants(params, dispatchData.stage_final);
             cldnn_jit.AddConstant(MakeJitConstant("MVN_KERNEL_MAIN_BSV32", 1));
             cldnn_jit.AddConstant(MakeJitConstant("PRECALC_VARIANCE", params.mvnNormalizeVariance));
-            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, options, entry_part_id++);
+            auto entry_point = GetEntryPoint(finalKernelName, params.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[1];
             FillCLKernelData(kernel,
@@ -386,8 +385,7 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetMultiStageKernelsData(const mvn_params&
     return {kd};
 }
 
-KernelsData MVNKernel_bs_fs_yx_bsv32::GetKernelsData(const Params& params,
-                                                        const optional_params& optParams) const {
+KernelsData MVNKernel_bs_fs_yx_bsv32::GetKernelsData(const Params& params) const {
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
     auto max_slm = params.engineInfo.maxLocalMemSize;
@@ -399,10 +397,10 @@ KernelsData MVNKernel_bs_fs_yx_bsv32::GetKernelsData(const Params& params,
     auto enough_lws = max_lws / simd >= 1;
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
-    return GetMultiStageKernelsData(orgParams, optParams, enough_slm && enough_lws && enough_items);
+    return GetMultiStageKernelsData(orgParams,  enough_slm && enough_lws && enough_items);
 }
 
-KernelsPriority MVNKernel_bs_fs_yx_bsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority MVNKernel_bs_fs_yx_bsv32::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

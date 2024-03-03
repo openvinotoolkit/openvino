@@ -428,6 +428,13 @@ struct layout {
             auto v = pshape[idx].is_dynamic() ? -1 : pshape[idx].get_length();
             seed = hash_combine(seed, v);
         }
+
+        if (format == format::custom) {
+            for (auto& bs : format.traits().block_sizes) {
+                seed = hash_combine(seed, bs.first);
+                seed = hash_combine(seed, bs.second);
+            }
+        }
         return seed;
     }
 
@@ -439,6 +446,9 @@ private:
 inline ::std::ostream& operator<<(::std::ostream& os, const layout& p) {
     return os << p.to_string();
 }
+
+using optional_data_type = optional_value<data_types>;
+using optional_layout = optional_value<layout>;
 
 /// @}
 /// @}

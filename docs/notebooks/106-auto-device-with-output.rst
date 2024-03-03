@@ -2,19 +2,19 @@ Automatic Device Selection with OpenVINO™
 =========================================
 
 The `Auto
-device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+device <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/2023.3/openvino_docs_Runtime_Inference_Modes_Overview.html>`__.
+devices <https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
 
 Next, if dedicated accelerators are available, these devices are
 preferred (for example, integrated and discrete
-`GPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__).
-`CPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
+`GPU <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html>`__).
+`CPU <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html>`__
 is used as the default “fallback device”. Keep in mind that AUTO makes
 this selection only once, during the loading of a model.
 
@@ -121,7 +121,7 @@ with ``ov.compile_model`` or serialized for next usage with
 ``ov.save_model``.
 
 For more information about model conversion API, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
@@ -174,14 +174,14 @@ By default, ``compile_model`` API will select **AUTO** as
 
 .. parsed-literal::
 
-    [22:41:12.8903]I[plugin.cpp:536][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [22:41:12.8903]I[plugin.cpp:536][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [22:41:12.8904]I[plugin.cpp:536][AUTO] device:CPU, config:PERF_COUNT=NO
-    [22:41:12.8904]I[plugin.cpp:541][AUTO] device:CPU, priority:0
-    [22:41:12.8904]I[schedule.cpp:17][AUTO] scheduler starting
-    [22:41:12.8904]I[auto_schedule.cpp:131][AUTO] select device:CPU
-    [22:41:13.0500]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
-    [22:41:13.0502]I[plugin.cpp:569][AUTO] underlying hardware does not support hardware context
+    [22:41:31.9445]I[plugin.cpp:536][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [22:41:31.9445]I[plugin.cpp:536][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [22:41:31.9445]I[plugin.cpp:536][AUTO] device:CPU, config:PERF_COUNT=NO
+    [22:41:31.9445]I[plugin.cpp:541][AUTO] device:CPU, priority:0
+    [22:41:31.9446]I[schedule.cpp:17][AUTO] scheduler starting
+    [22:41:31.9446]I[auto_schedule.cpp:131][AUTO] select device:CPU
+    [22:41:32.0858]I[auto_schedule.cpp:109][AUTO] device:CPU compiling model finished
+    [22:41:32.0860]I[plugin.cpp:569][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -195,7 +195,7 @@ By default, ``compile_model`` API will select **AUTO** as
 .. parsed-literal::
 
     Deleted compiled_model
-    [22:41:13.0623]I[schedule.cpp:303][AUTO] scheduler ending
+    [22:41:32.0982]I[schedule.cpp:303][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
@@ -353,7 +353,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.15 seconds.
+    Time to load model using AUTO device and get first inference: 0.16 seconds.
 
 
 .. code:: ipython3
@@ -376,9 +376,9 @@ completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
 For more information, refer to the `Performance
-Hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints-for-auto>`__
+Hints <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html#performance-hints-for-auto>`__
 section of `Automatic Device
-Selection <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 article.
 
 Class and callback definition
@@ -531,32 +531,32 @@ Loop for inference and update the FPS/Latency every
 
 .. parsed-literal::
 
-    throughput:  184.87fps, latency:  30.81ms, time interval: 10.01s
+    throughput:  179.69fps, latency:  31.58ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  185.21fps, latency:  31.62ms, time interval: 10.02s
+    throughput:  182.30fps, latency:  32.10ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  185.47fps, latency:  31.54ms, time interval: 10.00s
+    throughput:  180.62fps, latency:  32.36ms, time interval: 10.02s
 
 
 .. parsed-literal::
 
-    throughput:  185.75fps, latency:  31.53ms, time interval: 10.01s
+    throughput:  179.76fps, latency:  32.61ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  185.09fps, latency:  31.64ms, time interval: 10.00s
+    throughput:  180.36fps, latency:  32.36ms, time interval: 10.02s
 
 
 .. parsed-literal::
 
-    throughput:  184.42fps, latency:  31.76ms, time interval: 10.00s
+    throughput:  179.77fps, latency:  32.58ms, time interval: 10.00s
 
 
 .. parsed-literal::
@@ -614,32 +614,32 @@ Loop for inference and update the FPS/Latency for each
 
 .. parsed-literal::
 
-    throughput:  138.57fps, latency:  6.67ms, time interval: 10.00s
+    throughput:  139.27fps, latency:  6.65ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  141.04fps, latency:  6.66ms, time interval: 10.00s
+    throughput:  141.22fps, latency:  6.62ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  140.74fps, latency:  6.66ms, time interval: 10.00s
+    throughput:  140.71fps, latency:  6.64ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  141.60fps, latency:  6.68ms, time interval: 10.01s
+    throughput:  141.11fps, latency:  6.63ms, time interval: 10.01s
 
 
 .. parsed-literal::
 
-    throughput:  141.73fps, latency:  6.68ms, time interval: 10.00s
+    throughput:  141.26fps, latency:  6.62ms, time interval: 10.00s
 
 
 .. parsed-literal::
 
-    throughput:  141.45fps, latency:  6.67ms, time interval: 10.00s
+    throughput:  141.18fps, latency:  6.63ms, time interval: 10.00s
 
 
 .. parsed-literal::

@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include "openvino/util/file_util.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -14,6 +14,17 @@ TEST(UtilsTests, get_directory_returns_root) {
     ASSERT_EQ(get_directory("/test"), "/");
 }
 
+TEST(UtilsTests, get_directory_returns_empty) {
+    ASSERT_EQ(get_directory(""), "");
+}
+
+TEST(UtilsTests, get_directory_current_dir) {
+    ASSERT_EQ(get_directory("my_file.txt"), ".");
+}
+
+TEST(UtilsTests, get_directory_return_file_dir) {
+    ASSERT_EQ(get_directory("../test/path/my_file.txt"), "../test/path");
+}
 
 TEST(UtilsTests, filter_lines_by_prefix) {
     auto lines = "abc\nkkb\nabpp\n";

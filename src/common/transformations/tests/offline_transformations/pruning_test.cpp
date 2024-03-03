@@ -11,7 +11,6 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "inference_engine.hpp"
 #include "mask_attribute.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -61,65 +60,6 @@ Output<Node> create_constant_with_zeros(const Shape& shape, const Mask& mask) {
 class DISABLED_TransformationTestsF : public TransformationTestsF {};
 
 class TransformationTestsBoolParamF : public TransformationTestsF, public testing::WithParamInterface<bool> {};
-
-// Uncomment and specify PRUNING_TARGET_IR_PATH var to check pruning on given IR
-// TEST(TransformationTests, PruneIRTest) {
-//    InferenceEngine::Core core;
-//
-//    const std::string input_model = ov::util::getenv_string("PRUNING_TARGET_IR_PATH");
-//    if (input_model == "")
-//        return;
-//
-//    auto model = core.ReadNetwork(input_model).getFunction();
-//
-//    {
-//        pass::Manager m;
-//        m.register_pass<ov::pass::InitMasks>();
-//        m.register_pass<ov::pass::PropagateMasks>();
-//    }
-//    // VisualizeTree modifier helps to print Masks and mark nodes with masks
-//    auto modifier = [](const Node& node, std::vector<std::string>& attributes) {
-//        std::stringstream ss;
-//        size_t index{0};
-//        for (const auto & output : node.outputs()) {
-//            if (const auto & mask = getMask(output)) {
-//                if (!mask->all_dims_are_empty()) {
-//                    attributes.emplace_back("color=green");
-//                    attributes.emplace_back("penwidth=2");
-//                }
-//                ss << "Mask(" << index << ") : " << *mask << "\\n";
-//            }
-//            index++;
-//        }
-//        if (!ss.str().empty()) {
-//            auto label = std::find_if(attributes.begin(), attributes.end(),
-//                                   [](const std::string & value) { return value.find("label=") != std::string::npos;
-//                                   });
-//            if (label != attributes.end()) {
-//                label->pop_back();
-//                *label += "\n" + ss.str() + "\"";
-//            } else {
-//                attributes.push_back("label=\"" + ss.str() + "\"");
-//            }
-//        }
-//    };
-//
-//    {
-//        pass::Manager m;
-//        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest_with_masks.svg",
-//        modifier); m.register_pass<ov::pass::ShrinkWeights>();
-//        m.register_pass<pass::VisualizeTree>(std::string(VISUALIZE_TREE_ROOT) +
-//        "PruneIRTest_with_masks_after_shrink.svg", modifier);
-//    }
-//
-//    if (VISUALIZE_TESTS_TREE)
-//        pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneIRTest.svg").run_on_function(model);
-//    {
-//        pass::Manager m;
-//        m.register_pass<pass::Serialize>(std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.xml",
-//                                         std::string(VISUALIZE_TREE_ROOT) + "ir_model_pruned.bin");
-//    }
-//}
 
 TEST(TransformationTests, InitMasksOI) {
     Shape weights_shape{6, 3, 3, 3};
@@ -5240,7 +5180,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
     m.run_passes(model);
 }
 
-INSTANTIATE_TEST_CASE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
+INSTANTIATE_TEST_SUITE_P(TransformationTestsBoolParam, TransformationTestsBoolParamF, ::testing::Values(false, true));
 
 TEST_F(TransformationTestsF, PruningWithVariadicSplitOnSecondAxis) {
     {

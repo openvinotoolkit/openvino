@@ -28,12 +28,11 @@ Table of contents:
 -  `Convert models to OpenVINO Intermediate representation (IR)
    format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `Text Encoder <#text-encoder>`__
-   -  `Second text encoder
-      conversion <#second-text-encoder-conversion>`__
-   -  `Vocoder conversion <#vocoder-conversion>`__
-   -  `GPT-2 conversion <#gpt-2-conversion>`__
+   -  `CLAP Text Encoder Conversion <#clap-text-encoder-conversion>`__
+   -  `T5 Text Encoder Conversion <#t5-text-encoder-conversion>`__
    -  `Projection model conversion <#projection-model-conversion>`__
+   -  `GPT-2 conversion <#gpt-2-conversion>`__
+   -  `Vocoder conversion <#vocoder-conversion>`__
    -  `UNet conversion <#unet-conversion>`__
    -  `VAE Decoder conversion <#vae-decoder-conversion>`__
 
@@ -137,7 +136,7 @@ Convert models to OpenVINO Intermediate representation (IR) format
 
 
 `Model conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 enables direct conversion of PyTorch models backing the pipeline. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object

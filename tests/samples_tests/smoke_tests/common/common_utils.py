@@ -10,12 +10,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import glob
-import os
-import re
 import subprocess
 import sys
-import numpy as np
 
 def shell(cmd, env=None, cwd=None, out_format="plain"):
     """
@@ -40,30 +36,3 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
         stdout = "<br>\n".join(stdout.split('\n'))
         stderr = "<br>\n".join(stderr.split('\n'))
     return p.returncode, stdout, stderr
-
-
-def fix_path(path, env_name, root_path=None):
-    """
-    Fix path: expand environment variables if any, make absolute path from
-    root_path/path if path is relative, resolve symbolic links encountered.
-    """
-    path = os.path.expandvars(path)
-    if not os.path.isabs(path) and root_path is not None:
-        path = os.path.join(root_path, path)
-    if env_name == "samples_data_zip":
-        return path
-    return os.path.realpath(os.path.abspath(path))
-
-
-def fix_env_conf(env, root_path=None):
-    """Fix paths in environment config."""
-    for name, value in env.items():
-        if isinstance(value, dict):
-            # if value is dict, think of it as of a (sub)environment
-            # within current environment
-            # since it can also contain envvars/relative paths,
-            # recursively update (sub)environment as well
-            env[name] = fix_env_conf(value, root_path=root_path)
-        else:
-            env[name] = fix_path(value, name, root_path=root_path)
-    return env

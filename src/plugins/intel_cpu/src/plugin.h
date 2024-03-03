@@ -10,10 +10,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class Engine : public ov::IPlugin {
+class Plugin : public ov::IPlugin {
 public:
-    Engine();
-    ~Engine();
+    Plugin();
+    ~Plugin();
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
@@ -44,15 +44,9 @@ public:
     };
 
 private:
-    bool is_legacy_api() const;
-
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
-    void apply_performance_hints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
-    void get_performance_streams(Config &config, const std::shared_ptr<ov::Model>& model) const;
-    StreamCfg get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
-                              int stream_mode,
-                              const bool enable_hyper_thread = true) const;
+    void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     Config engConfig;
@@ -79,5 +73,5 @@ private:
 #endif
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

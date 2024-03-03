@@ -24,29 +24,25 @@ test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('224x224', 'dog6.yuv')
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'size': ['224x224'],
 				       'sample_type': ['C++', 'C'],
-                                       'd': ['CPU']},
-                           use_device=['d']
+                                       },
                            )
 
 class TestHelloNV12Input(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'hello_nv12_input_classification'
-        super().setup_class()
+    sample_name = 'hello_nv12_input_classification'
 
     @pytest.mark.parametrize("param", test_data_fp32)
-    def test_hello_nv12_input_classification_fp32(self, param):
-        _check_output(self, param=param)
+    def test_hello_nv12_input_classification_fp32(self, param, cache):
+        _check_output(self, param, cache)
 
 
-def _check_output(self, param):
+def _check_output(self, param, cache):
     """
     Classification_sample_async has functional and accuracy tests.
     For accuracy find in output class of detected on image object
     """
 
     # Run _test function, that returns stdout or 0.
-    stdout = self._test(param, use_preffix=False, get_cmd_func=self.get_hello_nv12_cmd_line)
+    stdout = self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_nv12_cmd_line)
     if not stdout:
         return 0
 

@@ -4,6 +4,8 @@
 
 #include "iml_type_mapper.h"
 #include <algorithm>
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -42,6 +44,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(asimd);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
         SEARCH_WORD(avx);
@@ -120,6 +123,11 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(gemm_acl);
     CASE(winograd_acl);
     CASE(gemm_mlas);
+    CASE(jit_asimd);
+    CASE(jit_sve128);
+    CASE(jit_sve256);
+    CASE(jit_sve384);
+    CASE(jit_sve512);
 
 #undef CASE
     return "unknown";
@@ -129,5 +137,5 @@ bool contains(const std::vector<impl_desc_type>& priorities, const impl_desc_typ
     return std::find(priorities.begin(), priorities.end(), impl_type_str) != priorities.end();
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov

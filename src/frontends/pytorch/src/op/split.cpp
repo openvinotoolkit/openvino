@@ -36,13 +36,35 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
     return {context.mark_node(make_list_construct(chunk->outputs()))};
 }
 
+OutputVector translate_unbind_int_fx(const NodeContext& context) {
+    num_inputs_check(context, 2, 3);
+    auto input = context.get_input(0);
+    auto dim = context.get_input(1);
+    auto dim_val = context.const_input<int>(1);
+    auto shape = input.get_shape();
+
+    if (dim_val < 0) {
+        dim_val = static_cast<int>(shape.size()) + dim_val;
+    }
+
+    auto num_splits = static_cast<int>(shape[dim_val]);
+    auto chunk = context.mark_node(std::make_shared<v1::Split>(input, dim, num_splits));
+
+    return {context.mark_node(make_list_construct(chunk->outputs()))};
+}
+
 OutputVector translate_split_with_sizes_fx(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 2, 3);
     auto data = context.get_input(0);
     auto split_lengths = context.get_input(1);
-    auto dim = context.get_input(2);
+    Output<Node> dim;
+    if (context.input_is_none(2)) {
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    } else {
+        dim = context.get_input(2);
+    }
 
-    auto split = std::make_shared<v1::VariadicSplit>(data, dim, split_lengths);
+    auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(data, dim, split_lengths));
 
     return {context.mark_node(make_list_construct(split->outputs()))};
 }

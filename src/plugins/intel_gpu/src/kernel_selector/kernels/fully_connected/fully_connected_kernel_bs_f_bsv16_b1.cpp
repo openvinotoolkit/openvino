@@ -21,8 +21,8 @@ ParamsKey FullyConnected_bs_f_bsv16_b1::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bs_f_bsv16_b1::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_bs_f_bsv16_b1::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
     k.requires_subgroup_shuffle_relative();
 
@@ -89,8 +89,8 @@ FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefa
     return dispatchData;
 }
 
-bool FullyConnected_bs_f_bsv16_b1::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_bs_f_bsv16_b1::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -105,11 +105,10 @@ bool FullyConnected_bs_f_bsv16_b1::Validate(const Params& p, const optional_para
     return true;
 }
 
-KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::bf,
                                                     WeightsLayout::os_i_osv16,
                                                     static_cast<int>(i));
@@ -121,7 +120,7 @@ KernelsData FullyConnected_bs_f_bsv16_b1::GetKernelsData(const Params& params, c
     return res;
 }
 
-KernelsPriority FullyConnected_bs_f_bsv16_b1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bs_f_bsv16_b1::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

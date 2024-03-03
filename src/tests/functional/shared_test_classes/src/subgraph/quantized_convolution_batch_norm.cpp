@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "shared_test_classes/subgraph/quantized_convolution_batch_norm.hpp"
 
 namespace ov {
 namespace test {
@@ -140,9 +141,7 @@ void QuantizedConvolutionBatchNorm::SetUp() {
         auto output_high_weights = ov::op::v0::Constant::create(element::f32, Shape{}, {254});
         weights = std::make_shared<ov::op::v0::FakeQuantize>(weights, low_weights, high_weights, output_low_weights, output_high_weights, 255);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::i8);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        weights = get_constant_from_source(weights);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        weights = ov::util::get_constant_from_source(weights);
         weights = std::make_shared<ov::op::v0::Convert>(weights, element::f32);
         auto scale_weights = ov::op::v0::Constant::create(element::f32, weights_intervals_shape, {2.0 / 255.0});
         weights = std::make_shared<ov::op::v1::Multiply>(weights, scale_weights);

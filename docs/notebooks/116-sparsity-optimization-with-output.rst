@@ -12,7 +12,7 @@ datasets <https://huggingface.co/datasets/sst2>`__ using
 `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__. It
 demonstrates the inference performance advantage on 4th Gen Intel® Xeon®
 Scalable Processors by running it with `Sparse Weight
-Decompression <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#sparse-weights-decompression-intel-x86-64>`__,
+Decompression <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html#sparse-weights-decompression-intel-x86-64>`__,
 a runtime option that seizes model sparsity for efficiency. The notebook
 consists of the following steps:
 
@@ -67,7 +67,7 @@ Imports
 
     import shutil
     from pathlib import Path
-    
+
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
@@ -85,14 +85,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 23:06:01.802535: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:06:01.837209: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-02-09 23:02:05.779349: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-02-09 23:02:05.814537: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:06:02.398511: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-02-09 23:02:06.378496: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download, quantize and sparsify the model, using Hugging Face Optimum API
@@ -112,17 +112,17 @@ model card on Hugging Face.
     # The following model has been quantized, sparsified using Optimum-Intel 1.7 which is enabled by OpenVINO and NNCF
     # for reproducibility, refer https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80
     model_id = "OpenVINO/bert-base-uncased-sst2-int8-unstructured80"
-    
+
     # The following two steps will set up the model and download them to HF Cache folder
     ov_model = OVModelForSequenceClassification.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     # Let's take the model for a spin!
     sentiment_classifier = pipeline("text-classification", model=ov_model, tokenizer=tokenizer)
-    
+
     text = "He's a dreadful magician."
     outputs = sentiment_classifier(text)
-    
+
     print(outputs)
 
 
@@ -149,14 +149,14 @@ the IRs into a single folder.
     # create a folder
     quantized_sparse_dir = Path("bert_80pc_sparse_quantized_ir")
     quantized_sparse_dir.mkdir(parents=True, exist_ok=True)
-    
-    # following return path to specified filename in cache folder (which we've with the 
+
+    # following return path to specified filename in cache folder (which we've with the
     ov_ir_xml_path = hf_hub_download(repo_id=model_id, filename="openvino_model.xml")
     ov_ir_bin_path = hf_hub_download(repo_id=model_id, filename="openvino_model.bin")
-    
+
     # copy IRs to the folder
     shutil.copy(ov_ir_xml_path, quantized_sparse_dir)
-    shutil.copy(ov_ir_bin_path, quantized_sparse_dir)                                
+    shutil.copy(ov_ir_bin_path, quantized_sparse_dir)
 
 
 
@@ -210,7 +210,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
 
 
@@ -218,8 +218,8 @@ as an example. It is recommended to tune based on your applications.
 
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -228,7 +228,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 60.22 ms
+    [ INFO ] Read model took 62.38 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -239,7 +239,7 @@ as an example. It is recommended to tune based on your applications.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'input_ids': [1,64], 'attention_mask': [1,64], 'token_type_ids': [1,64]
-    [ INFO ] Reshape model took 23.06 ms
+    [ INFO ] Reshape model took 23.14 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -252,7 +252,7 @@ as an example. It is recommended to tune based on your applications.
 
 .. parsed-literal::
 
-    [ INFO ] Compile model took 1064.23 ms
+    [ INFO ] Compile model took 1107.64 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: torch_jit
@@ -275,30 +275,30 @@ as an example. It is recommended to tune based on your applications.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values 
-    [ INFO ] Fill input 'attention_mask' with random values 
-    [ INFO ] Fill input 'token_type_ids' with random values 
+    [ INFO ] Fill input 'input_ids' with random values
+    [ INFO ] Fill input 'attention_mask' with random values
+    [ INFO ] Fill input 'token_type_ids' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
 
 
 .. parsed-literal::
 
-    [ INFO ] First inference took 27.61 ms
+    [ INFO ] First inference took 30.14 ms
 
 
 .. parsed-literal::
 
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            8900 iterations
-    [ INFO ] Duration:         60039.72 ms
+    [ INFO ] Count:            8852 iterations
+    [ INFO ] Duration:         60038.32 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        26.68 ms
-    [ INFO ]    Average:       26.74 ms
-    [ INFO ]    Min:           25.09 ms
-    [ INFO ]    Max:           39.62 ms
-    [ INFO ] Throughput:   148.24 FPS
+    [ INFO ]    Median:        26.79 ms
+    [ INFO ]    Average:       26.86 ms
+    [ INFO ]    Min:           24.76 ms
+    [ INFO ]    Max:           42.20 ms
+    [ INFO ] Throughput:   147.44 FPS
 
 
 Benchmark quantized sparse inference performance
@@ -314,7 +314,7 @@ for which a layer will be enabled.
 .. code:: ipython3
 
     # Dump benchmarking config for dense inference
-    # "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE" controls minimum sparsity rate for weights to consider 
+    # "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE" controls minimum sparsity rate for weights to consider
     # for sparse optimization at the runtime.
     with (quantized_sparse_dir / "perf_config_sparse.json").open("w") as outfile:
         outfile.write(
@@ -345,7 +345,7 @@ for which a layer will be enabled.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
 
 
@@ -353,8 +353,8 @@ for which a layer will be enabled.
 
     [ INFO ] CPU
     [ INFO ] Build ................................. 2023.3.0-13775-ceeafaf64f3-releases/2023/3
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -363,7 +363,7 @@ for which a layer will be enabled.
 
 .. parsed-literal::
 
-    [ INFO ] Read model took 67.79 ms
+    [ INFO ] Read model took 71.12 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [?,?]
@@ -378,7 +378,7 @@ for which a layer will be enabled.
 
 .. parsed-literal::
 
-    [ INFO ] Reshape model took 23.92 ms
+    [ INFO ] Reshape model took 23.54 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     input_ids (node: input_ids) : i64 / [...] / [1,64]
@@ -390,17 +390,17 @@ for which a layer will be enabled.
     [ ERROR ] Exception from src/inference/src/core.cpp:99:
     [ GENERAL_ERROR ] Exception from src/plugins/intel_cpu/src/config.cpp:158:
     Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
-    
+
     Traceback (most recent call last):
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/tools/benchmark/main.py", line 408, in main
         compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
-      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 547, in compile_model
+      File "/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/openvino/runtime/ie_api.py", line 547, in compile_model
         super().compile_model(model, device_name, {} if config is None else config),
     RuntimeError: Exception from src/inference/src/core.cpp:99:
     [ GENERAL_ERROR ] Exception from src/plugins/intel_cpu/src/config.cpp:158:
     Wrong value for property key CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE. Expected only float numbers
-    
-    
+
+
 
 
 When this might be helpful
@@ -417,6 +417,6 @@ For more details about asynchronous inference with OpenVINO, refer to
 the following documentation:
 
 -  `Deployment Optimization
-   Guide <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html>`__
+   Guide <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html>`__
 -  `Inference Request
-   API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Infer_request.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application/inference-request.html>`__

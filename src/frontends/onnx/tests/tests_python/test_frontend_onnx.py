@@ -30,7 +30,7 @@ def create_onnx_model():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_2():
@@ -42,7 +42,7 @@ def create_onnx_model_2():
         make_tensor_value_info("out", onnx.TensorProto.FLOAT, (1, 2)),
     ]
     graph = make_graph([relu], "test_graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_with_subgraphs():
@@ -68,7 +68,7 @@ def create_onnx_model_with_subgraphs():
     res = onnx.helper.make_tensor_value_info("res", onnx.TensorProto.FLOAT, [3])
 
     graph = make_graph([if_node], "graph", [cond, x1, x2], [res])
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_with_custom_attributes():
@@ -104,7 +104,7 @@ def create_onnx_model_with_custom_attributes():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_for_op_extension():
@@ -155,7 +155,7 @@ def create_onnx_model_for_op_extension():
         input_tensors,
         output_tensors,
     )
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def create_onnx_model_extension_with_custom_domain():
@@ -175,7 +175,7 @@ def create_onnx_model_extension_with_custom_domain():
     ]
     output_tensors = [make_tensor_value_info("out", onnx.TensorProto.FLOAT, (2, 2))]
     graph = make_graph([add, const_node, mul], "graph", input_tensors, output_tensors)
-    return make_model(graph, producer_name="ONNX Frontend")
+    return make_model(graph, producer_name="OpenVINO ONNX Frontend")
 
 
 def run_model(model, *inputs, expected):

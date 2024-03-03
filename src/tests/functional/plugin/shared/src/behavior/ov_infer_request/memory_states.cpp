@@ -4,9 +4,7 @@
 
 #include "behavior/ov_infer_request/memory_states.hpp"
 
-#include "base/behavior_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -80,7 +78,7 @@ std::shared_ptr<ov::Model> OVInferRequestVariableStateTest::get_network() {
 ov::CompiledModel OVInferRequestVariableStateTest::prepare_network() {
     net->add_output("Memory_1");
     net->add_output("Memory_2");
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     return core.compile_model(net, deviceName, configuration);
 }
 

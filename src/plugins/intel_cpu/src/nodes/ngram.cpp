@@ -66,13 +66,13 @@ void Ngram::initSupportedPrimitiveDescriptors() {
 }
 
 void Ngram::prepareParams() {
-    const auto& srcDataDims = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
-    const auto& srcIndicesDims = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
-    const auto& outDims = getChildEdgeAt(0)->getMemoryPtr()->getStaticDims();;
+    const auto& srcDataDims = getSrcMemoryAtPort(0)->getStaticDims();
+    const auto& srcIndicesDims = getSrcMemoryAtPort(1)->getStaticDims();
+    const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();;
 
     idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
     numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
-    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
     windowStride = srcDataDims[1];
@@ -83,7 +83,7 @@ void Ngram::prepareParams() {
 
 template <typename idces_type>
 std::vector<size_t> Ngram::computeBatchLenghts() {
-    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto* srcIndices = getSrcDataAtPortAs<const idces_type>(1);
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -98,8 +98,8 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* srcData = getSrcDataAtPortAs<const float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     std::vector<size_t> batchLenghts;
     if (idcesPrecision == ov::element::i32) {

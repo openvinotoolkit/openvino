@@ -49,6 +49,17 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
         return input_shape_update;
     };
 
+    auto transpose_shape = [](const ov::Shape& shape, const std::vector<int64_t>& order) {
+        auto shape_transposed = ov::Shape(shape);
+        auto rank_diff = shape.size() - order.size();
+        for (size_t i = 0; i < order.size(); i++) {
+            size_t idx = static_cast<size_t>(order[i]);
+            shape_transposed[i + rank_diff] = shape[idx + rank_diff];
+        }
+
+        return shape_transposed;
+    };
+
     auto input0_shape_update = update_input_shape(input0_shape, input_rank, input0_order, true);
     auto input1_shape_update = update_input_shape(input1_shape, weight_rank, input1_order, false);
 
@@ -71,6 +82,9 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     size_t ones_to_add = 4 - std::min(output_shape.size(), static_cast<size_t>(4));
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
+
+    if (prim->output_order.size() > 0)
+        output_shape = transpose_shape(output_shape, prim->output_order);
 
     auto output_type = input0_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_types[0])
@@ -202,7 +216,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         auto N = input1_pshape[n_idx];
 
         auto output_pshape = input_layouts[0].get_partial_shape();
-        for (size_t i = 0; i != input_layouts.size(); ++i) {
+        for (size_t i = 0; i != primitive->input_size(); ++i) {
             auto input_pshape = input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
                 ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
@@ -216,6 +230,17 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
 
         output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = std::move(N);
         output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
+
+        if (primitive->output_order.size() > 0) {
+            ov::PartialShape transposed_output_pshape = output_pshape;
+            auto rank_diff = output_pshape.size() - primitive->output_order.size();
+            for (size_t i = 0; i < primitive->output_order.size(); ++i) {
+                size_t idx = static_cast<size_t>(primitive->output_order[i]);
+                transposed_output_pshape[i + rank_diff] = std::move(output_pshape[idx + rank_diff]);
+            }
+            output_pshape = transposed_output_pshape;
+        }
+
         updated_output_layout.set_partial_shape(output_pshape);
     }
     return updated_output_layout;
@@ -228,16 +253,21 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     auto beta = desc->beta;
     auto transpose_input0 = desc->transpose_input0 ? " true" : "false";
     auto transpose_input1 = desc->transpose_input1 ? " true" : "false";
+    auto indirect_input0 = desc->indirect_a ? " true" : "false";
+    auto indirect_input1 = desc->indirect_b ? " true" : "false";
     std::stringstream primitive_description;
 
     json_composite gemm_info;
     for (size_t i = 0; i < node.get_inputs_count(); i++) {
         gemm_info.add("input_" + std::to_string(i), node.input(i).id());
     }
+    gemm_info.add("beam_table", (desc->beam_table.is_valid() ? desc->beam_table.pid : "N/A"));
     gemm_info.add("alpha", alpha);
     gemm_info.add("beta", beta);
     gemm_info.add("trasnpose_input0", transpose_input0);
     gemm_info.add("transpose_input1", transpose_input1);
+    gemm_info.add("indirect_input0", indirect_input0);
+    gemm_info.add("indirect_input1", indirect_input1);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

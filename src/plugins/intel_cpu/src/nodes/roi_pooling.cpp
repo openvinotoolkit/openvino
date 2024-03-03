@@ -498,9 +498,9 @@ void ROIPooling::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void ROIPooling::prepareParams() {
-    const auto& srcMemPtr0 = getParentEdgeAt(0)->getMemoryPtr();
-    const auto& srcMemPtr1 = getParentEdgeAt(0)->getMemoryPtr();
-    const auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
+    const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
+    const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
         OPENVINO_THROW("Input memory has not been allocated.");
     if (!srcMemPtr1 || !srcMemPtr1->isAllocated())
@@ -511,7 +511,7 @@ void ROIPooling::prepareParams() {
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
-    const auto& outDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     refParams.mb = outDims[0];
     refParams.c = rnd_up(inDims[1], refParams.c_block);
@@ -560,9 +560,9 @@ public:
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
+        const auto* src_ptr = srcData.getDataAs<const T>();
+        const auto* roi_ptr = srcRoi.getDataAs<const T>();
+        auto* dst_ptr = dst.getDataAs<T>();
         executeOptimizedGeneric(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 
@@ -680,9 +680,9 @@ public:
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
-        const auto* src_ptr = reinterpret_cast<const T*>(srcData.getData());
-        const auto* roi_ptr = reinterpret_cast<const T*>(srcRoi.getData());
-        auto* dst_ptr = reinterpret_cast<T*>(dst.getData());
+        const auto* src_ptr = srcData.getDataAs<const T>();
+        const auto* roi_ptr = srcRoi.getDataAs<const T>();
+        auto* dst_ptr = dst.getDataAs<T>();
         executeReference(src_ptr, roi_ptr, dst_ptr, src_strides, dst_strides, src_roi_step);
     }
 

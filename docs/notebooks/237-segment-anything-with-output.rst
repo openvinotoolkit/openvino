@@ -1413,7 +1413,7 @@ result, we will use a ``mixed`` quantization preset. It provides
 symmetric quantization of weights and asymmetric quantization of
 activations.
 
-   **Note**: Model post-training quantization is time-consuming process.
+   **NOTE**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
@@ -1450,6 +1450,8 @@ activations.
 .. parsed-literal::
 
     model quantization finished
+
+
 
 .. code:: ipython3
 
@@ -1527,7 +1529,7 @@ Compare Performance of the Original and Quantized Models
 
 Finally, use the OpenVINO
 `Benchmark
-Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 

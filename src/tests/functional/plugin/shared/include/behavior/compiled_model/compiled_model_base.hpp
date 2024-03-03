@@ -10,7 +10,6 @@
 #include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -239,7 +238,7 @@ TEST_P(OVCompiledModelBaseTest, canCompileModelwithBrace) {
         )V0G0N";
     ov::CompiledModel compiled_model;
     {
-        ov::Core tmp_core = createCoreWithTemplate();
+        ov::Core tmp_core = ov::test::utils::create_core();
         compiled_model = tmp_core.compile_model(model, ov::Tensor(), target_device, configuration);
     }
     EXPECT_NO_THROW(compiled_model.get_property(ov::optimal_number_of_infer_requests));
@@ -292,7 +291,7 @@ TEST_P(OVCompiledModelBaseTest, pluginDoesNotChangeOriginalNetwork) {
 
 TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     ov::preprocess::InputInfo& input = ppp.input();
     input.model().set_layout("??HW");
@@ -303,7 +302,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
 
 TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
     std::shared_ptr<ov::Model> model = ov::test::utils::make_single_concat_with_constant();
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     ov::preprocess::OutputInfo& output = ppp.output();
     output.postprocess().convert_element_type(ov::element::u8);
@@ -362,7 +361,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoBeforeExecution) {
 
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -414,7 +413,7 @@ TEST_P(OVCompiledModelBaseTestOptional, CheckExecGraphInfoAfterExecution) {
 
         auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
             auto it = rtInfo.find(paramName);
-            IE_ASSERT(rtInfo.end() != it);
+            OPENVINO_ASSERT(rtInfo.end() != it);
             return it->second.as<std::string>();
         };
 
@@ -682,7 +681,7 @@ public:
     }
     void TearDown() override {
         if (!configuration.empty()) {
-            PluginCache::get().reset();
+            ov::test::utils::PluginCache::get().reset();
         }
         APIBaseTest::TearDown();
     }
@@ -694,7 +693,7 @@ public:
 TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);
@@ -705,7 +704,7 @@ TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
 TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
@@ -716,7 +715,7 @@ TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
 TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     auto model = ov::test::utils::make_conv_pool_relu();
 
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     auto ppp = ov::preprocess::PrePostProcessor(model);
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);

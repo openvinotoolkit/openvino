@@ -11,6 +11,7 @@
 #include <pyopenvino/core/tensor.hpp>
 
 #include "common.hpp"
+#include "pyopenvino/core/remote_context.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -229,6 +230,69 @@ void regclass_Core(py::module m) {
             :type properties: dict
             :return: A compiled model.
             :rtype: openvino.runtime.CompiledModel
+        )");
+
+    cls.def(
+        "compile_model",
+        [](ov::Core& self,
+           const std::shared_ptr<const ov::Model>& model,
+           const RemoteContextWrapper& context,
+           const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            py::gil_scoped_release release;
+            return self.compile_model(model, context.context, _properties);
+        },
+        py::arg("model"),
+        py::arg("context"),
+        py::arg("properties"),
+        R"(
+            Creates a compiled model from a source model within a specified remote context.
+
+            GIL is released while running this function.
+
+            :param model: Model acquired from read_model function.
+            :type model: openvino.Model
+            :param context: RemoteContext instance.
+            :type context: openvino.RemoteContext
+            :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
+            :type properties: dict
+            :return: A compiled model.
+            :rtype: openvino.CompiledModel
+        )");
+
+    cls.def(
+        "create_context",
+        [](ov::Core& self, const std::string& device_name, const std::map<std::string, py::object>& properties) {
+            auto _properties = Common::utils::properties_to_any_map(properties);
+            return RemoteContextWrapper(self.create_context(device_name, _properties));
+        },
+        py::arg("device_name"),
+        py::arg("properties"),
+        R"(
+            Creates a new remote shared context object on the specified accelerator device
+            using specified plugin-specific low-level device API parameters.
+
+            :param device_name: Name of a device to create a new shared context on.
+            :type device_name: str
+            :param device_name: dict of device-specific shared context remote properties.
+            :type device_name: dict
+            :return: Remote context instance.
+            :rtype: openvino.RemoteContext
+        )");
+
+    cls.def(
+        "get_default_context",
+        [](ov::Core& self, const std::string& device_name) {
+            return RemoteContextWrapper(self.get_default_context(device_name));
+        },
+        py::arg("device_name"),
+        R"(
+            Gets default (plugin-supplied) shared context object for the specified accelerator device.
+
+            :param device_name: Name of a device to get a default shared context from.
+            :type device_name: str
+            :return: Remote context instance.
+            :rtype: openvino.RemoteContext
         )");
 
     cls.def("get_versions",

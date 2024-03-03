@@ -3,8 +3,8 @@
 //
 
 #include "shared_test_classes/single_op/generate_proposals.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -117,17 +117,17 @@ void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor>& expected
         const auto outputSize = i == 0 ? 4 : 1;
 
         if (outType == ov::element::f32) {
-            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float*>(expectedBuffer),
-                                                       reinterpret_cast<const float*>(actualBuffer),
-                                                       expectedNumRois * outputSize,
-                                                       rel_threshold,
-                                                       abs_threshold);
+            ov::test::utils::compare_raw_data(reinterpret_cast<const float*>(expectedBuffer),
+                                              reinterpret_cast<const float*>(actualBuffer),
+                                              expectedNumRois * outputSize,
+                                              rel_threshold,
+                                              abs_threshold);
         } else {
-            LayerTestsUtils::LayerTestsCommon::Compare(reinterpret_cast<const float16*>(expectedBuffer),
-                                                       reinterpret_cast<const float16*>(actualBuffer),
-                                                       expectedNumRois * outputSize,
-                                                       rel_threshold,
-                                                       abs_threshold);
+            ov::test::utils::compare_raw_data(reinterpret_cast<const float16*>(expectedBuffer),
+                                              reinterpret_cast<const float16*>(actualBuffer),
+                                              expectedNumRois * outputSize,
+                                              rel_threshold,
+                                              abs_threshold);
         }
 
         if (expectedNumRois < actualNumRois) {

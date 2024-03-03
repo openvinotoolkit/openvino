@@ -14,12 +14,6 @@ namespace kernel_selector {
 struct gather_tree_params : public base_params {
     gather_tree_params() : base_params(KernelType::GATHER_TREE) {}
 };
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gather_tree_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gather_tree_optional_params : optional_params {
-    gather_tree_optional_params() : optional_params(KernelType::GATHER_TREE) {}
-};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // GatherTreeKernelBase
@@ -32,6 +26,6 @@ public:
     protected:
         JitConstants GetJitConstants(const gather_tree_params& params) const;
         DispatchData SetDefault(const gather_tree_params& params) const;
-        KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+        KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

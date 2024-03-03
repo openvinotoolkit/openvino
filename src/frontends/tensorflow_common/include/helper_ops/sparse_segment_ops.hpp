@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "helper_ops/internal_operation.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace frontend {

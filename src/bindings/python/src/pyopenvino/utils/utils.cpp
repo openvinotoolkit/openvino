@@ -264,6 +264,12 @@ void deprecation_warning(const std::string& function_name,
     PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), stacklevel);
 }
 
+void raise_not_implemented() {
+    auto error_message = py::detail::c_str(std::string("This function is not implemented."));
+    PyErr_SetString(PyExc_NotImplementedError, error_message);
+    throw py::error_already_set();
+}
+
 bool py_object_is_any_map(const py::object& py_obj) {
     if (!py::isinstance<py::dict>(py_obj)) {
         return false;
@@ -298,6 +304,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj.cast<std::string>();
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
+    } else if (py::isinstance<py::bytes>(py_obj)) {
+        return py_obj.cast<std::string>();
     } else if (py::isinstance<py::float_>(py_obj)) {
         return py_obj.cast<double>();
     } else if (py::isinstance(py_obj, float_32_type)) {
@@ -316,7 +324,7 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                     detected_type = type;
                     return;
                 }
-                OPENVINO_ASSERT("Incorrect attribute. Mixed types in the list are not allowed.");
+                OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
             };
             if (py::isinstance<py::str>(it)) {
                 check_type(PY_TYPE::STR);

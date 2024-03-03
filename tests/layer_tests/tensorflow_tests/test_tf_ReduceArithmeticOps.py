@@ -8,13 +8,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestReduceArithmeticOps(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info, "Test error: inputs_info must contain `input`"
-        x_shape = inputs_info['input']
+        assert 'input:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        x_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
+        inputs_data['input:0'] = np.random.randint(-10, 10, x_shape).astype(np.float32)
         return inputs_data
 
-    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_new_frontend):
+    def create_reduce_net(self, shape, axis, operation, keep_dims, ir_version, use_legacy_frontend):
         import tensorflow as tf
         ops_mapping = {
             "Max": tf.raw_ops.Max,
@@ -45,8 +45,8 @@ class TestReduceArithmeticOps(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     def test_reduce(self, params, operation, keep_dims, ie_device, precision, ir_version, temp_dir,
-                    use_new_frontend):
+                    use_legacy_frontend):
         self._test(*self.create_reduce_net(**params, operation=operation, keep_dims=keep_dims, ir_version=ir_version,
-                                           use_new_frontend=use_new_frontend),
+                                           use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

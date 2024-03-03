@@ -32,7 +32,11 @@ class TestSqueeze(PytorchLayerTest):
     @pytest.mark.parametrize("dim,dynamic_shapes", [(-2, True), (0, True), (None, False)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_squeeze(self, dim, dynamic_shapes, ie_device, precision, ir_version):
+        if PytorchLayerTest.use_torch_export() and dim is None:
+            pytest.xfail(reason="export fails if dim is not provided")
         self._test(*self.create_model(dim), ie_device, precision, ir_version, dynamic_shapes=dynamic_shapes)
 
     @pytest.mark.xfail(reason='OpenVINO squeeze does not support dimension is not equal to 1.')

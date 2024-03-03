@@ -61,14 +61,14 @@ void TileKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData TileKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::TILE);
 
     KernelData kd = KernelData::Default<tile_params>(params);
     tile_params& newParams = *static_cast<tile_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -77,12 +77,12 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.has_dynamic_tensors());
+                     EXE_MODE_DEFAULT, false, false, 1, 0, 1, newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority TileKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority TileKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

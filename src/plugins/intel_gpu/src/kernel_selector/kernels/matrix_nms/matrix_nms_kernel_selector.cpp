@@ -12,7 +12,7 @@ matrix_nms_kernel_selector::matrix_nms_kernel_selector() {
     Attach<MatrixNmsKernelRef>();
 }
 
-KernelsData matrix_nms_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::MATRIX_NMS);
+KernelsData matrix_nms_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::MATRIX_NMS);
 }
 }  // namespace kernel_selector
