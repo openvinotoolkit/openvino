@@ -1,13 +1,5 @@
-# Copyright (C) 2018-2023 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
-import numpy as np
-import pytest
-import pytorch
-from pytorch_layer_test_class import PytorchLayerTest
-
-
 class TestAtan2(PytorchLayerTest):
+    class TestAtan2(PytorchLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'y' in inputs_info
         assert 'x' in inputs_info
@@ -18,29 +10,26 @@ class TestAtan2(PytorchLayerTest):
         inputs_data['x'] = np.random.rand(*x_shape).astype(self.input_type) - np.random.rand(*x_shape).astype(self.input_type)
         return inputs_data
 
-    def create_atan2_net(self, input_shape, input_type):
-        self.input_type = input_type
-        tf.compat.v1.reset_default_graph()
-        # Create the graph and model
-        with tf.compat.v1.Session() as sess:
-            y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
-            x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            tf.raw_ops.Atan2(y=y, x=x)
-            tf.compat.v1.global_variables_initializer()
-            tf_net = sess.graph_def
+    def create_model(self, input_type):
+        class aten_atan2(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.input_type = input_type
 
-        return tf_net, None
+            def forward(self, input_tensor, other_tensor):
+                return torch.atan2(input_tensor.to(self.input_type), other_tensor.to(self.input_type))
 
-    test_data_basic = [
-        dict(input_shape=[1, 2], input_type=np.float32),
-        dict(input_shape=[2, 3, 4], input_type=np.float32),
-    ]
+        ref_net = None
 
-    @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+        return aten_atan2(), ref_net, "aten::atan2"
+
+    @pytest.mark.parametrize(("input_type"), [
+        (torch.float16),
+        (torch.int32),
+        (torch.float64),
+        (torch.float32),
+    ])
     @pytest.mark.nightly
-    def test_atan2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend, use_old_api):
-        self._test(*self.create_atan2_net(**params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+    @pytest.mark.precommit
+    def test_atan2(self, input_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(input_type), ie_device, precision, ir_version, use_convert_model=True)
