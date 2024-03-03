@@ -476,12 +476,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_99968,
-        "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_keep_dims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_keep_dims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_negative_axes_keep_dims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_l1_negative_axes_keep_dims_random_cpu",
+        
         "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l2_do_not_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_l2_keep_dims_example_cpu",
