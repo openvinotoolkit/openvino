@@ -385,7 +385,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
     // invalid device name with characters after parenthesis except comma
     EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE(0)ov", ov::AnyMap{}), ov::Exception);
     EXPECT_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0)ov,DEVICE(1)", ov::AnyMap{}), ov::Exception);
-
+    EXPECT_NO_THROW(ov::parseDeviceNameIntoConfig("MULTI:DEVICE(0),DEVICE(1),", ov::AnyMap{}));
 }
 
 class ApplyAutoBatchThreading : public testing::Test {
