@@ -1,3 +1,13 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0i
+
+import pytest
+import torch
+import math
+import numpy as np
+
+from pytorch_layer_test_class import PytorchLayerTest
+
 class TestAtan2(PytorchLayerTest):
     class TestAtan2(PytorchLayerTest):
     def _prepare_input(self, inputs_info):
