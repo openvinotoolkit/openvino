@@ -41,13 +41,13 @@ Run the following commands in the build directory:
    ```
 2. Build the targets:
    ```
-   make --jobs=$(nproc --all) ov_subgraphs_dumper
-   make --jobs=$(nproc --all) ov_op_conformance_tests
-   make --jobs=$(nproc --all) ov_api_conformance_tests
+   cmake --build . --parallel $(nproc --all) --target ov_subgraphs_dumper
+   cmake --build . --parallel $(nproc --all) --target ov_op_conformance_tests
+   cmake --build . --parallel $(nproc --all) --target ov_api_conformance_tests
    ```
 3. Build plugins to validate:
    ```
-   make --jobs=$(nproc --all) lib_plugin_name
+   cmake --build . --parallel $(nproc --all) --target lib_plugin_name
    ```
 4. Install python dependencies to use `run_conformance` script:
    ```
