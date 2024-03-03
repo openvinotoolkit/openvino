@@ -154,3 +154,54 @@ class TestBiasAdd(CommonTFLayerTest):
                                                       use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
+
+
+class TestComplexBiasAdd(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
+        assert 'x_real:0' in inputs_info
+        assert 'x_imag:0' in inputs_info
+        x_real_shape = inputs_info['x_real:0']
+        x_imag_shape = inputs_info['x_imag:0']
+        inputs_data = {}
+        inputs_data['x_real:0'] = 4 * rng.random(x_real_shape).astype(np.float64) - 2
+        inputs_data['x_imag:0'] = 4 * rng.random(x_imag_shape).astype(np.float64) - 2
+        return inputs_data
+
+    def create_complex_bias_add_net(self, shape, ir_version, use_legacy_frontend, output_type=tf.float64):
+        tf.compat.v1.reset_default_graph()
+
+        with tf.compat.v1.Session() as sess:
+            x_real_shape = shape.copy()
+            x_imag_shape = shape.copy()
+
+            x_real = tf.compat.v1.placeholder(output_type, x_real_shape, 'x_real')
+            x_imag = tf.compat.v1.placeholder(output_type, x_imag_shape, 'x_imag')
+
+            constant_value_real = np.random.randint(-256, 256, x_real_shape[-1]).astype(output_type.as_numpy_dtype())
+            constant_value_imag = np.random.randint(-256, 256, x_imag_shape[-1]).astype(output_type.as_numpy_dtype())
+            y_real = tf.constant(constant_value_real)
+            y_imag = tf.constant(constant_value_imag)
+
+            complex_input = tf.complex(x_real, x_imag)
+            complex_bias = tf.complex(y_real, y_imag)
+
+            result = tf.raw_ops.BiasAdd(value=complex_input, bias=complex_bias,data_format='NHWC',name="ComplexBiasAdd")
+
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_data_2D = [
+        dict(shape=[1, 1]),
+        dict(shape=[1, 224])
+    ]
+
+    @pytest.mark.parametrize("params", test_data_2D)
+    @pytest.mark.nightly
+    def test_complex_bias_add(self, params, ie_device, precision, ir_version, temp_dir,
+                              use_legacy_frontend):
+        self._test(*self.create_complex_bias_add_net(**params, ir_version=ir_version,
+                                                     use_legacy_frontend=use_legacy_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)

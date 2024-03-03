@@ -6,6 +6,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -16,9 +17,22 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_bias_add_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"BiasAdd"});
+    default_op_checks(node, 2, {"BiasAdd"}, true);
     auto value = node.get_input(0);
     auto bias = node.get_input(1);
+
+    auto complex_type_mark_value = as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
+    auto complex_type_mark_bias = as_type_ptr<ComplexTypeMark>(bias.get_node_shared_ptr());
+    auto complex_type_inputs = (complex_type_mark_value || complex_type_mark_bias) ? true : false;
+    // validations prior to processing
+    if (complex_type_inputs) {
+        FRONT_END_GENERAL_CHECK(complex_type_mark_value != nullptr && complex_type_mark_bias != nullptr,
+                        "Mul gox complex and non-complex inputs. Inputs should be of same type.");
+
+        // extractions for complex processing
+        bias = complex_type_mark_bias->input_value(0);
+        value = complex_type_mark_value->input_value(0);
+    }
 
     // retrieve optional attributes
     std::string data_format = node.get_attribute<std::string>("data_format", "NHWC");
@@ -41,12 +55,19 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         std::vector<int64_t> axes_unsqueeze;
         for (int64_t dim_ind = 0; dim_ind < value_rank; ++dim_ind) {
             if (dim_ind != 1) {
-                axes_unsqueeze.push_back(dim_ind);
+                axes_unsqueeze.push_back(dim_ind);  
             }
         }
         auto axes_unsqueeze_node =
             make_shared<v0::Constant>(element::i64, Shape{axes_unsqueeze.size()}, axes_unsqueeze);
         bias_reshaped = make_shared<v0::Unsqueeze>(bias, axes_unsqueeze_node);
+    }
+
+    if (complex_type_inputs){
+        auto complex_add_res = make_shared<v1::Add>(value, bias_reshaped);
+        auto complex_result = make_shared<ComplexTypeMark>(complex_add_res->output(0), complex_type_mark_value->get_complex_part_type());
+        set_node_name(node.get_name(), complex_result);
+        return complex_result->outputs();
     }
 
     auto res = make_shared<v1::Add>(value, bias_reshaped);
