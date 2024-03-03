@@ -59,7 +59,7 @@ OutputVector translate_atan2_op(const NodeContext& node) {
 
     // handle the fifth condition : x=0 && y<0
     auto cond4 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
-    auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
+    auto const_minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
 
