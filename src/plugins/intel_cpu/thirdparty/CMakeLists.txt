@@ -15,7 +15,11 @@ if(ENABLE_LTO)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
-function(ov_add_onednn)
+function(ov_add_onednn_common)
+    #
+    # Common oneDNN options
+    #
+
     set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
     set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
@@ -30,19 +34,11 @@ function(ov_add_onednn)
     set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(DNNL_CPU_RUNTIME "${THREADING}" CACHE STRING "" FORCE)
-    set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
     set(DNNL_BLAS_VENDOR "NONE" CACHE STRING "" FORCE)
-    # plugin does not use onednn graph
     set(ONEDNN_BUILD_GRAPH OFF CACHE BOOL "" FORCE)
-    # select needed primitives
-    set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
     set(DNNL_ENABLE_WORKLOAD "INFERENCE" CACHE STRING "" FORCE)
     set(DNNL_LIBRARY_NAME "openvino_onednn_cpu" CACHE STRING "" FORCE)
-
-    # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
-    if(ENABLE_CPU_DEBUG_CAPS)
-        set(DNNL_VERBOSE ON CACHE STRING "" FORCE)
-    endif()
+    set(DNNL_EXPERIMENTAL_PROFILING ON CACHE BOOL "" FORCE)
 
     if(X86_64)
         set(DNNL_TARGET_ARCH "X64" CACHE STRING "" FORCE)
@@ -56,6 +52,32 @@ function(ov_add_onednn)
         set(DNNL_TARGET_ARCH "AARCH64" CACHE STRING "" FORCE)
     else()
         message(FATAL_ERROR "Unsupported system processor ${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+
+    # IMPORTANT! when updating this list of supported primitives, align it with oneDNN for GPU list
+    # https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/plugins/intel_gpu/thirdparty/CMakeLists.txt#L15
+    # It's required, because in case of static build both CPU and GPU share the same oneDNN library
+    set(DNNL_ENABLE_PRIMITIVE "CONVOLUTION;DECONVOLUTION;CONCAT;LRN;INNER_PRODUCT;MATMUL;POOLING;REDUCTION;REORDER;RNN;SOFTMAX" CACHE STRING "" FORCE)
+
+    #
+    # GPU specific options
+    #
+
+    if(NOT BUILD_SHARED_LIBS AND ENABLE_ONEDNN_FOR_GPU)
+        # build oneDNN to be compatible with Intel GPU plugin
+        set(DNNL_ENABLE_PRIMITIVE_GPU_ISA "XEHP;XEHPG;XEHPC" CACHE STRING "" FORCE)
+        set(DNNL_GPU_RUNTIME "OCL" CACHE STRING "" FORCE)
+    else()
+        set(DNNL_GPU_RUNTIME "NONE" CACHE STRING "" FORCE)
+    endif()
+
+    #
+    # CPU specific options
+    #
+
+    # Allow to enable oneDNN verbose with CPU_DEBUG_CAPS and rely on oneDNN default configuration otherwise
+    if(ENABLE_CPU_DEBUG_CAPS)
+        set(DNNL_VERBOSE ON CACHE STRING "" FORCE)
     endif()
 
     if(AARCH64 OR ARM)
@@ -77,6 +99,15 @@ function(ov_add_onednn)
         endfunction()
         link_libraries(TBB::tbb)
     endif()
+
+    # to find our FindACL.cmake
+    if(DNNL_USE_ACL)
+        list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
+    endif()
+
+    #
+    # Compilation flags
+    #
 
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         ov_add_compiler_flags(-Wno-undef)
@@ -110,10 +141,9 @@ function(ov_add_onednn)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
     endif()
 
-    # to find our FindACL.cmake
-    if(DNNL_USE_ACL)
-        list(APPEND CMAKE_MODULE_PATH "${intel_cpu_thirdparty_SOURCE_DIR}")
-    endif()
+    #
+    # Build and install
+    #
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
@@ -135,9 +165,9 @@ function(ov_add_onednn)
     endif()
 endfunction()
 
+ov_add_onednn_common()
+
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas)
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
-
-ov_add_onednn()
