@@ -241,7 +241,6 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
                                          const AnyMap& config,
                                          const bool keep_core_property) {
-
     // check to the validity of device name
     auto bracket_pos = deviceName.find(")");
     while (bracket_pos != std::string::npos) {
