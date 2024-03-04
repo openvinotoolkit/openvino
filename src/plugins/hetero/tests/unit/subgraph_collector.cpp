@@ -492,3 +492,60 @@ TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
     auto supported_ops = supported_ops_with_affinity;
     ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
 }
+
+TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::PartialShape{1, 3, 16, 16});
+    input->set_friendly_name("input");
+    auto convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    convert->set_friendly_name("convert");
+
+    auto constant1 = ov::op::v0::Constant::create(ov::element::f32, {}, {2.f});
+    constant1->set_friendly_name("constant1");
+
+    auto mul = std::make_shared<ov::op::v1::Multiply>(convert, constant1);
+    mul->set_friendly_name("mul");
+
+    auto constant2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    constant2->set_friendly_name("constant2");
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(mul, constant2);
+    transpose->set_friendly_name("transpose");
+    auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(transpose);
+    shapeOf->set_friendly_name("shapeOf");
+
+    auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
+    result2->set_friendly_name("result2");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result2}, ov::ParameterVector{input});
+    const std::map<std::string, std::string> supported_ops_with_affinity = {
+        {"input", "MOCK.0"},
+        {"convert", "MOCK.0"},
+        {"mul", "MOCK.0"},
+        {"constant1", "MOCK.0"},
+        {"constant2", "MOCK.0"},
+        {"transpose", "MOCK.1"},
+        {"shapeOf", "MOCK.0"},
+        {"result2", "MOCK.0"},
+    };
+    auto supported_ops = supported_ops_with_affinity;
+    ov::hetero::SubgraphsVector ordered_subgraphs;
+    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
+    std::tie(ordered_subgraphs, actual_mapping_info) = get_model_subgraphs(model, supported_ops, true, false);
+    for (const auto& subgraph : ordered_subgraphs) {
+        bool has_transpose = false;
+        bool has_constant = false;
+        auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
+
+        for (auto& node : sub_model->get_ordered_ops()) {
+            if (node->get_friendly_name() == "transpose") {
+                has_transpose = true;
+            }
+            if (node->get_friendly_name() == "constant2") {
+                has_constant = true;
+            }
+        }
+        ASSERT_EQ(has_transpose, has_constant);
+        if (has_transpose) {
+            ASSERT_EQ(subgraph._affinity, "MOCK.1");
+        }
+    }
+}
