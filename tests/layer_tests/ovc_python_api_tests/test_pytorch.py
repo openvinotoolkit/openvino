@@ -1072,8 +1072,9 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_module_with_nested_list_and_single_input,
         create_pytorch_module_with_single_input_as_list
     ]
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
 
-    @pytest.mark.parametrize("create_model", test_data)
+    @pytest.mark.parametrize("create_model", test_data, ids=test_ids )
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
@@ -1227,8 +1228,10 @@ class TestPytorchConversionParams(CommonMOConvertTest):
          'fw_model': make_pt_model_one_input(),
          'ref_model': make_ref_pt_model_one_input([7, 3], np.int32)},
     ]
+    
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_data,ids=test_ids)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
