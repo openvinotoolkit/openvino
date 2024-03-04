@@ -763,7 +763,8 @@ void network::allocate_primitives() {
             if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
                 opt_inst->build_deps();
             }
-            opt_inst->update_output_memory();
+            if (opt_inst->input_memory_ptr())
+                opt_inst->update_output_memory();
         }
     }
 
