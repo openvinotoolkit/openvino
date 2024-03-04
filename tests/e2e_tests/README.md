@@ -14,9 +14,9 @@ The documentation provides necessary information about environment setup for e2e
      
 ### Add model from TensorFlow Hub repo to end-to-end validation:
 To add new test for model from TF Hub repo just add new line into pipelines/production/tf_hub/precommit.yml
-This line should contain: model name, and its link to download. Example:
+This line should contain comma separated model name and its link
 ```
-my_model_name,https://www.example.com/model
+movenet/singlepose/lightning,https://www.kaggle.com/models/google/movenet/frameworks/tensorFlow2/variations/singlepose-lightning/versions/4
 ```
 
 ### Main entry-point 
@@ -31,7 +31,7 @@ following actions:
 
 #### Launch tests
 
-Module [test_base.py](https://github.com/openvinotoolkit/openvino/tree/master/tests/e2e_tests/test_base.py) is main entry-point to run E2E OSS tests.  
+[test_base.py](https://github.com/openvinotoolkit/openvino/tree/master/tests/e2e_tests/test_base.py) is the main script to run end-to-end tests.
 Run all end-to-end tests in `pipelines/`:
 ```bash
 pytest test_base.py

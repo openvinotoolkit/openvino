@@ -52,8 +52,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     // in main program and internal program for constant propagation
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
         if (!weights_reorder_node.is_constant()) {
-            auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
             auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
+            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+            auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
             reorder_kernel_params->prog = &p;
             auto reorder_impl = factory(*reorder_kernel_params);
 
