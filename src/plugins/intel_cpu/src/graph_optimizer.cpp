@@ -1496,19 +1496,19 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
-            parent++;
-            continue;
-        }
-#endif
 
         auto fuseCandidate = childNode->getChildEdgeAt(0)->getChild();
         if (parentNode->getType() == Type::BinaryConvolution && !parentNode->canFuse(fuseCandidate)) {
             parent++;
             continue;
         }
+
+#if defined(OV_CPU_WITH_ACL)
+        if (!parentNode->getFusedWith().empty()) {
+            parent++;
+            continue;
+        }
+#endif
 
         if (!DnnlExtensionUtils::isUnarySupportedAsPostOp(fuseCandidate->getAlgorithm())) {
             parent++;
@@ -1552,13 +1552,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
-            parent++;
-            continue;
-        }
-#endif
 
         childNode->fuseInto(parentNode);
 
@@ -1686,6 +1679,10 @@ static bool is_data_dependency(const std::shared_ptr<Node> &parent,
  */
 
 void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph) {
+#if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+    return;
+#endif
+
     auto &graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](NodePtr conv, NodePtr child) {
@@ -1817,11 +1814,6 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (mergedConv->getOriginalInputPrecisionAtPort(0) == ov::element::f16)
-            continue;
-#endif
         // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
         // non-optimal code path inside Convolution node, so better to avoid fusing at all.
         const auto& shape1 = sum->getInputShapeAtPort(0);
