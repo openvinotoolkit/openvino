@@ -47,9 +47,30 @@ ov::intel_cpu::SplitFC::SplitFC() {
         // split weight
         constexpr size_t split_dim = 0; // split happens on the first dimension.
         constexpr size_t split_num = 2; // split the tensor into two parts.
-        auto split_wgts = std::make_shared<ov::opset12::Split>(wgt_item,
-                                                               ov::opset8::Constant::create<int64_t>(ov::element::i64, ov::Shape{}, {split_dim}),
-                                                               split_num);
+        auto split_dim_range = wgt_item->get_shape()[split_dim];
+
+        // needn't to split fc when the dim is 0.
+        if (split_dim_range <= 1) {
+            return false;
+        }
+
+        auto split_dim_node = std::make_shared<ov::opset8::Constant>(ov::element::i64, ov::Shape{}, split_dim);
+
+        // We should use Split for even dim and VariadicSplit for odd dim.
+        std::shared_ptr<Node> split_wgts;
+        if (split_dim_range % 2 == 0) {
+            split_wgts = std::make_shared<ov::opset12::Split>(wgt_item,
+                                                              split_dim_node,
+                                                              split_num);
+        } else {
+            auto fc0_dim0 = static_cast<int64_t>((split_dim_range + 1) / 2);
+            auto fc1_dim0 = static_cast<int64_t>((split_dim_range - 1) / 2);
+            auto split_length = ov::opset8::Constant::create<int64_t>(ov::element::i64, ov::Shape{2}, {fc0_dim0, fc1_dim0});
+            split_wgts = std::make_shared<ov::opset12::VariadicSplit>(wgt_item,
+                                                                      split_dim_node,
+                                                                      split_length);
+        }
+
         // sub fc
         auto fc_output_type = fc_node->get_output_element_type(0);
         const auto out_rank = out_shape.rank();
