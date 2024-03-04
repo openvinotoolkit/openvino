@@ -10,7 +10,7 @@ rope_kernel_selector::rope_kernel_selector() {
     Attach<RoPEKernelRef>();
 }
 
-KernelsData rope_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::ROPE);
+KernelsData rope_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::ROPE);
 }
 }  // namespace kernel_selector

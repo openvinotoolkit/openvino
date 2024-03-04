@@ -22,13 +22,6 @@ struct rope_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// rope_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct rope_optional_params : optional_params {
-    rope_optional_params() : optional_params(KernelType::ROPE) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RoPEKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class RoPEKernelBase : public KernelBaseOpenCL {
@@ -39,10 +32,10 @@ public:
     struct DispatchData : public CommonDispatchData {};
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const rope_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const rope_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

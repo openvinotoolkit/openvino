@@ -6,8 +6,8 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-bool RoPEKernelBase::Validate(const Params& p, const optional_params& o) const {
-    return KernelBaseOpenCL::Validate(p, o);
+bool RoPEKernelBase::Validate(const Params& p) const {
+    return KernelBaseOpenCL::Validate(p);
 }
 
 JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKernelBase::DispatchData) const {
@@ -58,10 +58,10 @@ void RoPEKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData RoPEKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
+KernelsData RoPEKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::ROPE);
 
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     const rope_params& orgParams = static_cast<const rope_params&>(params);
@@ -70,7 +70,7 @@ KernelsData RoPEKernelBase::GetCommonKernelsData(const Params& params, const opt
     KernelData kd = KernelData::Default<rope_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
