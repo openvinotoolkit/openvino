@@ -11,7 +11,8 @@ KERNEL(rope_ref)(
     __global OUTPUT_TYPE* output)
 {
     const uint p = get_global_id(0);
-    const uint b = get_global_id(1);
+    const uint f = get_global_id(1) / INPUT0_FEATURE_NUM;
+    const uint b = get_global_id(1) % INPUT0_FEATURE_NUM;
     const uint h = get_global_id(2) / HALF_ROTARY_NDIMS;
     const uint r = get_global_id(2) % HALF_ROTARY_NDIMS * 2;
 
@@ -26,13 +27,14 @@ KERNEL(rope_ref)(
     uint cos_sin_idx = INPUT1_GET_INDEX(p, b, 0, 0);
     uint output_idx = OUTPUT_GET_INDEX(p, b, h, 0);
 
+    if (get_global_id(2) >= HEAD_COUNT * HALF_ROTARY_NDIMS)
+        return;
+
     INPUT1_TYPE cosv = cos_sin[cos_sin_idx + r];
     INPUT1_TYPE sinv = cos_sin[cos_sin_idx + r + 1];
 
     output[output_idx + r] = cosv * input[input_idx + r] - sinv * input[input_idx + r + 1];
     output[output_idx + r + 1] = sinv * input[input_idx + r] + cosv * input[input_idx + r + 1];
 
-    for (uint i = HALF_ROTARY_NDIMS * 2; i < HEAD_SIZE; ++i) {
-        output[output_idx + i] = input[input_idx + i];
-    }
+    output[output_idx + ROTARY_NDIMS + f] = input[input_idx + ROTARY_NDIMS + f];
 }

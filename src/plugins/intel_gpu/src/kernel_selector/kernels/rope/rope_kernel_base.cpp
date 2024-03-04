@@ -14,7 +14,9 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.head_size));
+    jit.AddConstant(MakeJitConstant("ROTARY_NDIMS", params.rotary_ndims));
     jit.AddConstant(MakeJitConstant("HALF_ROTARY_NDIMS", params.rotary_ndims / 2));
+    jit.AddConstant(MakeJitConstant("HEAD_COUNT", params.head_cnt));
 
     if (params.slice_stop - params.slice_start > 0) {
         jit.AddConstant(MakeJitConstant("ENABLE_SLICE", true));
@@ -41,8 +43,8 @@ RoPEKernelBase::DispatchData RoPEKernelBase::SetDefault(const rope_params& param
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    dispatchData.gws = {input.Batch().v, input.Feature().v, params.head_cnt * (params.rotary_ndims / 2)};
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.gws = {input.Batch().v, input.Feature().v * (params.head_size - params.rotary_ndims), Align(params.head_cnt * (params.rotary_ndims / 2), 64)};
+    dispatchData.lws = {1, 1, 64};
 
     return dispatchData;
 }
