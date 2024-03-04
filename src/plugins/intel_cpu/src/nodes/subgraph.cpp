@@ -22,7 +22,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/x64/cpu_generator.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
@@ -33,7 +33,7 @@
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/enforce_precision.hpp"
 #include "transformations/snippets/x64/shape_inference.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
 #include "emitters/snippets/aarch64/cpu_generator.hpp"
 #include "transformations/snippets/aarch64/shape_inference.hpp"
 #endif
@@ -54,10 +54,10 @@ std::mutex err_print_lock;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
 #endif
@@ -141,10 +141,10 @@ bool SnippetKey::operator==(const SnippetKey& rhs) const {
 
 Snippet::Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         : Node(op, context, SnippetShapeInferFactory(op)) {
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
     host_isa = dnnl::impl::cpu::aarch64::asimd;
 #endif
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
@@ -226,9 +226,9 @@ void Snippet::initSupportedPrimitiveDescriptors() {
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
             } else if (lt == Blocked && shape.getRank() != 1 && (shape.getMinDims()[1] != Shape::UNDEFINED_DIM && shape.getMinDims()[1] > 1)) {
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
                 size_t blockSize = mayiuse(dnnl::impl::cpu::x64::avx512_core) ? 16 : 8;
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
                 size_t blockSize = 16;
 #endif
 
@@ -294,13 +294,13 @@ void Snippet::initSupportedPrimitiveDescriptors() {
         }
 
         impl_desc_type impl_type = impl_desc_type::unknown;
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
         if (mayiuse(x64::avx512_core)) {
             impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(x64::avx2)) {
             impl_type = impl_desc_type::jit_avx2;
         }
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
         impl_type = impl_desc_type::jit_asimd;
 #endif
         return {config, impl_type};
