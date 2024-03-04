@@ -18,7 +18,12 @@ const char *targetPluginName = "";
 const char *refCachePath = "";
 
 std::vector<std::string> IRFolderPaths = {};
-std::vector<std::string> disabledTests = {};
+std::vector<std::string> disabledTests = {
+
+    // CPU and GPU do not support dynamic rank
+    // Issue: 66778 and 98723
+    R"(.*OVInferRequestDynamicTests.*/*_targetDevice=(AUTO).*)",
+};
 
 ShapeMode shapeMode = ov::test::conformance::ShapeMode::BOTH;
 

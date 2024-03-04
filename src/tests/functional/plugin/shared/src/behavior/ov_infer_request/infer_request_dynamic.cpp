@@ -40,6 +40,7 @@ std::string OVInferRequestDynamicTests::getTestCaseName(testing::TestParamInfo<O
 void OVInferRequestDynamicTests::SetUp() {
     std::tie(function, inOutShapes, target_device, configuration) = this->GetParam();
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ie = utils::PluginCache::get().core();
     APIBaseTest::SetUp();
 }
 
