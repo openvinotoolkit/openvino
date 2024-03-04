@@ -32,7 +32,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
     element::Type complex_part_type = complex_type_mark->get_complex_part_type();
     auto op_type = node.get_op_type()
-    auto coomplex = complex_type_mark->input_value(0);
+    complex = complex_type_mark->input_value(0);
 
     TENSORFLOW_OP_VALIDATION(
     node,
