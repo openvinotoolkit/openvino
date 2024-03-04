@@ -109,7 +109,8 @@ class TestExtensions(CommonMOConvertTest):
          'ref_graph': create_ref_graph2()}
     ]
 
-    @pytest.mark.parametrize("params", test_data)
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
+    @pytest.mark.parametrize("params", test_data,ids=test_ids)
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_mo_convert_extensions(self, params, ie_device, precision, ir_version,
