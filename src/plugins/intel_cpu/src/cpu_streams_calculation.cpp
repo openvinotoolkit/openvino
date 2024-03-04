@@ -553,7 +553,8 @@ int get_model_prefer_threads(const int num_streams,
             // network is below general threshold
             config.modelPreferThreads = 2;
         }
-        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
+            proc_type_table[0][HYPER_THREADING_PROC] > 0) {
             config.modelPreferThreads = 2;
         }
 #endif
