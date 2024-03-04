@@ -141,8 +141,8 @@ DATA_ET bilinear(const DATA_ET* data,
     const auto x_d = denormalize(x_n, data_shape[3]);
     const auto y_topleft = std::floor(y_d);
     const auto x_topleft = std::floor(x_d);
-    const auto dy = y_d - y_topleft;
-    const auto dx = x_d - x_topleft;
+    const auto dy = static_cast<DATA_ET>(y_d - y_topleft);
+    const auto dx = static_cast<DATA_ET>(x_d - x_topleft);
     const auto v00 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft));
     const auto v01 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft), static_cast<long>(x_topleft + 1));
     const auto v10 = get_padded(data, data_shape, n, c, static_cast<long>(y_topleft + 1), static_cast<long>(x_topleft));
