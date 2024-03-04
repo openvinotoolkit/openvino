@@ -63,6 +63,8 @@ const std::vector<get_property_params> get_property_params_test = {
     get_property_params{ov::device::priorities.name(), true},
     get_property_params{ov::cache_dir.name(), true},
     get_property_params{ov::hint::performance_mode.name(), true},
+    {"PERF_COUNT", false},                   
+    {"NUM_STREAMS", true}, 
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
