@@ -51,7 +51,9 @@ MakeDefaultMultiThreadsTestCase _1sockets_streams_1 = {
     1,  // param[in]: the number of streams
     // param[out]: streams info table
     {
-        {1, 1, 6, 0, 0},
+        {1, 0, 12, 0, 0},
+        {0, 1, 6, 0, 0},
+        {0, 3, 6, 0, 0},
     },
 };
 
@@ -74,9 +76,11 @@ MakeDefaultMultiThreadsTestCase _2sockets_streams_1 = {
     },
     1,
     {
-        {1, 0, 36, -1, -1},
+        {1, 0, 72, -1, -1},
         {0, 1, 18, 0, 0},
         {0, 1, 18, 1, 1},
+        {0, 3, 18, 0, 0},
+        {0, 3, 18, 1, 1},
     },
 };
 
@@ -88,8 +92,10 @@ MakeDefaultMultiThreadsTestCase _2sockets_streams_4 = {
     },
     4,
     {
-        {2, 1, 9, 0, 0},
-        {2, 1, 9, 1, 1},
+        {1, 1, 18, 0, 0},
+        {1, 1, 18, 1, 1},
+        {1, 3, 18, 0, 0},
+        {1, 3, 18, 1, 1},
     },
 };
 
@@ -99,7 +105,10 @@ MakeDefaultMultiThreadsTestCase _pecore24_streams_1 = {
     },
     1,
     {
-        {1, 1, 8, 0, 0},
+        {1, 0, 24, 0, 0},
+        {0, 1, 8, 0, 0},
+        {0, 2, 8, 0, 0},
+        {0, 3, 8, 0, 0},
     },
 };
 
@@ -109,7 +118,9 @@ MakeDefaultMultiThreadsTestCase _pecore24_streams_3 = {
     },
     3,
     {
-        {3, 1, 2, 0, 0},
+        {1, 1, 8, 0, 0},
+        {1, 2, 8, 0, 0},
+        {1, 3, 8, 0, 0},
     },
 };
 
@@ -119,9 +130,10 @@ MakeDefaultMultiThreadsTestCase _pecore32_streams_1 = {
     },
     1,
     {
-        {1, 0, 24, 0, 0},
+        {1, 0, 32, 0, 0},
         {0, 1, 8, 0, 0},
         {0, 2, 16, 0, 0},
+        {0, 3, 8, 0, 0},
     },
 };
 
