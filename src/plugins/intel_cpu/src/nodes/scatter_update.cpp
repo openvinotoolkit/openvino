@@ -10,6 +10,8 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
+#include "openvino/opsets/opset12.hpp"
+#include "utils/plain_tensor.hpp"
 
 #include <algorithm>
 #include <string>
@@ -391,7 +393,8 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            scatterElementsUpdate(indicesPtr, updatePtr, axis, dstPtr);
+            // scatterElementsUpdate(indicesPtr, updatePtr, axis, dstPtr);
+            scatterElementsUpdate(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
             break;
         }
         default: {
@@ -468,9 +471,80 @@ void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *
     });
 }
 
+static std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape) {
+    size_t shapeRank = shape.size();
+    std::vector<size_t> coordinate;
+    coordinate.reserve(shapeRank);
+    for (int i = shapeRank - 1; i >= 0; i--) {
+        coordinate[i] = offset % shape[i];
+        offset /= shape[i];
+    }
+    return coordinate;
+}
+
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis) {
+    PlainTensor data_buf, indices_buf, updates_buf;
+    data_buf.reset(mem_data);
+    indices_buf.reset(mem_indices);
+    updates_buf.reset(mem_updates);
+
+    const auto& data_shape = mem_data->getStaticDims();
+    const auto& indices_shape = mem_indices->getStaticDims();
+    size_t indices_rank = indices_shape.size();
+
+    const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
+    const int64_t index_dim_size = static_cast<int64_t>(indices_shape[axis]);
+    std::cout << "data_dim_size = " << data_dim_size << '\n';
+    std::cout << "index_dim_size = " << index_dim_size << '\n';
+
+    if (axis < 0)
+        axis += indices_rank;
+
+    std::vector<size_t> h_shape (std::begin(indices_shape), std::next(std::begin(indices_shape), axis));
+    std::vector<size_t> l_shape (std::next(std::begin(indices_shape), axis+1), std::end(indices_shape));
+
+    size_t H = shape_size(h_shape);
+    size_t L = shape_size(l_shape);
+
+    std::copy(begin(h_shape), end(h_shape), std::ostream_iterator<int>(std::cout, " "));
+    std::cout << "H = " << H << '\n';
+    std::copy(begin(l_shape), end(l_shape), std::ostream_iterator<int>(std::cout, " "));
+    std::cout << "L = " << L << '\n';
+
+    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
+    // parallel_for2d(H, L, [&](size_t h, size_t l) {
+    for (size_t h = 0; h < H; h++) {
+        for (size_t l = 0; l < L; l++) {
+            auto coord_h = getCoordinate(h, h_shape);
+            auto coord_l = getCoordinate(l, l_shape);
+
+            std::vector<int32_t> indices_coord(indices_rank, 0);
+            for (size_t i = 0; i < axis; i++) indices_coord[i] = coord_h[i];
+            for (size_t i = axis + 1; i < indices_rank; i++) indices_coord[i] = coord_l[i - axis - 1];    
+            std::copy(begin(indices_coord), end(indices_coord), std::ostream_iterator<int>(std::cout, " "));
+            std::cout << '\n';
+            std::vector<int32_t> data_coord(indices_coord);
+
+            for (size_t i = 0; i < index_dim_size; i++) {
+                indices_coord[axis] = i;
+                int64_t idxValue = indices_buf.at<int32_t, int32_t>(indices_coord);        
+                if (idxValue < 0)
+                    idxValue += data_dim_size;
+                if (0 <= idxValue && idxValue < data_dim_size) {
+                    data_coord[axis] = idxValue;
+                    data_buf.at<float, int32_t>(data_coord) = updates_buf.at<float, int32_t>(indices_coord);
+                } else {
+                    std::cout << "exception " << idxValue << std::endl;
+                }
+            }
+        }
+    }
+    // });
+}
+
 void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
