@@ -288,7 +288,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         // mark all removed nodes as supported
         supported.insert(removed_nodes.begin(), removed_nodes.end());
     }
-    
     // In case some ops not in orederd
     if (memory_control) {
         bool changed = true;
