@@ -710,8 +710,10 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf1_wrap_function,
         create_tf_session,
     ]
+    
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
 
-    @pytest.mark.parametrize("create_model", test_data)
+    @pytest.mark.parametrize("create_model", test_data,ids=test_ids)
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
@@ -1062,8 +1064,10 @@ class TestTFConversionParams(CommonMOConvertTest):
          'fw_model': create_tf_model_single_input(),
          'ref_model': create_ref_model_single_input([1, 2, 3, 4], np.int32)}
     ]
+    
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
 
-    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.parametrize("params", test_data, ids=test_ids)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
