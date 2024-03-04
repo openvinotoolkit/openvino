@@ -65,22 +65,21 @@ void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<op::Buffer>(expr->get_node()),
                     "Buffer validation expects Buffer op");
-    for (const auto& in : expr->get_input_port_connectors()) {
-        const auto& source = in->get_source();
-        const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
-        OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
-                        "Buffer expects MemoryAccess parent");
-    }
-    for (const auto& out : expr->get_output_port_connectors()) {
-        const auto consumers = out->get_consumers();
-        for (const auto& consumer_input : consumers) {
-            const auto& node = consumer_input.get_expr()->get_node();
-            if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
-                OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
-                                "Buffer expects MemoryAccess on output");
-            } else {
-                OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
-            }
+    const auto& in = expr->get_input_port_connector(0);
+    const auto& source = in->get_source();
+    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
+    OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
+                    "Buffer expects MemoryAccess parent");
+
+    const auto& out = expr->get_output_port_connector(0);
+    const auto consumers = out->get_consumers();
+    for (const auto& consumer_input : consumers) {
+        const auto& node = consumer_input.get_expr()->get_node();
+        if (const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(node)) {
+            OPENVINO_ASSERT(ma->is_memory_access_input_port(consumer_input.get_index()),
+                            "Buffer expects MemoryAccess on output");
+        } else {
+            OPENVINO_ASSERT(ov::is_type<op::LoopEnd>(node), "Parameter must be connected to MemoryAccess op or LoopEnd");
         }
     }
 }

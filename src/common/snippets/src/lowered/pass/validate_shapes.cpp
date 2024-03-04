@@ -7,7 +7,6 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
-#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

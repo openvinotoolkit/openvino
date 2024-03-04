@@ -81,8 +81,8 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LinearIR::LoopManage
 
     const auto loop_info = loop_manager->get_loop_info(loop_end->get_id());
 
-    // TODO [74015]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
-    //               To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
+    // TODO [133463]: We have to update LoopEnd and LoopInfo since the both entities must be valid.
+    //                To avoid the both changes, we have to insert Loop ops to LinearIR in the end of pipeline.
     auto loop_entries = loop_info->get_entry_points();
     auto loop_exits = loop_info->get_exit_points();
     auto new_is_incremented = loop_end->get_is_incremented();
