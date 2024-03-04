@@ -7,6 +7,7 @@ import numpy as np
 import openvino.runtime as ov
 import pytest
 from openvino.runtime import Model
+import random
 
 from common.mo_convert_test_class import CommonMOConvertTest
 
@@ -56,7 +57,8 @@ def create_ref_model(shape):
     parameter_list = [param1]
     return Model([relu], parameter_list, "test")
 
-def create_bytes_io():
+
+def create_bytes_io():  
     import onnx
     onnx_model = make_graph_proto_model()
 
@@ -68,12 +70,14 @@ def create_bytes_io():
 
 
 class TestMoConvertONNX(CommonMOConvertTest):
+
     test_data = [create_bytes_io]
-    @pytest.mark.parametrize("create_model", test_data)
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
+    
+    @pytest.mark.parametrize("create_model",test_data,ids=test_ids) 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_mo_convert_onnx(self, create_model, ie_device, precision, ir_version,
-                                             temp_dir):
+    def test_mo_convert_onnx(self, create_model, ie_device, precision, ir_version,temp_dir):
         fw_model, graph_ref, mo_params = create_model()
 
         test_params = {'input_model': fw_model}
