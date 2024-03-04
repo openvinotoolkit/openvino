@@ -18,6 +18,7 @@
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/cpu_opset/common/op/gather_compression.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
@@ -69,6 +70,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
+    OP_EXTENSION(ov::intel_cpu::GatherCompressionNode)                      \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
     OP_EXTENSION(ov::op::internal::MulticlassNmsIEInternal)                 \
     OP_EXTENSION(ov::op::internal::AUGRUCell)                               \

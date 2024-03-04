@@ -96,6 +96,7 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
+#include "nodes/gather_compression.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -188,6 +189,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);
+    INTEL_CPU_NODE(GatherCompression, Type::GatherCompression);
     INTEL_CPU_NODE(NonMaxSuppression, Type::NonMaxSuppression);
     INTEL_CPU_NODE(ROIPooling, Type::ROIPooling);
     INTEL_CPU_NODE(ROIAlign, Type::ROIAlign);

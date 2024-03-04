@@ -138,6 +138,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
 
     // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
+
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, ov::element::i32},
                           {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
@@ -632,28 +633,6 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
-<<<<<<< HEAD
-void Gather::fuseDecompressionMultiply(const MemoryCPtr& memory) {
-    fuseDecompressionConstant(memory, decompressionMultiplyPtr);
-}
-
-void Gather::fuseDecompressionSubtract(const MemoryCPtr& memory) {
-    fuseDecompressionConstant(memory, decompressionSubtractPtr);
-}
-
-void Gather::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr) {
-    const auto decompression_prc = ov::element::f32;
-    if (memory->getDesc().getPrecision() == decompression_prc) {
-        decompressionValuesPtr = memory;
-    } else {
-        DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
-        decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
-        decompressionValuesPtr->load(*memory);
-    }
-}
-
-=======
->>>>>>> parent of 0ea791e9b7 ([CPU][LLM] Compressed embeddings support for gather (#22445))
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov
