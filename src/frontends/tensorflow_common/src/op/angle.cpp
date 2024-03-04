@@ -37,7 +37,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     TENSORFLOW_OP_VALIDATION(
     node,
     complex_type_mark,
-    "[TENSORFLOW FRONTEND] Internal error: complex_type_mark does not support" + op_type + "operation"
+    "[TensorFlow Frontend] inconsistent model: Angle operation expects complex type tensor on input"
     );
 
     auto real_index = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
