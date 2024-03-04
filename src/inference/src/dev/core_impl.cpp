@@ -244,7 +244,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     // check to the validity of device name
     auto bracket_pos = deviceName.find(")");
     while (bracket_pos != std::string::npos) {
-        if (bracket_pos < deviceName.length() - 1 && deviceName[bracket_pos + 1] != ',') {
+        if (bracket_pos < deviceName.length() - 1 &&
+            (deviceName[bracket_pos + 1] != ',' || bracket_pos + 1 == deviceName.length() - 1)) {
             OPENVINO_THROW("Device with \"", deviceName, "\" name is illegal in the OpenVINO Runtime");
         }
         bracket_pos = deviceName.find(")", bracket_pos + 1);
