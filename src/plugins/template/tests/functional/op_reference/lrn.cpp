@@ -31,8 +31,8 @@ struct LRNParams {
         m_expected_shape = expected_shape;
         m_input_type = input_type;
         m_expected_type = expected_type;
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_alpha = alpha;
         m_beta = beta;
         m_bias = bias;
@@ -58,8 +58,8 @@ struct LRNParams {
         m_expected_type = expected_type;
         std::vector<T> input_value(shape_size(input_shape));
         std::iota(std::begin(input_value), std::end(input_value), input_value_step);
-        m_input_value = CreateTensor(input_type, input_value);
-        m_expected_value = CreateTensor(expected_type, expected_value);
+        m_input_value = CreateTensor(input_shape, input_type, input_value);
+        m_expected_value = CreateTensor(expected_shape, expected_type, expected_value);
         m_alpha = alpha;
         m_beta = beta;
         m_bias = bias;

@@ -27,7 +27,7 @@ struct MishParams {
           inType(iType),
           outType(iType),
           inputData(CreateTensor(inputShape, iType, iValues)),
-          refData(CreateTensor(iType, oValues)),
+          refData(CreateTensor(inputShape, iType, oValues)),
           testcaseName(test_name) {}
 
     ov::PartialShape dynamicShape;

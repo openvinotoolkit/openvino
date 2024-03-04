@@ -14,9 +14,9 @@ using namespace ov;
 namespace {
 struct GroupConvolutionBackpropDataParams {
     template <class IT>
-    GroupConvolutionBackpropDataParams(const PartialShape& inputShape,
-                                       const PartialShape& filterShape,
-                                       const PartialShape& outputShape,
+    GroupConvolutionBackpropDataParams(const Shape& inputShape,
+                                       const Shape& filterShape,
+                                       const Shape& outputShape,
                                        const element::Type& iType,
                                        const std::vector<IT>& iValues,
                                        const std::vector<IT>& filterValues,
@@ -32,18 +32,18 @@ struct GroupConvolutionBackpropDataParams {
           inType(iType),
           filterType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          filterData(CreateTensor(iType, filterValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
+          filterData(CreateTensor(filterShape, iType, filterValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           strides(strides),
           padBegin(padBegin),
           padEnd(padEnd),
           dialations(dialations),
           outPadding(outPadding) {}
 
-    PartialShape inputShape;
-    PartialShape filterShape;
-    PartialShape outputShape;
+    Shape inputShape;
+    Shape filterShape;
+    Shape outputShape;
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type outType;
@@ -59,9 +59,9 @@ struct GroupConvolutionBackpropDataParams {
 
 struct GroupConvolutionBackpropDataOutShapeParams {
     template <class IT>
-    GroupConvolutionBackpropDataOutShapeParams(const PartialShape& inputShape,
-                                               const PartialShape& filterShape,
-                                               const PartialShape& outputShape,
+    GroupConvolutionBackpropDataOutShapeParams(const Shape& inputShape,
+                                               const Shape& filterShape,
+                                               const Shape& outputShape,
                                                const element::Type& iType,
                                                const std::vector<IT>& iValues,
                                                const std::vector<IT>& filterValues,
@@ -76,17 +76,17 @@ struct GroupConvolutionBackpropDataOutShapeParams {
           inType(iType),
           filterType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          filterData(CreateTensor(iType, filterValues)),
-          refData(CreateTensor(iType, oValues)),
+          inputData(CreateTensor(inputShape, iType, iValues)),
+          filterData(CreateTensor(filterShape, iType, filterValues)),
+          refData(CreateTensor(outputShape, iType, oValues)),
           strides(strides),
           dialations(dialations),
           constantOutputShape(constantOutputShape),
           constantOutputShapeData(constantOutputShapeData) {}
 
-    PartialShape inputShape;
-    PartialShape filterShape;
-    PartialShape outputShape;
+    Shape inputShape;
+    Shape filterShape;
+    Shape outputShape;
     ov::element::Type inType;
     ov::element::Type filterType;
     ov::element::Type outType;
@@ -215,9 +215,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
 
     std::vector<GroupConvolutionBackpropDataParams> groupConvolutionBackpropDataParams{
         // --------------------- 1D GroupConvolutionBackpropData ------------------------------------------
-        GroupConvolutionBackpropDataParams(PartialShape{1, 1, 4},
-                                           PartialShape{1, 1, 1, 3},
-                                           PartialShape{1, 1, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 1, 4},
+                                           Shape{1, 1, 1, 3},
+                                           Shape{1, 1, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0},
                                            std::vector<T>{2, 0, 1},
@@ -226,9 +226,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {0},
                                            {1}),
-        GroupConvolutionBackpropDataParams(PartialShape{1, 2, 4},
-                                           PartialShape{2, 1, 1, 3},
-                                           PartialShape{1, 2, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 2, 4},
+                                           Shape{2, 1, 1, 3},
+                                           Shape{1, 2, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0, 1, 2, 1, 3},
                                            std::vector<T>{1, 0, 3, 3, 0, 1},
@@ -237,9 +237,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {0},
                                            {1}),
-        GroupConvolutionBackpropDataParams(PartialShape{1, 4, 4},
-                                           PartialShape{2, 2, 1, 3},
-                                           PartialShape{1, 2, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 4, 4},
+                                           Shape{2, 2, 1, 3},
+                                           Shape{1, 2, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0, 1, 2, -1, -3, -3, 0, 1, 2, 0, -2, 3, -1},
                                            std::vector<T>{1, 0, 3, 3, 0, 1, -3, 0, 1, 3, 2, -1},
@@ -249,9 +249,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {1}),
         GroupConvolutionBackpropDataParams(
-            PartialShape{2, 2, 4},
-            PartialShape{2, 1, 1, 3},
-            PartialShape{2, 2, 6},
+            Shape{2, 2, 4},
+            Shape{2, 1, 1, 3},
+            Shape{2, 2, 6},
             IN_ET,
             std::vector<T>{// -- batch 1 --
                            1,
@@ -278,9 +278,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
             {0},
             {1}),
         GroupConvolutionBackpropDataParams(
-            PartialShape{1, 1, 3, 3},
-            PartialShape{1, 1, 1, 3, 3},
-            PartialShape{1, 1, 6, 6},
+            Shape{1, 1, 3, 3},
+            Shape{1, 1, 1, 3, 3},
+            Shape{1, 1, 6, 6},
             IN_ET,
             std::vector<T>{0.16857791f,
                            -0.15161794f,
@@ -321,9 +321,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
 
     std::vector<GroupConvolutionBackpropDataParams> groupConvolutionBackpropDataParams{
         // --------------------- 1D GroupConvolutionBackpropData ------------------------------------------
-        GroupConvolutionBackpropDataParams(PartialShape{1, 1, 4},
-                                           PartialShape{1, 1, 1, 3},
-                                           PartialShape{1, 1, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 1, 4},
+                                           Shape{1, 1, 1, 3},
+                                           Shape{1, 1, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0},
                                            std::vector<T>{2, 0, 1},
@@ -332,9 +332,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {0},
                                            {1}),
-        GroupConvolutionBackpropDataParams(PartialShape{1, 2, 4},
-                                           PartialShape{2, 1, 1, 3},
-                                           PartialShape{1, 2, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 2, 4},
+                                           Shape{2, 1, 1, 3},
+                                           Shape{1, 2, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0, 1, 2, 1, 3},
                                            std::vector<T>{1, 0, 3, 3, 0, 1},
@@ -343,9 +343,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {0},
                                            {1}),
-        GroupConvolutionBackpropDataParams(PartialShape{1, 4, 4},
-                                           PartialShape{2, 2, 1, 3},
-                                           PartialShape{1, 2, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 4, 4},
+                                           Shape{2, 2, 1, 3},
+                                           Shape{1, 2, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0, 1, 2, -1, -3, -3, 0, 1, 2, 0, -2, 3, -1},
                                            std::vector<T>{1, 0, 3, 3, 0, 1, -3, 0, 1, 3, 2, -1},
@@ -355,9 +355,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {1}),
         GroupConvolutionBackpropDataParams(
-            PartialShape{2, 2, 4},
-            PartialShape{2, 1, 1, 3},
-            PartialShape{2, 2, 6},
+            Shape{2, 2, 4},
+            Shape{2, 1, 1, 3},
+            Shape{2, 2, 6},
             IN_ET,
             std::vector<T>{// -- batch 1 --
                            1,
@@ -393,9 +393,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
 
     std::vector<GroupConvolutionBackpropDataParams> groupConvolutionBackpropDataParams{
         // --------------------- 1D GroupConvolutionBackpropData ------------------------------------------
-        GroupConvolutionBackpropDataParams(PartialShape{1, 1, 4},
-                                           PartialShape{1, 1, 1, 3},
-                                           PartialShape{1, 1, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 1, 4},
+                                           Shape{1, 1, 1, 3},
+                                           Shape{1, 1, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0},
                                            std::vector<T>{2, 0, 1},
@@ -404,9 +404,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {0},
                                            {1}),
-        GroupConvolutionBackpropDataParams(PartialShape{1, 2, 4},
-                                           PartialShape{2, 1, 1, 3},
-                                           PartialShape{1, 2, 6},
+        GroupConvolutionBackpropDataParams(Shape{1, 2, 4},
+                                           Shape{2, 1, 1, 3},
+                                           Shape{1, 2, 6},
                                            IN_ET,
                                            std::vector<T>{1, 3, 3, 0, 1, 2, 1, 3},
                                            std::vector<T>{1, 0, 3, 3, 0, 1},
@@ -416,9 +416,9 @@ std::vector<GroupConvolutionBackpropDataParams> generateGroupConvolutionBackprop
                                            {0},
                                            {1}),
         GroupConvolutionBackpropDataParams(
-            PartialShape{2, 2, 4},
-            PartialShape{2, 1, 1, 3},
-            PartialShape{2, 2, 6},
+            Shape{2, 2, 4},
+            Shape{2, 1, 1, 3},
+            Shape{2, 2, 6},
             IN_ET,
             std::vector<T>{// -- batch 1 --
                            1,
@@ -476,9 +476,9 @@ std::vector<GroupConvolutionBackpropDataOutShapeParams> generateGroupConvolution
 
     std::vector<GroupConvolutionBackpropDataOutShapeParams> groupConvolutionBackpropDataOutShapeParams{
         // --------------------- 1D GroupConvolutionBackpropData ------------------------------------------
-        GroupConvolutionBackpropDataOutShapeParams(PartialShape{1, 1, 1, 10},
-                                                   PartialShape{1, 1, 1, 1, 5},
-                                                   PartialShape{1, 1, 1, 14},
+        GroupConvolutionBackpropDataOutShapeParams(Shape{1, 1, 1, 10},
+                                                   Shape{1, 1, 1, 1, 5},
+                                                   Shape{1, 1, 1, 14},
                                                    IN_ET,
                                                    std::vector<T>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
                                                    std::vector<T>{1, 2, 3, 2, 1},
