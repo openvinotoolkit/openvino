@@ -5,15 +5,15 @@ Converting a TensorFlow Neural Collaborative Filtering Model
 
 
 .. meta::
-   :description: Learn how to convert a Neural Collaborative 
-                 Filtering Model from TensorFlow to the OpenVINO Intermediate 
+   :description: Learn how to convert a Neural Collaborative
+                 Filtering Model from TensorFlow to the OpenVINO Intermediate
                  Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 This tutorial explains how to convert Neural Collaborative Filtering (NCF) model to the OpenVINO Intermediate Representation.
 
