@@ -54,5 +54,7 @@ class TestLog(PytorchLayerTest):
                              ["log1p", "int32"], 
                              ["log1p_", "float32"]])
     def test_log(self, op, input_dtype, ie_device, precision, ir_version):
+        if PytorchLayerTest.use_torch_export() and op[-1] == "_":
+            pytest.skip(reason="export fails for inplace")
         self._test(*self.create_model(op), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={"dtype": input_dtype})

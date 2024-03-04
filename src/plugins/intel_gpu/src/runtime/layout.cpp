@@ -171,7 +171,7 @@ std::vector<tensor::value_type> layout::get_ordered_dims() const {
 }
 
 std::vector<size_t> layout::get_dims_order() const {
-    return format::traits(format)._order;
+    return format.dims_order();
 }
 
 std::string layout::to_string() const {
@@ -456,7 +456,7 @@ bool layout::compatible(const layout& other) const {
 
     // TODO: Relax restrictions below
     if (blocks1 != blocks2 ||
-        (!blocks1.empty() && format::traits(l1.format)._order != format::traits(l2.format)._order))
+        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
 
     if (check_format(format::b_fs_yx_fsv2) ||
@@ -506,7 +506,11 @@ bool layout::compatible(const layout& other) const {
 bool layout::identical(const layout& other) const {
     if (is_dynamic() || other.is_dynamic())
         return false;
-    return *this == other;
+    bool ret = (*this == other);
+    if (ret && this->format == cldnn::format::custom) {
+        ret &= (this->format.traits().block_sizes == other.format.traits().block_sizes);
+    }
+    return ret;
 }
 
 ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
@@ -526,7 +530,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
 
     auto val_order = default_fmt.internal_order();
     auto new_order = new_fmt.internal_order();
-    const auto& new_traits = format::traits(new_fmt);
+    const auto& new_traits = new_fmt.traits();
 
     std::vector<int32_t> new_sizes(old_sizes.size(), {default_size});
 
@@ -581,10 +585,11 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
-    if (!l1.data_padding && !l2.data_padding && !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
+    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.data_padding && !l2.data_padding &&
+        !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
         l2.data_type == l1.data_type && l2.count() == l1.count()) {
-        auto l1_inner_blk = format::is_single_blocked(l1.format) ? format::traits(l1.format).block_sizes.at(0).second : 1;
-        auto l2_inner_blk = format::is_single_blocked(l2.format) ? format::traits(l2.format).block_sizes.at(0).second : 1;
+        auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
+        auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
         if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
            (l2.feature() % max_inner_blk == 0)) {

@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestBitwiseOp(PytorchLayerTest):
@@ -54,6 +54,7 @@ class TestBitwiseOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
     @pytest.mark.parametrize("lhs_dtype", ["bool", "int32", "uint8", "int64"])
     @pytest.mark.parametrize("rhs_dtype", ["bool", "int32", "uint8", "int64"])
@@ -65,7 +66,7 @@ class TestBitwiseOp(PytorchLayerTest):
             ([], [2, 3]),
         ],
     )
-    @pytest.mark.parametrize("out", [False, True])
+    @pytest.mark.parametrize("out", [False, skip_if_export(True)])
     def test_bitwise_mixed_dtypes(
         self, op_type, out, lhs_dtype, rhs_dtype, lhs_shape, rhs_shape, ie_device, precision, ir_version
     ):
@@ -105,6 +106,7 @@ class TestBitwiseOperators(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("lhs_dtype", ["bool", "int32"])
     @pytest.mark.parametrize("rhs_dtype", ["bool", "int32"])
     @pytest.mark.parametrize(
