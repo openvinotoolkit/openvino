@@ -14,8 +14,6 @@ Synchronous Inference Request API. Before using the sample, refer to the followi
 
 - Models with only one input and output are supported.
 - The sample accepts any file format supported by ``core.read_model``.
-- The sample has been validated with: `alexnet <https://docs.openvino.ai/nightly/omz_models_model_alexnet.html>`__,
-  `googlenet-v1 <https://docs.openvino.ai/nightly/omz_models_model_googlenet_v1.html>`__ models.
 - To build the sample, use instructions available at :ref:`Build the Sample Applications <build-samples>`
   section in "Get Started with Samples" guide.
 
@@ -261,7 +259,7 @@ Additional Resources
 - :doc:`Get Started with Samples <get-started-demos>`
 - :doc:`Using OpenVINO Samples <../openvino-samples>`
 - :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
-- `OpenVINO Runtime C API <api/c_cpp_api/group__ov__c__api.html>`__
+- `OpenVINO Runtime C API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__c__api.html>`__
 - `Hello Classification Python Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/python/hello_classification/README.md>`__
 - `Hello Classification C++ Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/cpp/hello_classification/README.md>`__
 - `Hello Classification C Sample on Github <https://github.com/openvinotoolkit/openvino/blob/master/samples/c/hello_classification/README.md>`__
