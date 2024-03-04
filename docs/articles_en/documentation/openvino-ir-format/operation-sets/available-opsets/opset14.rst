@@ -49,6 +49,7 @@ Table of Contents
 * :doc:`Constant <openvino_docs_ops_infrastructure_Constant_1>`
 * :doc:`Convert <openvino_docs_ops_type_Convert_1>`
 * :doc:`ConvertLike <openvino_docs_ops_type_ConvertLike_1>`
+* :doc:`ConvertPromoteTypes <openvino_docs_ops_type_ConvertPromoteTypes_14>`
 * :doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>`
 * :doc:`ConvolutionBackpropData <openvino_docs_ops_convolution_ConvolutionBackpropData_1>`
 * :doc:`Cos <openvino_docs_ops_arithmetic_Cos_1>`
@@ -205,4 +206,3 @@ Table of Contents
 * :doc:`Unique <openvino_docs_ops_movement_Unique_10>`
 * :doc:`Unsqueeze <openvino_docs_ops_shape_Unsqueeze_1>`
 * :doc:`VariadicSplit <openvino_docs_ops_movement_VariadicSplit_1>`
-

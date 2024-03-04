@@ -41,6 +41,7 @@ Operation Specifications
    Concat-1 <openvino_docs_ops_movement_Concat_1>
    Constant-1 <openvino_docs_ops_infrastructure_Constant_1>
    ConvertLike-1 <openvino_docs_ops_type_ConvertLike_1>
+   ConvertPromoteTypes-14 <openvino_docs_ops_type_ConvertPromoteTypes-14>
    Convert-1 <openvino_docs_ops_type_Convert_1>
    ConvolutionBackpropData-1 <openvino_docs_ops_convolution_ConvolutionBackpropData_1>
    Convolution-1 <openvino_docs_ops_convolution_Convolution_1>
@@ -227,4 +228,3 @@ Operation Specifications
    Unique-10 <openvino_docs_ops_movement_Unique_10>
    Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>
    VariadicSplit-1 <openvino_docs_ops_movement_VariadicSplit_1>
-
