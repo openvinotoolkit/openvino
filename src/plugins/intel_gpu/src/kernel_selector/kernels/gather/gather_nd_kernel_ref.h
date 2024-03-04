@@ -20,20 +20,13 @@ struct gather_nd_params : public base_params {
     bool batch_merged_output;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gather_nd_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gather_nd_optional_params : optional_params {
-    gather_nd_optional_params() : optional_params(KernelType::GATHER_ND) {}
-};
-
 class GatherNDKernelRef : public KernelBaseOpenCL {
 public:
     GatherNDKernelRef() : KernelBaseOpenCL("gather_nd_ref") {}
     virtual ~GatherNDKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_nd_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_nd_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
@@ -42,7 +35,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

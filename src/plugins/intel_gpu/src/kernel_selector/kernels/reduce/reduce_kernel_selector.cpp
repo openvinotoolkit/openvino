@@ -13,7 +13,7 @@ reduce_kernel_selector::reduce_kernel_selector() {
     Attach<ReduceKernel_b_fs_yx_fsv16>();
 }
 
-KernelsData reduce_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::REDUCE);
+KernelsData reduce_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::REDUCE);
 }
 }  // namespace kernel_selector

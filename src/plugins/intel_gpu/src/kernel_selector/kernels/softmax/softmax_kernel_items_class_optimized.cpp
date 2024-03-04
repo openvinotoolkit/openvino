@@ -9,6 +9,17 @@ namespace kernel_selector {
 // how many workitems we use to calculate item classes for one output, only 16 supported right now
 static const auto workitems_per_classes = 16;
 
+inline static size_t get_class_pitch(const DataTensor& tensor, SoftmaxDim dim) {
+    switch (dim) {
+        case SoftmaxDim::X: return tensor.X().pitch;
+        case SoftmaxDim::Y: return tensor.Y().pitch;
+        case SoftmaxDim::Z: return tensor.Z().pitch;
+        case SoftmaxDim::FEATURE: return tensor.Feature().pitch;
+        case SoftmaxDim::BATCH: return tensor.Batch().pitch;
+        default: return 0;
+    }
+}
+
 inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) {
     size_t item_class_count = 0;
 
@@ -67,7 +78,7 @@ ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_subgroup_reduce();
@@ -100,7 +111,7 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
     return dispatchData;
 }
 
-KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const softmax_params&>(params);
 
     return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
@@ -109,10 +120,12 @@ KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
-    // sub_group_block_write requires aligned memory,
-    // therefore it can be utilized if either memory is aligned by 16 bytes
-    bool isSubGroupBlockIOEnabled = params.dim != SoftmaxDim::BATCH &&
-        (dispatchData.dataSetSize * params.outputs[0].ElementSize()) % 16 == 0;
+    // sub_group_block_write requires
+    // 1. aligned memory, therefore it can be utilized if memory is aligned by 16 bytes
+    // 2. class dimension is innermost or all other dims equal to 1
+    bool isSubGroupBlockIOEnabled = get_class_pitch(params.outputs[0], params.dim) == 1 &&
+                                    get_class_pitch(params.inputs[0], params.dim) == 1 &&
+                                    (dispatchData.dataSetSize * params.outputs[0].ElementSize()) % 16 == 0;
 
     jit.AddConstants({
         MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
@@ -123,8 +136,7 @@ JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_para
 
     return jit;
 }
-KernelsData SoftmaxKerneItemsClassOptimized::GetKernelsData(const Params& params,
-                                                            const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData SoftmaxKerneItemsClassOptimized::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector

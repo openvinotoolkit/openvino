@@ -15,7 +15,7 @@ struct deconvolution_impl : typed_primitive_impl_ocl<deconvolution> {
     using parent = typed_primitive_impl_ocl<deconvolution>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::deconvolution_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::deconvolution_params, kernel_selector::deconvolution_optional_params>;
+    using kernel_params_t = kernel_selector::deconvolution_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deconvolution_impl)
 
@@ -43,7 +43,6 @@ public:
         const auto& groups = primitive->groups;
 
         auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);
-        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::deconvolution_optional_params>(impl_param.get_program());
 
         params.groups = groups;
 
@@ -70,7 +69,7 @@ public:
         uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
 
-        return {params, optional_params};
+        return params;
     }
 };
 

@@ -32,10 +32,10 @@ class TestOneHot(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_one_hot_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_one_hot_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_one_hot_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_complex = [
         dict(shape=[3, 4], depth=1, on_value=1.0, off_value=-5.0, axis=-2),
@@ -44,7 +44,7 @@ class TestOneHot(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
-    def test_one_hot_complex(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_one_hot_complex(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_one_hot_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

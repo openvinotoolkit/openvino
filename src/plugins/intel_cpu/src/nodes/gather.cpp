@@ -715,12 +715,7 @@ void Gather::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& dec
     } else {
         DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
         decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
-        const auto elementsCount = memory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        cpu_convert(memory->getData(),
-                    decompressionValuesPtr->getData(),
-                    DnnlExtensionUtils::DataTypeToElementType(memory->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        decompressionValuesPtr->load(*memory);
     }
 }
 

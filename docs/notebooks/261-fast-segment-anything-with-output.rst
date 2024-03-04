@@ -74,7 +74,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -84,7 +84,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -94,7 +94,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -104,7 +104,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
 
 
 .. parsed-literal::
@@ -178,152 +178,152 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
-  0%|          | 176k/138M [00:00<01:20, 1.79MB/s]
+  0%|          | 144k/138M [00:00<01:38, 1.47MB/s]
 
 .. parsed-literal::
 
 
-  0%|          | 512k/138M [00:00<00:53, 2.72MB/s]
+  0%|          | 496k/138M [00:00<00:53, 2.70MB/s]
 
 .. parsed-literal::
 
 
-  1%|          | 896k/138M [00:00<00:44, 3.22MB/s]
+  1%|          | 880k/138M [00:00<00:44, 3.21MB/s]
 
 .. parsed-literal::
 
 
-  1%|          | 1.24M/138M [00:00<00:41, 3.42MB/s]
+  1%|          | 1.23M/138M [00:00<00:41, 3.43MB/s]
 
 .. parsed-literal::
 
 
-  1%|          | 1.62M/138M [00:00<00:40, 3.56MB/s]
+  1%|          | 1.61M/138M [00:00<00:40, 3.54MB/s]
 
 .. parsed-literal::
 
 
-  1%|▏         | 1.98M/138M [00:00<00:39, 3.61MB/s]
+  1%|▏         | 1.97M/138M [00:00<00:39, 3.62MB/s]
 
 .. parsed-literal::
 
 
-  2%|▏         | 2.36M/138M [00:00<00:38, 3.66MB/s]
+  2%|▏         | 2.34M/138M [00:00<00:38, 3.68MB/s]
 
 .. parsed-literal::
 
 
-  2%|▏         | 2.73M/138M [00:00<00:38, 3.70MB/s]
+  2%|▏         | 2.72M/138M [00:00<00:38, 3.72MB/s]
 
 .. parsed-literal::
 
 
-  2%|▏         | 3.11M/138M [00:00<00:38, 3.71MB/s]
+  2%|▏         | 3.09M/138M [00:00<00:38, 3.73MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 3.49M/138M [00:01<00:37, 3.75MB/s]
+  3%|▎         | 3.47M/138M [00:01<00:37, 3.73MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 3.86M/138M [00:01<00:37, 3.76MB/s]
+  3%|▎         | 3.84M/138M [00:01<00:37, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 4.23M/138M [00:01<00:37, 3.75MB/s]
+  3%|▎         | 4.22M/138M [00:01<00:37, 3.75MB/s]
 
 .. parsed-literal::
 
 
-  3%|▎         | 4.61M/138M [00:01<00:37, 3.76MB/s]
+  3%|▎         | 4.59M/138M [00:01<00:37, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  4%|▎         | 4.98M/138M [00:01<00:37, 3.76MB/s]
+  4%|▎         | 4.97M/138M [00:01<00:37, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  4%|▍         | 5.36M/138M [00:01<00:37, 3.75MB/s]
+  4%|▍         | 5.34M/138M [00:01<00:36, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  4%|▍         | 5.73M/138M [00:01<00:36, 3.77MB/s]
+  4%|▍         | 5.72M/138M [00:01<00:36, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  4%|▍         | 6.10M/138M [00:01<00:36, 3.75MB/s]
+  4%|▍         | 6.09M/138M [00:01<00:36, 3.79MB/s]
 
 .. parsed-literal::
 
 
-  5%|▍         | 6.48M/138M [00:01<00:36, 3.77MB/s]
+  5%|▍         | 6.45M/138M [00:01<00:36, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  5%|▍         | 6.85M/138M [00:01<00:36, 3.78MB/s]
+  5%|▍         | 6.83M/138M [00:01<00:36, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  5%|▌         | 7.23M/138M [00:02<00:36, 3.77MB/s]
+  5%|▌         | 7.20M/138M [00:02<00:36, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  5%|▌         | 7.60M/138M [00:02<00:36, 3.80MB/s]
+  5%|▌         | 7.58M/138M [00:02<00:36, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  6%|▌         | 7.97M/138M [00:02<00:36, 3.76MB/s]
+  6%|▌         | 7.95M/138M [00:02<00:36, 3.79MB/s]
 
 .. parsed-literal::
 
 
-  6%|▌         | 8.34M/138M [00:02<00:36, 3.76MB/s]
+  6%|▌         | 8.31M/138M [00:02<00:36, 3.75MB/s]
 
 .. parsed-literal::
 
 
-  6%|▋         | 8.72M/138M [00:02<00:36, 3.75MB/s]
+  6%|▋         | 8.69M/138M [00:02<00:36, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 9.09M/138M [00:02<00:35, 3.77MB/s]
+  7%|▋         | 9.06M/138M [00:02<00:36, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 9.47M/138M [00:02<00:35, 3.76MB/s]
+  7%|▋         | 9.44M/138M [00:02<00:35, 3.77MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 9.84M/138M [00:02<00:35, 3.77MB/s]
+  7%|▋         | 9.81M/138M [00:02<00:35, 3.78MB/s]
 
 .. parsed-literal::
 
 
-  7%|▋         | 10.2M/138M [00:02<00:35, 3.76MB/s]
+  7%|▋         | 10.2M/138M [00:02<00:35, 3.80MB/s]
 
 .. parsed-literal::
 
 
-  8%|▊         | 10.6M/138M [00:03<00:35, 3.76MB/s]
+  8%|▊         | 10.5M/138M [00:02<00:35, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  8%|▊         | 11.0M/138M [00:03<00:35, 3.77MB/s]
+  8%|▊         | 10.9M/138M [00:03<00:35, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -338,92 +338,92 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
-  9%|▊         | 12.1M/138M [00:03<00:35, 3.76MB/s]
+  9%|▊         | 12.0M/138M [00:03<00:35, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  9%|▉         | 12.5M/138M [00:03<00:35, 3.75MB/s]
+  9%|▉         | 12.4M/138M [00:03<00:35, 3.76MB/s]
 
 .. parsed-literal::
 
 
-  9%|▉         | 12.8M/138M [00:03<00:34, 3.76MB/s]
+  9%|▉         | 12.8M/138M [00:03<00:35, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 10%|▉         | 13.2M/138M [00:03<00:34, 3.75MB/s]
+ 10%|▉         | 13.2M/138M [00:03<00:34, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 10%|▉         | 13.6M/138M [00:03<00:34, 3.75MB/s]
+ 10%|▉         | 13.5M/138M [00:03<00:34, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 10%|█         | 14.0M/138M [00:03<00:34, 3.75MB/s]
+ 10%|█         | 13.9M/138M [00:03<00:34, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 10%|█         | 14.3M/138M [00:04<00:34, 3.75MB/s]
+ 10%|█         | 14.3M/138M [00:04<00:34, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 11%|█         | 14.7M/138M [00:04<00:34, 3.74MB/s]
+ 11%|█         | 14.7M/138M [00:04<00:34, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 11%|█         | 15.1M/138M [00:04<00:34, 3.76MB/s]
+ 11%|█         | 15.0M/138M [00:04<00:34, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 11%|█         | 15.5M/138M [00:04<00:34, 3.75MB/s]
+ 11%|█         | 15.4M/138M [00:04<00:34, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 11%|█▏        | 15.8M/138M [00:04<00:34, 3.77MB/s]
+ 11%|█▏        | 15.8M/138M [00:04<00:34, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 12%|█▏        | 16.2M/138M [00:04<00:34, 3.76MB/s]
+ 12%|█▏        | 16.2M/138M [00:04<00:33, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 12%|█▏        | 16.6M/138M [00:04<00:33, 3.76MB/s]
+ 12%|█▏        | 16.5M/138M [00:04<00:33, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 12%|█▏        | 17.0M/138M [00:04<00:33, 3.75MB/s]
+ 12%|█▏        | 16.9M/138M [00:04<00:33, 3.80MB/s]
 
 .. parsed-literal::
 
 
- 13%|█▎        | 17.3M/138M [00:04<00:33, 3.75MB/s]
+ 13%|█▎        | 17.3M/138M [00:04<00:33, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 13%|█▎        | 17.7M/138M [00:04<00:33, 3.75MB/s]
+ 13%|█▎        | 17.7M/138M [00:04<00:33, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 13%|█▎        | 18.1M/138M [00:05<00:33, 3.75MB/s]
+ 13%|█▎        | 18.0M/138M [00:05<00:33, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 13%|█▎        | 18.5M/138M [00:05<00:33, 3.75MB/s]
+ 13%|█▎        | 18.4M/138M [00:05<00:33, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -433,117 +433,117 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 14%|█▍        | 19.2M/138M [00:05<00:33, 3.76MB/s]
+ 14%|█▍        | 19.2M/138M [00:05<00:33, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 14%|█▍        | 19.6M/138M [00:05<00:33, 3.75MB/s]
+ 14%|█▍        | 19.5M/138M [00:05<00:33, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 14%|█▍        | 20.0M/138M [00:05<00:33, 3.75MB/s]
+ 14%|█▍        | 19.9M/138M [00:05<00:32, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 15%|█▍        | 20.3M/138M [00:05<00:32, 3.75MB/s]
+ 15%|█▍        | 20.3M/138M [00:05<00:32, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 15%|█▍        | 20.7M/138M [00:05<00:32, 3.76MB/s]
+ 15%|█▍        | 20.7M/138M [00:05<00:32, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 15%|█▌        | 21.1M/138M [00:05<00:32, 3.75MB/s]
+ 15%|█▌        | 21.0M/138M [00:05<00:32, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 16%|█▌        | 21.5M/138M [00:06<00:32, 3.77MB/s]
+ 15%|█▌        | 21.4M/138M [00:06<00:32, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 16%|█▌        | 21.8M/138M [00:06<00:32, 3.76MB/s]
+ 16%|█▌        | 21.8M/138M [00:06<00:32, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 16%|█▌        | 22.2M/138M [00:06<00:32, 3.77MB/s]
+ 16%|█▌        | 22.2M/138M [00:06<00:32, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 16%|█▋        | 22.6M/138M [00:06<00:31, 3.79MB/s]
+ 16%|█▋        | 22.5M/138M [00:06<00:32, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 17%|█▋        | 22.9M/138M [00:06<00:32, 3.77MB/s]
+ 17%|█▋        | 22.9M/138M [00:06<00:32, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 17%|█▋        | 23.3M/138M [00:06<00:32, 3.76MB/s]
+ 17%|█▋        | 23.3M/138M [00:06<00:31, 3.80MB/s]
 
 .. parsed-literal::
 
 
- 17%|█▋        | 23.7M/138M [00:06<00:31, 3.78MB/s]
+ 17%|█▋        | 23.7M/138M [00:06<00:32, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 17%|█▋        | 24.1M/138M [00:06<00:31, 3.76MB/s]
+ 17%|█▋        | 24.0M/138M [00:06<00:31, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 18%|█▊        | 24.4M/138M [00:06<00:31, 3.75MB/s]
+ 18%|█▊        | 24.4M/138M [00:06<00:31, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 18%|█▊        | 24.8M/138M [00:06<00:31, 3.77MB/s]
+ 18%|█▊        | 24.8M/138M [00:06<00:31, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 18%|█▊        | 25.2M/138M [00:07<00:31, 3.76MB/s]
+ 18%|█▊        | 25.2M/138M [00:07<00:31, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 18%|█▊        | 25.6M/138M [00:07<00:31, 3.78MB/s]
+ 18%|█▊        | 25.5M/138M [00:07<00:31, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 19%|█▉        | 25.9M/138M [00:07<00:31, 3.76MB/s]
+ 19%|█▊        | 25.9M/138M [00:07<00:31, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 19%|█▉        | 26.3M/138M [00:07<00:31, 3.75MB/s]
+ 19%|█▉        | 26.3M/138M [00:07<00:31, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 19%|█▉        | 26.7M/138M [00:07<00:31, 3.75MB/s]
+ 19%|█▉        | 26.6M/138M [00:07<00:31, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 20%|█▉        | 27.1M/138M [00:07<00:31, 3.75MB/s]
+ 20%|█▉        | 27.0M/138M [00:07<00:31, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 20%|█▉        | 27.4M/138M [00:07<00:30, 3.77MB/s]
+ 20%|█▉        | 27.4M/138M [00:07<00:30, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -553,132 +553,132 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 20%|██        | 28.2M/138M [00:07<00:30, 3.75MB/s]
+ 20%|██        | 28.1M/138M [00:07<00:30, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 21%|██        | 28.6M/138M [00:08<00:30, 3.76MB/s]
+ 21%|██        | 28.5M/138M [00:07<00:30, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 21%|██        | 28.9M/138M [00:08<00:30, 3.78MB/s]
+ 21%|██        | 28.9M/138M [00:08<00:30, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 21%|██        | 29.3M/138M [00:08<00:30, 3.76MB/s]
+ 21%|██        | 29.3M/138M [00:08<00:30, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 21%|██▏       | 29.7M/138M [00:08<00:30, 3.76MB/s]
+ 21%|██▏       | 29.6M/138M [00:08<00:30, 3.72MB/s]
 
 .. parsed-literal::
 
 
- 22%|██▏       | 30.1M/138M [00:08<00:30, 3.76MB/s]
+ 22%|██▏       | 30.0M/138M [00:08<00:30, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 22%|██▏       | 30.4M/138M [00:08<00:29, 3.77MB/s]
+ 22%|██▏       | 30.4M/138M [00:08<00:30, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 22%|██▏       | 30.8M/138M [00:08<00:29, 3.77MB/s]
+ 22%|██▏       | 30.8M/138M [00:08<00:30, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 23%|██▎       | 31.2M/138M [00:08<00:29, 3.76MB/s]
+ 23%|██▎       | 31.1M/138M [00:08<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 23%|██▎       | 31.6M/138M [00:08<00:29, 3.76MB/s]
+ 23%|██▎       | 31.5M/138M [00:08<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 23%|██▎       | 31.9M/138M [00:08<00:29, 3.79MB/s]
+ 23%|██▎       | 31.9M/138M [00:08<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 23%|██▎       | 32.3M/138M [00:09<00:29, 3.76MB/s]
+ 23%|██▎       | 32.3M/138M [00:09<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 24%|██▎       | 32.7M/138M [00:09<00:29, 3.78MB/s]
+ 24%|██▎       | 32.6M/138M [00:09<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 24%|██▍       | 33.1M/138M [00:09<00:29, 3.77MB/s]
+ 24%|██▍       | 33.0M/138M [00:09<00:29, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 24%|██▍       | 33.4M/138M [00:09<00:29, 3.76MB/s]
+ 24%|██▍       | 33.4M/138M [00:09<00:29, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 24%|██▍       | 33.8M/138M [00:09<00:29, 3.77MB/s]
+ 24%|██▍       | 33.8M/138M [00:09<00:29, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 25%|██▍       | 34.2M/138M [00:09<00:29, 3.76MB/s]
+ 25%|██▍       | 34.1M/138M [00:09<00:28, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 25%|██▍       | 34.6M/138M [00:09<00:28, 3.76MB/s]
+ 25%|██▍       | 34.5M/138M [00:09<00:28, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 25%|██▌       | 34.9M/138M [00:09<00:28, 3.77MB/s]
+ 25%|██▌       | 34.9M/138M [00:09<00:28, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 26%|██▌       | 35.3M/138M [00:09<00:28, 3.74MB/s]
+ 26%|██▌       | 35.3M/138M [00:09<00:28, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 26%|██▌       | 35.7M/138M [00:10<00:28, 3.74MB/s]
+ 26%|██▌       | 35.6M/138M [00:09<00:28, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 26%|██▌       | 36.0M/138M [00:10<00:28, 3.74MB/s]
+ 26%|██▌       | 36.0M/138M [00:10<00:28, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 26%|██▋       | 36.4M/138M [00:10<00:28, 3.76MB/s]
+ 26%|██▋       | 36.4M/138M [00:10<00:28, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 27%|██▋       | 36.8M/138M [00:10<00:28, 3.76MB/s]
+ 27%|██▋       | 36.7M/138M [00:10<00:28, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 27%|██▋       | 37.2M/138M [00:10<00:28, 3.77MB/s]
+ 27%|██▋       | 37.1M/138M [00:10<00:28, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 27%|██▋       | 37.5M/138M [00:10<00:28, 3.76MB/s]
+ 27%|██▋       | 37.5M/138M [00:10<00:27, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -688,32 +688,32 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 28%|██▊       | 38.3M/138M [00:10<00:27, 3.78MB/s]
+ 28%|██▊       | 38.2M/138M [00:10<00:27, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 28%|██▊       | 38.7M/138M [00:10<00:27, 3.77MB/s]
+ 28%|██▊       | 38.6M/138M [00:10<00:27, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 28%|██▊       | 39.0M/138M [00:10<00:27, 3.78MB/s]
+ 28%|██▊       | 39.0M/138M [00:10<00:27, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 29%|██▊       | 39.4M/138M [00:11<00:27, 3.77MB/s]
+ 28%|██▊       | 39.4M/138M [00:11<00:27, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 29%|██▉       | 39.8M/138M [00:11<00:27, 3.76MB/s]
+ 29%|██▊       | 39.7M/138M [00:11<00:27, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 29%|██▉       | 40.2M/138M [00:11<00:27, 3.77MB/s]
+ 29%|██▉       | 40.1M/138M [00:11<00:27, 3.74MB/s]
 
 .. parsed-literal::
 
@@ -723,17 +723,17 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 30%|██▉       | 40.9M/138M [00:11<00:27, 3.78MB/s]
+ 30%|██▉       | 40.9M/138M [00:11<00:26, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 30%|██▉       | 41.3M/138M [00:11<00:26, 3.77MB/s]
+ 30%|██▉       | 41.2M/138M [00:11<00:27, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 30%|███       | 41.7M/138M [00:11<00:26, 3.78MB/s]
+ 30%|███       | 41.6M/138M [00:11<00:26, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -748,12 +748,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 31%|███       | 42.8M/138M [00:11<00:26, 3.77MB/s]
+ 31%|███       | 42.7M/138M [00:11<00:26, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 31%|███       | 43.2M/138M [00:12<00:26, 3.76MB/s]
+ 31%|███       | 43.1M/138M [00:12<00:26, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -768,67 +768,67 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 32%|███▏      | 44.3M/138M [00:12<00:26, 3.76MB/s]
+ 32%|███▏      | 44.2M/138M [00:12<00:26, 3.70MB/s]
 
 .. parsed-literal::
 
 
- 32%|███▏      | 44.6M/138M [00:12<00:26, 3.76MB/s]
+ 32%|███▏      | 44.6M/138M [00:12<00:26, 3.73MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 45.0M/138M [00:12<00:25, 3.77MB/s]
+ 33%|███▎      | 45.0M/138M [00:12<00:26, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 45.4M/138M [00:12<00:25, 3.77MB/s]
+ 33%|███▎      | 45.4M/138M [00:12<00:26, 3.72MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 45.8M/138M [00:12<00:25, 3.76MB/s]
+ 33%|███▎      | 45.7M/138M [00:12<00:25, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 33%|███▎      | 46.1M/138M [00:12<00:25, 3.78MB/s]
+ 33%|███▎      | 46.1M/138M [00:12<00:25, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 34%|███▎      | 46.5M/138M [00:13<00:25, 3.77MB/s]
+ 34%|███▎      | 46.5M/138M [00:13<00:25, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 34%|███▍      | 46.9M/138M [00:13<00:25, 3.76MB/s]
+ 34%|███▍      | 46.8M/138M [00:13<00:25, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 34%|███▍      | 47.3M/138M [00:13<00:25, 3.77MB/s]
+ 34%|███▍      | 47.2M/138M [00:13<00:25, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 34%|███▍      | 47.6M/138M [00:13<00:25, 3.78MB/s]
+ 34%|███▍      | 47.6M/138M [00:13<00:25, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 35%|███▍      | 48.0M/138M [00:13<00:25, 3.77MB/s]
+ 35%|███▍      | 48.0M/138M [00:13<00:25, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 35%|███▍      | 48.4M/138M [00:13<00:24, 3.78MB/s]
+ 35%|███▍      | 48.3M/138M [00:13<00:25, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 35%|███▌      | 48.8M/138M [00:13<00:24, 3.77MB/s]
+ 35%|███▌      | 48.7M/138M [00:13<00:24, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -843,12 +843,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 36%|███▌      | 49.9M/138M [00:13<00:24, 3.76MB/s]
+ 36%|███▌      | 49.8M/138M [00:13<00:24, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 36%|███▋      | 50.2M/138M [00:14<00:24, 3.76MB/s]
+ 36%|███▋      | 50.2M/138M [00:14<00:24, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -858,72 +858,72 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 37%|███▋      | 51.0M/138M [00:14<00:24, 3.78MB/s]
+ 37%|███▋      | 51.0M/138M [00:14<00:24, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 37%|███▋      | 51.4M/138M [00:14<00:24, 3.77MB/s]
+ 37%|███▋      | 51.3M/138M [00:14<00:24, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 37%|███▋      | 51.8M/138M [00:14<00:24, 3.76MB/s]
+ 37%|███▋      | 51.7M/138M [00:14<00:24, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 38%|███▊      | 52.1M/138M [00:14<00:24, 3.73MB/s]
+ 38%|███▊      | 52.1M/138M [00:14<00:23, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 38%|███▊      | 52.5M/138M [00:14<00:24, 3.73MB/s]
+ 38%|███▊      | 52.5M/138M [00:14<00:23, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 38%|███▊      | 52.9M/138M [00:14<00:23, 3.75MB/s]
+ 38%|███▊      | 52.8M/138M [00:14<00:23, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 39%|███▊      | 53.2M/138M [00:14<00:23, 3.75MB/s]
+ 39%|███▊      | 53.2M/138M [00:14<00:23, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 39%|███▉      | 53.6M/138M [00:15<00:23, 3.76MB/s]
+ 39%|███▉      | 53.6M/138M [00:14<00:23, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 39%|███▉      | 54.0M/138M [00:15<00:23, 3.76MB/s]
+ 39%|███▉      | 54.0M/138M [00:15<00:23, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 39%|███▉      | 54.4M/138M [00:15<00:23, 3.77MB/s]
+ 39%|███▉      | 54.3M/138M [00:15<00:23, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 40%|███▉      | 54.7M/138M [00:15<00:23, 3.78MB/s]
+ 40%|███▉      | 54.7M/138M [00:15<00:23, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 40%|███▉      | 55.1M/138M [00:15<00:23, 3.77MB/s]
+ 40%|███▉      | 55.1M/138M [00:15<00:23, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 40%|████      | 55.5M/138M [00:15<00:22, 3.78MB/s]
+ 40%|████      | 55.5M/138M [00:15<00:23, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 40%|████      | 55.9M/138M [00:15<00:22, 3.77MB/s]
+ 40%|████      | 55.8M/138M [00:15<00:22, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -933,92 +933,92 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 41%|████      | 56.6M/138M [00:15<00:22, 3.77MB/s]
+ 41%|████      | 56.6M/138M [00:15<00:22, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 41%|████      | 57.0M/138M [00:15<00:22, 3.76MB/s]
+ 41%|████      | 57.0M/138M [00:15<00:22, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 41%|████▏     | 57.4M/138M [00:16<00:22, 3.75MB/s]
+ 41%|████▏     | 57.3M/138M [00:16<00:22, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 42%|████▏     | 57.7M/138M [00:16<00:22, 3.77MB/s]
+ 42%|████▏     | 57.7M/138M [00:16<00:22, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 42%|████▏     | 58.1M/138M [00:16<00:22, 3.77MB/s]
+ 42%|████▏     | 58.1M/138M [00:16<00:22, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 42%|████▏     | 58.5M/138M [00:16<00:22, 3.76MB/s]
+ 42%|████▏     | 58.5M/138M [00:16<00:22, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 43%|████▎     | 58.8M/138M [00:16<00:21, 3.79MB/s]
+ 43%|████▎     | 58.8M/138M [00:16<00:21, 3.80MB/s]
 
 .. parsed-literal::
 
 
- 43%|████▎     | 59.2M/138M [00:16<00:21, 3.77MB/s]
+ 43%|████▎     | 59.2M/138M [00:16<00:21, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 43%|████▎     | 59.6M/138M [00:16<00:21, 3.78MB/s]
+ 43%|████▎     | 59.6M/138M [00:16<00:21, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 43%|████▎     | 60.0M/138M [00:16<00:21, 3.74MB/s]
+ 43%|████▎     | 60.0M/138M [00:16<00:21, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 44%|████▎     | 60.3M/138M [00:16<00:21, 3.76MB/s]
+ 44%|████▎     | 60.3M/138M [00:16<00:21, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 44%|████▍     | 60.7M/138M [00:16<00:21, 3.76MB/s]
+ 44%|████▍     | 60.7M/138M [00:16<00:21, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 44%|████▍     | 61.1M/138M [00:17<00:21, 3.75MB/s]
+ 44%|████▍     | 61.1M/138M [00:17<00:21, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 44%|████▍     | 61.5M/138M [00:17<00:21, 3.75MB/s]
+ 44%|████▍     | 61.5M/138M [00:17<00:21, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 45%|████▍     | 61.8M/138M [00:17<00:21, 3.76MB/s]
+ 45%|████▍     | 61.8M/138M [00:17<00:21, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 45%|████▌     | 62.2M/138M [00:17<00:21, 3.78MB/s]
+ 45%|████▌     | 62.2M/138M [00:17<00:21, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 45%|████▌     | 62.6M/138M [00:17<00:21, 3.77MB/s]
+ 45%|████▌     | 62.6M/138M [00:17<00:21, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 46%|████▌     | 63.0M/138M [00:17<00:20, 3.76MB/s]
+ 46%|████▌     | 63.0M/138M [00:17<00:20, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1028,37 +1028,37 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 46%|████▌     | 63.7M/138M [00:17<00:20, 3.76MB/s]
+ 46%|████▌     | 63.7M/138M [00:17<00:20, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 46%|████▋     | 64.1M/138M [00:17<00:20, 3.76MB/s]
+ 46%|████▋     | 64.1M/138M [00:17<00:20, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 47%|████▋     | 64.5M/138M [00:18<00:20, 3.76MB/s]
+ 47%|████▋     | 64.4M/138M [00:18<00:20, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 47%|████▋     | 64.8M/138M [00:18<00:20, 3.77MB/s]
+ 47%|████▋     | 64.8M/138M [00:18<00:20, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 47%|████▋     | 65.2M/138M [00:18<00:20, 3.76MB/s]
+ 47%|████▋     | 65.2M/138M [00:18<00:20, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 47%|████▋     | 65.6M/138M [00:18<00:20, 3.77MB/s]
+ 47%|████▋     | 65.6M/138M [00:18<00:20, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 48%|████▊     | 65.9M/138M [00:18<00:20, 3.76MB/s]
+ 48%|████▊     | 65.9M/138M [00:18<00:20, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -1073,37 +1073,37 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 49%|████▊     | 67.1M/138M [00:18<00:19, 3.75MB/s]
+ 49%|████▊     | 67.1M/138M [00:18<00:19, 3.80MB/s]
 
 .. parsed-literal::
 
 
- 49%|████▉     | 67.4M/138M [00:18<00:19, 3.78MB/s]
+ 49%|████▉     | 67.4M/138M [00:18<00:19, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 49%|████▉     | 67.8M/138M [00:18<00:19, 3.77MB/s]
+ 49%|████▉     | 67.8M/138M [00:18<00:19, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 49%|████▉     | 68.2M/138M [00:19<00:19, 3.76MB/s]
+ 49%|████▉     | 68.2M/138M [00:19<00:19, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 50%|████▉     | 68.5M/138M [00:19<00:19, 3.75MB/s]
+ 50%|████▉     | 68.6M/138M [00:19<00:19, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 50%|████▉     | 68.9M/138M [00:19<00:19, 3.79MB/s]
+ 50%|████▉     | 68.9M/138M [00:19<00:19, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 50%|█████     | 69.3M/138M [00:19<00:19, 3.79MB/s]
+ 50%|█████     | 69.3M/138M [00:19<00:19, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1113,17 +1113,17 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 51%|█████     | 70.0M/138M [00:19<00:18, 3.76MB/s]
+ 51%|█████     | 70.1M/138M [00:19<00:18, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 51%|█████     | 70.4M/138M [00:19<00:18, 3.77MB/s]
+ 51%|█████     | 70.4M/138M [00:19<00:18, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 51%|█████     | 70.8M/138M [00:19<00:18, 3.76MB/s]
+ 51%|█████     | 70.8M/138M [00:19<00:18, 3.75MB/s]
 
 .. parsed-literal::
 
@@ -1133,22 +1133,22 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 52%|█████▏    | 71.5M/138M [00:19<00:18, 3.76MB/s]
+ 52%|█████▏    | 71.6M/138M [00:19<00:18, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 52%|█████▏    | 71.9M/138M [00:20<00:18, 3.76MB/s]
+ 52%|█████▏    | 71.9M/138M [00:20<00:18, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 52%|█████▏    | 72.3M/138M [00:20<00:18, 3.77MB/s]
+ 52%|█████▏    | 72.3M/138M [00:20<00:18, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 53%|█████▎    | 72.7M/138M [00:20<00:18, 3.76MB/s]
+ 53%|█████▎    | 72.7M/138M [00:20<00:18, 3.75MB/s]
 
 .. parsed-literal::
 
@@ -1163,17 +1163,17 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 53%|█████▎    | 73.8M/138M [00:20<00:17, 3.79MB/s]
+ 53%|█████▎    | 73.8M/138M [00:20<00:17, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 54%|█████▎    | 74.2M/138M [00:20<00:17, 3.77MB/s]
+ 54%|█████▎    | 74.2M/138M [00:20<00:17, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 54%|█████▍    | 74.5M/138M [00:20<00:17, 3.76MB/s]
+ 54%|█████▍    | 74.5M/138M [00:20<00:17, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1183,102 +1183,102 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 54%|█████▍    | 75.3M/138M [00:21<00:17, 3.76MB/s]
+ 54%|█████▍    | 75.3M/138M [00:21<00:17, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 55%|█████▍    | 75.7M/138M [00:21<00:17, 3.77MB/s]
+ 55%|█████▍    | 75.7M/138M [00:21<00:17, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 55%|█████▌    | 76.0M/138M [00:21<00:17, 3.76MB/s]
+ 55%|█████▌    | 76.0M/138M [00:21<00:17, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 55%|█████▌    | 76.4M/138M [00:21<00:17, 3.75MB/s]
+ 55%|█████▌    | 76.4M/138M [00:21<00:17, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 56%|█████▌    | 76.8M/138M [00:21<00:17, 3.75MB/s]
+ 56%|█████▌    | 76.8M/138M [00:21<00:17, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 56%|█████▌    | 77.2M/138M [00:21<00:17, 3.75MB/s]
+ 56%|█████▌    | 77.2M/138M [00:21<00:16, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 56%|█████▌    | 77.5M/138M [00:21<00:16, 3.77MB/s]
+ 56%|█████▌    | 77.5M/138M [00:21<00:16, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 56%|█████▋    | 77.9M/138M [00:21<00:16, 3.76MB/s]
+ 56%|█████▋    | 77.9M/138M [00:21<00:16, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 57%|█████▋    | 78.3M/138M [00:21<00:16, 3.77MB/s]
+ 57%|█████▋    | 78.3M/138M [00:21<00:16, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 57%|█████▋    | 78.6M/138M [00:21<00:16, 3.79MB/s]
+ 57%|█████▋    | 78.7M/138M [00:21<00:16, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 57%|█████▋    | 79.0M/138M [00:22<00:16, 3.76MB/s]
+ 57%|█████▋    | 79.0M/138M [00:22<00:16, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 57%|█████▋    | 79.4M/138M [00:22<00:16, 3.73MB/s]
+ 57%|█████▋    | 79.4M/138M [00:22<00:16, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 58%|█████▊    | 79.8M/138M [00:22<00:16, 3.73MB/s]
+ 58%|█████▊    | 79.8M/138M [00:22<00:16, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 58%|█████▊    | 80.1M/138M [00:22<00:16, 3.74MB/s]
+ 58%|█████▊    | 80.2M/138M [00:22<00:16, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 58%|█████▊    | 80.5M/138M [00:22<00:16, 3.76MB/s]
+ 58%|█████▊    | 80.5M/138M [00:22<00:16, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 59%|█████▊    | 80.9M/138M [00:22<00:16, 3.75MB/s]
+ 59%|█████▊    | 80.9M/138M [00:22<00:15, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 59%|█████▉    | 81.3M/138M [00:22<00:15, 3.77MB/s]
+ 59%|█████▉    | 81.3M/138M [00:22<00:15, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 59%|█████▉    | 81.6M/138M [00:22<00:15, 3.76MB/s]
+ 59%|█████▉    | 81.7M/138M [00:22<00:15, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 59%|█████▉    | 82.0M/138M [00:22<00:15, 3.77MB/s]
+ 59%|█████▉    | 82.0M/138M [00:22<00:15, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 60%|█████▉    | 82.4M/138M [00:23<00:15, 3.78MB/s]
+ 60%|█████▉    | 82.4M/138M [00:23<00:15, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1288,97 +1288,97 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 60%|██████    | 83.1M/138M [00:23<00:15, 3.75MB/s]
+ 60%|██████    | 83.1M/138M [00:23<00:15, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 60%|██████    | 83.5M/138M [00:23<00:15, 3.76MB/s]
+ 60%|██████    | 83.5M/138M [00:23<00:15, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 61%|██████    | 83.9M/138M [00:23<00:15, 3.76MB/s]
+ 61%|██████    | 83.9M/138M [00:23<00:15, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 61%|██████    | 84.3M/138M [00:23<00:15, 3.75MB/s]
+ 61%|██████    | 84.3M/138M [00:23<00:15, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 61%|██████    | 84.6M/138M [00:23<00:14, 3.76MB/s]
+ 61%|██████    | 84.6M/138M [00:23<00:14, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 61%|██████▏   | 85.0M/138M [00:23<00:14, 3.78MB/s]
+ 61%|██████▏   | 85.0M/138M [00:23<00:14, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 62%|██████▏   | 85.4M/138M [00:23<00:14, 3.76MB/s]
+ 62%|██████▏   | 85.4M/138M [00:23<00:14, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 62%|██████▏   | 85.8M/138M [00:23<00:14, 3.77MB/s]
+ 62%|██████▏   | 85.8M/138M [00:23<00:14, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 62%|██████▏   | 86.1M/138M [00:24<00:14, 3.78MB/s]
+ 62%|██████▏   | 86.1M/138M [00:24<00:14, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 63%|██████▎   | 86.5M/138M [00:24<00:14, 3.77MB/s]
+ 63%|██████▎   | 86.5M/138M [00:24<00:14, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 63%|██████▎   | 86.9M/138M [00:24<00:14, 3.78MB/s]
+ 63%|██████▎   | 86.9M/138M [00:24<00:14, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 63%|██████▎   | 87.3M/138M [00:24<00:14, 3.76MB/s]
+ 63%|██████▎   | 87.2M/138M [00:24<00:14, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 63%|██████▎   | 87.6M/138M [00:24<00:14, 3.71MB/s]
+ 63%|██████▎   | 87.6M/138M [00:24<00:14, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 64%|██████▎   | 88.0M/138M [00:24<00:14, 3.72MB/s]
+ 64%|██████▎   | 88.0M/138M [00:24<00:13, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 64%|██████▍   | 88.4M/138M [00:24<00:13, 3.74MB/s]
+ 64%|██████▍   | 88.4M/138M [00:24<00:13, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 64%|██████▍   | 88.7M/138M [00:24<00:13, 3.74MB/s]
+ 64%|██████▍   | 88.7M/138M [00:24<00:13, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 64%|██████▍   | 89.1M/138M [00:24<00:13, 3.74MB/s]
+ 64%|██████▍   | 89.1M/138M [00:24<00:13, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 65%|██████▍   | 89.5M/138M [00:25<00:13, 3.74MB/s]
+ 65%|██████▍   | 89.5M/138M [00:24<00:13, 3.80MB/s]
 
 .. parsed-literal::
 
 
- 65%|██████▌   | 89.9M/138M [00:25<00:13, 3.74MB/s]
+ 65%|██████▌   | 89.9M/138M [00:25<00:13, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -1388,57 +1388,57 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 66%|██████▌   | 90.6M/138M [00:25<00:13, 3.75MB/s]
+ 66%|██████▌   | 90.6M/138M [00:25<00:13, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 66%|██████▌   | 91.0M/138M [00:25<00:13, 3.77MB/s]
+ 66%|██████▌   | 91.0M/138M [00:25<00:13, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 66%|██████▌   | 91.4M/138M [00:25<00:12, 3.80MB/s]
+ 66%|██████▌   | 91.3M/138M [00:25<00:13, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 66%|██████▋   | 91.7M/138M [00:25<00:12, 3.78MB/s]
+ 66%|██████▋   | 91.7M/138M [00:25<00:12, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 67%|██████▋   | 92.1M/138M [00:25<00:12, 3.77MB/s]
+ 67%|██████▋   | 92.1M/138M [00:25<00:12, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 67%|██████▋   | 92.5M/138M [00:25<00:12, 3.78MB/s]
+ 67%|██████▋   | 92.5M/138M [00:25<00:12, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 67%|██████▋   | 92.9M/138M [00:25<00:12, 3.77MB/s]
+ 67%|██████▋   | 92.8M/138M [00:25<00:12, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 67%|██████▋   | 93.2M/138M [00:26<00:12, 3.75MB/s]
+ 67%|██████▋   | 93.2M/138M [00:26<00:12, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 68%|██████▊   | 93.6M/138M [00:26<00:12, 3.75MB/s]
+ 68%|██████▊   | 93.6M/138M [00:26<00:12, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 68%|██████▊   | 94.0M/138M [00:26<00:12, 3.79MB/s]
+ 68%|██████▊   | 94.0M/138M [00:26<00:12, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 68%|██████▊   | 94.4M/138M [00:26<00:12, 3.77MB/s]
+ 68%|██████▊   | 94.3M/138M [00:26<00:12, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1448,17 +1448,17 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 69%|██████▉   | 95.1M/138M [00:26<00:11, 3.78MB/s]
+ 69%|██████▉   | 95.1M/138M [00:26<00:12, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 69%|██████▉   | 95.5M/138M [00:26<00:11, 3.76MB/s]
+ 69%|██████▉   | 95.5M/138M [00:26<00:11, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 69%|██████▉   | 95.9M/138M [00:26<00:11, 3.75MB/s]
+ 69%|██████▉   | 95.8M/138M [00:26<00:11, 3.74MB/s]
 
 .. parsed-literal::
 
@@ -1468,27 +1468,27 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 70%|██████▉   | 96.6M/138M [00:26<00:11, 3.77MB/s]
+ 70%|██████▉   | 96.6M/138M [00:26<00:11, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 70%|███████   | 97.0M/138M [00:27<00:11, 3.76MB/s]
+ 70%|███████   | 97.0M/138M [00:27<00:11, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 70%|███████   | 97.3M/138M [00:27<00:11, 3.77MB/s]
+ 70%|███████   | 97.3M/138M [00:27<00:11, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 71%|███████   | 97.7M/138M [00:27<00:11, 3.78MB/s]
+ 71%|███████   | 97.7M/138M [00:27<00:11, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 71%|███████   | 98.1M/138M [00:27<00:11, 3.79MB/s]
+ 71%|███████   | 98.1M/138M [00:27<00:11, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -1498,57 +1498,57 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 72%|███████▏  | 98.8M/138M [00:27<00:10, 3.76MB/s]
+ 71%|███████▏  | 98.8M/138M [00:27<00:11, 3.73MB/s]
 
 .. parsed-literal::
 
 
- 72%|███████▏  | 99.2M/138M [00:27<00:10, 3.77MB/s]
+ 72%|███████▏  | 99.2M/138M [00:27<00:10, 3.73MB/s]
 
 .. parsed-literal::
 
 
- 72%|███████▏  | 99.6M/138M [00:27<00:10, 3.77MB/s]
+ 72%|███████▏  | 99.6M/138M [00:27<00:10, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 72%|███████▏  | 100M/138M [00:27<00:10, 3.76MB/s]
+ 72%|███████▏  | 99.9M/138M [00:27<00:10, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 73%|███████▎  | 100M/138M [00:28<00:10, 3.75MB/s]
+ 73%|███████▎  | 100M/138M [00:28<00:10, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 73%|███████▎  | 101M/138M [00:28<00:10, 3.75MB/s]
+ 73%|███████▎  | 101M/138M [00:28<00:10, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 73%|███████▎  | 101M/138M [00:28<00:10, 3.76MB/s]
+ 73%|███████▎  | 101M/138M [00:28<00:10, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 73%|███████▎  | 101M/138M [00:28<00:10, 3.75MB/s]
+ 73%|███████▎  | 101M/138M [00:28<00:10, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 74%|███████▎  | 102M/138M [00:28<00:10, 3.75MB/s]
+ 74%|███████▎  | 102M/138M [00:28<00:10, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 74%|███████▍  | 102M/138M [00:28<00:10, 3.76MB/s]
+ 74%|███████▍  | 102M/138M [00:28<00:10, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 74%|███████▍  | 103M/138M [00:28<00:09, 3.78MB/s]
+ 74%|███████▍  | 103M/138M [00:28<00:09, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1563,12 +1563,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 75%|███████▌  | 104M/138M [00:28<00:09, 3.75MB/s]
+ 75%|███████▌  | 104M/138M [00:28<00:09, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 75%|███████▌  | 104M/138M [00:29<00:09, 3.75MB/s]
+ 75%|███████▌  | 104M/138M [00:29<00:09, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1578,22 +1578,17 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 76%|███████▌  | 105M/138M [00:29<00:09, 3.76MB/s]
+ 76%|███████▌  | 105M/138M [00:29<00:09, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 76%|███████▌  | 105M/138M [00:29<00:09, 3.75MB/s]
+ 76%|███████▌  | 105M/138M [00:29<00:09, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 76%|███████▋  | 106M/138M [00:29<00:09, 3.76MB/s]
-
-.. parsed-literal::
-
-
- 77%|███████▋  | 106M/138M [00:29<00:09, 3.76MB/s]
+ 76%|███████▋  | 106M/138M [00:29<00:09, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -1603,7 +1598,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 77%|███████▋  | 107M/138M [00:29<00:08, 3.75MB/s]
+ 77%|███████▋  | 106M/138M [00:29<00:08, 3.76MB/s]
+
+.. parsed-literal::
+
+
+ 77%|███████▋  | 107M/138M [00:29<00:08, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1613,12 +1613,7 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 78%|███████▊  | 107M/138M [00:30<00:08, 3.78MB/s]
-
-.. parsed-literal::
-
-
- 78%|███████▊  | 108M/138M [00:30<00:08, 3.78MB/s]
+ 78%|███████▊  | 107M/138M [00:29<00:08, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1628,62 +1623,67 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 79%|███████▊  | 109M/138M [00:30<00:08, 3.78MB/s]
+ 78%|███████▊  | 108M/138M [00:30<00:08, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 79%|███████▉  | 109M/138M [00:30<00:08, 3.78MB/s]
+ 79%|███████▊  | 109M/138M [00:30<00:08, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 79%|███████▉  | 109M/138M [00:30<00:08, 3.75MB/s]
+ 79%|███████▉  | 109M/138M [00:30<00:08, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 79%|███████▉  | 110M/138M [00:30<00:07, 3.75MB/s]
+ 79%|███████▉  | 109M/138M [00:30<00:08, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 80%|███████▉  | 110M/138M [00:30<00:07, 3.76MB/s]
+ 79%|███████▉  | 110M/138M [00:30<00:07, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 80%|███████▉  | 110M/138M [00:30<00:07, 3.76MB/s]
+ 80%|███████▉  | 110M/138M [00:30<00:07, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 80%|████████  | 111M/138M [00:30<00:07, 3.75MB/s]
+ 80%|███████▉  | 110M/138M [00:30<00:07, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 80%|████████  | 111M/138M [00:31<00:07, 3.75MB/s]
+ 80%|████████  | 111M/138M [00:30<00:07, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 81%|████████  | 112M/138M [00:31<00:07, 3.75MB/s]
+ 80%|████████  | 111M/138M [00:31<00:07, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 81%|████████  | 112M/138M [00:31<00:07, 3.75MB/s]
+ 81%|████████  | 112M/138M [00:31<00:07, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 81%|████████▏ | 112M/138M [00:31<00:07, 3.76MB/s]
+ 81%|████████  | 112M/138M [00:31<00:07, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 82%|████████▏ | 113M/138M [00:31<00:07, 3.77MB/s]
+ 81%|████████  | 112M/138M [00:31<00:07, 3.76MB/s]
+
+.. parsed-literal::
+
+
+ 81%|████████▏ | 113M/138M [00:31<00:07, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1693,12 +1693,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 82%|████████▏ | 113M/138M [00:31<00:06, 3.76MB/s]
+ 82%|████████▏ | 113M/138M [00:31<00:06, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 82%|████████▏ | 114M/138M [00:31<00:06, 3.77MB/s]
+ 82%|████████▏ | 114M/138M [00:31<00:06, 3.78MB/s]
 
 .. parsed-literal::
 
@@ -1708,47 +1708,47 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 83%|████████▎ | 115M/138M [00:31<00:06, 3.76MB/s]
+ 83%|████████▎ | 115M/138M [00:31<00:06, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 83%|████████▎ | 115M/138M [00:32<00:06, 3.75MB/s]
+ 83%|████████▎ | 115M/138M [00:32<00:06, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 83%|████████▎ | 115M/138M [00:32<00:06, 3.74MB/s]
+ 83%|████████▎ | 115M/138M [00:32<00:06, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 84%|████████▎ | 116M/138M [00:32<00:06, 3.76MB/s]
+ 84%|████████▎ | 116M/138M [00:32<00:06, 3.69MB/s]
 
 .. parsed-literal::
 
 
- 84%|████████▍ | 116M/138M [00:32<00:06, 3.76MB/s]
+ 84%|████████▍ | 116M/138M [00:32<00:06, 3.72MB/s]
 
 .. parsed-literal::
 
 
- 84%|████████▍ | 116M/138M [00:32<00:06, 3.77MB/s]
+ 84%|████████▍ | 116M/138M [00:32<00:06, 3.73MB/s]
 
 .. parsed-literal::
 
 
- 85%|████████▍ | 117M/138M [00:32<00:05, 3.76MB/s]
+ 84%|████████▍ | 117M/138M [00:32<00:05, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 85%|████████▍ | 117M/138M [00:32<00:05, 3.77MB/s]
+ 85%|████████▍ | 117M/138M [00:32<00:05, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 85%|████████▌ | 118M/138M [00:32<00:05, 3.78MB/s]
+ 85%|████████▌ | 118M/138M [00:32<00:05, 3.75MB/s]
 
 .. parsed-literal::
 
@@ -1758,12 +1758,12 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 86%|████████▌ | 118M/138M [00:33<00:05, 3.77MB/s]
+ 86%|████████▌ | 118M/138M [00:33<00:05, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 86%|████████▌ | 119M/138M [00:33<00:05, 3.74MB/s]
+ 86%|████████▌ | 119M/138M [00:33<00:05, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1773,27 +1773,27 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 86%|████████▋ | 119M/138M [00:33<00:05, 3.77MB/s]
+ 86%|████████▋ | 119M/138M [00:33<00:05, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 87%|████████▋ | 120M/138M [00:33<00:05, 3.76MB/s]
+ 87%|████████▋ | 120M/138M [00:33<00:05, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 87%|████████▋ | 120M/138M [00:33<00:05, 3.77MB/s]
+ 87%|████████▋ | 120M/138M [00:33<00:05, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 87%|████████▋ | 121M/138M [00:33<00:04, 3.78MB/s]
+ 87%|████████▋ | 120M/138M [00:33<00:04, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 87%|████████▋ | 121M/138M [00:33<00:04, 3.78MB/s]
+ 87%|████████▋ | 121M/138M [00:33<00:04, 3.76MB/s]
 
 .. parsed-literal::
 
@@ -1808,87 +1808,82 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 88%|████████▊ | 122M/138M [00:34<00:04, 3.77MB/s]
+ 88%|████████▊ | 122M/138M [00:34<00:04, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 89%|████████▊ | 122M/138M [00:34<00:04, 3.78MB/s]
+ 89%|████████▊ | 122M/138M [00:34<00:04, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 89%|████████▉ | 123M/138M [00:34<00:04, 3.77MB/s]
+ 89%|████████▉ | 123M/138M [00:34<00:04, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 89%|████████▉ | 123M/138M [00:34<00:04, 3.78MB/s]
+ 89%|████████▉ | 123M/138M [00:34<00:04, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 89%|████████▉ | 124M/138M [00:34<00:04, 3.77MB/s]
+ 89%|████████▉ | 123M/138M [00:34<00:04, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 90%|████████▉ | 124M/138M [00:34<00:03, 3.77MB/s]
+ 90%|████████▉ | 124M/138M [00:34<00:04, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 90%|████████▉ | 124M/138M [00:34<00:03, 3.76MB/s]
+ 90%|████████▉ | 124M/138M [00:34<00:03, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 90%|█████████ | 125M/138M [00:34<00:03, 3.77MB/s]
+ 90%|█████████ | 125M/138M [00:34<00:03, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 90%|█████████ | 125M/138M [00:34<00:03, 3.76MB/s]
+ 90%|█████████ | 125M/138M [00:34<00:03, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 91%|█████████ | 125M/138M [00:35<00:03, 3.77MB/s]
+ 91%|█████████ | 125M/138M [00:34<00:03, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 91%|█████████ | 126M/138M [00:35<00:03, 3.76MB/s]
+ 91%|█████████ | 126M/138M [00:35<00:03, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 91%|█████████▏| 126M/138M [00:35<00:03, 3.77MB/s]
+ 91%|█████████ | 126M/138M [00:35<00:03, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 92%|█████████▏| 127M/138M [00:35<00:03, 3.77MB/s]
+ 92%|█████████▏| 126M/138M [00:35<00:03, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 92%|█████████▏| 127M/138M [00:35<00:03, 3.78MB/s]
+ 92%|█████████▏| 127M/138M [00:35<00:03, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 92%|█████████▏| 127M/138M [00:35<00:03, 3.78MB/s]
+ 92%|█████████▏| 127M/138M [00:35<00:03, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 92%|█████████▏| 128M/138M [00:35<00:02, 3.80MB/s]
-
-.. parsed-literal::
-
-
- 93%|█████████▎| 128M/138M [00:35<00:02, 3.78MB/s]
+ 92%|█████████▏| 128M/138M [00:35<00:02, 3.79MB/s]
 
 .. parsed-literal::
 
@@ -1898,47 +1893,52 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 93%|█████████▎| 129M/138M [00:35<00:02, 3.78MB/s]
+ 93%|█████████▎| 128M/138M [00:35<00:02, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 93%|█████████▎| 129M/138M [00:36<00:02, 3.77MB/s]
+ 93%|█████████▎| 129M/138M [00:35<00:02, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 94%|█████████▎| 130M/138M [00:36<00:02, 3.74MB/s]
+ 93%|█████████▎| 129M/138M [00:36<00:02, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 94%|█████████▍| 130M/138M [00:36<00:02, 3.74MB/s]
+ 94%|█████████▎| 129M/138M [00:36<00:02, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 94%|█████████▍| 130M/138M [00:36<00:02, 3.74MB/s]
+ 94%|█████████▍| 130M/138M [00:36<00:02, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 95%|█████████▍| 131M/138M [00:36<00:02, 3.76MB/s]
+ 94%|█████████▍| 130M/138M [00:36<00:02, 3.77MB/s]
 
 .. parsed-literal::
 
 
- 95%|█████████▍| 131M/138M [00:36<00:02, 3.77MB/s]
+ 94%|█████████▍| 131M/138M [00:36<00:02, 3.78MB/s]
 
 .. parsed-literal::
 
 
- 95%|█████████▌| 131M/138M [00:36<00:01, 3.76MB/s]
+ 95%|█████████▍| 131M/138M [00:36<00:02, 3.79MB/s]
 
 .. parsed-literal::
 
 
- 95%|█████████▌| 132M/138M [00:36<00:01, 3.76MB/s]
+ 95%|█████████▌| 131M/138M [00:36<00:01, 3.78MB/s]
+
+.. parsed-literal::
+
+
+ 95%|█████████▌| 132M/138M [00:36<00:01, 3.77MB/s]
 
 .. parsed-literal::
 
@@ -1948,22 +1948,22 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 96%|█████████▌| 133M/138M [00:36<00:01, 3.76MB/s]
+ 96%|█████████▌| 132M/138M [00:36<00:01, 3.76MB/s]
 
 .. parsed-literal::
 
 
- 96%|█████████▌| 133M/138M [00:37<00:01, 3.78MB/s]
+ 96%|█████████▌| 133M/138M [00:37<00:01, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 96%|█████████▋| 133M/138M [00:37<00:01, 3.77MB/s]
+ 96%|█████████▋| 133M/138M [00:37<00:01, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 97%|█████████▋| 134M/138M [00:37<00:01, 3.76MB/s]
+ 97%|█████████▋| 134M/138M [00:37<00:01, 3.79MB/s]
 
 .. parsed-literal::
 
@@ -1973,57 +1973,57 @@ model and generate a segmentation map.
 .. parsed-literal::
 
 
- 97%|█████████▋| 134M/138M [00:37<00:01, 3.78MB/s]
+ 97%|█████████▋| 134M/138M [00:37<00:01, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 98%|█████████▊| 135M/138M [00:37<00:00, 3.77MB/s]
+ 97%|█████████▋| 135M/138M [00:37<00:00, 3.74MB/s]
 
 .. parsed-literal::
 
 
- 98%|█████████▊| 135M/138M [00:37<00:00, 3.78MB/s]
+ 98%|█████████▊| 135M/138M [00:37<00:00, 3.72MB/s]
 
 .. parsed-literal::
 
 
- 98%|█████████▊| 136M/138M [00:37<00:00, 3.78MB/s]
+ 98%|█████████▊| 135M/138M [00:37<00:00, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 98%|█████████▊| 136M/138M [00:37<00:00, 3.80MB/s]
+ 98%|█████████▊| 136M/138M [00:37<00:00, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 99%|█████████▊| 136M/138M [00:38<00:00, 3.76MB/s]
+ 99%|█████████▊| 136M/138M [00:38<00:00, 3.75MB/s]
 
 .. parsed-literal::
 
 
- 99%|█████████▉| 137M/138M [00:38<00:00, 3.75MB/s]
+ 99%|█████████▉| 137M/138M [00:38<00:00, 3.74MB/s]
 
 .. parsed-literal::
 
 
-   99%|█████████▉| 137M/138M [00:38<00:00, 3.77MB/s]
+ 99%|█████████▉| 137M/138M [00:38<00:00, 3.72MB/s]
 
 .. parsed-literal::
 
 
-   99%|█████████▉| 137M/138M [00:38<00:00, 3.76MB/s]
+ 99%|█████████▉| 137M/138M [00:38<00:00, 3.72MB/s]
 
 .. parsed-literal::
 
 
-   100%|█████████▉| 138M/138M [00:38<00:00, 3.77MB/s]
+   100%|█████████▉| 138M/138M [00:38<00:00, 3.73MB/s]
 
 .. parsed-literal::
 
 
-   100%|█████████▉| 138M/138M [00:38<00:00, 3.76MB/s]
+   100%|█████████▉| 138M/138M [00:38<00:00, 3.74MB/s]
 
 .. parsed-literal::
 
@@ -2039,12 +2039,12 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 641.7ms
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 627.6ms
 
 
 .. parsed-literal::
 
-    Speed: 3.8ms preprocess, 641.7ms inference, 27.5ms postprocess per image at shape (1, 3, 768, 1024)
+    Speed: 3.3ms preprocess, 627.6ms inference, 27.0ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -2083,7 +2083,7 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-2.1.2+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.0.200 🚀 Python-3.8.10 torch-2.2.0+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
 
 
 .. parsed-literal::
@@ -2100,7 +2100,7 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    ONNX: export success ✅ 3.9s, saved as 'FastSAM-x.onnx' (275.5 MB)
+    ONNX: export success ✅ 3.8s, saved as 'FastSAM-x.onnx' (275.5 MB)
 
 
 .. parsed-literal::
@@ -2117,8 +2117,8 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 .. parsed-literal::
 
 
-    Export complete (8.0s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
+    Export complete (7.7s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml
     Visualize:       https://netron.app
@@ -2215,14 +2215,15 @@ pipeline.
 
 
 
-.. parsed-literal::
-
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 336.9ms
-
 
 .. parsed-literal::
 
-    Speed: 3.5ms preprocess, 336.9ms inference, 18.5ms postprocess per image at shape (1, 3, 480, 640)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/261-fast-segment-anything/coco_bike.jpg: 480x640 33 objects, 310.8ms
+
+
+.. parsed-literal::
+
+    Speed: 3.3ms preprocess, 310.8ms inference, 26.3ms postprocess per image at shape (1, 3, 480, 640)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -2293,7 +2294,7 @@ in the NNCF repo, refer there for more details. Moreover, you can check
 out other quantization tutorials in the `OV notebooks
 repo <230-yolov8-optimizati-with-output.html>`__.
 
-   **Note**: Model post-training quantization is time-consuming process.
+   **NOTE**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
@@ -2494,20 +2495,21 @@ repo <230-yolov8-optimizati-with-output.html>`__.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
       return Tensor(self.data * unwrap_tensor_data(other))
 
 
@@ -2518,14 +2520,15 @@ repo <230-yolov8-optimizati-with-output.html>`__.
 
 
 
+
+
+
+
+
 .. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -2919,5 +2922,5 @@ based on user input.
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

@@ -9,7 +9,7 @@ namespace kernel_selector {
 
 count_nonzero_kernel_selector::count_nonzero_kernel_selector() { Attach<CountNonzeroKernelRef>(); }
 
-KernelsData count_nonzero_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::COUNT_NONZERO);
+KernelsData count_nonzero_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::COUNT_NONZERO);
 }
 }  // namespace kernel_selector

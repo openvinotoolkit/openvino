@@ -5,7 +5,6 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/op/op.hpp>
 #include <shared_test_classes/base/ov_subgraph.hpp>
-#include <ov_models/builders.hpp>
 #include "utils/cpu_test_utils.hpp"
 
 using namespace ov::test;

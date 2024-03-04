@@ -590,7 +590,7 @@ select device from dropdown list for running inference using OpenVINO
 The number of detected meter from detection network can be arbitrary in
 some scenarios, which means the batch size of segmentation network input
 is a `dynamic
-dimension <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_DynamicShapes.html>`__,
+dimension <https://docs.openvino.ai/2024/openvino-workflow/running-inference/dynamic-shapes.html>`__,
 and it should be specified as ``-1`` or the ``ov::Dimension()`` instead
 of a positive number used for static dimensions. In this case, for
 memory consumption optimization, we can specify the lower and/or upper
@@ -623,7 +623,7 @@ bounds of input batch size.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f3c87e408e0>
+    <matplotlib.image.AxesImage at 0x7f476c1d6fd0>
 
 
 
@@ -788,7 +788,7 @@ Get the reading result on the meter picture
 .. image:: 203-meter-reader-with-output_files/203-meter-reader-with-output_24_1.png
 
 
-Try it with your meter photos
------------------------------------------------
+Try it with your meter photos!
+------------------------------
 
 

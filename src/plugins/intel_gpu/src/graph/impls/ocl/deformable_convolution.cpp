@@ -15,7 +15,7 @@ struct deformable_conv_impl : typed_primitive_impl_ocl<deformable_conv> {
     using parent = typed_primitive_impl_ocl<deformable_conv>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::deformable_conv_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
+    using kernel_params_t = kernel_selector::convolution_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deformable_conv_impl)
 
@@ -38,7 +38,6 @@ public:
         const auto& groups = primitive->groups;
 
         auto params = get_weights_bias_default_params<kernel_selector::convolution_params>(impl_param);
-        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         const auto weight_idx = 1 + 0;
         const auto& weights_layout = impl_param.input_layouts[weight_idx].convert_to_weights_layout(false);
@@ -51,7 +50,7 @@ public:
             (uint32_t)weights_size.spatial[2],
         };
 
-        return {params, optional_params};
+        return params;
     }
 };
 
@@ -59,7 +58,7 @@ struct deformable_interp_impl : typed_primitive_impl_ocl<deformable_interp> {
     using parent = typed_primitive_impl_ocl<deformable_interp>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::deformable_interp_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::convolution_params, kernel_selector::convolution_optional_params>;
+    using kernel_params_t = kernel_selector::convolution_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::deformable_interp_impl)
 
@@ -82,7 +81,6 @@ public:
         const auto& deformable_groups = primitive->deformable_groups;
 
         auto params = get_default_params<kernel_selector::convolution_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::convolution_optional_params>(impl_param.get_program());
 
         // It's not really needed, just initialize fields of params
         auto weights_layout = layout(input_layout.data_type, input_layout.format, kernel_size);
@@ -115,7 +113,7 @@ public:
         params.kernelSize = { (uint32_t)kernel_size.spatial[0],
                               (uint32_t)kernel_size.spatial[1],
                               (uint32_t)kernel_size.spatial[2] };
-        return {params, optional_params};
+        return params;
     }
 };
 

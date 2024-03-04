@@ -80,9 +80,8 @@ ParamsKey ResampleKernelOnnx::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ResampleKernelOnnx::get_required_device_features_key(const Params& params,
-                                                                       const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ResampleKernelOnnx::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_selector::resample_params& arg) const {
@@ -112,15 +111,14 @@ ResampleKernelBase::DispatchData ResampleKernelOnnx::SetDefault(const kernel_sel
     return dispatchData;
 }
 
-KernelsPriority ResampleKernelOnnx::GetKernelsPriority(const Params& /*params*/,
-                                                       const optional_params& /*options*/) const {
+KernelsPriority ResampleKernelOnnx::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 
-bool ResampleKernelOnnx::Validate(const Params& p, const optional_params& o) const {
+bool ResampleKernelOnnx::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
 
-    if (!Parent::Validate(p, o))
+    if (!Parent::Validate(p))
         return false;
 
     const auto& input = params.inputs[0];
@@ -181,7 +179,7 @@ JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) 
     return jit;
 }
 
-KernelsData ResampleKernelOnnx::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData ResampleKernelOnnx::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector

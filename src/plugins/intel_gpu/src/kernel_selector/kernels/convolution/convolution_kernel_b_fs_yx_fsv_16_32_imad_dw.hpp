@@ -16,14 +16,14 @@ public:
     virtual ~ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw() {}
 
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsData GetKernelsDataForAutoTune(const Params & params, const optional_params & options) const override;
-    KernelsData GetTunedKernelsDataByIndex(const Params & params, const optional_params & options, int autoTuneIndex = -1) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

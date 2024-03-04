@@ -11,14 +11,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTruncateDiv(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        assert 'y' in inputs_info
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
         # generate x and y to ensure truncation
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
-        inputs_data['y'] = np.random.randint(1, 10, y_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['y:0'] = np.random.randint(1, 10, y_shape).astype(self.input_type)
         return inputs_data
 
     def create_truncate_div_net(self, input_shape, input_type):
@@ -49,7 +49,7 @@ class TestTruncateDiv(CommonTFLayerTest):
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 126314, 122716')
     def test_truncate_div_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(*self.create_truncate_div_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

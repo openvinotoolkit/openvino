@@ -1,6 +1,6 @@
 var cookieVersion = 0;
 window.onload = (e) => {
-  fetch('/build/docs/_build/_static/html/banner_data.json').then((data) => {
+  fetch('_static/html/banner_data.json').then((data) => {
     data.json().then((item) => {
       if(item != null && item.p != "" && item.version != "" && item.style != "" ) {
         cookieVersion = item.version;

@@ -15,7 +15,7 @@
 #include "common_test_utils/node_builders/binary_convolution.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 

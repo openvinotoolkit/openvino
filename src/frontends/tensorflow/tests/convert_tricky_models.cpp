@@ -773,7 +773,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
                               {},
                               {},
                               {},
-                              {"cond"},
+                              {"cond:0"},
                               {&cond_value});
     }
     {

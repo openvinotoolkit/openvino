@@ -43,13 +43,6 @@ struct reorder_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reorder_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reorder_optional_params : optional_params {
-    reorder_optional_params() : optional_params(KernelType::REORDER) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // reorder_fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct reorder_fuse_params : fuse_params {
@@ -112,10 +105,9 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    bool Validate(const Params&, const optional_params&) const override { return true; }
-    KernelsData GetCommonKernelsData(const reorder_weights_params& params,
-                                     const optional_params&) const;
-    KernelsData GetCommonKernelsData(const reorder_params& params, const optional_params&) const;
+    bool Validate(const Params&) const override { return true; }
+    KernelsData GetCommonKernelsData(const reorder_weights_params& params) const;
+    KernelsData GetCommonKernelsData(const reorder_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

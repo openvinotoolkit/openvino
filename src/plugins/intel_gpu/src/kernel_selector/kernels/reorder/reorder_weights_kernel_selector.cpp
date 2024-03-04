@@ -23,7 +23,7 @@ ReorderWeightsKernelSelector::ReorderWeightsKernelSelector() {
     Attach<ReorderWeightsKernelInt4>();
 }
 
-KernelsData ReorderWeightsKernelSelector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::REORDER);
+KernelsData ReorderWeightsKernelSelector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::REORDER);
 }
 }  // namespace kernel_selector

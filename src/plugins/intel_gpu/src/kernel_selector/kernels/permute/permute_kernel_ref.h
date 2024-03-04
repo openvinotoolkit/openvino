@@ -18,8 +18,8 @@ public:
     PermuteKernelRef() : PermuteKernelBase("permute_ref") {}
     virtual ~PermuteKernelRef() {}
 
-    bool Validate(const Params& p, const optional_params& o) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

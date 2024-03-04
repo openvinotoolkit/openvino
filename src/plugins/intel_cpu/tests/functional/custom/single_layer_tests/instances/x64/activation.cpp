@@ -4,6 +4,7 @@
 
 #include "custom/single_layer_tests/classes/activation.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
 using namespace ov::test::utils;

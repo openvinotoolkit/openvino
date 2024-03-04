@@ -27,16 +27,15 @@ void addJitConstantsForAttribute(kernel_selector::JitConstants &jit,
 
 namespace kernel_selector {
 
-KernelsData SliceKernelRef::GetKernelsData(const Params &params,
-        const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData SliceKernelRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<slice_params>(params);
     slice_params &new_params =
             dynamic_cast<slice_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto dispatch_data = SetDefault(new_params);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto slice_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, slice_specific_jit, entry_point);
 
@@ -46,8 +45,7 @@ KernelsData SliceKernelRef::GetKernelsData(const Params &params,
     return {kernel_data};
 }
 
-KernelsPriority SliceKernelRef::GetKernelsPriority(const Params&/*params*/,
-        const optional_params&/*options*/) const {
+KernelsPriority SliceKernelRef::GetKernelsPriority(const Params&/*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -73,8 +71,8 @@ ParamsKey SliceKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool SliceKernelRef::Validate(const Params &p, const optional_params &o) const {
-    if (p.GetType() != KernelType::SLICE || o.GetType() != KernelType::SLICE) {
+bool SliceKernelRef::Validate(const Params &p) const {
+    if (p.GetType() != KernelType::SLICE) {
         return false;
     }
 
@@ -96,8 +94,7 @@ JitConstants SliceKernelRef::GetJitConstants(const slice_params &params) const {
     return jit;
 }
 
-CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params,
-        const optional_params&) const {
+CommonDispatchData SliceKernelRef::SetDefault(const slice_params &params) const {
     CommonDispatchData dispatchData;
     dispatchData.gws = { params.outputs[0].Batch().v, params.outputs[0].Feature().v,
             params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };

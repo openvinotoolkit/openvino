@@ -8,7 +8,7 @@
 namespace kernel_selector {
 broadcast_kernel_selector::broadcast_kernel_selector() { Attach<BroadcastKernelRef>(); }
 
-KernelsData broadcast_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::BROADCAST);
+KernelsData broadcast_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::BROADCAST);
 }
 }  // namespace kernel_selector

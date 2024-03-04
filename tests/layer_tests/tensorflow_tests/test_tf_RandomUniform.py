@@ -16,7 +16,7 @@ from unit_tests.utils.graph import build_graph, regular_op_with_shaped_data, con
 class TestRandomUniform(CommonTFLayerTest):
     def create_tf_random_uniform_net(self, global_seed, op_seed, x_shape, min_val, max_val,
                                      input_type, precision,
-                                     ir_version, use_new_frontend):
+                                     ir_version, use_legacy_frontend):
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
@@ -93,13 +93,13 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"],
                        reason='Ticket - 122716')
     def test_random_uniform_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend):
+                                  use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
         self._test(
             *self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
-                                               use_new_frontend=use_new_frontend), ie_device,
-            precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
+                                               use_legacy_frontend=use_legacy_frontend), ie_device,
+            precision, temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
             **params)
 
     test_data_other = [
@@ -115,11 +115,11 @@ class TestRandomUniform(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_other)
     @pytest.mark.nightly
     def test_random_uniform_other(self, params, ie_device, precision, ir_version, temp_dir,
-                                  use_new_frontend):
+                                  use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("RandomUniform is not supported on GPU")
         self._test(
             *self.create_tf_random_uniform_net(**params, precision=precision, ir_version=ir_version,
-                                               use_new_frontend=use_new_frontend), ie_device,
-            precision, temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
+                                               use_legacy_frontend=use_legacy_frontend), ie_device,
+            precision, temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
             **params)

@@ -4,9 +4,9 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "subgraphs_builders.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "shared_test_classes/base/utils/compare_results.hpp"
 
 #include "openvino/op/parameter.hpp"
@@ -153,7 +153,12 @@ class KVCacheTests: public ::testing::Test {
             auto ref_model = model->clone();
             ov::Tensor kv_cache_copy(kv_cache.get_element_type(), kv_cache.get_shape());
             kv_cache.copy_to(kv_cache_copy);
-            ngraph::helpers::resize_function(ref_model, {kv_cache_copy.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()});
+            std::map<ov::Output<ov::Node>, ov::PartialShape> shapes = {
+                {ref_model->input(0), kv_cache_copy.get_shape()},
+                {ref_model->input(1), new_token_data.get_shape()},
+                {ref_model->input(2), matmul_data.get_shape()}
+            };
+            ref_model->reshape(shapes);
 
             auto compiled_model_ref = core->compile_model(ref_model, ov::test::utils::DEVICE_TEMPLATE);
             auto inf_req_ref = compiled_model_ref.create_infer_request();
@@ -336,19 +341,22 @@ class KVCacheTests: public ::testing::Test {
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
             auto input3 = fuse_cache_reorder ? ref_model->get_parameters().at(3)  : nullptr;
-            std::vector<ov::Shape> input_shapes = {kv_cache.get_shape(), new_token_data.get_shape(), matmul_data.get_shape()};
+            std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes = {
+                {input0, kv_cache.get_shape()},
+                {input1, new_token_data.get_shape()},
+                {input2, matmul_data.get_shape()}
+            };
             std::map<std::shared_ptr<ov::Node>, ov::Tensor> inputs = {
                 {input0, kv_cache},
                 {input1, new_token_data},
                 {input2, matmul_data}
             };
             if (fuse_cache_reorder) {
-                input_shapes.push_back(beam_idx_shape);
+                input_shapes[input3] = beam_idx_shape;
                 inputs.emplace(input3, beam_idx_data);
             }
-
-            ngraph::helpers::resize_function(ref_model, input_shapes);
-            return ngraph::helpers::interpretFunction(ref_model, inputs);
+            ref_model->reshape(input_shapes);
+            return ov::test::utils::infer_on_template(ref_model, inputs);
         };
 
         auto compare_tensors = [&model](const std::vector<ov::Tensor> expected, const std::vector<ov::Tensor>& actual) {

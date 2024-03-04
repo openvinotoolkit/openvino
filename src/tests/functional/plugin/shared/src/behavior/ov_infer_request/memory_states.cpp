@@ -78,7 +78,7 @@ std::shared_ptr<ov::Model> OVInferRequestVariableStateTest::get_network() {
 ov::CompiledModel OVInferRequestVariableStateTest::prepare_network() {
     net->add_output("Memory_1");
     net->add_output("Memory_2");
-    ov::Core core = createCoreWithTemplate();
+    ov::Core core = ov::test::utils::create_core();
     return core.compile_model(net, deviceName, configuration);
 }
 

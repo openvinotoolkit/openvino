@@ -39,8 +39,8 @@ class TestIdentity(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_identity_basic(self, input_shape, identity_op, ie_device, precision, ir_version, temp_dir,
-                            use_new_frontend):
+                            use_legacy_frontend):
         params = dict(input_shape=input_shape, identity_op=OPS[identity_op])
         self._test(*self.create_identity_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

@@ -44,12 +44,12 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     return jit;
 }
 
-KernelsData ReorderKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernelRef::GetKernelsData(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

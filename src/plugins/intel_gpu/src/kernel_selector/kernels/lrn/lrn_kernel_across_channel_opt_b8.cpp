@@ -23,8 +23,8 @@ ParamsKey LRNKernelAcrossChannel_b8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey LRNKernelAcrossChannel_b8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey LRNKernelAcrossChannel_b8::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& params) const {
@@ -36,8 +36,8 @@ CommonDispatchData LRNKernelAcrossChannel_b8::SetDefault(const lrn_params& param
     return dispatchData;
 }
 
-bool LRNKernelAcrossChannel_b8::Validate(const Params& p, const optional_params& o) const {
-    if (!LRNKernelBase::Validate(p, o)) {
+bool LRNKernelAcrossChannel_b8::Validate(const Params& p) const {
+    if (!LRNKernelBase::Validate(p)) {
         return false;
     }
 
@@ -80,11 +80,11 @@ JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params
     return jit;
 }
 
-KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LRNKernelAcrossChannel_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelAcrossChannel_b8::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector
