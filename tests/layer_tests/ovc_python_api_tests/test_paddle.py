@@ -37,6 +37,7 @@ def make_pd_static_graph_model(shape):
     exe.run(paddle.static.default_startup_program())
     return exe, x, y
 
+
 def make_pd_hapi_graph_model(shape):
     import paddle
     paddle.disable_static()
@@ -52,6 +53,7 @@ def make_pd_hapi_graph_model(shape):
         parameters=model.parameters())
     model.prepare(optim, paddle.nn.CrossEntropyLoss(), paddle.metric.Accuracy())
     return model
+
 
 def make_ref_graph_model(shape, dtype=np.float32):
     shape = PartialShape(shape)
@@ -92,8 +94,10 @@ class TestMoConvertPaddle(CommonMOConvertTest):
         create_paddle_static_module,
         create_paddle_hapi_module
     ]
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
+    
     @pytest.mark.skip(reason="Paddlepaddle has incompatible protobuf. Ticket: 95904")
-    @pytest.mark.parametrize("create_model", test_data)
+    @pytest.mark.parametrize("create_model", test_data, ids=test_ids)
     def test_mo_import_from_memory_paddle_fe(self, create_model, ie_device, precision, ir_version,
                                              temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
@@ -112,24 +116,30 @@ class TestPaddleConversionParams(CommonMOConvertTest):
         pass
 
     test_data = [
-        {'params_test': {'input': paddle.shape(paddle.to_tensor(np.random.rand(2, 3, 4)))},
+        {'params_test': {'input': {'tensor_shape':[2, 3, 4]}},
          'fw_model': make_pd_hapi_graph_model([1, 2]),
          'ref_model': make_ref_graph_model([2, 3, 4])},
-        {'params_test': {'input': paddle.to_tensor(np.random.rand(5, 6)).shape},
+        {'params_test': {'input': {'tensor_shape':[5,6]}},
          'fw_model': make_pd_hapi_graph_model([1, 2, 3]),
          'ref_model': make_ref_graph_model([5, 6])},
-        {'params_test': {'input': (paddle.to_tensor(np.random.rand(4, 2, 7)).shape, paddle.int32)},
+        {'params_test': {'input': {'tensor_shape':[4,2,7], 'dtype': paddle.int32 }},
          'fw_model': make_pd_hapi_graph_model([2, 3]),
          'ref_model': make_ref_graph_model([4, 2, 7], np.int32)},
     ] if paddle_is_imported else []
 
-    @pytest.mark.parametrize("params", test_data)
+
+    test_ids = ["Test{}".format(id) for id in range(len(test_data))]
+    @pytest.mark.parametrize("params", test_data,ids=test_ids)
     @pytest.mark.nightly
     def test_conversion_params(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
+        
         fw_model = params['fw_model']
-        test_params = params['params_test']
-        ref_model = params['ref_model']
-
+        ref_model = params['ref_model']        
+        if 'dtype' in params['params_test']['input'].keys():
+            test_params={'input' : (self.paddle.to_tensor(np.random.rand(*params['params_test']['input']['tensor_shape'])).shape, params['params_test']['input']['dtype'])}
+        else:
+            test_params={'input' : self.paddle.to_tensor(np.random.rand(*params['params_test']['input']['tensor_shape'])).shape}
+                
         test_params.update({'input_model': fw_model})
         self._test_by_ref_graph(temp_dir, test_params, ref_model, compare_tensor_names=False)
