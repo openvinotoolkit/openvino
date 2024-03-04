@@ -46,5 +46,20 @@ INSTANTIATE_TEST_SUITE_P(
             ::testing::Values(ov::test::utils::DEVICE_GPU)),
         Slice8LayerTest::getTestCaseName);
 
+std::vector<Slice8SpecificParams> dynamic_params = {
+        Slice8SpecificParams{ {{{ -1 }, {{ 8 }, { 16 }}}}, { 4 }, { 12 }, { 1 }, { 0 } },
+        Slice8SpecificParams{ {{{ ov::Dimension(2, 20) }, {{ 5 }, { 15 }}}}, { 0 }, { 8 }, { 2 }, { 0 } },
+        Slice8SpecificParams{ {{{ -1, -1, -1 }, {{ 20, 10, 5 }, {5, 10, 20}}}}, { 0, 0}, { 10, 20}, { 1, 1 }, { 1, 0 } },
+        Slice8SpecificParams{ {{{ -1, -1, -1, -1 }, {{ 1, 2, 12, 100 }}}}, { 0, 1, 0, 1 }, { 1, 2, 5, 100 }, { 1, 1, 1, 10 }, {} },
+        Slice8SpecificParams{ {{{ov::Dimension(1, 5), ov::Dimension(1, 7), ov::Dimension(1, 35), ov::Dimension(1, 35)},
+            {{ 1, 5, 32, 32 }, { 2, 5, 32, 20 }, { 2, 5, 32, 32 }}}}, { 0, 2, 5, 4 }, { 1, 4, 28, 27 }, { 1, 1, 1, 1 }, { 0, 1, 2, 3 } }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_dynamic, Slice8LayerTest,
+        ::testing::Combine(
+            ::testing::ValuesIn(dynamic_params),
+            ::testing::ValuesIn(types),
+            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+        Slice8LayerTest::getTestCaseName);
 
 }  // namespace
