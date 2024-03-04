@@ -28,7 +28,7 @@ namespace op {
 OutputVector translate_angle_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Angle"}, true);
     auto complex = node.get_input(0);
-    auto result_type = node.get_input(1);
+    auto result_type = node.get_attribute<ov::element::Type>("Tout");
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
     complex = complex_type_mark->input_value(0);
