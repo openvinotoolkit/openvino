@@ -100,13 +100,16 @@ void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
     for (auto input : get_inputs()) {
         std::string input_name = get_port_name(input);
+        auto input_index = find_port(input).idx;
         if (input_name.empty()) {
             OPENVINO_THROW("Input tensor map contains not registered during IPlugin::compile_model tensor with name ",
                            input_name);
         }
-        if (m_external_ptr.find(input_name) != m_external_ptr.end()) {
+        if (m_input_external_ptr_tmp.find(input_index) != m_input_external_ptr_tmp.end()) {
             auto tensor = get_tensor(input);
-            m_external_ptr[input_name] = tensor;
+            m_input_external_ptr_tmp[input_index] = tensor;
+            std::cout << "[update_external_tensor_ptrs()] add name: " << input_name << ", index: " << input_index
+                      << ", tensor: " << tensor->data() << std::endl;
         }
     }
 }
@@ -200,10 +203,16 @@ void SyncInferRequest::change_default_ptr() {
         };
     }
 
-    for (auto& it : m_external_ptr) {
-        auto input = inputNodesMap.find(it.first);
+    for (auto& it : m_input_external_ptr_tmp) {
+        std::string index_to_name;
+        for (const auto& tmp : m_input_ports_map_tmp) {
+            if (it.first == tmp.first)
+                index_to_name = get_port_name(tmp.second);
+        }
+        std::cout << "[change_default_ptr()] input name: " << index_to_name << ", tensor: " << it.second->data() << std::endl;
+        auto input = inputNodesMap.find(index_to_name);
         if (inputNodesMap.end() == input) {
-            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob: ", it.first);
+            OPENVINO_ASSERT(outputNodesMap.count(index_to_name), "Cannot find input/output blob: ", index_to_name);
             continue;
         }
         NodePtr inputNodePtr = input->second;
@@ -251,9 +260,14 @@ void SyncInferRequest::change_default_ptr() {
         }
     }
 
-    for (auto& it : m_external_ptr) {
-        const auto& name = it.first;
-        auto output = outputNodesMap.find(name);
+    for (auto& it : m_output_external_ptr_tmp) {
+        std::string index_to_name;
+        for (const auto& tmp : m_output_ports_map_tmp) {
+            if (it.first == tmp.first)
+                index_to_name = get_port_name(tmp.second);
+        }
+        std::cout << "[change_default_ptr()] output name: " << index_to_name << ", tensor: " << it.second->data() << std::endl;
+        auto output = outputNodesMap.find(index_to_name);
         if (outputNodesMap.end() == output) {
             continue;
         }
@@ -375,6 +389,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
     auto name = get_port_name(in_port);
+    auto port_index = find_port(in_port).idx;
     auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
     bool is_input = ov::op::util::is_parameter(port.get_node());
     if (is_input) {
@@ -418,9 +433,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
 
         if (actualDesc->isCompatible(*mem_desc_ptr)) {
-            m_external_ptr[name] = tensor;
-        } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
-            m_external_ptr.erase(name);
+            m_input_external_ptr_tmp[port_index] = tensor;
+            std::cout << "[set_tensor()] add input name: " << name << ", index: " << port_index << ", tensor: " << tensor->data() << std::endl;
+        } else if (m_input_external_ptr_tmp.find(port_index) != m_input_external_ptr_tmp.end()) {
+            m_input_external_ptr_tmp.erase(port_index);
+            std::cout << "[set_tensor()] erase input name: " << name << ", index: " << port_index << std::endl;
         }
     } else {
         const auto netOutPrc = port.get_element_type();
@@ -456,9 +473,11 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         const auto& desc = m_graph->getOutputNodeByName(name)->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
-            m_external_ptr[name] = tensor;
-        } else if (m_external_ptr.find(name) != m_external_ptr.end()) {
-            m_external_ptr.erase(name);
+            m_output_external_ptr_tmp[port_index] = tensor;
+            std::cout << "[set_tensor()] add output name: " << name << ", index: " << port_index << ", tensor: " << tensor->data() << std::endl;
+        } else if (m_output_external_ptr_tmp.find(port_index) != m_output_external_ptr_tmp.end()) {
+            m_output_external_ptr_tmp.erase(port_index);
+            std::cout << "[set_tensor()] erase output name: " << name << ", index: " << port_index << std::endl;
         }
 
         m_outputs_tmp[find_port(in_port).idx] = tensor;
@@ -513,7 +532,9 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (mem_desc_ptr->isCompatible(
                         m_graph->getInputNodeByName(name)->getChildEdgeAt(0)->getMemory().getDesc())) {
-                    m_external_ptr[name] = tensor;
+                    m_input_external_ptr_tmp[find_port(port).idx] = tensor;
+                    std::cout << "[init_tensor()] input name: " << name << ", index: " << find_port(port).idx
+                              << ", tensor: " << tensor->data() << std::endl;
                 }
             }
         }
@@ -610,10 +631,12 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
                 }
             }
             m_outputs_tmp[find_port(port).idx] = tensor;
-            if (!port_shape.is_dynamic() && !m_external_ptr.count(name)) {
+            if (!port_shape.is_dynamic() && !m_output_external_ptr_tmp.count(find_port(port).idx)) {
                 auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (desc->isCompatible(output->second->getParentEdgeAt(0)->getMemory().getDesc())) {
-                    m_external_ptr[name] = tensor;
+                    m_output_external_ptr_tmp[find_port(port).idx] = tensor;
+                    std::cout << "[init_tensor()] output name: " << name << ", index: " << find_port(port).idx
+                              << ", tensor: " << tensor->data() << std::endl;
                 }
             }
             // update tensors in case of multiple output ports with the same name

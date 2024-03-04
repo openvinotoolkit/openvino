@@ -109,7 +109,8 @@ private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks_tmp;
 
     Graph* m_graph = nullptr;
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_external_ptr;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr_tmp;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr_tmp;
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
