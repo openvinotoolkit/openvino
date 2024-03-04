@@ -1466,7 +1466,7 @@ void Graph::SortTopologically() {
 
                 // make sure parallel nodes are always enqueue together
                 for (auto& n : node->parallelWith) {
-                    if(std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
+                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
                         sorted.push_back(n);
                     }
                 }

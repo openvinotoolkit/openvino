@@ -160,7 +160,7 @@ void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
         return;
     curNumaNode = numaNodeID;
     mbind_move(packedWeights, numaNodeID);
-    if(m_attrs.withBias) {
+    if (m_attrs.withBias) {
         mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
     }
 }

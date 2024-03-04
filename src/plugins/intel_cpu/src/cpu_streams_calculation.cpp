@@ -210,7 +210,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             }
         } else if (((hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_PLATFORM) ||
                     (hint_max_threads_per_stream == Config::MaxThreadsPerStream::AUTO)) ||
-                   (proc_type_table.size() == 1)) {         
+                   (proc_type_table.size() == 1)) {
             if ((proc_type_table.size() == 1) && (model_prefer_threads > 0)) {
                 if ((model_prefer_threads == proc_type_table[0][MAIN_CORE_PROC]) &&
                     (proc_type_table[0][MAIN_CORE_PROC] > 0)) {
