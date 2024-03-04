@@ -188,7 +188,7 @@ This feature is activated automatically for many supported text generation model
 Model usage remains the same for stateful and stateless models with the Optimum-Intel API, as KV-cache is handled internally by text-generation API of Transformers library.
 The model's form matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
 This is because stateful and stateless models have a different number of inputs and outputs.
-Learn more about the `native OpenVINO API <Running-Generative-AI-Models-using-Native-OpenVINO-APIs>`__.
+Learn more about the :ref:`native OpenVINO API <running_generative_ai_models_using_native_openvino-apis>`.
 
 Enabling OpenVINO Runtime Optimizations
 +++++++++++++++++++++++++++++++++++++++
@@ -244,6 +244,8 @@ Low-rank Adaptation (LoRA) is a popular method to tune Generative AI models to a
 
 
 Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI interfaces mentioned above.
+
+.. _running_generative_ai_models_using_native_openvino-apis:
 
 Running Generative AI Models using Native OpenVINO APIs
 ########################################################
