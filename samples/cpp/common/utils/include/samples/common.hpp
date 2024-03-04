@@ -588,3 +588,16 @@ static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> per
     stream << std::endl;
     stream.flags(fmt);
 }
+
+static inline ov::Layout guess_layout(const ov::Shape& shape) {
+    if (4 != shape.size()) {
+        throw std::logic_error("Sample supports models with rank 4 input only");
+    }
+    if (1 == shape[1] || 3 == shape[1]) {
+        return "NCHW";
+    }
+    if (1 == shape[3] || 3 == shape[3]) {
+        return "NHWC";
+    }
+    throw std::logic_error("Can't guess layout by shape");
+}

@@ -11,32 +11,41 @@
  limitations under the License.
 """
 import os
+import pathlib
 import pytest
 import re
 import sys
 import logging as log
-from common.samples_common_test_class import get_cmd_output, get_tests
+from common.samples_common_test_class import get_cmd_output, get_tests, download
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.common_utils import shell
 from pathlib import Path
 import shutil
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+
+def get_executable(sample_language):
+    return pathlib.Path(os.environ['IE_APP_PATH'], 'hello_classification' + ('' if sample_language == 'C++' else '_c')).with_suffix('.exe' if os.name == 'nt' else '')
+
+
+def prepend(cache, model, inp):
+    test_data_dir = cache.mkdir('test_data')
+    return download(test_data_dir, test_data_dir / model), download(test_data_dir, test_data_dir / inp)
+
 
 test_data_fp32 = get_tests({
-    'i': ['dog-256x256.bmp'],
-    'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12-qdq.onnx'],  # Remove the model forom .md and .rst if removed from here
     'sample_type': ['C++', 'C'],
 })
 
 test_data_fp32_unicode = get_tests({
-    'i': ['dog-256x256.bmp'],
-    'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12-qdq.onnx'],
     'sample_type': ['C++'],
 })
 
 
-class TestHello(SamplesCommonTestClass):
+class Test_hello_classification(SamplesCommonTestClass):
     sample_name = 'hello_classification'
 
     @pytest.mark.parametrize("param", test_data_fp32)
@@ -48,18 +57,16 @@ class TestHello(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
-        if not stdout:
-            return 0
+        output = get_cmd_output(get_executable(param['sample_type']), *prepend(cache, param['m'], param['i']), param['d'])
 
-        stdout = stdout.split('\n')
+        output = output.split('\n')
 
         is_ok = True
-        for line in range(len(stdout)):
-            if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
-                top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
+        for line in range(len(output)):
+            if re.match('\\d+ +\\d+.\\d+$', output[line].replace('[ INFO ]', '').strip()) is not None:
+                top1 = output[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
-                if '262' not in top1:
+                if '267' not in top1:
                     is_ok = False
                     log.error('Expected class 262, Detected class {}'.format(top1))
                 break

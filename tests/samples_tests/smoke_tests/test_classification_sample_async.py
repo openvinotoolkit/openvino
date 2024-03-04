@@ -10,7 +10,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
 import re
 import sys
@@ -20,19 +19,17 @@ from common.samples_common_test_class import get_tests
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': ['dog-256x256.bmp'],
-                                       'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
-                                       'sample_type': ['C++','Python'],
-                                       'batch': [1, 2, 4],
-                                      },
-                           )
+test_data_fp32 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12-qdq.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'sample_type': ['C++','Python'],
+})
 
-test_data_fp16 = get_tests(cmd_params={'i': ['dog-256x256.bmp'],
-                                       'm': ['nfnet-f0.onnx'],
-                                       'sample_type': ['C++','Python'],
-                                       'batch': [1, 2, 4],
-                                       },
-                           )
+test_data_fp16 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12-qdq.onnx'],
+    'sample_type': ['C++','Python'],
+})
 
 
 class TestClassification(SamplesCommonTestClass):
@@ -40,11 +37,11 @@ class TestClassification(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
-        _check_output(self, param, '262', cache)
+        _check_output(self, param, '267', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
-        _check_output(self, param, '262', cache)
+        _check_output(self, param, '267', cache)
 
 
 def _check_output(self, param, expected_result, cache):

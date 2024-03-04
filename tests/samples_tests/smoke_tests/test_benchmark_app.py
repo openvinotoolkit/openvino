@@ -26,10 +26,10 @@ def get_executable(sample_language):
     return 'benchmark_app'
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12-qdq.onnx'):
     output = get_cmd_output(
         get_executable(sample_language),
-        *prepend(cache, 'dog-256x256.bmp', 'nfnet-f0.onnx'),
+        *prepend(cache, 'dog-224x224.bmp', model),
         *('-nstreams', nstreams) if nstreams else '',
         *('-layout', layout) if layout else '',
         *('-nireq', nireq) if nireq else '',
@@ -92,10 +92,10 @@ def test_api(sample_language, api, device, cache, tmp_path):
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_reshape(sample_language, device, cache):
-    verify(sample_language, device, shape='image[2,3,256,256]', cache=cache)
+    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache)
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_dynamic_shape(sample_language, device, cache):
-    verify(sample_language, device, shape='[?,3,?,?]', data_shape='[1,3,256,227][1,3,256,256]', layout='[NCHW]', cache=cache)
+    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx', shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache)

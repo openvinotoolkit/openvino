@@ -10,7 +10,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
 import re
 import sys
@@ -21,8 +20,8 @@ from common.samples_common_test_class import SamplesCommonTestClass
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 test_data_fp32 = get_tests({
-    'i': 'samples_smoke_tests_data_2021.4/validation_set/224x224/dog6.yuv',
-    'm': ['nfnet-f0.onnx'],  # Remove googlenet-v3 forom .md and .rst if
+    'i': ['samples_smoke_tests_data_2021.4/validation_set/224x224/dog6.yuv'],
+    'm': ['bvlcalexnet-12-qdq.onnx'],  # Remove the model forom .md and .rst if removed from here
     'size': ['224x224'],
 	'sample_type': ['C++', 'C'],
 })
@@ -53,7 +52,8 @@ def _check_output(self, param, cache):
         if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
             top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
             top1 = re.sub('\\D', '', top1)
-            if '215' not in top1:
+            print(top1)
+            if '207' not in top1:
                 is_ok = False
                 log.error('Expected class 215, Detected class {}'.format(top1))
             break
