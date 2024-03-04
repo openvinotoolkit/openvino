@@ -444,28 +444,29 @@ We will discuss these units in more detail below.
  The next stage is the actual data flow optimizations, the stage has two main objectives. 
  First, it inserts utility operations to make the data flow explicit and suitable for further optimizations and code generation. 
  Second, it replaces some `Ops` (or `Ops'` patterns) with operations from the custom `Snippets::op` opset to allow for generation of a more efficient code. 
+ The data flow optimizations are shape-agnostic transformations which allow to perform the stage `Data flow optimization` on subgraphs with dynamic shapes.
  Let's consider an example below to clarify this stage's mechanics.
 
 ```mermaid
  graph LR
    subgraph left[" "]
       direction TB
-      P10[Parameter 1]-->|"[3,2,10,1]"|S0["Multiply"]
+      P10[Parameter 1]-->|"[3,2,?,?]"|S0["Multiply"]
       C10[Constant 1]-->|"[1,1,1,1]"|S0
-      S0-->|"[3,2,10,1]"|Add0[Add]
-      Add0-->|"[3,2,10,64]"|Power0[Power]
+      S0-->|"[3,2,?,?]"|Add0[Add]
+      Add0-->|"[3,2,?,?]"|Power0[Power]
       C20[Constant 2]-->|"[1,1,1,1]"|Power0
-      P20[Parameter 2]--->|"[3,2,10,64]"|Add0
-      Power0-->|"[3,2,10,64]"|R0["Result"]
+      P20[Parameter 2]--->|"[3,2,?,?]"|Add0
+      Power0-->|"[3,2,?,?]"|R0["Result"]
    end
    subgraph middle[" "]
       direction TB
-      P11[Parameter 1]-->|"[3,2,10,1]"|S1["Multiply"]
+      P11[Parameter 1]-->|"[3,2,?,?]"|S1["Multiply"]
       C11[Scalar 1]-->|"[1,1,1,1]"|S1
-      S1-->|"[3,2,10,1]"|B1[BroadcastMove]-->|"[3,2,10,64]"|Add1[Add]
-      Add1-->|"[3,2,10,64]"|Power1[PowerStatic]
-      P21[Parameter 2]--->|"[3,2,10,64]"|Add1
-      Power1-->|"[3,2,10,64]"|R1["Result"]
+      S1-->|"[3,2,?,?]"|Add1[Add]
+      Add1-->|"[3,2,?,?]"|Power1[PowerStatic]
+      P21[Parameter 2]--->|"[3,2,?,?]"|Add1
+      Power1-->|"[3,2,?,?]"|R1["Result"]
    end
    left-->|Data flow \n optimization|middle
 %%   middle-->|<font size=+1>Attach Add\n to Subgraph</font>|right
@@ -476,11 +477,12 @@ The picture above demonstrates body functions' state before (left) and after (ri
 Here what happend with the graph during the optimizations:
 1. `Constant` nodes were replaced with `Scalars` from `Snippets` opset. This is needed to allow for generation of a more efficient code, since a corresponding ScalarEmitter allows to store values directly inside the `Kernel`.
 2. The `Scalar->Power`sequence was replaced with the `PowerStatic` operation (`Snipppets` opset). Again, this allows to generate more specialized and performant code.
-3. An explicit `BroadcastMove` operation was inserted between the `Multiply` and `Add` nodes, since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
 
-This should give you a general idea on how the `Data flow optimizer` works, please refer to `canonicalize(...)` and `data_flow_transformations(...)` in [subgraph.cpp](../src/op/subgraph.cpp) for more details. 
-The last thing worth mentioning here is that the `Snippets` also allow a plugin to perform target-specific optimizations by providing several transformation managers to `snippets::op::Subgraph::generate(...)` (which in turn calls both `data_flow_transformations(...)` and `control_flow_transformations(...)`). 
-The managers will be executed on different stages of the pipeline to enable more fine-tuning.
+This should give you a general idea on how the `Data flow optimizer` works, please refer to `data_flow_transformations(...)` in [subgraph.cpp](../src/op/subgraph.cpp) for more details. 
+The last thing worth mentioning here is that the `Snippets` also allow a plugin to perform target-specific optimizations by providing set of positioned passes to
+`snippets::op::Subgraph::generate(...)` (which in turn calls both `data_flow_transformations(...)` and `control_flow_transformations(...)`).
+Positioned passes (defined in [positioned_pass.hpp](../include/snippets/pass/positioned_pass.hpp)) represent the transformation itself and the place where it should be registered in the transformation manager,
+which allows the plugin to flexibly register its own passes.
 
 #### Control flow optimizer
 
@@ -515,8 +517,8 @@ flowchart LR
        Expression-->|Contains|Connector[PortConnector]
        Expression-->|Contains|PortDescriptor
        Connector-->|Contains|ExpressionPort
-       Expression.->|Can \n create|ExpressionPort
-       ExpressionPort.->|Contains \n Pointer|Expression
+       Expression-->|Can \n create|ExpressionPort
+       ExpressionPort-->|Contains \n Pointer|Expression
    end
    subgraph Usage[Moving between Expressions]
       direction TB
@@ -563,15 +565,26 @@ An example on how `PortConnectors` can be used to move between `Expressions` is 
 So if we need to get a child expression connected to the i-th expression's output, we need to call `expression->get_output_port_connector(i)` first to obtain a corresponding connector, then to call `connector->get_consumers()` to obtain a set of connected `ExpressionPorts`, and finally `ExpressionPort->get_expr()` to access a child expression. 
 Note that if a `PortDescriptor` is required, you can obtain it directly (without getting `Expression` first) by calling `ExpressionPort->get_descriptor_ptr()`, so the `ExpressionPort` will snag the right `PortDescriptor` from the `Expression` for you.
 
-Concluding this section, it's worth mentioning that the `LinearIR` currently provides two debug features: `debug_print()` and `serialize(...)`. 
+Concluding this section, it's worth mentioning that the `LinearIR` currently provides several debug features: `debug_print()`, serialization, performance counters and segfault detector. 
 The first one prints input and output `PortConnectors` and `PortDescriptors` for every `Expression` to stderr. 
-The second one serializes the `LIR` into an `xml` OpenVINO graph format, where a lot of useful parameters are displayed for every `Expression`.
+The second one allows users to serialize the `LIR` in two representations: as a control flow graph of `LinearIR` using the pass `SerializeControlFlow` and 
+as a data flow graph of `LinearIR` using the pass `SerializeDataFlow` (control flow operations (e.g. `LoopBegin`/`LoopEnd`) are not serialized).
+The both serializations are saved in `xml` OpenVINO graph format, where a lot of useful parameters are displayed for every `Expression`.
+Please see [perf_count.md](./debug_capabilities/perf_count.md) and [snippets_segfault_detector.md](./debug_capabilities/snippets_segfault_detector.md) for more info regarding the performance counters and segfault detector. 
+
+The `LinearIR` also provides a a convenient interface for working with new `Expressions`.
+This interface includes the `insert_node(...)` method that creates a new `Expression` based on the passed `ov::Node` and inserts it in the specified place in the `LinearIR`.
+The `insert_node(...)` method automatically performs all the necessary actions for full integration into the `LinearIR` (connection with parents and consumers and updates of the corresponding `LoopInfo`).
+This helper is used in several control flow transformations, that are usually named `InsertSomething`. Consider the `InsertLoadStore` pass as an example [insert_load_store.cpp](../src/lowered/pass/insert_load_store.cpp).
+The method `replace_with_node(...)` replaces the existing `Expressions` in the `LinearIR` with the new `Expression`. This `Expression` is created from the passed `ov::Node`.
+The example of using the helper might be found in the `LoadMoveBroadcastToBroadcastLoad` pass inside [load_movebroadcast_to_broadcastload.cpp](../src/lowered/pass/load_movebroadcast_to_broadcastload.cpp).
+The method `replace_with_expr(...)` replaces the existing `Expressions` in the `LinearIR` with the passed `Expression`.
+For more details regarding these helpers please refer to the relevant descriptions in `LinearIR` interface inside [linear_ir.cpp](../src/lowered/linear_ir.cpp).
 
 ##### Control flow optimization pipeline
 
-Control flow optimization pipeline is divided into three main blocks: common pipeline, buffer pipeline and final pipeline. 
-The common pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
-The exact set of transformations executed in the common pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
+The pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
+The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
 1. `MarkLoops` - performs an analysis of `Expressions'` connectivity and their `PortDescriptors`. 
 Based on this information, the pass divides the `Expression` into groups, so that each of the groups can be executed inside one loop. 
 Every group is described by a `loop_id`, and additional information is saved in `LinearIR::LoopManager::LoopInfo`.
@@ -580,17 +593,30 @@ This pass can move some `Expressions` up or down the graph, so the `Expressions`
 3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
 4. `InsertLoadStore` - inserts explicit memory access operations like `Load` and `Store` (both from `snippets::op`). 
 These are needed, so appropriate instructions will be emitted during the code generation stage to move data between memory and vector registers.
-5. `InitLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
+5. `InitLoops` - initialize data pointer shift parameters (pointer increments and finalization offsets for each loop port) in `LoopInfo`.
+6. `InsertLoops` - inserts explicit `LoopBegin` and `LoopEnd` (`snippets::op`) operations based on the acquired `LoopInfo`. 
 Again, the explicit operations are needed to emit appropriate instructions later.
-6. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
+7. `InsertBroadcastMove` insert `MoveBroadcast` before `Expressions` with several inputs since a special broadcasting instruction needs to be generated to broadcast a single value to fill the whole vector register.
+8. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
+9. `AllocateBuffers` is responsible for a safe `Buffer` data pointer increments and common memory size calculation. For more details refer please to the end of this section.
+10. `CleanRepeatedDataPointerShifts` - eliminates redundant pointer increments from the loops.
+11. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
 
-The buffer pipeline is focused on managing `op::Buffer` operations:
-1. `IdentifyBuffers` - analyzes buffers using graph coloring algorithm to avoid redundant pointer increments.
-2. `AllocateBuffers` - calculates minimal memory size required to handle all the buffers. The memory will be allocated during the execution stage by the plugin `Snippet` node.
-    
-The final pipeline applies finishing touches before the `IR` will be passed to the `Generator` module:
-1. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
-2. `CleanupLoopOffsets` - eliminates redundant pointer increments from the loops.
+As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
+Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
+* All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
+* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`) and `ID` (the `Buffers` with the same `ID` have the same assigned register).
+
+The algorithm supports two modes: optimized and non-optimized.
+The optimized one calculates minimal memory size and minimal unique `ID` count required to handle all the buffers.
+The non-optimized version assigns each buffer an unique `ID` and `offset`.
+The first mode is the default one, while the second one might be used for debugging the optimized version.
+The optimized algorithm `AllocateBuffers` has the main following steps:
+1. `IdentifyBuffers` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+2. `DefineBufferClusters` - creates sets of `Buffer` ops - `BufferClusters`.
+`Buffers` from one `BufferCluster` refer to the same memory area (they have the same `offset` relative to the `Buffer scratchpad` data pointer).
+For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one `BufferCluster`.
+3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
 More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
 When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
@@ -617,8 +643,11 @@ Note that every loop has two parameters that specify how its body is evaluated: 
 The `increment` defines how many data entries are processed on every loop iteration (it usually equals to vector size for the innermost loops of elementwise subgraph). 
 So if a loop's `work_amount` is not evenly divisible by its `increment`, it means that a tail processing is required. 
 `InsertTailLoop` duplicates the body of such a loop, rescales pointer increments and load/store masks appropriately, and injects these `Ops` immediately after the processed loop.
+3. `CleanupLoopOffsets` "fuses" the finalization offsets of loop with an outer loop's pointer increments and zeroes the offsets before `Result` operations.
+4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
+This information will be used during code emission to eliminate redundant instructions.
 
-Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the `Preparation` passes. 
+Please see [assign_registers.cpp](../src/lowered/pass/assign_registers.cpp) and [insert_tail_loop.cpp](../src/lowered/pass/insert_tail_loop.cpp) for more info regarding the main passes in the `Preparation` stage. 
 When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 

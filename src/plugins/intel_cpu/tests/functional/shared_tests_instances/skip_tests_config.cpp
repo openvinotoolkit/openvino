@@ -176,27 +176,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=7_axis=1_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=18_.*_modelType=f16_trgDev=CPU.*)",
         R"(.*smoke_TopK/TopKLayerTest.Inference.*_k=21_.*_sort=value_modelType=f16_trgDev=CPU.*)",
-        // Issue: 121228
-        R"(smoke_TestsDFT_(1|2|3|4)d/DFTLayerTest.Inference.*bf16.*)",
-        // Issue: 121313
-        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f16.*)",
-        R"(smoke_GroupConvBackpropData.*paddingDefined/GroupConvBackpropLayerTest.Inference.*f32.*)",
         // Issue: 121812
         R"(.*ConvertCPULayerTest.*outFmts=(nhwc|nChw8c|nChw16c).*)",
         // Issue: 122321
         R"(.*smoke_ConvertCPULayerTest_BOOL.*)",
-        // Issue: 122177
-        R"(smoke_LSTMSequenceCommon.*LSTMSequenceTest.Inference.*CONVERT_TO_TI.*)",
-        // Issue: 122081
-        R"(smoke_Activation_Basic_Prelu_Const/ActivationLayerTest.Inference/.*_TS=\(3.2.5.7\).*)",
-        // Issue: 122094
-        R"(smoke_Interpolate_Basic_Down_Sample_Tail/InterpolateLayerTest.Inference.*(asymmetric|align_corners).*f16.*)",
         // Need to generate sequence exactly in the i64 data type. Enable in scope of i64 enabling.
         R"(.*RandomUniformLayerTestCPU.*OutPrc=i64.*)",
         // Issue: 123321
         R"(.*smoke_RNNSequenceCommonZeroClip/RNNSequenceTest.Inference.*hidden_size=10.*relu.*)",
-        // Issue: 123427
-        R"(.*RDFTLayerTest.*SignalSize=().*)",
         // Issue: 123815 (Tests are sensintive to available thread count on testing machines)
         R"(.*smoke_Snippets_MHA_.?D_SplitDimensionM.*)",
         // Issue: 122356
@@ -211,6 +198,62 @@ std::vector<std::string> disabledTestPatterns() {
         R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})",
         // Issue: 132494
         R"(.*smoke_Inverse.*bf16.*)",
+        // Issue: CVS-133173
+        R"(.*smoke_ScaledAttn_CPU/ScaledAttnLayerCPUTest.CompareWithRefs/netPRC=bf16.*has_scale=0.*)",
+        R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[.*\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=__255_\[.*\]_\{ -12.7 \}_\{ 12.7 \}_\{\}.*)",
+        R"(.*smoke_LPT_4D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16,16\]_CPU_f32_\[16,16\]_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=.*)",
+        R"(.*smoke_LPT_3D/ConvolutionBackpropDataTransformation.CompareWithRefImpl/f32_\[1,8,16\]_CPU_f32_\[16\]_.*_input_high=\{ 25.5 \}_.*_precision=__255_\[1,1,1\]_\{ -12.7 \}_\{ 12.7 \}_\{\}.*)",
+        R"(.*smoke_LPT/ConvolutionQDqTransformation.CompareWithRefImpl/f32_\[(1,3,4,4|4,3,4,4)\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32__.*_f32_\[\]_1_1_undefined__\{, 15\}_f32_\[\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8___f32__\{ -128 \}_.*_1_1_i8_.*)",
+        R"(.*smoke_LPT/ConvolutionQDqTransformation.CompareWithRefImpl/f32_\[(1,3,4,4|4,3,4,4)\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32_\{\}__\{ 0.1 \}_f32_\[\]_1_1_undefined__\{, 15\}_f32_\[\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8_.*)",
+        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_undefined__on_branch1_0_2.55_0_2.55_on_branch2_-1.28_1.27_-1.28_1.27_1.*)",
+        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_broadcast1_undefined__on_branch1_-1.28_1.27_-1.28_1.27_on_branch2_0_2.55_0_2.55_0.*)",
+        R"(.*smoke_LPT/MultiplyTransformation.CompareWithRefImpl/f32_\[1,3,16,16\]_CPU_f32_broadcast2_undefined__on_branch1_0_2.55_0_2.55_on_branch2_-1.27_1.28_-1.27_1.28_0.*)",
+        R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)",
+        R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\].*)",
+        R"(.*smoke_LPT/RecurrentCellTransformation.CompareWithRefImpl/f32_\[1,2,16\]_CPU_f32FQ_X_level=256_.*_FQ_W_level=255.*)",
+        R"(.*smoke_LPT/SubtractTransformation.CompareWithRefImpl/f16_\[1,3,16,16\]_CPU_f32.*)",
+        R"(.*smoke_LPT/FakeQuantizeTransformation.CompareWithRefImpl/f32_\[1,32,72,48\]_CPU_f32_0_level=65536_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 65.535 \}_output_low=\{ 0 \}_output_high=\{ 65.535 \}_precision=.*)",
+        R"(.*smoke_LPT/FakeQuantizeTransformation.CompareWithRefImpl/f32_\[1,32,72,48\]_CPU_f32_0_level=65536_shape=\[\]_input_low=\{ -32.768 \}_input_high=\{ 32.767 \}_output_low=\{ -32.768 \}_output_high=\{ 32.767 \}_precision=.*)",
+        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:_FQ:level=256_shape=\[\]_input_low=\{ (0|-1.28) \}_input_high=\{ (2.55|1.27) \}_output_low=\{ (0|-1.28) \}_output_high=\{ (2.55|255|1.27) \}_precision=_DQ:.*)",
+        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:relu_FQ:level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 2.55 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=_DQ:__f32_\{\}__\{ 0.01 \}_undefined_\[\]_0_1_undefined.*)",
+        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:0_OP:relu_FQ:level=256_shape=\[1,6,1,1\]_input_low=\{ 0, 0, 0, 0, 0, 0 \}_input_high=\{ 2.55, 1.275, 0.85, 0.6375, 0.51, 0.425 \}_output_low=\{ -128, -128, -128, -128, -128, -128 \}_output_high=\{ 127, 127, 127, 127, 127, 127 \}_precision=_DQ:\{\}.*)",
+        R"(.*smoke_LPT/MoveFakeQuantizeTransformation.CompareWithRefImpl/f32_\[(1|4),1,16,16\]_CPU_f32SPLIT:(0|1)_OP:_FQ:level=256_shape=\[1,6,1,1\]_input_low=\{ 0, 0, 0, 0, 0, 0 \}_input_high=\{ 2.55, 1.275, 0.85, 0.6375, 0.51, 0.425 \}_output_low=\{ 0, 0, 0, 0, 0, 0 \}_output_high=\{ 255, 127.5, 85, 63.75, 51, 42.5 \}_precision=_DQ:__f32_.*)",
+        R"(.*smoke_LPT/EliminateFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ 127.5 \}_output_low=\{ 0 \}_output_high\{ 127.5 \}_precision=f32_level=256_shape=\[\]_input_low=\{ 0 \}_input_high=\{ (127.5|121.429) \}_output_low=\{ 0 \}_output_high\{ (127.5|121.429) \}_precision=f32.*)",
+        R"(.*smoke_LPT/MatMulWithOptimizedConstantFq.CompareWithRefImpl/f32_\[1,16\]_\[(10|16),(10|16)\]_CPU_level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_level=255_shape=\[1\]_input_low=\{ -12.7 \}_input_high=\{ 12.7 \}_output_low=\{ -12.7 \}_output_high\{ 12.7 \}_precision=.*)",
+        R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_undefined_\[\]_f32__\{\}_\{\}__\{ (0.01|0.01, 0.1, 1) \}_.*)",
+        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_4D_\[1,6,24,24\]_\[1,24,18,18\]_3_-1_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_wo_reshape__255_\[3,8,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
+        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,24(,24)*\]_CPU_f32_(3D|4D)_\[1,6,24(,24)*\]_\[1,24,18(,18)*\]_3_-1_level=256_shape=\[1,1,1.*\]_input_low=\{ 0 \}_input_high=\{ 25.5 \}_output_low=\{ 0 \}_output_high\{ 25.5 \}_precision=_wo_reshape__255_\[3,8,1,1(,1)*\]_\{ -127, -12.7, -1.27,.*)",
+        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,6,1,24,24\]_CPU_f32_5D_\[1,6,1,24,24\]_\[1,24,1,18,18\]_3_-1_level=256_shape=\[1,1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ -12.8 \}_output_high\{ 12.7 \}_precision=_reshape_on_weights__255_\[1,1,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
+        R"(.*smoke_LPT/GroupConvolutionTransformation.CompareWithRefImpl/f32_\[1,24,8,12,12\]_CPU_f32_5D_\[1,24,8,12,12\]_\[1,24,1,1,1\]_3_-1_level=256_shape=\[1,1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ -12.8 \}_output_high\{ 12.7 \}_precision=_reshape_on_weights__255_\[1,1,1,1,1\]_\{ -127 \}_\{ 127 \}.*)",
+        R"(.*smoke_LPT/GroupConvolutionQDqTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ -12.8 \}_input_high=\{ 12.7 \}_output_low=\{ 0 \}_output_high=\{ 255 \}_precision=f32__u8___f32_.*_undefinedoutput_original_f32_multiplyAfter=(false|true).*)",
+        R"(.*smoke_LPT/GroupConvolutionQDqTransformation.CompareWithRefImpl/f32_\[1,6,24,24\]_CPU_f32_level=256_.*_precision=f32__u8___f32_\{\}__\{ 0.1 \}.*_f32_\[6,2,5,5\]__255_\[1,1,1,1\]_\{ -128 \}_\{ 127 \}__i8.*undefinedoutput_original_u8_multiplyAfter=(false|true).*)",
+        R"(.*smoke_LPT/MatMulWithConstantTransformation.CompareWithRefImpl/\[(2,3,4|1,1,3,4)\]_f32_CPU_.*_shape=\[1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0, 0, 0 \}_output_high=\{ 255, 25.5, 255 \}_precision=_level=256_shape=\[1\]_input_low=\{ -128 \}_.*)",
+        R"(.*smoke_LPT/ReduceSumTransformation.CompareWithRefImpl/f32_\[1,3,10,10\]_CPU_f32_level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ 0 \}_output_high\{ 127 \}_precision=_keepDims__reduce_axis_2_3_.*)",
+        R"(.*smoke_TestsDFT_1d/DFTLayerTest.Inference.*TS=.*10.4.20.32.2.*Precision=bf16_Axes=\((0|2|3|_2)\).*)",
+        R"(.*smoke_TestsDFT_1d/DFTLayerTest.Inference.*TS=.*1.120.128.1.2.*Precision=bf16_Axes=\((1|2|_2)\).*)",
+        R"(.*smoke_TestsDFT_1d/DFTLayerTest.Inference.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\((2|_2)\)_signal_size=\(40\)_Inverse=1.*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*10.4.20.32.2.*_Precision=bf16.*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*2.5.7.8.2.*_Precision=bf16.*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16.*_signal_size=\(\).*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16_Axes=\((0.1.2|1.2.3|2.3.1|0.2.3)\)_signal_size=\(7.11.32\)_Inverse=1.*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16_Axes=\((1.2.3|2.3.1|0.2.3)\)_signal_size=\(7.11.32\)_Inverse=0.*)",
+        R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=bf16_Axes=\((_3._1._2|2.3.1)\)_signal_size=\(4.8.16\).*)",
+        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*10.4.20.32.2.*Precision=bf16_Axes=\(0.1.2.3\)_signal_size=\(5.2.5.2\).*)",
+        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*10.4.20.32.2.*Precision=bf16_Axes=\(0.1.2.3\)_signal_size=\(5.2.5.2\).*)",
+        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*2.5.7.8.2.*Precision=bf16.*)",
+        R"(.*smoke_TestsDFT_4d/DFTLayerTest.Inference/.*1.120.128.1.2.*Precision=bf16.*signal_size=\(\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*10.4.20.32.2.*_Precision=bf16.*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*_Precision=bf16_Axes=\((_1._2|1.3|2.3|2.1)\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\(0.1\)_signal_size=\(\)_Inverse=1.*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\((0.1|2.0)\)_signal_size=\(16.8\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\(2.0\)_signal_size=\(\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\(2.0\)_signal_size=\(5.7\)_Inverse=0.*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*2.5.7.8.2.*Precision=bf16_Axes=\(2.0\)_signal_size=\(4.10\)_Inverse=1.*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*_Precision=bf16_.*_signal_size=\(\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\((0.1|_1._2)\)_signal_size=\((4.10|5.7)\)_Inverse=1.*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\(2.1\)_signal_size=\((4.10|5.7)\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\((2.3|2.0|1.3)\)_signal_size=\(16.8\).*)",
+        R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\((2.3|2.0|1.3)\)_signal_size=\(16.8\).*)",
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"
@@ -224,15 +267,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*IEClassBasicTestP.*)");
 #elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
     {
-        // Issue: 121709
-        retVector.emplace_back(
-            R"(smoke_ConversionLayerTest/ConversionLayerTest.Inference/conversionOpType=Convert_IS.*_inputPRC=f16_targetPRC=(u|i)8_trgDev=CPU.*)");
-        // Issue: 121710
-        retVector.emplace_back(
-            R"(smoke_GRUCellCommon/GRUCellTest.Inference/decomposition0_batch=5_.*WType=CONSTANT_RType=CONSTANT_BType=CONSTANT_netPRC=f16_targetDevice=CPU_.*)");
-        // Issue: 121715
-        retVector.emplace_back(
-            R"(smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
         retVector.emplace_back(
             R"(smoke_CompareWithRefs_static_check_collapsing/EltwiseLayerTest.Inference/IS.*_eltwise_op_type=Div_secondary_input_type=PARAMETER_opType=VECTOR_model_type=i32_InType=undefined_OutType=undefined_trgDev=CPU.*)");
         // TODO: enable once streams / tput mode is supported
@@ -266,7 +300,6 @@ std::vector<std::string> disabledTestPatterns() {
 
 #    if defined(OV_CPU_ARM_ENABLE_FP16)
     // Issue: 123019
-    retVector.emplace_back(R"(smoke_CompareWithRefs_Mvn.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_staticShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     retVector.emplace_back(R"(smoke_dynamicShapes4D.*INFERENCE_PRECISION_HINT=f16.*)");
     // Issue: 124309
@@ -286,6 +319,10 @@ std::vector<std::string> disabledTestPatterns() {
 #if defined(OPENVINO_ARCH_ARM)
     // TODO: rounding errors
     retVector.emplace_back(R"(.*iv_secondaryInputType=PARAMETER_opType=VECTOR_NetType=i32.*)");
+    // not supported
+    retVector.emplace_back(R"(.*fma.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*int_jit.*EltwiseLayerCPUTest.*)");
+    retVector.emplace_back(R"(.*dyn.*EltwiseChainTest.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -304,11 +341,17 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_LPT.*)");
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-
 #if defined(_WIN32)
-    retVector.emplace_back(R"(.*LoadNetworkCompiledKernelsCacheTest.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)");
+    retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
+    retVector.emplace_back(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=\}_fq_on_weights=\{_255_\[1,1,1,1\]_\{ -12.7 \}_\{ 12.7 \}\}.*)");
+    retVector.emplace_back(R"(.*smoke_LPT/FuseDequantizeToFakeQuantizeTransformation.CompareWithRefImpl/CPU_f32_0_undefined_\[\]_f32__\{\}_\{\}__\{ 0.01, 0.1, 1 \}_f32_\[1,3\]_1_1_.*)");
+    retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_.*)");
+    retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNorm/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_backprop_quantize_type=(quantize_dequantize_intervals|compressed_weights_intervals).*)");
+    retVector.emplace_back(R"(.*smoke_FQLayerDQBias_4D_static/FQLayerDQBias.smoke_CompareWithRefs/IS=\(\[\]\)_TS=\(\(1.3.64.64\)_\)_layer_type=MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_FQLayerDQBias_4D_dynamic/FQLayerDQBias.smoke_CompareWithRefs/IS=\(\[\?.3.\?.\?\]\)_TS=\(\(1.3.64.64\)_\)_layer_type=MatMul.*)");
+    retVector.emplace_back(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)");
+    retVector.emplace_back(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)");
 #endif
-
     if (!ov::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms

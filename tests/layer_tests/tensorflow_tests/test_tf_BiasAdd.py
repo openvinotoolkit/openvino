@@ -1,31 +1,19 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest
-
-from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
-import tensorflow as tf
 import numpy as np
+import pytest
+import tensorflow as tf
+from common.tf_layer_test_class import CommonTFLayerTest
+
 
 class TestBiasAdd(CommonTFLayerTest):
     def create_bias_add_placeholder_const_net(self, shape, ir_version, use_legacy_frontend, output_type=tf.float32):
-        """
-            Tensorflow net                      IR net
-
-            Placeholder->BiasAdd       =>       Placeholder->Add
-                         /                                   /
-            Const-------/                       Const-------/
-
-        """
-
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
             tf_y_shape = tf_x_shape[-1:]
 
             x = tf.compat.v1.placeholder(output_type, tf_x_shape, 'Input')
@@ -45,30 +33,12 @@ class TestBiasAdd(CommonTFLayerTest):
         return tf_net, ref_net
 
     def create_bias_add_2_consts_net(self, shape, ir_version, use_legacy_frontend, output_type=tf.float32):
-        """
-            Tensorflow net                         IR net
-
-            Const->BiasAdd-->Concat       =>       Const---->Concat
-                    /        /                                  /
-            Const--/        /                      Placeholder-/
-                           /
-            Placeholder---/
-
-        """
-
-        #
-        #   Create Tensorflow model
-        #
-
         tf.compat.v1.reset_default_graph()
-
         tf_concat_axis = -1
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             tf_x_shape = shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
             tf_y_shape = tf_x_shape[-1:]
 
             constant_value_x = np.random.randint(-256, 256, tf_x_shape).astype(output_type.as_numpy_dtype())
