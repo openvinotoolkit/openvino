@@ -49,7 +49,6 @@ void regclass_Tensor(py::module m) {
                 :type share: bool, keyword-only
             )");
 
-
     cls.def(py::init([](py::array& array, bool shared_memory) {
                 return Common::object_from_data<ov::Tensor>(array, shared_memory);
             }),

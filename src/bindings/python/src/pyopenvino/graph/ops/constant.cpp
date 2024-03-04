@@ -26,7 +26,7 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
                            py::format_descriptor<T>::format(),               /* Python struct-style format descriptor */
                            static_cast<size_t>(shape.size()),                /* Number of dimensions */
                            std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
-                           Common::constant_helpers::_get_byte_strides<T>(shape)                       /* Strides (in bytes) for each index */
+                           Common::constant_helpers::_get_byte_strides<T>(shape) /* Strides (in bytes) for each index */
     );
 }
 
@@ -34,12 +34,13 @@ py::buffer_info _get_buffer_info(const ov::op::v0::Constant& c) {
 template <>
 py::buffer_info _get_buffer_info<ov::float16>(const ov::op::v0::Constant& c) {
     ov::Shape shape = c.get_shape();
-    return py::buffer_info(const_cast<void*>(c.get_data_ptr()),              /* Pointer to buffer */
-                           static_cast<size_t>(c.get_element_type().size()), /* Size of one scalar */
-                           std::string(1, 'H'),                              /* Python struct-style format descriptor */
-                           static_cast<size_t>(shape.size()),                /* Number of dimensions */
-                           std::vector<size_t>{shape.begin(), shape.end()},  /* Buffer dimensions */
-                           Common::constant_helpers::_get_byte_strides<ov::float16>(shape)             /* Strides (in bytes) for each index */
+    return py::buffer_info(
+        const_cast<void*>(c.get_data_ptr()),                            /* Pointer to buffer */
+        static_cast<size_t>(c.get_element_type().size()),               /* Size of one scalar */
+        std::string(1, 'H'),                                            /* Python struct-style format descriptor */
+        static_cast<size_t>(shape.size()),                              /* Number of dimensions */
+        std::vector<size_t>{shape.begin(), shape.end()},                /* Buffer dimensions */
+        Common::constant_helpers::_get_byte_strides<ov::float16>(shape) /* Strides (in bytes) for each index */
     );
 }
 

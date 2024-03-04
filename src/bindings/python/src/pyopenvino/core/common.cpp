@@ -281,27 +281,28 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
 }
 
 py::array array_from_tensor(ov::Tensor&& t, const ov::element::Type& dst_dtype) {
-    if(dst_dtype == ov::element::f64) {
+    if (dst_dtype == ov::element::f64) {
         return array_from_tensor_t<double>(std::move(t), py::dtype("float64"));
-    } else if(dst_dtype == ov::element::f32) {
+    } else if (dst_dtype == ov::element::f32) {
         return array_from_tensor_t<float>(std::move(t), py::dtype("float32"));
-    } if(dst_dtype == ov::element::f16) {
+    }
+    if (dst_dtype == ov::element::f16) {
         return array_from_tensor_t<ov::float16>(std::move(t), py::dtype("float16"));
-    } else if(dst_dtype == ov::element::i64) {
+    } else if (dst_dtype == ov::element::i64) {
         return array_from_tensor_t<int64_t>(std::move(t), py::dtype("int64"));
-    } else if(dst_dtype == ov::element::i32) {
+    } else if (dst_dtype == ov::element::i32) {
         return array_from_tensor_t<int32_t>(std::move(t), py::dtype("int32"));
-    } else if(dst_dtype == ov::element::i16) {
+    } else if (dst_dtype == ov::element::i16) {
         return array_from_tensor_t<int16_t>(std::move(t), py::dtype("int16"));
-    } else if(dst_dtype == ov::element::i8) {
+    } else if (dst_dtype == ov::element::i8) {
         return array_from_tensor_t<int8_t>(std::move(t), py::dtype("int8"));
-    } else if(dst_dtype == ov::element::u64) {
+    } else if (dst_dtype == ov::element::u64) {
         return array_from_tensor_t<uint64_t>(std::move(t), py::dtype("uint64"));
-    } else if(dst_dtype == ov::element::u32) {
+    } else if (dst_dtype == ov::element::u32) {
         return array_from_tensor_t<uint32_t>(std::move(t), py::dtype("uint32"));
-    } else if(dst_dtype == ov::element::u16) {
+    } else if (dst_dtype == ov::element::u16) {
         return array_from_tensor_t<uint16_t>(std::move(t), py::dtype("uint16"));
-    } else if(dst_dtype == ov::element::u8) {
+    } else if (dst_dtype == ov::element::u8) {
         return array_from_tensor_t<uint8_t>(std::move(t), py::dtype("uint8"));
     } else {
         OPENVINO_THROW("Unsupported dtype passed!");
@@ -328,37 +329,36 @@ py::array array_from_constant(ov::op::v0::Constant&& c, bool is_shared) {
 
 };  // namespace array_helpers
 
-
 namespace tensor_helpers {
 void fill_tensor(ov::Tensor& tensor, py::array& array) {
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
     std::memcpy(tensor.data(),
                 array.ndim() == 0 ? array.data() : array.data(0),
-                array.ndim() == 0 ? array.itemsize() : array.nbytes()); 
+                array.ndim() == 0 ? array.itemsize() : array.nbytes());
 }
 
 void fill_tensor(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype) {
-    if(array.dtype() == py::dtype("float64")) {
+    if (array.dtype() == py::dtype("float64")) {
         fill_tensor_t<double>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("float32")) {
+    } else if (array.dtype() == py::dtype("float32")) {
         fill_tensor_t<float>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("float16")) {
+    } else if (array.dtype() == py::dtype("float16")) {
         fill_tensor_t<ov::float16>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("int64")) {
+    } else if (array.dtype() == py::dtype("int64")) {
         fill_tensor_t<int64_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("int32")) {
+    } else if (array.dtype() == py::dtype("int32")) {
         fill_tensor_t<int32_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("int16")) {
+    } else if (array.dtype() == py::dtype("int16")) {
         fill_tensor_t<int16_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("int8")) {
+    } else if (array.dtype() == py::dtype("int8")) {
         fill_tensor_t<int8_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("uint64")) {
+    } else if (array.dtype() == py::dtype("uint64")) {
         fill_tensor_t<uint64_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("uint32")) {
+    } else if (array.dtype() == py::dtype("uint32")) {
         fill_tensor_t<uint32_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("uint16")) {
+    } else if (array.dtype() == py::dtype("uint16")) {
         fill_tensor_t<uint16_t>(tensor, array, dst_dtype);
-    } else if(array.dtype() == py::dtype("uint8")) {
+    } else if (array.dtype() == py::dtype("uint8")) {
         fill_tensor_t<uint8_t>(tensor, array, dst_dtype);
     } else {
         OPENVINO_THROW("Unsupported dtype passed!");
@@ -403,7 +403,7 @@ std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
         throw std::runtime_error("Unsupported data type!");
     }
 }
-};  // namespace tensor_helpers
+};  // namespace constant_helpers
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
@@ -525,7 +525,8 @@ ov::Tensor create_shared(py::array& array, ov::element::Type& dst_dtype) {
     if (type_helpers::get_ov_type(array) == dst_dtype) {
         return create_shared<ov::Tensor>(array);
     }
-    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array and destination dtype must match.");
+    OPENVINO_THROW(
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array and destination dtype must match.");
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
