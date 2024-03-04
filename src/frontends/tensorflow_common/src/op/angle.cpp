@@ -39,8 +39,8 @@ OutputVector translate_angle_op(const NodeContext& node) {
     "[TensorFlow Frontend] inconsistent model: Angle operation expects complex type tensor on input"
     );
 
-    auto real_index = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto imag_index = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto real_index = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+    auto imag_index = make_shared<v0::Constant>(element::i32, Shape{}, 1);
     auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
 
     auto x = make_shared<v8::Gather>(x, real_index, gather_axis)->output(0);
