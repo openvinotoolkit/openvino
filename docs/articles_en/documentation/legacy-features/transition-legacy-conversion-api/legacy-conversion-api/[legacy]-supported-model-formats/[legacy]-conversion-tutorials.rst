@@ -20,7 +20,7 @@
    [legacy]-conversion-tutorials/convert-tensorflow-object-detection
    [legacy]-conversion-tutorials/convert-tensorflow-retina-net
    [legacy]-conversion-tutorials/convert-tensorflow-slim-library
-   [legacy]-conversion-tutorials/convert-tensroflow-wide-and-deep-family
+   [legacy]-conversion-tutorials/convert-tensorflow-wide-and-deep-family
    [legacy]-conversion-tutorials/convert-tensorflow-xlnet
    [legacy]-conversion-tutorials/convert-tensorflow-yolo
    [legacy]-conversion-tutorials/convert-onnx-faster-r-cnn

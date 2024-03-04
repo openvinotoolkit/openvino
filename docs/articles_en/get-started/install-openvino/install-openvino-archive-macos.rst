@@ -122,7 +122,7 @@ to see if your case needs any of them.
 The ``/opt/intel/openvino_2023`` folder now contains the core components for OpenVINO.
 If you used a different path in Step 2, for example, ``/home/<USER>/intel/``,
 OpenVINO is now in ``/home/<USER>/intel/openvino_2023``. The path to the ``openvino_2023``
-directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO ../../../documentation.
+directory is also referred as ``<INSTALL_DIR>`` throughout the OpenVINO documentation.
 
 
 Step 2: Configure the Environment
