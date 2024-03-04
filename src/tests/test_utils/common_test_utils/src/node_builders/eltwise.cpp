@@ -10,6 +10,7 @@
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/mod.hpp"
@@ -51,6 +52,8 @@ std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
         return std::make_shared<ov::op::v13::BitwiseOr>(in0, in1);
     case ov::test::utils::EltwiseTypes::BITWISE_XOR:
         return std::make_shared<ov::op::v13::BitwiseXor>(in0, in1);
+    case ov::test::utils::EltwiseTypes::EQUAL_OP:
+        return std::make_shared<ov::op::v1::Equal>(in0, in1);
     default: {
         OPENVINO_THROW("Incorrect type of Eltwise operation");
     }
