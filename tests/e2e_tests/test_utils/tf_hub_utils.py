@@ -1,5 +1,7 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
-import logging as log
 import tensorflow as tf
 
 rng = np.random.default_rng(seed=56190)

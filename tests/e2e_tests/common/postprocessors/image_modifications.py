@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Postprocessor for image modification tasks such as super-resolution, style transfer.
    It takes normalized image and converts it back to colored picture"""
 from .provider import ClassProvider

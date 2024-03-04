@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """
 Dummy infer provider to be used when real provider is unavailable due to absence of IE Python API
 e.g. for IR collection environment

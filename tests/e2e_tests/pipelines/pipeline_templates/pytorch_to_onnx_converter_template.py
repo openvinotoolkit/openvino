@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 def convert_pytorch_to_onnx(model_name=None,
                             weights=None,
                             input_shapes=None,

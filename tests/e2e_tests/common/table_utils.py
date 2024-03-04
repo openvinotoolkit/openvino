@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Common table formatting/creation utils used across E2E tests framework."""
 #pylint:disable=import-error
 from tabulate import tabulate

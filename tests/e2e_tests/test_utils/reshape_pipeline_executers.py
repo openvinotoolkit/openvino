@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import logging as log
 
 from e2e_tests.test_utils.modify_configs import ie_sbs_reshape_config, ie_reshape_config, mo_reshape_config

@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 def pytorch_loader(model_name=None,
                    weights=None,
                    output_file=None,

@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from e2e_tests.common.ref_collector.provider import ClassProvider
 from e2e_tests.utils.path_utils import resolve_file_path, resolve_dir_path
 import os

@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Classification results comparator.
 
 Compares reference and IE models results for top-N classes (usually, top-1 or

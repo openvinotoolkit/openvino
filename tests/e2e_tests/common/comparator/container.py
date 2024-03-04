@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """ Postprocessors and comparators container.
 
 Applies specified postprocessors to reference and IE results.

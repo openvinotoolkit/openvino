@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from .dummy_infer_class import use_dummy
 from .provider import StepProvider
 

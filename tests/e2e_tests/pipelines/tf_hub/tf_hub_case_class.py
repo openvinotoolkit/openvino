@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 from collections import OrderedDict
 
 from e2e_tests.common.common.common_base_class import CommonConfig

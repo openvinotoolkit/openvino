@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 def batched_common_infer_step(device, **additional_args):
     # return 'reshape' method for setting batch because old 'batch_size' method still not implemented in new API
     return "infer", {"ie_sync": {"device": device},

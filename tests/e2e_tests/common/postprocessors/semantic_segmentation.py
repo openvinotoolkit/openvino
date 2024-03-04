@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 """Semantic segmentation postprocessor"""
 from .provider import ClassProvider
 import numpy as np

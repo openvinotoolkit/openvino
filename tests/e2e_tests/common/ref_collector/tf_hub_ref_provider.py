@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import inspect
 
 from e2e_tests.common.common.base_provider import BaseProvider, BaseStepProvider
