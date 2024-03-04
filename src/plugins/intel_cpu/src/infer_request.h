@@ -106,7 +106,7 @@ private:
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
 private:
-    std::unordered_map<std::string, OutputControlBlock> m_outputControlBlocks;
+    std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks_tmp;
 
     Graph* m_graph = nullptr;
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_external_ptr;

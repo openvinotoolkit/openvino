@@ -145,7 +145,7 @@ void SyncInferRequest::infer() {
 
     // update output control blocks, if any, in order to refresh internal buffers
     if (Graph::Status::ReadyDynamic == m_graph->getStatus()) {
-        for (auto&& item : m_outputControlBlocks) {
+        for (auto&& item : m_outputControlBlocks_tmp) {
             item.second.update();
         }
     }
@@ -298,9 +298,14 @@ void SyncInferRequest::change_default_ptr() {
             auto outputMemMngr = item.second;
             OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
 
-            auto controlBlockItr = m_outputControlBlocks.find(name);
+            std::size_t name_to_index = -1;
+            for (const auto& tmp : m_output_ports_map_tmp) {
+                if (get_port_name(tmp.second) == name)
+                    name_to_index = tmp.first;
+            }
+            auto controlBlockItr = m_outputControlBlocks_tmp.find(name_to_index);
 
-            if (controlBlockItr != m_outputControlBlocks.end()) {
+            if (controlBlockItr != m_outputControlBlocks_tmp.end()) {
                 auto output = outputNodesMap.find(name);
                 OPENVINO_ASSERT(outputNodesMap.end() != output, "Node with name: ", name, " is absent in the outputNodesMap");
                 auto parentEdge = output->second->getParentEdgeAt(0);
@@ -457,7 +462,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
 
         m_outputs_tmp[find_port(in_port).idx] = tensor;
-        m_outputControlBlocks.erase(name); // now the memory is under user's control
+        m_outputControlBlocks_tmp.erase(find_port(in_port).idx); // now the memory is under user's control
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
@@ -566,7 +571,7 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
 
                         tensor = control_block.tensor();
                         if (model_prec == graph_prec)
-                            m_outputControlBlocks.emplace(std::make_pair(name, std::move(control_block)));
+                            m_outputControlBlocks_tmp.emplace(std::make_pair(find_port(port).idx, std::move(control_block)));
                     }
                 } else {
                     tensor_shape = shape.to_shape();
