@@ -152,7 +152,7 @@ jobs:
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
           fi
-          
+
           # Skips under tickets: 133405, 122666
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
@@ -221,17 +221,33 @@ jobs:
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
-      - name: PyTorch Layer Tests
+      - name: PyTorch Layer Tests (parallel)
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
 
-      - name: PyTorch torch.export Layer Tests
+      - name: PyTorch Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+
+      - name: PyTorch torch.export Layer Tests (parallel)
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: EXPORT
+
+      - name: PyTorch torch.export Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
@@ -265,12 +281,22 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
-      - name: TensorFlow 1 Layer Tests - TF FE
+      - name: TensorFlow 1 Layer Tests - TF FE (parallel)
         if: fromJSON(inputs.affected-components).TF_FE.test
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 1 Layer Tests - TF FE
+        if: fromJSON(inputs.affected-components).TF_FE.test
+        run: |
+          # requires 'unit_tests' from 'mo'
+          export PYTHONPATH=${INSTALL_TEST_DIR}/mo
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16

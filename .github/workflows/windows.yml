@@ -593,7 +593,7 @@ jobs:
           python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/requirements.txt
 
       # Ticket - 115085
-      - name: PyTorch Layer Tests
+      - name: PyTorch Layer Tests (parallel)
         if: ${{ 'false' }}
         shell: cmd
         run: |
@@ -601,7 +601,15 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
-      - name: ONNX Layer Tests
+      - name: PyTorch Layer Tests
+        if: ${{ 'false' }}
+        shell: cmd
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/pytorch_tests -m precommit --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch.xml
+        env:
+          TEST_DEVICE: CPU
+
+      - name: ONNX Layer Tests (parallel)
         if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
         shell: cmd
         run: |
@@ -612,13 +620,35 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
-      - name: TensorFlow 1 Layer Tests - TF FE
+      - name: ONNX Layer Tests
+        if: fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
+        shell: cmd
+        run: |
+          :: requires 'unit_tests' from 'tools/mo'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/onnx_tests -m "not launch_only_if_manually_specified and precommit" --junitxml=${INSTALL_TEST_DIR}/TEST-onnx.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 1 Layer Tests - TF FE (parallel)
         if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
         shell: cmd
         run: |
           :: requires 'unit_tests' from 'tools/mo'
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
           python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -n logical -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
+      - name: TensorFlow 1 Layer Tests - TF FE
+        if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test
+        shell: cmd
+        run: |
+          :: requires 'unit_tests' from 'tools/mo'
+          set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\mo;%PYTHONPATH%
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/tensorflow_tests/ -m precommit_tf_fe  --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
