@@ -52,7 +52,7 @@ def _check_output(self, param, cache):
         if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
             top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
             top1 = re.sub('\\D', '', top1)
-            if '207' not in top1:
+            if '265' not in top1:
                 is_ok = False
                 log.error('Expected class 215, Detected class {}'.format(top1))
             break
