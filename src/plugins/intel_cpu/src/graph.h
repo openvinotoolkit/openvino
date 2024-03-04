@@ -58,8 +58,8 @@ public:
                      const GraphContext::CPtr ctx,
                      std::string name);
 
-    void PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input);
-    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
+    void PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& input);
+    void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -71,30 +71,30 @@ public:
         return _name;
     }
 
-    std::map<std::string, NodePtr>& GetInputNodesMap() {
-        return inputNodesMap;
+    std::map<std::size_t, NodePtr>& GetInputNodesMap() {
+        return inputNodesMap_tmp;
     }
 
-    std::map<std::string, NodePtr>& GetOutputNodesMap() {
-        return outputNodesMap;
+    std::map<std::size_t, NodePtr>& GetOutputNodesMap() {
+        return outputNodesMap_tmp;
     }
 
-    NodePtr getInputNodeByName(const std::string &name) {
-        auto input = inputNodesMap.find(name);
-        if (input == inputNodesMap.end())
+    NodePtr getInputNodeByName(const std::size_t &name) {
+        auto input = inputNodesMap_tmp.find(name);
+        if (input == inputNodesMap_tmp.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name);
         return input->second;
     }
 
-    NodePtr getOutputNodeByName(const std::string &name) {
-        auto output = outputNodesMap.find(name);
-        if (output == outputNodesMap.end())
+    NodePtr getOutputNodeByName(const std::size_t &name) {
+        auto output = outputNodesMap_tmp.find(name);
+        if (output == outputNodesMap_tmp.end())
             OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
-    bool hasOutputWithName(const std::string& name) const {
-        return outputNodesMap.count(name);
+    bool hasOutputWithName(const std::size_t& name) const {
+        return outputNodesMap_tmp.count(name);
     }
 
     dnnl::engine getEngine() const {
@@ -198,8 +198,8 @@ protected:
     void ForgetGraphData() {
         status = Status::NotReady;
 
-        inputNodesMap.clear();
-        outputNodesMap.clear();
+        inputNodesMap_tmp.clear();
+        outputNodesMap_tmp.clear();
         graphNodes.clear();
         graphEdges.clear();
         syncNodesInds.clear();
@@ -243,10 +243,10 @@ protected:
 
 private:
     // TODO: change std::map to std::unordered_map
-    std::map<std::string, NodePtr> inputNodesMap;
-    std::map<std::string, NodePtr> outputNodesMap;
+    std::map<std::size_t, NodePtr> inputNodesMap_tmp;
+    std::map<std::size_t, NodePtr> outputNodesMap_tmp;
 
-    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
     std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for

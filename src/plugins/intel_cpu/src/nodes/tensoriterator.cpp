@@ -412,18 +412,16 @@ void TensorIterator::getSupportedDescriptors() {
     sub_graph.CreateGraph(body, context);
 
     const auto &inMap = sub_graph.GetInputNodesMap();
-    for (const auto &param : tiOp->get_function()->get_parameters()) {
-        auto inNode = inMap.find(param->get_friendly_name());
+    for (std::size_t parameter_idx = 0; tiOp->get_function()->get_parameters().size(); parameter_idx++) {
+        auto inNode = inMap.find(parameter_idx);
         if (inNode != inMap.end()) {
             input_mems.push_back(getToMemories(inNode->second.get(), 0));
         }
     }
 
     const auto &outMap = sub_graph.GetOutputNodesMap();
-    for (const auto &out : tiOp->get_function()->get_results()) {
-        const auto prev = out->input_value(0);
-        const auto inputID = ov::op::util::create_ie_output_name(prev);
-        auto outNode = outMap.find(inputID);
+    for (std::size_t result_idx = 0; tiOp->get_function()->get_results().size(); result_idx++) {
+        auto outNode = outMap.find(result_idx);
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             output_mem.push_back(outMem);

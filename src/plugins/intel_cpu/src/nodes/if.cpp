@@ -86,54 +86,50 @@ void If::getSupportedDescriptors() {
     subGraphElse.CreateGraph(elseBody, context);
 
     const auto &inMapThen = subGraphThen.GetInputNodesMap();
-    for (const auto &param : ifOp->get_then_body()->get_parameters()) {
-        auto inNode = inMapThen.find(param->get_friendly_name());
+    for (std::size_t param_idx = 0; ifOp->get_then_body()->get_parameters().size(); param_idx++) {
+        auto inNode = inMapThen.find(param_idx);
         if (inNode != inMapThen.end()) {
             inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
             OPENVINO_THROW("Then body of node If with name ",
                            getName(),
                            " does not have input with name: ",
-                           param->get_friendly_name());
+                           param_idx);
         }
     }
 
     const auto &inMapElse = subGraphElse.GetInputNodesMap();
-    for (const auto &param : ifOp->get_else_body()->get_parameters()) {
-        auto inNode = inMapElse.find(param->get_friendly_name());
+    for (std::size_t param_idx = 0; ifOp->get_else_body()->get_parameters().size(); param_idx++) {
+        auto inNode = inMapElse.find(param_idx);
         if (inNode != inMapElse.end()) {
             inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
             OPENVINO_THROW("Else body of node If with name ",
                            getName(),
                            " does not have input with name: ",
-                           param->get_friendly_name());
+                           param_idx);
         }
     }
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();
-    for (const auto& out : ifOp->get_then_body()->get_results()) {
-        const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapThen.find(inputID);
+    for (std::size_t result_idx = 0; ifOp->get_then_body()->get_results().size(); result_idx++) {
+        auto outNode = outMapThen.find(result_idx);
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
-            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
+            OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", result_idx);
         }
     }
 
     const auto &outMapElse = subGraphElse.GetOutputNodesMap();
-    for (const auto& out : ifOp->get_else_body()->get_results()) {
-        const auto prev = out->input_value(0);
-        const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapElse.find(inputID);
+    for (std::size_t result_idx = 0; ifOp->get_else_body()->get_results().size(); result_idx++) {
+        auto outNode = outMapElse.find(result_idx);
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
-            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
+            OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", result_idx);
         }
     }
 

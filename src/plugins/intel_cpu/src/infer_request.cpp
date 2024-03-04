@@ -86,7 +86,7 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
         if (name.empty()) {
             OPENVINO_THROW("compiled model doesn't contain this input port.");
         }
-        const auto inputNode = cpuInputNodes.find(name);
+        const auto inputNode = cpuInputNodes.find(find_port(port).idx);
         if (inputNode == cpuInputNodes.end())
             OPENVINO_THROW("CPU execution graph doesn't contain input node with name: ", name.c_str());
         if (inputNode->second->isDynamicNode()) {
@@ -153,10 +153,10 @@ void SyncInferRequest::infer() {
         }
     }
 
-    for (const auto& tmp : m_outputs_tmp)
-        m_outputs[get_port_name(m_output_ports_map_tmp[tmp.first])] = tmp.second;
+    // for (const auto& tmp : m_outputs_tmp)
+    //     m_outputs[get_port_name(m_output_ports_map_tmp[tmp.first])] = tmp.second;
 
-    m_graph->PullOutputData(m_outputs);
+    m_graph->PullOutputData(m_outputs_tmp);
 
     if (!m_memory_states.empty()) {
         commit_states();
@@ -210,9 +210,9 @@ void SyncInferRequest::change_default_ptr() {
                 index_to_name = get_port_name(tmp.second);
         }
         std::cout << "[change_default_ptr()] input name: " << index_to_name << ", tensor: " << it.second->data() << std::endl;
-        auto input = inputNodesMap.find(index_to_name);
+        auto input = inputNodesMap.find(it.first);
         if (inputNodesMap.end() == input) {
-            OPENVINO_ASSERT(outputNodesMap.count(index_to_name), "Cannot find input/output blob: ", index_to_name);
+            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob: ", it.first);
             continue;
         }
         NodePtr inputNodePtr = input->second;
@@ -267,7 +267,7 @@ void SyncInferRequest::change_default_ptr() {
                 index_to_name = get_port_name(tmp.second);
         }
         std::cout << "[change_default_ptr()] output name: " << index_to_name << ", tensor: " << it.second->data() << std::endl;
-        auto output = outputNodesMap.find(index_to_name);
+        auto output = outputNodesMap.find(it.first);
         if (outputNodesMap.end() == output) {
             continue;
         }
@@ -311,13 +311,7 @@ void SyncInferRequest::change_default_ptr() {
             // share intel_cpu::Tensor to Graph by injecting to corresponding ProxyMemoryMngr instance.
             auto outputMemMngr = item.second;
             OPENVINO_ASSERT(outputMemMngr, "proxy mem manager for output ", name, " is empty.");
-
-            std::size_t name_to_index = -1;
-            for (const auto& tmp : m_output_ports_map_tmp) {
-                if (get_port_name(tmp.second) == name)
-                    name_to_index = tmp.first;
-            }
-            auto controlBlockItr = m_outputControlBlocks_tmp.find(name_to_index);
+            auto controlBlockItr = m_outputControlBlocks_tmp.find(name);
 
             if (controlBlockItr != m_outputControlBlocks_tmp.end()) {
                 auto output = outputNodesMap.find(name);
@@ -423,7 +417,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        MemoryDescPtr actualDesc = m_graph->getInputNodeByName(name)->getBaseMemDescAtOutputPort(0);
+        MemoryDescPtr actualDesc = m_graph->getInputNodeByName(port_index)->getBaseMemDescAtOutputPort(0);
         if (!actualDesc->isDefined()) {
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
@@ -471,7 +465,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        const auto& desc = m_graph->getOutputNodeByName(name)->getParentEdgeAt(0)->getMemory().getDesc();
+        const auto& desc = m_graph->getOutputNodeByName(port_index)->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
             m_output_external_ptr_tmp[port_index] = tensor;
             std::cout << "[set_tensor()] add output name: " << name << ", index: " << port_index << ", tensor: " << tensor->data() << std::endl;
@@ -507,7 +501,7 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
     ov::SoPtr<ITensor> tensor;
     if (find_port(port).is_input()) {
         std::cout << "[init tensor] input name: " << name << ", index: " << find_port(port).idx << std::endl;
-        OPENVINO_ASSERT(m_graph->inputNodesMap.find(name) != m_graph->inputNodesMap.end(),
+        OPENVINO_ASSERT(m_graph->inputNodesMap_tmp.find(find_port(port).idx) != m_graph->inputNodesMap_tmp.end(),
                         "Tensor with name: ",
                         name,
                         " exists in CPU plugin graph, but absents in network inputs");
@@ -531,7 +525,7 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
             if (!isDynamic) {
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (mem_desc_ptr->isCompatible(
-                        m_graph->getInputNodeByName(name)->getChildEdgeAt(0)->getMemory().getDesc())) {
+                        m_graph->getInputNodeByName(find_port(port).idx)->getChildEdgeAt(0)->getMemory().getDesc())) {
                     m_input_external_ptr_tmp[find_port(port).idx] = tensor;
                     std::cout << "[init_tensor()] input name: " << name << ", index: " << find_port(port).idx
                               << ", tensor: " << tensor->data() << std::endl;
@@ -542,8 +536,8 @@ void SyncInferRequest::init_tensor(const std::string& name, const ov::Output<con
 
     if (find_port(port).is_output()) {
         std::cout << "[init tensor] output name: " << name << ", index: " << find_port(port).idx << std::endl;
-        const auto& outMap = m_graph->outputNodesMap;
-        auto output = outMap.find(name);
+        const auto& outMap = m_graph->outputNodesMap_tmp;
+        auto output = outMap.find(find_port(port).idx);
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with name: ",
                         name,
@@ -662,7 +656,8 @@ void SyncInferRequest::push_input_data() {
                            input_name);
         }
         auto tensor = get_tensor(input);
-        m_graph->PushInputData(input_name, tensor);
+        std::cout << "[push_input_data()] name: " << input_name << ", index: " << find_port(input).idx << ", port: " << input << std::endl;
+        m_graph->PushInputData(find_port(input).idx, tensor);
     }
 }
 
