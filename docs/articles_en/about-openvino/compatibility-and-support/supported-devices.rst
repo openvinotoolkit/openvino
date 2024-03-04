@@ -47,7 +47,7 @@ Feature Support and API Coverage
  :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                Yes     Partial    No
  :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                   Yes     No         Yes
  :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`         Yes     Yes        No
- :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models-intro>`                                        Yes     No         Yes
+ :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                              Yes     No         Yes
  :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                               Yes     Yes        No
 =============================================================================================================================== ======= ========== ===========
 

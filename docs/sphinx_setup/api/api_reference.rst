@@ -13,7 +13,7 @@ API Reference
    ie_python_api/api
    c_cpp_api/group__ov__cpp__api
    c_cpp_api/group__ov__c__api
-   nodejs_api/nodejs_api.rst
+   OpenVINO Node.js API <nodejs_api/nodejs_api>
 
 
 
