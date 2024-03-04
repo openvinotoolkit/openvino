@@ -12,7 +12,7 @@ AvgPool
 
 **Category**: *Pooling*
 
-**Short description**: `Reference <http://caffe.berkeleyvision.org/tutorial/layers/pooling.html>`__
+**Short description**: Average Pool is an operation which produces a downsampled feature map using average values calculation.
 
 **Detailed description**: `Reference <http://cs231n.github.io/convolutional-networks/#pool>`__ . Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows:
 
@@ -65,9 +65,9 @@ AvgPool
 
   * **Description**: *rounding_type* is a type of rounding to be applied. *ceil_torch* does not allow the last pooling to start in the padding area.
   * **Range of values**:
+    * *floor*
     * *ceil*
     * *ceil_torch*
-    * *floor*
   * **Type**: string
   * **Default value**: *floor*
   * **Required**: *no*
@@ -84,13 +84,13 @@ AvgPool
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
-**Inputs**:
+**Input**:
 
-* **1**: 3D, 4D or 5D input tensor. **Required.**
+* **1**: 3D, 4D or 5D input tensor. Input shape can be either ``[N, C, H]``, ``[N, C, H, W]`` or ``[N, C, H, W, D]``. **Required.**
 
-**Outputs**:
+**Output**:
   
-* **1**: Input shape can be either ``[N,C,H]``, ``[N,C,H,W]`` or ``[N,C,H,W,D]``. Then the corresponding output shape is ``[N,C,H_out]``, ``[N,C,H_out,W_out]`` or ``[N,C,H_out,W_out,D_out]``.
+* **1**: The output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``.
 
 **Mathematical Formulation**
 
