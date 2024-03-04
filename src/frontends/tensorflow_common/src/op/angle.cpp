@@ -46,7 +46,6 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto x = make_shared<v8::Gather>(x, real_index, gather_axis)->output(0);
     auto y = make_shared<v8::Gather>(x, imag_index, gather_axis)->output(0);
 
-
     // handle the first condition : x>0
     auto div_y_x = make_shared<v1::Divide>(y, x);
     auto atan = make_shared<v0::Atan>(div_y_x);
