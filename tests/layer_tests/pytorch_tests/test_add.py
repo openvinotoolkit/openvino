@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 @pytest.mark.parametrize('alpha', (-0.5, 0, 0.5, 1, 2))
@@ -39,9 +39,10 @@ class TestAdd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("op_type", ["add", "add_"])
+    @pytest.mark.parametrize("op_type", ["add", skip_if_export("add_")])
     def test_add(self, ie_device, precision, ir_version, alpha, input_shape_rhs, op_type):
         self.input_rhs = np.random.randn(*input_shape_rhs).astype(np.float32)
         self._test(*self.create_model(alpha, op_type), ie_device, precision, ir_version, use_convert_model=True)
@@ -110,6 +111,7 @@ class TestAddTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_add_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
@@ -134,7 +136,42 @@ class TestAddLists(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_ts_backend
     @pytest.mark.precommit_fx_backend
     def test_add(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestAddBool(PytorchLayerTest):
+
+    def _prepare_input(self):
+        input2 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)
+        input1 = np.random.randint(0, 2, (1, 3, 20, 24)).astype(bool)
+        return (input1, input2)  
+
+    def create_model(self, lhs_type=torch.bool, rhs_type=torch.bool):
+
+        class aten_add(torch.nn.Module):
+            def __init__(self):
+                super(aten_add, self).__init__()
+                self.lhs_type = lhs_type
+                self.rhs_type = rhs_type
+
+            def forward(self, x1, x2):
+                return torch.add(x1.to(self.rhs_type), x2.to(self.lhs_type))
+        ref_net = None
+
+        return aten_add(), ref_net, "aten::add"
+
+    @pytest.mark.parametrize(("lhs_type", "rhs_type"), [
+        (torch.bool, torch.bool),
+        (torch.bool, torch.int32),
+        (torch.int32, torch.bool),
+        (torch.float32, torch.bool),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_add(self, lhs_type, rhs_type, ie_device, precision, ir_version):
+        self._test(*self.create_model(lhs_type, rhs_type), ie_device, precision, ir_version)

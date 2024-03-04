@@ -2,19 +2,19 @@ Automatic Device Selection with OpenVINO™
 =========================================
 
 The `Auto
-device <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+device <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 (or AUTO in short) selects the most suitable device for inference by
 considering the model precision, power efficiency and processing
 capability of the available `compute
-devices <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html>`__.
+devices <https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html>`__.
 The model precision (such as ``FP32``, ``FP16``, ``INT8``, etc.) is the
 first consideration to filter out the devices that cannot run the
 network efficiently.
 
 Next, if dedicated accelerators are available, these devices are
 preferred (for example, integrated and discrete
-`GPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html>`__).
-`CPU <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html>`__
+`GPU <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html>`__).
+`CPU <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html>`__
 is used as the default “fallback device”. Keep in mind that AUTO makes
 this selection only once, during the loading of a model.
 
@@ -81,13 +81,13 @@ Import modules and create Core
 
     import time
     import sys
-    
+
     import openvino as ov
-    
+
     from IPython.display import Markdown, display
-    
+
     core = ov.Core()
-    
+
     if "GPU" not in core.available_devices:
         display(Markdown('<div class="alert alert-block alert-danger"><b>Warning: </b> A GPU device is not available. This notebook requires GPU device to have meaningful results. </div>'))
 
@@ -121,17 +121,17 @@ with ``ov.compile_model`` or serialized for next usage with
 ``ov.save_model``.
 
 For more information about model conversion API, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 
 .. code:: ipython3
 
     import torchvision
     from pathlib import Path
-    
+
     base_model_dir = Path("./model")
     base_model_dir.mkdir(exist_ok=True)
     model_path = base_model_dir / "resnet50.xml"
-    
+
     if not model_path.exists():
         pt_model = torchvision.models.resnet50(weights="DEFAULT")
         ov_model = ov.convert_model(pt_model, input=[[1,3,224,224]])
@@ -164,12 +164,12 @@ By default, ``compile_model`` API will select **AUTO** as
 
     # Set LOG_LEVEL to LOG_INFO.
     core.set_property("AUTO", {"LOG_LEVEL":"LOG_INFO"})
-    
+
     # Load the model onto the target device.
     compiled_model = core.compile_model(ov_model)
-    
+
     if isinstance(compiled_model, ov.CompiledModel):
-        print("Successfully compiled model without a device_name.")   
+        print("Successfully compiled model without a device_name.")
 
 
 .. parsed-literal::
@@ -210,9 +210,9 @@ improve readability of your code.
 
     # Set LOG_LEVEL to LOG_NONE.
     core.set_property("AUTO", {"LOG_LEVEL":"LOG_NONE"})
-    
+
     compiled_model = core.compile_model(model=ov_model, device_name="AUTO")
-    
+
     if isinstance(compiled_model, ov.CompiledModel):
         print("Successfully compiled model using AUTO.")
 
@@ -271,16 +271,16 @@ function, we will reuse it for preparing input data.
 .. code:: ipython3
 
     from PIL import Image
-    
+
     # Download the image from the openvino_notebooks storage
     image_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data"
     )
-    
+
     image = Image.open(str(image_filename))
     input_transform = torchvision.models.ResNet50_Weights.DEFAULT.transforms()
-    
+
     input_tensor = input_transform(image)
     input_tensor = input_tensor.unsqueeze(0).numpy()
     image
@@ -307,14 +307,14 @@ Load the model to GPU device and perform inference
 
     if "GPU" not in core.available_devices:
         print(f"A GPU device is not available. Available devices are: {core.available_devices}")
-    else :       
+    else :
         # Start time.
         gpu_load_start_time = time.perf_counter()
         compiled_model = core.compile_model(model=ov_model, device_name="GPU")  # load to GPU
-    
+
         # Execute the first inference.
         results = compiled_model(input_tensor)[0]
-    
+
         # Measure time to the first inference.
         gpu_fil_end_time = time.perf_counter()
         gpu_fil_span = gpu_fil_end_time - gpu_load_start_time
@@ -340,11 +340,11 @@ executed on CPU until GPU is ready.
     # Start time.
     auto_load_start_time = time.perf_counter()
     compiled_model = core.compile_model(model=ov_model)  # The device_name is AUTO by default.
-    
+
     # Execute the first inference.
     results = compiled_model(input_tensor)[0]
-    
-    
+
+
     # Measure time to the first inference.
     auto_fil_end_time = time.perf_counter()
     auto_fil_span = auto_fil_end_time - auto_load_start_time
@@ -376,9 +376,9 @@ completely portable between devices – meaning AUTO can configure the
 performance hint on whichever device is being used.
 
 For more information, refer to the `Performance
-Hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html#performance-hints-for-auto>`__
+Hints <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html#performance-hints-for-auto>`__
 section of `Automatic Device
-Selection <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html>`__
+Selection <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html>`__
 article.
 
 Class and callback definition
@@ -406,11 +406,11 @@ Class and callback definition
             """
             self.fps = 0
             self.latency = 0
-            
+
             self.start_time = time.perf_counter()
             self.latency_list = []
             self.interval = interval
-            
+
         def update(self, infer_request: ov.InferRequest) -> bool:
             """
             Update the metrics if current ongoing @interval seconds duration is expired. Record the latency only if it is not expired.
@@ -432,12 +432,12 @@ Class and callback definition
                 return True
             else :
                 return False
-    
-    
+
+
     class InferContext:
         """
         Inference context. Record and update peforamnce metrics via @metrics, set @feed_inference to False once @remaining_update_num <=0
-        :member: metrics: instance of class PerformanceMetrics 
+        :member: metrics: instance of class PerformanceMetrics
         :member: remaining_update_num: the remaining times for peforamnce metrics updating.
         :member: feed_inference: if feed inference request is required or not.
         """
@@ -452,7 +452,7 @@ Class and callback definition
             self.metrics = PerformanceMetrics(update_interval)
             self.remaining_update_num = num
             self.feed_inference = True
-            
+
         def update(self, infer_request: ov.InferRequest):
             """
             Update the context. Set @feed_inference to False if the number of remaining performance metric updates (@remaining_update_num) reaches 0
@@ -461,13 +461,13 @@ Class and callback definition
             """
             if self.remaining_update_num <= 0 :
                 self.feed_inference = False
-                
+
             if self.metrics.update(infer_request) :
                 self.remaining_update_num = self.remaining_update_num - 1
                 if self.remaining_update_num <= 0 :
                     self.feed_inference = False
-    
-    
+
+
     def completion_callback(infer_request: ov.InferRequest, context) -> None:
         """
         callback for the inference request, pass the @infer_request to @context for updating
@@ -476,8 +476,8 @@ Class and callback definition
         :returns: None
         """
         context.update(infer_request)
-    
-    
+
+
     # Performance metrics update interval (seconds) and number of times.
     metrics_update_interval = 10
     metrics_update_num = 6
@@ -493,29 +493,29 @@ Loop for inference and update the FPS/Latency every
 .. code:: ipython3
 
     THROUGHPUT_hint_context = InferContext(metrics_update_interval, metrics_update_num)
-    
+
     print("Compiling Model for AUTO device with THROUGHPUT hint")
     sys.stdout.flush()
-    
+
     compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT":"THROUGHPUT"})
-    
+
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)  # Setting to 0 will query optimal number by default.
     infer_queue.set_callback(completion_callback)
-    
+
     print(f"Start inference, {metrics_update_num: .0f} groups of FPS/latency will be measured over {metrics_update_interval: .0f}s intervals")
     sys.stdout.flush()
-    
+
     while THROUGHPUT_hint_context.feed_inference:
         infer_queue.start_async(input_tensor, THROUGHPUT_hint_context)
-        
+
     infer_queue.wait_all()
-    
+
     # Take the FPS and latency of the latest period.
     THROUGHPUT_hint_fps = THROUGHPUT_hint_context.metrics.fps
     THROUGHPUT_hint_latency = THROUGHPUT_hint_context.metrics.latency
-    
+
     print("Done")
-    
+
     del compiled_model
 
 
@@ -575,30 +575,30 @@ Loop for inference and update the FPS/Latency for each
 .. code:: ipython3
 
     LATENCY_hint_context = InferContext(metrics_update_interval, metrics_update_num)
-    
+
     print("Compiling Model for AUTO Device with LATENCY hint")
     sys.stdout.flush()
-    
+
     compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT":"LATENCY"})
-    
+
     # Setting to 0 will query optimal number by default.
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)
     infer_queue.set_callback(completion_callback)
-    
+
     print(f"Start inference, {metrics_update_num: .0f} groups fps/latency will be out with {metrics_update_interval: .0f}s interval")
     sys.stdout.flush()
-    
+
     while LATENCY_hint_context.feed_inference:
         infer_queue.start_async(input_tensor, LATENCY_hint_context)
-        
+
     infer_queue.wait_all()
-    
+
     # Take the FPS and latency of the latest period.
     LATENCY_hint_fps = LATENCY_hint_context.metrics.fps
     LATENCY_hint_latency = LATENCY_hint_context.metrics.latency
-    
+
     print("Done")
-    
+
     del compiled_model
 
 
@@ -655,21 +655,21 @@ Difference in FPS and latency
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-    
+
     TPUT = 0
     LAT = 1
     labels = ["THROUGHPUT hint", "LATENCY hint"]
-    
-    fig1, ax1 = plt.subplots(1, 1) 
+
+    fig1, ax1 = plt.subplots(1, 1)
     fig1.patch.set_visible(False)
-    ax1.axis('tight') 
-    ax1.axis('off') 
-    
+    ax1.axis('tight')
+    ax1.axis('off')
+
     cell_text = []
     cell_text.append(['%.2f%s' % (THROUGHPUT_hint_fps," FPS"), '%.2f%s' % (THROUGHPUT_hint_latency, " ms")])
     cell_text.append(['%.2f%s' % (LATENCY_hint_fps," FPS"), '%.2f%s' % (LATENCY_hint_latency, " ms")])
-    
-    table = ax1.table(cellText=cell_text, colLabels=["FPS (Higher is better)", "Latency (Lower is better)"], rowLabels=labels,  
+
+    table = ax1.table(cellText=cell_text, colLabels=["FPS (Higher is better)", "Latency (Lower is better)"], rowLabels=labels,
                       rowColours=["deepskyblue"] * 2, colColours=["deepskyblue"] * 2,
                       cellLoc='center', loc='upper left')
     table.auto_set_font_size(False)
@@ -677,7 +677,7 @@ Difference in FPS and latency
     table.auto_set_column_width(0)
     table.auto_set_column_width(1)
     table.scale(1, 3)
-    
+
     fig1.tight_layout()
     plt.show()
 
@@ -691,28 +691,28 @@ Difference in FPS and latency
     # Output the difference.
     width = 0.4
     fontsize = 14
-    
+
     plt.rc('font', size=fontsize)
     fig, ax = plt.subplots(1,2, figsize=(10, 8))
-    
+
     rects1 = ax[0].bar([0], THROUGHPUT_hint_fps, width, label=labels[TPUT], color='#557f2d')
     rects2 = ax[0].bar([width], LATENCY_hint_fps, width, label=labels[LAT])
     ax[0].set_ylabel("frames per second")
-    ax[0].set_xticks([width / 2]) 
+    ax[0].set_xticks([width / 2])
     ax[0].set_xticklabels(["FPS"])
     ax[0].set_xlabel("Higher is better")
-    
+
     rects1 = ax[1].bar([0], THROUGHPUT_hint_latency, width, label=labels[TPUT], color='#557f2d')
     rects2 = ax[1].bar([width], LATENCY_hint_latency, width, label=labels[LAT])
     ax[1].set_ylabel("milliseconds")
     ax[1].set_xticks([width / 2])
     ax[1].set_xticklabels(["Latency (ms)"])
     ax[1].set_xlabel("Lower is better")
-    
+
     fig.suptitle('Performance Hints')
     fig.legend(labels, fontsize=fontsize)
     fig.tight_layout()
-    
+
     plt.show()
 
 

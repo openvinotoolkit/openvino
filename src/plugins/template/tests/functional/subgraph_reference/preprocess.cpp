@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "base_reference_test.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/slice.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

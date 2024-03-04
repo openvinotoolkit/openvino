@@ -66,6 +66,8 @@ class TestFloorDiv(CommonTFLayerTest):
                                       use_legacy_frontend):
         if platform.system() == 'Linux' and platform.machine() in list_arm_platforms() and np.issubdtype(params['dtype'], np.signedinteger):
             pytest.xfail(reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+        elif platform.system() == 'Darwin' and platform.machine() in list_arm_platforms():
+            pytest.xfail(reason='Ticket - 132699')
 
         self._test(*self.create_add_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_legacy_frontend=use_legacy_frontend),
@@ -121,6 +123,8 @@ class TestFloorDivStaticInput(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in list_arm_platforms(),
                        reason='Ticket CVS-132377 - Divide inconsistent behavior on different systems')
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() in list_arm_platforms(),
+                       reason='Ticket - 132699')
     def test_floordiv(self, params, dtype, ie_device, precision, ir_version, temp_dir,
                                       use_legacy_frontend):
         self._test(*self.create_flordiv_tf_net(**params, dtype=dtype, ir_version=ir_version,

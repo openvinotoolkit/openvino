@@ -36,7 +36,7 @@ protected:
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     size_t GetSubGroupSize(const convolution_params& params) const {
-        if (params.engineInfo.computeUnitsCount <= 24) {
+        if (params.engineInfo.computeUnitsCount <= 24 && !params.is_shape_agnostic) {
             // Smaller # EU tends to be computation bounds.
             // In such case, using larger worksize will result in larger computational inefficiency
             // w.r.t the unalined output feature
