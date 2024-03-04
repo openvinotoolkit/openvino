@@ -5,7 +5,7 @@ OpenVINO™ Ecosystem Overview
 
 
 .. meta::
-   :description: OpenVINO™ ecosystem offers various ../about-openvino/additional-resources for developing deep learning solutions.
+   :description: OpenVINO™ ecosystem offers various resources for developing deep learning solutions.
 
 
 .. toctree::
