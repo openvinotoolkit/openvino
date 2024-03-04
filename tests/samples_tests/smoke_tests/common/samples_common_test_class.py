@@ -19,7 +19,6 @@ import re
 import subprocess
 import sys
 import requests
-import tarfile
 import time
 import numpy as np
 import zipfile
@@ -57,20 +56,12 @@ def download(test_data_dir, file_path):
         with contextlib.suppress(FileExistsError, PermissionError):
             with lock_path.open('bx'):
                 if not file_path.exists():
-                    if test_data_dir / 'nfnet-f0.onnx' == file_path:
-                        response = requests.get("https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2023.0/nfnet-f0/nfnet-f0.onnx")
+                    if test_data_dir / 'bvlcalexnet-12.onnx' == file_path:
+                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
-                    # if test_data_dir / 'inception_v3_2016_08_28_frozen.pb' == file_path:
-                    #     response = requests.get("https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/googlenet-v3/inception_v3_2016_08_28_frozen.pb.tar.gz")
-                    #     with tarfile.open(fileobj=io.BytesIO(response.content)) as tfile:
-                    #         tfile.extractall(test_data_dir)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
                         response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=")
-                        with file_path.open('wb') as nfnet:
-                            nfnet.write(response.content)
-                    elif test_data_dir / 'bvlcalexnet-12-qdq.onnx' == file_path:
-                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12-qdq.onnx?download=")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
                     else:
@@ -79,7 +70,6 @@ def download(test_data_dir, file_path):
                             zfile.extractall(test_data_dir)
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
             lock_path.unlink(missing_ok=True)
-            print(file_path)
             assert file_path.exists()
             return file_path
         time.sleep(1.0)

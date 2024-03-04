@@ -34,13 +34,13 @@ def prepend(cache, model, inp):
 
 test_data_fp32 = get_tests({
     'i': ['dog-224x224.bmp'],
-    'm': ['bvlcalexnet-12-qdq.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
     'sample_type': ['C++', 'C'],
 })
 
 test_data_fp32_unicode = get_tests({
     'i': ['dog-224x224.bmp'],
-    'm': ['bvlcalexnet-12-qdq.onnx'],
+    'm': ['bvlcalexnet-12.onnx'],
     'sample_type': ['C++'],
 })
 
@@ -66,7 +66,7 @@ class Test_hello_classification(SamplesCommonTestClass):
             if re.match('\\d+ +\\d+.\\d+$', output[line].replace('[ INFO ]', '').strip()) is not None:
                 top1 = output[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
-                if '589' not in top1:
+                if '215' not in top1:
                     is_ok = False
                     log.error('Expected class 262, Detected class {}'.format(top1))
                 break

@@ -21,13 +21,13 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 
 test_data_fp32 = get_tests({
     'i': ['dog-224x224.bmp'],
-    'm': ['bvlcalexnet-12-qdq.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
     'sample_type': ['C++','Python'],
 })
 
 test_data_fp16 = get_tests({
     'i': ['dog-224x224.bmp'],
-    'm': ['bvlcalexnet-12-qdq.onnx'],
+    'm': ['bvlcalexnet-12.onnx'],
     'sample_type': ['C++','Python'],
 })
 
@@ -37,11 +37,11 @@ class TestClassification(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
-        _check_output(self, param, '589', cache)
+        _check_output(self, param, '215', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
-        _check_output(self, param, '589', cache)
+        _check_output(self, param, '215', cache)
 
 
 def _check_output(self, param, expected_result, cache):

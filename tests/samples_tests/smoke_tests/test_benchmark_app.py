@@ -26,7 +26,7 @@ def get_executable(sample_language):
     return 'benchmark_app'
 
 
-def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12-qdq.onnx'):
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx'):
     output = get_cmd_output(
         get_executable(sample_language),
         *prepend(cache, 'dog-224x224.bmp', model),
