@@ -480,7 +480,7 @@ int get_model_prefer_threads(const int num_streams,
                              const std::vector<std::vector<int>> proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config) {
-    const int sockets = get_default_latency_streams(config.hintMaxThreadsPerStream);
+    const int sockets = get_num_sockets();
     auto model_prefer = 0;
     if (-1 == config.modelPreferThreads) {
         const auto isa = dnnl::get_effective_cpu_isa();
@@ -557,7 +557,8 @@ int get_model_prefer_threads(const int num_streams,
             // network is below general threshold
             config.modelPreferThreads = 2;
         }
-        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+        if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
+            (proc_type_table[0][HYPER_THREADING_PROC] == proc_type_table[0][MAIN_CORE_PROC])) {
             config.modelPreferThreads = 2;
         }
 #endif
@@ -648,7 +649,11 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
 }
 
 int get_default_latency_streams(Config::MaxThreadsPerStream hint_max_threads_per_stream) {
-    return 1;
+    if (hint_max_threads_per_stream == Config::MaxThreadsPerStream::PER_SOCKET) {
+        return get_num_sockets();
+    } else {
+        return 1;
+    }
 }
 
 }  // namespace intel_cpu
