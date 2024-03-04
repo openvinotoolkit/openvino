@@ -69,8 +69,8 @@ For example, if you use a CPU and a GPU, the first-inference latency of AUTO wil
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
 unable to support the initial model compilation stage. The models with dynamic
-input/output or stateful :doc:`stateful <../stateful-models-intro>`
-operations will be loaded to the CPU if it is in the candidate list. Otherwise,
+input/output or :doc:`stateful operations <../stateful-models>`
+will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
 .. image:: ../../../_static/images/autoplugin_accelerate.svg

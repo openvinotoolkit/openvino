@@ -176,8 +176,6 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 * **TorchInductor** - a deep learning compiler that generates fast code for multiple accelerators and backends.
 
 
-
-
 When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces the module and
 rewrites Python bytecode to extract sequences of PyTorch operations into an FX Graph,
 which can be optimized by the OpenVINO backend. The Torch FX graphs are first converted to
@@ -194,5 +192,5 @@ fails during OpenVINO conversion, the subgraph falls back to PyTorch's default i
 Additional Resources
 ############################
 
-* `PyTorch 2.0 ../documentation <https://pytorch.org/docs/stable/index.html>`_
+* `PyTorch 2.0 documentation <https://pytorch.org/docs/stable/index.html>`_
 

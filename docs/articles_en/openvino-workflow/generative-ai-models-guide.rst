@@ -272,5 +272,5 @@ Additional Resources
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
-* :doc:`Stateful Models Low-Level Details <running-inference/stateful-models-intro>`
+* :doc:`Stateful Models Low-Level Details <running-inference/stateful-models>`
 * :doc:`Working with Textual Data <running-inference/string-tensors>`
