@@ -53,10 +53,11 @@ enum class ExecutorType {
     Undefined,
     Graph,
     Common,
-    x64,
+    jit_x64,
     Dnnl,
     Acl,
-    Mlas
+    Mlas,
+    jit_aarch64
 };
 
 enum class OperationType {

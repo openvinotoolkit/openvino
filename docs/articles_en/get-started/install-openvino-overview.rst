@@ -16,7 +16,6 @@ Install OpenVINO™ 2024.0
    OpenVINO Runtime on Linux <openvino_docs_install_guides_installing_openvino_linux_header>
    OpenVINO Runtime on Windows <openvino_docs_install_guides_installing_openvino_windows_header>
    OpenVINO Runtime on macOS <openvino_docs_install_guides_installing_openvino_macos_header>
-   Create a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
 
 
 .. raw:: html

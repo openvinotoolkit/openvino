@@ -8,7 +8,6 @@
 #include <iostream>
 
 #include "pugixml.hpp"
-#include "layer_test_utils.hpp"
 #include "ov_subgraph.hpp"
 
 namespace ov {

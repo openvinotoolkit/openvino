@@ -32,7 +32,9 @@ void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
     OPENVINO_ASSERT(m_context->m_hw_compiled_model);
-    return m_context->m_hw_compiled_model->get_runtime_model();
+    auto model = m_context->m_hw_compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), m_context->m_hw_compiled_model._so);
+    return model;
 }
 
 ov::Any AutoCompiledModel::get_property(const std::string& name) const {

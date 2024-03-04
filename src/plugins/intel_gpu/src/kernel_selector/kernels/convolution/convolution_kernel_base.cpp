@@ -232,7 +232,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      true,
                      !newParams.bias.empty(),
                      1, 0, 1,
-                     newParams.inputs[0].is_dynamic() || newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
