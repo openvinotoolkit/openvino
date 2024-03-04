@@ -409,7 +409,7 @@ The following example shows such conversion for the ``top_k_v2`` operation.
 For TensorFlow framework, if an operation has more than one output, it is recommended to assign names to
 those outputs using the ``NamedOutputVector`` structure which allows both indexed and named output access.
 For a description of TensorFlow operations, including the names of their outputs, refer to the
-`tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ ../../documentation page.
+`tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ documentation page.
 The next example shows such conversion for the ``TopKV2`` operation.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp

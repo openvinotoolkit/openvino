@@ -55,7 +55,7 @@ offering.
     and a small set of tools enabling a level of automation for the process.
     Since the tools have been mostly replaced by other solutions and several
     other model repositories have recently grown in size and popularity,
-    Open Model ZOO will no longer be maintained. You may still use its ../about-openvino/additional-resources
+    Open Model ZOO will no longer be maintained. You may still use its resources
     until they are fully removed.
 |   :doc:`See the Open Model ZOO documentation <legacy-features/model-zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
