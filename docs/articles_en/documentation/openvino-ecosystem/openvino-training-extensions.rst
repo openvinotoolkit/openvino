@@ -1,4 +1,4 @@
-.. {#ote_../../documentation}
+.. {#ote_documentation}
 
 OpenVINO™ Training Extensions
 ===============================
