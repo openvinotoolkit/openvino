@@ -273,6 +273,7 @@ protected:
 };
 
 TEST_P(GatherWeightsDecompression, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
 }

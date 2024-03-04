@@ -22,48 +22,35 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_var_mean(const NodeContext& context) {
-    num_inputs_check(context, 1, 4);
-    auto data = context.get_input(0);
-    bool unbiased = true;
-    bool keepdims = false;
+namespace {
+OutputVector translate_var_mean_common(const NodeContext& context,
+                                       const Output<Node>& data,
+                                       const Output<Node>& axes,
+                                       int32_t correction,
+                                       bool keepdims) {
     auto num_elements = numel(context, data);
     std::shared_ptr<ov::Node> mean, t_mean;
-    ov::Output<ov::Node> axes;
-    if (context.inputs().size() == 2) {
+    auto _axes = axes;
+    if (!_axes.get_node()) {
         // aten::var_mean(input, unbiased)
-        axes = context.mark_node(get_axes_range(context, 0));
-        unbiased = context.const_input<bool>(1);
-        mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, keepdims));
+        _axes = context.mark_node(get_axes_range(context, 0));
+        mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, _axes, keepdims));
         t_mean = mean;
     } else {
-        // aten::var_mean(input, dim, unbiased:bool=None, keepdim:bool=None)
-        if (!context.input_is_none(2)) {
-            unbiased = context.const_input<bool>(2);
-        }
-        if (!context.input_is_none(3)) {
-            keepdims = context.const_input<bool>(3);
-        }
-        if (context.input_is_none(1)) {
-            axes = context.mark_node(get_axes_range(context, 0));
-            mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, keepdims));
-            t_mean = mean;
-        } else {
-            axes = context.get_input(1);
-            mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, keepdims));
-            t_mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
-            auto reduced_dims = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
-            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-            reduced_dims = context.mark_node(std::make_shared<v8::Gather>(reduced_dims, axes, zero));
-            num_elements = context.mark_node(std::make_shared<v1::ReduceProd>(reduced_dims, zero, false));
-        }
+        mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, _axes, keepdims));
+        t_mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, _axes, true));
+        auto reduced_dims = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));
+        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        reduced_dims = context.mark_node(std::make_shared<v8::Gather>(reduced_dims, _axes, zero));
+        num_elements = context.mark_node(std::make_shared<v1::ReduceProd>(reduced_dims, zero, false));
     }
     auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, t_mean));
     auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
-    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, keepdims));
+    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, _axes, keepdims));
     // if unbiased=true Bessel’s correction will be used
     // Correct bias in calculating variance, by dividing it over (N - 1) instead on N
-    if (unbiased) {
+    if (correction) {
+        PYTORCH_OP_CONVERSION_CHECK(correction == 1, "Unexpected value of correction.");
         num_elements = context.mark_node(std::make_shared<v1::ConvertLike>(num_elements, data));
         auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
         one = context.mark_node(std::make_shared<v1::ConvertLike>(one, data));
@@ -73,26 +60,84 @@ OutputVector translate_var_mean(const NodeContext& context) {
     }
     return {var, mean};
 };
+}  // namespace
+
+OutputVector translate_var_mean(const NodeContext& context) {
+    num_inputs_check(context, 1, 4);
+    auto data = context.get_input(0);
+    bool unbiased = true;
+    bool keepdim = false;
+    ov::Output<ov::Node> axes;
+    if (context.inputs().size() == 2) {
+        // aten::var_mean(input, unbiased)
+        axes = context.mark_node(get_axes_range(context, 0));
+        unbiased = context.const_input<bool>(1);
+    } else {
+        // aten::var_mean(input, dim, unbiased:bool=None, keepdim:bool=None)
+        if (!context.input_is_none(2)) {
+            unbiased = context.const_input<bool>(2);
+        }
+        if (!context.input_is_none(3)) {
+            keepdim = context.const_input<bool>(3);
+        }
+        if (!context.input_is_none(1)) {
+            axes = context.get_input(1);
+        }
+    }
+    auto res = translate_var_mean_common(context, data, axes, static_cast<int32_t>(unbiased), keepdim);
+    return res;
+};
 
 OutputVector translate_var_mean_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    num_inputs_check(context, 1, 2);
     auto data = context.get_input(0);
-    auto num_elements = numel(context, data);
-    std::shared_ptr<ov::Node> mean;
     ov::Output<ov::Node> axes;
 
-    axes = context.get_input(1);
-    mean = context.mark_node(std::make_shared<v1::ReduceMean>(data, axes, true));
+    if (!context.input_is_none(1)) {
+        axes = context.get_input(1);
+    }
+    int32_t correction = 0;
+    if (context.has_attribute("correction")) {
+        auto correction_node = context.get_attribute<Output<Node>>("correction");
+        auto const_node = as_type_ptr<v0::Constant>(correction_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "correction must be const.");
+        correction = const_node->cast_vector<int32_t>()[0];
+    }
+    bool keepdim = false;
+    if (context.has_attribute("keepdim")) {
+        auto keepdim_node = context.get_attribute<Output<Node>>("keepdim");
+        auto const_node = as_type_ptr<v0::Constant>(keepdim_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "keepdim must be const.");
+        keepdim = const_node->cast_vector<bool>()[0];
+    }
+    auto res = translate_var_mean_common(context, data, axes, correction, keepdim);
+    return {context.mark_node(make_list_construct(res))};
+};
 
-    auto sub_v = context.mark_node(std::make_shared<v1::Subtract>(data, mean));
-    auto sqr_sub = context.mark_node(std::make_shared<v1::Multiply>(sub_v, sub_v));
-    auto var = context.mark_node(std::make_shared<v1::ReduceMean>(sqr_sub, axes, true));
+OutputVector translate_var_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
+    auto data = context.get_input(0);
+    ov::Output<ov::Node> axes;
 
-    ov::OutputVector out_vec;
-
-    out_vec.push_back(var);
-    out_vec.push_back(mean);
-    return {context.mark_node(make_list_construct(out_vec))};
+    if (!context.input_is_none(1)) {
+        axes = context.get_input(1);
+    }
+    int32_t correction = 0;
+    if (context.has_attribute("correction")) {
+        auto correction_node = context.get_attribute<Output<Node>>("correction");
+        auto const_node = as_type_ptr<v0::Constant>(correction_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "correction must be const.");
+        correction = const_node->cast_vector<int32_t>()[0];
+    }
+    bool keepdim = false;
+    if (context.has_attribute("keepdim")) {
+        auto keepdim_node = context.get_attribute<Output<Node>>("keepdim");
+        auto const_node = as_type_ptr<v0::Constant>(keepdim_node.get_node_shared_ptr());
+        PYTORCH_OP_CONVERSION_CHECK(const_node, "keepdim must be const.");
+        keepdim = const_node->cast_vector<bool>()[0];
+    }
+    auto res = translate_var_mean_common(context, data, axes, correction, keepdim);
+    return {res[0]};
 };
 
 OutputVector translate_var(const NodeContext& context) {

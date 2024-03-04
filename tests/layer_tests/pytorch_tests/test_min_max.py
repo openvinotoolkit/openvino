@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 
 class TestMinMax(PytorchLayerTest):
@@ -75,6 +75,7 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ['min', 'max'])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_reduce_min_max(self, axes, keep_dims, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axes, keep_dims,
                                       single_input=True), ie_device, precision, ir_version)
@@ -84,6 +85,7 @@ class TestMinMax(PytorchLayerTest):
     @pytest.mark.parametrize("first_input_dtype", ["float32", "int32", "float64", "int64", "uint8"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_min_max(self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, None, None, single_input=False, dtypes=(first_input_dtype, second_input_dtype)),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=
@@ -147,7 +149,7 @@ class TestPrimMax(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_min_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
+    def test_max(self, case, kwargs_to_prepare_input, ie_device, precision, ir_version):
         self._test(*self.create_model(case),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, use_mo_convert=False)
 
@@ -263,6 +265,7 @@ class TestMinimumMaximum(PytorchLayerTest):
     @pytest.mark.parametrize("first_input_dtype", ["float32", "int32", "int64", "float64"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_minimum_maximum(
         self, op_type, first_input_dtype, second_input_dtype, ie_device, precision, ir_version
         ):
@@ -330,8 +333,10 @@ class TestAminAmax(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["amin", "amax"])
     @pytest.mark.parametrize("axis", [0, -1, 1, [1, 2], [-1, -2], [2, 0, -1], [0, 1, 2, 3]])
     @pytest.mark.parametrize("keep_dims", [True, False])
-    @pytest.mark.parametrize("out", [True, False])
+    @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_amin_amax(self, op_type, input_dtype, axis, keep_dims, out, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, axis, keep_dims, out),
