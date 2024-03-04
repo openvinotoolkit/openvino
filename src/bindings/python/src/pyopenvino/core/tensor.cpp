@@ -16,6 +16,40 @@ void regclass_Tensor(py::module m) {
     py::class_<ov::Tensor, std::shared_ptr<ov::Tensor>> cls(m, "Tensor");
     cls.doc() = "openvino.runtime.Tensor holding either copy of memory or shared host memory.";
 
+    // dtype for py::dtype and py::object
+    cls.def(py::init([](py::array& array, ov::element::Type& dtype, bool share) {
+                // If dtypes does not match, create a copy:
+                if (dtype != ov::element::undefined) {
+                    return Common::object_from_data<ov::Tensor>(array, dtype, false);
+                }
+                // Otherwise deduce dtype from an array:
+                return Common::object_from_data<ov::Tensor>(array, share);
+            }),
+            py::arg("array"),
+            py::kw_only(),
+            py::arg("dtype") = ov::element::undefined,
+            py::arg("share") = false,
+            R"(
+                Tensor's constructor.
+
+                :param array: Array to create the tensor from.
+                :type array: numpy.array
+                :param dtype: Desired type of Tensor. Leave undefined to inherit the dtype
+                              from numpy array. Casting will always result in copy!
+                              i.e. when creating Type.bf16 tensors or creating Type.f32 tensor
+                              from numpy.float64 array, data sharing will be disabled by defult.
+                :type share: Union[np.dtype, openvino.Type], keyword-only
+                :param share: If `True`, this Tensor memory is being shared with a host,
+                              that means the responsibility of keeping host memory is
+                              on the side of a user. Any action performed on the host
+                              memory is reflected on this Tensor's memory!
+                              If `False`, data is being copied to this Tensor.
+                              Requires data to be C_CONTIGUOUS if `True`.
+                              (TODO: mention that sharing won't work in specific cases)
+                :type share: bool, keyword-only
+            )");
+
+
     cls.def(py::init([](py::array& array, bool shared_memory) {
                 return Common::object_from_data<ov::Tensor>(array, shared_memory);
             }),
@@ -298,6 +332,24 @@ void regclass_Tensor(py::module m) {
             To change the underlaying data use `str_data`/`bytes_data` properties
             or the `copy_from` function.
             Warning: Data of string type is always a copy of underlaying memory!
+            Warning: In case of bf16 user is responsible for reinterpreting this data!
+                     Use `cast_data` to get this memory in the proper numpy format.
+
+            :rtype: numpy.array
+        )");
+
+    cls.def(
+        "cast_data",
+        [](ov::Tensor& self, ov::element::Type& dtype) {
+            return Common::array_helpers::array_from_tensor(std::forward<ov::Tensor>(self), dtype);
+        },
+        R"(
+            Returns Tensor's data casted to other dtype, memory is always copied!
+
+            Returns new numpy array with respect to Tensor's shape.
+
+            Warning: Does not support String conversions!
+            Warning: Data is always a copy of underlaying memory!
 
             :rtype: numpy.array
         )");

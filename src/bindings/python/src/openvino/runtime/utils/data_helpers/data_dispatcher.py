@@ -7,7 +7,8 @@ from typing import Any, Dict, Union, Optional
 
 import numpy as np
 
-from openvino._pyopenvino import ConstOutput, Tensor, Type
+from openvino._pyopenvino import ConstOutput, Tensor, Type, Shape
+from openvino._pyopenvino.op import Constant
 from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, OVDict
 
 ContainerTypes = Union[dict, list, tuple, OVDict]
@@ -82,10 +83,9 @@ def _(
             return Tensor(value, shared_memory=is_shared)
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
-    # WA for FP16-->BF16 edge-case, always copy.
+    # WA for BF16 edge-case, always copy.
     if tensor_type == Type.bf16:
-        tensor = Tensor(tensor_type, value.shape)
-        tensor.data[:] = value.view(tensor_dtype)
+        tensor = Tensor(value, dtype=Type.bf16, share=False)
         return tensor
     # WA for "not writeable" edge-case, always copy.
     if value.flags["WRITEABLE"] is False:
@@ -295,14 +295,22 @@ def _(
 ) -> None:
     if inputs.ndim != 0:
         tensor = get_request_tensor(request, key)
-        # Update shape if there is a mismatch
-        if tuple(tensor.shape) != inputs.shape:
-            tensor.shape = inputs.shape
-        # When copying, type should be up/down-casted automatically.
-        if tensor.element_type == Type.string:
-            tensor.bytes_data = inputs
+        # WA for BF16 edge-case.
+        if tensor.element_type == Type.bf16:
+            set_request_tensor(
+                request,
+                value_to_tensor(inputs, request=request, is_shared=False, key=key),
+                key,
+            )
         else:
-            tensor.data[:] = inputs[:]
+            # Update shape if there is a mismatch
+            if tuple(tensor.shape) != inputs.shape:
+                tensor.shape = inputs.shape
+            # When copying, type should be up/down-casted automatically.
+            if tensor.element_type == Type.string:
+                tensor.bytes_data = inputs
+            else:
+                tensor.data[:] = inputs[:]
     else:
         # If shape is "empty", assume this is a scalar value
         set_request_tensor(

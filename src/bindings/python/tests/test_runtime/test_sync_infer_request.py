@@ -59,11 +59,11 @@ def concat_model_with_data(device, ov_type, numpy_dtype):
     model = Model(ops.concat(params, 0), params)
     compiled_model = core.compile_model(model, device)
     request = compiled_model.create_infer_request()
-    tensor1 = Tensor(ov_type, input_shape)
-    tensor1.data[:] = np.array([6, 7, 8, 9, 0])
-    array1 = np.array([1, 2, 3, 4, 5], dtype=numpy_dtype)
+    array0 = np.array([6, 7, 1012.5, 9, 0], dtype=numpy_dtype)
+    array1 = np.array([1012.5, 2, 3, 4, 5], dtype=numpy_dtype)
+    tensor = Tensor(array0, dtype=ov_type)
 
-    return request, tensor1, array1
+    return request, tensor, array0, array1
 
 
 def abs_model_with_data(device, ov_type, numpy_dtype):
@@ -347,11 +347,17 @@ def test_infer_mixed_keys(device, share_inputs):
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
-    request, tensor1, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
+    request, tensor, array0, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
-    request.infer([tensor1, array1], share_inputs=share_inputs)
+    result = request.infer([tensor, array1], share_inputs=share_inputs)
 
-    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
+    if ov_type is Type.bf16:
+        assert result[0].dtype == np.float32
+        tmp_const = ops.constant(np.concatenate((array0, array1)), dtype=Type.bf16)
+        expected_bf16_result= np.array(tmp_const.get_value_strings(), dtype=np.float32)
+        assert np.array_equal(request.output_tensors[0].cast_data(Type.f32), expected_bf16_result)
+    else:
+        assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [

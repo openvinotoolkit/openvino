@@ -80,9 +80,54 @@ std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
 
+template <typename T>
+py::array array_from_tensor_t(ov::Tensor&& t, py::dtype&& dtype) {
+    auto tmp = ov::op::v0::Constant(t).cast_vector<T>();
+    auto array = py::array(dtype, tmp.size(), tmp.data());
+    return array.reshape(t.get_shape());
+}
+
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
 
+py::array array_from_tensor(ov::Tensor&& t, const ov::element::Type& dst_dtype);
+
+py::array array_from_constant(ov::op::v0::Constant&& c, bool is_shared);
+
+template <typename T>
+std::vector<T> array_as_vector(py::array& array){
+    T *ptr = static_cast<T*>(const_cast<void*>(array.data()));
+    return std::vector<T>(ptr, ptr + array.size());
+}
 }; // namespace array_helpers
+
+namespace tensor_helpers {
+template <typename T>
+void fill_tensor_t(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype) {
+    auto tmp = ov::op::v0::Constant(dst_dtype,
+                                    array_helpers::get_shape(array),
+                                    array_helpers::array_as_vector<T>(array));
+    std::memcpy(tensor.data(), tmp.get_data_ptr(), tmp.get_byte_size());
+}
+
+void fill_tensor(ov::Tensor& tensor, py::array& array);
+
+void fill_tensor(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype);
+}; // namespace tensor_helpers
+
+namespace constant_helpers {
+template <typename T>
+std::vector<size_t> _get_byte_strides(const ov::Shape& s) {
+    std::vector<size_t> byte_strides;
+    std::vector<size_t> element_strides = ov::row_major_strides(s);
+    for (auto v : element_strides) {
+        byte_strides.push_back(static_cast<size_t>(v) * sizeof(T));
+    }
+    return byte_strides;
+}
+
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self);
+}; // namespace constant_helpers
+
 
 template <typename T>
 T create_copied(py::array& array);
@@ -91,10 +136,16 @@ template <typename T>
 T create_copied(ov::Tensor& array);
 
 template <typename T>
+T create_copied(py::array& array, ov::element::Type& dst_dtype);
+
+template <typename T>
 T create_shared(py::array& array);
 
 template <typename T>
 T create_shared(ov::Tensor& array);
+
+template <typename T>
+T create_shared(py::array& array, ov::element::Type& dst_dtype);
 
 template <typename T, typename D>
 T object_from_data(D& data, bool shared_memory) {
@@ -102,6 +153,14 @@ T object_from_data(D& data, bool shared_memory) {
         return create_shared<T>(data);
     }
     return create_copied<T>(data);
+}
+
+template <typename T, typename D>
+T object_from_data(D& data, ov::element::Type& dst_dtype, bool shared_memory) {
+    if (shared_memory) {
+        return create_shared<T>(data, dst_dtype);
+    }
+    return create_copied<T>(data, dst_dtype);
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);

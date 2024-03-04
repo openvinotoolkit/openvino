@@ -280,7 +280,130 @@ py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     return py::array(dtype, t.get_shape(), t.get_strides(), t.data());
 }
 
+py::array array_from_tensor(ov::Tensor&& t, const ov::element::Type& dst_dtype) {
+    if(dst_dtype == ov::element::f64) {
+        return array_from_tensor_t<double>(std::move(t), py::dtype("float64"));
+    } else if(dst_dtype == ov::element::f32) {
+        return array_from_tensor_t<float>(std::move(t), py::dtype("float32"));
+    } if(dst_dtype == ov::element::f16) {
+        return array_from_tensor_t<ov::float16>(std::move(t), py::dtype("float16"));
+    } else if(dst_dtype == ov::element::i64) {
+        return array_from_tensor_t<int64_t>(std::move(t), py::dtype("int64"));
+    } else if(dst_dtype == ov::element::i32) {
+        return array_from_tensor_t<int32_t>(std::move(t), py::dtype("int32"));
+    } else if(dst_dtype == ov::element::i16) {
+        return array_from_tensor_t<int16_t>(std::move(t), py::dtype("int16"));
+    } else if(dst_dtype == ov::element::i8) {
+        return array_from_tensor_t<int8_t>(std::move(t), py::dtype("int8"));
+    } else if(dst_dtype == ov::element::u64) {
+        return array_from_tensor_t<uint64_t>(std::move(t), py::dtype("uint64"));
+    } else if(dst_dtype == ov::element::u32) {
+        return array_from_tensor_t<uint32_t>(std::move(t), py::dtype("uint32"));
+    } else if(dst_dtype == ov::element::u16) {
+        return array_from_tensor_t<uint16_t>(std::move(t), py::dtype("uint16"));
+    } else if(dst_dtype == ov::element::u8) {
+        return array_from_tensor_t<uint8_t>(std::move(t), py::dtype("uint8"));
+    } else {
+        OPENVINO_THROW("Unsupported dtype passed!");
+    }
+}
+
+py::array array_from_constant(ov::op::v0::Constant&& c, bool is_shared) {
+    // Get actual dtype from OpenVINO type:
+    auto ov_type = c.get_element_type();
+    auto dtype = Common::type_helpers::get_dtype(ov_type);
+    // Return the array as a view:
+    if (is_shared) {
+        if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+            return py::array(dtype, c.get_byte_size(), c.get_data_ptr(), py::cast(c));
+        }
+        return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr(), py::cast(c));
+    }
+    // Return the array as a copy:
+    if (ov_type.bitwidth() < Common::values::min_bitwidth) {
+        return py::array(dtype, c.get_byte_size(), c.get_data_ptr());
+    }
+    return py::array(dtype, c.get_shape(), constant_helpers::_get_strides(c), c.get_data_ptr());
+}
+
 };  // namespace array_helpers
+
+
+namespace tensor_helpers {
+void fill_tensor(ov::Tensor& tensor, py::array& array) {
+    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
+    std::memcpy(tensor.data(),
+                array.ndim() == 0 ? array.data() : array.data(0),
+                array.ndim() == 0 ? array.itemsize() : array.nbytes()); 
+}
+
+void fill_tensor(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype) {
+    if(array.dtype() == py::dtype("float64")) {
+        fill_tensor_t<double>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("float32")) {
+        fill_tensor_t<float>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("float16")) {
+        fill_tensor_t<ov::float16>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("int64")) {
+        fill_tensor_t<int64_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("int32")) {
+        fill_tensor_t<int32_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("int16")) {
+        fill_tensor_t<int16_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("int8")) {
+        fill_tensor_t<int8_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("uint64")) {
+        fill_tensor_t<uint64_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("uint32")) {
+        fill_tensor_t<uint32_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("uint16")) {
+        fill_tensor_t<uint16_t>(tensor, array, dst_dtype);
+    } else if(array.dtype() == py::dtype("uint8")) {
+        fill_tensor_t<uint8_t>(tensor, array, dst_dtype);
+    } else {
+        OPENVINO_THROW("Unsupported dtype passed!");
+    }
+}
+
+};  // namespace tensor_helpers
+
+namespace constant_helpers {
+std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
+    auto element_type = self.get_element_type();
+    auto shape = self.get_shape();
+    if (element_type == ov::element::boolean) {
+        return _get_byte_strides<char>(shape);
+    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
+        // WA for bf16, returned as f16 array
+        return _get_byte_strides<ov::float16>(shape);
+    } else if (element_type == ov::element::f32) {
+        return _get_byte_strides<float>(shape);
+    } else if (element_type == ov::element::f64) {
+        return _get_byte_strides<double>(shape);
+    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
+        // WA for i4, returned as int8 array
+        return _get_byte_strides<int8_t>(shape);
+    } else if (element_type == ov::element::i16) {
+        return _get_byte_strides<int16_t>(shape);
+    } else if (element_type == ov::element::i32) {
+        return _get_byte_strides<int32_t>(shape);
+    } else if (element_type == ov::element::i64) {
+        return _get_byte_strides<int64_t>(shape);
+    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
+               element_type == ov::element::nf4) {
+        // WA for u1, u4, nf4, all returned as packed uint8 arrays
+        return _get_byte_strides<uint8_t>(shape);
+    } else if (element_type == ov::element::u16) {
+        return _get_byte_strides<uint16_t>(shape);
+    } else if (element_type == ov::element::u32) {
+        return _get_byte_strides<uint32_t>(shape);
+    } else if (element_type == ov::element::u64) {
+        return _get_byte_strides<uint64_t>(shape);
+    } else {
+        throw std::runtime_error("Unsupported data type!");
+    }
+}
+};  // namespace tensor_helpers
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
@@ -348,10 +471,34 @@ ov::Tensor create_copied(py::array& array) {
         string_helpers::fill_string_tensor_data(tensor, array);
         return tensor;
     }
-    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
-    std::memcpy(tensor.data(),
-                array.ndim() == 0 ? array.data() : array.data(0),
-                array.ndim() == 0 ? array.itemsize() : array.nbytes());
+    tensor_helpers::fill_tensor(tensor, array);
+    return tensor;
+}
+
+template <>
+ov::Tensor create_copied(py::array& array, ov::element::Type& dst_dtype) {
+    // Create actual Tensor.
+    auto tensor = ov::Tensor(dst_dtype, array_helpers::get_shape(array));
+    // If size of an array is equal to 0, the array is empty.
+    // Alternative could be `array.nbytes()`.
+    // Do not copy data from it, only return empty tensor based on type.
+    if (array.size() == 0) {
+        return tensor;
+    }
+    // Convert to contiguous array if not already in C-style.
+    if (!array_helpers::is_contiguous(array)) {
+        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
+    }
+    // Special case with string data type.
+    if (type_helpers::get_ov_type(array) == ov::element::string || dst_dtype == ov::element::string) {
+        OPENVINO_THROW("Passed numpy array can't be string type.");
+    }
+    // Special case with bf16 data type, need Constant to correctly cast it.
+    if (dst_dtype == ov::element::bf16 || type_helpers::get_ov_type(array) != dst_dtype) {
+        tensor_helpers::fill_tensor(tensor, array, dst_dtype);
+        return tensor;
+    }
+    tensor_helpers::fill_tensor(tensor, array);
     return tensor;
 }
 
@@ -371,6 +518,14 @@ ov::Tensor create_shared(py::array& array) {
     }
     // If passed array is not C-style, throw an error.
     OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+template <>
+ov::Tensor create_shared(py::array& array, ov::element::Type& dst_dtype) {
+    if (type_helpers::get_ov_type(array) == dst_dtype) {
+        return create_shared<ov::Tensor>(array);
+    }
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array and destination dtype must match.");
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
@@ -505,7 +660,12 @@ py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool 
                 res[py::cast(out)] = string_helpers::bytes_array_from_tensor(std::move(t));
             }
         } else {
-            res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
+            // Always upcast-copy for bf16 type:
+            if (t.get_element_type() == ov::element::bf16) {
+                res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), ov::element::f32);
+            } else {
+                res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);
+            }
         }
     }
     return res;
