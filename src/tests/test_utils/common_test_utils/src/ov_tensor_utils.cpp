@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <math.h>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "common_test_utils/data_utils.hpp"
@@ -333,9 +331,7 @@ inline double less_or_equal(double a, double b) {
 
 template <typename T>
 inline bool check_value(const T& value) {
-    if (std::isnan(value)||
-        std::isinf(value) ||
-        value >= std::numeric_limits<T>::max() ||
+    if (std::isnan(value) || std::isinf(value) || value >= std::numeric_limits<T>::max() ||
         value <= std::numeric_limits<T>::min()) {
         return false;
     }
@@ -346,28 +342,26 @@ class Error {
 protected:
     struct IncorrectValue {
         size_t coordinate;
-        double actual_value, expected_value, abs_threshold, rel_threshold; 
+        double actual_value, expected_value, abs_threshold, rel_threshold;
 
-        IncorrectValue(
-            double in_actual_value,
-            double in_expected_value,
-            double in_abs_threshold,
-            double in_rel_threshold,
-            size_t in_coordinate) :
-            actual_value(in_actual_value),
-            expected_value(in_expected_value),
-            abs_threshold(in_abs_threshold),
-            rel_threshold(in_rel_threshold),
-            coordinate(in_coordinate) {}
+        IncorrectValue(double in_actual_value,
+                       double in_expected_value,
+                       double in_abs_threshold,
+                       double in_rel_threshold,
+                       size_t in_coordinate)
+            : actual_value(in_actual_value),
+              expected_value(in_expected_value),
+              abs_threshold(in_abs_threshold),
+              rel_threshold(in_rel_threshold),
+              coordinate(in_coordinate) {}
     };
 
     std::vector<IncorrectValue> incorrect_values;
     double abs_threshold, rel_threshold;
 
 public:
-    Error(const double in_abs_threshold,
-          const double in_rel_threshold) : 
-          abs_threshold(in_abs_threshold),
+    Error(const double in_abs_threshold, const double in_rel_threshold)
+        : abs_threshold(in_abs_threshold),
           rel_threshold(in_rel_threshold) {}
 
     void update(double actual, double expected, size_t coordinate) {
@@ -375,12 +369,11 @@ public:
 
         const auto calculated_abs_threshold = abs_threshold * expected;
         const auto calculated_rel_threshold = calculated_abs_threshold ? diff / calculated_abs_threshold : 1.;
-        if (less_or_equal(diff, calculated_abs_threshold) &&
-            less_or_equal(calculated_rel_threshold, rel_threshold)) {
+        if (less_or_equal(diff, calculated_abs_threshold) && less_or_equal(calculated_rel_threshold, rel_threshold)) {
             return;
         }
-        incorrect_values.emplace_back(IncorrectValue(actual, expected, calculated_abs_threshold,
-                                                     calculated_rel_threshold, coordinate));
+        incorrect_values.emplace_back(
+            IncorrectValue(actual, expected, calculated_abs_threshold, calculated_rel_threshold, coordinate));
     }
 
     void get_results() {
@@ -394,10 +387,7 @@ public:
 };
 
 template <typename ExpectedT, typename ActualT>
-void compare(const ov::Tensor& expected,
-             const ov::Tensor& actual,
-             double abs_threshold,
-             const double rel_threshold) {
+void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, const double rel_threshold) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
