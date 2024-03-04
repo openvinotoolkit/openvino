@@ -19,7 +19,7 @@ using namespace ov::intel_cpu;
 using namespace ov::op;
 
 // helper to check the inplace direction of a node with a part of its name
-void CheckInplaceDirection(const std::shared_ptr<Graph> graph, const std::string &patial_name, size_t inport, const Edge::LOOK undesiredDirection) {
+void CheckInplaceDirection(const std::shared_ptr<Graph> graph, const std::string &partial_name, size_t inport, const Edge::LOOK undesiredDirection) {
     const std::vector<NodePtr>& graph_nodes = graph->GetNodes();
     size_t actualCount = 0;
     for (auto &node : graph_nodes) {
