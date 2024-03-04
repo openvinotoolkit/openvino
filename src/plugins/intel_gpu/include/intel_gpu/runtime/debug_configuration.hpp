@@ -137,6 +137,7 @@ public:
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
+    bool is_target_dump_prof_data_iteration(int64_t iteration) const;
     std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const std::string& id) const;
     std::string get_name_for_dump(const std::string& file_name) const;
     bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
@@ -154,6 +155,12 @@ public:
         // Percentage mode preallocation
         float buffers_preallocation_ratio = 0.0f;
     } mem_preallocation_params;
+
+    struct dump_profiling_data_iter_params {
+        bool is_enabled = false;
+        int64_t start = 0;
+        int64_t end = 0;
+    } dump_prof_data_iter_params;
 };
 
 }  // namespace cldnn
