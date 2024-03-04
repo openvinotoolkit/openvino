@@ -21,9 +21,6 @@ std::vector<std::string> disabledTestPatterns() {
         // unsupported metrics
         R"(.*smoke_OVGetMetricPropsTest.*OVGetMetricPropsTest.*(RANGE_FOR_STREAMS|MAX_BATCH_SIZE).*)",
 
-        // CVS-55937
-        R"(.*SplitLayerTest.*numSplits=30.*)",
-
         // CVS-64094
         R"(.*ReferenceLogSoftmaxLayerTest.*4.*iType=f16.*axis=.*1.*)",
         // CVS-64012
