@@ -19,7 +19,7 @@
 namespace ov {
 namespace autobatch_plugin {
 
-std::vector<std::string> supported_configKeys = {ov::device::priorities.name(), ov::auto_batch_timeout.name()};
+std::vector<std::string> supported_configKeys = {ov::device::priorities.name(), ov::auto_batch_timeout.name(), "PERF_COUNT", "NUM_STREAMS"};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
