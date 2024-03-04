@@ -52,6 +52,27 @@ struct InputGenerateData {
     };
 };
 
+// Pre-defaned eps based on mantissa bit depth
+inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
+    if (elem_type.is_integral()) {
+        return 0.f;
+    }
+    switch(elem_type) {
+        case ov::element::f32:
+            return 1e-4;
+        case ov::element::f64:
+            return 1e-5;
+        case ov::element::f16:
+            return 1e-3;
+        case ov::element::bf16:
+            return 1e-2;
+        case ov::element::nf4:
+            return 1e-1;
+        default:
+            throw std::runtime_error("Incorrect element type to get epsilon!");
+    }
+}
+
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const InputGenerateData& inGenData = InputGenerateData(0, 10, 1, 1));
@@ -110,7 +131,7 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold = std::numeric_limits<double>::max(),
-             const double rel_threshold = std::numeric_limits<double>::max());
+             const double rel_threshold = 1.f);
 
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual);
 }  // namespace utils
