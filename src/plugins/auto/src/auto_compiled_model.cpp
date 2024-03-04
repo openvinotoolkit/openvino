@@ -47,11 +47,12 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
                                                     ov::device::priorities,
                                                     ov::device::properties,
                                                     ov::hint::model_priority,
-                                                    ov::loaded_from_cache};
+                                                    ov::loaded_from_cache,
+                                                    ov::enable_profiling};
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::enable_profiling};
+        std::vector<ov::PropertyName> rw_properties{};
         return rw_properties;
     };
     if (name == ov::supported_properties) {
@@ -64,11 +65,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(supported_properties);
     } else if (name == ov::enable_profiling) {
-        auto rw_properties = default_rw_properties();
-
-        std::vector<ov::PropertyName> supported_properties;
-        supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return m_context->m_need_perf_counters;
     } else if (name == ov::hint::performance_mode) {
         return m_context->m_performance_hint;
     } else if (name == ov::device::priorities) {
