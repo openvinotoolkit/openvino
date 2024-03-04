@@ -5,10 +5,10 @@ MaxPool
 
 
 .. meta::
-  :description: Learn about MaxPool-8 - a pooling operation, which can 
+  :description: Learn about MaxPool-14 - a pooling operation, which can 
                 be performed on a 3D, 4D or 5D input tensor.
 
-**Versioned name**: *MaxPool-8*
+**Versioned name**: *MaxPool-14*
 
 **Category**: *Pooling*
 
