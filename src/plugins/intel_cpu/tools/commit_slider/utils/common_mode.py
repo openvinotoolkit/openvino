@@ -3,7 +3,7 @@
 
 from abc import ABC
 import utils.helpers as util
-import utils.map_builder as mapBuilder
+from utils.subscription import SubscriptionManager
 from utils.break_validator import validateBMOutput
 from utils.break_validator import BmValidationError
 import json
@@ -132,12 +132,9 @@ class Mode(ABC):
         # switch off illegal check
         if not self.traversal.isComparative():
             cfg["checkIfBordersDiffer"] = False
-        cashCfg = cfg["cachedPathConfig"]
-        # build cash map
-        if (cashCfg["enabled"] and cashCfg["generateMap"]):
-            cfg["cachedPathConfig"]["cashMap"] = mapBuilder(
-                cashCfg["commonPath"], cashCfg["subPath"]
-            )
+        # apply necessary subscriptions for cfg
+        subManager = SubscriptionManager(cfg)
+        subManager.apply()
         if "modeName" in cfg["skipMode"]:
             errorHandlingMode = cfg["skipMode"]["modeName"]
             if errorHandlingMode == "skip":
