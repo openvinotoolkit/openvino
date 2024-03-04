@@ -5,10 +5,10 @@ AvgPool
 
 
 .. meta::
-  :description: Learn about AvgPool-1 - a pooling operation, which can 
+  :description: Learn about AvgPool-14 - a pooling operation, which can 
                 be performed on a 3D, 4D or 5D input tensor.
 
-**Versioned name**: *AvgPool-1*
+**Versioned name**: *AvgPool-14*
 
 **Category**: *Pooling*
 
