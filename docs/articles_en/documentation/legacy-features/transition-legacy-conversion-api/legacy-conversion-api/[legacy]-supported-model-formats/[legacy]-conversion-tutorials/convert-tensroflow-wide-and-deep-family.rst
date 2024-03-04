@@ -5,7 +5,7 @@ Converting TensorFlow Wide and Deep Family Models
 
 
 .. meta::
-   :description: Learn how to convert Wide and Deep Family 
+   :description: Learn how to convert Wide and Deep Family
                  models from TensorFlow to the OpenVINO Intermediate Representation.
 
 
@@ -13,8 +13,8 @@ Converting TensorFlow Wide and Deep Family Models
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../../learn-openvino/interactive-tutorials-python <../../../../../../learn-openvino/interactive-tutorials-python>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 The Wide and Deep models is a combination of wide and deep parts for memorization and generalization of object features respectively.
 These models can contain different types of object features such as numerical, categorical, sparse and sequential features. These feature types are specified
 through Tensorflow tf.feature_column API. Table below presents what feature types are supported by the OpenVINO toolkit.
