@@ -12,15 +12,9 @@ AvgPool
 
 **Category**: *Pooling*
 
-**Short description**: Average Pool is an operation which produces a downsampled feature map using average values calculation.
+**Short description**: Performs the average pooling operation on input.
 
-**Detailed description**: `Reference <http://cs231n.github.io/convolutional-networks/#pool>`__ . Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region. Output shape is calculated as follows:
-
-``H_out = (H + pads_begin[0] + pads_end[0] - kernel[0] / strides[0]) + 1``
-
-``W_out = (H + pads_begin[1] + pads_end[1] - kernel[1] / strides[1]) + 1``
-
-``D_out = (H + pads_begin[2] + pads_end[2] - kernel[2] / strides[2]) + 1``
+**Detailed description**: `Reference <http://cs231n.github.io/convolutional-networks/#pool>`__. Average Pool is a pooling operation that performs down-sampling by dividing the input into pooling regions of size specified by kernel attribute and computing the average values of each region.
 
 **Attributes**: *Pooling* attributes are specified in the ``data`` node, which is a child of the layer node.
 
@@ -90,13 +84,14 @@ AvgPool
 
 **Output**:
   
-* **1**: The output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``.
+* **1**: The output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output shape calculation rules and examples can be found in :doc:`Pooling Operators shape inference rules <openvino_docs_pooling_shape_rules>`.
 
-**Mathematical Formulation**
+**Types**
 
-.. math::
-   
-   output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
+* *T*: floating point or integer type.
+
+* *T_IND*: ``int64`` or ``int32``.
+
 
 **Examples**
 
