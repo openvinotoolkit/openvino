@@ -995,7 +995,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         const auto ext_blob_map = output.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name);
+            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with index: ", name);
         }
 
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
