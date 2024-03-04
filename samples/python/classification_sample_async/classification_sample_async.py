@@ -31,16 +31,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def guess_layout(shape):
-    if 4 != len(shape):
-        raise RuntimeError('Sample supports models with rank 4 input only')
-    if 1 == shape[1] or 3 == shape[1]:
-        return ov.Layout('NCHW')
-    if 1 == shape[3] or 3 == shape[3]:
-        return ov.Layout('NHWC')
-    raise RuntimeError("Can't guess layout by shape")
-
-
 def completion_callback(infer_request: ov.InferRequest, image_path: str) -> None:
     predictions = next(iter(infer_request.results.values()))
 

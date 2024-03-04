@@ -77,7 +77,6 @@ def download(test_data_dir, file_path):
                         response = requests.get("https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/2021.4/samples_smoke_tests_data_2021.4.zip")
                         with zipfile.ZipFile(io.BytesIO(response.content)) as zfile:
                             zfile.extractall(test_data_dir)
-                        print('AAAAAAAAAAAAAAAAAAAAAAAAAAAA')
                         cv2.imwrite(str(test_data_dir / 'dog-224x224.bmp'), cv2.resize(cv2.imread(str(test_data_dir / 'samples_smoke_tests_data_2021.4/validation_set/227x227/dog.bmp')), (224, 224)))
             lock_path.unlink(missing_ok=True)
             print(file_path)
@@ -292,6 +291,7 @@ class SamplesCommonTestClass():
             del param_cp['sample_type']
 
         cmd_line = get_cmd_func(param_cp, use_preffix=use_preffix, long_hyphen=long_hyphen)
+
         log.info("Running command: {} {}".format(executable_path, cmd_line))
         retcode, stdout, stderr = shell([executable_path, cmd_line])
 
