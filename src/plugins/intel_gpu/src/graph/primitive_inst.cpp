@@ -1374,7 +1374,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }
@@ -1696,12 +1696,15 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
-                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+                auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
-                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
-                reorder_impl->set_kernels(kernels);
+                if (impl_type == impl_types::ocl) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
+                    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                    reorder_impl->set_kernels(kernels);
+                }
 
                 reorder_inst->set_impl(reorder_impl->clone());
 
@@ -2017,7 +2020,10 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            if (fd.is_type<reorder>())
+                continue;
+
+            OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
     }
 
