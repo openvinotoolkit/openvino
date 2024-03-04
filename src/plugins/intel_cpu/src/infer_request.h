@@ -109,7 +109,6 @@ private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks_tmp;
 
     Graph* m_graph = nullptr;
-    
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr_tmp;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr_tmp;
 
