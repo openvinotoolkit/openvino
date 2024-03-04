@@ -1,4 +1,4 @@
-.. {#openvino_docs_ops_type_ConvertPromoteTypes-14}
+.. {#openvino_docs_ops_type_ConvertPromoteTypes_14}
 
 ConvertPromoteTypes
 ===========
