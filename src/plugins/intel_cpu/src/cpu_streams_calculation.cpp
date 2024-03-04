@@ -554,7 +554,7 @@ int get_model_prefer_threads(const int num_streams,
             config.modelPreferThreads = 2;
         }
         if (config.modelPreferThreads == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
-            proc_type_table[0][HYPER_THREADING_PROC] > 0) {
+            proc_type_table[0][HYPER_THREADING_PROC] == proc_type_table[0][MAIN_CORE_PROC]) {
             config.modelPreferThreads = 2;
         }
 #endif
