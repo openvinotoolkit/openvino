@@ -37,21 +37,6 @@ std::unordered_set<std::string> get_removed_nodes(const std::shared_ptr<const ov
     return result;
 }
 
-std::unordered_set<std::string> get_broadcast_fused_nodes(const std::shared_ptr<const ov::Model>& transformed_model) {
-    std::unordered_set<std::string> result = {};
-
-    for (auto&& node : transformed_model->get_ops()) {
-        if (ov::is_type<ov::op::util::BroadcastBase>(node)) {
-            for (auto&& fused_layer_name : ov::getFusedNamesVector(node)) {
-                result.emplace(fused_layer_name);
-                result.erase(node->get_friendly_name());
-            }
-        }
-    }
-
-    return result;
-}
-
 }  // namespace
 
 ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
@@ -286,14 +271,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
-    // Get removed nodes and nodes fused in broadcast
     NameSet removed_nodes = get_removed_nodes(model, transformed_model);
-    NameSet broadcast_fused_nodes = get_broadcast_fused_nodes(transformed_model);
     // Filter ShapeOfs
     for (auto& op : model->get_ordered_ops()) {
         const auto& name = op->get_friendly_name();
-        if ((ov::is_type<ov::op::util::ShapeOfBase>(op)) &&
-            (supported.count(name) || removed_nodes.count(name))) {
+        if (ov::is_type<ov::op::util::ShapeOfBase>(op) && (supported.count(name) || removed_nodes.count(name))) {
             if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
                 remove_op_from_supported(op);
                 removed_nodes.erase(name);

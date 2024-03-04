@@ -135,7 +135,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
 
             mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
                                                                    supported_ops_temp,
-                                                                   true,
+                                                                   m_cfg.dump_dot_files(),
                                                                    default_device);
         } else {
             auto temp_model = model->clone();
@@ -157,7 +157,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             }
             mapping_info = ov::hetero::mask_model_subgraphs_by_ops(model,
                                                                    supported_ops_temp,
-                                                                   true,
+                                                                   m_cfg.dump_dot_files(),
                                                                    default_device);
         }
     }
