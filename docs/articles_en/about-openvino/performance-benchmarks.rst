@@ -192,7 +192,7 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.3, as of February 13, 2024.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2024.0, as of March 02, 2024.
 
 * OpenVINO Model Server performance results are based on release 2023.3, as of February 13, 2024.
 
