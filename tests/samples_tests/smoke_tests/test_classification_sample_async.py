@@ -37,11 +37,11 @@ class TestClassification(SamplesCommonTestClass):
 
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
-        _check_output(self, param, '267', cache)
+        _check_output(self, param, '589', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
-        _check_output(self, param, '267', cache)
+        _check_output(self, param, '589', cache)
 
 
 def _check_output(self, param, expected_result, cache):

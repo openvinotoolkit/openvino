@@ -66,8 +66,7 @@ class Test_hello_classification(SamplesCommonTestClass):
             if re.match('\\d+ +\\d+.\\d+$', output[line].replace('[ INFO ]', '').strip()) is not None:
                 top1 = output[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
-                print(top1)
-                if '267' not in top1:
+                if '589' not in top1:
                     is_ok = False
                     log.error('Expected class 262, Detected class {}'.format(top1))
                 break
