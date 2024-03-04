@@ -196,7 +196,7 @@ jobs:
           # #Initialize pdm environment
             pdm venv create --name layer-test ${{ env.PYTHON_VERSION }}
             pdm use --venv layer-test
-            pdm lock -L layer.pdm.lock -v --strategy no_cross_platform -G tests_layer -G tests_mo -G pdm_hacks
+            pdm lock -L layer.pdm.lock -v --strategy no_cross_platform -G tests_layer -G tests_mo
 
             extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
             ov_dev_wheel_name=$(find ${INSTALL_DIR}/tools -name 'openvino_dev*.whl')
