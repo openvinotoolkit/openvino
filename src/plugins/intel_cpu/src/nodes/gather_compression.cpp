@@ -4,23 +4,9 @@
 
 #include "gather_compression.h"
 
-#include <openvino/op/gather.hpp>
-#include <openvino/op/constant.hpp>
-
-#include <string>
-#include <vector>
-
-#include "openvino/core/parallel.hpp"
-#include <openvino/opsets/opset1.hpp>
 #include "common/cpu_memcpy.h"
-#include "common/cpu_convert.h"
-#include "utils/general_utils.h"
-#include "kernels/x64/gather_uni_kernel.hpp"
-#include <partitioned_mem_mgr.h>
-#include "shape_inference/custom/gather.hpp"
-#include "utils/ngraph_utils.hpp"
 #include "transformations/cpu_opset/common/op/gather_compression.hpp"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "utils/ngraph_utils.hpp"
 
 using namespace dnnl::impl::cpu;
 

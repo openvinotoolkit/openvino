@@ -43,13 +43,10 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     auto zero_point_pattern = ov::pass::pattern::any_input();
     auto subtract_pattern = ov::pass::pattern::wrap_type<opset10::Subtract>({convert1_pattern, zero_point_pattern});
     auto multiply_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({subtract_pattern, ov::pass::pattern::any_input()});
-    auto multiply_no_subtract_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({convert1_pattern, ov::pass::pattern::any_input()});
 
     auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_pattern}, ov::pass::pattern::consumers_count(1));
     auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>();
     auto gather_pattern = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
-
-    auto root = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gather_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -64,6 +61,9 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         // Check input_precision
         const auto& input_precision = input.get_element_type();
         if (std::find(precisions.begin(), precisions.end(), input_precision) == precisions.end()) {
+            return false;
+        }
+        if (input.get_shape().size() != 2u) {
             return false;
         }
 
@@ -82,6 +82,10 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         } else {
             return false;
         }
+        // Shape=[?, 1]
+        if (!(zp->get_shape().size() == 2 && zp->get_shape()[1] == 1u)) {
+            return false;
+        }
         auto input_zp =
             zp->get_element_type() != ov::element::f32 ? std::make_shared<opset10::Convert>(zp, ov::element::f32) : zp;
 
@@ -96,9 +100,19 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         } else {
             return false;
         }
+        // Shape=[?, 1]
+        if (!(scale->get_shape().size() == 2 && scale->get_shape()[1] == 1u)) {
+            std::cout << "scale->get_shape()=" << scale->get_shape().to_string() << std::endl;
+            return false;
+        }
         auto input_scale = scale->get_element_type() != ov::element::f32
                                ? std::make_shared<opset10::Convert>(scale, ov::element::f32)
                                : scale;
+
+        auto gather_axis = pattern_map.at(const_pattern);
+        if (!(gather_axis.get_element_type() == ov::element::i32 && gather_axis.get_shape() == ov::Shape(1, 1))) {
+            return false;
+        }
 
         // Replace gather with GatherCompressionNode
         const auto gatherCompression = std::make_shared<GatherCompressionNode>(input,
@@ -117,6 +131,6 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(root, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(gather_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
