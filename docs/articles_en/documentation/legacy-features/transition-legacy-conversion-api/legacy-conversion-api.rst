@@ -23,7 +23,7 @@ Legacy Conversion API
                  optimal execution on target devices.
 
 .. note::
-   This part of the ../../../documentation describes a legacy approach to model conversion. Starting with OpenVINO 2023.1, a simpler alternative API for model conversion is available: ``openvino.convert_model`` and OpenVINO Model Converter ``ovc`` CLI tool. Refer to :doc:`Model preparation <../../../openvino-workflow/model-preparation>` for more details. If you are still using `openvino.tools.mo.convert_model` or `mo` CLI tool, you can still refer to this ../../../documentation. However, consider checking the :doc:`transition guide <../transition-legacy-conversion-api>` to learn how to migrate from the legacy conversion API to the new one. Depending on the model topology, the new API can be a better option for you.
+   This part of the documentation describes a legacy approach to model conversion. Starting with OpenVINO 2023.1, a simpler alternative API for model conversion is available: ``openvino.convert_model`` and OpenVINO Model Converter ``ovc`` CLI tool. Refer to :doc:`Model preparation <../../../openvino-workflow/model-preparation>` for more details. If you are still using `openvino.tools.mo.convert_model` or `mo` CLI tool, you can still refer to this documentation. However, consider checking the :doc:`transition guide <../transition-legacy-conversion-api>` to learn how to migrate from the legacy conversion API to the new one. Depending on the model topology, the new API can be a better option for you.
 
 To convert a model to OpenVINO model format (``ov.Model``), you can use the following command:
 

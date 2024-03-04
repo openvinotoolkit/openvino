@@ -550,7 +550,7 @@ to OpenVINO IR or ONNX before running inference should be considered the default
 .. note::
 
    If you want to keep working with the legacy formats the old way, refer to a previous
-   `OpenVINO LTS version and its ../../../../documentation <https://docs.openvino.ai/2022.3/Supported_Model_Formats.html>`__ .
+   `OpenVINO LTS version and its documentation <https://docs.openvino.ai/2022.3/Supported_Model_Formats.html>`__ .
 
    OpenVINO versions of 2023 are mostly compatible with the old instructions,
    through a deprecated MO tool, installed with the deprecated OpenVINO Developer Tools package.
