@@ -110,6 +110,33 @@ OutputVector translate_min(const NodeContext& context) {
     return {values, indices};
 };
 
+OutputVector translate_min_dim(const NodeContext& context) {
+    // torch.min.dim(x, dim, keepdim)
+    num_inputs_check(context, 2, 3);
+    auto x = context.get_input(0);
+    auto axes_node = context.get_input(1);
+    auto axis_const = context.const_input<int64_t>(1);
+
+    bool keepdims = false;
+    if (!context.input_is_none(2)) {
+        keepdims = context.const_input<bool>(2);
+    }
+
+    auto values = context.mark_node(std::make_shared<v1::ReduceMin>(x, axes_node, keepdims));
+    auto k = context.mark_node(std::make_shared<v0::Constant>(element::i32, Shape{}, 1));
+    auto topk = std::make_shared<v3::TopK>(x, k, axis_const, v3::TopK::Mode::MIN, v3::TopK::SortType::NONE);
+    auto indices = context.mark_node(std::make_shared<v0::Convert>(topk->output(1), element::i64));
+    if (!keepdims) {
+        indices = std::make_shared<v0::Squeeze>(indices, axes_node);
+    }
+    return {values, indices};
+};
+
+OutputVector translate_min_dim_fx(const NodeContext& context) {
+    ov::OutputVector out_vec = translate_min_dim(context);
+    return {context.mark_node(make_list_construct(out_vec))};
+};
+
 OutputVector translate_maximum(const NodeContext& context) {
     // aten::maximum(Tensor self, Tensor other) -> Tensor
 
@@ -146,10 +173,13 @@ OutputVector translate_amin(const NodeContext& context) {
     // aten::amin(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
 
     // aten::amin.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 3, 4);
+    num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
     auto dims = context.get_input(1);
-    auto keep_dims = context.const_input<bool>(2);
+    bool keep_dims = false;
+    if (!context.input_is_none(2)) {
+        keep_dims = context.const_input<bool>(2);
+    }
     auto res = context.mark_node(std::make_shared<v1::ReduceMin>(x, dims, keep_dims));
     if (!context.input_is_none(3)) {
         context.mutate_input(3, res);
@@ -161,10 +191,13 @@ OutputVector translate_amax(const NodeContext& context) {
     // aten::amax(Tensor self, int[1] dim=[], bool keepdim=False) -> Tensor
 
     // aten::amax.out(Tensor self, int[1] dim=[], bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 3, 4);
+    num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
     auto dims = context.get_input(1);
-    auto keep_dims = context.const_input<bool>(2);
+    bool keep_dims = false;
+    if (!context.input_is_none(2)) {
+        keep_dims = context.const_input<bool>(2);
+    }
     auto res = context.mark_node(std::make_shared<v1::ReduceMax>(x, dims, keep_dims));
     if (!context.input_is_none(3)) {
         context.mutate_input(3, res);

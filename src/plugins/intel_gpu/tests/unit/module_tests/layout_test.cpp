@@ -223,6 +223,8 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
          layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)}, true, true},
         {layout{ov::PartialShape{10, 20}, data_types::f16, format::bfyx},
          layout{ov::PartialShape{10, 20}, data_types::f16, format::os_iyx_osv16}, false, false},
+        {layout{ov::PartialShape{1, 16, 1, 1}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 16, 1, 1}, data_types::f16, format::os_iyx_osv16}, false, false},
         {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
          layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::oiyx}, false, true},
         {layout{ov::PartialShape{128, 10}, data_types::f16, format::bfyx},
@@ -369,4 +371,52 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
         {format::g_os_zyx_is_osv32_isv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
         {format::g_is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
         {format::g_os_is_zyx_osa4_isa8_osv8_isv2, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
+    }));
+
+struct custom_layout_test_params {
+    ov::PartialShape shape;
+    cldnn::format_traits left;
+    cldnn::format_traits right;
+};
+
+class custom_layout_test : public testing::TestWithParam<custom_layout_test_params> { };
+
+TEST_P(custom_layout_test, different_hash) {
+    auto p = GetParam();
+    auto left = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.left));
+    auto right = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.right));
+    ASSERT_TRUE(left.hash() != right.hash());
+}
+
+TEST_P(custom_layout_test, same_hash) {
+    auto p = GetParam();
+    auto left = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.left));
+    auto right = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.left));
+    ASSERT_TRUE(left.hash() == right.hash());
+
+    left = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.right));
+    right = cldnn::layout(p.shape, cldnn::data_types::f16, cldnn::format(p.right));
+    ASSERT_TRUE(left.hash() == right.hash());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, custom_layout_test,
+    testing::ValuesIn(std::vector<custom_layout_test_params>{
+        {
+            {16, 16, 8, 8},
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{1, 16}, {0, 16}}
+            },
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{0, 2}, {1, 8}, {0, 8}, {1, 2}}
+            }
+        },
+        {
+            {32, 32, 8, 8},
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}
+            },
+            format_traits{
+                "custom", 1, 1, 2, 0, {0, 1, 2, 3}, "oiyx", "oixy?", {{0, 2}, {1, 8}, {0, 8}, {1, 2}}
+            }
+        },
     }));
