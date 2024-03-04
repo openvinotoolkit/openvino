@@ -9,9 +9,9 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "snippets/op/subgraph.hpp"
 
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #endif
 
@@ -69,9 +69,9 @@ private:
     size_t outputNum = 0;
 
     // Holds ISA version used is codeGeneration target
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
     dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
 #endif
 

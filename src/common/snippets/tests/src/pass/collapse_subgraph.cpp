@@ -48,12 +48,17 @@ TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_MatMulWithElt
     run();
 }
 
+// todo: Remove the architecture constraint after isa sve_128 being supported. Because for now ARM Snippets only support isa asimd,
+// but dnnl injector jit_uni_eltwise_injector_f32 requires isa being at least sve_128. So dnnl emitters used by these test cases
+// are not supported for ARM architecture now.
+#if defined(OPENVINO_ARCH_X86_64)
 TEST_F(CollapseSubgraphTests, smoke_Snippets_AvoidLoopEltwise) {
     const auto& f = EltwiseLogLoopFunction(std::vector<PartialShape> {{2, 5}, {2, 1}});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
+#endif
 
 TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_OneConvert) {
     const auto& f = ConvertFunction(std::vector<PartialShape>{{2, 5}});
@@ -92,6 +97,10 @@ TEST_F(SKIP_CollapseSubgraphTests /* CVS-114607 */, smoke_Snippets_ConvertPartia
     run();
 }
 
+// todo: Remove the architecture constraint after isa sve_128 being supported. Because for now ARM Snippets only support isa asimd,
+// but dnnl injector jit_uni_eltwise_injector_f32 requires isa being at least sve_128. So dnnl emitters used by these test cases
+// are not supported for ARM architecture now.
+#if defined(OPENVINO_ARCH_X86_64)
 TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
     const auto& f = EltwiseTwoResultsFunction(std::vector<PartialShape>{{2, 5}, {2, 1}});
     model = f.getOriginal();
@@ -99,13 +108,18 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
     comparator.enable(FunctionsComparator::CmpValues::NAMES);
     run();
 }
+#endif
 
+
+// todo: Remove the architecture constraint after FakeQuantize for ARM Snippets being supported
+#if defined(OPENVINO_ARCH_X86_64)
 TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
     const auto& f = ThreeFQFunction(std::vector<PartialShape>{});
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
 }
+#endif
 
 }  // namespace snippets
 }  // namespace test

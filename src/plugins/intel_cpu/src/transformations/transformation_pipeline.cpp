@@ -140,9 +140,9 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
-#if defined(OPENVINO_ARCH_X86_64)
+#if !defined(OPENVINO_ARCH_ARM64)
 #include "cpu/x64/cpu_isa_traits.hpp"
-#elif defined(OPENVINO_ARCH_ARM64)
+#else
 #include "cpu/aarch64/cpu_isa_traits.hpp"
 #endif
 #include "openvino/core/validation_util.hpp"
