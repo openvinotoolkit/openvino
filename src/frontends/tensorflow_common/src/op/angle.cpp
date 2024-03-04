@@ -6,7 +6,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/greater.hpp"
@@ -28,6 +28,7 @@ namespace op {
 OutputVector translate_angle_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Angle"}, true);
     auto complex = node.get_input(0);
+    auto result_type = node.get_input(1);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(complex.get_node_shared_ptr());
     complex = complex_type_mark->input_value(0);
@@ -78,9 +79,10 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
+    result_changed_type = make_shared<v1::Convert>(result, result_type); 
 
-    set_node_name(node.get_name(), result.get_node_shared_ptr());
-    return {result};
+    set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
+    return {result_changed_type};
 }
 }  // namespace op
 }  // namespace tensorflow
