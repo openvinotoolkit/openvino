@@ -1,11 +1,11 @@
-.. {#datumaro_../../documentation}
+.. {#datumaro_documentation}
 
 Datumaro
 ========
 
 
 .. meta::
-   :description: Start working with Datumaro, which offers functionalities for basic data 
+   :description: Start working with Datumaro, which offers functionalities for basic data
                  import/export, validation, correction, filtration and transformations.
 
 
@@ -25,7 +25,7 @@ Detailed Workflow
 
 1. To start working with Datumaro, download public datasets or prepare your own annotated dataset.
 
-   .. note:: 
+   .. note::
       Datumaro provides a CLI `datum download` for downloading `TensorFlow Datasets <https://www.tensorflow.org/datasets>`__.
 
 2. Import data into Datumaro and manipulate the dataset for the data quality using `Validator`, `Corrector`, and `Filter`.
@@ -34,12 +34,12 @@ Detailed Workflow
 
 4. Merge two datasets to a large-scale dataset.
 
-   .. note:: 
+   .. note::
       There are some choices of merger, i.e., `ExactMerger`, `IntersectMerger`, and `UnionMerger`.
 
 5. Split the unified dataset into subsets, e.g., `train`, `valid`, and `test` through `Splitter`.
 
-   .. note:: 
+   .. note::
       We can split data with a given ratio of subsets according to both the number of samples or
       annotations. Please see `SplitTask` for the task-specific split.
 

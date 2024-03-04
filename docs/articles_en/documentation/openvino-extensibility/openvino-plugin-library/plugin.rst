@@ -5,7 +5,7 @@ Plugin
 
 
 .. meta::
-   :description: Explore OpenVINO Plugin API, which includes functions and 
+   :description: Explore OpenVINO Plugin API, which includes functions and
                  helper classes that simplify the development of new plugins.
 
 
@@ -55,7 +55,7 @@ The provided plugin class also has several fields:
 
 As an example, a plugin configuration has three value parameters:
 
-* ``device_id`` - particular device ID to work with. Applicable if a plugin supports more than one ``Template`` device. In this case, some plugin methods, like ``set_property``, ``query_model``, and ``compile_model``, must support the ov::device::id property. 
+* ``device_id`` - particular device ID to work with. Applicable if a plugin supports more than one ``Template`` device. In this case, some plugin methods, like ``set_property``, ``query_model``, and ``compile_model``, must support the ov::device::id property.
 * ``perf_counts`` - boolean value to identify whether to collect performance counters during :doc:`Inference Request <synch-inference-request>` execution.
 * ``streams_executor_config`` - configuration of ``ov::threading::IStreamsExecutor`` to handle settings of multi-threaded context.
 * ``performance_mode`` - configuration of ``ov::hint::PerformanceMode`` to set the performance mode.
@@ -65,10 +65,10 @@ As an example, a plugin configuration has three value parameters:
 Plugin Constructor
 ++++++++++++++++++
 
-A plugin constructor must contain code that checks the ability to work with a device of the ``Template`` 
-type. For example, if some drivers are required, the code must check 
-driver availability. If a driver is not available (for example, OpenCL runtime is not installed in 
-case of a GPU device or there is an improper version of a driver is on a host machine), an exception 
+A plugin constructor must contain code that checks the ability to work with a device of the ``Template``
+type. For example, if some drivers are required, the code must check
+driver availability. If a driver is not available (for example, OpenCL runtime is not installed in
+case of a GPU device or there is an improper version of a driver is on a host machine), an exception
 must be thrown from a plugin constructor.
 
 A plugin must define a device name enabled via the ``set_device_name()`` method of a base class:
@@ -80,7 +80,7 @@ A plugin must define a device name enabled via the ``set_device_name()`` method 
 Plugin Destructor
 +++++++++++++++++
 
-A plugin destructor must stop all plugins activities, and clean all allocated ../../../about-openvino/additional-resources.
+A plugin destructor must stop all plugins activities, and clean all allocated resources.
 
 
 .. doxygensnippet:: src/plugins/template/src/plugin.cpp
@@ -103,7 +103,7 @@ which holds a backend-dependent compiled model in an internal representation:
    :language: cpp
    :fragment: [plugin:compile_model_with_remote]
 
-Before a creation of an ``CompiledModel`` instance via a constructor, a plugin may check if a provided 
+Before a creation of an ``CompiledModel`` instance via a constructor, a plugin may check if a provided
 ov::Model object is supported by a device if it is needed.
 
 Actual model compilation is done in the ``CompiledModel`` constructor. Refer to the :doc:`CompiledModel Implementation Guide <compiled-model>` for details.
@@ -125,14 +125,14 @@ The function accepts a const shared pointer to `ov::Model` object and applies co
    :language: cpp
    :fragment: [plugin:transform_model]
 
-.. note:: 
+.. note::
 
    After all these transformations, an ``ov::Model`` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing ``A + B`` operations at once, the ``transform_model`` function should contain a pass which fuses operations ``A`` and ``B`` into a single custom operation `A + B` which fits backend kernels set.
 
 query_model()
 +++++++++++++
 
-Use the method with the ``HETERO`` mode, which allows to distribute model execution between different 
+Use the method with the ``HETERO`` mode, which allows to distribute model execution between different
 devices based on the ``ov::Node::get_rt_info()`` map, which can contain the ``affinity`` key.
 The ``query_model`` method analyzes operations of provided ``model`` and returns a list of supported
 operations via the ov::SupportedOpsMap structure. The ``query_model`` firstly applies ``transform_model`` passes to input ``ov::Model`` argument. After this, the transformed model in ideal case contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (``m_backend`` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in ``m_backend``):
@@ -155,11 +155,11 @@ Sets new values for plugin property keys:
    :language: cpp
    :fragment: [plugin:set_property]
 
-In the snippet above, the ``Configuration`` class overrides previous configuration values with the new 
+In the snippet above, the ``Configuration`` class overrides previous configuration values with the new
 ones. All these values are used during backend specific model compilation and execution of inference requests.
 
-.. note:: 
-    
+.. note::
+
    The function must throw an exception if it receives an unsupported configuration key.
 
 get_property()
@@ -171,27 +171,27 @@ Returns a current value for a specified property key:
    :language: cpp
    :fragment: [plugin:get_property]
 
-The function is implemented with the ``Configuration::Get`` method, which wraps an actual configuration 
+The function is implemented with the ``Configuration::Get`` method, which wraps an actual configuration
 key value to the ov::Any and returns it.
 
-.. note::  
-    
+.. note::
+
    The function must throw an exception if it receives an unsupported configuration key.
 
 import_model()
 ++++++++++++++
 
-The importing of compiled model mechanism allows to import a previously exported backend specific model and wrap it 
-using an :doc:`CompiledModel <compiled-model>` object. This functionality is useful if 
-backend specific model compilation takes significant time and/or cannot be done on a target host 
+The importing of compiled model mechanism allows to import a previously exported backend specific model and wrap it
+using an :doc:`CompiledModel <compiled-model>` object. This functionality is useful if
+backend specific model compilation takes significant time and/or cannot be done on a target host
 device due to other reasons.
 
-During export of backend specific model using ``CompiledModel::export_model``, a plugin may export any 
-type of information it needs to import a compiled model properly and check its correctness. 
+During export of backend specific model using ``CompiledModel::export_model``, a plugin may export any
+type of information it needs to import a compiled model properly and check its correctness.
 For example, the export information may include:
 
 * Compilation options (state of ``Plugin::m_cfg`` structure).
-* Information about a plugin and a device type to check this information later during the import and throw an exception if the ``model`` stream contains wrong data. For example, if devices have different capabilities and a model compiled for a particular device cannot be used for another, such type of information must be stored and checked during the import. 
+* Information about a plugin and a device type to check this information later during the import and throw an exception if the ``model`` stream contains wrong data. For example, if devices have different capabilities and a model compiled for a particular device cannot be used for another, such type of information must be stored and checked during the import.
 * Compiled backend specific model itself.
 
 .. doxygensnippet:: src/plugins/template/src/plugin.cpp
