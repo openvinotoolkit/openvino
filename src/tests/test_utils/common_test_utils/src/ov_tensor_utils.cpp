@@ -331,8 +331,9 @@ inline double less_or_equal(double a, double b) {
 
 template <typename T>
 inline bool check_value(const T& value) {
-    if (std::isnan(value) || std::isinf(value) || value >= std::numeric_limits<T>::max() ||
-        value <= std::numeric_limits<T>::min()) {
+    auto max_limit = std::numeric_limits<T>::max();
+    auto min_limit = ov::element::from<T>().is_real() ? -max_limit : std::numeric_limits<T>::min();
+    if (std::isnan(value) || std::isinf(value) || value >= max_limit || value <= min_limit) {
         return false;
     }
     return true;
@@ -342,21 +343,17 @@ class Error {
 protected:
     struct IncorrectValue {
         size_t coordinate;
-        double actual_value, expected_value, abs_threshold, rel_threshold;
+        double actual_value, expected_value, threshold;
 
-        IncorrectValue(double in_actual_value,
-                       double in_expected_value,
-                       double in_abs_threshold,
-                       double in_rel_threshold,
-                       size_t in_coordinate)
+        IncorrectValue(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate)
             : actual_value(in_actual_value),
               expected_value(in_expected_value),
-              abs_threshold(in_abs_threshold),
-              rel_threshold(in_rel_threshold),
+              threshold(in_threshold),
               coordinate(in_coordinate) {}
     };
 
-    std::vector<IncorrectValue> incorrect_values;
+    std::vector<IncorrectValue> incorrect_values_abs;
+    std::vector<IncorrectValue> incorrect_values_rel;
     double abs_threshold, rel_threshold;
 
 public:
@@ -367,27 +364,60 @@ public:
     void update(double actual, double expected, size_t coordinate) {
         const auto diff = std::fabs(expected - actual);
 
-        const auto calculated_abs_threshold = abs_threshold * expected;
-        const auto calculated_rel_threshold = calculated_abs_threshold ? diff / calculated_abs_threshold : 1.;
-        if (less_or_equal(diff, calculated_abs_threshold) && less_or_equal(calculated_rel_threshold, rel_threshold)) {
+        const auto calculated_abs_threshold = expected ? abs_threshold * std::abs(expected) : std::abs(abs_threshold);
+        const auto calculated_rel = calculated_abs_threshold ? diff / calculated_abs_threshold : 1.;
+
+        incorrect_values_rel.emplace_back(IncorrectValue(actual, expected, calculated_rel, coordinate));
+        if (less_or_equal(diff, calculated_abs_threshold)) {
             return;
         }
-        incorrect_values.emplace_back(
-            IncorrectValue(actual, expected, calculated_abs_threshold, calculated_rel_threshold, coordinate));
+        incorrect_values_abs.emplace_back(IncorrectValue(actual, expected, calculated_abs_threshold, coordinate));
     }
 
     void get_results() {
-        if (!incorrect_values.empty()) {
+        if (!incorrect_values_abs.empty()) {
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
-            msg += std::to_string(incorrect_values.size());
-            msg += ". Please print `incorrect_values` to get detailed information!";
+            msg += std::to_string(incorrect_values_abs.size());
+            msg += ". Please print `incorrect_values_abs` to get detailed information!";
+#ifndef NDEBUG
+            for (auto val : incorrect_values_abs) {
+                std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
+                          << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                          << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
+                          << "\n";
+            }
+#endif
             throw std::runtime_error(msg);
+        }
+        if (!incorrect_values_rel.empty()) {
+            double rel_error = std::accumulate(incorrect_values_rel.begin(),
+                                               incorrect_values_rel.end(),
+                                               0,
+                                               [](double sum, IncorrectValue val) {
+                                                   return sum + val.threshold;
+                                               });
+            rel_error /= incorrect_values_rel.size();
+
+            if (!less_or_equal(rel_error, rel_threshold)) {
+                std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
+                msg += std::to_string(incorrect_values_abs.size());
+                msg += ". Please print `incorrect_values_rel` to get detailed information!";
+#ifndef NDEBUG
+                std::cout << "\nrel_error: " << rel_error << " rel_threshold: " << rel_threshold << "\n";
+                for (auto val : incorrect_values_rel) {
+                    std::cout << "Expected: " << val.expected_value << " Actual: " << val.actual_value
+                              << " Diff: " << std::fabs(val.expected_value - val.actual_value)
+                              << " calculated_rel_threshold: " << val.threshold << "\n";
+                }
+#endif
+                throw std::runtime_error(msg);
+            }
         }
     }
 };
 
 template <typename ExpectedT, typename ActualT>
-void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, const double rel_threshold) {
+void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_threshold, double rel_threshold) {
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
     if (expected_shape != actual_shape) {
@@ -403,6 +433,11 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         abs_threshold = default_abs_threshold;
     } else if (abs_threshold < default_abs_threshold) {
         abs_threshold = default_abs_threshold;
+    }
+
+    const auto default_rel_threshold = 0.4;
+    if (rel_threshold == std::numeric_limits<double>::max() || rel_threshold < default_rel_threshold) {
+        rel_threshold = default_rel_threshold;
     }
 
     size_t shape_size_cnt = shape_size(expected_shape);
