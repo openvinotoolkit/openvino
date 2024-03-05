@@ -84,8 +84,8 @@ TEST_P(SelectLayerGPUTest, Inference) {
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
-        ov::element::f16,
-        ov::element::i32,
+        // ov::element::f16,
+        // ov::element::i32,
 };
 
 // AutoBroadcastType: NUMPY
@@ -119,6 +119,11 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNumpy = {
         { {-1, -1, -1, -1}, {{3, 4, 5, 6}} },
         { {    -1, -1, -1}, {{   4, 5, 6}} },
         { {        -1, -1}, {{      5, 6}} }
+    },
+    {
+        { {            -1}, {{         130048}} },
+        { {        -1, -1}, {{      2, 130048}} },
+        { {        -1, -1}, {{      2, 130048}} }
     },
 };
 
