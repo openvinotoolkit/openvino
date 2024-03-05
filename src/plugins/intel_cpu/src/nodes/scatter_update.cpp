@@ -274,6 +274,32 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
+template <typename T>
+static T reduction_neutral_value(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::MAX:
+        return std::numeric_limits<T>::lowest();
+    case Reduction::MIN:
+        return std::numeric_limits<T>::max();
+    case Reduction::PROD:
+        return T{1};
+    case Reduction::SUM:
+    case Reduction::MEAN:
+    case Reduction::NONE:
+        return T{0};
+    default:
+        OPENVINO_THROW("Neutral value not available for this type of reduction");
+        return 0;
+    }
+}
+
+static ReduceMultiply reduce_multiply;
+static ReduceAdd reduce_add;
+static ReduceMean reduce_mean;
+static ReduceMaximum reduce_maximum;
+static ReduceMinimum reduce_minimum;
+static TensorAssign tensor_assign;
+
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
@@ -402,10 +428,28 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            if (indicesPrec == ov::element::i64)
-                scatterElementsUpdate<float, int64_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
-            else
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
+            switch (reduction_type) {
+            case Reduction::NONE :
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, tensor_assign);
+                break;
+            case Reduction::SUM:
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
+                break;
+            case Reduction::MAX :
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
+                break;
+            case Reduction::MIN :
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
+                break;
+            case Reduction::PROD :
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
+                break;
+            case Reduction::MEAN :
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
+                break;
+            default :
+                break;
+            }
             break;
         }
         default: {
@@ -493,56 +537,11 @@ static std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape)
     return coordinate;
 }
 
-template <typename T>
-static T reduction_neutral_value(const Reduction reduction_type) {
-    switch (reduction_type) {
-    case Reduction::MAX:
-        return std::numeric_limits<T>::lowest();
-    case Reduction::MIN:
-        return std::numeric_limits<T>::max();
-    case Reduction::PROD:
-        return T{1};
-    case Reduction::SUM:
-    case Reduction::MEAN:
-    case Reduction::NONE:
-        return T{0};
-    default:
-        OPENVINO_THROW("Neutral value not available for this type of reduction");
-        return 0;
-    }
-}
-
-template <typename T>
-static std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
-    switch (reduction_type) {
-    case Reduction::NONE:
-        return [](const T a, const T b) {
-            return b;
-        };
-    case Reduction::MAX:
-        return [](const T a, const T b) {
-            return a > b ? a : b;
-        };
-    case Reduction::MIN:
-        return [](const T a, const T b) {
-            return a < b ? a : b;
-        };
-    case Reduction::PROD:
-        return std::multiplies<T>{};
-    case Reduction::SUM:
-    case Reduction::MEAN:
-        return std::plus<T>{};
-    default:
-        OPENVINO_THROW("No functor available for this type of reduction");
-        return 0;
-    }
-}
-
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
-template <typename DataType, typename IndexType>
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis) {
+template <typename DataType, typename IndexType, typename func_t>
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, func_t& kernel_func) {
     PlainTensor data_buf, indices_buf, updates_buf;
     data_buf.reset(mem_data);
     indices_buf.reset(mem_indices);
@@ -560,7 +559,6 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
-    std::copy(begin(squashed_indices_shape), end(squashed_indices_shape), std::ostream_iterator<int>(std::cout, " "));
 
     if (!use_init_val) {
         const auto value = reduction_neutral_value<DataType>(reduction_type);
@@ -585,7 +583,97 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         });
     }
 
-    const auto kernel_func = reduction_functor_for<DataType>(reduction_type);
+    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
+    if (axis == static_cast<int>(indices_rank - 1)) {
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+
+            for (size_t worker = start; worker < end; worker++) {
+                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+                std::vector<size_t> data_coord(indices_coord);
+
+                // inner axis loop for better performance
+                for (size_t i = 0; i < index_dim_size; i++) {
+                    indices_coord[axis] = i;
+                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                    if (normalized_idxValue < data_dim_size) {
+                        data_coord[axis] = normalized_idxValue;
+                        DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                        DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+                        kernel_func(dst, src);
+                    }
+                }
+            }
+        });
+    } else {
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+
+            // external axis loop for better performance
+            for (size_t i = 0; i < index_dim_size; i++) {
+                for (size_t worker = start; worker < end; worker++) {
+                    std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+                    std::vector<size_t> data_coord(indices_coord);
+                    indices_coord[axis] = i;
+                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                    if (normalized_idxValue < data_dim_size) {
+                        data_coord[axis] = normalized_idxValue;
+                        DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                        DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+                        kernel_func(dst, src);
+                    }
+                }
+            }
+        });
+    }
+}
+
+template <typename DataType, typename IndexType>
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ReduceMean& kernel_func) {
+    PlainTensor data_buf, indices_buf, updates_buf;
+    data_buf.reset(mem_data);
+    indices_buf.reset(mem_indices);
+    updates_buf.reset(mem_updates);
+
+    const auto& data_shape = mem_data->getStaticDims();
+    const auto& indices_shape = mem_indices->getStaticDims();
+    size_t indices_rank = indices_shape.size();
+
+    const auto data_dim_size = data_shape[axis];
+    const auto index_dim_size = indices_shape[axis];
+
+    if (axis < 0)
+        axis += indices_rank;
+
+    VectorDims squashed_indices_shape(indices_shape);
+    squashed_indices_shape[axis] = 1;
+
+    if (!use_init_val) {
+        const auto value = reduction_neutral_value<DataType>(reduction_type);
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+
+            for (size_t worker = start; worker < end; worker++) {
+                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+                std::vector<size_t> data_coord(indices_coord);
+
+                for (size_t i = 0; i < index_dim_size; i++) {
+                    indices_coord[axis] = i;
+                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                    if (normalized_idxValue < data_dim_size) {
+                        data_coord[axis] = normalized_idxValue;
+                        data_buf.at<DataType, size_t>(data_coord) = value;
+                    }
+                }
+            }
+        });
+    }
 
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -598,6 +686,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
             std::unordered_map<size_t, int32_t> mean_reduction_counters;
 
+            // inner axis loop for better performance
             for (size_t i = 0; i < index_dim_size; i++) {
                 indices_coord[axis] = i;
                 IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
@@ -605,7 +694,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 if (normalized_idxValue < data_dim_size) {
                     data_coord[axis] = normalized_idxValue;
                     DataType& dst = data_buf.at<DataType, size_t>(data_coord);
-                    dst = kernel_func(dst, updates_buf.at<DataType, size_t>(indices_coord));
+                    DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+                    kernel_func(dst, src);
                 }
 
                 if (reduction_type == Reduction::MEAN) {
