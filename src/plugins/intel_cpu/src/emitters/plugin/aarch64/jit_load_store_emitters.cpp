@@ -20,8 +20,6 @@ jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::aarch64::jit_generator *host
 : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), load_num_(load_num), byte_offset_(byte_offset),
               src_prc_(src_prc), dst_prc_(dst_prc) {
     prepare_table();
-    load_size_ = load_num * src_prc.size();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
 }
 
 void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
@@ -81,8 +79,6 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *ho
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
                   src_prc_(src_prc), dst_prc_(dst_prc) {
     prepare_table();
-    v_len_elt_ = get_vec_length() / exec_prc.size();
-    store_size_ = store_num * dst_prc.size();
 }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {

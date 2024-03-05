@@ -11,6 +11,8 @@
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 
+#include "transformations/snippets/aarch64/op/fused_mul_add.hpp"
+
 #include "openvino/opsets/opset13.hpp"
 
 namespace ov {
@@ -37,7 +39,7 @@ class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
-    ~jit_snippet() = default;
+    virtual ~jit_snippet() = default;
 
     jit_snippet() : jit_generator() {}
 
@@ -77,6 +79,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_broadcast_emitter);
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
 
+    // ternary
+    jitters[intel_cpu::FusedMulAdd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mul_add_emitter);
+
     // binary
     jitters[op::v1::Add::get_type_info_static()] = CREATE_CPU_EMITTER(jit_add_emitter);
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
@@ -98,7 +103,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
 }
 
 bool CPUTargetMachine::is_supported() const {
-    return dnnl::impl::cpu::aarch64::mayiuse(isa);
+    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 }
 
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
