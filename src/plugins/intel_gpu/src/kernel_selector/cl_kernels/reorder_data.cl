@@ -136,6 +136,16 @@ KERNEL (reorder_data)(
 #endif
 #endif
 
+#if HAS_FUSED_OPS
+    // In most cases, reorder data assumes that only one activation is fused.
+    // But this condition is supported when two activations are fused.
+    // See GetJitConstant() in reorder_kernel.cpp.
+    // TO-DO : Implement for all cases below.
+    //
+    FUSED_OPS;
+    OUTPUT_TYPE fused_res = FUSED_OPS_RESULT;
+    output[output_idx] = fused_res;
+#else
 #if defined INPUT0_LAYOUT_NV12 && !SURFACE_INPUT
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, v, u, w, z, y, x);
     uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR ov.s0, ov.s1, ov.s2, ov.s3, ov.s4, ov.s5, ov.s6, ov.s7);
@@ -172,6 +182,7 @@ KERNEL (reorder_data)(
 #endif
 #else
     output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
+#endif
 #endif
 #endif
 }

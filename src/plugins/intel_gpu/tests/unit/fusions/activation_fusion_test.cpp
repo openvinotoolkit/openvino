@@ -9,6 +9,8 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 
 #include <cmath>
 
@@ -336,4 +338,41 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, activation_eltwise_activation, ::testing::
 INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     activation_test_params{ CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref" },  // FIXME - accuracy bug
     activation_test_params{ CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref" },  // FIXME - accuracy bug
+}));
+
+class reorder_activation_activation : public ActivationFusingTest {};
+TEST_P(reorder_activation_activation, basic) {
+    // reorder_data
+    //      |
+    //     sqrt
+    //       |
+    //     power data
+    //       \   /
+    //       divide
+    //         |
+    //       result (permute)
+    //
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+        reorder("reorder", input_info("input"), format::bfyx, data_types::f32),
+        activation("sqrt", input_info("reorder"), activation_func::sqrt),
+        activation("power", input_info("sqrt"), activation_func::pow),
+        eltwise("divide", {input_info("power"), input_info("data")}, eltwise_mode::div),
+        permute("result", input_info("divide"), {0, 1, 2, 3})
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, reorder_activation_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
+    // Previously reorder data supports fusing only one activation.
+    // This test case is to check if reorder data supports fusing two or more activations properly.
+    // Since this case is about reorder data, the layout should be bfyx or bfzyx
+    //    - bfyx : CASE_ACTIVATION_F32_0
+    //    - bfzyx : CASE_ACTIVATION_3D_F32_0
+    activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "reorder_data" },
+    activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "reorder_data" },
 }));
