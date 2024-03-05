@@ -42,13 +42,13 @@ jobs:
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
   Build:
-    strategy:
-      matrix:
-        it: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-            11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-            21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-            31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-            41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
+    # strategy:
+    #   matrix:
+    #     it: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    #         11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    #         21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    #         31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+    #         41, 42, 43, 44, 45, 46, 47, 48, 49, 50]
     needs: Smart_CI
     timeout-minutes: 150
     defaults:
@@ -93,16 +93,23 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      - name: Restore cache
-        run: |
-          mkdir -p ${CCACHE_SHARE_DIR}
-          CACHE_ARCHIVE=$(find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
-          echo ${CACHE_ARCHIVE}
-          mkdir -p ${CCACHE_DIR}
-          tar -xzvf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
+      # - name: Restore cache
+      #   run: |
+      #     mkdir -p ${CCACHE_SHARE_DIR}
+      #     CACHE_ARCHIVE=$(find ${CCACHE_SHARE_DIR} -type f -exec ls -t1 {} + | head -1)
+      #     echo ${CACHE_ARCHIVE}
+      #     mkdir -p ${CCACHE_DIR}
+      #     tar -xzvf ${CACHE_ARCHIVE} -C ${CCACHE_DIR}
+
+      - name: Setup ccache
+        uses: corca-ai/local-cache@v2
+        with:
+          path: ${{ env.CCACHE_SHARE_DIR }}
+          base: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-main
 
       - name: Init submodules for non-Conan dependencies
-        run: |
+        run: |s
           pushd ${OPENVINO_REPO}
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/zlib
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
@@ -236,55 +243,55 @@ jobs:
       - name: Show ccache stats after clean
         run: ccache --show-stats
 
-      - name: Save cache
-        run: |
-          pushd ${CCACHE_DIR}
-            tar -czvf ${CCACHE_SHARE_DIR}/ccache_riscv64_$(date '+%Y%m%d%S').tar.gz *
-          popd
+      # - name: Save cache
+      #   run: |
+      #     pushd ${CCACHE_DIR}
+      #       tar -czvf ${CCACHE_SHARE_DIR}/ccache_riscv64_$(date '+%Y%m%d%S').tar.gz *
+      #     popd
 
-      - name: Pre-Collecting Cache Info
-        run: |
-          echo "Cache info: "
-          du -h -d2 ${CCACHE_SHARE_DIR}
+      # - name: Pre-Collecting Cache Info
+      #   run: |
+      #     echo "Cache info: "
+      #     du -h -d2 ${CCACHE_SHARE_DIR}
 
-      - name: Cleanup cache
-        run: |
-          echo "Delete cache files if they have not been used in over 1 hour"
-          [ ! -z "${CCACHE_SHARE_DIR}" ] && find ${CCACHE_SHARE_DIR} ! -type d -amin +60 -delete
+      # - name: Cleanup cache
+      #   run: |
+      #     echo "Delete cache files if they have not been used in over 1 hour"
+      #     [ ! -z "${CCACHE_SHARE_DIR}" ] && find ${CCACHE_SHARE_DIR} ! -type d -amin +60 -delete
 
-      - name: Post-Collecting Cache Info
-        run: |
-          echo "Cache info: "
-          du -h -d2 ${CCACHE_SHARE_DIR}
+      # - name: Post-Collecting Cache Info
+      #   run: |
+      #     echo "Cache info: "
+      #     du -h -d2 ${CCACHE_SHARE_DIR}
 
 
-  Cleanup_Caches:
-    needs: [Smart_CI]
-    defaults:
-      run:
-        shell: bash
-    runs-on: aks-linux-16-cores-32gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
-      volumes:
-        - /mount:/mount
-    env:
-      CACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
+  # Cleanup_Caches:
+  #   needs: [Smart_CI]
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   runs-on: aks-linux-16-cores-32gb
+  #   container:
+  #     image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+  #     volumes:
+  #       - /mount:/mount
+  #   env:
+  #     CACHE_PATH: /mount/caches/ccache/ubuntu22_riscv64
 
-    steps:
-      - name: Pre-Collecting Cache Info
-        run: |
-          echo "Cache info: "
-          du -h -d2 ${CACHE_PATH}
+  #   steps:
+  #     - name: Pre-Collecting Cache Info
+  #       run: |
+  #         echo "Cache info: "
+  #         du -h -d2 ${CACHE_PATH}
 
-      - name: Cleanup cache
-        run: |
-          [ ! -z "${CACHE_PATH}" ] && find ${CACHE_PATH} ! -type d -amin +10 -delete
+  #     - name: Cleanup cache
+  #       run: |
+  #         [ ! -z "${CACHE_PATH}" ] && find ${CACHE_PATH} ! -type d -amin +10 -delete
 
-      - name: Post-Collecting Cache Info
-        run: |
-          echo "Cache info: "
-          du -h -d2 ${CACHE_PATH}
+  #     - name: Post-Collecting Cache Info
+  #       run: |
+  #         echo "Cache info: "
+  #         du -h -d2 ${CACHE_PATH}
 
 
   Overall_Status:
