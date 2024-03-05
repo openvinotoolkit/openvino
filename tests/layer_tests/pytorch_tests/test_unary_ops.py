@@ -116,6 +116,7 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     @pytest.mark.parametrize("op_type",
                              [
