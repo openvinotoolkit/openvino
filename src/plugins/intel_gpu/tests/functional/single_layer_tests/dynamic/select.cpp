@@ -84,8 +84,8 @@ TEST_P(SelectLayerGPUTest, Inference) {
 
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
-        // ov::element::f16,
-        // ov::element::i32,
+        ov::element::f16,
+        ov::element::i32,
 };
 
 // AutoBroadcastType: NUMPY
