@@ -27,25 +27,6 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
-
-<details>
-  <summary>List of Distributed OpenVINO Components</summary>
-
-  * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
-    * [core](./src/core) - provides the base API for model representation and modification.
-    * [inference](./src/inference) - provides an API to infer models on the device.
-    * [transformations](./src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
-    * [low precision transformations](./src/common/low_precision_transformations) - contains the set of transformations that are used in low precision models
-    * [bindings](./src/bindings) - contains all available OpenVINO bindings which are maintained by the OpenVINO team.
-        * [c](./src/bindings/c) - C API for OpenVINO™ Runtime
-        * [python](./src/bindings/python) - Python API for OpenVINO™ Runtime
-* [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
-* [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
-* [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
-* [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
-</details>
-
-
 ### Getting Started
 
 [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
@@ -99,7 +80,7 @@ Check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino
    -   [TNN](https://github.com/Tencent/TNN/tree/master) - a high-performance, lightweight neural network inference framework.
    -	[langchain](https://github.com/langchain-ai/langchain) -  a framework designed to simplify the creation of applications using large language models.
    -	[stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) - a browser interface based on Gradio library for Stable Diffusion.
-  
+
 </details>
 
 ### Documentation
@@ -110,7 +91,7 @@ Find the latest documentation, from getting started guides to advanced topics, a
 
 **Developer documentation**
 
-[Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO components. It offers all the essential information required for [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) to OpenVINO.
+[Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO [components](./docs/dev/index.md#openvino-components). It offers all the essential information required for [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) to OpenVINO.
 
 For additional resources, read:
 
