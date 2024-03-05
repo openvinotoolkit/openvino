@@ -142,7 +142,7 @@ For best performance when using the MULTI execution mode you should consider a f
 - Just like with any throughput-oriented execution mode, it is highly recommended to query the optimal number of inference requests directly from the instance of the ``ov:compiled_model``. Refer to the code of the previously mentioned ``benchmark_app`` for more details.
 - Execution on certain device combinations, for example CPU+GPU, performs better with certain knobs. Refer to the ``benchmark_app`` code for details. One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams to balance out slower communication of inference completion from the device to the host.
 - The MULTI logic always attempts to save on copying data between device-agnostic and user-facing inference requests, and device-specific 'worker' requests that are being actually scheduled behind the scene. To facilitate the copy savings, it is recommended to run the requests in the order in which they were created.
-- While performance of accelerators combines well with MULTI, the CPU+GPU execution may introduce certain performance issues. It is due to the devices sharing some ../../../about-openvino/additional-resources, like power or bandwidth. Enabling the GPU throttling hint, which saves a CPU thread for CPU inference, is an example of a recommended solution addressing this issue.
+- While performance of accelerators combines well with MULTI, the CPU+GPU execution may introduce certain performance issues. It is due to the devices sharing some resources, like power or bandwidth. Enabling the GPU throttling hint, which saves a CPU thread for CPU inference, is an example of a recommended solution addressing this issue.
 
 
 Additional Resources
