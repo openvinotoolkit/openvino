@@ -1,7 +1,7 @@
 .. {#openvino_docs_ops_type_ConvertPromoteTypes_14}
 
 ConvertPromoteTypes
-===========
+===================
 
 
 .. meta::
