@@ -74,7 +74,7 @@ bool evaluate(const std::shared_ptr<ov::op::v14::AvgPool>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::reference::avg_pool<T>(inputs[0].data<T>(),
+    ov::reference::avg_pool<T>(inputs[0].data<const T>(),
                                outputs[0].data<T>(),
                                inputs[0].get_shape(),
                                op->get_output_shape(0),
