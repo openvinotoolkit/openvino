@@ -402,7 +402,6 @@ void align_eltwise_input_types(const NodeContext& context,
     const auto& rhs_type = rhs.get_element_type();
     auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
-    auto out_type = context.get_output_type(0);
     ov::Output<ov::Node> tmp_lhs = lhs;
     ov::Output<ov::Node> tmp_rhs = rhs;
     if (is_lhs_python_scalar && !is_rhs_python_scalar) {
