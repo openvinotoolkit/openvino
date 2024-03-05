@@ -9,6 +9,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
@@ -26,7 +27,8 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_angle_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Angle"}, true);
+    default_op_checks(node, 2, {"Angle"}, true);
+    
     auto complex = node.get_input(0);
     auto result_type = node.get_attribute<ov::element::Type>("Tout");
 
@@ -38,12 +40,13 @@ OutputVector translate_angle_op(const NodeContext& node) {
         complex_type_mark,
         "[TensorFlow Frontend] inconsistent model: Angle operation expects complex type tensor on input");
 
+    auto complex = complex_type_mark->input_value(0)
     auto real_index = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto imag_index = make_shared<v0::Constant>(element::i32, Shape{}, 1);
     auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
 
-    auto x = make_shared<v8::Gather>(x, real_index, gather_axis)->output(0);
-    auto y = make_shared<v8::Gather>(x, imag_index, gather_axis)->output(0);
+    auto x = make_shared<v8::Gather>(complex, real_index, gather_axis)->output(0);
+    auto y = make_shared<v8::Gather>(complex, imag_index, gather_axis)->output(0);
 
     // handle the first condition : x>0
     auto div_y_x = make_shared<v1::Divide>(y, x);
@@ -77,7 +80,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto cond4 = make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative);
     auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
-    result = make_shared<v1::Select>(cond4, pi_div_two, result);
+    result = make_shared<v0::Select>(cond4, pi_div_two, result);
     result_changed_type = make_shared<v1::Convert>(result, result_type);
 
     set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
