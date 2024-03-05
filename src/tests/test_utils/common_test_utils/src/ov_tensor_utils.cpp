@@ -376,14 +376,14 @@ public:
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
             msg += std::to_string(incorrect_values_abs.size());
             msg += ". Please print `incorrect_values_abs` to get detailed information!";
-#ifndef NDEBUG
+// #ifndef NDEBUG
             for (auto val : incorrect_values_abs) {
                 std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
                           << "\n";
             }
-#endif
+// #endif
             throw std::runtime_error(msg);
         }
     }
