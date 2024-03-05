@@ -5,10 +5,13 @@
 #pragma once
 
 #include "node.h"
+#include "openvino/op/scatter_elements_update.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
+
+using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
 enum class ScatterUpdateMode {
     ScatterUpdate,
@@ -37,11 +40,16 @@ public:
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
-    void scatterElementsUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
+
+    template <typename DT, typename IT>
+    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis);
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
+
+    Reduction reduction_type;
+    bool use_init_val = true;
 
     // if axis can be set other than default 0.
     bool axisRelaxed = false;

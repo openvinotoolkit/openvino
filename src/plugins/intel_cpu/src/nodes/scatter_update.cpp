@@ -25,12 +25,13 @@ namespace node {
 
 bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        auto scatterElemUpd = ov::as_type_ptr<const ov::opset3::ScatterElementsUpdate>(op);
+        auto scatterElemUpd3 = ov::as_type_ptr<const ov::opset3::ScatterElementsUpdate>(op);
+        auto scatterElemUpd12 = ov::as_type_ptr<const ov::opset12::ScatterElementsUpdate>(op);
         auto scatterUpd = ov::as_type_ptr<const ov::opset3::ScatterUpdate>(op);
         auto scatterNdUpd = ov::as_type_ptr<const ov::opset4::ScatterNDUpdate>(op);
-        if (!scatterElemUpd && !scatterUpd && !scatterNdUpd) {
+        if (!scatterElemUpd3 && !scatterElemUpd12 && !scatterUpd && !scatterNdUpd) {
             const std::string opType = op->get_type_name();
-            errorMessage = "Only opset" + opType == "ScatterNDUpdate" ? "4 " : "3 " + opType + " operation is supported";
+            errorMessage = std::string("Type ") + opType + " is not supported.";
             return false;
         }
     } catch (...) {
@@ -54,6 +55,14 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
         errorPrefix = std::string(op->get_type_name()) + " node with name '" + getName() + "'";
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
+
+    const auto node = std::dynamic_pointer_cast<const ov::op::v12::ScatterElementsUpdate>(op);
+    if (node) {
+        reduction_type = node->get_reduction();
+        use_init_val = node->get_use_init_val();
+    } else {
+        reduction_type = ov::op::v12::ScatterElementsUpdate::Reduction::NONE;
     }
 }
 
@@ -393,8 +402,10 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            // scatterElementsUpdate(indicesPtr, updatePtr, axis, dstPtr);
-            scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
+            if (indicesPrec == ov::element::i64)
+                scatterElementsUpdate<float, int64_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
+            else
+                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
             break;
         }
         default: {
@@ -482,6 +493,51 @@ static std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape)
     return coordinate;
 }
 
+template <typename T>
+static T reduction_neutral_value(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::MAX:
+        return std::numeric_limits<T>::lowest();
+    case Reduction::MIN:
+        return std::numeric_limits<T>::max();
+    case Reduction::PROD:
+        return T{1};
+    case Reduction::SUM:
+    case Reduction::MEAN:
+    case Reduction::NONE:
+        return T{0};
+    default:
+        OPENVINO_THROW("Neutral value not available for this type of reduction");
+        return 0;
+    }
+}
+
+template <typename T>
+static std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
+    switch (reduction_type) {
+    case Reduction::NONE:
+        return [](const T a, const T b) {
+            return b;
+        };
+    case Reduction::MAX:
+        return [](const T a, const T b) {
+            return a > b ? a : b;
+        };
+    case Reduction::MIN:
+        return [](const T a, const T b) {
+            return a < b ? a : b;
+        };
+    case Reduction::PROD:
+        return std::multiplies<T>{};
+    case Reduction::SUM:
+    case Reduction::MEAN:
+        return std::plus<T>{};
+    default:
+        OPENVINO_THROW("No functor available for this type of reduction");
+        return 0;
+    }
+}
+
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
@@ -498,8 +554,6 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     const auto data_dim_size = data_shape[axis];
     const auto index_dim_size = indices_shape[axis];
-    std::cout << "data_dim_size = " << data_dim_size << '\n';
-    std::cout << "index_dim_size = " << index_dim_size << '\n';
 
     if (axis < 0)
         axis += indices_rank;
@@ -507,7 +561,31 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
     std::copy(begin(squashed_indices_shape), end(squashed_indices_shape), std::ostream_iterator<int>(std::cout, " "));
-    std::cout << "num_workers = " << shape_size(squashed_indices_shape) << '\n';
+
+    if (!use_init_val) {
+        const auto value = reduction_neutral_value<DataType>(reduction_type);
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+
+            for (size_t worker = start; worker < end; worker++) {
+                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+                std::vector<size_t> data_coord(indices_coord);
+
+                for (size_t i = 0; i < index_dim_size; i++) {
+                    indices_coord[axis] = i;
+                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                    if (normalized_idxValue < data_dim_size) {
+                        data_coord[axis] = normalized_idxValue;
+                        data_buf.at<DataType, size_t>(data_coord) = value;
+                    }
+                }
+            }
+        });
+    }
+
+    const auto kernel_func = reduction_functor_for<DataType>(reduction_type);
 
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -515,9 +593,10 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
 
         for (size_t worker = start; worker < end; worker++) {
-        // for (size_t worker = 0; worker < shape_size(squashed_indices_shape); worker++) {
             std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
             std::vector<size_t> data_coord(indices_coord);
+
+            std::unordered_map<size_t, int32_t> mean_reduction_counters;
 
             for (size_t i = 0; i < index_dim_size; i++) {
                 indices_coord[axis] = i;
@@ -525,59 +604,21 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
                 if (normalized_idxValue < data_dim_size) {
                     data_coord[axis] = normalized_idxValue;
-                    data_buf.at<DataType, size_t>(data_coord) = updates_buf.at<DataType, size_t>(indices_coord);
-                } else {
-                    std::cout << "exception " << idxValue << std::endl;
+                    DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                    dst = kernel_func(dst, updates_buf.at<DataType, size_t>(indices_coord));
+                }
+
+                if (reduction_type == Reduction::MEAN) {
+                    mean_reduction_counters[normalized_idxValue] += 1;
                 }
             }
-        }
-    });
-}
 
-void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-    size_t updateRank = updateDim.size();
-
-    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
-    std::vector<size_t> updateBlockND = getBlockND(updateDim);
-
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        int j;
-        size_t i, dst_idx = 0, start = 0, end = 0;
-        VectorDims tensorItr(updateRank, 0);
-        splitter(updateBlockND[0], nthr, ithr, start, end);
-        for (j = updateRank - 1, i = start; j >= 0; j--) {
-            tensorItr[j] = i % updateDim[j];
-            i /= updateDim[j];
-        }
-
-        for (i = 0; i < static_cast<size_t>(axis); ++i)
-            dst_idx += tensorItr[i] * srcBlockND[i + 1];
-        for (i++; i < updateRank; ++i)
-            dst_idx += tensorItr[i] * srcBlockND[i + 1];
-
-        for (size_t iwork = start; iwork < end; iwork++) {
-            int64_t idxValue = getIndicesValue(indices, iwork);
-            int64_t axisDim = static_cast<int64_t>(srcDataDim[axis]);
-            if (idxValue < 0)
-                idxValue += axisDim;
-            if (0 <= idxValue && idxValue < axisDim)
-                cpu_memcpy(dstData + dataSize * (dst_idx + idxValue * srcBlockND[axis + 1]),
-                            update + iwork * dataSize, dataSize);
-
-            for (j = updateRank - 1; j >= 0; j--) {
-                tensorItr[j]++;
-                if (tensorItr[j] < updateDim[j]) {
-                    if (j != axis)
-                        dst_idx += srcBlockND[j + 1];
-                    break;
-                } else {
-                    tensorItr[j] = 0;
-                    for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i)
-                        dst_idx += tensorItr[i] * srcBlockND[i + 1];
-                    for (i++; i < updateRank; ++i)
-                        dst_idx += tensorItr[i] * srcBlockND[i + 1];
+            if (reduction_type == Reduction::MEAN) {
+                for (const auto& counter : mean_reduction_counters) {
+                    data_coord[axis] = counter.first;
+                    DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                    const auto N = counter.second + static_cast<int32_t>(use_init_val);
+                    dst = static_cast<DataType>(static_cast<double>(dst) / N);
                 }
             }
         }
