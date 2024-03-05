@@ -117,8 +117,11 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           
+          # default-jdk - Java API, software-properties-common for add-apt-repository
+          apt install --assume-yes --no-install-recommends default-jdk software-properties-common
+          
+          # Install gcc-10
           add-apt-repository ppa:ubuntu-toolchain-r/test
-          # default-jdk - Java API
           apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10 software-properties-common
           
           # Use gcc-10 as a default one
