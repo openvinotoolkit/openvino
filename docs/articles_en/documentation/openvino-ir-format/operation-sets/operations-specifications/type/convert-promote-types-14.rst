@@ -16,27 +16,27 @@ ConvertPromoteTypes
 **Detailed description**
 Operation performs datatype promotion for a pair of inputs, returning pair of outputs that represent input tensors converted to common type.
 
-Promotion rules were designed to follow behavior ov PyTorch and TensorFlow (with experimental numpy behavior enabled).
+Promotion rules were designed to follow behavior of PyTorch and TensorFlow with experimental NumPy behavior enabled.
 
 If inputs have different type of data (for example, ``floating-point`` and ``integer``), resulting datatype is taken from input with higher type priority,
 where ``floating-point`` types have higher priority than ``integer``, and ``integer`` have higher priority than ``boolean``.
 
     .. note::
-        When *promote_unsafe* is set to ``false`` (default), to mitigate possible issue with loss of precision or undefined behaviors caused by difference in maximum/minimum values supported by given data types,
+        If *promote_unsafe* is set to ``false``, to mitigate possible issue with loss of precision or undefined behaviors caused by difference in maximum/minimum values supported by given data types,
         in conversions from ``integer`` to ``floating-point``, conversion will fail if ``floating-point`` bit-width would be less than double of ``integer``.
 
 If both inputs have same type of data (for example, both are ``integer`` with any bit-width and sign), resulting datatype is chosen to be of same type of data with bit-width
 and sign to hold all possible values supported by input data types, except when used with *pytorch_scalar_promotion*.
 
-* In case where *pytorch_scalar_promotion* is set to ``true`` (``false`` by default), one of inputs is scalar-tensor (rank 0) and second input is dimensioned tensor (any rank other than 0), datatype of the dimensioned tensor would be selected as a result common type, which may result in undefined behaviors if type of scalar input would support greater range of values than tensor input.
+* In case where *pytorch_scalar_promotion* is set to ``true``, one of inputs is scalar-tensor (rank 0) and second input is dimensioned tensor (any rank other than 0), datatype of the dimensioned tensor would be selected as a result common type, which may result in undefined behaviors if type of scalar input would support greater range of values than tensor input.
 
 * In case of ``floating-point`` types, resulting type is type with lowest bit-width of mantissa and exponential to fit mantissa and exponential of input types. This may result in unexpected bit widening in conversions like ``(bf16, f16) -> f32``. Conversion of ``(f8e4m3, f8e5m2) -> f16`` is a special case where conversion result was manually set to ``f16``, however it could be promoted to either bf16 and f16 based on mantissa and exponential based on rules.
 
 * In case of ``integer`` types, resulting type is an ``integer``, signed when any of inputs is signed and with minimal bit-width to hold all possible values supported by input data types.  In case of promotion of signed and unsigned ``integers``, resulting datatype would be an signed ``integer`` with bit-width of at least double than unsigned input to be able to store possible maximum and minimum values of unsigned one. Exception is for u64 and any signed ``integers`` promotion - since it would result in unsupported by Openvino type ``i128``, outcome of this promotion can be set by *u64_integer_promotion_target*, by default set to ``f32``.
 
     .. note::
-        When *promote*unsafe* is set to ``false`` (default), conversions that will introduce bit widening, (meaning that operation would have type of one of inputs, but with different bit-width),
-        conversion of u64 with any signed ``integer``, or conversion to type with lower range of values, exceptions will be raised.
+        If *promote_unsafe* is set to ``false``, promotions that will introduce bit widening,
+        promotions of u64 with any signed ``integer``, or promotion causing conversion to type with lower range of values, exceptions will be raised.
 
 .. note::
     Promotion rules does not depend on order of inputs or values contained within tensors. Shape of tensors may affect type only when *pytorch_scalar_promotion* is set to ``true`` and both inputs have same type priority.
