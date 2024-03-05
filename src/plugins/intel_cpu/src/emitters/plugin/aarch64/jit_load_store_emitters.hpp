@@ -27,9 +27,7 @@ private:
     size_t get_aux_gprs_count() const override;
 
     std::string name_;
-    int v_len_elt_; // the element number that a vector register can hold maximumly
     int load_num_;  // the element number to load
-    int load_size_; // the byte number to load
     int byte_offset_;
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
@@ -51,9 +49,7 @@ private:
     size_t get_aux_gprs_count() const override;
 
     std::string name_;
-    int v_len_elt_;  // the element number that a vector register can hold maximumly
     int store_num_;  // the element number to store
-    int store_size_; // the byte number to store
     int byte_offset_;
     ov::element::Type src_prc_;
     ov::element::Type dst_prc_;
