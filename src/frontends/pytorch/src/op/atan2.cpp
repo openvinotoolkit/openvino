@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/atan.hpp"
 #include "openvino/op/constant.hpp"
@@ -23,10 +24,10 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_atan2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Atan2"});
-    auto y = node.get_input(0);
-    auto x = node.get_input(1);
+OutputVector translate_atan2_op(const NodeContext& context) {
+    default_op_checks(context, 2, {"Atan2"});
+    auto y = context.get_input(0);
+    auto x = context.get_input(1);
 
     // handle the first condition : x>0
     auto div_y_x = make_shared<v1::Divide>(y, x);
@@ -62,7 +63,7 @@ OutputVector translate_atan2_op(const NodeContext& node) {
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
 
-    set_node_name(node.get_name(), result.get_node_shared_ptr());
+    set_node_name(context.get_name(), result.get_node_shared_ptr());
     return {result};
 }
 }  // namespace op
