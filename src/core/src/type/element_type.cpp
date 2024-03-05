@@ -59,8 +59,14 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
         return {64, false, true, false, "int64_t", "i64"};
     case ov::element::Type_t::u1:
         return {1, false, false, false, "uint1_t", "u1"};
+    case ov::element::Type_t::u2:
+        return {2, false, false, false, "uint2_t", "u2"};
+    case ov::element::Type_t::u3:
+        return {3, false, false, false, "uint3_t", "u3"};
     case ov::element::Type_t::u4:
         return {4, false, false, false, "uint4_t", "u4"};
+    case ov::element::Type_t::u6:
+        return {6, false, false, false, "uint6_t", "u6"};
     case ov::element::Type_t::u8:
         return {8, false, false, true, "uint8_t", "u8"};
     case ov::element::Type_t::u16:
@@ -103,8 +109,14 @@ ov::element::Type type_from_string(const std::string& type) {
         return ::ov::element::Type(::ov::element::Type_t::i64);
     } else if (type == "u1" || type == "U1" || type == "BIN" || type == "bin") {
         return ::ov::element::Type(::ov::element::Type_t::u1);
+    } else if (type == "u2" || type == "U2") {
+        return ::ov::element::Type(::ov::element::Type_t::u2);
+    } else if (type == "u3" || type == "U3") {
+        return ::ov::element::Type(::ov::element::Type_t::u3);
     } else if (type == "u4" || type == "U4") {
         return ::ov::element::Type(::ov::element::Type_t::u4);
+    } else if (type == "u6" || type == "U6") {
+        return ::ov::element::Type(::ov::element::Type_t::u6);
     } else if (type == "u8" || type == "U8") {
         return ::ov::element::Type(::ov::element::Type_t::u8);
     } else if (type == "u16" || type == "U16") {
@@ -135,11 +147,11 @@ ov::element::Type type_from_string(const std::string& type) {
 
 std::vector<const ov::element::Type*> ov::element::Type::get_known_types() {
     std::vector<const ov::element::Type*> rc = {
-        &ov::element::dynamic, &ov::element::boolean, &ov::element::bf16, &ov::element::f16,    &ov::element::f32,
-        &ov::element::f64,     &ov::element::i4,      &ov::element::i8,   &ov::element::i16,    &ov::element::i32,
-        &ov::element::i64,     &ov::element::u1,      &ov::element::u4,   &ov::element::u8,     &ov::element::u16,
-        &ov::element::u32,     &ov::element::u64,     &ov::element::nf4,  &ov::element::f8e4m3, &ov::element::f8e5m2,
-        &ov::element::string};
+        &ov::element::dynamic, &ov::element::boolean, &ov::element::bf16,   &ov::element::f16,   &ov::element::f32,
+        &ov::element::f64,     &ov::element::i4,      &ov::element::i8,     &ov::element::i16,   &ov::element::i32,
+        &ov::element::i64,     &ov::element::u1,      &ov::element::u2,     &ov::element::u3,    &ov::element::u4,
+        &ov::element::u6,      &ov::element::u8,      &ov::element::u16,    &ov::element::u32,   &ov::element::u64,
+        &ov::element::nf4,     &ov::element::f8e4m3,  &ov::element::f8e5m2, &ov::element::string};
     return rc;
 }
 
@@ -463,7 +475,10 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"i32", element::Type_t::i32},
                                                          {"i64", element::Type_t::i64},
                                                          {"u1", element::Type_t::u1},
+                                                         {"u2", element::Type_t::u2},
+                                                         {"u3", element::Type_t::u3},
                                                          {"u4", element::Type_t::u4},
+                                                         {"u6", element::Type_t::u6},
                                                          {"u8", element::Type_t::u8},
                                                          {"u16", element::Type_t::u16},
                                                          {"u32", element::Type_t::u32},

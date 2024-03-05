@@ -8,6 +8,8 @@
 
 #include <array>
 
+#include "openvino/runtime/tensor.hpp"
+
 namespace ov {
 namespace test {
 
@@ -76,6 +78,16 @@ TEST(ElementIteratorTest, read_u1_data_iterator_with_offset) {
 }
 
 TEST(ElementIteratorTest, u1_value_to_output_stream) {
+    auto input = std::array<int8_t, 4>{0x32, static_cast<int8_t>(0xa3), 0x41, 0x11};
+    auto t = ov::Tensor(element::u1, Shape{2, 16}, input.data());
+    auto iter = element::iterator<element::u1>(static_cast<int8_t*>(t.data(element::u1)));
+
+    EXPECT_THAT(
+        std::vector<int8_t>(iter, iter + t.get_size()),
+        ElementsAre(0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1));
+}
+
+TEST(ElementIteratorTest, read_u1_from_tensor) {
     constexpr int8_t value = 0x80;
     auto iter = element::iterator<element::u1>(&value);
 
@@ -155,6 +167,15 @@ TEST(ElementIteratorTest, u2_value_to_output_stream) {
     EXPECT_EQ(s.str(), "2");
 }
 
+TEST(ElementIteratorTest, read_u2_from_tensor) {
+    auto input = std::array<int8_t, 4>{0x32, static_cast<int8_t>(0xa3), 0x41, 0x11};
+    auto t = ov::Tensor(element::u2, Shape{4, 4}, input.data());
+    auto iter = element::iterator<element::u2>(static_cast<int8_t*>(t.data(element::u2)));
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()),
+                ElementsAre(0, 3, 0, 2, 2, 2, 0, 3, 1, 0, 0, 1, 0, 1, 0, 1));
+}
+
 // --- u3
 TEST(ElementIteratorTest, write_u3_data) {
     constexpr auto elements_count = 8;
@@ -198,6 +219,16 @@ TEST(ElementIteratorTest, read_u3_data_iterator_with_offset) {
     EXPECT_EQ(*(iter + 7), 7);
     EXPECT_EQ(*std::prev(iter, 1), 7);
     EXPECT_EQ(*std::next(iter, 2), 0);
+}
+
+TEST(ElementIteratorTest, read_u3_from_tensor) {
+    // Has values {1, 7, 2, 6, 1, 6, 3, 7, [2], 3, 0, 1, 4, 5, 6, 7}
+    auto input = std::array<int8_t, 6>{0x7a, 0x6f, 0x55, static_cast<int8_t>(0xb1), 0x1b, 0x0f};
+    auto t = ov::Tensor(element::u3, Shape{4, 2, 2}, input.data());
+    auto iter = element::iterator<element::u3>(static_cast<int8_t*>(t.data(element::u3)));
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()),
+                ElementsAre(1, 7, 2, 6, 1, 6, 3, 7, 2, 3, 0, 1, 4, 5, 6, 7));
 }
 
 // --- u4
@@ -268,6 +299,14 @@ TEST(ElementIteratorTest, read_u4_data_iterator_with_offset) {
     EXPECT_EQ(*(iter - 1), 2);          // 1st byte 2nd nibble
     EXPECT_EQ(*std::prev(iter, 1), 2);  // 1st byte 2nd nibble
     EXPECT_EQ(*std::next(iter, 2), 6);  // 3rd byte 1st nibble
+}
+
+TEST(ElementIteratorTest, read_u4_from_tensor) {
+    auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
+    auto t = ov::Tensor(element::u4, Shape{5, 2}, input.data());
+    auto iter = element::iterator<element::u4>(static_cast<int8_t*>(t.data(element::u4)));
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(4, 2, 3, 10, 6, 1, 7, 9, 5, 11));
 }
 
 // --- i4
@@ -350,6 +389,14 @@ TEST(ElementIteratorTest, i4_value_to_output_stream) {
     EXPECT_EQ(s.str(), "-7");
 }
 
+TEST(ElementIteratorTest, read_i4_from_tensor) {
+    auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
+    auto t = ov::Tensor(element::i4, Shape{10, 1, 1}, input.data());
+    auto iter = element::iterator<element::i4>(static_cast<int8_t*>(t.data(element::i4)));
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(4, 2, 3, -6, 6, 1, 7, -7, 5, -5));
+}
+
 // --- u6
 TEST(ElementIteratorTest, write_u6_data) {
     constexpr auto elements_count = 8;
@@ -414,6 +461,15 @@ TEST(ElementIteratorTest, u6_value_to_output_stream) {
     s << *iter;
 
     EXPECT_EQ(s.str(), "1");
+}
+
+TEST(ElementIteratorTest, read_u6_from_tensor) {
+    // Has values {1, 2, 3, 10, 3, 8, 7, 2, 1, 42, 4, 20}
+    auto input = std::array<int8_t, 9>{0x12, 0x3a, 0x00, 0x38, 0x72, 0x00, 0x1a, 0x44, 0x21};
+    auto t = ov::Tensor(element::u6, Shape{4, 1, 3}, input.data());
+    auto iter = element::iterator<element::u6>(static_cast<int8_t*>(t.data(element::u6)));
+
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(1, 2, 3, 10, 3, 8, 7, 2, 1, 42, 4, 20));
 }
 
 }  // namespace test
