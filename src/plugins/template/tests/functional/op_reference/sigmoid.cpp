@@ -14,17 +14,17 @@ using namespace ov;
 namespace {
 struct SigmoidParams {
     template <class IT>
-    SigmoidParams(const ov::PartialShape& shape,
+    SigmoidParams(const ov::Shape& shape,
                   const ov::element::Type& iType,
                   const std::vector<IT>& iValues,
                   const std::vector<IT>& oValues)
         : pshape(shape),
           inType(iType),
           outType(iType),
-          inputData(CreateTensor(iType, iValues)),
-          refData(CreateTensor(iType, oValues)) {}
+          inputData(CreateTensor(shape, iType, iValues)),
+          refData(CreateTensor(shape, iType, oValues)) {}
 
-    ov::PartialShape pshape;
+    ov::Shape pshape;
     ov::element::Type inType;
     ov::element::Type outType;
     ov::Tensor inputData;
@@ -49,7 +49,7 @@ public:
     }
 
 private:
-    static std::shared_ptr<Model> CreateFunction(const PartialShape& input_shape,
+    static std::shared_ptr<Model> CreateFunction(const Shape& input_shape,
                                                  const element::Type& input_type,
                                                  const element::Type& Sigmoidected_output_type) {
         const auto in = std::make_shared<op::v0::Parameter>(input_type, input_shape);
@@ -71,11 +71,11 @@ std::vector<SigmoidParams> generateSigmoidFloatParams() {
     float sigma1 = 1.0f / (1.0f + std::exp(-x1));
     float sigma2 = 1.0f / (1.0f + std::exp(-x2));
 
-    std::vector<SigmoidParams> sigmoidParams{SigmoidParams(ov::PartialShape{1, 1, 2, 2},
+    std::vector<SigmoidParams> sigmoidParams{SigmoidParams(ov::Shape{1, 1, 2, 2},
                                                            IN_ET,
                                                            std::vector<T>{x1, x2, x1, x2},
                                                            std::vector<T>{sigma1, sigma2, sigma1, sigma2}),
-                                             SigmoidParams(ov::PartialShape{1, 1, 4},
+                                             SigmoidParams(ov::Shape{1, 1, 4},
                                                            IN_ET,
                                                            std::vector<T>{x1, x2, x1, x2},
                                                            std::vector<T>{sigma1, sigma2, sigma1, sigma2})};
@@ -87,8 +87,8 @@ std::vector<SigmoidParams> generateSigmoidIntParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<SigmoidParams> sigmoidParams{
-        SigmoidParams(ov::PartialShape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0}),
-        SigmoidParams(ov::PartialShape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0})};
+        SigmoidParams(ov::Shape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0}),
+        SigmoidParams(ov::Shape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, -1, -4}, std::vector<T>{1, 1, 0, 0})};
     return sigmoidParams;
 }
 
@@ -97,8 +97,8 @@ std::vector<SigmoidParams> generateSigmoidUintParams() {
     using T = typename element_type_traits<IN_ET>::value_type;
 
     std::vector<SigmoidParams> sigmoidParams{
-        SigmoidParams(ov::PartialShape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1}),
-        SigmoidParams(ov::PartialShape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1})};
+        SigmoidParams(ov::Shape{1, 1, 2, 2}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1}),
+        SigmoidParams(ov::Shape{1, 1, 4}, IN_ET, std::vector<T>{1, 4, 1, 4}, std::vector<T>{1, 1, 1, 1})};
     return sigmoidParams;
 }
 

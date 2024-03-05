@@ -104,11 +104,11 @@ std::vector<TileParams> generateParams() {
                    "tile_3d_to_3d_repeats_broadcast"),
         TileParams(reference_tests::Tensor(ET, {1}, std::vector<T>{1}),
                    reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{0, 2, 3}),
-                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   reference_tests::Tensor(ET, {0, 2, 3}, std::vector<T>{}),
                    "tile_1d_to_3d_with_zero_on_axis_0"),
         TileParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
                    reference_tests::Tensor(ET_INT, {3}, std::vector<T_INT>{2, 0, 3}),
-                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   reference_tests::Tensor(ET, {2, 0, 9}, std::vector<T>{}),
                    "tile_1d_to_3d_with_zero_on_axis_1"),
     };
     return params;

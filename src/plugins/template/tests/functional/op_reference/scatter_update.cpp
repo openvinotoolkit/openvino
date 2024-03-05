@@ -239,7 +239,7 @@ std::vector<ScatterUpdate3Params> generateScatterUpdate3Params(const ov::element
             .updates({{2, 2, 3, 2, 1}, numeric_type, std::vector<N>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12,
                                                                     13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}})
             .axis({{1}, integer_type, std::vector<I>{1}})
-            .expected({{2, 2, 2}, numeric_type, std::vector<N>{1, 13, 0, 0, 2, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
+            .expected({{2, 2, 4}, numeric_type, std::vector<N>{1, 13, 0, 0, 2, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
         Builder{}
             .data({{2, 4, 2}, numeric_type, std::vector<N>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}})
             .indices({{1, 2, 1}, integer_type, std::vector<I>{0, 1}})
