@@ -163,7 +163,10 @@ ov::element::Type::Type(size_t bitwidth,
         {ov::element::Type_t::i32, {32, false, true, true, "int32_t", "i32"}},
         {ov::element::Type_t::i64, {64, false, true, false, "int64_t", "i64"}},
         {ov::element::Type_t::u1, {1, false, false, false, "uint1_t", "u1"}},
+        {ov::element::Type_t::u2, {2, false, false, false, "uint2_t", "u2"}},
+        {ov::element::Type_t::u3, {3, false, false, false, "uint3_t", "u3"}},
         {ov::element::Type_t::u4, {4, false, false, false, "uint4_t", "u4"}},
+        {ov::element::Type_t::u6, {6, false, false, false, "uint6_t", "u6"}},
         {ov::element::Type_t::u8, {8, false, false, true, "uint8_t", "u8"}},
         {ov::element::Type_t::u16, {16, false, false, false, "uint16_t", "u16"}},
         {ov::element::Type_t::u32, {32, false, false, false, "uint32_t", "u32"}},
@@ -304,8 +307,14 @@ Type fundamental_type_for(const Type& type) {
         return from<element_type_traits<Type_t::i64>::value_type>();
     case Type_t::u1:
         return from<element_type_traits<Type_t::u1>::value_type>();
+    case Type_t::u2:
+        return from<element_type_traits<Type_t::u2>::value_type>();
+    case Type_t::u3:
+        return from<element_type_traits<Type_t::u3>::value_type>();
     case Type_t::u4:
         return from<element_type_traits<Type_t::u4>::value_type>();
+    case Type_t::u6:
+        return from<element_type_traits<Type_t::u6>::value_type>();
     case Type_t::u8:
         return from<element_type_traits<Type_t::u8>::value_type>();
     case Type_t::u16:
@@ -415,7 +424,10 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         ET_CASE(i32);
         ET_CASE(i64);
         ET_CASE(u1);
+        ET_CASE(u2);
+        ET_CASE(u3);
         ET_CASE(u4);
+        ET_CASE(u6);
         ET_CASE(u8);
         ET_CASE(u16);
         ET_CASE(u32);
