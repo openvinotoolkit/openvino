@@ -15,7 +15,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 class L2NormToNorm(MiddleReplacementPattern):
     """
-    Transformation fuses sub-graph performing l2 normalization into the NormalizeL2 operation. IE plugins do not support
+    Transformation fuses sub-graph performing l2 normalization into the NormalizeL2 operation. OV plugins do not support
     NormalizeL2 operation and there is a nGraph transformation which converts NormalizeL2 to NormalizeIE. The latter one
     allows to normalize over just channel dimension or "channel + all spatial" dimensions for 2D, 3D or 4D cases.
     """
@@ -75,11 +75,11 @@ class L2NormToNorm(MiddleReplacementPattern):
             log.debug('The value of the "maximum_y_data" is not defined or is not constant')
             return
 
-        # We need to check axes which performed reduction because IE supports only 2D, 3D, 4D inputs and
+        # We need to check axes which performed reduction because OV supports only 2D, 3D, 4D inputs and
         # reduction only along spatial and channel dimensions.
         input_rank = len(match['sum'].in_port(0).data.get_shape())
         if input_rank not in [2, 3, 4]:
-            log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors.')
+            log.debug('OV supports L2 normalization only for 2D, 3D and 4D tensors.')
             return
 
         axes = match['sum'].in_port(1).data.get_value()
@@ -100,7 +100,7 @@ class L2NormToNorm(MiddleReplacementPattern):
             transformation_applicable = True
 
         if not transformation_applicable:
-            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}.'.format(axes))
+            log.debug('OV doesn\'t support l2 normalization with reduction along axes {}.'.format(axes))
             return
 
         output_name = match['l2_normalize'].soft_get('name', match['l2_normalize'].id)

@@ -14,7 +14,7 @@ from openvino.tools.mo.ops.squeeze import Squeeze
 
 class PadTFToPad(FrontReplacementPattern):
     """
-    This transformation converts TFPad operation (TensorFlow semantic) to Pad operation (Inference Engine semantic).
+    This transformation converts TFPad operation (TensorFlow semantic) to Pad operation (OpenVINO semantic).
     Refer to the Op implementation for the operations semantics description.
     """
     enabled = True

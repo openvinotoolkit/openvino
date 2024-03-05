@@ -16,13 +16,13 @@ struct gather_params : public base_params {
     GatherAxis axis;
     int64_t batch_dim;
     bool support_neg_ind;
-};
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gather_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gather_optional_params : optional_params {
-    gather_optional_params() : optional_params(KernelType::GATHER) {}
+    bool compressed = false;
+    bool has_decompression_zp = false;
+    bool scalar_zp = false;
+    float zp_value = 0.0f;
+    DataTensor decompression_scale;
+    DataTensor decompression_zero_point;
 };
 
 class GatherKernelRef : public KernelBaseOpenCL {
@@ -31,8 +31,8 @@ public:
     virtual ~GatherKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
@@ -41,6 +41,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

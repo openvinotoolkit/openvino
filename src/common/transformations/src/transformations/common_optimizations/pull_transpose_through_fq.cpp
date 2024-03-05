@@ -65,9 +65,7 @@ ov::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
                 new_ops.push_back(fq_input.get_node_shared_ptr());
             }
             fq_input = std::make_shared<ov::op::v1::Transpose>(fq_input, transpose->input_value(1));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto constant = get_constant_from_source(fq_input)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto constant = ov::util::get_constant_from_source(fq_input)) {
                 fq_input = constant;
             }
             ov::copy_runtime_info(transpose, fq_input.get_node_shared_ptr());

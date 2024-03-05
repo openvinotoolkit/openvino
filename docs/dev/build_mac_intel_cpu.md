@@ -30,7 +30,7 @@ The software was validated on:
   ```
 - (Optional; native compilation only, x86_64) Product and samples dependencies:
   ```sh
-  % brew install tbb pugixml flatbuffers snappy protobuf nlohmann-json zlib gflags
+  % brew install tbb pugixml flatbuffers snappy protobuf
   ```
 - Additional `pip` dependencies to build OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
   ```sh

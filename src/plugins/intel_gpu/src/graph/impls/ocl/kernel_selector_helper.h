@@ -154,20 +154,6 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
     return params;
 }
 
-void set_optional_params(const program& program, kernel_selector::optional_params& params);
-
-template <typename optional_params_t>
-inline optional_params_t get_default_optional_params(const program& program) {
-    optional_params_t params;
-    set_optional_params(program, params);
-    return params;
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
-    return get_default_optional_params<optional_params_t>(program);
-}
-
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
     switch (mode) {
         case eltwise_mode::sum:
@@ -236,17 +222,24 @@ inline ov::PartialShape extend_shape_to_rank_from_begin(ov::PartialShape pshape,
     return extended_pshape;
 }
 
-inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer) {
+inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::PartialShape& second_pshape, bool use_new_shape_infer,
+                          bool first_to_second_only = false) {
     if (first_pshape.is_dynamic() || second_pshape.is_dynamic()) {
         return false;
     }
-    if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
-        return false;
+    if (first_to_second_only) {
+        if (first_pshape.size() > second_pshape.size()) {
+            return false;
+        }
+    } else {
+        if (first_pshape.size() != second_pshape.size() && use_new_shape_infer) {
+            return false;
+        }
     }
     size_t min_size = std::min(first_pshape.size(), second_pshape.size());
 
     for (size_t i = 0; i < min_size; ++i) {
-        if (!(first_pshape[i] == 1 || second_pshape[i] == 1 || first_pshape[i] == second_pshape[i])) {
+        if (!(first_pshape[i] == 1 || (!first_to_second_only && second_pshape[i] == 1) || first_pshape[i] == second_pshape[i])) {
             return false;
         }
     }

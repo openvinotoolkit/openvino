@@ -8,16 +8,16 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 
 
-@pytest.mark.parametrize('test_input', [(np.array([[1, 2], [3, 4]], dtype=np.float32),
-                                         np.array([[1, 1], [2, 2]], dtype=np.float32),),
-                                        (np.array([[1, 2], [3, 4]], dtype=np.float32),
-                                         np.array([2, 3], dtype=np.float32),),
-                                        (np.array([[1, 2], [3, 4]], dtype=np.float32),
-                                         np.array([2], dtype=np.float32),),
-                                        (np.array([5, 6], dtype=np.float32),
-                                         np.array([[1, 2], [3, 4]], dtype=np.float32),),
-                                        (np.array([5], dtype=np.float32),
-                                         np.array([[1, 2], [3, 4]], dtype=np.float32),)])
+@pytest.mark.parametrize('test_input,inplace', [
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32)), False),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([[1, 1], [2, 2]], dtype=np.float32)), True),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2, 3], dtype=np.float32)), True),
+    ((np.array([[1, 2], [3, 4]], dtype=np.float32), np.array([2], dtype=np.float32)), True),
+    ((np.array([5, 6], dtype=np.float32), np.array([[1, 2], [3, 4]], dtype=np.float32)), False),
+    ((np.array([5], dtype=np.float32), np.array([[1, 2], [3, 4]], dtype=np.float32)), False),
+    ])
 class TestPow(PytorchLayerTest):
     """
     Input test data contains five test cases - elementwise power, broadcast exponent, one exponent,
@@ -27,21 +27,32 @@ class TestPow(PytorchLayerTest):
     def _prepare_input(self):
         return self.test_input
 
-    def create_model(self):
+    def create_model(self, inplace):
         class aten_pow(torch.nn.Module):
+            def __init__(self, inplace):
+                super(aten_pow, self).__init__()
+                if inplace:
+                    self.forward = self.forward_inplace
+                else:
+                    self.forward = self.forward_
 
-            def forward(self, input_data, exponent):
+            def forward_(self, input_data, exponent):
                 return torch.pow(input_data, exponent)
 
-        ref_net = None
+            def forward_inplace(self, input_data, exponent):
+                return input_data.pow_(exponent)
 
-        return aten_pow(), ref_net, "aten::pow"
+        return aten_pow(inplace), None, "aten::pow_" if inplace else "aten::pow"
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_pow(self, ie_device, precision, ir_version, test_input):
+    @pytest.mark.precommit_torch_export
+    def test_pow(self, inplace, ie_device, precision, ir_version, test_input):
+        if inplace and PytorchLayerTest.use_torch_export():
+            pytest.skip(reason="export fails for inplace")
         self.test_input = test_input
-        self._test(*self.create_model(), ie_device, precision, ir_version, use_convert_model=True)
+        self._test(*self.create_model(inplace), ie_device, precision,
+                   ir_version, use_convert_model=True)
 
 
 class TestPowMixedTypes(PytorchLayerTest):
@@ -97,6 +108,7 @@ class TestPowMixedTypes(PytorchLayerTest):
                                                           ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_pow_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
@@ -105,9 +117,10 @@ class TestPowMixedTypes(PytorchLayerTest):
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
 
+
 class TestPowMixedTypesScalars(PytorchLayerTest):
     def _prepare_input(self):
-        return (torch.randn([1,2,3,4]).numpy(),)
+        return (torch.randn([1, 2, 3, 4]).numpy(),)
 
     def create_model(self):
 

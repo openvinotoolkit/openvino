@@ -93,13 +93,11 @@ bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout lay
 }
 
 bool UpdateWeightsParams(weight_bias_params& newParams,
-                         const optional_params& options,
                          WeightsLayout reqLayout,
                          WeightsReorderParams& weightsReorderParams,
                          const ParamsKey& paramsKey,
                          size_t groups,
                          bool rotate) {
-    const auto& optParams = static_cast<const weight_bias_optional_params&>(options);
     const auto inType = DataTypeToWeightsType(newParams.inputs[0].GetDType());
     const auto dtype = paramsKey.isEnabledDifferentInputWeightsTypes() ? newParams.weights.GetDType() : inType;
     switch (CheckWeights(newParams, inType, reqLayout, paramsKey, rotate)) {
@@ -108,7 +106,7 @@ bool UpdateWeightsParams(weight_bias_params& newParams,
         case UNSUPPORTED:
             return false;
         case REORDER_NEEDED: {
-            if (!optParams.allowStaticInputReordering) {
+            if (!newParams.allowStaticInputReordering) {
                 return false;
             }
             weightsReorderParams.is_initialized = true;

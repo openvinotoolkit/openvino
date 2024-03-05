@@ -37,7 +37,7 @@ def make_onnx_model_for_conv_op(x_shape, weights_shape, transpose=False, **attri
         ],
         [make_tensor_value_info("Y", onnx.TensorProto.FLOAT, output_shape)],
     )
-    model = make_model(graph, producer_name="ngraph ONNXImporter")
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
     return model
 
 

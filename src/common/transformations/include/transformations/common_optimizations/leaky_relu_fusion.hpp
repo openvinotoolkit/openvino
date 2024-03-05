@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API LeakyReluFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief LeakyReluFusion transformation replaces following graph:
  * Multiply->Maximum to LeakyRelu
  */

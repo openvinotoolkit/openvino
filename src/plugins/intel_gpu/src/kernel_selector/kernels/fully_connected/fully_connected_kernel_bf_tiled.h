@@ -12,19 +12,24 @@ namespace kernel_selector {
 
 class FullyConnected_bf_tiled : public FullyConnectedKernelBase {
 public:
+    enum class KernelType : uint8_t {
+        DEFAULT = 0,
+        SLM,
+        ANY
+    };
+
     using Parent = FullyConnectedKernelBase;
     FullyConnected_bf_tiled();
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
     KernelsData GetTunedKernelsDataByIndex(const Params &params,
-                                           const optional_params &options,
                                            const int autoTuneIndex = -1) const override;
-    KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
     struct tune_params {
         tune_params(unsigned tile_b,
@@ -33,7 +38,8 @@ public:
                     unsigned tile_k,
                     unsigned dispatch_bsv,
                     unsigned dispatch_fsv,
-                    std::string exec_options)
+                    std::string exec_options,
+                    KernelType kernel_type = KernelType::DEFAULT)
             : tile_b(tile_b)
             , tile_ofm(tile_ofm)
             , tile_ifm(tile_ifm)
@@ -41,6 +47,7 @@ public:
             , dispatch_bsv(dispatch_bsv)
             , dispatch_fsv(dispatch_fsv)
             , exec_options(exec_options)
+            , kernel_type(kernel_type)
         {}
 
         tune_params() = default;
@@ -52,19 +59,21 @@ public:
         unsigned dispatch_bsv;
         unsigned dispatch_fsv;
         std::string exec_options;
+        KernelType kernel_type;
     };
 
 protected:
-    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
+    DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE,
                  FusedOpType::QUANTIZE };
     }
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 
-    tune_params GetAutoTuneParams(const fully_connected_params& params, int idx = -1) const;
+    tune_params GetAutoTuneParams(const fully_connected_params& params, KernelType preffered_kernel_type = KernelType::DEFAULT, int idx = -1) const;
 
     std::vector<tune_params> auto_tune_params;
 };

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API MarkShapeOfSubgraphs;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkPrecisionSensitiveShapeOfSubgraphs marks entirely
  * all shape subgraphs starting from precision-sensitive inputs and ending at
  * the ShapeOf node as disabled for FP16 compression.
@@ -35,7 +35,7 @@ protected:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkShapeOfSubgraphs marks shape subgraphs.
  * Information whether the node belongs to the shape path or to the data path is needed during evaluate and CF.
  */
@@ -46,7 +46,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkPrecisionSensitiveConstants marks the constants
  * inside of all shape subgraphs starting from precision-sensitive inputs and ending at
  * the ShapeOf node as disabled for FP16 compression.
@@ -58,7 +58,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MarkDividesInShapeSubgraphs marks the Divide layers
  * inside of all shape subgraphs starting from precision-sensitive input and ending at
  * the ShapeOf node as disabled for ConvertDivide transformation.

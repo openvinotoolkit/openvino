@@ -4,7 +4,6 @@
 
 #include "shared_test_classes/subgraph/variadic_split_pad.hpp"
 
-#include "ov_models/builders.hpp"
 
 namespace ov {
 namespace test {
@@ -43,11 +42,18 @@ void VariadicSplitPad::SetUp() {
     std::tie(input_shape, axis, numSplits, connectIndexes, padBegin, padEnd, padMode, element_type, targetDevice) =
         this->GetParam();
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_shape))};
-    auto split = ngraph::builder::makeVariadicSplit(input[0], numSplits, axis);
-    ov::ResultVector results;
 
+    auto split_axis_op = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, axis);
+    auto num_split = std::make_shared<ov::op::v0::Constant>(ov::element::u64, ov::Shape{numSplits.size()}, numSplits);
+    auto split = std::make_shared<ov::op::v1::VariadicSplit>(input[0], split_axis_op, num_split);
+
+    ov::ResultVector results;
     for (size_t i : connectIndexes) {
-        auto pad = ngraph::builder::makePad(split->output(i), padBegin, padEnd, 0, padMode);
+        auto pads_begin = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padBegin.size()}, padBegin.data());
+        auto pads_end = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{padEnd.size()}, padEnd.data());
+        auto arg_pad_value = std::make_shared<ov::op::v0::Constant>(split->output(i).get_element_type(), ov::Shape{}, std::vector<int64_t>{0});
+        auto pad = std::make_shared<ov::op::v1::Pad>(split->output(i), pads_begin, pads_end, arg_pad_value, padMode);
+
         results.push_back(std::make_shared<ov::op::v0::Result>(pad));
     }
     function = std::make_shared<ov::Model>(results, input, "variadic_split_pad");

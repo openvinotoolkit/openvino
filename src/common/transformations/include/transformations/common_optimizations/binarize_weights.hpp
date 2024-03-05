@@ -17,7 +17,7 @@ class TRANSFORMATIONS_API BinarizeWeights;
 
 // clang-format off
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This transformation converts weights to -1/+1 form
  * and applies normalization factors to output low/high and after Convolution.
  * For example, following graph

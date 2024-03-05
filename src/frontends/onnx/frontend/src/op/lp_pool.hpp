@@ -4,17 +4,14 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-/// \brief      Creates nGraph node representing ONNX GlobalLpPool operator.
+/// \brief      Creates OV node representing ONNX GlobalLpPool operator.
 ///
 /// \note       This functions calculates "entrywise" norms in spatial/feature
 ///             dimensions. That is it treats matrix/tensor in spatial/feature
@@ -29,14 +26,11 @@ namespace set_1 {
 ///
 /// \param[in]  node  The input ONNX node representing this operation.
 ///
-/// \return     Vector of nodes containting resulting nGraph nodes.
+/// \return     Vector of nodes containting resulting OV nodes.
 ///
-OutputVector global_lp_pool(const Node& node);
+ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

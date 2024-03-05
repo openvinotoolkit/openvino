@@ -21,8 +21,7 @@ using namespace ::tests;
 
 TEST(multistream_gpu, basic) {
     const int num_streams = 2;
-    auto task_config = ov::threading::IStreamsExecutor::Config();
-    task_config._streams = num_streams;
+    auto task_config = ov::threading::IStreamsExecutor::Config{"gpu_test", num_streams};
     auto task_executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_config);
     auto& engine = get_test_engine();
 
@@ -39,7 +38,7 @@ TEST(multistream_gpu, basic) {
     topology.add(data("weights", weights));
     topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
     topology.add(fully_connected("fc", input_info("eltwise"), "weights"));
-    topology.add(shape_of("shape_of", input_info("fc"), 3, data_types::i32));
+    topology.add(shape_of("shape_of", input_info("fc"), data_types::i32));
 
     auto prog_ptr = program::build_program(engine, topology, config);
     auto &node = prog_ptr->get_node("shape_of");

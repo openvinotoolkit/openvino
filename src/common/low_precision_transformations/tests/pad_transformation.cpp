@@ -26,15 +26,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     TestTransformationParams params;
@@ -61,7 +61,7 @@ public:
         const auto precisionAfterActualOp = testValues.actual.dequantization.convert.empty() ?
             testValues.actual.precisionBeforeDequantization : testValues.actual.dequantization.convert.outPrecision;
 
-        actualFunction = ngraph::builder::subgraph::PadFunction::get(
+        actualFunction = ov::builder::subgraph::PadFunction::get(
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
@@ -76,7 +76,7 @@ public:
         transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::PadFunction::get(
+        referenceFunction = ov::builder::subgraph::PadFunction::get(
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,

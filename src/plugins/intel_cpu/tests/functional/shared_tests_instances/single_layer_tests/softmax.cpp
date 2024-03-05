@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/softmax.hpp"
+#include "single_op_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::subgraph;
@@ -22,10 +22,10 @@ const std::vector<ov::Shape> inputStaticShape2D = {
 };
 
 const std::vector<ov::test::InputShape> inputDynamicShape2D = {
-        {{ngraph::Dimension::dynamic(), 10}, {{1, 10}, {2, 10}, {10, 10}}},
-        {{ngraph::Dimension(1, 10), 10}, {{1, 10}, {2, 10}, {10, 10}}},
-        {{10, ngraph::Dimension::dynamic()}, {{10, 1}, {10, 5}, {10, 10}}},
-        {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()}, {{1, 10}, {2, 10}, {10, 10}}}
+        {{ov::Dimension::dynamic(), 10}, {{1, 10}, {2, 10}, {10, 10}}},
+        {{ov::Dimension(1, 10), 10}, {{1, 10}, {2, 10}, {10, 10}}},
+        {{10, ov::Dimension::dynamic()}, {{10, 1}, {10, 5}, {10, 10}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, {{1, 10}, {2, 10}, {10, 10}}}
 };
 
 const std::vector<int64_t> axis2D = {
@@ -73,8 +73,8 @@ const std::vector<ov::Shape> inputStaticShape4D = {
 };
 
 const std::vector<ov::test::InputShape> inputDynamicShape4D = {
-        {{ngraph::Dimension::dynamic(), 100, ngraph::Dimension(1, 10), 1}, {{1, 100, 1, 1}, {100, 100, 5, 1}}},
-        {{ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()},
+        {{ov::Dimension::dynamic(), 100, ov::Dimension(1, 10), 1}, {{1, 100, 1, 1}, {100, 100, 5, 1}}},
+        {{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
          {{1, 100, 1, 1}, {50, 100, 4, 1}, {2, 100, 10, 1}}},
 };
 

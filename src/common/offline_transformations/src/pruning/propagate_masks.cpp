@@ -16,6 +16,7 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
@@ -398,9 +399,7 @@ public:
                 return false;
             }
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto constant = get_constant_from_source(m_shape.get_node_shared_ptr());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto constant = ov::util::get_constant_from_source(m_shape.get_node_shared_ptr());
             if (!constant) {
                 OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
                 return false;
@@ -1014,18 +1013,12 @@ struct ChannelsMap {
 /* Returns coordinate iterator through all values of given channel
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
-OPENVINO_SUPPRESS_DEPRECATED_START
-static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
-                                                const size_t unsquized_shape_dim,
-                                                const size_t channel) {
-    auto begin = ov::Coordinate(unsquized_shape.size(), 0);
-    auto end = ov::Coordinate(unsquized_shape);
-    begin[unsquized_shape_dim] = channel;
-    end[unsquized_shape_dim] = channel + 1;
-    ov::CoordinateTransform iter(unsquized_shape, begin, end);
-    return iter;
+static ov::CoordinateTransformBasic get_channel_iter(const ov::Shape& unsquized_shape,
+                                                     const size_t unsquized_shape_dim) {
+    auto iter_shape = unsquized_shape;
+    iter_shape[unsquized_shape_dim] = 1;
+    return ov::CoordinateTransformBasic{iter_shape};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /* Maps squzed_mask_dim mask dimension to vector of masks for unsquized_dims.
  *  Using dims_attrs and unsquized_shape for channel iteration.
@@ -1056,16 +1049,16 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
                 ch %= dims_attrs[unsquized_dim].dim;
 
             // Start iterating through chanel
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto iter = get_channel_iter(unsquized_shape, unsquized_shift, ch);
-            for (const auto& coord : iter) {
-                const auto idx = iter.index(coord);
+            auto iter = get_channel_iter(unsquized_shape, unsquized_shift);
+            for (auto coord : iter) {
+                coord[unsquized_shift] = ch;
+                const auto idx = coordinate_index(coord, unsquized_shape);
                 if (squized_mask_dim_copy.find(idx) != squized_mask_dim_copy.end()) {
                     cur_ch_elems.insert(idx);
                     squized_mask_dim_copy.erase(idx);
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
+
             if (cur_ch_elems.size() !=
                 dims_attrs[unsquized_dim].elems_inner_dims * dims_attrs[unsquized_dim].elems_outer_dims) {
                 suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
@@ -1136,9 +1129,7 @@ public:
 
             auto constant = std::dynamic_pointer_cast<opset10::Constant>(m_weights.get_node_shared_ptr());
             if (!constant) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                constant = get_constant_from_source(m_weights.get_node_shared_ptr());
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
                     OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
                                    << " with no constant node " << m_weights.get_node()->get_friendly_name()
@@ -1249,11 +1240,11 @@ public:
                                 for (const auto out_dim : dims_map[in_dim]) {
                                     const auto unsquized_shift = out_dim - dims_map[in_dim][0];
                                     for (const auto ch : weights_mask_row->at(out_dim)) {
-                                        OPENVINO_SUPPRESS_DEPRECATED_START
-                                        auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
-                                        for (const auto& coord : iter)
-                                            cur_mask->at(in_dim).insert(iter.index(coord));
-                                        OPENVINO_SUPPRESS_DEPRECATED_END
+                                        auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift);
+                                        for (auto coord : iter) {
+                                            coord[unsquized_shift] = ch;
+                                            cur_mask->at(in_dim).insert(coordinate_index(coord, dims_shape[in_dim]));
+                                        }
                                     }
                                 }
                             }
@@ -1322,11 +1313,11 @@ public:
                                 for (const auto in_dim : dims_map[out_dim]) {
                                     const auto unsquized_shift = in_dim - dims_map[out_dim][0];
                                     for (const auto ch : input_mask_row->at(in_dim)) {
-                                        OPENVINO_SUPPRESS_DEPRECATED_START
-                                        auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
-                                        for (const auto& coord : iter)
-                                            cur_mask->at(out_dim).insert(iter.index(coord));
-                                        OPENVINO_SUPPRESS_DEPRECATED_END
+                                        auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift);
+                                        for (auto coord : iter) {
+                                            coord[unsquized_shift] = ch;
+                                            cur_mask->at(out_dim).insert(coordinate_index(coord, dims_shape[out_dim]));
+                                        }
                                     }
                                 }
                             }
@@ -1383,9 +1374,7 @@ public:
             const auto& m_weights = pattern_map.at(weights);
             const auto& m_output = pattern_map.at(transpose);
 
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            const auto input_order_node = get_constant_from_source(m_weights.get_node_shared_ptr());
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto input_order_node = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
             if (!input_order_node) {
                 OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
                                << " with no constant node " << m_weights.get_node()->get_friendly_name()

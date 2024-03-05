@@ -23,24 +23,24 @@
 
 using namespace testing;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ElementwiseWithMultiParentDequantizationTransformationTestValues {
 public:
     class Actual {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
         ov::element::Type precision1;
-        ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ov::builder::subgraph::DequantizationOperations dequantization1;
         ov::element::Type precision2;
-        ngraph::builder::subgraph::DequantizationOperations dequantization2;
+        ov::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     ov::element::Type precision;

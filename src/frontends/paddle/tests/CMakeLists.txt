@@ -21,9 +21,6 @@ else()
     set(paddlepaddle_FOUND ON)
 endif()
 
-# PDPD 2.5.1 is not compatible with tests models we use
-set(paddlepaddle_FOUND OFF)
-
 if(paddlepaddle_FOUND)
     set(ctest_labels OV UNIT)
 endif()
@@ -36,7 +33,7 @@ ov_add_test_target(
             openvino_paddle_frontend
             paddle_fe_standalone_build_test
         LINK_LIBRARIES
-            cnpy
+            openvino::cnpy
             frontend_shared_test_classes
             openvino_paddle_frontend
             openvino::runtime

@@ -10,8 +10,8 @@
 #include <algorithm>
 
 namespace kernel_selector {
-bool ConvolutionKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::CONVOLUTION || o.GetType() != KernelType::CONVOLUTION) {
+bool ConvolutionKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::CONVOLUTION) {
         return false;
     }
 
@@ -155,20 +155,33 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     return dispatchData;
 }
 
+void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
+        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+    };
+}
+
 KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
-                                                        const optional_params& options,
                                                         const std::string exeMode,
                                                         int autoTuneIndex) const {
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
     auto preferredWeightsLayout = GetPreferredWeightsLayout(newParams);
     bool succeed = UpdateWeightsParams(newParams,
-                                       options,
                                        preferredWeightsLayout,
                                        kd.weightsReorderParams,
                                        GetSupportedKey(),
@@ -176,7 +189,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                                        newParams.transposed);
 
     bool bSupportedWeightsLayout = newParams.weights.GetLayout() == preferredWeightsLayout;
-    const bool bWeightsOK = bSupportedWeightsLayout || options.allowStaticInputReordering;
+    const bool bWeightsOK = bSupportedWeightsLayout || newParams.allowStaticInputReordering;
 
     if (!succeed || !bWeightsOK) {
         return {};
@@ -189,7 +202,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
         } else {
             kd.reorderInput = ConvolutionUpdateInputParams(newParams);
 
-            if (kd.reorderInput && !options.allowInputReordering)
+            if (kd.reorderInput && !newParams.allowInputReordering)
                 return {};
         }
     }
@@ -203,21 +216,10 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
 
     auto finalKernelName = GetKernelName(newParams);
     auto cldnnJit = GetJitConstants(newParams, dispatchData);
-    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params, options);
+    auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, params);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
-        const auto& prim_params = static_cast<const convolution_params&>(params);
-        auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
-
-        kd.internalBufferSizes.clear();
-        kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
-    };
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -230,7 +232,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
                      true,
                      !newParams.bias.empty(),
                      1, 0, 1,
-                     newParams.inputs[0].is_dynamic() || newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     if (newParams.deformable_mode) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -323,16 +325,15 @@ bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params) {
     return proper_padding;
 }
 
-bool ConvolutionCheckInput(const Params& p, const optional_params& o) {
+bool ConvolutionCheckInput(const Params& p) {
     const convolution_params& params = static_cast<const convolution_params&>(p);
-    const convolution_optional_params& optParams = static_cast<const convolution_optional_params&>(o);
 
     if (params.has_dynamic_inputs())
         return CheckConvolutionExplicitPaddings(params);
 
     const auto req_input = GetConvolutionBFYXPaddedTensor(params);
     const bool bProperInputDesc = CheckConvolutionPaddedInputDesc(params, req_input);
-    const bool bInputPadded = optParams.allowInputReordering || bProperInputDesc;
+    const bool bInputPadded = params.allowInputReordering || bProperInputDesc;
 
     if (!bInputPadded) {
         return false;
@@ -362,21 +363,19 @@ std::string ConvolutionKernelBase::GetAutoTuneOptions(int autoTuneIndex) const {
 }
 
 KernelsData ConvolutionKernelBase::GetTunedKernelsDataByIndex(const Params& params,
-                                                              const optional_params& options,
                                                               const int autoTuneIndex) const {
-    return GetCommonKernelsData(params, options, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
+    return GetCommonKernelsData(params, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
 
-KernelsData ConvolutionKernelBase::GetKernelsDataForAutoTune(const Params& params,
-                                                             const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ConvolutionKernelBase::GetKernelsDataForAutoTune(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
-        KernelsData kd = GetTunedKernelsDataByIndex(params, options, static_cast<int>(i));
+        KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }

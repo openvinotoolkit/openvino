@@ -4,12 +4,11 @@
 
 #include "adaptive_pooling.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
+
 
 /**
  * Implements Adaptive Pooling shape inference algorithm. The output tensor shape consists of the input [N, C] dimensions and
@@ -27,7 +26,7 @@ Result AdaptivePoolingShapeInfer::infer(
     VectorDims outputDims(inputRank);
     outputDims[0] = inputDims[0];
     outputDims[1] = inputDims[1];
-    auto newSpatialDimsPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData());
+    auto newSpatialDimsPtr = data_dependency.at(1)->getDataAs<int32_t>();
     for (size_t i = 0; i < spatialDimsSize; i++) {
         outputDims[i + 2] = newSpatialDimsPtr[i];
     }

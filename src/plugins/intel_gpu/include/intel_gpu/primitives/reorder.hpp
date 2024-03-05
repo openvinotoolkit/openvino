@@ -20,6 +20,8 @@ enum class reorder_mean_mode {
 };
 
 struct WeightsReorderParams {
+    WeightsReorderParams() {}
+
     WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
         : _in_layout(in_layout),
           _out_layout(out_layout),
@@ -50,6 +52,20 @@ struct WeightsReorderParams {
 
     void set_input_layout(const layout& layout) { _in_layout = layout; }
     void set_output_layout(const layout& layout) { _out_layout = layout; }
+
+    void save(cldnn::BinaryOutputBuffer& ob) const {
+        ob << _in_layout;
+        ob << _out_layout;
+        ob << _transposed;
+        ob << _grouped;
+    }
+    void load(cldnn::BinaryInputBuffer& ib) {
+        ib >> _in_layout;
+        ib >> _out_layout;
+        ib >> _transposed;
+        ib >> _grouped;
+    }
+    virtual ~WeightsReorderParams() = default;
 
 protected:
     layout _in_layout;
@@ -252,26 +268,38 @@ struct reorder : public primitive_base<reorder> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<reorder>::save(ob);
-        ob << make_data(&output_format, sizeof(format));
+        ob << output_format;
         ob << mean;
         ob << subtract_per_feature;
         ob << make_data(&mean_mode, sizeof(reorder_mean_mode));
         ob << make_data(&input_mem_type, sizeof(memory_type));
+        if (weights_reorder_params == nullptr) {
+            ob << false;
+        } else {
+            ob << true;
+            weights_reorder_params->save(ob);
+        }
         ob << truncate;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<reorder>::load(ib);
-        ib >> make_data(&output_format, sizeof(format));
+        ib >> output_format;
         ib >> mean;
         ib >> subtract_per_feature;
         ib >> make_data(&mean_mode, sizeof(reorder_mean_mode));
         ib >> make_data(&input_mem_type, sizeof(memory_type));
+        bool has_weights_reorder_params;
+        ib >> has_weights_reorder_params;
+        if (has_weights_reorder_params) {
+            weights_reorder_params = std::make_shared<WeightsReorderParams>();
+            weights_reorder_params->load(ib);
+        }
         ib >> truncate;
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+    std::vector<input_info> get_dependencies() const override {
         if (mean.empty())
             return {};
         return {mean};

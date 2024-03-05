@@ -2,30 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/remarks.hpp"
-#include "snippets/itt.hpp"
+#include <cassert>
+#include <climits>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <vector>
 
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "snippets/remarks.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/core/validation_util.hpp"
-
-#include <memory>
-#include <vector>
-#include <cassert>
-#include <string>
-#include <numeric>
-#include <climits>
-
 
 namespace ov {
 namespace snippets {
@@ -146,9 +143,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ov::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axis = ov::util::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
         } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {

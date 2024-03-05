@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -13,7 +12,7 @@ namespace node {
 
 class CumSum : public Node {
 public:
-    CumSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
@@ -23,7 +22,7 @@ public:
     bool needPrepareParams() const override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
-    static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
+    static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
     template <typename dataType>
@@ -46,7 +45,7 @@ private:
     size_t numOfDims;
     size_t axis = 0;
 
-    InferenceEngine::Precision dataPrecision;
+    ov::element::Type dataPrecision;
     std::string errorPrefix;
 
     template<typename T>

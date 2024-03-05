@@ -121,9 +121,7 @@ ov::pass::ConvToBinaryConv::ConvToBinaryConv() {
                 weights_reduced,
                 ov::op::v0::Constant::create(element::i64, Shape{weights_reduced_shape.size()}, weights_reduced_shape),
                 false);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            weights_reduced_reshaped = ov::get_constant_from_source(weights_reduced_reshaped);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            weights_reduced_reshaped = ov::util::get_constant_from_source(weights_reduced_reshaped);
             auto add = std::make_shared<ov::op::v1::Add>(new_conv, weights_reduced_reshaped);
             auto mul =
                 std::make_shared<ov::op::v1::Multiply>(add, ov::op::v0::Constant::create(element::f32, Shape{}, {0.5}));

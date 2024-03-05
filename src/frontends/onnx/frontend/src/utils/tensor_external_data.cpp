@@ -8,14 +8,14 @@
 #include <sstream>
 
 #include "exceptions.hpp"
-#include "ngraph/file_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace detail {
-TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor) {
+TensorExternalData::TensorExternalData(const TensorProto& tensor) {
     for (const auto& entry : tensor.external_data()) {
         if (entry.key() == "location") {
             m_data_location = ov::util::sanitize_path(entry.value());
@@ -34,7 +34,7 @@ TensorExternalData::TensorExternalData(const ONNX_NAMESPACE::TensorProto& tensor
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    auto full_path = ov::util::path_join({model_dir, m_data_location});
+    const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}));
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
         throw error::invalid_external_data{*this};
@@ -57,11 +57,9 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    auto full_path = ov::util::path_join({model_dir, m_data_location});
+    auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}));
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    file_util::convert_path_win_style(full_path);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    ov::util::convert_path_win_style(full_path);
     std::ifstream external_data_stream(ov::util::string_to_wstring(full_path).c_str(),
                                        std::ios::binary | std::ios::in | std::ios::ate);
 #else
@@ -106,5 +104,6 @@ std::string TensorExternalData::to_string() const {
     return s.str();
 }
 }  // namespace detail
-}  // namespace onnx_import
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

@@ -40,6 +40,7 @@ class TestAsStrided(PytorchLayerTest):
     @pytest.mark.parametrize("offset", [None, 1, 3, 7])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_as_strided(self, size, stride, offset, ie_device, precision, ir_version):
         self._test(*self.create_model(size, stride, offset), ie_device, precision, ir_version, trace_model=True)
 
@@ -90,6 +91,7 @@ class TestAsStridedListConstruct(PytorchLayerTest):
     @pytest.mark.parametrize("mode", ["no_const", "stride_const", "size_const"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_as_strided_list_construct(self, size, stride, offset, mode, ie_device, precision, ir_version):
         inp_kwargs = {"size_shape_tensor": size, "stride_shape_tensor": stride}
         self._test(
@@ -121,5 +123,6 @@ class TestAsStridedLongformer(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_as_strided_lf(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, freeze_model=False)

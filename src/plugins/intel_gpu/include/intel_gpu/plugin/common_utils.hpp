@@ -7,7 +7,11 @@
 #include <ostream>
 #include <tuple>
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/optionals.hpp"
+#include "intel_gpu/runtime/shape_predictor.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov {
@@ -69,6 +73,40 @@ inline ov::element::Type convert_to_supported_device_type(ov::element::Type et) 
     }
 }
 
+using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
+
+std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
+std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
+
+inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
+    return get_output_data_types(op.get(), precision_map);
+}
+
+inline std::vector<cldnn::padding> get_output_paddings(const std::shared_ptr<ov::Node>& op) {
+    return get_output_paddings(op.get());
+}
+
+inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
+    ov::Shape res(pshape.size());
+    for (size_t i = 0; i < pshape.size(); i++) {
+        res[i] = pshape[i].is_dynamic() ? 0 : pshape[i].get_length();
+    }
+
+    return res;
+}
+
+inline ov::Shape predict_shape(const std::string& name, const ov::Shape current_shape, ov::element::Type element_type, cldnn::ShapePredictor& shape_predictor) {
+    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, current_shape, element_type.bitwidth(), false);
+    const auto& preallocation_shape = prealloc_info.second;
+    auto can_preallocate_buffer = prealloc_info.first &&
+                                    shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) * element_type.bitwidth(), 8));
+    if (can_preallocate_buffer) {
+        return preallocation_shape;
+    }
+
+    return current_shape;
+}
+
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
 inline void ForceExit() {
     std::cerr << "[GPU] force exit.\n"
@@ -79,6 +117,11 @@ inline void ForceExit() {
               << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
     std::_Exit(-1);
 }
+
+void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::stream& stream);
+void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const ov::ITensor* src, ov::ITensor const* dst, const cldnn::stream& stream);
+void convert_and_copy(const cldnn::memory::ptr src, cldnn::memory::ptr dst, cldnn::stream& stream);
 
 }  // namespace intel_gpu
 

@@ -246,6 +246,7 @@ struct loop : public primitive_base<loop> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<loop>::save(ob);
+        body_program->save(ob);
         ob << trip_count_id;
         ob << first_execution_condition_id;
         ob << num_iteration_id;
@@ -259,6 +260,8 @@ struct loop : public primitive_base<loop> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<loop>::load(ib);
+        body_program = std::make_shared<cldnn::program>(ib.get_engine());
+        body_program->load(ib);
         ib >> trip_count_id;
         ib >> first_execution_condition_id;
         ib >> num_iteration_id;
@@ -271,19 +274,15 @@ struct loop : public primitive_base<loop> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.push_back(std::ref(num_iteration_id));
-        if (!trip_count_id.empty()) ret.push_back(std::ref(trip_count_id));
-        if (!first_execution_condition_id.empty()) ret.push_back(std::ref(first_execution_condition_id));
-
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
             auto target = std::find_if(input.begin(), input.end(),
                                     [&](const input_info& info) {
                                         return info.pid == mapping.external_id.pid;});
             if (target == input.end()) {
-                ret.push_back(std::ref(mapping.external_id.pid));
+                ret.push_back(mapping.external_id.pid);
             }
         }
         return ret;

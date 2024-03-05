@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, fake_quantize_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v0::FakeQuantize>();
+    NodeBuilder::opset().insert<ov::op::v0::FakeQuantize>();
     const auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3, 4});
     const auto input_low = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     const auto input_high = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});

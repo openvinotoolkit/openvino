@@ -83,8 +83,8 @@ ParamsKey ArgMaxMinKernelAxis::GetSupportedKey() const {
     return k;
 }
 
-bool ArgMaxMinKernelAxis::Validate(const Params& p, const optional_params& o) const {
-    if (!ArgMaxMinKernelBase::Validate(p, o)) {
+bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
+    if (!ArgMaxMinKernelBase::Validate(p)) {
         return false;
     }
 
@@ -113,15 +113,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
     return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
-    bool is_dynamic = orgParams.has_dynamic_tensors();
-
-    auto dispatchData = SetDefault(orgParams);
-    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+void ArgMaxMinKernelAxis::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const arg_max_min_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -143,9 +135,21 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         kd.internalBufferSizes.push_back(ops_size * elem_size);
         kd.internalBufferDataType = prim_params.inputs[0].GetDType();
     };
+}
+
+KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+    const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
+    bool is_dynamic = orgParams.has_dynamic_tensors();
+
+    auto dispatchData = SetDefault(orgParams);
+    KernelData kd = KernelData::Default<arg_max_min_params>(params);
+    GetUpdateDispatchDataFunc(kd);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -161,7 +165,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      orgParams.use_multiple_outputs ? 2 : 1,
-                     is_dynamic);
+                     orgParams.is_shape_agnostic);
 
     if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -179,7 +183,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     return {kd};
 }
 
-KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_3;
 }
 

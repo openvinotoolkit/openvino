@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, softmax_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Softmax>();
+    NodeBuilder::opset().insert<ov::op::v1::Softmax>();
     auto data = make_shared<ov::op::v0::Parameter>(element::i32, Shape{200});
     auto axis = 0;
     auto softmax = make_shared<ov::op::v1::Softmax>(data, axis);

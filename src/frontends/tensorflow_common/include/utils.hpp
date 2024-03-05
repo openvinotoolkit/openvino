@@ -6,20 +6,17 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-
-#ifndef TENSORFLOW_OP_VALIDATION
-#    define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
-        OPENVINO_ASSERT_HELPER(::ov::frontend::OpValidationFailure,                            \
-                               ("While validating node '" + node_context.get_op_type() + "'"), \
-                               __VA_ARGS__)
-#endif
 
 namespace ov {
 namespace frontend {
 namespace tensorflow {
-using OpMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMap = std::unordered_map<std::string, NamedOutputVector>;
+using NameTensorMapPtr = std::shared_ptr<NameTensorMap>;
 
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
@@ -35,11 +32,11 @@ bool is_conditional_edge(const std::string& input_tensor_name);
 template <typename T>
 ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, const T& value) {
     if (same_type_output.get_element_type().is_static()) {
-        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
+        return std::make_shared<ov::op::v0::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
     } else {
         ov::Output<ov::Node> const_res =
-            std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
-        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
+            std::make_shared<ov::op::v0::Constant>(ov::element::from<T>(), ov::Shape{}, value);
+        const_res = std::make_shared<ov::op::v1::ConvertLike>(const_res, same_type_output);
         return const_res;
     }
 }
@@ -49,10 +46,10 @@ ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_typ
                                             const std::vector<T>& value,
                                             const ov::Shape& shape) {
     if (same_type_output.get_element_type().is_static()) {
-        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), shape, value);
+        return std::make_shared<ov::op::v0::Constant>(same_type_output.get_element_type(), shape, value);
     } else {
-        ov::Output<ov::Node> const_res = std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), shape, value);
-        const_res = std::make_shared<ov::opset10::ConvertLike>(const_res, same_type_output);
+        ov::Output<ov::Node> const_res = std::make_shared<ov::op::v0::Constant>(ov::element::from<T>(), shape, value);
+        const_res = std::make_shared<ov::op::v1::ConvertLike>(const_res, same_type_output);
         return const_res;
     }
 }
@@ -67,9 +64,7 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                                 std::to_string(input_size) + " inputs, but requested input port index to be " +
                                 std::to_string(input_size));
     auto ov_input = node.get_input(input_index);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto constant = get_constant_from_source(ov_input)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto constant = ov::util::get_constant_from_source(ov_input)) {
         *vector = constant->cast_vector<T>();
         return;
     }
@@ -103,11 +98,11 @@ Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,
                                           bool as_scalar = false);
 
-std::shared_ptr<ov::opset10::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
-                                                       const ov::AxisVector& input_order);
+std::shared_ptr<ov::op::v1::Transpose> make_transpose(const ov::Output<ov::Node>& arg,
+                                                      const ov::AxisVector& input_order);
 
-std::shared_ptr<ov::opset10::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
-                                                   const std::vector<int64_t>& new_shape);
+std::shared_ptr<ov::op::v1::Reshape> make_reshape(const ov::Output<ov::Node>& arg,
+                                                  const std::vector<int64_t>& new_shape);
 
 template <typename T>
 void convert_nhwc_to_hw(const std::vector<T>& src, std::vector<size_t>& dst) {

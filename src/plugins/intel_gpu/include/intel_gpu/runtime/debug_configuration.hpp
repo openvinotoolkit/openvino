@@ -57,6 +57,7 @@ enum class LogLevel : int8_t {
     auto stage_prof = cldnn::instrumentation::profiled_stage<primitive_inst>(\
         !cldnn::debug_configuration::get_instance()->dump_profiling_data.empty(), *this, stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
+#define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info) stage_prof.add_memalloc_info(info)
 
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
     ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
@@ -75,6 +76,7 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage)
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
+#define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) std::cout << cldnn::debug_configuration::prefix
 #endif
 
@@ -123,6 +125,7 @@ public:
     int serialize_compile;                                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
+    int impls_cache_capacity;                                   // The maximum number of entries in the kernel impl cache
     int disable_async_compilation;                              // Disable async compilation
     int disable_winograd_conv;                                  // Disable Winograd conv
     int disable_dynamic_impl;                                   // Disable dynamic implementation
@@ -134,6 +137,7 @@ public:
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
+    bool is_target_dump_prof_data_iteration(int64_t iteration) const;
     std::vector<std::string> get_filenames_for_matched_layer_loading_binaries(const std::string& id) const;
     std::string get_name_for_dump(const std::string& file_name) const;
     bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
@@ -151,6 +155,12 @@ public:
         // Percentage mode preallocation
         float buffers_preallocation_ratio = 0.0f;
     } mem_preallocation_params;
+
+    struct dump_profiling_data_iter_params {
+        bool is_enabled = false;
+        int64_t start = 0;
+        int64_t end = 0;
+    } dump_prof_data_iter_params;
 };
 
 }  // namespace cldnn

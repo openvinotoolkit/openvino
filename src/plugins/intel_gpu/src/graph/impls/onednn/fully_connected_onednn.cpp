@@ -55,25 +55,40 @@ protected:
 
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto input_layout = impl_params.get_input_layout(0);
-        auto weights_layout = impl_params.get_input_layout(1);
+        auto source_weights_layout = impl_params.get_input_layout(1);
         auto cldnn_prim = impl_params.typed_desc<fully_connected>();
 
         auto input_pshape = input_layout.get_partial_shape();
-        auto weights_pshape = weights_layout.get_partial_shape();
+        auto weights_pshape = source_weights_layout.get_partial_shape();
+
         int64_t feature = input_pshape[std::min(cldnn_prim->input_size, static_cast<size_t>(4)) - 1].get_length();
         if (cldnn_prim->input_size == 3) {
             feature = std::max({input_layout.spatial(0), input_layout.spatial(1), input_layout.spatial(2)});
         }
+        auto target_weights_layout = source_weights_layout;
         if (weights_pshape.size() != 2) {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+            target_weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
         }
 
-        format out_fmt = onednn::find_format(pd.weights_desc(0));
+        auto target_weights_desc = pd.weights_desc(0);
 
-        auto output_weights_layout = weights_layout;
-        output_weights_layout.format = out_fmt;
+        auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(source_weights_layout, target_weights_desc);
+        OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
 
-        return std::make_shared<WeightsReorderParams>(weights_layout, output_weights_layout, false);
+        auto source_weights_desc = onednn::layout_to_memory_desc(source_weights_layout);
+
+        const bool weights_format = true;
+        const bool grouped = false;
+
+        auto traits = convert_memory_desc_to_traits(target_weights_desc, weights_format, grouped);
+
+        target_weights_layout.format = format(traits);
+
+        return std::make_shared<WeightsReorderParamsOneDNN>(source_weights_layout,
+                                                            target_weights_layout,
+                                                            source_weights_desc,
+                                                            target_weights_desc,
+                                                            false);
     }
 
     static std::shared_ptr<dnnl::inner_product_forward::primitive_desc> get_fully_connected_primitive_descriptor(const kernel_impl_params& impl_params,

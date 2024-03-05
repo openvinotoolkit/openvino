@@ -61,7 +61,9 @@ cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr
         return kernel.setArg(idx, buf);
     } else if (memory_capabilities::is_usm_type(mem->get_allocation_type())) {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_buffer();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (usm) " << idx << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
+        auto mem_type = std::dynamic_pointer_cast<const ocl::gpu_usm>(mem)->get_allocation_type();
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (" << mem_type << ") " << idx
+                               << " mem: " << buf.get() << " size: " << mem->size() << std::endl;
         return kernel.setArgUsm(idx, buf);
     } else {
         auto buf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(mem)->get_buffer();
@@ -170,12 +172,6 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                     }
                 }
                 break;
-            case args_t::RECURRENT:
-                status = set_kernel_arg(kernel, i, data.recurrent);
-                break;
-            case args_t::HIDDEN:
-                status = set_kernel_arg(kernel, i, data.hidden);
-                break;
             case args_t::CELL:
                 status = set_kernel_arg(kernel, i, data.cell);
                 break;
@@ -269,10 +265,10 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     auto& kern = ocl_kernel.get_handle();
 
     try {
-        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kern.get() << ")\n";
+        GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
     } catch (cl::Error const& err) {
-        throw ocl_error(err);
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
 
@@ -311,21 +307,29 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         if (err.err() == CL_OUT_OF_RESOURCES) {
             ov::intel_gpu::ForceExit();
         }
-        throw ocl_error(err);
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
 void ocl_stream::enqueue_barrier() {
-    _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+    try {
+        _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
 }
 
 event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) {
     // Wait for all previously enqueued tasks if deps list is empty
     if (deps.empty()) {
         cl::Event ret_ev;
-        _command_queue.enqueueMarkerWithWaitList(nullptr, &ret_ev);
+        try {
+            _command_queue.enqueueMarkerWithWaitList(nullptr, &ret_ev);
+        } catch (cl::Error const& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
 
         return std::make_shared<ocl_event>(ret_ev);
     }
@@ -345,7 +349,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
             }
             _command_queue.enqueueMarkerWithWaitList(&dep_events, &ret_ev);
         } catch (cl::Error const& err) {
-            throw ocl_error(err);
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
 
         return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
@@ -370,14 +374,30 @@ event::ptr ocl_stream::create_base_event() {
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
-void ocl_stream::flush() const { get_cl_queue().flush(); }
-void ocl_stream::finish() const { get_cl_queue().finish(); }
+void ocl_stream::flush() const {
+    try {
+        get_cl_queue().flush();
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
+}
+void ocl_stream::finish() const {
+    try {
+        get_cl_queue().finish();
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
+}
 
 void ocl_stream::wait() {
     cl::Event ev;
 
     // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
-    _command_queue.enqueueBarrierWithWaitList(nullptr, &ev);
+    try {
+        _command_queue.enqueueBarrierWithWaitList(nullptr, &ev);
+    } catch (cl::Error const& err) {
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+    }
     ev.wait();
 }
 
@@ -403,14 +423,14 @@ void ocl_stream::wait_for_events(const std::vector<event::ptr>& events) {
             _command_queue.enqueueBarrierWithWaitList(nullptr, &barrier_ev);
             clevents.push_back(barrier_ev);
         } catch (cl::Error const& err) {
-            throw ocl_error(err);
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
     }
 
     try {
         cl::WaitForEvents(clevents);
     } catch (cl::Error const& err) {
-        throw ocl_error(err);
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
 
@@ -430,7 +450,7 @@ void ocl_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output
             else
                 _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
         } catch (cl::Error const& err) {
-            throw ocl_error(err);
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
 
         _last_barrier = ++_queue_counter;

@@ -6,14 +6,17 @@
 
 #include <memory>
 
-#include "default_opset.hpp"
+#include "openvino/op/fake_quantize.hpp"
 
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector fake_quantize(const onnx_import::Node& node) {
-    const auto inputs = node.get_ng_inputs();
+ov::OutputVector fake_quantize(const ov::frontend::onnx::Node& node) {
+    const auto inputs = node.get_ov_inputs();
     const auto X = inputs.at(0);
     const auto input_low = inputs.at(1);
     const auto input_high = inputs.at(2);
@@ -22,13 +25,11 @@ OutputVector fake_quantize(const onnx_import::Node& node) {
 
     const auto levels = node.get_attribute_value<std::size_t>("levels");
 
-    return {std::make_shared<default_opset::FakeQuantize>(X, input_low, input_high, output_low, output_high, levels)};
+    return {std::make_shared<v0::FakeQuantize>(X, input_low, input_high, output_low, output_high, levels)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

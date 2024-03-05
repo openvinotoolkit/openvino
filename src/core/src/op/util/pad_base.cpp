@@ -5,6 +5,7 @@
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -35,9 +36,7 @@ op::util::PadBase::PadBase(const Output<Node>& arg,
 
 CoordinateDiff op::util::PadBase::get_pads_begin() const {
     CoordinateDiff pads_begin_coord{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto pads_begin_const = get_constant_from_source(input_value(1))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto pads_begin_const = ov::util::get_constant_from_source(input_value(1))) {
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
     return pads_begin_coord;
@@ -45,9 +44,7 @@ CoordinateDiff op::util::PadBase::get_pads_begin() const {
 
 CoordinateDiff op::util::PadBase::get_pads_end() const {
     CoordinateDiff pads_end_coord{};
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto pads_end_const = get_constant_from_source(input_value(2))) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto pads_end_const = ov::util::get_constant_from_source(input_value(2))) {
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }
     return pads_end_coord;
@@ -98,9 +95,7 @@ void op::util::PadBase::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, result_et, output_shapes[0]);
 }
 
@@ -157,9 +152,7 @@ bool op::util::PadBase::evaluate_upper(TensorVector& output_values) const {
 
 bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
     OV_OP_SCOPE(util_PadBase_evaluate_label);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return ov::util::default_label_evaluator(this, output_labels);
 }
 
 }  // namespace ov

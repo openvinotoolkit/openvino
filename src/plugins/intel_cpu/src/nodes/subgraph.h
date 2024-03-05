@@ -4,13 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
-
-#include <onednn/dnnl.h>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_snippets_emitters.hpp"
-
-#include <node.h>
+#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
+#include "node.h"
+#include "onednn/dnnl.h"
 #include "snippets/op/subgraph.hpp"
 
 #include <array>
@@ -24,14 +20,14 @@ namespace node {
 /// precision: fp32
 class Snippet : public Node {
 public:
-    Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr& context);
+    Snippet(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~Snippet() override = default;
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     void initOptimalPrimitiveDescriptor() override;
-    InferenceEngine::Precision getRuntimePrecision() const override;
+    ov::element::Type getRuntimePrecision() const override;
 
     // Here we convert to canonical for & jit everything
     void prepareParams() override;
@@ -50,10 +46,10 @@ public:
         uint64_t bodyHash;
         std::vector<VectorDims> inMemBlockedDims;
         std::vector<VectorDims> inMemOrders;
-        std::vector<InferenceEngine::Precision> inMemPrecs;
+        std::vector<ov::element::Type> inMemPrecs;
         std::vector<VectorDims> outMemBlockedDims;
         std::vector<VectorDims> outMemOrders;
-        std::vector<InferenceEngine::Precision> outMemPrecs;
+        std::vector<ov::element::Type> outMemPrecs;
         // todo: used flag if we need extra shape infer, can be removed after [121670]
         bool has_non_planar_inputs;
     };
@@ -77,7 +73,7 @@ private:
 
     class SnippetExecutor {
         public:
-            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            SnippetExecutor(SnippetAttrs attrs, bool is_dynamic);
             virtual void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) = 0;
             virtual ~SnippetExecutor() = default;
             std::shared_ptr<IShapeInfer> shapeInference = nullptr;
@@ -85,14 +81,13 @@ private:
         protected:
             SnippetAttrs snippetAttrs;
             bool is_dynamic = false;
-            bool enforceBF16 = false;
     };
 
     std::shared_ptr<SnippetExecutor> execPtr = nullptr;
 
     class SnippetJitExecutor : public SnippetExecutor {
         public:
-            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic, bool enforceBF16);
+            SnippetJitExecutor(SnippetAttrs attrs, bool is_dynamic);
             void exec(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
 
             bool schedule_created();
@@ -130,6 +125,10 @@ private:
             // Buffer scratchpad
             std::vector<uint8_t> buffer_scratchpad = {};
             size_t buffer_scratchpad_size = 0;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+            inline void segfault_detector();
+#endif
     };
 };
 

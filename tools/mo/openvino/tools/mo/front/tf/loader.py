@@ -5,7 +5,7 @@ import argparse
 import logging as log
 import os
 import re
-from distutils.version import LooseVersion
+from packaging.version import parse, Version
 from pathlib import Path
 
 from openvino.tools.mo.graph.graph import Node
@@ -175,7 +175,7 @@ def deducing_metagraph_path(meta_graph_file: str):
 
 def freeze_tf2_concrete_function(model, concrete_func, env_setup):
 
-    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.2.0"):
+    if "tensorflow" in env_setup and Version(env_setup["tensorflow"]) >= parse("2.2.0"):
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=False,
                                                         aggressive_inlining=True)  # pylint: disable=E1123
@@ -207,7 +207,7 @@ def prepare_graph_def(model):
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
-    if isinstance(model, tf.keras.Model):
+    if isinstance(model, tf.keras.Model): # pylint: disable=no-member
 
         assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
@@ -215,7 +215,7 @@ def prepare_graph_def(model):
         for inp in model.inputs:
             if isinstance(inp, tf.Tensor):
                 model_inputs.append(inp)
-            elif tf.keras.backend.is_keras_tensor(inp):
+            elif tf.keras.backend.is_keras_tensor(inp): # pylint: disable=no-member
                 model_inputs.append(inp.type_spec)
             else:
                 raise Error("Unknown input tensor type {}".format(type(input)))
@@ -226,7 +226,7 @@ def prepare_graph_def(model):
 
         conc_func = tf_function.get_concrete_function(model_inputs)
         return freeze_tf2_concrete_function(model, conc_func, env_setup)
-    if env_setup["tensorflow"] >= LooseVersion("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
+    if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(model, tf.types.experimental.GenericFunction):
 
         assert hasattr(model, "input_signature") and model.input_signature is not None, \
             "'input_signature' needs to be set for model conversion."
@@ -308,7 +308,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     # Code to extract Keras model.
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                     # for TF 1.x SavedModel format in case TF 1.x installed
-                    imported = tf.keras.models.load_model(model_dir, compile=False)
+                    imported = tf.keras.models.load_model(model_dir, compile=False) # pylint: disable=no-member
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 

@@ -42,8 +42,8 @@ ParamsKey ReorderKernelFastBatch1::GetSupportedKey() const {
     return k;
 }
 
-bool ReorderKernelFastBatch1::Validate(const Params& p, const optional_params& o) const {
-    if (!ReorderKernelBase::Validate(p, o)) {
+bool ReorderKernelFastBatch1::Validate(const Params& p) const {
+    if (!ReorderKernelBase::Validate(p)) {
         return false;
     }
 
@@ -98,15 +98,15 @@ ReorderKernelFastBatch1::DispatchData ReorderKernelFastBatch1::SetDefault(const 
     return dispatchData;
 }
 
-KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernelFastBatch1::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::REORDER);
 
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
 
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernelFastBatch1::GetKernelsPriority(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     const auto& input = orgParams.inputs[0];
     const auto& output = orgParams.outputs[0];

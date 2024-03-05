@@ -9,33 +9,34 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "transformations/init_node_info.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
+    init_input_shapes(inputShape);
+
+    function = ov::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         netPrecision,
         inputShape,
         {
@@ -48,7 +49,7 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
 }
 
 TEST_P(FakeQuantizePrecisionSelectionTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

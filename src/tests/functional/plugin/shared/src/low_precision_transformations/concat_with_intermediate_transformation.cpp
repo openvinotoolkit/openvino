@@ -8,20 +8,15 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "ov_models/builders.hpp"
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/concat.hpp"
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithIntermediateTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ov::pass::low_precision::LayerTransformation::Params params;
     bool transparentIntermediate;
@@ -30,25 +25,13 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
-        (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
+           get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+           (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
         (multichannel ? "_multichannel" : "");
 
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params trasformationParams;
-    bool transparentIntermediate;
-    bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
 
 /*
 * FQ       FQ
@@ -59,23 +42,34 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    ngraph::element::Type ngPrecision;
-    ngraph::PartialShape inputShape;
+    ov::element::Type ngPrecision;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
+    ov::PartialShape inputShape1 = inputShape;
+    if (inputShape1[2].is_static() && transparentIntermediate) {
+        inputShape1[2] = inputShape1[2].get_length() - 2;
+    }
+
+    if (inputShape1[3].is_static() && transparentIntermediate) {
+        inputShape1[3] = inputShape1[3].get_length() - 2;
+    }
+
+    init_input_shapes({ inputShape1, inputShape });
+
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
         ngPrecision,
         inputShape,
         transparentIntermediate,
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
 }
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

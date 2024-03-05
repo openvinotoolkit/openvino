@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
 #include <gtest/gtest.h>
-#include <ie_blob.h>
 
 #include <fstream>
-#include <ie_core.hpp>
+#include <openvino/util/file_util.hpp>
 #include <set>
 #include <string>
 
@@ -20,8 +18,10 @@
 #include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
-    auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel";
-    auto param = std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdiparams";
+    auto model =
+        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel");
+    auto param = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                                    "conv2d_relu/conv2d_relu.pdiparams");
 
     ov::Core core;
     auto read_file = [&](const std::string& file_name, size_t& size) {
@@ -73,7 +73,7 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 }
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
-    auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel";
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel");
 
     ov::Core core;
     auto function = core.read_model(FrontEndTestUtils::make_model_path(model));

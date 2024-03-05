@@ -41,12 +41,4 @@ struct weight_bias_zero_point_params : public weight_bias_params {
     std::string to_cache_string_v2() const override;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// weight_bias_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct weight_bias_optional_params : optional_params {
-protected:
-    explicit weight_bias_optional_params(KernelType kt) : optional_params(kt) {}
-};
-
 }  // namespace kernel_selector

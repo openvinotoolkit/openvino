@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <memory>
-#include <vector>
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +12,7 @@ namespace node {
 
 class GatherElements : public Node {
 public:
-    GatherElements(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
+    GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;

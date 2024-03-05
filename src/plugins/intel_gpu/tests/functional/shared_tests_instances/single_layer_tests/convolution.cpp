@@ -46,7 +46,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID)
+        ::testing::Values(ov::op::PadType::VALID)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,

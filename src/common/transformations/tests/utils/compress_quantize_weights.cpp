@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -82,7 +82,12 @@ class CompressQuantizeWeightsTests
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: CVS-122397
+TEST_P(CompressQuantizeWeightsTests, DISABLED_FusionTest) {}
+#else
 TEST_P(CompressQuantizeWeightsTests, FusionTest) {}
+#endif
 
 static std::vector<CompressQuantizeWeightsParams> params = {
     {Shape{2, 3, 1, 1},
@@ -141,7 +146,12 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          CompressQuantizeWeightsTests,
                          ::testing::Combine(::testing::ValuesIn(params), ::testing::ValuesIn(data_precisions)));
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithDequantizationSubgraph) {
+#else
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) {
+#endif
     {
         auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
         auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
@@ -173,7 +183,12 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) 
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithDequantizationSubgraphFP16) {
+#else
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraphFP16) {
+#endif
     {
         auto data = opset8::Constant::create(element::f16, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
         auto convert_to_f32 = std::make_shared<opset8::Convert>(data, element::f32);
@@ -208,7 +223,12 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraphFP
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointEliminated) {
+#else
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminated) {
+#endif
     {
         auto data = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
         auto input_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
@@ -232,7 +252,12 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminated) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointEliminatedZeroScale) {
+#else
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedZeroScale) {
+#endif
     {
         auto data = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.144816, 0.0858578, 0.110928});
         auto input_low = opset8::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.402659, -0.383148, -0.34054});
@@ -256,7 +281,12 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedZeroS
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_CompressQuantizeWeightsWithZeroPointEliminatedFP16) {
+#else
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedFP16) {
+#endif
     {
         auto data = opset8::Constant::create(element::f16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
         auto input_low =
@@ -285,7 +315,39 @@ TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedFP16)
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+TEST_F(TransformationTestsF, CompressQuantizeWeightsWithZeroPointEliminatedBF16) {
+    {
+        auto data = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.2, 1.2, 1.2});
+        auto input_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.60, 1.45, 1.30});
+        auto input_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.60, -1.45, -1.30});
+        auto output_low = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {0.30, 0.75, 0.65});
+        auto output_high = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.30, -0.75, -0.65});
+        auto fq = std::make_shared<opset8::FakeQuantize>(data, input_low, input_high, output_low, output_high, 255);
+        model = std::make_shared<Model>(NodeVector{fq}, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        auto data = opset8::Constant::create(element::i8, Shape{3, 1, 1, 1}, {-42, -105, -118});
+        auto convert = std::make_shared<opset8::Convert>(data, element::bf16);
+        auto scale = opset8::Constant::create(element::bf16, Shape{3, 1, 1, 1}, {-0.002325, -0.00592, -0.00509});
+        auto mul = std::make_shared<opset8::Multiply>(convert, scale);
+        model_ref = std::make_shared<Model>(NodeVector{mul}, ParameterVector{});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+
+    m_abs_threshold = 4e-2f;
+    m_rel_threshold = 7e-2f;
+}
+
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_NegativeCompressQuantizeWeights) {
+#else
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeights) {
+#endif
     {
         auto data = opset8::Constant::create(element::f32, Shape{2, 4, 1, 1}, {-1, 0, 1, 2, 3, 4, 5, 11});
         auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
@@ -310,7 +372,12 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeights) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+#ifdef OPENVINO_ARCH_ARM64
+// Ticket: 122666
+TEST_F(TransformationTestsF, DISABLED_NegativeCompressQuantizeWeightsNonConstantInput) {
+#else
 TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
+#endif
     auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{2, 4, 1, 1});
     auto input_low = opset8::Constant::create(element::f32, Shape{}, {1});
     auto input_high = opset8::Constant::create(element::f32, Shape{}, {9});
@@ -324,3 +391,145 @@ TEST_F(TransformationTestsF, NegativeCompressQuantizeWeightsNonConstantInput) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+using CompressWeightsWithFakeConvertParams = std::tuple<bool,          // zero_point_absent
+                                                        std::string>;  // float8 type
+
+class CompressWeightsNoZeroPoint : public TransformationTestsF,
+                                   public testing::WithParamInterface<CompressWeightsWithFakeConvertParams> {};
+
+TEST_P(CompressWeightsNoZeroPoint, FakeConvert) {
+    const auto& param = GetParam();
+    bool zero_point_absent = std::get<0>(param);
+    std::string destination_type = std::get<1>(param);
+
+    {
+        auto weights = op::v0::Constant::create(element::f32,
+                                                Shape{3, 1, 2, 2},
+                                                {-0.01448f,
+                                                 -0.02314f,
+                                                 -0.02244f,
+                                                 -0.00090f,
+                                                 0.024261f,
+                                                 0.031921f,
+                                                 0.034088f,
+                                                 -0.0497f,
+                                                 -0.0588f,
+                                                 -0.04541f,
+                                                 -0.01281f,
+                                                 0.009109f});
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {54.50976f});
+        std::shared_ptr<op::v13::FakeConvert> fake_convert;
+        if (zero_point_absent) {
+            fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, destination_type);
+        } else {
+            auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.0f});
+            fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, shift, destination_type);
+        }
+        model = std::make_shared<Model>(fake_convert, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        std::vector<float> weights_data =
+            destination_type == "f8e4m3"
+                ? std::vector<float>{-0.8125f,
+                                     -1.25f,
+                                     -1.25f,
+                                     -0.0507812f,
+                                     1.375f,
+                                     1.75f,
+                                     1.875f,
+                                     -2.75f,
+                                     -3.25f,
+                                     -2.5f,
+                                     -0.6875f,
+                                     0.5f}
+                :
+
+                std::vector<
+                    float>{-0.75f, -1.25f, -1.25f, -0.046875f, 1.25f, 1.75f, 1.75f, -2.5f, -3.0f, -2.5f, -0.75f, 0.5f};
+        auto weights =
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data);
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.01834533f});
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, scale);
+        model_ref = std::make_shared<Model>(multiply, ParameterVector{});
+    }
+
+    m_abs_threshold = 1e-6f;
+    m_rel_threshold = 1e-6f;
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(CompressQuantizeWeights,
+                         CompressWeightsNoZeroPoint,
+                         testing::Combine(testing::Values(false, true), testing::Values("f8e4m3", "f8e5m2")));
+
+class CompressWeightsWithZeroPoint : public TransformationTestsF, public testing::WithParamInterface<std::string> {};
+
+TEST_P(CompressWeightsWithZeroPoint, FakeConvert) {
+    const auto& destination_type = GetParam();
+
+    {
+        auto weights = op::v0::Constant::create(element::f32,
+                                                Shape{3, 1, 2, 2},
+                                                {-0.01448f,
+                                                 -0.02314f,
+                                                 -0.02244f,
+                                                 -0.00090f,
+                                                 0.024261f,
+                                                 0.031921f,
+                                                 0.034088f,
+                                                 -0.0497f,
+                                                 -0.0588f,
+                                                 -0.04541f,
+                                                 -0.01281f,
+                                                 0.009109f});
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {54.50976f});
+        auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {0.7f, -0.0304f, -0.012f});
+        auto fake_convert = std::make_shared<op::v13::FakeConvert>(weights, scale, shift, destination_type);
+        model = std::make_shared<Model>(fake_convert, ParameterVector{});
+
+        manager.register_pass<ov::pass::CompressQuantizeWeights>();
+    }
+
+    {
+        std::vector<float> weights_data =
+            destination_type == "f8e4m3"
+                ? std::vector<float>{-1.5f,
+                                     -2.0f,
+                                     -1.875f,
+                                     -0.75f,
+                                     1.375f,
+                                     1.75f,
+                                     1.875f,
+                                     -2.75f,
+                                     -3.25f,
+                                     -2.5f,
+                                     -0.6875f,
+                                     0.5f}
+                : std::vector<
+                      float>{-1.5f, -2.0f, -2.0f, -0.75f, 1.25f, 1.75f, 2.0f, -2.5f, -3.0f, -2.5f, -0.625f, 0.5f};
+
+        auto weights =
+            std::make_shared<op::v0::Constant>(element::Type(destination_type), Shape{3, 1, 2, 2}, weights_data);
+        auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
+        auto shift = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {-0.7f, 0.0304f, 0.012f});
+        auto subtract = std::make_shared<op::v1::Subtract>(convert, shift);
+        auto scale = op::v0::Constant::create(element::f32, Shape{3, 1, 1, 1}, {1.0f / 54.50976f});
+        auto multiply = std::make_shared<op::v1::Multiply>(subtract, scale);
+        model_ref = std::make_shared<Model>(multiply, ParameterVector{});
+    }
+
+    m_abs_threshold = 1e-6f;
+    m_rel_threshold = 1e-6f;
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(CompressQuantizeWeights, CompressWeightsWithZeroPoint, testing::Values("f8e4m3", "f8e5m2"));

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API MatMulMultiplyFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MatMulMultiplyFusion transformation matches following graph:
  *
  *         +----------+            +----------+

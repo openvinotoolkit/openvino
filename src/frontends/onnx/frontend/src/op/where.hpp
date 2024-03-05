@@ -4,29 +4,21 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/op/select.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline OutputVector where(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
+inline ov::OutputVector where(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
 
-    return {std::make_shared<default_opset::Select>(ng_inputs.at(0), ng_inputs.at(1), ng_inputs.at(2))};
+    return {std::make_shared<ov::op::v1::Select>(ov_inputs.at(0), ov_inputs.at(1), ov_inputs.at(2))};
 }
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

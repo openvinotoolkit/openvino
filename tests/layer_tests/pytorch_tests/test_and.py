@@ -50,6 +50,7 @@ class TestAnd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_and_tensor(self, ie_device, precision, ir_version):
         self.input_data = (
             np.array([True, False, False], dtype=np.bool_),
@@ -59,18 +60,21 @@ class TestAnd(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_and_bool(self, ie_device, precision, ir_version):
         self.input_data = (np.array(True, dtype=np.bool_), np.array(True, dtype=np.bool_))
         self._test(*self.create_model_bool_input(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_and_int(self, ie_device, precision, ir_version):
         self.input_data = (np.array(3, dtype=np.int32), np.array(4, dtype=np.int32))
         self._test(*self.create_model_int_input(), ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_and_tensor(self, ie_device, precision, ir_version):
         self.input_data = (np.array([3, 5, 8], dtype=np.int32), np.array([7, 11, 2], dtype=np.int32))
         self._test(

@@ -8,6 +8,7 @@
 #include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 //------------------------------------------------------------------------------
@@ -54,9 +55,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes);
     if (num_spatial != convolution::num_spatial_undefined) {
@@ -153,9 +152,7 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
     auto shape = PartialShape::dynamic();
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (get_input_size() < 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (get_input_size() < 3 || !ov::util::evaluate_as_partial_shape(input_value(2), shape)) {
         const auto& data_rank = get_input_partial_shape(0).rank();
         const auto& filter_rank = get_input_partial_shape(1).rank();
 
@@ -241,9 +238,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto out_spatial_shape = get_convolution_output_shape();
     auto num_spatial = convolution::calculate_num_spatial(this, input_shapes, out_spatial_shape);
 

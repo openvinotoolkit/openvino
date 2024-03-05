@@ -35,6 +35,8 @@ namespace intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
+ * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
+ *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  latencyThreadingMode is the scope of candidate processors per stream for latency hint
  *               - user can select all processors per numa node, per socket, or per platform.
@@ -48,6 +50,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_threads,
                                                      const int input_infer_requests,
                                                      const int model_prefer_threads,
+                                                     const int input_current_socket_id,
                                                      const std::string input_perf_hint,
                                                      const Config::LatencyThreadingMode latencyThreadingMode,
                                                      const std::vector<std::vector<int>>& proc_type_table);
@@ -70,6 +73,8 @@ int get_model_prefer_threads(const int num_streams,
 /**
  * @brief      Generate streams information according to processors type table
  * @param[in]  streams number of streams
+ * @param[in]  input_current_socket_id is the socket ID in cpu mapping table of the currently running thread
+ *               - input "-1" indicates that the function get_streams_info_table will query this id internally.
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  * @param[in]  proc_type_table candidate processors available at current platform
@@ -78,20 +83,11 @@ int get_model_prefer_threads(const int num_streams,
  * ov::hint::enable_hyper_threading
  */
 std::vector<std::vector<int>> generate_stream_info(const int streams,
+                                                    const int input_current_socket_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
                                                    int preferred_nthreads_per_stream = -1);
-
-struct StreamCfg {
-    int num_streams;               // Number of streams
-    int num_threads;               // Number of threads
-    int big_core_streams;          // Number of streams in Performance-core(big core)
-    int small_core_streams;        // Number of streams in Efficient-core(small core)
-    int threads_per_stream_big;    // Threads per stream in big cores
-    int threads_per_stream_small;  // Threads per stream in small cores
-    int small_core_offset;
-};
 
 /**
  * @brief      Get information about number of streams, threads and pinning threads on different processors

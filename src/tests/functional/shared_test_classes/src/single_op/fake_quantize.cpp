@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/single_op/fake_quantize.hpp"
 
-#include "ov_models/builders.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace test {
@@ -68,9 +68,9 @@ void FakeQuantizeLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> fq;
     if (fq_direct_arg.empty()) {
-        fq = ngraph::builder::makeFakeQuantize(param, model_type, levels, const_shape, 1);
+        fq = ov::test::utils::make_fake_quantize(param, model_type, levels, const_shape, 1);
     } else {
-        fq = ngraph::builder::makeFakeQuantize(
+        fq = ov::test::utils::make_fake_quantize(
             param,
             model_type,
             levels,

@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API SplitSqueezeConcatFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SplitSqueezeConcatFusion transformation replaces group of
  * operations: Split -> Squeeze (multiple) -> Concat to Transpose -> Reshape ops.
  */

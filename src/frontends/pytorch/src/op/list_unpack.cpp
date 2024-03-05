@@ -31,7 +31,7 @@ OutputVector translate_list_unpack(const NodeContext& context) {
             }
             return res;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported operation type.");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported operation type.");
         }
     } else {
         return outputs;

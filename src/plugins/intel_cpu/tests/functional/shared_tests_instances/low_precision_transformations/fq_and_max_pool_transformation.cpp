@@ -9,18 +9,17 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
+const std::vector<ov::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
     { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
 };
 
@@ -29,7 +28,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, FakeQuantizeAndMaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(ngraph::PartialShape({ 1, 32, 72, 48 })),
+        ::testing::Values(ov::PartialShape({ 1, 32, 72, 48 })),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fakeQuantizes)),

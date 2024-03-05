@@ -23,7 +23,7 @@ using TransposeSinkingGeneral = ov::pass::transpose_sinking::TSGeneral;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSGeneralForward transformation combines all TransposeSinkingForward* transformations into
  * single GraphRewrite pass.
  */
@@ -34,7 +34,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSGeneralBackward transformation combines all TransposeSinkingBackward* transformations into
  * single GraphRewrite pass.
  */
@@ -45,7 +45,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSGeneral transformation combines TSGeneralForward and
  * TSGeneralBackward transformations into single ModelPass pass and inserts
  * ConstantFolding pass after them.

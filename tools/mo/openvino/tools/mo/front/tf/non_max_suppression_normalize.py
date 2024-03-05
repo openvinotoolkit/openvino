@@ -15,9 +15,9 @@ from openvino.tools.mo.ops.unsqueeze import Unsqueeze
 
 class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
     """
-    The inputs and outputs format of the TF implementation of the NMS layer is different from the Inference Engine
+    The inputs and outputs format of the TF implementation of the NMS layer is different from the OpenVINO
     implementation and supports just one batch and image class. This transformation converts inputs and outputs to
-    match the Inference Engine implementation.
+    match the OpenVINO implementation.
 
     TF inputs: boxes = [num_boxes, 4]
                scores = [num_boxes]
@@ -25,7 +25,7 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
                 box_scores [selected_boxes_count]
                 valid_outputs selected_boxes_count
 
-    IE inputs: boxes = [num_batches, num_boxes, 4]
+    OV inputs: boxes = [num_batches, num_boxes, 4]
                scores = [num_batches, num_classes, num_boxes]
        outputs: selected_indices [num_selected_indices, 3] where each element is [batch_index, class_index, box_index]
                 selected_scores [num_selected_indices, 3] where each element is [batch_index, class_index, box_score]

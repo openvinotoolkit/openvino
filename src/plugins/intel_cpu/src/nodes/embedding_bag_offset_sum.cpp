@@ -6,17 +6,17 @@
 #include <vector>
 #include <string>
 #include "embedding_bag_offset_sum.h"
-#include <ngraph/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto embBagOffsetSumOp = ngraph::as_type_ptr<const ngraph::op::v3::EmbeddingBagOffsetsSum>(op);
+        const auto embBagOffsetSumOp = ov::as_type_ptr<const ov::op::v3::EmbeddingBagOffsetsSum>(op);
         if (!embBagOffsetSumOp) {
             errorMessage = "Node is not an instance of the EmbeddingBagOffsetsSum operation from opset v3.";
             return false;
@@ -27,19 +27,19 @@ bool EmbeddingBagOffsetSum::isSupportedOperation(const std::shared_ptr<const ngr
     return true;
 }
 
-EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+EmbeddingBagOffsetSum::EmbeddingBagOffsetSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)),
       EmbeddingBagSum(op, 3lu, 1lu, 4lu, 3lu) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul)
-        IE_THROW() << "'" << _layerName << "' layer has indices data with invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer has indices data with invalid rank.");
 
     if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul)
-        IE_THROW() << "'" << _layerName << "' layer's offsets data has invalid rank.";
+        OPENVINO_THROW("'", _layerName, "' layer's offsets data has invalid rank.");
 }
 
 void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
@@ -47,27 +47,27 @@ void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
         return;
 
     std::string logPrefix = std::string("Layer EmbeddingBagSum with name '") + _layerName + "' ";
-    static const std::set<Precision> supportedPrecisions =
-            {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+    static const std::set<ov::element::Type > supportedPrecisions =
+            {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (inDataPrecision == Precision::BF16)
-        inDataPrecision = Precision::FP32;
+    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16))
+        inDataPrecision = ov::element::f32;
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     } else {
-        static const std::set<Precision> defaultSupportedPrecisions =
-                {Precision::FP32, Precision::I8, Precision::U8, Precision::I32};
+        static const std::set<ov::element::Type> defaultSupportedPrecisions =
+                {ov::element::f32, ov::element::i8, ov::element::u8, ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end())
-            IE_THROW() << logPrefix << "has unsupported precision: " << inDataPrecision.name();
+            OPENVINO_THROW(logPrefix, "has unsupported precision: ", inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
-                                                       {LayoutType::ncsp, Precision::I32},
-                                                       {LayoutType::ncsp, Precision::I32}});
+                                                       {LayoutType::ncsp, ov::element::i32},
+                                                       {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > DEFAULT_INDEX_IDX)
-        inDataConfigurators.push_back({LayoutType::ncsp, Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp, ov::element::i32});
     if (inputShapes.size() > PER_SAMPLE_WEIGHTS_IDX)
         inDataConfigurators.push_back({LayoutType::ncsp, inDataPrecision});
 
@@ -75,26 +75,26 @@ void EmbeddingBagOffsetSum::initSupportedPrimitiveDescriptors() {
 }
 
 void EmbeddingBagOffsetSum::prepareParams() {
-    _indicesLen = getParentEdgesAtPort(INDICES_IDX)[0]->getMemory().getStaticDims()[0];
-    _offsetsLen = getParentEdgesAtPort(OFFSETS_IDX)[0]->getMemory().getStaticDims()[0];
-    EmbeddingBagSum::prepareParams(getParentEdgesAtPort(EMB_TABLE_IDX)[0]->getMemory().getStaticDims());
+    _indicesLen = getParentEdgeAt(INDICES_IDX)->getMemory().getStaticDims()[0];
+    _offsetsLen = getParentEdgeAt(OFFSETS_IDX)->getMemory().getStaticDims()[0];
+    EmbeddingBagSum::prepareParams(getParentEdgeAt(EMB_TABLE_IDX)->getMemory().getStaticDims());
 }
 
 void EmbeddingBagOffsetSum::initFromInputs() {
-    indicesData_ = reinterpret_cast<const int *>(getParentEdgeAt(INDICES_IDX)->getMemoryPtr()->getData());
-    offsetsData_ = reinterpret_cast<const int *>(getParentEdgeAt(OFFSETS_IDX)->getMemoryPtr()->getData());
+    indicesData_ = getSrcDataAtPortAs<const int>(INDICES_IDX);
+    offsetsData_ = getSrcDataAtPortAs<const int>(OFFSETS_IDX);
 
     if (getParentEdges().size() > DEFAULT_INDEX_IDX) {
-        defaultIndices_ = reinterpret_cast<const int *>(getParentEdgeAt(DEFAULT_INDEX_IDX)->getMemoryPtr()->getData());
+        defaultIndices_ = getSrcDataAtPortAs<const int>(DEFAULT_INDEX_IDX);
     }
 }
 
 void EmbeddingBagOffsetSum::getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
     if (static_cast<size_t>(embIndex) >= _offsetsLen) {
-        IE_THROW() << "Invalid embedding bag index.";
+        OPENVINO_THROW("Invalid embedding bag index.");
     }
     if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
-        IE_THROW() << "Offset value exceeds indices size.";
+        OPENVINO_THROW("Offset value exceeds indices size.");
     }
 
     indices = nullptr;
@@ -131,14 +131,14 @@ bool EmbeddingBagOffsetSum::isExecutable() const {
 }
 
 void EmbeddingBagOffsetSum::execute(dnnl::stream strm) {
-    const auto *srcData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const uint8_t>(0);
     const uint8_t* weightsData = nullptr;
     if (_withWeights)
-        weightsData = reinterpret_cast<const uint8_t *>(getParentEdgeAt(PER_SAMPLE_WEIGHTS_IDX)->getMemoryPtr()->getData());
+        weightsData = getSrcDataAtPortAs<const uint8_t>(PER_SAMPLE_WEIGHTS_IDX);
 
     const auto &inputMem  = getParentEdgeAt(0)->getMemory();
     EmbeddingBagSum::execute(srcData, weightsData, inputMem.getDesc().getPrecision(),
-                                       inputMem.getStaticDims(), getChildEdgesAtPort(0)[0]->getMemoryPtr());
+                                       inputMem.getStaticDims(), getDstMemoryAtPort(0));
 }
 
 bool EmbeddingBagOffsetSum::created() const {

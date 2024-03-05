@@ -49,8 +49,8 @@ ParamsKey ConvolutionKernel_Ref::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
 JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
@@ -108,12 +108,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_Ref::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params& options) const {
-    if (!ConvolutionKernelBase::Validate(params, options))
+bool ConvolutionKernel_Ref::Validate(const Params& params) const {
+    if (!ConvolutionKernelBase::Validate(params))
         return false;
 
     const auto& conv_params = static_cast<const convolution_params&>(params);

@@ -51,7 +51,7 @@ OutputVector translate_if(const NodeContext& context) {
     auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
-    FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2, "If must have 2 subgraphs.");
+    PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 2, "If must have 2 subgraphs.");
 
     auto then_decoder = decoder->get_subgraph_decoder(0);
     auto then_body = context.convert_subgraph(0);
@@ -72,13 +72,13 @@ OutputVector translate_if(const NodeContext& context) {
     auto session = context.get_session();
     for (const auto& param : then_body->get_parameters()) {
         auto input_idx = session->decode_tensor_name(param->output(0));
-        FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(input_idx) == 0,
-                                      "More than one then_body input with same tensor name: ",
-                                      input_idx,
-                                      "; existing: ",
-                                      inputs_map.at(input_idx)[0],
-                                      " adding: ",
-                                      param);
+        PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(input_idx) == 0,
+                                    "More than one then_body input with same tensor name: ",
+                                    input_idx,
+                                    "; existing: ",
+                                    inputs_map.at(input_idx)[0],
+                                    " adding: ",
+                                    param);
         inputs_map[input_idx] = {param, nullptr};
     }
     for (const auto& param : else_body->get_parameters()) {
@@ -93,8 +93,8 @@ OutputVector translate_if(const NodeContext& context) {
     const auto num_outs = context.get_output_size();
     const auto then_results = then_body->get_results();
     const auto else_results = else_body->get_results();
-    FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
-                                  "Else or then body have less outputs than prim::If requires.");
+    PYTORCH_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
+                                "Else or then body have less outputs than prim::If requires.");
     for (size_t i = 0; i < num_outs; i++) {
         align_result_types(context, then_results[i], else_results[i]);
         res.push_back(if_node->set_output(then_results[i], else_results[i]));
@@ -106,26 +106,26 @@ OutputVector translate_if(const NodeContext& context) {
     for (size_t i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
         auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
-        FRONT_END_OP_CONVERSION_CHECK(extra_then_body_results.count(output_idx) == 0,
-                                      "More than one then_body output with same tensor name: ",
-                                      output_idx,
-                                      "; existing: ",
-                                      extra_then_body_results.at(output_idx),
-                                      " adding: ",
-                                      result);
+        PYTORCH_OP_CONVERSION_CHECK(extra_then_body_results.count(output_idx) == 0,
+                                    "More than one then_body output with same tensor name: ",
+                                    output_idx,
+                                    "; existing: ",
+                                    extra_then_body_results.at(output_idx),
+                                    " adding: ",
+                                    result);
         extra_then_body_results[output_idx] = result;
         extra_output_idxs.insert(output_idx);
     }
     for (size_t i = num_outs; i < else_results.size(); i++) {
         const auto result = else_results[i];
         auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
-        FRONT_END_OP_CONVERSION_CHECK(extra_else_body_results.count(output_idx) == 0,
-                                      "More than one else_body output with same tensor name: ",
-                                      output_idx,
-                                      "; existing: ",
-                                      extra_else_body_results.at(output_idx),
-                                      " adding: ",
-                                      result);
+        PYTORCH_OP_CONVERSION_CHECK(extra_else_body_results.count(output_idx) == 0,
+                                    "More than one else_body output with same tensor name: ",
+                                    output_idx,
+                                    "; existing: ",
+                                    extra_else_body_results.at(output_idx),
+                                    " adding: ",
+                                    result);
         extra_else_body_results[output_idx] = result;
         extra_output_idxs.insert(output_idx);
     }
@@ -140,7 +140,7 @@ OutputVector translate_if(const NodeContext& context) {
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
+            PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in else body: ", output_idx);
             inputs_map[output_idx][0] = new_parameter;
             extra_then_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
@@ -152,7 +152,7 @@ OutputVector translate_if(const NodeContext& context) {
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});
             else_body->validate_nodes_and_infer_types();
-            FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
+            PYTORCH_OP_CONVERSION_CHECK(inputs_map.count(output_idx), "Input must exist in then body: ", output_idx);
             inputs_map[output_idx][1] = new_parameter;
             extra_else_body_results[output_idx] = new_result;
             OPENVINO_DEBUG << "Modified else body: " << if_node << '\n';

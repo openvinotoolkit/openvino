@@ -95,12 +95,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
     bool is_cpu() const override { return false; }
+    bool is_onednn() const override { return true; }
 
     // Cache blob format:
     //     [ dnnl::primitive_attr ]
     //     [ dnnl::primitive_desc ]
     //     [ dnnl::cache_blob ]
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_impl::save(ob);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_attrs->get() == nullptr) {
             ob << false;
@@ -203,6 +205,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_impl::load(ib);
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         bool has_attrs;
         ib >> has_attrs;
@@ -319,8 +322,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
-    using primitive_impl::get_arguments;
-
     std::string get_cache_directory(const ExecutionConfig& config) const {
         auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
@@ -481,6 +482,33 @@ protected:
         return args;
     }
 
+    virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance, kernel_arguments_data& mem_args) const {
+        std::unordered_map<int, dnnl::memory> args;
+        auto& engine = instance.get_network().get_engine();
+        auto dnnl_engine = engine.get_onednn_engine();
+
+        OPENVINO_ASSERT(mem_args.inputs.size() == 1);
+        OPENVINO_ASSERT(mem_args.outputs.size() == 1);
+        OPENVINO_ASSERT(_scratchpad_md.get_size() == 0);
+        OPENVINO_ASSERT(instance.get_fused_primitives_onednn().empty());
+
+        {
+            auto input = mem_args.inputs[0];
+            layout l = input->get_layout();
+            auto offset = onednn::get_offset(std::move(l), _pd.dnnl::primitive_desc_base::src_desc(0));
+            args.insert({DNNL_ARG_SRC, input->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+        }
+
+        {
+            auto output = mem_args.outputs[0];
+            layout l = output->get_layout();
+            auto offset = onednn::get_offset(std::move(l), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output->get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        return args;
+    }
+
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -488,6 +516,14 @@ protected:
             return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
+    }
+
+    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
+        if (instance.can_be_optimized()) {
+            return;
+        }
+
+        _args[instance.get_network().get_id()] = get_arguments(instance, args);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,

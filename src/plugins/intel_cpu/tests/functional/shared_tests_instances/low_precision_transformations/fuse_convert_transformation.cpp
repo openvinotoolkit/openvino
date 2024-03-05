@@ -5,25 +5,24 @@
 #include "low_precision_transformations/fuse_convert_transformation.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<element::Type> precisions = {
-        element::f32
+const std::vector<ov::element::Type> precisions = {
+        ov::element::f32
 };
 
-const std::vector< ngraph::PartialShape > inputAndQuantizationShapes = {
+const std::vector< ov::PartialShape > inputAndQuantizationShapes = {
         { 1, 4, 16, 16 },
 };
 
-const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
+const std::vector<ov::builder::subgraph::DequantizationOperations> deqOperations = {
         {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {1.f},
                 {0.45f}
         },
         {
-                { ngraph::element::f32 },
+                { ov::element::f32 },
                 {},
                 {0.45f}
         }

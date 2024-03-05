@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertQuantizeDequantize;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertQuantizeDequantize transformation replaces following graph:
  * FakeQuantize->Convert->Convert->Subtract->Multiply with a single FakeQuantize.
  * Restrictions:

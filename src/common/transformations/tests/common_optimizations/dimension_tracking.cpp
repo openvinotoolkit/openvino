@@ -11,14 +11,15 @@
 #include <string>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/detection_output.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/subgraph_builders.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/utils/utils.hpp"
+
 using namespace ov;
 using namespace testing;
 
@@ -307,7 +308,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_detachment) {
-    auto f = ngraph::builder::subgraph::makeDetectionOutput();
+    auto f = ov::test::utils::make_detection_output();
     auto& data = f->get_parameters()[0];
 
     ov::pass::Manager m;

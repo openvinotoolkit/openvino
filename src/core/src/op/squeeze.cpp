@@ -37,9 +37,7 @@ Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
 void Squeeze::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Squeeze_validate_and_infer_types);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
@@ -103,9 +101,7 @@ bool Squeeze::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return validate::axes_has_and_set_bound(*this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return validate::axes_has_and_set_bound(*this) && ov::util::default_label_evaluator(this, output_labels);
 }
 
 bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

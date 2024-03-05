@@ -18,7 +18,7 @@ concatenation_kernel_selector::concatenation_kernel_selector() {
     Attach<ConcatenationKernel_fs_b_yx_fsv32>();
 }
 
-KernelsData concatenation_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::CONCATENATION);
+KernelsData concatenation_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::CONCATENATION);
 }
 }  // namespace kernel_selector

@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, gru_cell_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::GRUCell>();
+    NodeBuilder::opset().insert<ov::op::v3::GRUCell>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{9, 3});
     auto R = make_shared<ov::op::v0::Parameter>(element::f32, Shape{9, 3});
@@ -46,7 +46,7 @@ TEST(attributes, gru_cell_op) {
 }
 
 TEST(attributes, gru_cell_op2) {
-    NodeBuilder::get_ops().register_factory<ov::op::v3::GRUCell>();
+    NodeBuilder::opset().insert<ov::op::v3::GRUCell>();
     auto X = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
     auto W = make_shared<ov::op::v0::Parameter>(element::f32, Shape{9, 3});
     auto R = make_shared<ov::op::v0::Parameter>(element::f32, Shape{9, 3});

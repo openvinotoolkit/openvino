@@ -4,9 +4,8 @@
 
 #include "ov_lpt_models/convolution.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <ov_ops/type_relaxed.hpp>
-#include "ov_models/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
 
@@ -15,27 +14,29 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "low_precision/network_helper.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
-    const ngraph::element::Type netPrecision,
-    const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
-    std::shared_ptr<ngraph::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+std::shared_ptr<ov::Model> ConvolutionFunction::getOriginal(
+    const ov::element::Type netPrecision,
+    const ov::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnActivations,
+    std::shared_ptr<ov::opset1::Constant> weights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights fqOnWeights,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const bool transposeOnData,
     const bool transposeOnInputLow,
     const bool transposeOnInputHigh,
     const bool transposeOnOutputLow,
     const bool transposeOnOutputHigh) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     auto dequantizationStructure = dequantizationOnActivations;
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto dequantization = makeDequantization(input, dequantizationStructure);
@@ -50,14 +51,14 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     }
 
     if (weights->cast_vector<float>().size() == 1ul) {
-        auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
-        weights = ov::as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
-            weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
+        auto targetShape = ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
+        weights = ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(
+            weights, ov::opset1::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
     std::shared_ptr<Node> convertedWeights;
     if (dequantizationOnWeights.empty()) {
-        const auto convertOnWeights = std::make_shared<opset1::Convert>(weights, netPrecision);
+        const auto convertOnWeights = std::make_shared<ov::opset1::Convert>(weights, netPrecision);
         OutputVector convertedOutput(1);
         convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
         convertedWeights = convertedOutput[0].get_node_shared_ptr();
@@ -65,143 +66,152 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
         convertedWeights = weights;
     }
 
-    const std::shared_ptr<ngraph::Node> constant = ngraph::opset1::Constant::create(ngraph::element::u64, ngraph::Shape{4}, {0, 1, 2, 3});
+    const std::shared_ptr<ov::Node> constant = ov::opset1::Constant::create(ov::element::u64, ov::Shape{4}, {0, 1, 2, 3});
     std::shared_ptr<Node> onWeights;
     if (fqOnWeights.empty()) {
         onWeights = dequantizationOnWeights.empty() ? convertedWeights : makeDequantization(convertedWeights, dequantizationOnWeights);
     } else {
-        onWeights = std::make_shared<opset1::FakeQuantize>(
-            transposeOnData ? std::make_shared<opset1::Transpose>(convertedWeights, constant) : convertedWeights,
+        onWeights = std::make_shared<ov::opset1::FakeQuantize>(
+            transposeOnData ? std::make_shared<ov::opset1::Transpose>(convertedWeights, constant) : convertedWeights,
             transposeOnInputLow ?
-                std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+                std::make_shared<ov::opset1::Transpose>(
+                    ov::test::utils::deprecated::make_constant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
+                ov::test::utils::deprecated::make_constant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.inputLowValues, fqOnWeights.inputLowValues.empty()),
             transposeOnInputHigh ?
-                std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+                std::make_shared<ov::opset1::Transpose>(
+                    ov::test::utils::deprecated::make_constant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
+                ov::test::utils::deprecated::make_constant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.inputHighValues, fqOnWeights.inputHighValues.empty()),
             transposeOnOutputLow ?
-                std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+                std::make_shared<ov::opset1::Transpose>(
+                    ov::test::utils::deprecated::make_constant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
+                ov::test::utils::deprecated::make_constant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.outputLowValues, fqOnWeights.outputLowValues.empty()),
             transposeOnOutputHigh ?
-                std::make_shared<opset1::Transpose>(
-                    makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+                std::make_shared<ov::opset1::Transpose>(
+                    ov::test::utils::deprecated::make_constant(
+                        netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
                     constant->clone_with_new_inputs({})) :
-                makeConstant(netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
+                ov::test::utils::deprecated::make_constant(
+                    netPrecision, fqOnWeights.constantShape, fqOnWeights.outputHighValues, fqOnWeights.outputHighValues.empty()),
             fqOnWeights.quantizationLevel);
     }
 
-    auto convolutionOriginal = ngraph::opset1::Convolution(
+    auto convolutionOriginal = ov::opset1::Convolution(
         ov::op::TemporaryReplaceOutputType(dequantization, netPrecision).get(),
         ov::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
     convolution->set_friendly_name("output");
     auto& rtInfo = convolution->get_rt_info();
     rtInfo["Variant::std::string"] = "convolution";
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionTransformation");
 }
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectWeights(
-    const ngraph::Shape& inputShape,
-    ngraph::element::Type precision,
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-    ngraph::builder::subgraph::DequantizationOperations dequantization,
+std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
+    const ov::Shape& inputShape,
+    ov::element::Type precision,
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    ov::builder::subgraph::DequantizationOperations dequantization,
     bool isCorrect) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     const auto deq = makeDequantization(input, dequantization);
 
     const size_t inputChannelsCount = inputShape[1];
     const size_t outputChannelsCount = 2 * inputShape[1];
-    const auto weights = ngraph::opset1::Constant::create(
-        ngraph::element::f32,
-        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+    const auto weights = ov::opset1::Constant::create(
+        ov::element::f32,
+        ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
     const auto fqOnWeights = fakeQuantizeOnWeights.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
-            weights, ngraph::element::f32, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
+        ov::test::utils::make_fake_quantize(
+            weights, ov::element::f32, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<opset1::Subtract>(fqOnWeights,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, Shape{1, 1, 1, 1}, 3.0f));
+    const auto subtract = isCorrect ? nullptr : std::make_shared<ov::opset1::Subtract>(fqOnWeights,
+        std::make_shared<ov::opset1::Constant>(ov::element::f32, Shape{1, 1, 1, 1}, 3.0f));
 
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+    const auto convolution = std::make_shared<ov::opset1::Convolution>(
         deq,
         isCorrect ? fqOnWeights : subtract,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
 }
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginalWithIncorrectWeights(
-    const ngraph::PartialShape& inputShape,
-    ngraph::element::Type precision,
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
+std::shared_ptr<ov::Model> ConvolutionFunction::getOriginalWithIncorrectWeights(
+    const ov::PartialShape& inputShape,
+    ov::element::Type precision,
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
     bool isCorrect) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input = std::make_shared<ov::opset1::Parameter>(precision, inputShape);
     const auto fqOnData = fakeQuantizeOnData.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
             fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
     const size_t inputChannelsCount = inputShape[1].get_length();
     const size_t outputChannelsCount = 2 * inputShape[1].get_length();
-    const auto weights = ngraph::opset1::Constant::create(
+    const auto weights = ov::opset1::Constant::create(
         precision,
-        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+        ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
     const auto fqOnWeights = fakeQuantizeOnWeights.empty() ?
         nullptr :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights, precision, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    const auto subtract = isCorrect ? nullptr : std::make_shared<opset1::Subtract>(fqOnWeights,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
+    const auto subtract = isCorrect ? nullptr : std::make_shared<ov::opset1::Subtract>(fqOnWeights,
+        std::make_shared<ov::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, 3.0f));
 
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
+    const auto convolution = std::make_shared<ov::opset1::Convolution>(
         fakeQuantizeOnData.empty() ? input : fqOnData,
         isCorrect ? fqOnWeights : subtract,
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
 }
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrectWeights(
-    const ngraph::Shape& inputShape,
-    ngraph::element::Type inputPrecision,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
-    ngraph::element::Type weightsPrecision,
+std::shared_ptr<ov::Model> ConvolutionFunction::getReferenceWithIncorrectWeights(
+    const ov::Shape& inputShape,
+    ov::element::Type inputPrecision,
+    ov::builder::subgraph::DequantizationOperations dequantizationBefore,
+    ov::element::Type weightsPrecision,
     std::vector<float> weightsValues,
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter) {
+    const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -213,43 +223,44 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
         throw std::runtime_error("unexpected actual weights values size");
     }
 
-    const std::shared_ptr<ngraph::Node> weights = ngraph::opset1::Constant::create(
+    const std::shared_ptr<ov::Node> weights = ov::opset1::Constant::create(
         weightsPrecision,
-        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+        ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         weightsValues.size() == 1ul ?
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
-    auto convolutionOriginal = ngraph::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(deqBefore, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
 
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deqAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(deqAfter) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "IncorrectWeightsAndConvolutionFunction");
 }
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
-    const ngraph::element::Type netPrecision,
-    const ngraph::element::Type inputPrecision,
-    const ngraph::PartialShape& inputShape,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    std::shared_ptr<ngraph::opset1::Constant> weights,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-    const ngraph::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
-    const ngraph::element::Type precisionAfterDequantization) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
+    const ov::element::Type netPrecision,
+    const ov::element::Type inputPrecision,
+    const ov::PartialShape& inputShape,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    std::shared_ptr<ov::opset1::Constant> weights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    const ov::element::Type precisionAfterOperation,
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
+    const ov::element::Type precisionAfterDequantization) {
+    auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     auto dequantizationBeforeStructure = dequantizationBefore;
     dequantizationBeforeStructure.multiply.outPrecision = netPrecision;
     const auto deqBefore = makeDequantization(input, dequantizationBeforeStructure);
@@ -264,21 +275,21 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     }
 
     if (weights->cast_vector<float>().size() == 1ul) {
-        auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
-        weights = ov::as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
-            weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
+        auto targetShape = ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
+        weights = ov::as_type_ptr<ov::opset1::Constant>(fold<ov::opset1::Broadcast>(
+            weights, ov::opset1::Constant::create(ov::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
 
-    const auto convertOnWeights = std::make_shared<opset1::Convert>(weights, netPrecision);
+    const auto convertOnWeights = std::make_shared<ov::opset1::Convert>(weights, netPrecision);
     OutputVector convertedOutput(1);
     convertOnWeights->constant_fold(convertedOutput, convertOnWeights->input_values());
     const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
 
-    std::shared_ptr<ngraph::Node> onWeights = fakeQuantizeOnWeights.empty() ?
+    std::shared_ptr<ov::Node> onWeights = fakeQuantizeOnWeights.empty() ?
         (weights->get_output_element_type(0).is_real() ?
             convertedWeights :
-            std::dynamic_pointer_cast<ngraph::Node>(weights)) :
-        ngraph::builder::makeFakeQuantize(
+            std::dynamic_pointer_cast<ov::Node>(weights)) :
+        ov::test::utils::make_fake_quantize(
             convertedWeights->output(0),
             netPrecision,
             fakeQuantizeOnWeights.quantizationLevel,
@@ -288,18 +299,19 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
             fakeQuantizeOnWeights.outputLowValues,
             fakeQuantizeOnWeights.outputHighValues);
 
-    auto convolutionOriginal = ngraph::opset1::Convolution(
+    auto convolutionOriginal = ov::opset1::Convolution(
         ov::op::TemporaryReplaceOutputType(deqBefore, netPrecision).get(),
         ov::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        ov::Strides{ 1, 1 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::CoordinateDiff{ 0, 0 },
+        ov::Strides{ 1, 1 });
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ netPrecision, netPrecision },
-        std::vector<element::Type>{ netPrecision });
+    std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{netPrecision, netPrecision},
+            std::vector<ov::element::Type>{netPrecision});
 
     if (!dequantizationAfter.empty()) {
         ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution,
@@ -313,21 +325,21 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const auto deqAfter = makeDequantization(convolution, dequantizationStructure);
     deqAfter->set_friendly_name("output");
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(deqAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(deqAfter) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionTransformation");
 }
 
-std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
-    const ngraph::Shape& inputShape,
-    const ngraph::element::Type precision,
-    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+std::shared_ptr<ov::Model> ConvolutionFunction::get(
+    const ov::Shape& inputShape,
+    const ov::element::Type precision,
+    const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
     const std::vector<float>& weightsValues,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ov::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
     const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& restrictions) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const std::shared_ptr<ngraph::opset1::FakeQuantize> fqOnData = ov::as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+    const std::shared_ptr<ov::opset1::FakeQuantize> fqOnData = ov::as_type_ptr<ov::opset1::FakeQuantize>(ov::test::utils::make_fake_quantize(
         input,
         precision,
         fakeQuantizeOnData.quantizationLevel,
@@ -343,34 +355,35 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
         throw std::runtime_error("unexpected actual weights values size");
     }
 
-    const std::shared_ptr<ngraph::Node> parentOnData = fakeQuantizeOnData.empty() ? std::dynamic_pointer_cast<ngraph::Node>(input) : fqOnData;
+    const std::shared_ptr<ov::Node> parentOnData = fakeQuantizeOnData.empty() ? std::dynamic_pointer_cast<ov::Node>(input) : fqOnData;
 
-    const std::shared_ptr<ngraph::Node> weights = ngraph::opset1::Constant::create(
+    const std::shared_ptr<ov::Node> weights = ov::opset1::Constant::create(
         precision,
-        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+        ov::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         weightsValues.size() == 1ul ?
         std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
         weightsValues);
 
-    const std::shared_ptr<ngraph::Node> parentOnWeights = fakeQuantizeOnWeights.empty() ?
+    const std::shared_ptr<ov::Node> parentOnWeights = fakeQuantizeOnWeights.empty() ?
         weights :
-        ngraph::builder::makeFakeQuantize(
+        ov::test::utils::make_fake_quantize(
             weights, precision, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
             fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
-    auto convolutionOriginal = ngraph::opset1::Convolution(
-        ov::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+    auto convolutionOriginal =
+        ov::opset1::Convolution(ov::op::TemporaryReplaceOutputType(parentOnData, ov::element::f32).get(),
+                                ov::op::TemporaryReplaceOutputType(parentOnWeights, ov::element::f32).get(),
+                                ov::Strides{1, 1},
+                                ov::CoordinateDiff{0, 0},
+                                ov::CoordinateDiff{0, 0},
+                                ov::Strides{1, 1});
 
-    const std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
-        convolutionOriginal,
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{});
+    const std::shared_ptr<ov::opset1::Convolution> convolution =
+        std::make_shared<ov::op::TypeRelaxed<ov::opset1::Convolution>>(
+            convolutionOriginal,
+            std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+            std::vector<ov::element::Type>{});
     convolution->set_friendly_name("convolution");
 
     for (const auto& r : restrictions) {
@@ -380,10 +393,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
         }
     }
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionFunction");
+    ov::ResultVector results{ std::make_shared<ov::opset1::Result>(convolution) };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "ConvolutionFunction");
 }
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

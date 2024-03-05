@@ -3,9 +3,10 @@
 //
 
 #include "cpu_tensor.h"
-#include "ie_ngraph_utils.hpp"
 
+#include "memory_desc/blocked_memory_desc.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,7 +18,7 @@ Tensor::Tensor(MemoryPtr memptr) : m_memptr{memptr} {
     auto memdesc = m_memptr->getDescPtr();
     OPENVINO_ASSERT(memdesc->hasLayoutType(LayoutType::ncsp), "intel_cpu::Tensor only supports memory with ncsp layout.");
 
-    m_element_type = InferenceEngine::details::convertPrecision(memdesc->getPrecision());
+    m_element_type = memdesc->getPrecision();
 }
 
 void Tensor::set_shape(ov::Shape new_shape) {

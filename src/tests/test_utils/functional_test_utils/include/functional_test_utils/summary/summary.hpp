@@ -14,6 +14,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
+extern bool is_print_rel_influence_coef;
+
 struct PassRate {
     enum Statuses { PASSED, FAILED, SKIPPED, CRASHED, HANGED };
     unsigned long passed = 0;
@@ -25,6 +27,9 @@ struct PassRate {
 
     double rel_passed = 0;
     double rel_all = 0;
+
+    bool isCrashReported = false;
+    bool isHangReported = false;
 
     PassRate() = default;
 
@@ -51,8 +56,6 @@ protected:
     std::string ts = ov::test::utils::GetTimestamp();
 
     static size_t saveReportTimeout;
-    static bool isCrashReported;
-    static bool isHangReported;
     static bool extendReport;
     static bool saveReportWithUniqueName;
     static const char* outputFolder;

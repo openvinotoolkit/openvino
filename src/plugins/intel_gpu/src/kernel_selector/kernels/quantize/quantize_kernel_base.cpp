@@ -9,7 +9,7 @@
 
 namespace kernel_selector {
 
-bool QuantizeKernelBase::Validate(const Params& p, const optional_params&) const {
+bool QuantizeKernelBase::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
     if (params.inputs.size() != 5)
         return false;
@@ -29,21 +29,7 @@ JitConstants QuantizeKernelBase::GetJitConstants(const quantize_params& params, 
     return jit;
 }
 
-KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::QUANTIZE);
-
-    KernelData kd = KernelData::Default<quantize_params>(params);
-    quantize_params& newParams = *static_cast<quantize_params*>(kd.params.get());
-
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
-    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
-    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
+void QuantizeKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const quantize_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -52,6 +38,24 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
+}
+
+KernelsData QuantizeKernelBase::GetKernelsData(const Params& params) const {
+    assert(params.GetType() == KernelType::QUANTIZE);
+
+    KernelData kd = KernelData::Default<quantize_params>(params);
+    quantize_params& newParams = *static_cast<quantize_params*>(kd.params.get());
+
+    if (!Validate(params)) {
+        return {};
+    }
+
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
 

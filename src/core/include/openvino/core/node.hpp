@@ -21,7 +21,6 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -53,9 +52,6 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
-OPENVINO_SUPPRESS_DEPRECATED_START
-using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;
@@ -192,26 +188,6 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the op.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values,
-                          const ov::HostTensorVector& input_values,
-                          const EvaluationContext& evaluationContext) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result
@@ -521,12 +497,16 @@ using RawNodeOutputMap = std::map<RawNodeOutput, Output<Node>>;
 
 class OPENVINO_API NodeValidationFailure : public ov::AssertFailure {
 public:
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     const Node* node,
                                     const std::string& explanation);
 
     template <class TShape>
-    [[noreturn]] static void create(const CheckLocInfo& check_loc_info,
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
                                     std::pair<const Node*, const std::vector<TShape>*>&& ctx,
                                     const std::string& explanation);
 
@@ -543,7 +523,9 @@ protected:
  * @param explanation    Exception explanation string.
  */
 template <>
-OPENVINO_API void NodeValidationFailure::create(const CheckLocInfo& check_loc_info,
+OPENVINO_API void NodeValidationFailure::create(const char* file,
+                                                int line,
+                                                const char* check_string,
                                                 std::pair<const Node*, const std::vector<PartialShape>*>&& ctx,
                                                 const std::string& explanation);
 }  // namespace ov

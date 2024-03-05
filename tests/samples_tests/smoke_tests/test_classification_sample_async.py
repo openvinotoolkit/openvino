@@ -24,54 +24,51 @@ test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')]
                                        'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
-                                       'd': ['CPU']},
-                           use_device=['d']
+                                      },
                            )
 
 test_data_fp16 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
                                        'm': [os.path.join('squeezenet1.1', 'FP16', 'squeezenet1.1.xml')],
                                        'sample_type': ['C++','Python'],
                                        'batch': [1, 2, 4],
-                                       'd': ['CPU']}, 
-                           use_device=['d']
+                                       },
                            )
 
 
 class TestClassification(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'classification_sample_async'
-        super().setup_class()
+    sample_name = 'classification_sample_async'
 
     @pytest.mark.parametrize("param", test_data_fp32)
-    def test_classification_sample_async_fp32(self, param):
-        _check_output(self, param)
+    def test_classification_sample_async_fp32(self, param, cache):
+        _check_output(self, param, '215', cache)
 
     @pytest.mark.parametrize("param", test_data_fp16)
-    def test_classification_sample_async_fp16(self, param):
-        _check_output(self, param)
+    def test_classification_sample_async_fp16(self, param, cache):
+        _check_output(self, param, '215', cache)
 
 
-def _check_output(self, param):
+def _check_output(self, param, expected_result, cache):
     """
     Classification_sample_async has functional and accuracy tests.
     For accuracy find in output class of detected on image object
     """
     # Run _test function, that returns stdout or 0.
-    stdout = self._test(param)
+    stdout = self._test(param, cache)
     if not stdout:
         return 0
 
     stdout = stdout.split('\n')
-
-    is_ok = True
+    is_ok = 0
     for line in range(len(stdout)):
-        if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
+        if re.match(r"\d+ +\d+.\d+$", stdout[line].replace('[ INFO ]', '').strip()) is not None:
+            if is_ok == 0:
+                is_ok = True
             top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
-            top1 = re.sub('\\D', '', top1)
-            if '215' not in top1:
+            top1 = re.sub(r"\D", "", top1)
+            if expected_result not in top1:
                 is_ok = False
-                log.error("Expected class 215, Detected class {}".format(top1))
+                log.info("Detected class {}".format(top1))
             break
-    assert is_ok, 'Wrong top1 class'
+    assert is_ok != 0, "Accuracy check didn't passed, probably format of output has changes"
+    assert is_ok, "Wrong top1 class"
     log.info('Accuracy passed')

@@ -36,10 +36,10 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
-#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
@@ -96,7 +96,6 @@ const std::shared_ptr<Node> propagate_through_ops =
                        ov::op::v8::Slice,
                        ov::op::v1::VariadicSplit,
                        ov::op::v1::Split,
-                       op::util::GatherBase,
                        ov::op::v0::Concat,
                        ov::op::v0::Convert,  // through Convert can go only to Constants
                        ov::op::v0::Constant,
@@ -299,23 +298,19 @@ public:
         auto input_2 = pattern::any_input();
 
         auto eps_const_pattern = pattern::wrap_type<ov::op::v0::Constant>();
-        auto convert_eps_pattern = pattern::wrap_type<ov::op::v0::Convert>({eps_const_pattern});
-        auto eps_const_or_convert =
-            std::make_shared<pattern::op::Or>(OutputVector{eps_const_pattern, convert_eps_pattern});
+        auto optional_eps_convert = pattern::optional<ov::op::v0::Convert>(eps_const_pattern);
 
         auto max_or_add =
-            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, eps_const_or_convert});
+            pattern::wrap_type<ov::op::v1::Maximum, ov::op::v1::Add>(OutputVector{input_2, optional_eps_convert});
 
-        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(max_or_add);
-        auto sqrt_or_max_add = std::make_shared<pattern::op::Or>(OutputVector{max_or_add, sqrt});
+        auto optional_sqrt = pattern::optional<ov::op::v0::Sqrt>(max_or_add);
         // whether is divided directly or after sqrt (e.g. in L2Norm after sqrt, in MVN is divided directly)
-        auto divide = std::make_shared<ov::op::v1::Divide>(input_1, sqrt_or_max_add);
+        auto divide = std::make_shared<ov::op::v1::Divide>(input_1, optional_sqrt);
 
         auto pow_exp = pattern::wrap_type<ov::op::v0::Constant>();
-        auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>({pow_exp});
-        auto pow_exp_or_convert = std::make_shared<pattern::op::Or>(OutputVector{pow_exp, convert_pattern});
+        auto optional_pow_convert = pattern::optional<ov::op::v0::Convert>(pow_exp);
 
-        auto pow_pattern = std::make_shared<ov::op::v1::Power>(max_or_add, pow_exp_or_convert);
+        auto pow_pattern = std::make_shared<ov::op::v1::Power>(max_or_add, optional_pow_convert);
         auto mul_pattern = std::make_shared<ov::op::v1::Multiply>(input_1, pow_pattern);
         auto div_or_mul_to_negative_pow = std::make_shared<pattern::op::Or>(OutputVector{divide, mul_pattern});
 
@@ -392,7 +387,6 @@ public:
                                                                                         ov::op::v8::Slice,
                                                                                         ov::op::v1::VariadicSplit,
                                                                                         ov::op::v1::Split,
-                                                                                        op::util::GatherBase,
                                                                                         ov::op::v0::Concat,
                                                                                         ov::op::v0::Tile>();
 

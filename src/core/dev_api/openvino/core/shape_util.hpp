@@ -9,24 +9,6 @@
 
 namespace ov {
 namespace util {
-/**
- * @brief Makes spacial version of 2D ov::Shape which is recognize as dynamic.
- *
- * This is special case used for tensor <-> host tensor conversion to indicate that tensor got dynamic shape.
- *
- * @return 2-D shape with {0, SIZE_MAX}
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-OPENVINO_API Shape make_dynamic_shape();
-
-/**
- * @brief Check if Shape is marked as dynamic.
- *
- * @param s  Shape for check.
- * @return True if shape is dynamic otherwise false.
- */
-OPENVINO_DEPRECATED("This function is deprecated and will be removed soon.")
-OPENVINO_API bool is_dynamic_shape(const Shape& s);
 
 /**
  * @brief Creates reduced shape from input by removing dimensions.
@@ -78,5 +60,16 @@ OPENVINO_API Shape reduce_keep_dims(const Shape& input, const AxisSet& axes);
  * @return Result shape from inputs with applied broadcast specification.
  */
 Shape get_broadcast_shape(const Shape& first, const Shape& second, const ov::op::AutoBroadcastSpec& broadcast_spec);
+
+/**
+ * @brief Normalize shape index to the rank
+ *
+ * If input index is out of range [-rank, rank) throws exception.
+ *
+ * @param idx   Shape dimension index.
+ * @param rank  Shape rank.
+ * @return Normalized shape dimension index.
+ */
+OPENVINO_API std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank);
 }  // namespace util
 }  // namespace ov

@@ -24,7 +24,7 @@ class Pruning;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Initialising masks for pruned operations
  */
 class ov::pass::InitMasks : public ov::pass::GraphRewrite {
@@ -34,7 +34,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Check Constant operation values by given dimensions and set
  * masks according to results that are bases on `condition` lambda function.
  * Works for Constant with floating point type (f16, f32, f64).
@@ -50,7 +50,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Contains several MatcherPasses that initialize and propagate
  * masks from Constant operation to the network output.
  */
@@ -61,7 +61,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Based on masks in Constant operation it inserts Gather operations
  * to shrink them. After this pass execution ConstantFolding is required.
  */
@@ -72,7 +72,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief This is just a sequence of passes that performs pruning transformations pipeline
  */
 class ov::pass::Pruning : public ov::pass::ModelPass {

@@ -5,27 +5,25 @@
 #include "dft.h"
 
 #include <string>
-#include <thread>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
+#include "dnnl_extension_utils.h"
 
-#include "ie_parallel.hpp"
-#include "ie_precision.hpp"
-#include <onednn/dnnl.h>
+#include "openvino/core/parallel.hpp"
+#include "onednn/dnnl.h"
 #include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
-#include <ngraph/opsets/opset7.hpp>
+#include "utils/ngraph_utils.hpp"
+#include <openvino/opsets/opset7.hpp>
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (isDynamicNgraphNode(op)) {
             errorMessage = "Doesn't support op with dynamic shapes";
@@ -44,36 +42,36 @@ bool DFT::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-DFT::DFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+DFT::DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
                Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     layerErrorPrefix = "DFT layer with name '" + op->get_name() + "'";
     const size_t inputsNumber = getOriginalInputsNumber();
     if (inputsNumber != 2 && inputsNumber != 3) {
-        IE_THROW() << layerErrorPrefix << " has invalid number of input/output edges: " << inputsNumber;
+        OPENVINO_THROW(layerErrorPrefix, " has invalid number of input/output edges: ", inputsNumber);
     }
 
     /* Data */
     inputShape = inputShapes[DATA_INDEX].getStaticDims();
     if (inputShape.size() < 2) {
-        IE_THROW() << layerErrorPrefix << " has invalid 'data' input tensor with rank: " << inputShape.size();
+        OPENVINO_THROW(layerErrorPrefix, " has invalid 'data' input tensor with rank: ", inputShape.size());
     }
 
     /* Axes */
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     if (axesRank != 1) {
-        IE_THROW() << layerErrorPrefix << " has invalid 'axes' input tensor with rank: " << axesRank;
+        OPENVINO_THROW(layerErrorPrefix, " has invalid 'axes' input tensor with rank: ", axesRank);
     }
 
     /* Signal size */
     if (inputsNumber > SIGNAL_SIZE_INDEX) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
-            IE_THROW() << layerErrorPrefix << " has invalid 'signal_size' input tensor with rank: " << signalSizeRank;
+            OPENVINO_THROW(layerErrorPrefix, " has invalid 'signal_size' input tensor with rank: ", signalSizeRank);
         }
     }
 
@@ -88,28 +86,30 @@ void DFT::initSupportedPrimitiveDescriptors() {
         return;
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!dataPrecision.is_float()) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'data' input precision: " << dataPrecision.name();
+    if (!dataPrecision.is_real()) {
+        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != Precision::I32 && axesPrecision != Precision::I64) {
-        IE_THROW() << layerErrorPrefix << " has unsupported 'axes' input precision: " << axesPrecision.name();
+    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
+        OPENVINO_THROW(layerErrorPrefix, " has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizeTensorPrec != Precision::I32 && signalSizeTensorPrec != Precision::I64) {
-            IE_THROW() << layerErrorPrefix << " has unsupported 'signal_size' input precision: " << signalSizeTensorPrec.name();
+        if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
+            OPENVINO_THROW(layerErrorPrefix,
+                           " has unsupported 'signal_size' input precision: ",
+                           signalSizeTensorPrec.get_type_name());
         }
     }
 
-    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, Precision::FP32},
-                                                       {LayoutType::ncsp, Precision::I32}});
+    std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, ov::element::f32},
+                                                       {LayoutType::ncsp, ov::element::i32}});
     if (inputShapes.size() > SIGNAL_SIZE_INDEX)
-        inDataConfigurators.push_back({LayoutType::ncsp,  Precision::I32});
+        inDataConfigurators.push_back({LayoutType::ncsp,  ov::element::i32});
 
-    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, Precision::FP32}}, impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConfigurators, {{LayoutType::ncsp, ov::element::f32}}, impl_desc_type::ref_any);
 }
 
 namespace {
@@ -234,13 +234,13 @@ void copyDataToOutputWithSignalSize(const float* input, const std::vector<size_t
 } // namespace
 
 void DFT::execute(dnnl::stream strm) {
-    const auto& outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     const auto inputDataEdge = getParentEdgeAt(DATA_INDEX);
     const auto outputDataEdge = getChildEdgeAt(0);
 
-    const auto src = reinterpret_cast<const float*>(inputDataEdge->getMemoryPtr()->getData());
-    auto dst = reinterpret_cast<float*>(outputDataEdge->getMemoryPtr()->getData());
+    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -525,7 +525,7 @@ void DFT::prepareParams() {
     bool hasFFT = false;
 
     axes = getAxes();
-    const auto outputShape = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
 
     for (size_t axis : axes) {
         size_t nComplex = outputShape[axis];
@@ -542,7 +542,7 @@ void DFT::prepareParams() {
 
 std::vector<int32_t> DFT::getAxes() const {
     auto axesEdge = getParentEdgeAt(AXES_INDEX);
-    const auto* axesStartPtr = reinterpret_cast<const int32_t*>(axesEdge->getMemoryPtr()->getData());
+    const auto* axesStartPtr = axesEdge->getMemoryPtr()->getDataAs<const int32_t>();
     auto axes = std::vector<int32_t>(axesStartPtr, axesStartPtr + axesEdge->getMemory().getStaticDims()[0]);
     for (auto& axis : axes) {
         if (axis < 0) {
@@ -562,7 +562,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel.reset(new jit_uni_dft_kernel_f32<cpu::x64::sse41>());
         } else {
-            IE_THROW() << "Can't create jit DFT kernel";
+            OPENVINO_THROW("Can't create jit DFT kernel");
         }
 
         if (dftKernel)
@@ -577,7 +577,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel.reset(new jit_uni_fft_kernel_f32<cpu::x64::sse41>());
         } else {
-            IE_THROW() << "Can't create jit FFT kernel";
+            OPENVINO_THROW("Can't create jit FFT kernel");
         }
 
         if (fftKernel)

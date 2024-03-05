@@ -235,6 +235,49 @@ std::vector<ReshapeParams> generateParamsForReshape() {
     return params;
 }
 
+std::vector<ReshapeParams> generateParamsForReshapeString() {
+    const auto ET = ov::element::string;
+    using T = typename element_type_traits<ov::element::string>::value_type;
+
+    std::vector<ReshapeParams> params{
+        ReshapeParams(Shape{2, 2, 3},
+                      Shape{12},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{12},
+                      Shape{2, 3, 2},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{2, 2, 3},
+                      Shape{4, 3},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{4, 3},
+                      Shape{2, 3, 2},
+                      ET,
+                      ET,
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      std::vector<T>{"A", ",b", "c. ", "d D ", " e ", "FgH", "1;2;3;", "\n ", " \n\n ", "\0", " ", "."},
+                      false),
+        ReshapeParams(Shape{1},
+                      Shape{1, 1},
+                      ET,
+                      ET,
+                      std::vector<T>{" A, a, B; b; "},
+                      std::vector<T>{" A, a, B; b; "},
+                      false)};
+    return params;
+}
+
 template <element::Type_t ET>
 std::vector<ReshapeParams> generateParamsForReshape8Bit() {
     using T = typename element_type_traits<ET>::value_type;
@@ -283,7 +326,8 @@ std::vector<ReshapeParams> generateCombinedParamsForReshape() {
                                                                 generateParamsForReshape<element::Type_t::u32>(),
                                                                 generateParamsForReshape<element::Type_t::u16>(),
                                                                 generateParamsForReshape8Bit<element::Type_t::i8>(),
-                                                                generateParamsForReshape8Bit<element::Type_t::u8>()};
+                                                                generateParamsForReshape8Bit<element::Type_t::u8>(),
+                                                                generateParamsForReshapeString()};
 
     std::vector<ReshapeParams> combinedParams;
 

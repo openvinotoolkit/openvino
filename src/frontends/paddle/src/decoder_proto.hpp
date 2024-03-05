@@ -55,6 +55,8 @@ public:
     std::map<std::string, OutputVector> map_for_each_output(
         const std::function<Output<Node>(const std::string&, size_t)>& func) const;
 
+    int64_t get_version() const override;
+
 private:
     std::vector<::paddle::framework::proto::OpDesc_Attr> decode_attribute_helper(const std::string& name) const;
     std::weak_ptr<OpPlace> op_place;

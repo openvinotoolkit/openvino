@@ -50,9 +50,7 @@ void Split::validate_and_infer_types() {
                           "Attribute 'num_splits' must be greater than zero. Got: ",
                           m_num_splits);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
     for (size_t i = 0; i < m_num_splits; ++i) {
@@ -122,9 +120,7 @@ bool Split::evaluate_upper(ov::TensorVector& output_values) const {
 bool Split::evaluate_label(TensorLabelVector& output_labels) const {
     OPENVINO_ASSERT(output_labels.size() == get_num_splits());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_input_tensor(1).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v1
 }  // namespace op

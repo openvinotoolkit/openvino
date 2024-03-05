@@ -1,109 +1,109 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "nodes/reference.h"
-#include "nodes/shapeof.h"
-#include "nodes/batch_to_space.h"
-#include "nodes/multiclass_nms.hpp"
 #include "nodes/adaptive_pooling.h"
-#include "nodes/conv.h"
-#include "nodes/roi_align.h"
-#include "nodes/lrn.h"
-#include "nodes/generic.h"
-#include "nodes/experimental_detectron_roifeatureextractor.h"
-#include "nodes/eltwise.h"
-#include "nodes/reorg_yolo.h"
-#include "nodes/pooling.h"
-#include "nodes/transpose.h"
-#include "nodes/grn.h"
-#include "nodes/interpolate.h"
-#include "nodes/experimental_detectron_detection_output.h"
-#include "nodes/roll.h"
-#include "nodes/fake_quantize.h"
-#include "nodes/embedding_segments_sum.h"
-#include "nodes/region_yolo.h"
-#include "nodes/matmul.h"
-#include "nodes/detection_output.h"
-#include "nodes/reverse_sequence.h"
-#include "nodes/pad.h"
-#include "nodes/ctc_greedy_decoder_seq_len.h"
-#include "nodes/reshape.h"
-#include "nodes/psroi_pooling.h"
-#include "nodes/memory.hpp"
+#include "nodes/batch_to_space.h"
 #include "nodes/bin_conv.h"
-#include "nodes/gather_elements.h"
-#include "nodes/experimental_detectron_priorgridgenerator.h"
-#include "nodes/tile.h"
-#include "nodes/mathematics.h"
-#include "nodes/normalize.h"
-#include "nodes/proposal.h"
-#include "nodes/tensoriterator.h"
-#include "nodes/fullyconnected.h"
-#include "nodes/extract_image_patches.h"
-#include "nodes/ctc_loss.h"
-#include "nodes/reorder.h"
-#include "nodes/gather_nd.h"
-#include "nodes/shuffle_channels.h"
-#include "nodes/bucketize.h"
-#include "nodes/space_to_depth.h"
-#include "nodes/concat.h"
-#include "nodes/softmax.h"
-#include "nodes/space_to_batch.h"
-#include "nodes/topk.h"
 #include "nodes/broadcast.h"
-#include "nodes/matrix_nms.h"
-#include "nodes/mvn.h"
-#include "nodes/gather.h"
-#include "nodes/grid_sample.hpp"
-#include "nodes/scatter_update.h"
-#include "nodes/gather_tree.h"
-#include "nodes/def_conv.h"
-#include "nodes/embedding_bag_offset_sum.h"
-#include "nodes/deconv.h"
-#include "nodes/roi_pooling.h"
-#include "nodes/range.h"
-#include "nodes/split.h"
-#include "nodes/one_hot.h"
-#include "nodes/log_softmax.h"
-#include "nodes/strided_slice.h"
-#include "nodes/dft.h"
-#include "nodes/rdft.h"
-#include "nodes/non_max_suppression.h"
-#include "nodes/convert.h"
-#include "nodes/rnn.h"
-#include "nodes/experimental_detectron_topkrois.h"
-#include "nodes/cum_sum.h"
-#include "nodes/depth_to_space.h"
-#include "nodes/input.h"
-#include "nodes/experimental_detectron_generate_proposals_single_image.h"
-#include "nodes/generate_proposals.h"
-#include "nodes/embedding_bag_packed_sum.h"
-#include "nodes/random_uniform.hpp"
-#include "nodes/reduce.h"
-#include "nodes/if.h"
-#include "nodes/ctc_greedy_decoder.h"
-#include "nodes/non_zero.h"
+#include "nodes/bucketize.h"
 #include "nodes/color_convert.h"
-#include "nodes/subgraph.h"
+#include "nodes/concat.h"
+#include "nodes/conv.h"
+#include "nodes/convert.h"
+#include "nodes/ctc_greedy_decoder.h"
+#include "nodes/ctc_greedy_decoder_seq_len.h"
+#include "nodes/ctc_loss.h"
+#include "nodes/cum_sum.h"
+#include "nodes/deconv.h"
+#include "nodes/def_conv.h"
+#include "nodes/depth_to_space.h"
+#include "nodes/detection_output.h"
+#include "nodes/dft.h"
+#include "nodes/eltwise.h"
+#include "nodes/embedding_bag_offset_sum.h"
+#include "nodes/embedding_bag_packed_sum.h"
+#include "nodes/embedding_segments_sum.h"
+#include "nodes/experimental_detectron_detection_output.h"
+#include "nodes/experimental_detectron_generate_proposals_single_image.h"
+#include "nodes/experimental_detectron_priorgridgenerator.h"
+#include "nodes/experimental_detectron_roifeatureextractor.h"
+#include "nodes/experimental_detectron_topkrois.h"
+#include "nodes/extract_image_patches.h"
+#include "nodes/eye.h"
+#include "nodes/fake_quantize.h"
+#include "nodes/fullyconnected.h"
+#include "nodes/gather.h"
+#include "nodes/gather_elements.h"
+#include "nodes/gather_nd.h"
+#include "nodes/gather_tree.h"
+#include "nodes/generate_proposals.h"
+#include "nodes/grid_sample.hpp"
+#include "nodes/grn.h"
+#include "nodes/if.h"
+#include "nodes/input.h"
+#include "nodes/interaction.h"
+#include "nodes/interpolate.h"
+#include "nodes/inverse.hpp"
+#include "nodes/log_softmax.h"
+#include "nodes/lrn.h"
+#include "nodes/mathematics.h"
+#include "nodes/matmul.h"
+#include "nodes/matrix_nms.h"
+#include "nodes/memory.hpp"
+#include "nodes/mha.h"
+#include "nodes/multiclass_nms.hpp"
+#include "nodes/multinomial.hpp"
+#include "nodes/mvn.h"
+#include "nodes/ngram.h"
+#include "nodes/non_max_suppression.h"
+#include "nodes/non_zero.h"
+#include "nodes/normalize.h"
+#include "nodes/one_hot.h"
+#include "nodes/pad.h"
+#include "nodes/pooling.h"
 #include "nodes/priorbox.h"
 #include "nodes/priorbox_clustered.h"
-#include "nodes/eye.h"
-#include "nodes/interaction.h"
-#include "nodes/mha.h"
+#include "nodes/proposal.h"
+#include "nodes/psroi_pooling.h"
+#include "nodes/random_uniform.hpp"
+#include "nodes/range.h"
+#include "nodes/rdft.h"
+#include "nodes/reduce.h"
+#include "nodes/reference.h"
+#include "nodes/region_yolo.h"
+#include "nodes/reorder.h"
+#include "nodes/reorg_yolo.h"
+#include "nodes/reshape.h"
+#include "nodes/reverse_sequence.h"
+#include "nodes/rnn.h"
+#include "nodes/roi_align.h"
+#include "nodes/roi_pooling.h"
+#include "nodes/roll.h"
+#include "nodes/rope.h"
+#include "nodes/scaled_attn.h"
+#include "nodes/scatter_update.h"
+#include "nodes/shapeof.h"
+#include "nodes/shuffle_channels.h"
+#include "nodes/softmax.h"
+#include "nodes/space_to_batch.h"
+#include "nodes/space_to_depth.h"
+#include "nodes/split.h"
+#include "nodes/strided_slice.h"
+#include "nodes/subgraph.h"
+#include "nodes/tensoriterator.h"
+#include "nodes/tile.h"
+#include "nodes/topk.h"
+#include "nodes/transpose.h"
 #include "nodes/unique.hpp"
-#include "nodes/ngram.h"
 
 namespace ov {
 namespace intel_cpu {
 
-#define INTEL_CPU_NODE(__prim, __type) \
-    registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)
+#define INTEL_CPU_NODE(__prim, __type) registerNodeIfRequired(intel_cpu, __prim, __type, NodeImpl<__prim>)
 
-Node::NodesFactory::NodesFactory()
-    : Factory("NodesFactory") {
+Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     using namespace node;
-    INTEL_CPU_NODE(Generic, Type::Generic);
     INTEL_CPU_NODE(CumSum, Type::CumSum);
     INTEL_CPU_NODE(Convolution, Type::Convolution);
     INTEL_CPU_NODE(BinaryConvolution, Type::BinaryConvolution);
@@ -134,7 +134,8 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(ReorgYolo, Type::ReorgYolo);
     INTEL_CPU_NODE(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
     INTEL_CPU_NODE(ShapeOf, Type::ShapeOf);
-    INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
+    INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage,
+                   Type::ExperimentalDetectronGenerateProposalsSingleImage);
     INTEL_CPU_NODE(GenerateProposals, Type::GenerateProposals);
     INTEL_CPU_NODE(ReverseSequence, Type::ReverseSequence);
     INTEL_CPU_NODE(ExperimentalDetectronPriorGridGenerator, Type::ExperimentalDetectronPriorGridGenerator);
@@ -160,6 +161,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Reshape, Type::Reshape);
     INTEL_CPU_NODE(MVN, Type::MVN);
     INTEL_CPU_NODE(MatMul, Type::MatMul);
+    INTEL_CPU_NODE(Multinomial, Type::Multinomial);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterElementsUpdate);
     INTEL_CPU_NODE(ScatterUpdate, Type::ScatterNDUpdate);
@@ -180,7 +182,9 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Eye, Type::Eye);
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
+    INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
+    INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);
     INTEL_CPU_NODE(Reduce, Type::Reduce);
     INTEL_CPU_NODE(Gather, Type::Gather);
@@ -198,11 +202,12 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
+    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(Snippet, Type::Subgraph);
 #endif
 }
 
 #undef INTEL_CPU_NODE
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

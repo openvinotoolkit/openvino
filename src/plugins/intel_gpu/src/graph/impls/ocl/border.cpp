@@ -16,7 +16,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     using parent = typed_primitive_impl_ocl<border>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::border_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::border_params, kernel_selector::border_optional_params>;
+    using kernel_params_t = kernel_selector::border_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::border_impl)
 
@@ -27,7 +27,6 @@ struct border_impl : typed_primitive_impl_ocl<border> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<border>();
         auto params = get_default_params<kernel_selector::border_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::border_optional_params>(impl_param.get_program());
 
         size_t rank = impl_param.get_input_layout(0).get_rank();
         format pads_format = format::adjust_to_rank(format::bfyx, rank);
@@ -102,15 +101,38 @@ struct border_impl : typed_primitive_impl_ocl<border> {
 
         params.allow_negative_pad = primitive->allow_negative_pad;
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
+        if (prim_params.inputs[0].LogicalSize() == 0) {
+            ob << true;
+        } else {
+            ob << false;
+        }
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> zero_input;
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
     }
 
 protected:
+    // WA for static impl deserialization
+    bool zero_input = false;
+
     kernel_arguments_data get_arguments(const typed_primitive_inst<border>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 
@@ -127,7 +149,8 @@ protected:
         const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
         std::vector<layout> layouts;
 
-        if (prim_params.inputs[0].LogicalSize() == 0) {
+        if ((_kernel_data.params == nullptr && zero_input) ||
+            (_kernel_data.params != nullptr && prim_params.inputs[0].LogicalSize() == 0)) {
             layout any_layout = {data_types::u8, format::bfyx, {1, 1, 1, 1}};
             layouts.push_back(any_layout);
         }

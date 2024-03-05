@@ -14,6 +14,7 @@
 #include "transformations/common_optimizations/binarize_weights.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/concat_fusion.hpp"
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
@@ -68,6 +69,7 @@
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -163,6 +165,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
+    ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, GroupNormalizationDecomposition)
@@ -219,6 +222,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertInterpolate11ToInterpolate4)
     REGISTER_PASS(manager, ConvertPad12ToPad1)
     REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
+    REGISTER_PASS(manager, ConcatFusion)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -231,7 +235,8 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     // Temporary transformation to allow for PyTorch frontend to
     // partially support bitwise operators with boolean inputs for plugins
-    // that didn't enabled BitwiseOps from opset13
+    // that didn't enabled BitwiseOps from opset13 and to allow for constant
+    // folding for bool inputs
     REGISTER_PASS(manager, ConvertBitwiseToLogical)
 
     // StridesOptimization should be at the very end

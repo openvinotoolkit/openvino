@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "ngram.h"
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "shape_inference/custom/ngram.hpp"
@@ -33,7 +33,7 @@ Ngram::Ngram(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     : Node(op, context, NgramShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
     const auto ngram = ov::as_type_ptr<const NgramNode>(op);
@@ -55,24 +55,24 @@ void Ngram::initSupportedPrimitiveDescriptors() {
         return;
 
     idcesPrecision = getOriginalInputPrecisionAtPort(1);
-    if (idcesPrecision != InferenceEngine::Precision::I32 && idcesPrecision != InferenceEngine::Precision::I64) {
-        idcesPrecision = InferenceEngine::Precision::I32;
+    if (idcesPrecision != ov::element::i32 && idcesPrecision != ov::element::i64) {
+        idcesPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, InferenceEngine::Precision::FP32},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
                           {LayoutType::ncsp, idcesPrecision}},
-                         {{LayoutType::ncsp, InferenceEngine::Precision::FP32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          ref_any);
 }
 
 void Ngram::prepareParams() {
-    const auto& srcDataDims = getParentEdgeAt(0)->getMemoryPtr()->getStaticDims();
-    const auto& srcIndicesDims = getParentEdgeAt(1)->getMemoryPtr()->getStaticDims();
-    const auto& outDims = getChildEdgeAt(0)->getMemoryPtr()->getStaticDims();;
+    const auto& srcDataDims = getSrcMemoryAtPort(0)->getStaticDims();
+    const auto& srcIndicesDims = getSrcMemoryAtPort(1)->getStaticDims();
+    const auto& outDims = getDstMemoryAtPort(0)->getStaticDims();;
 
     idcesShapeSize = std::accumulate(srcIndicesDims.begin(), srcIndicesDims.end(), 1, std::multiplies<size_t>());
     numOutElems = std::accumulate(outDims.begin(), outDims.end(), 1, std::multiplies<size_t>());
-    idcesStride = getParentEdgeAt(1)->getMemoryPtr()->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
+    idcesStride = getSrcMemoryAtPort(1)->getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
     numIdces = srcIndicesDims[0];
 
     windowStride = srcDataDims[1];
@@ -83,7 +83,7 @@ void Ngram::prepareParams() {
 
 template <typename idces_type>
 std::vector<size_t> Ngram::computeBatchLenghts() {
-    auto* srcIndices = reinterpret_cast<const idces_type*>(getParentEdgeAt(1)->getMemoryPtr()->getData());
+    auto* srcIndices = getSrcDataAtPortAs<const idces_type>(1);
 
     std::vector<size_t> batchLenghts{0};
     batchLenghts.reserve(numIdces + 1);
@@ -98,16 +98,16 @@ std::vector<size_t> Ngram::computeBatchLenghts() {
 }
 
 void Ngram::execute(dnnl::stream strm) {
-    auto* srcData = reinterpret_cast<const float*>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto* dstData = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    auto* srcData = getSrcDataAtPortAs<const float>(0);
+    auto* dstData = getDstDataAtPortAs<float>(0);
 
     std::vector<size_t> batchLenghts;
-    if (idcesPrecision == InferenceEngine::Precision::I32) {
+    if (idcesPrecision == ov::element::i32) {
         batchLenghts = computeBatchLenghts<std::int32_t>();
-    } else if (idcesPrecision == InferenceEngine::Precision::I64) {
+    } else if (idcesPrecision == ov::element::i64) {
         batchLenghts = computeBatchLenghts<std::int64_t>();
     } else {
-        IE_THROW() << "Unsupported idces precision: " << idcesPrecision;
+        OPENVINO_THROW("Unsupported idces precision: ", idcesPrecision);
     }
 
     /* The following procedure applied to each batch:

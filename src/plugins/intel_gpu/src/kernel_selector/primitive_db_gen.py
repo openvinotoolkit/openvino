@@ -168,13 +168,20 @@ class OpenCL2CHeaders(object):
         with open(filename) as f:
             content += f.readlines()
 
+        optimize_includes = True
         for line in content:
+            if line.startswith('#pragma'):
+                if "enable_includes_optimization" in line:
+                    optimize_includes = True
+                elif "disable_includes_optimization" in line:
+                    optimize_includes = False
+
             if line.startswith('#include'):
                 include_file_name = line.strip().split('"')[1].strip()
                 if ntpath.basename(include_file_name) in self.batch_headers:
                     continue
                 full_path_include = os.path.abspath(os.path.join(os.path.dirname(filename), include_file_name))
-                if full_path_include not in self.include_files[origin_file]:
+                if full_path_include not in self.include_files[origin_file] or not optimize_includes:
                     self.include_files[origin_file][full_path_include] = True
                     res += self.append_file_content(full_path_include, origin_file)
                     res += "\n"

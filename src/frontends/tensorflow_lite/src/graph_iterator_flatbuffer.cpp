@@ -96,7 +96,8 @@ std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const 
         if (type == "CUSTOM") {
             type = operator_code->custom_code()->str();
         }
-        return std::make_shared<DecoderFlatBuffer>(node, type, std::to_string(node_index), input_info, output_info);
+        auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
+        return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
     } else {
         auto tensor_id = m_nodes[node_index].as<int32_t>();
         auto tensor = (*tensors)[tensor_id];
@@ -113,3 +114,15 @@ std::shared_ptr<DecoderFlatBuffer> GraphIteratorFlatBuffer::get_decoder() const 
         return std::make_shared<DecoderFlatBufferTensors>(info, input_idx, output_idx);
     }
 }
+
+template <>
+std::basic_string<char> ov::frontend::tensorflow_lite::get_model_extension<char>() {
+    return ::tflite::ModelExtension();
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+template <>
+std::basic_string<wchar_t> ov::frontend::tensorflow_lite::get_model_extension<wchar_t>() {
+    return util::string_to_wstring(::tflite::ModelExtension());
+}
+#endif

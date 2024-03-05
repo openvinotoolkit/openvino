@@ -23,11 +23,11 @@ ParamsKey LSTMEltKernelRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsData LSTMEltKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LSTMEltKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LSTMEltKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LSTMEltKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 }  // namespace kernel_selector

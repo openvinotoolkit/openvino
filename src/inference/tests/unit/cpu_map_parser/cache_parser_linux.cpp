@@ -4,9 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <common_test_utils/test_common.hpp>
-
-#include "ie_system_conf.h"
+#include "common_test_utils/test_common.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
 
 using namespace testing;
@@ -1172,6 +1171,48 @@ LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
     },
     {},
 };
+LinuxCpuMapTestCase cache_1sockets_4cores = {
+    4,
+    1,
+    1,
+    4,
+    {{4, 4, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 0, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 1, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 1, -1},
+    },
+    {
+        {{"0"}, {"0-1"}, {"0-3"}},
+        {{"1"}, {"0-1"}, {"0-3"}},
+        {{"2"}, {"2-3"}, {"0-3"}},
+        {{"3"}, {"2-3"}, {"0-3"}},
+    },
+    {},
+};
+LinuxCpuMapTestCase cache_VM_cache_0 = {
+    0,
+    0,
+    0,
+    0,
+    {},
+    {},
+    {
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+        {{"0-31"}, {"0-31"}, {"0-31"}}, {{"0-31"}, {"0-31"}, {"0-31"}},
+    },
+    {},
+};
 
 TEST_P(LinuxCpuMapCacheParserTests, LinuxCache) {}
 
@@ -1192,7 +1233,9 @@ INSTANTIATE_TEST_SUITE_P(CPUMap,
                                          cache_1sockets_14cores_hyperthreading_1,
                                          cache_1sockets_10cores_hyperthreading,
                                          cache_1sockets_8cores_hyperthreading,
-                                         cache_1sockets_6cores_hyperthreading));
+                                         cache_1sockets_6cores_hyperthreading,
+                                         cache_1sockets_4cores,
+                                         cache_VM_cache_0));
 
 TEST_P(LinuxGetCpuMapFromCoresTests, LinuxCore) {}
 

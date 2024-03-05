@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import os
 from pathlib import Path
 
 from openvino.tools.ovc.error import Error
-import os
 
 
 def default_path():
@@ -36,48 +36,6 @@ def any_extensions_used(argv: argparse.Namespace):
         return has_non_default_path or has_non_str_objects
 
     raise Exception("Expected list of extensions, got {}.".format(type(argv.extension)))
-
-
-def legacy_extensions_used(argv: argparse.Namespace):
-    if any_extensions_used(argv):
-        extensions = argv.extension
-        legacy_ext_counter = 0
-        for extension in extensions:
-            if not isinstance(extension, str):
-                continue
-            if extension == default_path():
-                continue
-            if not Path(extension).is_file():
-                legacy_ext_counter += 1
-        if legacy_ext_counter == len(extensions):
-            return True  # provided only legacy extensions
-        elif legacy_ext_counter == 0:
-            return False  # provided only new extensions
-        else:
-            raise Error('Using new and legacy extensions in the same time is forbidden')
-    return False
-
-
-def new_extensions_used(argv: argparse.Namespace):
-    if any_extensions_used(argv):
-        extensions = argv.extension
-        if not isinstance(extensions, (list, tuple)):
-            extensions = [extensions]
-        new_ext_counter = 0
-        for extension in extensions:
-            if isinstance(extension, str):
-                path = Path(extension)
-                if path.is_file() and (path.suffix == '.so' or path.suffix == '.dll'):
-                    new_ext_counter += 1
-            else:
-                new_ext_counter += 1
-        if new_ext_counter == len(extensions):
-            return True  # provided only new extensions
-        elif new_ext_counter == 0:
-            return False  # provided only legacy extensions
-        else:
-            raise Error('Using new and legacy extensions in the same time is forbidden')
-    return False
 
 
 def get_transformations_config_path(argv: argparse.Namespace) -> Path:

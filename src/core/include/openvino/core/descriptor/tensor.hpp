@@ -18,12 +18,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
-namespace runtime {
-class HostTensor;
-}
-}  // namespace ngraph
-
 namespace ov {
 class Node;
 /// \brief Alias for label tensor.
@@ -38,22 +32,12 @@ namespace descriptor {
 
 class Tensor;
 
-OPENVINO_DEPRECATED("get_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-std::string get_ov_tensor_legacy_name(const Tensor& tensor);
-
-OPENVINO_DEPRECATED("set_ov_tensor_legacy_name() is deprecated. Please don't use this function.")
-OPENVINO_API
-void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
-
 /// \brief Compile-time descriptor of a first-class value that is a tensor.
 class OPENVINO_API Tensor {
 public:
     Tensor(const element::Type& element_type,
            const PartialShape& pshape,
            const std::unordered_set<std::string>& names = {});
-    OPENVINO_DEPRECATED("This constructor is deprecated. Please use constructor with set of names")
-    Tensor(const element::Type& element_type, const PartialShape& pshape, const std::string& name);
     Tensor(const element::Type& element_type, const PartialShape& pshape, Node* node, size_t node_output_number);
 
     Tensor(const Tensor&) = delete;
@@ -63,12 +47,6 @@ public:
     const std::unordered_set<std::string>& get_names() const;
     void set_names(const std::unordered_set<std::string>& names);
     void add_names(const std::unordered_set<std::string>& names);
-
-    OPENVINO_DEPRECATED("set_tensor_type() is deprecated. To change Tensor type please change the Parameter type")
-    void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
-    OPENVINO_DEPRECATED(
-        "set_element_type() is deprecated. To change Tensor element type please change the Parameter type")
-    void set_element_type(const element::Type& elemenet_type);
 
     /// \brief sets lower bound value description
     void set_lower_value(const ov::Tensor& value);
@@ -98,7 +76,7 @@ public:
     TensorLabel get_value_label() const {
         return m_value_label;
     }
-    /// \brief checks if lower and upper bound are set and point to the same HostTensor
+    /// \brief checks if lower and upper bound are set and point to the same Tensor
     bool has_and_set_bound() const {
         return m_upper_value && m_lower_value && m_upper_value.data() == m_lower_value.data();
     }
@@ -143,8 +121,9 @@ protected:
 
     friend OPENVINO_API std::string get_ov_tensor_legacy_name(const Tensor& tensor);
     friend OPENVINO_API void set_ov_tensor_legacy_name(Tensor& tensor, const std::string& tensor_name);
+    friend void set_element_type(Tensor& tensor, const element::Type& elemenet_type);
+    friend void set_tensor_type(Tensor& tensor, const element::Type& element_type, const PartialShape& pshape);
     friend class pass::ReverseShapeAndTypeInfer;
-    friend class ngraph::runtime::HostTensor;
 };
 
 OPENVINO_API

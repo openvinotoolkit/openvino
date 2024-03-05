@@ -40,7 +40,9 @@ class HelpFormatterWithLines(argparse.HelpFormatter):
         return lines
 
 def parse_args():
-    parser = argparse.ArgumentParser(add_help=False, formatter_class=HelpFormatterWithLines)
+    parser = argparse.ArgumentParser(
+        conflict_handler='resolve',  # Allow dla_benchmark for FPGA to override show_available_devices() for --help
+        add_help=False, formatter_class=HelpFormatterWithLines)
     args = parser.add_argument_group('Options')
     args.add_argument('-h', '--help', action=print_help, nargs='?', default=argparse.SUPPRESS,
                       help='Show this help message and exit.')
@@ -141,7 +143,7 @@ def parse_args():
 
     devp = parser.add_argument_group('Device-specific performance options')
     devp.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU, GNA '
+                      help='Number of threads to use for inference on the CPU '
                            '(including HETERO and MULTI cases).')
     devp.add_argument('-pin', '--infer_threads_pinning', type=str, required=False,  choices=['YES', 'NO', 'NUMA', 'HYBRID_AWARE'],
                       help='Optional. Enable  threads->cores (\'YES\' which is OpenVINO runtime\'s default for conventional CPUs), '
@@ -194,6 +196,4 @@ def parse_args():
                            "                     \"DEVICE_PROPERTIES\": \"{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}\"\n"
                            "                }\n"
                            "             }")
-    parsed_args = parser.parse_args()
-
-    return parsed_args, parser
+    return parser

@@ -8,41 +8,25 @@
 #include <tuple>
 #include <vector>
 #include <string>
-#include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
-#include "ov_models/builders.hpp"
+#include "transformations/init_node_info.hpp"
 #include "ov_lpt_models/concat.hpp"
-
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj) {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     std::string targetDevice;
     ConcatWithSplitTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatWithSplitTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
-
-    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(ngraph::element::u8, info.getTensorDesc(), k);
-}
 
 /*
 * FQ       FQ
@@ -53,13 +37,18 @@ InferenceEngine::Blob::Ptr ConcatWithSplitTransformation::GenerateInput(const In
 */
 
 void ConcatWithSplitTransformation::SetUp() {
-    ngraph::element::Type netPrecision;
-    ngraph::PartialShape inputShapes;
+    ov::element::Type netPrecision;
+    ov::PartialShape inputShapes;
     ConcatWithSplitTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
+    auto inputShape1 = inputShapes;
+    const size_t numSplit = 2;
+    inputShape1[1] = inputShape1[1].get_length() / numSplit;
+    init_input_shapes({ inputShape1, inputShapes });
+
+    function = ov::builder::subgraph::ConcatFunction::getOriginalWithSplitedIntermediate(
         netPrecision,
         inputShapes,
         param.fqOnData1,
@@ -68,7 +57,7 @@ void ConcatWithSplitTransformation::SetUp() {
 }
 
 TEST_P(ConcatWithSplitTransformation, CompareWithRefImpl) {
-    Run();
+    run();
 };
 
 }  // namespace LayerTestsDefinitions

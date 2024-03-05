@@ -42,6 +42,11 @@ public:
     // pair.first is reorder (may be nullptr if reorder is not needed), pair.second tells if returned reorder was cached
     // (no need to add it to 'ouputs' etc.) for pair.first == nullptr, pair.second == true
     std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
+                                                          int32_t src_port,
+                                                          const layout& in_layout,
+                                                          const layout& out_layout);
+
+    std::pair<std::shared_ptr<reorder>, bool> get_reorder(primitive_id src_id,
                                                           const layout& in_layout,
                                                           const layout& out_layout);
 
@@ -55,8 +60,14 @@ private:
         bool needs_split_reorder;
 
         friend bool operator==(cache_key const& lhs, cache_key const& rhs) {
-            return lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
-                   lhs.needs_split_reorder == rhs.needs_split_reorder;
+            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout &&
+                    lhs.needs_split_reorder == rhs.needs_split_reorder;
+
+            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+                ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                        rhs.expected_layout.format.traits().block_sizes);
+            }
+            return ret;
         }
 
         friend bool operator!=(cache_key const& lhs, cache_key const& rhs) { return !(lhs == rhs); }
@@ -66,6 +77,8 @@ private:
                 return (lhs.data_source < rhs.data_source);
             else if (lhs.expected_layout != rhs.expected_layout)
                 return (lhs.expected_layout < rhs.expected_layout);
+            else if (lhs.expected_layout.format == cldnn::format::custom)
+                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
             return lhs.needs_split_reorder < rhs.needs_split_reorder;
         }
     };

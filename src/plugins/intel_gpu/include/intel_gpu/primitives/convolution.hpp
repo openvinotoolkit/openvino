@@ -287,19 +287,19 @@ struct convolution : public primitive_base<convolution> {
         ib >> *const_cast<primitive_id*>(&compensation);
     }
 
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret = {std::ref(weights)};
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret = {weights};
         if (!bias.empty()) {
-            ret.push_back(std::ref(bias));
+            ret.push_back(bias);
         }
         if (!weights_zero_points.empty()) {
-            ret.push_back(std::ref(weights_zero_points));
+            ret.push_back(weights_zero_points);
         }
         if (!activations_zero_points.empty()) {
-            ret.push_back(std::ref(activations_zero_points));
+            ret.push_back(activations_zero_points);
         }
         if (!compensation.empty()) {
-            ret.push_back(std::ref(compensation));
+            ret.push_back(compensation);
         }
 
         return ret;
@@ -483,11 +483,11 @@ struct deformable_conv : public primitive_base<deformable_conv> {
         ib >> *const_cast<primitive_id_arr*>(&bias);
     }
 
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
+    std::vector<input_info> get_dependencies() const override {
+        std::vector<input_info> ret;
         ret.reserve(weights.size() + bias.size());
-        for (auto& w : weights) ret.push_back(std::ref(w));
-        for (auto& b : bias) ret.push_back(std::ref(b));
+        for (auto& w : weights) ret.push_back(w);
+        for (auto& b : bias) ret.push_back(b);
         return ret;
     }
 };

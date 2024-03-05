@@ -11,12 +11,12 @@
 namespace LayerTestsDefinitions {
 class AssignAndReadValueTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
 typedef std::tuple <
-    ngraph::element::Type,         // input precision
-    ngraph::PartialShape,          // input shape
+    ov::element::Type,         // input precision
+    ov::PartialShape,          // input shape
     size_t,                        // opset version
     std::string,                   // device
     ov::pass::low_precision::LayerTransformation::Params, // transformation params

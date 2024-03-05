@@ -5,74 +5,82 @@
 #include "ov_lpt_models/move_dequantization_after.hpp"
 #include "low_precision/network_helper.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include "ov_models/subgraph_builders.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 using namespace ov::pass::low_precision;
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
-    std::shared_ptr<ngraph::Function> MoveDequantizationAfterFunction::getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantization) {
-        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+    std::shared_ptr<ov::Model> MoveDequantizationAfterFunction::getOriginal(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
+        const ov::builder::subgraph::DequantizationOperations dequantization,
+        const bool typeRelaxed) {
+        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deq = makeDequantization(input, dequantization);
-        const auto op = ngraph::opset1::MaxPool(
-            deq,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
-        const auto targetOp = std::make_shared<ov::op::TypeRelaxed<opset1::MaxPool>>(
-            op,
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
+        const auto targetOp = typeRelaxed ? std::make_shared<ov::op::TypeRelaxed<ov::opset1::MaxPool>>(
+                                                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                                                std::vector<ov::element::Type>{},
+                                                deq,
+                                                Strides{1, 1},
+                                                Shape{1, 1},
+                                                Shape{0, 0},
+                                                Shape{2, 2},
+                                                ov::op::RoundingType::FLOOR)
+                                          : std::make_shared<ov::opset1::MaxPool>(deq,
+                                                                                  Strides{1, 1},
+                                                                                  Shape{1, 1},
+                                                                                  Shape{0, 0},
+                                                                                  Shape{2, 2},
+                                                                                  ov::op::RoundingType::FLOOR);
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = "targetOp";
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(targetOp) },
-            ngraph::ParameterVector{ input },
+        return std::make_shared<ov::Model>(
+            ov::ResultVector{ std::make_shared<ov::opset1::Result>(targetOp) },
+            ov::ParameterVector{ input },
             "MoveDequantizationAfterFunction");
     }
 
-    std::shared_ptr<ngraph::Function> MoveDequantizationAfterFunction::getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations dequantizationAfter) {
-        const auto input = std::make_shared<ngraph::op::v0::Parameter>(precision, inputShape);
+    std::shared_ptr<ov::Model> MoveDequantizationAfterFunction::getReference(
+        const ov::element::Type precision,
+        const ov::Shape& inputShape,
+        const ov::builder::subgraph::DequantizationOperations dequantizationBefore,
+        const ov::element::Type precisionAfterOperation,
+        const ov::builder::subgraph::DequantizationOperations dequantizationAfter,
+        const bool typeRelaxed) {
+        const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
 
         const auto deqBefore = makeDequantization(input, dequantizationBefore);
-        const auto op = ngraph::opset1::MaxPool(
-            deqBefore,
-            Strides{ 1, 1 },
-            Shape{ 1, 1 },
-            Shape{ 0, 0 },
-            Shape{ 2, 2 },
-            op::RoundingType::FLOOR);
-        const auto targetOp = std::make_shared<ov::op::TypeRelaxed<opset1::MaxPool>>(
-            op,
-            std::vector<element::Type>{ element::f32, element::f32 },
-            std::vector<element::Type>{});
-        ov::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(targetOp, precisionAfterOperation);
+        const auto targetOp = typeRelaxed ? std::make_shared<ov::op::TypeRelaxed<ov::opset1::MaxPool>>(
+                                                std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+                                                std::vector<ov::element::Type>{precisionAfterOperation},
+                                                deqBefore,
+                                                Strides{1, 1},
+                                                Shape{1, 1},
+                                                Shape{0, 0},
+                                                Shape{2, 2},
+                                                ov::op::RoundingType::FLOOR)
+                                          : std::make_shared<ov::opset1::MaxPool>(deqBefore,
+                                                                                  Strides{1, 1},
+                                                                                  Shape{1, 1},
+                                                                                  Shape{0, 0},
+                                                                                  Shape{2, 2},
+                                                                                  ov::op::RoundingType::FLOOR);
         auto& rtInfo = targetOp->get_rt_info();
         rtInfo["Variant::std::string"] = "targetOp";
 
         const auto deqAfter = makeDequantization(targetOp, dequantizationAfter);
 
-        return std::make_shared<ngraph::Function>(
-            ngraph::ResultVector{ std::make_shared<ngraph::opset1::Result>(deqAfter) },
-            ngraph::ParameterVector{ input },
+        return std::make_shared<ov::Model>(
+            ov::ResultVector{ std::make_shared<ov::opset1::Result>(deqAfter) },
+            ov::ParameterVector{ input },
             "MoveDequantizationAfterFunction");
     }
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertScatterElementsToScatter convert opset3::ScatterElementsUpdate to opset3::ScatterUpdate.
  */
 class ov::pass::ConvertScatterElementsToScatter : public ov::pass::MatcherPass {

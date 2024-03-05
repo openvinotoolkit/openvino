@@ -72,8 +72,8 @@ LRNKernelWithinChannelByxfOpt::Parent::DispatchData LRNKernelWithinChannelByxfOp
     return dispatchData;
 }
 
-bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!LRNKernelBase::Validate(p, o)) {
+bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p) const {
+    if (!LRNKernelBase::Validate(p)) {
         return false;
     }
     const lrn_params& params = static_cast<const lrn_params&>(p);
@@ -83,11 +83,11 @@ bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p, const optional_par
     return true;
 }
 
-KernelsData LRNKernelWithinChannelByxfOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData LRNKernelWithinChannelByxfOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority LRNKernelWithinChannelByxfOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority LRNKernelWithinChannelByxfOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

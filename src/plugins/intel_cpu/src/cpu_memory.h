@@ -4,20 +4,18 @@
 
 #pragma once
 
-#include "ie_layouts.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "dnnl_extension_utils.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include <onednn/dnnl.h>
 #include <cpu_shape.h>
 
-#include "memory_desc/dnnl_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 
-#include <string>
-#include <functional>
 #include <memory>
-#include <vector>
-#include <ie_precision.hpp>
+#include <mutex>
+#include <unordered_set>
 
 /**
  * @file contains a concept classes to work with memory/tensor/blob abstractions on plugin level.
@@ -76,6 +74,23 @@ public:
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
     MemoryMngrWithReuse() : m_data(nullptr, release) {}
+    void* getRawPtr() const noexcept override;
+    void setExtBuff(void* ptr, size_t size) override;
+    bool resize(size_t size) override;
+    bool hasExtBuffer() const noexcept override;
+
+private:
+    bool m_useExternalStorage = false;
+    size_t m_memUpperBound = 0ul;
+    std::unique_ptr<void, void (*)(void *)> m_data;
+
+    static void release(void *ptr);
+    static void destroy(void *ptr);
+};
+
+class MemoryMngrRealloc : public IMemoryMngr {
+public:
+    MemoryMngrRealloc() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -171,6 +186,15 @@ public:
 
     virtual void* getData() const = 0; // pointer to the actual memory
 
+    template <typename T, typename datatype = typename std::decay<T>::type>
+    T* getDataAs() const {
+        /** @todo enabling this check requires all the nodes to follow this requirement
+         * OPENVINO_ASSERT(element::from<datatype>() == getPrecision(),
+         * "Memory data element type ", getPrecision(), " is not representable as ", element::from<datatype>());
+         */
+        return static_cast<T*>(getData());
+    }
+
     virtual size_t getSize() const = 0; // in bytes
     virtual const Shape& getShape() const = 0;
     virtual const VectorDims& getStaticDims() const = 0;
@@ -186,8 +210,13 @@ public:
 
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
+
+    ov::element::Type getPrecision() const {
+        return getDesc().getPrecision();
+    }
+
     dnnl::memory::data_type getDataType() const {
-        return DnnlExtensionUtils::IEPrecisionToDataType(getDesc().getPrecision());
+        return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
 
     virtual void nullify() = 0;
@@ -257,6 +286,7 @@ private:
     size_t m_size;
     dnnl::memory m_prim;
     MemMngrPtr m_pMemMngr;
+    std::string dnnlErrorCtx;
 };
 
 class Memory : public IMemory {
@@ -347,8 +377,87 @@ private:
     }
 };
 
+class StringMemory : public IMemory {
+public:
+    using OvString = ov::element_type_traits<ov::element::string>::value_type;
+
+    class StringMemoryMngr {
+    public:
+        StringMemoryMngr() : m_data(nullptr, release) {}
+        OvString* getStringPtr() const noexcept;
+        void setExtBuff(OvString* ptr, size_t size);
+        size_t getStrLen() const noexcept;
+        void* getRawPtr() const noexcept;
+        bool resize(size_t size /* string elements number */);
+        bool hasExtBuffer() const noexcept;
+
+    private:
+        bool m_use_external_storage = false;
+        size_t m_str_upper_bound = 0lu;
+        std::unique_ptr<OvString, void (*)(OvString *)> m_data;
+
+        static void release(OvString* ptr) {}
+        static void destroy(OvString* ptr);
+    };
+
+    using StringMemoryMngrPtr = std::shared_ptr<StringMemoryMngr>;
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const void* data = nullptr);
+
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const void* data = nullptr)
+        : StringMemory(engine, desc.clone(), data) {}
+
+    StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc, const StringMemoryMngrPtr& manager)
+        : m_engine(engine), m_mem_desc(desc), m_manager(manager) {}
+
+    StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryMngrPtr& manager)
+        : StringMemory(engine, desc.clone(), manager) {}
+
+    bool isAllocated() const noexcept override;
+
+    const MemoryDesc& getDesc() const override {
+        return *m_mem_desc;
+    }
+
+    MemoryDescPtr getDescPtr() const override {
+        return m_mem_desc;
+    }
+
+    void* getData() const override;
+
+    size_t getSize() const override; // In bytes
+
+    const Shape& getShape() const override {
+        return m_mem_desc->getShape();
+    }
+
+    const VectorDims& getStaticDims() const override {
+        return m_mem_desc->getShape().getStaticDims();
+    }
+
+    void redefineDesc(MemoryDescPtr desc) override;
+
+    void load(const IMemory& src, bool ftz = false) const override;
+
+    MemoryMngrPtr getMemoryMngr() const override;
+
+    StringMemoryMngrPtr getStringMemoryMngrPtr() const {
+        return m_manager;
+    }
+
+    dnnl::memory getPrimitive() const override;
+
+    void nullify() override;
+
+private:
+    dnnl::engine m_engine;
+    MemoryDescPtr m_mem_desc;
+    StringMemoryMngrPtr m_manager;
+};
+
 using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
+using StringMemoryPtr = std::shared_ptr<StringMemory>;
 
 }   // namespace intel_cpu
 }   // namespace ov

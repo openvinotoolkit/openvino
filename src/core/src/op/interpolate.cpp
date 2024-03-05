@@ -42,10 +42,7 @@ void ov::op::v0::Interpolate::validate_and_infer_types() {
                           "output shape must be an integral number.");
     set_input_is_relevant_to_shape(1);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = ov::get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes, make_tensor_accessor());
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -124,9 +121,7 @@ void ov::op::v4::Interpolate::validate_and_infer_types() {
                           "Unsupported interpolation mode used with version 4 of the Interpolate op: ",
                           as_string(m_attrs.mode));
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes =
         shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());
@@ -197,7 +192,7 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
     const auto axes = interpolate::get_axes<PartialShape>(this, axes_port, has_axes_input, out_shape.size(), ta);
     const auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, *axes);
 
-    const auto input_et = get_input_element_type(0);
+    const auto input_et = inputs[0].get_element_type();
     const auto type_size = input_et.size();
     const auto bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
     auto padded_input_data = std::vector<uint8_t>(bytes_in_padded_input, 0);
@@ -223,23 +218,8 @@ bool ov::op::v4::Interpolate::evaluate_interpolate(TensorVector& outputs, const 
                                           m_attrs);
         break;
     case element::Type_t::f16:
-        ov::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                            padded_input_shape,
-                                            scales,
-                                            *axes,
-                                            outputs[0].data<float16>(),
-                                            out_shape,
-                                            m_attrs);
-        break;
     case element::Type_t::bf16:
-        ov::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
-                                             padded_input_shape,
-                                             scales,
-                                             *axes,
-                                             outputs[0].data<bfloat16>(),
-                                             out_shape,
-                                             m_attrs);
-        break;
+        return ov::util::evaluate_node_with_unsupported_precision(this, outputs, inputs);
     case element::Type_t::i8:
         ov::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
                                            padded_input_shape,
@@ -325,9 +305,7 @@ void op::v11::Interpolate::validate_and_infer_types() {
         validate_axes_element_type(get_input_element_type(2));
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto input_shapes = get_node_input_partial_shapes(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
 
     const auto output_shapes =
         shape_infer(this, input_shapes, m_attrs.pads_begin, m_attrs.pads_end, make_tensor_accessor());

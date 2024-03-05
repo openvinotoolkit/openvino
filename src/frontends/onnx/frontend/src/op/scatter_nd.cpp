@@ -7,21 +7,21 @@
 
 #include "op/scatter_nd.hpp"
 
-#include <memory>
-
-#include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector scatter_nd(const Node& node) {
-    OutputVector ng_inputs{node.get_ng_inputs()};
-    auto data = ng_inputs.at(0);
-    auto indices = ng_inputs.at(1);
-    auto updates = ng_inputs.at(2);
+ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
+    ov::OutputVector ov_inputs{node.get_ov_inputs()};
+    auto data = ov_inputs.at(0);
+    auto indices = ov_inputs.at(1);
+    auto updates = ov_inputs.at(2);
     if (node.has_attribute("reduction")) {
         const auto reduction = node.get_attribute_value<std::string>("reduction", "none");
         CHECK_VALID_NODE(node,
@@ -30,14 +30,11 @@ OutputVector scatter_nd(const Node& node) {
                          reduction);
     }
 
-    return {std::make_shared<default_opset::ScatterNDUpdate>(data, indices, updates)};
+    return {std::make_shared<v3::ScatterNDUpdate>(data, indices, updates)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

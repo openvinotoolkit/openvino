@@ -17,7 +17,7 @@ TRANSFORMATIONS_API void unmark_shape_subgraph(const std::shared_ptr<Node>& node
 TRANSFORMATIONS_API bool is_shape_subgraph(const std::shared_ptr<const Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief ShapeSubgraph class represents runtime info attribute that marks shape subgraphs.
  * Information whether the node belongs to the shape path or to the data path is needed during evaluate and CF.
  */

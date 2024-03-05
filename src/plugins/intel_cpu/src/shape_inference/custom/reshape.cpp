@@ -5,8 +5,7 @@
 #include "reshape.hpp"
 #include <vector>
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +21,7 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     const auto& dims = memPtr->getStaticDims();
     const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
-                                          InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                          memPtr->getDesc().getPrecision(),
                                           data,
                                           outputPatternSize,
                                           ov::util::Cast<int64_t>());
@@ -78,7 +77,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
         if (dims.size() != 0) {
             const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
             std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(
-                                                  InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                                  memPtr->getDesc().getPrecision(),
                                                   data,
                                                   outputPatternSize,
                                                   ov::util::Cast<int64_t>());
@@ -135,7 +134,7 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
     const auto& dims = memPtr->getStaticDims();
     size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<Dim>());
     std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(
-                                          InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                                          memPtr->getDesc().getPrecision(),
                                           data,
                                           outputPatternSize,
                                           ov::util::Cast<int64_t>());

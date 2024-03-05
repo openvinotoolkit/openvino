@@ -50,13 +50,13 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
             (
                     "in2{f32}->[0.0 0.0 0.0 0.0]",
-                    {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
+                    {"in1:0": np.array([[1.0, 2.0], [3.0, 4.0]])},
                     np.array([[1.0, 2.0], [3.0, 4.0]]),
                     np.float32,
             ),
             (
                     "in2->[1.0 15.0 15.5 1.0]",
-                    {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
+                    {"in1:0": np.array([[2.0, 4.0], [12.0, 8.0]])},
                     np.array([[3.0, 19.0], [27.5, 9.0]]),
                     np.float32,
             ),
@@ -82,7 +82,7 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
             (
                     "in2->[2 5 6 7 3 2]",
-                    {"in1": np.array([[2, 4, 1], [1, 2, 8]])},
+                    {"in1:0": np.array([[2, 4, 1], [1, 2, 8]])},
                     np.array([[4, 20, 6], [7, 6, 16]]),
                     np.int32,
             ),
@@ -102,13 +102,13 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
             (
                     "in2[2,3]->[True,True,False,True,True,False]",
-                    {"in1": np.array([[False, True, True], [False, True, True]], dtype=bool)},
+                    {"in1:0": np.array([[False, True, True], [False, True, True]], dtype=bool)},
                     np.array([[False, True, False], [False, True, False]], dtype=bool),
                     bool,
             ),
             (
                     "in2[]->True",
-                    {"in1": np.array([[False, True, True], [False, True, True]], dtype=bool)},
+                    {"in1:0": np.array([[False, True, True], [False, True, True]], dtype=bool)},
                     np.array([[False, True, True], [False, True, True]], dtype=bool),
                     bool,
             ),
@@ -129,21 +129,21 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
             (
                     None,
-                    {"in1": np.array([2.0, 4.0, 6.0], dtype=np.float32),
-                     "in2": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
+                    {"in1:0": np.array([2.0, 4.0, 6.0], dtype=np.float32),
+                     "in2:0": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
                     np.array([2, 4, 6], dtype=np.float32),
                     np.float32,
-                    "cond->False",
+                    "cond:0->False",
                     None,
                     True  # fill a bug to investigate why compilation of this model is hang on
             ),
             # case: input_shape + freeze_placeholder_with_value
             (
                     None,
-                    {"in2": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
+                    {"in2:0": np.array([1.0, 3.0, 5.0], dtype=np.float32)},
                     np.array([2, 4, 6], dtype=np.float32),
                     np.float32,
-                    "in1->[2.0 4.0 6.0],cond->True",
+                    "in1:0->[2.0 4.0 6.0],cond:0->True",
                     "[3]",
                     False
             ),
@@ -157,15 +157,15 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     @generate(
         *[
             (
-                    "add:0[3],z",
-                    {"add:0": np.array([4, 5, 6], dtype=np.float32), "z": np.array([1, 2, 3], dtype=np.float32)},
+                    "add:0[3],z:0",
+                    {"add:0": np.array([4, 5, 6], dtype=np.float32), "z:0": np.array([1, 2, 3], dtype=np.float32)},
                     np.array([4, 10, 18], dtype=np.float32),
                     np.float32,
                     None
             ),
             (
-                    "add:0{i32}[3],z{i32}",
-                    {"add:0": np.array([4, 5, 6], dtype=np.int32), "z": np.array([1, 2, 3], dtype=np.int32)},
+                    "add:0{i32}[3],z:0{i32}",
+                    {"add:0": np.array([4, 5, 6], dtype=np.int32), "z:0": np.array([1, 2, 3], dtype=np.int32)},
                     np.array([4, 10, 18], dtype=np.int32),
                     np.int32,
                     None
@@ -287,12 +287,12 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     @generate(
         *[
             (
-                    {"x": np.array([1, 2], dtype=np.int32), "y": np.array([4], dtype=np.int32)},
+                    {"x:0": np.array([1, 2], dtype=np.int32), "y:0": np.array([4], dtype=np.int32)},
                     np.array([-3, -2], dtype=np.int32),
                     np.int32,
             ),
             (
-                    {"x": np.array([20, 25], dtype=np.int32), "y": np.array([10], dtype=np.int32)},
+                    {"x:0": np.array([20, 25], dtype=np.int32), "y:0": np.array([10], dtype=np.int32)},
                     np.array([30, 35], dtype=np.int32),
                     np.int32,
             )

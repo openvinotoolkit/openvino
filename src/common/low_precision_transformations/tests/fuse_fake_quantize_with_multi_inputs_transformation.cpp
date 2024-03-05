@@ -31,17 +31,17 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
+        std::vector<ov::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
         ov::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     };
 
     class Expected {
     public:
-        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
+        std::vector<ov::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
         ov::element::Type precisionFakeQuantizeOnData;
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ov::Shape inputShape;
@@ -55,7 +55,7 @@ public:
     void SetUp() override {
         const FuseFakeQuantizeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+        actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
             testValues.actual.branches,
             testValues.actual.precisionFakeQuantizeOnData,
@@ -65,7 +65,7 @@ public:
         transformer.add<ov::pass::low_precision::FakeQuantizeTransformation, ov::op::v0::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+        referenceFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
             testValues.expected.branches,
             testValues.expected.precisionFakeQuantizeOnData,

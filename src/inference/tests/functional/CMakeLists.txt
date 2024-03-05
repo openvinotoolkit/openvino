@@ -10,7 +10,6 @@ endif()
 
 set(DEPENDENCIES
     mock_engine
-    template_extension
     openvino_template_extension
 )
 
@@ -36,6 +35,10 @@ if(ENABLE_AUTO_BATCH)
     list(APPEND COMPILE_DEFINITIONS ENABLE_AUTO_BATCH)
 endif()
 
+if(ENABLE_PROXY)
+    list(APPEND COMPILE_DEFINITIONS PROXY_PLUGIN_ENABLED)
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -47,7 +50,8 @@ ov_add_test_target(
         DEFINES
             ${COMPILE_DEFINITIONS}
         INCLUDES
-            $<TARGET_PROPERTY:inference_engine_obj,SOURCE_DIR>/src
+            $<TARGET_PROPERTY:openvino_runtime_obj,SOURCE_DIR>/src
+            $<$<TARGET_EXISTS:openvino_proxy_plugin_obj>:$<TARGET_PROPERTY:openvino_proxy_plugin_obj,INTERFACE_INCLUDE_DIRECTORIES>>
             ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CLANG_FORMAT
         LABELS

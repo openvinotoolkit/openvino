@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import List, Optional, Union
+from typing import List, Optional, Union, get_args
 
 import numpy as np
 from functools import partial
@@ -352,7 +352,7 @@ def constant(
 @nameable_op
 def convert(
     data: NodeInput,
-    destination_type: Union[str, NumericType],
+    destination_type: Union[str, NumericType, Type],
     name: Optional[str] = None,
 ) -> Node:
     """Return node which casts input node values to specified type.
@@ -362,12 +362,15 @@ def convert(
     :param name: Optional name for the output node.
     :return: New node performing the conversion operation.
     """
-    if not isinstance(destination_type, str):
-        destination_type = get_element_type_str(destination_type)
+    _destination_type = None  # type: Union[str, Type]
+    if isinstance(destination_type, get_args(NumericType)):
+        _destination_type = get_element_type_str(destination_type).lower()
+    else:
+        _destination_type = destination_type
     return _get_node_factory_opset1().create(
         "Convert",
         [as_node(data)],
-        {"destination_type": destination_type.lower()},
+        {"destination_type": _destination_type},
     )
 
 
@@ -1513,7 +1516,7 @@ def lstm_cell(
     default_p = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_p)
 
-    weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
+    weights_format = "fico"  # OV LSTMWeightsFormat, no such attribute in the OV spec
     input_forget = False  # nGraph default, no such attribute in the OV spec
 
     attributes = {
@@ -1599,7 +1602,7 @@ def lstm_sequence(
     default_p = make_constant_node(peepholes_array, dtype=data_dtype)
     node_inputs.append(default_p)
 
-    weights_format = "fico"  # IE LSTMWeightsFormat, no such attribute in the OV spec
+    weights_format = "fico"  # OV LSTMWeightsFormat, no such attribute in the OV spec
     input_forget = False  # nGraph default, no such attribute in the OV spec
 
     attributes = {

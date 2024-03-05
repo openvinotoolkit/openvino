@@ -4,13 +4,12 @@
 
 #include "bound_evaluate.hpp"
 
-#include "ngraph/validation_util.hpp"
 #include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "tensor_conversion_util.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/is_shape_subgraph.hpp"
 
@@ -70,6 +69,10 @@ bool are_equal(const ov::Tensor& lhs, const ov::Tensor& rhs) {
     return are_eq;
 }
 
+bool is_type_allocable(const element::Type& type) {
+    return type != element::undefined && type.is_static();
+}
+
 ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invalidate_all_unused_values = true) {
     if (is_upper && output.get_tensor().get_upper_value()) {
         return output.get_tensor().get_upper_value();
@@ -84,9 +87,11 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs.emplace_back(out);
+                } else {
+                    outputs.emplace_back();
+                }
             }
 
             if (is_upper ? node->evaluate_upper(outputs) : node->evaluate_lower(outputs)) {
@@ -166,14 +171,11 @@ bool default_bound_evaluator(const ov::Node* node,
     return node->evaluate(output_values, inputs);
 }
 
-ov::Tensor equality_mask(const ov::Tensor& tensor, const std::shared_ptr<op::v0::Constant>& constant) {
-    auto mask_out = ov::TensorVector{{element::boolean, tensor.get_shape()}};
-
-    auto c_tensor = ov::Tensor(constant->get_element_type(), constant->get_shape());
-    memcpy(c_tensor.data(), constant->get_data_ptr(), c_tensor.get_byte_size());
-
-    const auto& param = std::make_shared<op::v0::Parameter>(tensor.get_element_type(), tensor.get_shape());
-    op::v1::Equal(param, constant).evaluate(mask_out, ov::TensorVector{tensor, c_tensor});
+ov::Tensor equality_mask(const ov::Tensor& lhs, const ov::Tensor& rhs) {
+    auto mask_out = ov::TensorVector{{element::boolean, lhs.get_shape()}};
+    const auto l_param = std::make_shared<op::v0::Parameter>(lhs.get_element_type(), lhs.get_shape());
+    const auto r_param = std::make_shared<op::v0::Parameter>(rhs.get_element_type(), rhs.get_shape());
+    op::v1::Equal(l_param, r_param).evaluate(mask_out, ov::TensorVector{lhs, rhs});
     return mask_out.front();
 }
 
@@ -312,10 +314,13 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
         for (const auto& node : order) {
             ov::TensorVector outputs_lower, outputs_upper;
             for (const auto& out : node->outputs()) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                outputs_lower.push_back(util::wrap_tensor(out));
-                outputs_upper.push_back(util::wrap_tensor(out));
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                if (is_type_allocable(out.get_element_type())) {
+                    outputs_lower.emplace_back(out);
+                    outputs_upper.emplace_back(out);
+                } else {
+                    outputs_lower.emplace_back();
+                    outputs_upper.emplace_back();
+                }
             }
             if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
                 break;
@@ -391,7 +396,7 @@ bool ov::interval_bound_evaluator(const Node* node,
                node->evaluate(lower_output_values, *input_variants.begin());
 
     auto zero = op::v0::Constant::create(element::i64, {1}, {0});
-    const auto zero_t = ov::Tensor(element::i64, Shape{1});
+    const auto zero_t = ov::Tensor(element::i64, Shape{});
     *zero_t.data<int64_t>() = 0;
 
     std::vector<TensorVector> unsqueezed_output_variants;
@@ -420,19 +425,17 @@ bool ov::interval_bound_evaluator(const Node* node,
         }
         unsqueezed_output_variants.push_back(vector_of_unsqueezed_output_variants);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto input_0_maximum_value = ngraph::get_constant_max_of_type(low_0.get_element_type());
-    auto input_1_maximum_value = ngraph::get_constant_max_of_type(low_1.get_element_type());
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    if (input_0_maximum_value == nullptr || input_1_maximum_value == nullptr)
+    const auto input_0_maximum_value = ov::util::make_tensor_of_max_value(low_0.get_element_type());
+    const auto input_1_maximum_value = ov::util::make_tensor_of_max_value(low_1.get_element_type());
+    if (!input_0_maximum_value || !input_1_maximum_value)
         return false;
 
-    auto input_0_low_dyn_mask = equality_mask(low_0, input_0_maximum_value);
-    auto input_0_up_dyn_mask = equality_mask(up_0, input_0_maximum_value);
-    auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
-    auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
-    auto final_input_dyn_mask = or_tensor(or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
-                                          or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
+    const auto input_0_low_dyn_mask = equality_mask(low_0, input_0_maximum_value);
+    const auto input_0_up_dyn_mask = equality_mask(up_0, input_0_maximum_value);
+    const auto input_1_low_dyn_mask = equality_mask(low_1, input_1_maximum_value);
+    const auto input_1_up_dyn_mask = equality_mask(up_1, input_1_maximum_value);
+    const auto final_input_dyn_mask = or_tensor(or_tensor(input_0_low_dyn_mask, input_0_up_dyn_mask),
+                                                or_tensor(input_1_low_dyn_mask, input_1_up_dyn_mask));
 
     bool fully_defined = true;
     for (size_t i = 0; i < num_of_outputs; ++i) {
@@ -470,10 +473,12 @@ bool ov::interval_bound_evaluator(const Node* node,
         if (!lower_output_values[i]) {
             fully_defined = false;
         } else {
-            // Can not set to get_constant_min_of_type(lower_output_values[i]->get_element_type())
-            // yet
-            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, zero_t, lower_output_values[i]});
-            node->get_output_tensor(i).set_lower_value(lower_output_values[i]);
+            // Can not set to make_tensor_of_min_value(lower_output_values[i]->get_element_type()) yet
+            const auto then = Tensor{lower_out[0].get_element_type(), Shape{}};
+            const auto then_data = static_cast<char*>(then.data());
+            std::memset(then_data, 0, then.get_byte_size());
+            op::v1::Select().evaluate(lower_out, {final_input_dyn_mask, then, lower_out[0]});
+            node->get_output_tensor(i).set_lower_value(lower_out[0]);
         }
     }
     return fully_defined;
@@ -503,9 +508,9 @@ bool ov::tensor_is_non_negative(const Tensor& bound) {
 bool ov::tensor_has_max_value(const Tensor& bound) {
     const auto bound_constant =
         std::make_shared<op::v0::Constant>(bound.get_element_type(), bound.get_shape(), bound.data());
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto max_constant = ngraph::get_constant_max_of_type(bound.get_element_type());
-    OPENVINO_SUPPRESS_DEPRECATED_END
+
+    const auto max_values = ov::util::make_tensor_of_max_value(bound.get_element_type());
+    const auto max_constant = std::make_shared<ov::op::v0::Constant>(max_values);
     OutputVector equal(1);
 
     bool folded = std::make_shared<op::v1::Equal>(bound_constant, max_constant)
@@ -572,9 +577,7 @@ bool ov::default_label_evaluator(const Node* node,
     for (size_t i = 0; i < inputs_count; ++i) {
         if (std::find(labeled_inputs.begin(), labeled_inputs.end(), i) != labeled_inputs.end()) {
             auto labels = node->get_input_tensor(i).get_value_label();
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (!has_no_labels(labels) && !has_any_input_labels) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (!ov::util::has_no_labels(labels) && !has_any_input_labels) {
                 has_any_input_labels = true;
             }
 
@@ -602,9 +605,7 @@ bool ov::default_label_evaluator(const Node* node,
         for (size_t i = 0; i < outputs_count; ++i) {
             const auto& partial_shape = node->get_output_partial_shape(i);
             // Set shape for static or special dynamic if partial shape is dynamic.
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto shape = partial_shape.is_static() ? partial_shape.to_shape() : util::make_dynamic_shape();
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            const auto& shape = partial_shape.is_static() ? partial_shape.to_shape() : Shape{0};
             outputs.emplace_back(element::from<label_t>(), shape);
         }
 

@@ -6,7 +6,6 @@
 
 #include <string>
 
-#include <ngraph/ngraph.hpp>
 #include "ov_lpt_models/common/add.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
@@ -18,15 +17,15 @@ class FuseDequantizeToFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeAdd;
-        ngraph::builder::subgraph::Add add;
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
-        ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
+        ov::element::Type precisionBeforeAdd;
+        ov::builder::subgraph::Add add;
+        ov::element::Type precisionBeforeDequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
+        ov::element::Type precisionAfterDequantization;
+        ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeOnData;
     };
 
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
 };

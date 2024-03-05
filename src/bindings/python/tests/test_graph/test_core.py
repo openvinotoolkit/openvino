@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -7,10 +7,9 @@ import copy
 import numpy as np
 import pytest
 
-from openvino import Model, PartialShape, Shape
+from openvino import Dimension, Model, PartialShape, Shape
 
 import openvino.runtime.opset8 as ov
-from openvino.runtime import Dimension
 
 
 def test_dimension():
@@ -245,6 +244,13 @@ def test_partial_shape():
     copied_shape = copy.deepcopy(shape)
     assert shape == copied_shape, "Copied shape {0} is not equal to original shape {1}.".format(copied_shape, shape)
 
+    ps = PartialShape.dynamic(rank=3)
+    assert not ps.is_static
+    assert ps.is_dynamic
+    assert ps.rank == 3
+    assert list(ps.get_min_shape()) == [0, 0, 0]
+    assert repr(ps) == "<PartialShape: [?,?,?]>"
+
 
 def test_partial_shape_compatible():
     ps1 = PartialShape.dynamic()
@@ -327,6 +333,10 @@ def test_partial_shape_equals():
     assert shape == ps
     assert shape == ps.to_shape()
 
+    ps1 = PartialShape.dynamic(rank=3)
+    ps2 = PartialShape.dynamic(rank=3)
+    assert ps1 == ps2
+
 
 def test_input_shape_read_only():
     shape = Shape([1, 10])
@@ -341,18 +351,18 @@ def test_repr_dynamic_shape():
     shape = PartialShape([-1, 2])
     parameter_a = ov.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.parameter(shape, dtype=np.float32, name="B")
-    model = parameter_a + parameter_b
-    function = Model(model, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
+    param_sum = parameter_a + parameter_b
+    model = Model(param_sum, [parameter_a, parameter_b], "simple_dyn_shapes_graph")
 
     assert (
-        repr(function)
+        repr(model)
         == "<Model: 'simple_dyn_shapes_graph'\ninputs["
         + "\n<ConstOutput: names[A] shape[?,2] type: f32>,"
         + "\n<ConstOutput: names[B] shape[?,2] type: f32>\n]"
         + "\noutputs[\n<ConstOutput: names[] shape[?,2] type: f32>\n]>"
     )
 
-    ops = function.get_ordered_ops()
+    ops = model.get_ordered_ops()
     for op in ops:
         assert "[?,2]" in repr(op)
 

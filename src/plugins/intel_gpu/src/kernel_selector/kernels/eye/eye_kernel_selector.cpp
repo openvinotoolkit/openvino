@@ -11,8 +11,8 @@ eye_kernel_selector::eye_kernel_selector() {
     Attach<EyeKernelRef>();
 }
 
-KernelsData eye_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::EYE);
+KernelsData eye_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::EYE);
 }
 
 }  // namespace kernel_selector

@@ -59,8 +59,8 @@ JitConstants LSTMEltKernelBase::GetJitConstants(const lstm_elt_params& params) c
     return jit;
 }
 
-KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -77,7 +77,7 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto& kernel = kd.kernels[0];
     auto cldnnJit = GetJitConstants(newParams);
-    auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
     kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};

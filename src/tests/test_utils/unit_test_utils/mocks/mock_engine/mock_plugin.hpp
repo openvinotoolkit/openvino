@@ -9,10 +9,6 @@
 
 #include "openvino/runtime/iplugin.hpp"
 
-namespace InferenceEngine {
-class IInferencePlugin;
-}
-
 class MockPlugin : public ov::IPlugin {
     std::shared_ptr<ov::IPlugin> m_plugin;
     void set_parameters_if_need() const;

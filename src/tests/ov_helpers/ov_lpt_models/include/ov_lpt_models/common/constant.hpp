@@ -8,9 +8,10 @@
 #include <string>
 #include <vector>
 
-#include <ngraph/ngraph.hpp>
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -19,13 +20,13 @@ public:
     Constant();
     Constant(const float value);
     Constant(const std::vector<float>& values);
-    Constant(const std::vector<float>& values, const ngraph::element::Type outPrecision);
-    Constant(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& shape);
+    Constant(const std::vector<float>& values, const ov::element::Type outPrecision);
+    Constant(const std::vector<float>& values, const ov::element::Type outPrecision, const ov::Shape& shape);
     bool empty() const noexcept;
 
     std::vector<float> values;
-    ngraph::element::Type outPrecision;
-    ngraph::Shape shape;
+    ov::element::Type outPrecision;
+    ov::Shape shape;
     bool shapeIsDefined;
 private:
     bool isEmpty;
@@ -52,4 +53,4 @@ inline std::ostream& operator<<(std::ostream& out, const Constant& constant) {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

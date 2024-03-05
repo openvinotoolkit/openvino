@@ -41,7 +41,7 @@ public:
         }
 
         // Expected a padded input of only batch axis with 'bxxx' format
-        if (format::traits(input_layout.format)._order[0] != 0 ||
+        if (input_layout.format.dims_order()[0] != 0 ||
             input_pad.lower_size().feature[0] != 0)
             return false;
 
@@ -111,8 +111,6 @@ public:
 
 private:
     void on_execute() override;
-
-    void reuse_input();
 };
 
 using reshape_inst = typed_primitive_inst<reshape>;

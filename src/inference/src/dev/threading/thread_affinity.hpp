@@ -80,8 +80,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                int hyperThreads,
                                int ncores,
                                const CpuSet& processMask,
-                               const std::vector<int>& cpu_ids = {},
-                               int cpuIdxOffset = 0);
+                               const std::vector<int>& cpu_ids = {});
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.

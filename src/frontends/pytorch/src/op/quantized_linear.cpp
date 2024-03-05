@@ -20,16 +20,16 @@ OutputVector translate_quantized_linear(const NodeContext& context) {
     auto x = context.get_input(0);
     auto packed_params_node =
         std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(context.get_input(1).get_node_shared_ptr());
-    FRONT_END_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
+    PYTORCH_OP_CONVERSION_CHECK(packed_params_node, "Packed params input node type is required to be FrameworkNode.");
     const auto& attrs = packed_params_node->get_attrs();
-    FRONT_END_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
-                                  "Packed params input node does not contain information about op type.");
-    FRONT_END_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
-                                  "Incorrect packed params input node operator type, expected prim::GetAttr.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.find(PtFrameworkNode::op_type_key) != attrs.end()),
+                                "Packed params input node does not contain information about op type.");
+    PYTORCH_OP_CONVERSION_CHECK((attrs.at(PtFrameworkNode::op_type_key) == "prim::GetAttr"),
+                                "Incorrect packed params input node operator type, expected prim::GetAttr.");
 
     auto packed_params = packed_params_node->inputs();
-    FRONT_END_OP_CONVERSION_CHECK(packed_params.size() == 2,
-                                  "Packed parameters for quantized linear should contain 2 items.");
+    PYTORCH_OP_CONVERSION_CHECK(packed_params.size() == 2,
+                                "Packed parameters for quantized linear should contain 2 items.");
     auto weights = packed_params[0].get_source_output();
     auto bias = packed_params[1].get_source_output();
 

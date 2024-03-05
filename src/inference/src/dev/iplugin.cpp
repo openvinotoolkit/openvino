@@ -32,7 +32,7 @@ std::unordered_set<std::string> get_removed_nodes(const std::shared_ptr<const ov
 
 }  // namespace
 
-ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()), m_is_new_api(true) {}
+ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()) {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -50,24 +50,14 @@ const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 
-void ov::IPlugin::add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;
     auto locked_core = m_core.lock();
-    if (locked_core)
-        m_is_new_api = locked_core->is_new_api();
 }
 
 std::shared_ptr<ov::ICore> ov::IPlugin::get_core() const {
     return m_core.lock();
-}
-
-bool ov::IPlugin::is_new_api() const {
-    return m_is_new_api;
 }
 
 const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
@@ -142,16 +132,50 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         return !supported.count(node->input_values().begin()->get_node()->get_friendly_name());
     };
 
+    auto remove_op_from_supported = [&](const std::shared_ptr<ov::Node>& node) {
+        auto names = get_names_set(node);
+        for (auto& name : get_names_set(node)) {
+            supported.erase(name);
+        }
+    };
+
+    auto check_pairs = [](std::map<std::string, int> pair_checker) {
+        return std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<std::string, int>& val) {
+            return val.second == 2;
+        });
+    };
+
+    // Check the ops to make sure Assign and ReadValue operations in pairs on the network
+    std::map<std::string, int> pair_checker;
+    for (auto&& op : ops) {
+        if (supported.count(op->get_friendly_name())) {
+            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                if (pair_checker.count(assign->get_variable_id()) == 0) {
+                    pair_checker[assign->get_variable_id()] = 1;
+                } else {
+                    pair_checker[assign->get_variable_id()]++;
+                }
+            }
+        }
+    }
+
+    if (!check_pairs(pair_checker)) {
+        for (auto& op : ops) {
+            if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+                if (pair_checker[assign->get_variable_id()] == 1) {
+                    remove_op_from_supported(op);
+                }
+            }
+        }
+    }
+
     // Walk over transformed model for special handing of Parameters/Constants/Results
     for (auto&& op : ops) {
         // Mark Constants and all fused names as unsupported if they are have no
         // supported consumers/sources
         if (ov::op::util::is_constant(op)) {
             if (has_all_consumers_unsupported(op)) {
-                auto names = get_names_set(op);
-                for (auto& name : get_names_set(op)) {
-                    supported.erase(name);
-                }
+                remove_op_from_supported(op);
             }
         }
     }

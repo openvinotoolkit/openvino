@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ConvertPriorBox8To0;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertPriorBox8To1 converts v8::PriorBox into v0::PriorBox.
  */
 class ov::pass::ConvertPriorBox8To0 : public ov::pass::MatcherPass {

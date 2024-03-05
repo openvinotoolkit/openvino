@@ -91,8 +91,8 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params &params) con
     return Datatype::F32;
 }
 
-bool EltwiseKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::ELTWISE || o.GetType() != KernelType::ELTWISE) {
+bool EltwiseKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::ELTWISE) {
         return false;
     }
 
@@ -724,18 +724,7 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
     return dispatchData;
 }
 
-KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    KernelData kd = KernelData::Default<eltwise_params>(params);
-    eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
-
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
-    auto cldnn_jit = GetJitConstants(newParams);
-    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
+void EltwiseKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const eltwise_params&>(params);
         auto dispatchData = SetDefault(prim_params);
@@ -744,6 +733,21 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
     };
+}
+
+KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
+        return {};
+    }
+
+    KernelData kd = KernelData::Default<eltwise_params>(params);
+    eltwise_params& newParams = *static_cast<eltwise_params*>(kd.params.get());
+
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
+    auto cldnn_jit = GetJitConstants(newParams);
+    auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    GetUpdateDispatchDataFunc(kd);
 
     DispatchData dispatchData = SetDefault(newParams);
 
@@ -753,7 +757,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    bool is_dynamic = newParams.has_dynamic_tensors();
+    bool is_dynamic = newParams.is_shape_agnostic;
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,

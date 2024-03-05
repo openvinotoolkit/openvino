@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API SoftmaxDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftmaxDecomposition transformation replaces softmax with following graph:
  *
  *            +---------------+

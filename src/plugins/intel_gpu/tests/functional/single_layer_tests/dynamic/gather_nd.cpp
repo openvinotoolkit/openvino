@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/single_layer/gather_nd.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ie_precision.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include <string>
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace ngraph;
-using namespace InferenceEngine;
-using namespace ov::test;
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/gather_nd.hpp"
 
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
+
 struct GatherNDShapeParams {
     InputShape inputShapes;
     InputShape targetShapes;
@@ -22,20 +22,20 @@ struct GatherNDShapeParams {
 
 typedef std::tuple<
         GatherNDShapeParams,
-        ElementType,                     // Network precision
-        bool                            // Is const Indices
+        ov::element::Type,     // Model type
+        bool                   // Is const Indices
 > GatherNDGPUTestParams;
 
 
 class GatherNDGPUTest : public testing::WithParamInterface<GatherNDGPUTestParams>,
-                           virtual public ov::test::SubgraphBaseTest {
+                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherNDGPUTestParams> obj) {
         GatherNDShapeParams Shapes;
-        ElementType netPrecision;
+        ov::element::Type model_type;
         bool isIndicesConstant;
 
-        std::tie(Shapes, netPrecision, isIndicesConstant) = obj.param;
+        std::tie(Shapes, model_type, isIndicesConstant) = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -53,7 +53,7 @@ public:
             result << "}_";
         }
         result << "batchDims=" << Shapes.batch_dims << "_";
-        result << "netPrc=" << netPrecision << "_";
+        result << "netPrc=" << model_type << "_";
         result << "constIdx=" << (isIndicesConstant ? "True" : "False") << "_";
 
         return result.str();
@@ -62,11 +62,11 @@ public:
 protected:
     void SetUp() override {
         GatherNDShapeParams Shapes;
-        ElementType netPrecision;
+        ov::element::Type model_type;
         bool isIndicesConstant;
-        const ElementType intInputsPrecision = ElementType::i32;
+        const auto intInputsPrecision = ov::element::i32;
 
-        std::tie(Shapes, netPrecision, isIndicesConstant) = this->GetParam();
+        std::tie(Shapes, model_type, isIndicesConstant) = this->GetParam();
         const int batchDims = Shapes.batch_dims;
         targetDevice = ov::test::utils::DEVICE_GPU;
         std::shared_ptr<ov::Node> indicesNode;
@@ -78,7 +78,7 @@ protected:
             init_input_shapes({Shapes.inputShapes, Shapes.targetShapes});
         }
 
-        ngraph::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};
         params.back()->set_friendly_name("data");
 
         if (isIndicesConstant) {
@@ -88,13 +88,8 @@ protected:
                     idx_range = std::min(static_cast<int64_t>(Shapes.inputShapes.second[i][j]), idx_range);
                 }
             }
-            indicesNode = ngraph::builder::makeConstant<int64_t>(
-                ngraph::element::i64,
-                Shapes.targetShapes.second[0],
-                {},
-                true,
-                idx_range - 1,
-                0);
+            auto indices_tensor = ov::test::utils::create_and_fill_tensor(ov::element::i64, Shapes.targetShapes.second[0], idx_range - 1, 0);
+            indicesNode = std::make_shared<ov::op::v0::Constant>(indices_tensor);
         } else {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(intInputsPrecision, inputDynamicShapes[1]));
             params.back()->set_friendly_name("indices");
@@ -103,20 +98,16 @@ protected:
         gather_ndNode = std::make_shared<ov::op::v8::GatherND>(params[0],
                                                           isIndicesConstant ? indicesNode : params[1],
                                                           batchDims);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(gather_ndNode)};
-        function = std::make_shared<ngraph::Function>(results, params, "GatherND");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gather_ndNode)};
+        function = std::make_shared<ov::Model>(results, params, "GatherND");
     }
 };
 
-TEST_P(GatherNDGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(GatherNDGPUTest, Inference) {
     run();
 }
 
-namespace {
-
-const std::vector<ov::element::Type_t> netPrecisions = {
+const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
     ov::element::f16,
     ov::element::i32
@@ -158,8 +149,7 @@ const std::vector<GatherNDShapeParams> dynamicInputShapeConstTargetShape = {
 INSTANTIATE_TEST_SUITE_P(smoke_dynamic_input_shapes_const_target_shapes, GatherNDGPUTest,
                 ::testing::Combine(
                     ::testing::ValuesIn(dynamicInputShapeConstTargetShape),    // input shapes
-                    ::testing::ValuesIn(netPrecisions),          // network precision
+                    ::testing::ValuesIn(model_types),          // network precision
                     ::testing::Values(true)),                     // is const indices
                 GatherNDGPUTest::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions

@@ -5,14 +5,11 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include "ie_parallel.hpp"
+#include "openvino/core/parallel.hpp"
 #include "gather_elements.h"
-#include <ngraph/opsets/opset1.hpp>
-#include <precision_utils.h>
-#include <utils/general_utils.h>
+#include "openvino/opsets/opset1.hpp"
+#include "utils/general_utils.h"
 #include "common/cpu_memcpy.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -32,34 +29,34 @@ bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     return true;
 }
 
-GatherElements::GatherElements(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
-        IE_THROW(NotImplemented) << errorMessage;
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     errorPrefix_ = std::string("Layer GatherElements with name '") + op->get_friendly_name() + "'";
 
     if (inputShapes.size() != 2 || outputShapes.size() != 1)
-        IE_THROW() << errorPrefix_ << " has invalid number of input/output edges.";
+        OPENVINO_THROW(errorPrefix_, " has invalid number of input/output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
     if (dataRank != indicesRank)
-        IE_THROW() << errorPrefix_ << " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.";
+        OPENVINO_THROW(errorPrefix_, " has invalid input shapes. Inputs 'Data' and 'Indices' must have equal ranks.");
 
     auto gatherElementsOp = ov::as_type_ptr<ov::op::v6::GatherElements>(op);
     auto axis = gatherElementsOp->get_axis();
     if (axis < 0)
         axis += dataRank;
     if (axis < 0 || axis >= static_cast<int>(dataRank))
-        IE_THROW() << errorPrefix_ << " has invalid axis attribute: " << axis;
+        OPENVINO_THROW(errorPrefix_, " has invalid axis attribute: ", axis);
     axis_ = axis;
 }
 
 void GatherElements::prepareParams() {
-    const auto& dataDims = getParentEdgesAtPort(dataIndex_)[0]->getMemory().getStaticDims();
-    const auto& dstDims = getChildEdgesAtPort(0)[0]->getMemory().getStaticDims();
+    const auto& dataDims = getParentEdgeAt(dataIndex_)->getMemory().getStaticDims();
+    const auto& dstDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     strideAxDst_ = 1;
     for (size_t i = dstDims.size() - 1; i > axis_; i--)
         strideAxDst_ *= dstDims[i];
@@ -76,23 +73,23 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    Precision inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
+    ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
     if (!one_of(inDataPrecision.size(),
-                sizeof(PrecisionTrait<Precision::I32>::value_type),
-                sizeof(PrecisionTrait<Precision::I16>::value_type),
-                sizeof(PrecisionTrait<Precision::I8>::value_type))) {
-        IE_THROW() << errorPrefix_ << " has unsupported 'inputData' input precision: " << inDataPrecision;
+                sizeof(element_type_traits<ov::element::i32>::value_type),
+                sizeof(element_type_traits<ov::element::i16>::value_type),
+                sizeof(element_type_traits<ov::element::i8>::value_type))) {
+        OPENVINO_THROW(errorPrefix_, " has unsupported 'inputData' input precision: ", inDataPrecision);
     }
 
-    Precision indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
-    if (!one_of(indicesPrecision, Precision::I32, Precision::I64)) {
-        IE_THROW() << errorPrefix_ << " has unsupported 'indices' input precision: " << indicesPrecision;
+    ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
+    if (!one_of(indicesPrecision, ov::element::i32, ov::element::i64)) {
+        OPENVINO_THROW(errorPrefix_, " has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     dataTypeSize_ = inDataPrecision.size();
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision},
-                          {LayoutType::ncsp, Precision::I32}},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, inDataPrecision}},
                          impl_desc_type::ref_any);
 }
@@ -103,11 +100,11 @@ void GatherElements::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename dataType>
 void GatherElements::directExecution() {
-    const auto *srcData = reinterpret_cast<const dataType *>(getParentEdgeAt(dataIndex_)->getMemoryPtr()->getData());
-    const auto *indices = reinterpret_cast<const int *>(getParentEdgeAt(indicesIndex_)->getMemoryPtr()->getData());
-    auto *dstData = reinterpret_cast<dataType *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *srcData = getSrcDataAtPortAs<const dataType>(dataIndex_);
+    const auto *indices = getSrcDataAtPortAs<const int>(indicesIndex_);
+    auto *dstData = getDstDataAtPortAs<dataType>(0);
 
-    const int outSize = getChildEdgesAtPort(0)[0]->getMemory().getShape().getElementsCount();
+    const int outSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     auto threadBody = [&](const int ithr, const int nthr) {
         int start(0lu), end(0lu);
         splitter(outSize, nthr, ithr, start, end);
@@ -136,14 +133,14 @@ void GatherElements::directExecution() {
 
 void GatherElements::execute(dnnl::stream strm) {
     switch (dataTypeSize_) {
-        case sizeof(PrecisionTrait<Precision::I32>::value_type):
-            return directExecution<PrecisionTrait<Precision::I32>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I16>::value_type):
-            return directExecution<PrecisionTrait<Precision::I16>::value_type>();
-        case sizeof(PrecisionTrait<Precision::I8>::value_type):
-            return directExecution<PrecisionTrait<Precision::I8>::value_type>();
+        case sizeof(element_type_traits<ov::element::i32>::value_type):
+            return directExecution<element_type_traits<ov::element::i32>::value_type>();
+        case sizeof(element_type_traits<ov::element::i16>::value_type):
+            return directExecution<element_type_traits<ov::element::i16>::value_type>();
+        case sizeof(element_type_traits<ov::element::i8>::value_type):
+            return directExecution<element_type_traits<ov::element::i8>::value_type>();
         default:
-            return IE_THROW() << "Unsupported data type size";
+            OPENVINO_THROW("Unsupported data type size");
     }
 }
 

@@ -10,11 +10,12 @@
 namespace ov {
 namespace pass {
 class TRANSFORMATIONS_API DeReshapeMatMul;
+class TRANSFORMATIONS_API DeReshapeFullyConnected;
 }  // namespace pass
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Transformation uses symbol / label information to optimize out Reshape operations surrounding MatMul.
  * It checks that surrounding Reshapes are only manipulating with batch dimensions of tensor in a do-undo kind of way.
  *
@@ -63,4 +64,29 @@ class ov::pass::DeReshapeMatMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DeReshapeMatMul", "0");
     DeReshapeMatMul();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Transformation uses symbol / label information to optimize out Reshape operations surrounding special cases of
+ * MatMul. It checks that surrounding Reshapes are only manipulating with batch dimensions of tensor in a do-undo kind
+ * of way. The difference with previous optimization is that this case has Reshape only on one input of MatMul and the
+ * other input is strictly 2D. Such MatMuls are also called FullyConnected
+ *
+ * Example:
+ *   Before:
+ *     [A,B,4096] -> Reshape -> [A*B,4096]
+ *                                       MatMul [A*B,4608] -> Reshape -> [A,B,4608]
+ *                             [4096,4608]
+ *
+ *   After:
+ *     [A,B,4096]  ->
+ *                   MatMul -> [A,B,4608]
+ *    [4096,4608]  ->
+ *
+ */
+class ov::pass::DeReshapeFullyConnected : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("DeReshapeFullyConnected", "0");
+    DeReshapeFullyConnected();
 };

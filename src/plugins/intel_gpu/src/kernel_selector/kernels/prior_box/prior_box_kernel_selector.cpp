@@ -7,9 +7,8 @@
 #include "prior_box_kernel_ref.h"
 
 namespace kernel_selector {
-KernelsData kernel_selector::prior_box_kernel_selector::GetBestKernels(const Params& params,
-                                                                       const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::PRIOR_BOX);
+KernelsData kernel_selector::prior_box_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PRIOR_BOX);
 }
 
 prior_box_kernel_selector::prior_box_kernel_selector() {

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API RandomUniformFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief RandomUniformFusion transformation replaces RandomUniform -> Add or
  * RandomUniform -> Mul subgraph with a RandomUniform and replaces min and max const
  * with corrected values.

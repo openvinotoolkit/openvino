@@ -3,7 +3,7 @@
 
 import re
 
-from openvino.runtime import get_version as get_ie_version # pylint: disable=no-name-in-module,import-error
+from openvino.runtime import get_version as get_ie_version  # pylint: disable=no-name-in-module,import-error
 
 
 def extract_release_version(version: str):
@@ -29,11 +29,11 @@ def simplify_version(version: str):
 
 
 def get_simplified_ie_version(version=None):
-    from openvino.runtime import get_version # pylint: disable=no-name-in-module,import-error
+    from openvino.runtime import get_version  # pylint: disable=no-name-in-module,import-error
     if version is None:
         version = get_version()
 
-    # To support legacy IE versions
+    # To support legacy OV versions
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))

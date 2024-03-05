@@ -8,6 +8,8 @@ namespace ov {
 namespace test {
 namespace utils {
 
+bool is_print_rel_influence_coef = false;
+
 PassRate::PassRate(unsigned long p,
                    unsigned long f,
                    unsigned long s,
@@ -49,8 +51,6 @@ double PassRate::getRelPassrate() const {
 
 bool Summary::extendReport = false;
 bool Summary::saveReportWithUniqueName = false;
-bool Summary::isCrashReported = false;
-bool Summary::isHangReported = false;
 size_t Summary::saveReportTimeout = 0;
 const char* Summary::outputFolder = ".";
 

@@ -194,7 +194,7 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
     OPENVINO_ASSERT(all_not_zeroes(argument->stride), "[GPU] Convolution strides must be positive numbers");
     OPENVINO_ASSERT(all_not_zeroes(argument->dilation), "[GPU] Convolution dilations must be positive numbers");
 
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     auto output_size = output_layout.get_tensor();
 
@@ -265,17 +265,5 @@ convolution_inst::typed_primitive_inst(network& network, convolution_node const&
                             "input feature maps number",
                             input_layout.feature(),
                             "Weights/ifm mismatch");
-}
-
-void convolution_inst::save(cldnn::BinaryOutputBuffer& ob) const {
-    parent::save(ob);
-
-    ob << _deform_conv_dep_offset;
-}
-
-void convolution_inst::load(cldnn::BinaryInputBuffer& ib) {
-    parent::load(ib);
-
-    ib >> _deform_conv_dep_offset;
 }
 }  // namespace cldnn

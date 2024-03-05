@@ -28,12 +28,12 @@ OutputVector translate_grid_sampler(const NodeContext& context) {
         {1, v9::GridSample::PaddingMode::BORDER},
         {2, v9::GridSample::PaddingMode::REFLECTION}};
     auto mode = context.const_input<int64_t>(2);
-    FRONT_END_OP_CONVERSION_CHECK(grid_sample_mode_map.count(mode), "Unknown interpolation mode: ", mode);
+    PYTORCH_OP_CONVERSION_CHECK(grid_sample_mode_map.count(mode), "Unknown interpolation mode: ", mode);
     attrs.mode = grid_sample_mode_map.at(mode);
     auto padding_mode = context.const_input<int64_t>(3);
-    FRONT_END_OP_CONVERSION_CHECK(grid_sample_padding_mode_map.count(padding_mode),
-                                  "Unknown padding mode: ",
-                                  padding_mode);
+    PYTORCH_OP_CONVERSION_CHECK(grid_sample_padding_mode_map.count(padding_mode),
+                                "Unknown padding mode: ",
+                                padding_mode);
     attrs.padding_mode = grid_sample_padding_mode_map.at(padding_mode);
     bool align_corners = false;
     if (!context.input_is_none(4)) {

@@ -22,10 +22,8 @@ ov_add_test_target(
             ${SHARED_HEADERS_DIR}
         LINK_LIBRARIES
             unit_test_utils
-            ov_models
         DEPENDENCIES
             mock_engine
-            ov_models
         ADD_CPPLINT
         LABELS
             OV UNIT AUTO_BATCH

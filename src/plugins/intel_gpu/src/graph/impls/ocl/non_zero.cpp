@@ -17,7 +17,7 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
     using parent = typed_primitive_impl_ocl<count_nonzero>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::count_nonzero_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::count_nonzero_params, kernel_selector::count_nonzero_optional_params>;
+    using kernel_params_t = kernel_selector::count_nonzero_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::count_nonzero_impl)
 
@@ -25,15 +25,22 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         return make_unique<count_nonzero_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
-        return {params, optional_params};
+        return get_default_params<kernel_selector::count_nonzero_params>(impl_param, is_shape_agnostic);
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
@@ -41,7 +48,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     using parent = typed_primitive_impl_ocl<gather_nonzero>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gather_nonzero_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gather_nonzero_params, kernel_selector::gather_nonzero_optional_params>;
+    using kernel_params_t = kernel_selector::gather_nonzero_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_nonzero_impl)
 
@@ -49,18 +56,25 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         return make_unique<gather_nonzero_impl>(*this);
     }
 
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        if (is_dynamic()) {
+            auto& kernel_selector = kernel_selector_t::Instance();
+            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+        }
+    }
+
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
-
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.ov_input_rank = static_cast<uint32_t>(impl_param.get_input_layout().get_partial_shape().size());
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

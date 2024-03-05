@@ -18,6 +18,9 @@
 #include "register.hpp"
 #include "implementation_map.hpp"
 #include "concatenation_inst.h"
+#include "gather_inst.h"
+#include "permute_inst.h"
+#include "strided_slice_inst.h"
 
 #include <vector>
 #include <list>
@@ -33,18 +36,16 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
-    std::vector<std::string> _cached_kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
     // a pair of batch program hash and kernel entry hash of each ocl impl.
     std::pair<std::string, std::string> kernel_dump_info;
 
-    typed_primitive_impl_ocl() : _kernel_data({}), _cached_kernel_ids({}), _kernels({}) {}
+    typed_primitive_impl_ocl() : _kernel_data({}), _kernels({}) {}
 
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
-    , _cached_kernel_ids(other._cached_kernel_ids)
     , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
@@ -65,36 +66,39 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     //     [ kernel_selector::kernel_data ]
     //     [ kernel_ids ]
     void save(BinaryOutputBuffer& ob) const override {
+        primitive_impl::save(ob);
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
-        ob << _cached_kernel_ids;
+        ob << _kernel_data.kernelName;
     }
 
     void load(BinaryInputBuffer& ib) override {
+        primitive_impl::load(ib);
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
-        ib >> _cached_kernel_ids;
+        ib >> _kernel_data.kernelName;
     }
 
     template<typename ImplType>
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
-        if (impl_param.can_be_optimized() && !(impl_param.is_type<concatenation>() && impl_param.is_dynamic())) {
+        if (impl_param.can_be_optimized() &&
+            !((impl_param.is_type<concatenation>() ||
+               impl_param.is_type<gather>() ||
+               impl_param.is_type<permute>() ||
+               impl_param.is_type<strided_slice>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
-        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
-        kernel_params.first.set_dynamic_shape_offsets();
+        kernel_params.is_shape_agnostic = impl_param.is_dynamic();
+        kernel_params.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
         return make_unique<ImplType>(best_kernel);
     }
-
-private:
-    using primitive_impl::get_arguments;
 
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance) const {
@@ -143,23 +147,25 @@ protected:
             // batch program hash and kernel entry point to find corresponding cl source code
             kernel_dump_info = std::make_pair(std::to_string(kernels_cache.get_kernel_batch_hash(params)),
                                           _kernel_data.kernels[0].code.kernelString->entry_point);
+            for (size_t i = 1; i < _kernel_data.kernels.size(); ++i)
+                kernel_dump_info.second += " " + _kernel_data.kernels[i].code.kernelString->entry_point;
         }
-   }
+    }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache) override {
+    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
         if (is_cpu()) {
             return;
         }
         _kernels.clear();
 
-        _kernels.reserve(_cached_kernel_ids.size());
-        for (size_t k = 0; k < _cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(_cached_kernel_ids[k]));
+        _kernels.reserve(cached_kernel_ids.size());
+        for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
         }
     }
 
-    void set_cached_kernel_ids(const kernels_cache& kernels_cache) override {
-        _cached_kernel_ids = kernels_cache.get_cached_kernel_ids(_kernels);
+    std::vector<std::string> get_cached_kernel_ids(const kernels_cache& kernels_cache) override {
+        return {kernels_cache.get_cached_kernel_ids(_kernels)};
     }
 
     std::vector<kernel::ptr> get_kernels() const override {
@@ -223,22 +229,6 @@ protected:
         }
     }
 
-    kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
-        if (_kernels.size()) {
-            auto args = get_arguments(instance);
-            args.scalars = &_kernel_data.kernels[0].params.scalars;
-
-            for (const auto& m : instance.get_intermediates_memories()) {
-                args.intermediates.push_back(m);
-            }
-
-            return args;
-        }
-
-        kernel_arguments_data args;
-        return args;
-    }
-
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
         stream& stream = instance.get_network().get_stream();
@@ -254,8 +244,6 @@ protected:
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
-            std::vector<event::ptr> new_events;
-
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
@@ -275,10 +263,10 @@ protected:
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            new_events.push_back(ev);
+            if (_kernel_data.needs_sub_kernels_sync) {
+                tmp_events = {ev};
+            }
             all_events.push_back(ev);
-
-            tmp_events = new_events;
         }
 
         if ((all_events.size() == 0) && (tmp_events.size() > 0))

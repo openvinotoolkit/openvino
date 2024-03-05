@@ -147,7 +147,7 @@ class FrontReplacementFromConfigFileOp(FrontReplacementFromConfigFileSubGraph):
         op = Op.get_op_class_by_name(replacement_desc.op)(graph, match.custom_replacement_desc.custom_attributes)
         op.default_backend_attrs = list(match.custom_replacement_desc.custom_attributes.keys())
         if 'infer' not in op.attrs:
-            # update IE attrs
+            # update OV attrs
             op.substitute_ie_attrs(op.attrs)
             node = merge_nodes(graph, match.matched_nodes_names(), replacement_desc.get_inputs_description(),
                                replacement_desc.get_outputs_description())

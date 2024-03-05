@@ -4,13 +4,11 @@
 
 #include "one_hot.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <ngraph/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
 
 /**
  * Implements One Hot shape inference algorithm. The output shape is the input `indices` tensor shape, where a new axis
@@ -20,7 +18,7 @@ using namespace InferenceEngine;
 Result OneHotShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->getData())[0];
+    auto depth = data_dependency.at(1)->getDataAs<int32_t>()[0];
     if (depth < 0) {
         OPENVINO_THROW("OneHot depth value can't be negative.");
     }
@@ -31,7 +29,7 @@ Result OneHotShapeInfer::infer(
 }
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
-    auto oneHot = ov::as_type_ptr<const ngraph::opset1::OneHot>(m_op);
+    auto oneHot = ov::as_type_ptr<const ov::opset1::OneHot>(m_op);
     if (!oneHot) {
         OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     }

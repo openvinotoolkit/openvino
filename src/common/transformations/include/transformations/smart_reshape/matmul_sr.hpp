@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TransposeMatMul;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReshapeAMatMul and ReshapeBMatMul transformations relax hard-coded Reshape followed by MatMul operation
  * For 2D Reshape search patterns are:
  *  - MatMul(Reshape(any_input, any_input), any_input)

@@ -6,7 +6,6 @@
 
 #include "ctc_loss_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
@@ -60,9 +59,7 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               input_et);
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    const auto output_shape = shape_infer(this, ov::get_node_input_partial_shapes(*this)).front();
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
     set_output_type(0, logits_type, output_shape);
 }
 
