@@ -439,6 +439,8 @@ void network::set_arguments() {
                     return false;
                 };
 
+                // (dynamic) -> static optimizable reshape -> static optimizable reshape -> some_op
+                // In that case, it is a limit about second reshape.
                 auto prim = dep.first->get_impl_params()->desc;
                 if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
                                                       prim->type == read_value::type_id() ||
@@ -763,8 +765,7 @@ void network::allocate_primitives() {
             if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
                 opt_inst->build_deps();
             }
-            if (opt_inst->input_memory_ptr())
-                opt_inst->update_output_memory();
+            opt_inst->update_output_memory();
         }
     }
 

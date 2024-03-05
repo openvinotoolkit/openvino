@@ -187,22 +187,16 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
             _outputs = allocate_outputs();
             _mem_allocated = true;
         } else {
-            build_deps();  // reshape need deps
-            if (input_memory_ptr())
-                update_output_memory();
-        }
-    } else {
-        if (_exec_deps.size() > 0 && input_memory_ptr()) {
-            build_deps();  // reshape need deps
             update_output_memory();
         }
+    } else {
+        if (_exec_deps.size() > 0 && input_memory_ptr())
+            update_output_memory();
     }
 }
 
 void reshape_inst::on_execute() {
-    build_deps();  // reshape need deps
-    if (input_memory_ptr())
-        update_output_memory();
+    update_output_memory();
 }
 
 void reshape_inst::update_output_memory() {
@@ -212,6 +206,10 @@ void reshape_inst::update_output_memory() {
     if (_outputs[0] && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
+    build_deps();  // reshape need deps
+    if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        input_memory_ptr() == nullptr)
+        return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }
