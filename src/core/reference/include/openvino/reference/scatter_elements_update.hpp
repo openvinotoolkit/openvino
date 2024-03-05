@@ -11,6 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 
 namespace ov {
@@ -51,7 +52,7 @@ void scatter_elem_update_no_reduction(const size_t data_elem_size,
             std::inner_product(indices_cord.begin(), indices_cord.end(), indices_strides.begin(), uint64_t(0));
         Coordinate out_cord(indices_cord);
         out_cord.at(axis) = normalize_index(indices[indices_idx], data_shape[axis]);
-        const size_t out_idx = std::inner_product(out_cord.begin(), out_cord.end(), data_strides.begin(), uint64_t(0));
+        const size_t out_idx = ov::coordinate_offset(out_cord, data_strides);
         std::memcpy(out_buf + out_idx * data_elem_size, updates + indices_idx * data_elem_size, data_elem_size);
     }
 }
@@ -218,48 +219,18 @@ void scatter_elem_update_with_reduction(const int64_t* indices,
     }
 }
 
-template <
-    typename DataType,
-    typename IndicesType,
-    typename std::enable_if<std::is_same<typename std::decay<IndicesType>::type, int64_t>::value>::type* = nullptr>
-void scatter_elem_update(const DataType* input_data,
-                         const IndicesType* indices,
-                         const DataType* updates,
-                         const int64_t axis,
-                         DataType* out_buf,
-                         const Shape& data_shape,
-                         const Shape& indices_shape,
-                         const Reduction reduction_type = Reduction::NONE,
-                         const bool use_init_val = true) {
-    // Copy inputs to out
-    std::memcpy(out_buf, input_data, sizeof(DataType) * shape_size(data_shape));
+template <typename InType, typename OutType>
+const OutType* convert_indices(const InType* indices, const size_t indices_count, std::vector<OutType>& buffer) {
+    if (std::is_same<typename std::decay<InType>::type, OutType>::value)
+        return reinterpret_cast<const OutType*>(indices);
 
-    if (reduction_type != Reduction::NONE) {
-        scatter_elem_update_with_reduction(indices,
-                                           updates,
-                                           axis,
-                                           out_buf,
-                                           data_shape,
-                                           indices_shape,
-                                           reduction_type,
-                                           use_init_val);
-    } else {
-        scatter_elem_update_no_reduction(sizeof(DataType),
-                                         indices,
-                                         reinterpret_cast<const char*>(updates),
-                                         axis,
-                                         reinterpret_cast<char*>(out_buf),
-                                         data_shape,
-                                         indices_shape,
-                                         reduction_type,
-                                         use_init_val);
-    }
+    buffer.resize(indices_count);
+    for (auto i = indices_count; i-- > 0;)
+        buffer[i] = indices[i];
+    return buffer.data();
 }
 
-template <
-    typename DataType,
-    typename IndicesType,
-    typename std::enable_if<!std::is_same<typename std::decay<IndicesType>::type, int64_t>::value>::type* = nullptr>
+template <typename DataType, typename IndicesType>
 void scatter_elem_update(const DataType* input_data,
                          const IndicesType* indices,
                          const DataType* updates,
@@ -269,16 +240,13 @@ void scatter_elem_update(const DataType* input_data,
                          const Shape& indices_shape,
                          const Reduction reduction_type = Reduction::NONE,
                          const bool use_init_val = true) {
-    // Copy inputs to out
     std::memcpy(out_buf, input_data, sizeof(DataType) * shape_size(data_shape));
 
-    const auto indices_count = shape_size(indices_shape);
-    std::vector<int64_t> indices_i64(indices_count);
-    for (auto i = indices_count; i-- > 0;)
-        indices_i64[i] = indices[i];
+    std::vector<int64_t> buffer;
+    const auto indices_i64 = convert_indices(indices, shape_size(indices_shape), buffer);
 
     if (reduction_type != Reduction::NONE) {
-        scatter_elem_update_with_reduction(indices_i64.data(),
+        scatter_elem_update_with_reduction(indices_i64,
                                            updates,
                                            axis,
                                            out_buf,
@@ -288,7 +256,7 @@ void scatter_elem_update(const DataType* input_data,
                                            use_init_val);
     } else {
         scatter_elem_update_no_reduction(sizeof(DataType),
-                                         indices_i64.data(),
+                                         indices_i64,
                                          reinterpret_cast<const char*>(updates),
                                          axis,
                                          reinterpret_cast<char*>(out_buf),
