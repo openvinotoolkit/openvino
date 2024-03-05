@@ -54,7 +54,7 @@ ov::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto mul_node_p =
         ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& data = pattern_map.at(data_p);

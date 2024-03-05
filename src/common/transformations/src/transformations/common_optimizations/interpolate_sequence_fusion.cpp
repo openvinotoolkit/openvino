@@ -22,6 +22,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 using namespace ov;
@@ -211,7 +212,7 @@ ov::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<ov::op
 ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
     auto interpolate_pattern = ov::pass::pattern::wrap_type<ov::op::v4::Interpolate>();
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto snd_interpolate = std::dynamic_pointer_cast<ov::op::v4::Interpolate>(m.get_match_root());
         if (!snd_interpolate)
             return false;

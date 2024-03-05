@@ -577,7 +577,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         pattern::rank_equals(3));
     auto loop_output_label = pattern::wrap_type<op::v0::Result>({scatter_body_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto match_root = m.get_match_root();
 
@@ -1091,7 +1091,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
 
     auto concat_label = pattern::wrap_type<op::v0::Concat>({squeeze_forward_label, squeeze_reverse_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         auto lstm_forward = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_forward_label));
         auto lstm_reverse = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_reverse_label));

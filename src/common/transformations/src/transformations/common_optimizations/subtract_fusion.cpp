@@ -31,7 +31,7 @@ ov::pass::SubtractFusion::SubtractFusion() {
     auto p_add_input = pattern::any_input();
     auto p_add = ov::pass::pattern::wrap_type<ov::op::v1::Add>({p_add_input, p_mul_or_neg});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         const auto& minuend_input = pattern_to_output.at(p_add_input);
         const auto& subtrahend_input = pattern_to_output.at(p_input);

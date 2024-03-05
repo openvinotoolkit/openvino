@@ -100,8 +100,8 @@ TSSplitForward::TSSplitForward() {
 
     create_pattern<ov::op::v1::Split, ov::op::v1::VariadicSplit>(true, {0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto split_axis_constant = as_type_ptr<ov::op::v0::Constant>(main_node->input_value(1).get_node_shared_ptr());
         if (!split_axis_constant) {
             return false;
@@ -161,7 +161,7 @@ TSSplitBackward::TSSplitBackward() {
     auto transpose_const_label = wrap_type<ov::op::v0::Constant>();
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
 

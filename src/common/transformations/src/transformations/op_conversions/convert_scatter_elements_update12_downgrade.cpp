@@ -8,6 +8,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3::
     ConvertScatterElementsUpdate12ToScatterElementsUpdate3() {
@@ -15,7 +16,7 @@ ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3::
 
     const auto seu_v12_pattern = pattern::wrap_type<ov::op::v12::ScatterElementsUpdate>();
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto seu_v12 = std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(m.get_match_root());
         if (!seu_v12 || transformation_callback(seu_v12) ||
             seu_v12->get_reduction() != ov::op::v12::ScatterElementsUpdate::Reduction::NONE) {
