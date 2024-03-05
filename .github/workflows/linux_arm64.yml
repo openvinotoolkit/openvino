@@ -119,7 +119,7 @@ jobs:
           
           add-apt-repository ppa:ubuntu-toolchain-r/test
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
+          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10 software-properties-common
           
           # Use gcc-10 as a default one
           update-alternatives --remove-all gcc
