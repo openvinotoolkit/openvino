@@ -29,12 +29,13 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto node = std::dynamic_pointer_cast<ov::op::v13::ScaledDotProductAttention>(
             pattern_to_output.at(pattern_node).get_node_shared_ptr());
