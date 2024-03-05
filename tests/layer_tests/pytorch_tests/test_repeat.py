@@ -29,6 +29,7 @@ class TestRepeat(PytorchLayerTest):
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 2, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_repeat(self, repeats, ie_device, precision, ir_version):
         self._test(*self.create_model(repeats), ie_device, precision, ir_version)
 
@@ -54,6 +55,7 @@ class TestRepeatList(PytorchLayerTest):
     @pytest.mark.parametrize("repeats", [(4, 3), (1, 1), (1, 3, 3), (1, 2, 2, 3)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_repeat(self, repeats, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"repeats_shape": repeats})
@@ -76,5 +78,6 @@ class TestRepeatFromFlanT5(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_repeat_t5(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version, trace_model=True, use_convert_model=True)
