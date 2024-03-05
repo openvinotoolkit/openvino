@@ -512,10 +512,22 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(transpose);
     shapeOf->set_friendly_name("shapeOf");
 
-    auto result2 = std::make_shared<ov::op::v0::Result>(shapeOf);
-    result2->set_friendly_name("result2");
+    auto reshape_val = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    reshape_val->set_friendly_name("reshape_val");
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(shapeOf, reshape_val, true);
+    reshape->set_friendly_name("reshape");
 
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result2}, ov::ParameterVector{input});
+    auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    zero->set_friendly_name("zero");
+    auto one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    one->set_friendly_name("one");
+    auto gather = std::make_shared<ov::op::v8::Gather>(reshape, one, zero);
+    gather->set_friendly_name("gather");
+
+    auto result = std::make_shared<ov::op::v0::Result>(gather);
+    result->set_friendly_name("result");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
     const std::map<std::string, std::string> supported_ops_with_affinity = {
         {"input", "MOCK.0"},
         {"convert", "MOCK.0"},
@@ -524,27 +536,36 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
         {"constant2", "MOCK.0"},
         {"transpose", "MOCK.1"},
         {"shapeOf", "MOCK.0"},
-        {"result2", "MOCK.0"},
+        {"reshape_val", "MOCK.0"},
+        {"reshape", "MOCK.1"},
+        {"zero", "MOCK.0"},
+        {"one", "MOCK.0"},
+        {"gather", "MOCK.1"},
+        {"result", "MOCK.0"},
     };
+
+    auto check_node = [&](std::map<std::string, std::string> node_map, std::string node_name) {
+        if (node_map.find(node_name) != node_map.end()) {
+            return true;
+        }
+        return false;
+    };
+
     auto supported_ops = supported_ops_with_affinity;
     ov::hetero::SubgraphsVector ordered_subgraphs;
     ov::hetero::SubgraphsMappingInfo actual_mapping_info;
     std::tie(ordered_subgraphs, actual_mapping_info) = get_model_subgraphs(model, supported_ops, true, false);
     for (const auto& subgraph : ordered_subgraphs) {
-        bool has_transpose = false;
-        bool has_constant = false;
+        std::map<std::string, std::string> node_map;
         auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
-
         for (auto& node : sub_model->get_ordered_ops()) {
-            if (node->get_friendly_name() == "transpose") {
-                has_transpose = true;
-            }
-            if (node->get_friendly_name() == "constant2") {
-                has_constant = true;
-            }
+            node_map[node->get_friendly_name()] = subgraph._affinity;
         }
-        ASSERT_EQ(has_transpose, has_constant);
-        if (has_transpose) {
+        ASSERT_EQ(check_node(node_map, "transpose"), check_node(node_map, "constant2"));
+        ASSERT_EQ(check_node(node_map, "reshape"), check_node(node_map, "reshape_val"));
+        ASSERT_EQ(check_node(node_map, "gather"), check_node(node_map, "zero"));
+        ASSERT_EQ(check_node(node_map, "gather"), check_node(node_map, "one"));
+        if (check_node(node_map, "transpose") || check_node(node_map, "reshape") || check_node(node_map, "gather")) {
             ASSERT_EQ(subgraph._affinity, "MOCK.1");
         }
     }
