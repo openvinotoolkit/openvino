@@ -159,9 +159,9 @@ void valid_dilated_kernel_with_padding(const TOp* op,
 
 template <class TDim>
 void align_ceil_torch_dimension_size(TDim& dim,
-                                         const size_t last_pooling_start_index,
-                                         const size_t data_dim_length,
-                                         const size_t pads_begin) {
+                                     const size_t last_pooling_start_index,
+                                     const size_t data_dim_length,
+                                     const size_t pads_begin) {
     if (!(last_pooling_start_index > data_dim_length + pads_begin - 1)) {
         dim += 1;
     }
@@ -180,10 +180,7 @@ TDim disallow_pooling_start_in_padding(TDim& dim, const size_t stride, const TDi
         auto dim_max_length = dim.get_max_length();
         const auto last_pooling_max_start_index = (dim_max_length - 1) * stride;
         const auto data_dim_max_length = data_dim->get_max_length();
-        align_ceil_torch_dimension_size(dim_max_length,
-                                            last_pooling_max_start_index,
-                                            data_dim_max_length,
-                                            pads_begin);
+        align_ceil_torch_dimension_size(dim_max_length, last_pooling_max_start_index, data_dim_max_length, pads_begin);
         return TDim(dim_min_length, dim_max_length);
     }
 }
