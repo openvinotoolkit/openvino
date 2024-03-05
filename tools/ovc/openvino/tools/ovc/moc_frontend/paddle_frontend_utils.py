@@ -4,10 +4,11 @@
 import os
 import sys
 import tempfile
+# pylint: disable=no-name-in-module,import-error
 
-import paddle  # pylint: disable=import-error
 def paddle_class_check(class_str):
     try:
+        import paddle
         return eval(class_str)
     except:
         return None
@@ -63,6 +64,7 @@ class paddle_frontend_converter:
             self.pdiparams = "{}.pdiparams".format(self.model_name)
             self.pdiparams_info = "{}.pdiparams.info".format(self.model_name)
 
+            import paddle
             if paddle_model_check_instance(self.model, "paddle.hapi.model.Model"):
                 self.model.save(self.model_name, False)
             else:
