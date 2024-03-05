@@ -20,7 +20,7 @@ on:
 jobs:
   TensorFlow_Models_Tests:
     name: TensorFlow Models tests
-    timeout-minutes: ${{ inputs.model_scope != 'precommit' && 600 || 25 }}
+    timeout-minutes: ${{ inputs.model_scope != 'precommit' && 400 || 25 }}
     runs-on: ${{ inputs.runner }}
     container: ${{ fromJSON(inputs.container) }}
     defaults:
