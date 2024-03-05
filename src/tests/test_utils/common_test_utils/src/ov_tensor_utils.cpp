@@ -364,10 +364,7 @@ public:
     void update(double actual, double expected, size_t coordinate) {
         const auto diff = std::fabs(expected - actual);
 
-        const auto calculated_abs_threshold = expected ? abs_threshold * std::abs(expected) : std::abs(abs_threshold);
-        const auto calculated_rel = calculated_abs_threshold ? diff / calculated_abs_threshold : 1.;
-
-        incorrect_values_rel.emplace_back(IncorrectValue(actual, expected, calculated_rel, coordinate));
+        const auto calculated_abs_threshold = std::abs(abs_threshold) + std::abs(rel_threshold * expected);
         if (less_or_equal(diff, calculated_abs_threshold)) {
             return;
         }
@@ -389,30 +386,6 @@ public:
 #endif
             throw std::runtime_error(msg);
         }
-        if (!incorrect_values_rel.empty()) {
-            double rel_error = std::accumulate(incorrect_values_rel.begin(),
-                                               incorrect_values_rel.end(),
-                                               0,
-                                               [](double sum, IncorrectValue val) {
-                                                   return sum + val.threshold;
-                                               });
-            rel_error /= incorrect_values_rel.size();
-
-            if (!less_or_equal(rel_error, rel_threshold)) {
-                std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
-                msg += std::to_string(incorrect_values_abs.size());
-                msg += ". Please print `incorrect_values_rel` to get detailed information!";
-#ifndef NDEBUG
-                std::cout << "\nrel_error: " << rel_error << " rel_threshold: " << rel_threshold << "\n";
-                for (auto val : incorrect_values_rel) {
-                    std::cout << "Expected: " << val.expected_value << " Actual: " << val.actual_value
-                              << " Diff: " << std::fabs(val.expected_value - val.actual_value)
-                              << " calculated_rel_threshold: " << val.threshold << "\n";
-                }
-#endif
-                throw std::runtime_error(msg);
-            }
-        }
     }
 };
 
@@ -428,14 +401,12 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         return;
     }
 
-    const auto default_abs_threshold = get_eps_by_ov_type(expected.get_element_type());
+    const double default_abs_threshold = std::numeric_limits<double>::epsilon();
     if (abs_threshold == std::numeric_limits<double>::max()) {
-        abs_threshold = default_abs_threshold;
-    } else if (abs_threshold < default_abs_threshold) {
         abs_threshold = default_abs_threshold;
     }
 
-    const auto default_rel_threshold = 0.4;
+    const auto default_rel_threshold = get_eps_by_ov_type(expected.get_element_type());
     if (rel_threshold == std::numeric_limits<double>::max() || rel_threshold < default_rel_threshold) {
         rel_threshold = default_rel_threshold;
     }
