@@ -1,4 +1,4 @@
-.. {#openvino_docs_../../get-started_../../get-started_demos}
+.. {#openvino_docs_get_started_get_started_demos}
 
 Get Started with Samples
 ========================

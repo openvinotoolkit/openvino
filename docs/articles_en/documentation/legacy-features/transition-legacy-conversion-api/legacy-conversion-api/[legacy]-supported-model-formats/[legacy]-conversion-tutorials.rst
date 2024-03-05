@@ -20,7 +20,7 @@
    [legacy]-conversion-tutorials/convert-tensorflow-object-detection
    [legacy]-conversion-tutorials/convert-tensorflow-retina-net
    [legacy]-conversion-tutorials/convert-tensorflow-slim-library
-   [legacy]-conversion-tutorials/convert-tensroflow-wide-and-deep-family
+   [legacy]-conversion-tutorials/convert-tensorflow-wide-and-deep-family
    [legacy]-conversion-tutorials/convert-tensorflow-xlnet
    [legacy]-conversion-tutorials/convert-tensorflow-yolo
    [legacy]-conversion-tutorials/convert-onnx-faster-r-cnn
@@ -43,7 +43,7 @@
 
    The code described in the tutorials has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python ../../../../../learn-openvino/interactive-tutorials-python <../../../../../learn-openvino/interactive-tutorials-python>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../learn-openvino/interactive-tutorials-python>`.
 
 This section provides a set of tutorials that demonstrate conversion methods for specific
 TensorFlow, ONNX, and PyTorch models. Note that these instructions do not cover all use
@@ -55,7 +55,7 @@ Before studying the tutorials, try to convert the model out-of-the-box by specif
 
    Apache MXNet, Caffe, and Kaldi are no longer directly supported by OpenVINO.
 
-You will find a collection of :doc:`Python ../../../../../learn-openvino/interactive-tutorials-python <../../../../../learn-openvino/interactive-tutorials-python>` written for running on Jupyter notebooks
+You will find a collection of :doc:`Python tutorials <../../../../../learn-openvino/interactive-tutorials-python>` written for running on Jupyter notebooks
 that provide an introduction to the OpenVINO™ toolkit and explain how to use the Python API and tools for
 optimized deep learning inference.
 
