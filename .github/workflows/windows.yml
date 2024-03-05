@@ -152,7 +152,7 @@ jobs:
             -DBUILD_nvidia_plugin=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DENABLE_TESTS=ON `
-            -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
             -DENABLE_STRICT_DEPENDENCIES=OFF `
             -DENABLE_PYTHON=ON `
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON `
