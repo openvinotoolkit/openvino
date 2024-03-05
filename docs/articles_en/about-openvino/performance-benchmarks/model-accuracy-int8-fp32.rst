@@ -166,7 +166,7 @@ the table for more information.
      - -0.02%
      - -0.02%
      - -0.02%
-     _ -0.03%
+     - -0.03%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
@@ -174,7 +174,7 @@ the table for more information.
      - -0.02%
      - %
      - 0.09%
-     _ 0.02%
+     - 0.02%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
