@@ -48,13 +48,13 @@ Install OpenVINO™ 2024.0
 
    .. dropdown:: Distribution Comparison for OpenVINO 2024.0
 
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
-       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
-       CPU              V           V        V         V          V           V          V
-       GPU              V           V        V         V          V           V          V
-       NPU              V          n/a      n/a       n/a        n/a         n/a        n/a
-      ===============  ==========  ======  =========  ========  ============ ========== ==========
+      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan       npm
+      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
+       CPU              V           V        V         V          V           V          V          V
+       GPU              V           V        V         V          V           V          V          V
+       NPU              V           V       n/a       n/a        n/a         n/a        n/a         V
+      ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,
