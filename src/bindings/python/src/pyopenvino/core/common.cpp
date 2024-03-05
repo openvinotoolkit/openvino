@@ -338,27 +338,27 @@ void fill_tensor(ov::Tensor& tensor, py::array& array) {
 }
 
 void fill_tensor(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype) {
-    if (array.dtype() == py::dtype("float64")) {
+    if (array.dtype().is(py::dtype("float64"))) {
         fill_tensor_t<double>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("float32")) {
+    } else if (array.dtype().is(py::dtype("float32"))) {
         fill_tensor_t<float>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("float16")) {
+    } else if (array.dtype().is(py::dtype("float16"))) {
         fill_tensor_t<ov::float16>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("int64")) {
+    } else if (array.dtype().is(py::dtype("int64"))) {
         fill_tensor_t<int64_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("int32")) {
+    } else if (array.dtype().is(py::dtype("int32"))) {
         fill_tensor_t<int32_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("int16")) {
+    } else if (array.dtype().is(py::dtype("int16"))) {
         fill_tensor_t<int16_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("int8")) {
+    } else if (array.dtype().is(py::dtype("int8"))) {
         fill_tensor_t<int8_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("uint64")) {
+    } else if (array.dtype().is(py::dtype("uint64"))) {
         fill_tensor_t<uint64_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("uint32")) {
+    } else if (array.dtype().is(py::dtype("uint32"))) {
         fill_tensor_t<uint32_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("uint16")) {
+    } else if (array.dtype().is(py::dtype("uint16"))) {
         fill_tensor_t<uint16_t>(tensor, array, dst_dtype);
-    } else if (array.dtype() == py::dtype("uint8")) {
+    } else if (array.dtype().is(py::dtype("uint8"))) {
         fill_tensor_t<uint8_t>(tensor, array, dst_dtype);
     } else {
         OPENVINO_THROW("Unsupported dtype passed!");
