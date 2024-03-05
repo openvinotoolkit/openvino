@@ -139,7 +139,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     auto var = inputs.at(4);
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
-    int training_mode{node.get_attribute_value<int>("training_mode", 0)};
+    int64_t training_mode{node.get_attribute_value<int64_t>("training_mode", 0)};
 
     CHECK_VALID_NODE(node,
                      training_mode == false && node.get_outputs_size() == 1,
@@ -158,7 +158,7 @@ ov::OutputVector batch_norm(const ov::frontend::onnx::Node& node) {
     auto var = inputs.at(4);
 
     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};
-    int training_mode{node.get_attribute_value<int>("training_mode", 0)};
+    int64_t training_mode{node.get_attribute_value<int64_t>("training_mode", 0)};
 
     CHECK_VALID_NODE(node,
                      training_mode == false && node.get_outputs_size() == 1,
