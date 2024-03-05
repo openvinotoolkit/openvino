@@ -45,7 +45,7 @@ Installing OpenVINO Node.js
 .. note::
 
    The *openvino-node* npm package runs in Node.js environment only and provides
-   a subset of :doc:`OpenVINO Runtime C++ API <../../api/c_cpp_api/group__ov__cpp__api>`.
+   a subset of `OpenVINO Runtime C++ API <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__cpp__api.html>`__.
 
 What's Next?
 ####################
