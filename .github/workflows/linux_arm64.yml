@@ -117,7 +117,7 @@ jobs:
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt install --assume-yes --no-install-recommends default-jdk gcc-10-aarch64-linux-gnu g++-10-aarch64-linux-gnu          
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
