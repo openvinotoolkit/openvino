@@ -25,6 +25,16 @@ dependencies = [
     "packaging",
 ]
 
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+###
+# Tools configs
+###
+[tool.black]
+line-length = 160
+include = '\.pyi?$'
+
 [tool.pdm]
 plugins = [
     "-e file:///${PROJECT_ROOT}/pdm-custom-plugins/"
@@ -121,12 +131,3 @@ pdm_hacks = [
 [tool.pdm.scripts]
 ov-runtime-tests = "pytest ./tests/test_runtime/"  # try to add -s -v into cli!
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-###
-# Tools configs
-###
-[tool.black]
-line-length = 160
-include = '\.pyi?$'
