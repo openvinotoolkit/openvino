@@ -158,7 +158,7 @@ void valid_dilated_kernel_with_padding(const TOp* op,
                                        const size_t axis) {}
 
 template <class TDim>
-void get_valid_ceil_torch_dimension_size(TDim& dim,
+void align_ceil_torch_dimension_size(TDim& dim,
                                          const size_t last_pooling_start_index,
                                          const size_t data_dim_length,
                                          const size_t pads_begin) {
@@ -173,14 +173,14 @@ TDim disallow_pooling_start_in_padding(TDim& dim, const size_t stride, const TDi
     auto dim_min_length = dim.get_min_length();
     const auto last_pooling_min_start_index = (dim_min_length - 1) * stride;
     const auto data_dim_min_length = data_dim->get_min_length();
-    get_valid_ceil_torch_dimension_size(dim_min_length, last_pooling_min_start_index, data_dim_min_length, pads_begin);
+    align_ceil_torch_dimension_size(dim_min_length, last_pooling_min_start_index, data_dim_min_length, pads_begin);
     if (data_dim->is_static()) {
         return TDim(dim_min_length);
     } else {
         auto dim_max_length = dim.get_max_length();
         const auto last_pooling_max_start_index = (dim_max_length - 1) * stride;
         const auto data_dim_max_length = data_dim->get_max_length();
-        get_valid_ceil_torch_dimension_size(dim_max_length,
+        align_ceil_torch_dimension_size(dim_max_length,
                                             last_pooling_max_start_index,
                                             data_dim_max_length,
                                             pads_begin);
