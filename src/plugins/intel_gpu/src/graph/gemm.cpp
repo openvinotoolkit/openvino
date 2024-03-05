@@ -125,8 +125,13 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
         input1_layout.get<ShapeType>()
     };
 
-    std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op, input_shapes,
-                                    prim->input0_order, prim->input1_order, prim->output_order);
+    std::vector<ShapeType> output_shapes = ov::intel_gpu::op::shape_infer(&op,
+                                                                          input_shapes,
+                                                                          prim->input0_target_shape,
+                                                                          prim->input1_target_shape,
+                                                                          prim->input0_order,
+                                                                          prim->input1_order,
+                                                                          prim->output_order);
 
     cldnn::format output_format = input0_layout.format;
     if (node.get_preferred_output_fmt() != format::any)

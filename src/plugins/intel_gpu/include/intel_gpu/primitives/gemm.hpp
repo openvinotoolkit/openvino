@@ -54,6 +54,8 @@ struct gemm : public primitive_base<gemm> {
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
           transpose_input0(transpose_input0 ? 1 : 0),
           transpose_input1(transpose_input1 ? 1 : 0),
+          input0_target_shape({}),
+          input1_target_shape({}),
           alpha(alpha),
           beta(beta),
           input_rank(input_rank),
@@ -86,6 +88,8 @@ struct gemm : public primitive_base<gemm> {
     gemm(const primitive_id& id,
          const std::vector<input_info>& inputs,
          const data_types data_type,
+         const std::vector<int32_t>& input0_target_shape = {},
+         const std::vector<int32_t>& input1_target_shape = {},
          const std::vector<int64_t>& input0_order = {0, 1, 2, 3},
          const std::vector<int64_t>& input1_order = {0, 1, 2, 3},
          const std::vector<int64_t>& output_order = {},
@@ -93,6 +97,8 @@ struct gemm : public primitive_base<gemm> {
          const float beta = 0.0f,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+          input0_target_shape(input0_target_shape),
+          input1_target_shape(input1_target_shape),
           input0_order(input0_order),
           input1_order(input1_order),
           output_order(output_order),
@@ -121,6 +127,8 @@ struct gemm : public primitive_base<gemm> {
          const float beta = 0.0f,
          const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
+          input0_target_shape({}),
+          input1_target_shape({}),
           input0_order(input0_order),
           input1_order(input1_order),
           output_order(output_order),
@@ -143,6 +151,10 @@ struct gemm : public primitive_base<gemm> {
     uint32_t transpose_input0 = 0;
     /// @brief Flag for transposing second input matrix
     uint32_t transpose_input1 = 0;
+    /// @brief broadcasted target shape of input 0
+    std::vector<int32_t> input0_target_shape;
+    /// @brief broadcasted target shape of input 1
+    std::vector<int32_t> input1_target_shape;
     /// @brief order of input 0
     std::vector<int64_t> input0_order;
     /// @brief order of input 1
@@ -169,12 +181,11 @@ struct gemm : public primitive_base<gemm> {
         seed = hash_combine(seed, transpose_input1);
         seed = hash_combine(seed, indirect_a);
         seed = hash_combine(seed, indirect_b);
-        for (auto order : input0_order)
-            seed = hash_combine(seed, order);
-        for (auto order : input1_order)
-            seed = hash_combine(seed, order);
-        for (auto order : output_order)
-            seed = hash_combine(seed, order);
+        seed = hash_range(seed, input0_target_shape.begin(), input0_target_shape.end());
+        seed = hash_range(seed, input1_target_shape.begin(), input1_target_shape.end());
+        seed = hash_range(seed, input0_order.begin(), input0_order.end());
+        seed = hash_range(seed, input1_order.begin(), input1_order.end());
+        seed = hash_range(seed, output_order.begin(), output_order.end());
         seed = hash_combine(seed, alpha);
         seed = hash_combine(seed, beta);
         return seed;
@@ -200,6 +211,8 @@ struct gemm : public primitive_base<gemm> {
         primitive_base<gemm>::save(ob);
         ob << transpose_input0;
         ob << transpose_input1;
+        ob << input0_target_shape;
+        ob << input1_target_shape;
         ob << input0_order;
         ob << input1_order;
         ob << output_order;
@@ -217,6 +230,8 @@ struct gemm : public primitive_base<gemm> {
         primitive_base<gemm>::load(ib);
         ib >> transpose_input0;
         ib >> transpose_input1;
+        ib >> input0_target_shape;
+        ib >> input1_target_shape;
         ib >> input0_order;
         ib >> input1_order;
         ib >> output_order;

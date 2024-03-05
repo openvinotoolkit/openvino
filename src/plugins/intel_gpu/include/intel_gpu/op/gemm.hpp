@@ -32,6 +32,8 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
+    std::vector<int32_t> get_input0_target_shape() const { return m_target_shape_a; }
+    std::vector<int32_t> get_input1_target_shape() const { return m_target_shape_b; }
     std::vector<int64_t> get_input0_order() const { return m_order_a; }
     std::vector<int64_t> get_input1_order() const { return m_order_b; }
     std::vector<int64_t> get_output_order() const { return m_order_c; }
@@ -44,6 +46,8 @@ public:
     }
 
 protected:
+    std::vector<int32_t> m_target_shape_a;
+    std::vector<int32_t> m_target_shape_b;
     std::vector<int64_t> m_order_a;
     std::vector<int64_t> m_order_b;
     std::vector<int64_t> m_order_c;
@@ -52,6 +56,8 @@ protected:
 
 std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           std::vector<ov::PartialShape> input_shapes,
+                                          const std::vector<int32_t>& target_shape_a,
+                                          const std::vector<int32_t>& target_shape_b,
                                           const std::vector<int64_t>& order_a,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c);

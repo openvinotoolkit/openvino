@@ -4,8 +4,10 @@
 
 #include "intel_gpu/op/gemm.hpp"
 #include "matmul_shape_inference.hpp"
+#include "broadcast_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/broadcast.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -42,7 +44,13 @@ void Gemm::validate_and_infer_types() {
         input_size,
         ", expected 2.");
 
-    auto out_shapes = shape_infer(this, std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)}, m_order_a, m_order_b, m_order_c);
+    auto out_shapes = shape_infer(this,
+                                  std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
+                                  m_target_shape_a,
+                                  m_target_shape_b,
+                                  m_order_a,
+                                  m_order_b,
+                                  m_order_c);
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
@@ -58,6 +66,8 @@ bool Gemm::visit_attributes(ov::AttributeVisitor &visitor) {
 
 std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           std::vector<ov::PartialShape> input_shapes,
+                                          const std::vector<int32_t>& target_shape_a,
+                                          const std::vector<int32_t>& target_shape_b,
                                           const std::vector<int64_t>& order_a,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c) {
@@ -69,11 +79,26 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
 
         return shape_transposed;
     };
+    auto broadcast_shape = [](const ov::PartialShape shape, const std::vector<int32_t>& target_shape) {
+        ov::op::v3::Broadcast broadcast;
+        auto tshape = target_shape;
+        broadcast.set_broadcast_spec(ov::op::BroadcastType::BIDIRECTIONAL);
+        std::unordered_map<size_t, ov::Tensor> const_data;
+        const_data.emplace(1, ov::Tensor(ov::element::i32, ov::Shape{tshape.size()}, static_cast<void*>(tshape.data())));
+        return ov::op::v3::shape_infer(&broadcast,
+                                       std::vector<ov::PartialShape>{shape, ov::PartialShape(ov::Shape{tshape.size()})},
+                                       ov::make_tensor_accessor(const_data));
+    };
     auto shape_a = input_shapes[0];
     auto shape_b = input_shapes[1];
 
-    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a, order_a) : shape_a;
-    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b, order_b) : shape_b;
+    // broadcasted shapes
+    auto shape_a_b = (target_shape_a.size() > 1) ? broadcast_shape(shape_a, target_shape_a)[0] : shape_a;
+    auto shape_b_b = (target_shape_b.size() > 1) ? broadcast_shape(shape_b, target_shape_b)[0] : shape_b;
+
+    // transposed shapes
+    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a_b, order_a) : shape_a_b;
+    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b_b, order_b) : shape_b_b;
     auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {
