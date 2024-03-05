@@ -354,7 +354,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
     if ov_type is Type.bf16:
         assert result[0].dtype == np.float32
         tmp_const = ops.constant(np.concatenate((array0, array1)), dtype=Type.bf16)
-        expected_bf16_result= np.array(tmp_const.get_value_strings(), dtype=np.float32)
+        expected_bf16_result = np.array(tmp_const.get_value_strings(), dtype=np.float32)
         assert np.array_equal(request.output_tensors[0].cast_data(Type.f32), expected_bf16_result)
     else:
         assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor.data, array1)))
