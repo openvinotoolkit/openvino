@@ -138,7 +138,6 @@ class Test_hello_classification(SamplesCommonTestClass):
 
                 new_model_path = tmp_model_dir / (original_model_name + f"_{model_name.decode('utf-8')}.xml")
                 model_path.rename(new_model_path)
-                Path(str(model_path).replace('.xml', '.bin')).rename(Path(str(new_model_path).replace('.xml', '.bin')))
                 stdout = get_cmd_output(executable_path, new_model_path, image_path, param['d'])
                 probs = []
                 for line in stdout.split(sep='\n'):
