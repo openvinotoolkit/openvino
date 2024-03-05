@@ -176,5 +176,8 @@ private:
 };
 }  // namespace v14
 bool has_evaluate_util(ov::element::Type);
+namespace pooling {
+int64_t get_normalized_axis(const ov::op::util::MaxPoolBase*, const int64_t);
+}  // namespace pooling
 }  // namespace op
 }  // namespace ov

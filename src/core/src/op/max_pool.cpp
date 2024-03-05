@@ -13,12 +13,12 @@
 namespace ov {
 namespace op {
 namespace pooling {
-template <class Top>
-void normalize_axis_if_static_input_rank(int64_t& axis, const Top& node, const ov::Rank& input_shape_rank) {
-    if (input_shape_rank.is_static()) {
-        axis = ov::util::normalize_axis(node, axis, input_shape_rank);
-    }
+
+int64_t get_normalized_axis(const ov::op::util::MaxPoolBase* op, const int64_t axis) {
+    const auto rank = op->get_input_partial_shape(0).rank();
+    return rank.is_static() ? ov::util::normalize_axis(op, axis, rank) : axis;
 }
+
 }  // namespace pooling
 namespace v1 {
 
@@ -191,7 +191,8 @@ void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
 
     const auto& input_shape_rank = get_input_partial_shape(0).rank();
-    ov::op::pooling::normalize_axis_if_static_input_rank(m_axis, this, input_shape_rank);
+    const auto normalized_axis = ov::op::pooling::get_normalized_axis(this, m_axis);
+    this->set_axis(normalized_axis);
 
     const auto output_shapes =
         shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);
@@ -387,7 +388,8 @@ void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v14_MaxPool_validate_and_infer_types);
 
     const auto& input_shape_rank = get_input_partial_shape(0).rank();
-    ov::op::pooling::normalize_axis_if_static_input_rank(m_axis, this, input_shape_rank);
+    const auto normalized_axis = ov::op::pooling::get_normalized_axis(this, m_axis);
+    this->set_axis(normalized_axis);
 
     const auto output_shapes =
         shape_infer(this, ov::util::get_node_input_partial_shapes(*this), m_pads_begin, m_pads_end);

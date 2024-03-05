@@ -159,19 +159,16 @@ void valid_dilated_kernel_with_padding(const TOp* op,
 
 template <class TDim>
 void get_valid_ceil_torch_dimension_size(TDim& dim,
-                                     const size_t last_pooling_start_index,
-                                     const size_t data_dim_length,
-                                     const size_t pads_begin) {
-    if (last_pooling_start_index > data_dim_length + pads_begin - 1) {
-        dim -= 1; // do nothing else +1
+                                         const size_t last_pooling_start_index,
+                                         const size_t data_dim_length,
+                                         const size_t pads_begin) {
+    if (!(last_pooling_start_index > data_dim_length + pads_begin - 1)) {
+        dim += 1;
     }
 }
 
 template <class TDim>
-TDim disallow_pooling_start_in_padding(const size_t stride,
-                                       const TDim& dim,
-                                       const TDim* data_dim,
-                                       const size_t pads_begin) {
+TDim disallow_pooling_start_in_padding(TDim& dim, const size_t stride, const TDim* data_dim, const size_t pads_begin) {
     // Ensure the last pooling doesn't start in padding.
     auto dim_min_length = dim.get_min_length();
     const auto last_pooling_min_start_index = (dim_min_length - 1) * stride;
@@ -183,14 +180,18 @@ TDim disallow_pooling_start_in_padding(const size_t stride,
         auto dim_max_length = dim.get_max_length();
         const auto last_pooling_max_start_index = (dim_max_length - 1) * stride;
         const auto data_dim_max_length = data_dim->get_max_length();
-        get_valid_ceil_torch_dimension_size(dim_max_length, last_pooling_max_start_index, data_dim_max_length, pads_begin);
+        get_valid_ceil_torch_dimension_size(dim_max_length,
+                                            last_pooling_max_start_index,
+                                            data_dim_max_length,
+                                            pads_begin);
         return TDim(dim_min_length, dim_max_length);
     }
 }
 
 template <class TDim>
-TDim allow_pooling_start_in_padding(const size_t, const TDim& dim, const TDim*, const size_t) {
-    return dim; // +1
+TDim allow_pooling_start_in_padding(TDim& dim, const size_t, const TDim*, const size_t) {
+    dim += 1;
+    return dim;
 }
 
 /**
@@ -239,8 +240,7 @@ void append_spatial_shape(const TOp* op,
 
             dim = dim - kernel_dilated;
             dim = dim_divide(dim, stride[i]);
-            dim += 1;
-            out_shape.push_back(std::move(set_pooling_ceil_behavior(stride[i], dim, data_dim, pads_begin[i])));
+            out_shape.push_back(std::move(set_pooling_ceil_behavior(dim, stride[i], data_dim, pads_begin[i])));
         } else {
             // If dimension is interval and is auto pad then result is dynamic shape as padding values are not correct.
             // Operator cannot keep separate auto padding values for upper, lower bounds.

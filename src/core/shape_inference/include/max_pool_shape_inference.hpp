@@ -12,6 +12,12 @@ namespace ov {
 namespace op {
 namespace pooling {
 
+inline void resize_dilations(Strides& dilations, const size_t num_spatial) {
+    if (dilations.empty()) {
+        dilations.resize(num_spatial, 1);
+    }
+}
+
 template <class TOp, class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> max_pool_shape_infer_util(const TOp* op,
                                                const std::vector<TShape>& input_shapes,
@@ -20,11 +26,9 @@ std::vector<TRShape> max_pool_shape_infer_util(const TOp* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
 
-    auto num_spatial = op->get_kernel().size();
     auto dilations = op->get_dilations();
-    if (dilations.empty()) {
-        dilations.resize(num_spatial, 1);
-    }
+    auto num_spatial = op->get_kernel().size();
+    resize_dilations(dilations, num_spatial);
     pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);
     pooling::validate::padding(op, pads_begin, pads_end);
     pooling::validate::attributes(op, data_shape, dilations);
