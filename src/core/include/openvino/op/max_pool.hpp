@@ -175,5 +175,6 @@ private:
     int64_t m_axis{0};
 };
 }  // namespace v14
+bool has_evaluate_util(ov::element::Type);
 }  // namespace op
 }  // namespace ov

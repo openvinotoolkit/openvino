@@ -38,6 +38,7 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
     const auto& kernel = op->get_kernel();
     const auto num_spatial = kernel.size();
     const auto& strides = op->get_strides();
+    const auto& rounding_type = op->get_rounding_type();
 
     NODE_VALIDATION_CHECK(op,
                           strides.size() == num_spatial,
@@ -62,6 +63,11 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
                           std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
                           "Kernel dilations has zero dimension(s). ",
                           dilations);
+    NODE_VALIDATION_CHECK(
+        op,
+        !(!ov::is_type<ov::op::v14::AvgPool>(op) && !ov::is_type<ov::op::v14::MaxPool>(op) &&
+          rounding_type == ov::op::RoundingType::CEIL_TORCH),
+        "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions.");
 }
 }  // namespace validate
 
@@ -152,12 +158,12 @@ void valid_dilated_kernel_with_padding(const TOp* op,
                                        const size_t axis) {}
 
 template <class TDim>
-void valid_ceil_torch_dimension_size(TDim& dim,
+void get_valid_ceil_torch_dimension_size(TDim& dim,
                                      const size_t last_pooling_start_index,
                                      const size_t data_dim_length,
                                      const size_t pads_begin) {
     if (last_pooling_start_index > data_dim_length + pads_begin - 1) {
-        dim -= 1;
+        dim -= 1; // do nothing else +1
     }
 }
 
@@ -170,21 +176,21 @@ TDim disallow_pooling_start_in_padding(const size_t stride,
     auto dim_min_length = dim.get_min_length();
     const auto last_pooling_min_start_index = (dim_min_length - 1) * stride;
     const auto data_dim_min_length = data_dim->get_min_length();
-    valid_ceil_torch_dimension_size(dim_min_length, last_pooling_min_start_index, data_dim_min_length, pads_begin);
+    get_valid_ceil_torch_dimension_size(dim_min_length, last_pooling_min_start_index, data_dim_min_length, pads_begin);
     if (data_dim->is_static()) {
         return TDim(dim_min_length);
     } else {
         auto dim_max_length = dim.get_max_length();
         const auto last_pooling_max_start_index = (dim_max_length - 1) * stride;
         const auto data_dim_max_length = data_dim->get_max_length();
-        valid_ceil_torch_dimension_size(dim_max_length, last_pooling_max_start_index, data_dim_max_length, pads_begin);
+        get_valid_ceil_torch_dimension_size(dim_max_length, last_pooling_max_start_index, data_dim_max_length, pads_begin);
         return TDim(dim_min_length, dim_max_length);
     }
 }
 
 template <class TDim>
 TDim allow_pooling_start_in_padding(const size_t, const TDim& dim, const TDim*, const size_t) {
-    return dim;
+    return dim; // +1
 }
 
 /**

@@ -137,6 +137,23 @@ bool MaxPool::has_evaluate() const {
 // ------------------------------ V8 ------------------------------
 namespace ov {
 namespace op {
+
+bool has_evaluate_util(ov::element::Type element_type) {
+    switch (element_type) {
+    case element::i8:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
+}
+
 namespace v8 {
 
 MaxPool::MaxPool(const Output<Node>& arg,
@@ -296,19 +313,8 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
 bool MaxPool::has_evaluate() const {
     OV_OP_SCOPE(v8_MaxPool_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::i8:
-    case element::i32:
-    case element::i64:
-    case element::u8:
-    case element::u32:
-    case element::u64:
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
+    const auto element_type = get_input_element_type(0);
+    return has_evaluate_util(element_type);
 }
 
 /// \return The pooling filter's dilations.
@@ -500,19 +506,8 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
 bool MaxPool::has_evaluate() const {
     OV_OP_SCOPE(v14_MaxPool_has_evaluate);
-    switch (get_input_element_type(0)) {
-    case element::i8:
-    case element::i32:
-    case element::i64:
-    case element::u8:
-    case element::u32:
-    case element::u64:
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
+    const auto element_type = get_input_element_type(0);
+    return {has_evaluate_util(element_type)};
 }
 
 /// \return The pooling filter's dilations.
