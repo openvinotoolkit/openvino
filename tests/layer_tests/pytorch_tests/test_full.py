@@ -84,6 +84,7 @@ class TestFull(PytorchLayerTest):
     @pytest.mark.parametrize("value", [0, 1, -1, 0.5])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_full(self, shape, value, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'value': value})
