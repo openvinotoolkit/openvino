@@ -270,9 +270,19 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
         }
     }
 
-    // evaluate converted node
-    if (!node->evaluate(converted_output_tensors, converted_input_tensors)) {
-        return false;
+    auto type_relaxed = dynamic_cast<const op::TypeRelaxedBase*>(node);
+    if (type_relaxed == nullptr) {
+        // evaluate node with converted tensors
+        if (!node->evaluate(converted_output_tensors, converted_input_tensors)) {
+            return false;
+        }
+    } else {
+        // node is const so let's clone it
+        auto cloned = node->clone_with_new_inputs(node->input_values());
+        cloned = convert_to_supported_precision(cloned.get());
+        if (!cloned->evaluate(converted_output_tensors, converted_input_tensors)) {
+            return false;
+        }
     }
 
     // convert outputs tensors from f32 to original type if necessary
