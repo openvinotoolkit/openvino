@@ -7,6 +7,7 @@
 #include "cpu_streams_calculation.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/cpu_streams_info.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -71,32 +72,30 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 
 bool get_cpu_pinning(bool& input_value,
                      const bool input_changed,
-                     const int num_streams,
-                     const Config::LatencyThreadingMode latency_threading_mode,
-                     const std::vector<std::vector<int>>& proc_type_table) {
-    int result_value;
-    int num_sockets = get_default_latency_streams(latency_threading_mode);
-    bool latency = num_streams <= num_sockets && num_streams > 0;
+                     const std::vector<std::vector<int>>& proc_type_table,
+                     const std::vector<std::vector<int>>& streams_info_table) {
+    bool result_value;
 
+#if defined(__APPLE__)
+    result_value = false;
+#elif defined(_WIN32)
+    result_value = ((input_changed) && (proc_type_table.size() == 1)) ? input_value : false;
+#else
     if (input_changed) {
         result_value = input_value;
     } else {
         result_value = true;
-        if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 &&
-            proc_type_table[0][EFFICIENT_CORE_PROC] < proc_type_table[0][ALL_PROC]) {
-            result_value = latency ? false : true;
+        // The following code disables pinning in case stream contains both Pcore and Ecore
+        if (streams_info_table.size() >= 3) {
+            if ((streams_info_table[0][PROC_TYPE] == ALL_PROC) &&
+                (streams_info_table[1][PROC_TYPE] != EFFICIENT_CORE_PROC) &&
+                (streams_info_table[2][PROC_TYPE] == EFFICIENT_CORE_PROC)) {
+                result_value = false;
+            }
         }
     }
-#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-#    if defined(_WIN32)
-    if (proc_type_table.size() > 1) {
-        result_value = false;
-    }
-#    endif
-#    if defined(__APPLE__)
-    result_value = false;
-#    endif
 #endif
+
     input_value = result_value;
 
     return result_value;
