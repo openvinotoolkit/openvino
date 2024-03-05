@@ -7,22 +7,14 @@ import numpy as np
 from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext
 from openvino.runtime import PartialShape, Type
 import openvino.runtime.opset10 as ops
+import pytest
 
-from pathlib import Path
 import glob
 import itertools
 import math
 import os
 import re
 from pathlib import Path
-
-import numpy as np
-import openvino.runtime.opset10 as ops
-import pytest
-import torch
-from openvino.frontend import (ConversionExtension, FrontEndManager,
-                               NodeContext, OpExtension)
-from openvino.runtime import PartialShape, Type
 
 
 class aten_relu(torch.nn.Module):
