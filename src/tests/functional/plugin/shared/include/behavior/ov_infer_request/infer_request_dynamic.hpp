@@ -40,8 +40,7 @@ protected:
     void SetUp() override;
     bool checkOutput(const ov::Tensor& in, const ov::Tensor& actual);
 
-    // core initialization here will cause exception as meta plugins are not included in core.get_available_devices()
-    std::shared_ptr<ov::Core> ie;
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
     std::shared_ptr<Model> function;
     ov::AnyMap configuration;
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
