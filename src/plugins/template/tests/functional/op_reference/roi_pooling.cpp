@@ -73,6 +73,7 @@ public:
 class ReferenceRoiPoolingLayerTest : public testing::TestWithParam<ROIPoolingParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.inputH,
                                   params.inputW,

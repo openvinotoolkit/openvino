@@ -104,6 +104,7 @@ class ReferenceGroupConvolutionBackpropDataLayerTest
       public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData, params.filterData};
@@ -162,6 +163,7 @@ class ReferenceGroupConvolutionBackpropDataLayerOutShapeTest
       public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.inputData, params.filterData};

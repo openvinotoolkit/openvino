@@ -41,6 +41,7 @@ struct ClampParams {
 class ReferenceClampLayerTest : public testing::TestWithParam<ClampParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType, params.min, params.max);
         inputData = {params.inputData};
