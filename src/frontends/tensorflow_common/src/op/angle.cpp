@@ -34,10 +34,9 @@ OutputVector translate_angle_op(const NodeContext& node) {
     complex = complex_type_mark->input_value(0);
 
     TENSORFLOW_OP_VALIDATION(
-    node,
-    complex_type_mark,
-    "[TensorFlow Frontend] inconsistent model: Angle operation expects complex type tensor on input"
-    );
+        node,
+        complex_type_mark,
+        "[TensorFlow Frontend] inconsistent model: Angle operation expects complex type tensor on input");
 
     auto real_index = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto imag_index = make_shared<v0::Constant>(element::i32, Shape{}, 1);
@@ -79,7 +78,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
-    result_changed_type = make_shared<v1::Convert>(result, result_type); 
+    result_changed_type = make_shared<v1::Convert>(result, result_type);
 
     set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
     return {result_changed_type};
