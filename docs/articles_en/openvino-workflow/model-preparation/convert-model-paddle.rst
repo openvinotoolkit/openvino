@@ -15,7 +15,7 @@ This page provides general instructions on how to convert a model from the Paddl
 Converting PaddlePaddle Model Files
 ###################################
 
-PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/../../documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
+PaddlePaddle inference model includes ``.pdmodel`` (storing model structure) and ``.pdiparams`` (storing model weight). For details on how to export a PaddlePaddle inference model, refer to the `Exporting PaddlePaddle Inference Model <https://www.paddlepaddle.org.cn/documentation/docs/zh/develop/guides/beginner/model_save_load_cn.html>`__ Chinese guide.
 
 To convert a PaddlePaddle model, use the ``ovc`` or ``openvino.convert_model`` and specify the path to the input ``.pdmodel`` model file:
 

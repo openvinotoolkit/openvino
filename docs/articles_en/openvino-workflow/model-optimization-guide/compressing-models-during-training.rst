@@ -99,7 +99,7 @@ To learn more about these methods, visit the `NNCF repository on GitHub <https:/
 Recommended Workflow
 ++++++++++++++++++++
 
-Using compression-aware training requires a training pipeline, an annotated dataset, and compute ../../about-openvino/additional-resources (such as CPUs or GPUs). If you don't already have these set up and available, it can be easier to start post-training quantization to quickly see quantized results. Then you can use compression-aware training if the model isn't accurate enough. We recommend the following workflow for compressing models with NNCF:
+Using compression-aware training requires a training pipeline, an annotated dataset, and compute resources (such as CPUs or GPUs). If you don't already have these set up and available, it can be easier to start post-training quantization to quickly see quantized results. Then you can use compression-aware training if the model isn't accurate enough. We recommend the following workflow for compressing models with NNCF:
 
 1. :doc:`Perform post-training quantization <quantizing-models-post-training>` on your model and then compare performance to the original model.
 2. If the accuracy is too degraded, use :doc:`Quantization-aware Training <compressing-models-during-training/quantization-aware-training>` to increase accuracy while still achieving faster inference time.
