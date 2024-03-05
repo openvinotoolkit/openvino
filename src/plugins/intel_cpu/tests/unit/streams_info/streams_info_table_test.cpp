@@ -1792,7 +1792,7 @@ StreamsCalculationTestCase _1sockets_4cores_latency_1 = {
     0,
     0,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{4, 4, 0, 0, 0, 0}},
     {{1, MAIN_CORE_PROC, 4, 0, 0}},
 };
@@ -1805,7 +1805,7 @@ StreamsCalculationTestCase _1sockets_4cores_tput_1 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{4, 4, 0, 0, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}},
 };
@@ -1974,7 +1974,7 @@ StreamsCalculationTestCase _1sockets_mock_tput_4 = {
     0,
     0,
     "THROUGHPUT",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_PLATFORM,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_PLATFORM,
     {{8, 8, 0, 0, 0, 0}},
     {{4, MAIN_CORE_PROC, 2, 0, 0}},
 };
@@ -2612,7 +2612,7 @@ StreamsCalculationTestCase _2sockets_mock_latency_35 = {
     0,
     3,
     "LATENCY",
-    ov::intel_cpu::Config::LatencyThreadingMode::PER_SOCKET,
+    ov::intel_cpu::Config::MaxThreadsPerStream::PER_SOCKET,
     {{200, 100, 0, 100, -1, -1},
      {80, 40, 0, 40, 0, 0},
      {60, 30, 0, 30, 1, 1},
