@@ -2565,10 +2565,10 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
     }
 }
 
-bool GraphOptimizer::checkAscendingSummaryOrder(const VectorDims& transposeOrder,
-                                                const VectorDims& layoutOrder,
-                                                const VectorDims& reorderInOrder,
-                                                const VectorDims& reorderOutOrder) {
+bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
+                                              const VectorDims& layoutOrder,
+                                              const VectorDims& reorderInOrder,
+                                              const VectorDims& reorderOutOrder) {
     if (transposeOrder.size() != layoutOrder.size() || layoutOrder.size() != reorderInOrder.size() ||
         reorderInOrder.size() != reorderOutOrder.size()) {
         return false;
@@ -2802,7 +2802,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
 
         // Further logic works with transpose order without Reshape.
         // If there is a Reshape node, which splits one of the dimensions into 2 consecutive ones,
-        // the order must be updated as like Transpose is done after Reshape
+        // the order must be updated as if Transpose is done after Reshape
         // Example. For this sequence:
         // [1,12,5] -> Transpose(0,2,1) -> Reshape(1,5,3,4) -> [1,5,3,4]
         // updated order must be (0,3,1,2):
@@ -2810,7 +2810,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
         // - dim idxes which was greater then 1, increments by 1
         const auto& reshapeInShape = reshape->getInputShapeAtPort(0).getDims();
         const auto& reshapeOutShape = reshape->getOutputShapeAtPort(0).getDims();
-        const size_t separationDimIdx = [&]() {
+        const size_t splitDimIdx = [&]() {
             for (size_t i = 0; i < reshapeInShape.size(); ++i) {
                 if (reshapeInShape[i] != reshapeOutShape[i]) {
                     for (size_t j = 0; j < originalOrder.size(); ++j) {
@@ -2819,20 +2819,20 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
                     }
                 }
             }
-            OPENVINO_THROW("separationDimIdx can not be found");
+            OPENVINO_THROW("splitDimIdx can not be found");
         }();
 
         auto transformedOrder = originalOrder;
         auto insertIt = transformedOrder.end();
         for (auto it = transformedOrder.begin(); it != transformedOrder.end(); ++it) {
             auto& elem = *it;
-            if (elem > separationDimIdx) {
+            if (elem > splitDimIdx) {
                 elem++;
-            } else if (elem == separationDimIdx) {
+            } else if (elem == splitDimIdx) {
                 insertIt = it + 1;
             }
         }
-        transformedOrder.insert(insertIt, separationDimIdx + 1);
+        transformedOrder.insert(insertIt, splitDimIdx + 1);
         return transformedOrder;
     };
 
@@ -2876,7 +2876,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
         auto& inOrder = inBlockedDesc->getOrder();
         auto& outOrder = outBlockedDesc->getOrder();
 
-        if (checkAscendingSummaryOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+        if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
             mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, false);
         }
     }
@@ -2994,7 +2994,7 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
         auto& inOrder = inBlockedDesc->getOrder();
         auto& outOrder = outBlockedDesc->getOrder();
 
-        if (checkAscendingSummaryOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+        if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
             mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, true);
         }
     }

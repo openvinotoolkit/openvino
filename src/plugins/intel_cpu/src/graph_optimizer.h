@@ -56,10 +56,10 @@ private:
 
     // Method checks that after the sequential execution of Transpose and Reorder nodes,
     // the order of the elements in the memory (physical layout) will not change.
-    bool checkAscendingSummaryOrder(const VectorDims& transposeOrder,
-                                    const VectorDims& layoutOrder,
-                                    const VectorDims& reorderInOrder,
-                                    const VectorDims& reorderOutOrder);
+    bool checkAscendingFinalOrder(const VectorDims& transposeOrder,
+                                  const VectorDims& layoutOrder,
+                                  const VectorDims& reorderInOrder,
+                                  const VectorDims& reorderOutOrder);
     // Method merges Transpose -> Reshape(optional) -> Reorder sequences which do opposite permutation to each other.
     // Reverse order Reorder -> Reshape(optional) -> Transpose is supported too.
     // Reshape support has the following limitations:
