@@ -179,6 +179,8 @@ protected:
     const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
     void set_task_executor(const std::shared_ptr<ov::threading::ITaskExecutor> task_executor);
     void set_callback_executor(const std::shared_ptr<ov::threading::ITaskExecutor> callback_executor);
+
+    static void set_model_shared_object(ov::Model& model, const std::shared_ptr<void>& shared_object);
 };
 
 }  // namespace ov

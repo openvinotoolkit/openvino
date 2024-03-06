@@ -2,33 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc, permute_axis
-from openvino.tools.mo.ops.op import PermuteAttrs
-
-from unit_tests.utils.graph import build_graph
 
 
 class Test_TopK(CommonTFLayerTest):
     @staticmethod
     def create_topK_net(shape, k, ir_version, use_legacy_frontend):
-        """
-            Tensorflow net:
-
-                          |-> Values
-            Input -> TopK |
-                          |-> Indices
-
-
-            IR net:
-
-                          |-> Values
-            Input -> TopK |
-                          |-> Indices
-
-        """
-
         pytest.xfail(reason="95063")
 
         import tensorflow as tf
@@ -37,9 +16,7 @@ class Test_TopK(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            shape_net = permute_nchw_to_nhwc(shape)
-
-            input_tensor = tf.compat.v1.placeholder(tf.int32, shape=shape_net, name='Input')
+            input_tensor = tf.compat.v1.placeholder(tf.int32, shape=shape, name='Input')
             values, indices = tf.nn.top_k(input_tensor, k=k, sorted=True, name='Operation')
 
             tf.compat.v1.global_variables_initializer()

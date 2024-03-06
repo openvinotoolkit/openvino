@@ -53,7 +53,7 @@ KernelsData BeamTableUpdateKernelRef::GetKernelsData(const Params& params) const
                      static_cast<int>(kernel_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(kernel_params),
                      static_cast<int>(kernel_params.outputs.size()),
-                     kernel_params.outputs[0].is_dynamic());
+                     kernel_params.is_shape_agnostic);
 
     ScalarDescriptor is_state_set;
     is_state_set.t = ScalarDescriptor::Types::UINT8;
