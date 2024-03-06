@@ -140,7 +140,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
             const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
             inputNodesMap_tmp[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
             std::cout << "[Replicate()] input name: " << name
-                      << ", index: " << model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))
+                      << ",  index: " << model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))
                       << ", node: " << node << std::endl;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
