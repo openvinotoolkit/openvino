@@ -17,18 +17,16 @@ std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<Inver
     std::vector<InputShape> input_shape;
     ov::element::Type element_type;
     bool adjoint;
-    bool test_static;
     int32_t seed;
     std::string device_name;
 
-    std::tie(input_shape, element_type, adjoint, test_static, seed, device_name) = obj.param;
+    std::tie(input_shape, element_type, adjoint, seed, device_name) = obj.param;
 
     const char separator = '_';
     std::ostringstream result;
     result << "IS=" << input_shape[0].first.to_string() << separator;
     result << "dtype=" << element_type.to_string() << separator;
     result << "adjoint=" << ov::test::utils::bool2str(adjoint) << separator;
-    result << "static=" << ov::test::utils::bool2str(test_static) << separator;
     result << "seed=" << seed << separator;
     result << "device=" << device_name;
 
@@ -39,27 +37,17 @@ void InverseLayerTest::SetUp() {
     std::vector<InputShape> input_shape;
     ov::element::Type element_type;
     bool adjoint;
-    bool test_static;
 
-    std::tie(input_shape, element_type, adjoint, test_static, m_seed, targetDevice) = GetParam();
+    std::tie(input_shape, element_type, adjoint, m_seed, targetDevice) = GetParam();
 
-    ov::PartialShape parameter_input_shape;
-    if (!test_static) {
-        init_input_shapes(input_shape);
-        parameter_input_shape = input_shape[0].first;
-    } else {
-        std::vector<InputShape> static_input_shape;
-        static_input_shape.push_back({input_shape[0].second[0], {input_shape[0].second[0]}});
-        init_input_shapes({static_input_shape});
-        parameter_input_shape = static_input_shape[0].first;
-    }
+    init_input_shapes(input_shape);
 
     if (element_type == ov::element::bf16) {
         rel_threshold = 1.2f;
         abs_threshold = 1.0f;
     }
 
-    const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, parameter_input_shape);
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape[0].first);
     data->set_friendly_name("data");
 
     auto inverse = std::make_shared<ov::op::v14::Inverse>(data, adjoint);
