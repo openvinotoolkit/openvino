@@ -47,6 +47,7 @@ struct ConvertParams {
 class ReferenceConversionLayerTest : public testing::TestWithParam<ConvertParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         const auto& params = GetParam();
         function = CreateFunction(params.pshape, params.inType, params.outType, params.conversionType);
         inputData = {params.inputData};
