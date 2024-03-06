@@ -58,6 +58,7 @@ using OVClassCompiledModelPropertiesDefaultTests = OVClassCompiledModelPropertie
 using OVClassCompiledModelPropertiesIncorrectTests = OVClassCompiledModelPropertiesTests;
 using OVCompiledModelIncorrectDevice = OVClassBaseTestP;
 using OVClassCompileModelWithCorrectPropertiesTest = OVClassCompiledModelPropertiesTests;
+using OVClassAutoCheckProfiling = OVClassCompiledModelPropertiesTests;
 
 class OVClassCompiledModelSetCorrectConfigTest :
         public OVClassNetworkTest,

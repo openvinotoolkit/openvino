@@ -99,6 +99,11 @@ TEST_P(OVClassCompiledModelPropertiesTests, canCompileModelWithPropertiesAndChec
     }
 }
 
+TEST_P(OVClassAutoCheckProfiling, canCompileModelWithProfilingAndCheckProfiling) {
+    auto compiled_model = core->compile_model(model, target_device, properties);
+    OV_ASSERT_NO_THROW(auto enable_profiling = compiled_model.get_property(ov::enable_profiling));
+}
+
 TEST_P(OVClassCompileModelWithCorrectPropertiesTest, IgnoreEnableMMap) {
     if (target_device.find("HETERO:") == 0 || target_device.find("MULTI:") == 0 || target_device.find("AUTO:") == 0 ||
         target_device.find("BATCH:") == 0)
