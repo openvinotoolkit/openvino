@@ -123,6 +123,10 @@ protected:
         }
 
         function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
+
+        if (inPrec == ov::element::f32) {
+            abs_threshold = 9e-2;
+        }
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

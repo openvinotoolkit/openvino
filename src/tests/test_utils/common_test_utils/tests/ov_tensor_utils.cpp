@@ -61,8 +61,9 @@ TEST(Comparator, float_) {
     ov::Shape shape{3, 4};
     std::vector<float> values(ov::shape_size(shape), value);
     std::vector<float> values_ref(ov::shape_size(shape), value);
-    // default threshold * value * 0.5 to be same
-    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value * 0.9f;
+    // default rel_threshold * value * 0.5 + abs_threshold to be same
+    const auto abs_threshold = std::numeric_limits<float>::epsilon();
+    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value * 0.9f + abs_threshold;
     for (auto& value : values) {
         value += def_threshold;
     }
@@ -77,8 +78,9 @@ TEST(Comparator, float_large) {
     ov::Shape shape{3, 4};
     std::vector<float> values(ov::shape_size(shape), value);
     std::vector<float> values_ref(ov::shape_size(shape), value);
-    // default threshold * value * 0.5 to be same
-    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value * 0.99;
+    // default rel_threshold * value * 0.5 + abs_threshold to be same
+    const auto abs_threshold = std::numeric_limits<float>::epsilon();
+    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value * 0.99 + abs_threshold;
     for (size_t i = 0; i < values.size(); ++i) {
         values[i] += (i % 2 ? def_threshold : -def_threshold);
     }
@@ -93,7 +95,8 @@ TEST(Comparator, float_negative) {
     ov::Shape shape{3, 4};
     std::vector<float> values(ov::shape_size(shape), value);
     std::vector<float> values_ref(ov::shape_size(shape), value);
-    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value;
+    const auto abs_threshold = std::numeric_limits<float>::epsilon();
+    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(element_type) * value * 1.1f + abs_threshold;
     for (size_t i = 0; i < values.size(); ++i) {
         values[i] += (i % 2 ? def_threshold : -def_threshold);
     }
@@ -108,7 +111,8 @@ TEST(Comparator, float_extra_small) {
     ov::Shape shape{3, 4};
     std::vector<float> values(ov::shape_size(shape), value);
     std::vector<float> values_ref(ov::shape_size(shape), value);
-    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(ov::element::f32) * value * 0.9;
+    const auto abs_threshold = std::numeric_limits<float>::epsilon();
+    const auto def_threshold = ov::test::utils::get_eps_by_ov_type(ov::element::f32) * value * 0.8f + abs_threshold;
     for (size_t i = 0; i < values.size(); ++i) {
         values[i] += (i % 2 ? def_threshold : -def_threshold);
     }
@@ -134,7 +138,8 @@ TEST(Comparator, different_prc_low) {
     ov::element::Type element_type = ov::element::f32;
     ov::element::Type element_type_ref = ov::element::f16;
     ov::Shape shape{3, 4};
-    const float threshold = ov::test::utils::get_eps_by_ov_type(element_type_ref) * value * 0.9;
+    const auto abs_threshold = std::numeric_limits<ov::float16>::epsilon();
+    const float threshold = ov::test::utils::get_eps_by_ov_type(element_type_ref) * value * 0.9 + abs_threshold;
     std::vector<float> values(ov::shape_size(shape), value + threshold);
     std::vector<ov::float16> values_ref(ov::shape_size(shape), ov::float16(value));
     auto tensor = ov::Tensor(element_type, shape, values.data());
@@ -147,7 +152,8 @@ TEST(Comparator, different_prc_up) {
     ov::element::Type element_type = ov::element::f16;
     ov::element::Type element_type_ref = ov::element::f32;
     ov::Shape shape{3, 4};
-    const float threshold = ov::test::utils::get_eps_by_ov_type(element_type_ref) * value * 0.9f;
+    const auto abs_threshold = std::numeric_limits<float>::epsilon();
+    const float threshold = ov::test::utils::get_eps_by_ov_type(element_type_ref) * value * 0.9f + abs_threshold;
     float updated_value = value - threshold;
     std::vector<ov::float16> values(ov::shape_size(shape), ov::float16(updated_value));
     std::vector<float> values_ref(ov::shape_size(shape), value);

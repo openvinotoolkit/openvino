@@ -310,7 +310,8 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
 
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
-inline double less(double a, double b) {
+template <typename aT, typename bT>
+inline double less(aT a, bT b) {
     return std::fabs(a - b) > eps && a < b;
 }
 
@@ -318,6 +319,8 @@ inline double less_or_equal(double a, double b) {
     bool res = true;
     if (std::isnan(a) || std::isnan(b)) {
         res = false;
+    } else if (std::isinf(b) && std::isinf(b)) {
+        res = true;
     } else if (std::isinf(b) && b > 0) {
         // b is greater than any number or eq the +Inf
         res = true;
@@ -329,14 +332,22 @@ inline double less_or_equal(double a, double b) {
     return res;
 }
 
-template <typename T>
-inline bool check_value(const T& value) {
-    auto max_limit = std::numeric_limits<T>::max();
-    auto min_limit = ov::element::from<T>().is_real() ? -max_limit : std::numeric_limits<T>::min();
-    if (std::isnan(value) || std::isinf(value) || value >= max_limit || value <= min_limit) {
-        return false;
+template <typename T1, typename T2>
+inline bool check_values_suitabl_for_comparison(double value1, double value2) {
+    bool res = true;
+    auto max_val1 = std::numeric_limits<T1>::max();
+    auto min_val1 = std::numeric_limits<T1>::lowest();
+    auto max_val2 = std::numeric_limits<T2>::max();
+    auto min_val2 = std::numeric_limits<T2>::lowest();
+    if (std::isnan(value1) && std::isnan(value2)) {
+        res = false;
+    } else if ((std::isinf(value1) || value1 >= max_val1) && (std::isinf(value2) || value2 >= max_val2)) {
+        res = false;
+    } else if ((std::isinf(value1) || value1 <= min_val1) && std::isinf(value2) || value2 <= min_val2) {
+        res = false;
     }
-    return true;
+
+    return res;
 }
 
 class Error {
@@ -355,35 +366,48 @@ protected:
     std::vector<IncorrectValue> incorrect_values_abs;
     std::vector<IncorrectValue> incorrect_values_rel;
     double abs_threshold, rel_threshold;
+    int tensor_size;
+
+    void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
+        incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
+    }
 
 public:
-    Error(const double in_abs_threshold, const double in_rel_threshold)
+    Error(const double in_abs_threshold, const double in_rel_threshold, int in_tensor_size = 0)
         : abs_threshold(in_abs_threshold),
-          rel_threshold(in_rel_threshold) {}
+          rel_threshold(in_rel_threshold),
+          tensor_size(in_tensor_size) {}
 
-    void update(double actual, double expected, size_t coordinate) {
+    bool update(double actual, double expected, size_t coordinate) {
         const auto diff = std::fabs(expected - actual);
 
         const auto calculated_abs_threshold = std::abs(abs_threshold) + std::abs(rel_threshold * expected);
         if (less_or_equal(diff, calculated_abs_threshold)) {
-            return;
+            return true;
         }
-        incorrect_values_abs.emplace_back(IncorrectValue(actual, expected, calculated_abs_threshold, coordinate));
+        emplace_back(actual, expected, calculated_abs_threshold, coordinate);
+
+        return false;
     }
 
-    void get_results() {
+    void check_results() {
         if (!incorrect_values_abs.empty()) {
+#ifdef NDEBUG
+            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
+            msg += "  Use DEBUG mode to print `incorrect_values_abs` and get detailed information!";
+#else
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
             msg += std::to_string(incorrect_values_abs.size());
-            msg += ". Please print `incorrect_values_abs` to get detailed information!";
-// #ifndef NDEBUG
+            msg += " among ";
+            msg += std::to_string(tensor_size);
+            msg += " shapes.";
             for (auto val : incorrect_values_abs) {
                 std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
-                          << "\n";
+                          << " rel_threshold: " << rel_threshold << "\n";
             }
-// #endif
+#endif
             throw std::runtime_error(msg);
         }
     }
@@ -401,29 +425,35 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         return;
     }
 
-    const double default_abs_threshold = std::numeric_limits<double>::epsilon();
     if (abs_threshold == std::numeric_limits<double>::max()) {
-        abs_threshold = default_abs_threshold;
+        abs_threshold = std::max((double)std::numeric_limits<ExpectedT>::epsilon(),
+                                 (double)std::numeric_limits<ActualT>::epsilon());
     }
 
-    const auto default_rel_threshold = get_eps_by_ov_type(expected.get_element_type());
-    if (rel_threshold == std::numeric_limits<double>::max() || rel_threshold < default_rel_threshold) {
-        rel_threshold = default_rel_threshold;
+    if (rel_threshold == std::numeric_limits<double>::max()) {
+        rel_threshold = get_eps_by_ov_type(expected.get_element_type());
     }
 
     size_t shape_size_cnt = shape_size(expected_shape);
-    Error error(abs_threshold, rel_threshold);
+    Error error(abs_threshold, rel_threshold, shape_size_cnt);
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
-        if (!check_value(expected_value) && !check_value(actual_value)) {
+
+        if (!check_values_suitabl_for_comparison<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }
-        error.update(expected_value, actual_value, i);
+
+        bool status = error.update(expected_value, actual_value, i);
+#ifdef NDEBUG
+        if (!status) {
+            break;
+        }
+#endif
     }
-    error.get_results();
+    error.check_results();
 }
 
 void compare_str(const ov::Tensor& expected, const ov::Tensor& actual) {

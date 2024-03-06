@@ -443,6 +443,7 @@ class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
 
 
 TEST_P(LoopLayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 

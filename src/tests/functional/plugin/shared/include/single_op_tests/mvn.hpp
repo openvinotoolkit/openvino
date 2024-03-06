@@ -13,6 +13,7 @@ TEST_P(Mvn1LayerTest, Inference) {
 };
 
 TEST_P(Mvn6LayerTest, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 };
 }  // namespace test

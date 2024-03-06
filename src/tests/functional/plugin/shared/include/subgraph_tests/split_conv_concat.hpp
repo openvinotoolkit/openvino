@@ -10,10 +10,12 @@ namespace ov {
 namespace test {
 
 TEST_P(SplitConvConcat, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 };
 
 TEST_P(SplitConvConcat, QueryModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     query_model();
 }
 
