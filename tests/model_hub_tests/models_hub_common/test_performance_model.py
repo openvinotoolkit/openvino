@@ -61,6 +61,9 @@ class Results:
         self.infer_time_ratio = 0.0
         self.error_message = ''
         self.status = None
+        self.model_name = ''
+        self.model_link = ''
+        self.ie_device = ''
 
 
 class TestModelPerformance:
@@ -149,6 +152,9 @@ class TestModelPerformance:
 
     def __run(self, model_name, model_link, ie_device, conf):
         results = Results()
+        results.model_name = model_name
+        results.model_link = model_link
+        results.ie_device = ie_device
         results.status = None
         try:
             results.status = Status.LOAD_MODEL
