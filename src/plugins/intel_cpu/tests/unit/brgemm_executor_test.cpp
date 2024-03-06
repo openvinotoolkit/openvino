@@ -26,18 +26,12 @@ void run_test(ov::element::Type rtPrec) {
     size_t M = 33;
     size_t N = 32;
     size_t K = 33;
-    ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, K, N, true, rtPrec);
+    ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
     bool is_f16 = (rtPrec == ov::element::f16);
-    std::vector<T> a_data(M * K, 4.0f);
-
-    std::vector<T> b_data(N * K, 4.0f);
-    for (size_t i = 0; i < N; i++) {
-        for (size_t j = 0; j < K; j++) {
-            b_data[i * K + j] = 1.0f / 33.0f * i;
-        }
-    }
+    std::vector<T> a_data(M * K, (1.0f/33));
+    std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
     std::vector<size_t> wsp(nthr * 4 * 1024, 0.0f);
     std::vector<uint8_t> a_scratch(gemm.get_scratch_a_size(), 0.0f);
@@ -48,13 +42,6 @@ void run_test(ov::element::Type rtPrec) {
     auto m_block_size = gemm.get_mblk_size();
     auto m_blocks = (M + gemm.get_mblk_size() - 1) / m_block_size;
     void* b_ptr = !is_f32 ? static_cast<void*>(b_scratch.data()) : static_cast<void*>(b_data.data());
-    auto print_data = [](T* ptr, size_t len) {
-        for (size_t i = 0; i < len; i++) {
-            std::cout << static_cast<float>(ptr[i]) << ",";
-        }
-        std::cout << std::endl;
-    };
-    // print_data(a_data.data(), K);
     ov::parallel_for2d(nthr, m_blocks, [&](size_t i, size_t m_blk) {
         auto m_start = m_blk * m_block_size;
         auto m_end = std::min(m_start + m_block_size, M);
@@ -69,7 +56,7 @@ void run_test(ov::element::Type rtPrec) {
     ov::parallel_for(nthr, [&](size_t i){
         for (size_t m = 0; m < M; m++) {
             for (size_t n = 0; n < N; n++) {
-                float expected_value = 4.0f * n;
+                float expected_value = 4.0f;
                 double abs = std::fabs(expected_value - c_data[i * M * N + m * N + n]);
                 double rel = expected_value ? (abs / std::fabs(expected_value)) : abs;
                 if (rel > 0.01f) {
