@@ -37,7 +37,6 @@ class TestFlip(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("axis", [[0], [1], [-1], [1, 2], [2, 3], [1, 2, 3]])
     @pytest.mark.parametrize("out", [skip_if_export(True), False])
     @pytest.mark.parametrize("dtype", ["float32", "float64", "int32", "int64", "uint8"])

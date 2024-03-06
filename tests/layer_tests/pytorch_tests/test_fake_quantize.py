@@ -91,7 +91,7 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    #@pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, quant_min, quant_max",
         [
@@ -146,6 +146,7 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, axis, quant_min, quant_max",
         [
