@@ -508,8 +508,7 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
 
 bool MaxPool::has_evaluate() const {
     OV_OP_SCOPE(v14_MaxPool_has_evaluate);
-    const auto element_type = get_input_element_type(0);
-    return {has_evaluate_util(element_type)};
+    return has_evaluate_util(get_input_element_type(0));
 }
 
 /// \return The pooling filter's dilations.
