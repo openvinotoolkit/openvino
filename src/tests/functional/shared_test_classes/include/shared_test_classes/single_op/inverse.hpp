@@ -16,7 +16,6 @@ namespace test {
 using InverseTestParams = typename std::tuple<std::vector<InputShape>,  // input shape
                                               ov::element::Type,        // element type
                                               bool,                     // adjoint
-                                              bool,                     // test_static
                                               int32_t,                  // seed
                                               std::string               // device_name
                                               >;
