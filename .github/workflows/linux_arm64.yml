@@ -116,8 +116,13 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
+          
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
+          
+          # Set gcc-10 as a default one
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
+          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
