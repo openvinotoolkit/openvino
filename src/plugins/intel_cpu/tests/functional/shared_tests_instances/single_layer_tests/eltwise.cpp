@@ -87,6 +87,7 @@ std::vector<EltwiseTypes> eltwise_op_types_dynamic = {
         EltwiseTypes::ADD,
         EltwiseTypes::MULTIPLY,
         EltwiseTypes::SUBTRACT,
+        EltwiseTypes::POWER,
 };
 
 ov::test::Config additional_config = {};
@@ -145,6 +146,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_dynamic_large_upper_bound,
 
 
 std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
+        {{1, 1, 1, 2}},
+        {{1, 1, 1, 4}},
         {{1, 2, 3, 4}},
         {{2, 2, 2, 2}},
         {{2, 1, 2, 1, 2, 2}},
@@ -152,6 +155,7 @@ std::vector<std::vector<ov::Shape>> inShapesSingleThread = {
 
 std::vector<EltwiseTypes> eltwise_op_typesSingleThread = {
         EltwiseTypes::ADD,
+        EltwiseTypes::MULTIPLY,
         EltwiseTypes::POWER,
 };
 

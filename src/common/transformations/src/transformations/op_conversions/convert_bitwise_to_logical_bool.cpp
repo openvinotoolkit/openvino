@@ -15,13 +15,15 @@
 #include "openvino/op/logical_or.hpp"
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
+
 ov::pass::ConvertBitwiseAndToLogicalAnd::ConvertBitwiseAndToLogicalAnd() {
     MATCHER_SCOPE(ConvertBitwiseAndToLogicalAnd);
     auto pattern =
         pattern::wrap_type<ov::op::v13::BitwiseAnd>({pattern::any_input(pattern::type_matches(element::boolean)),
                                                      pattern::any_input(pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseAnd>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -45,7 +47,7 @@ ov::pass::ConvertBitwiseNotToLogicalNot::ConvertBitwiseNotToLogicalNot() {
     auto pattern =
         pattern::wrap_type<ov::op::v13::BitwiseNot>({pattern::any_input(pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseNot>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -69,7 +71,7 @@ ov::pass::ConvertBitwiseOrToLogicalOr::ConvertBitwiseOrToLogicalOr() {
         pattern::wrap_type<ov::op::v13::BitwiseOr>({pattern::any_input(pattern::type_matches(element::boolean)),
                                                     pattern::any_input(pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseOr>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;
@@ -95,7 +97,7 @@ ov::pass::ConvertBitwiseXorToLogicalXor::ConvertBitwiseXorToLogicalXor() {
         pattern::wrap_type<ov::op::v13::BitwiseXor>({pattern::any_input(pattern::type_matches(element::boolean)),
                                                      pattern::any_input(pattern::type_matches(element::boolean))});
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto bitwise = std::dynamic_pointer_cast<ov::op::v13::BitwiseXor>(m.get_match_root());
         if (!bitwise || transformation_callback(bitwise)) {
             return false;

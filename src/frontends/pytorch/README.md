@@ -99,7 +99,7 @@ to get an `ov::Model` containing unconverted operations.
 
 #### Operations Accepting Strings
 
-At the moment, OpenVINO core does not support strings. However, since strings in models are usually constants, you can extract them as `std::string` directly from Python using `NodeContext::const_input<std::string>()`. 
+At the moment, OpenVINO core does not support strings. However, since strings in models are usually constants, you can extract them as `std::string` directly from Python using `NodeContext::const_input<std::string>()`.
 
 #### Operations with lists, tuples, dicts
 
@@ -115,7 +115,7 @@ In rare cases, converting PyTorch operations requires transformation. The main
 difference between transformation and translation is that transformation works on the graph rather
 than on the `NodeContext` of a single operation. This means that some functionality
 provided by `NodeContext` is not accessible in transformation and usually
-requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2023.3/openvino_docs_transformations.html)
+requires working with `PtFramworkNode` directly. [General rules](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformations-api.html)
 for writing transformations also apply to PT FE transformations.
 
 ### PyTorch Frontend Layer Tests
@@ -180,7 +180,7 @@ import torch
 class example_model(torch.nn.Module):
     def some_work(self, x):
         return torch.randn_like(x)
-    
+
     def forward(self, x):
         y = x * x
         z = self.some_work(x)
@@ -232,7 +232,7 @@ np.testing.assert_allclose(pt_res.detach().numpy(), ov_res[0], atol=1e-4, rtol=1
 It produce the following output:
 
 ```
-AssertionError: 
+AssertionError:
 Not equal to tolerance rtol=0.0001, atol=0.0001
 
 Mismatched elements: 29996 / 30000 (100%)
@@ -264,7 +264,7 @@ and we will see `torch.randn_like` function call on that line.
 Some operations can be translated incorrectly. For example PyTorch allow to
 pass different data types in the operation while OpenVINO usually requires same
 types for all inputs of the operation (more information about what types
-OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2023.2/openvino_docs_operations_specifications.html)).
+OpenVINO operation can accept can be found in [documentation](https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operations-specifications.html)).
 PyTorch has set rules for types alignment, to solve this issue PyTorch Frontend
 has `align_eltwise_input_types` helper function which aligns types of two
 inputs. If this function is not used when needed or if it used incorrectly that
