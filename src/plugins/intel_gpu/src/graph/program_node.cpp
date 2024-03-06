@@ -638,6 +638,7 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
 }
 
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << unique_id;
     ob << valid_output_layouts;
     ob << output_layouts;
 
@@ -774,6 +775,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
 }
 
 void program_node::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> unique_id;
     ib >> valid_output_layouts;
     ib >> output_layouts;
 

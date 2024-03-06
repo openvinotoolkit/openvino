@@ -425,6 +425,11 @@ public:
         unique_id = cur_id++;
     }
 
+    void set_unique_id(size_t _id) {
+        unique_id = _id;
+    }
+
+
     static void reset_unique_id() {
         cur_id = 0;
     }
