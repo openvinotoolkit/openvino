@@ -133,9 +133,9 @@ private:
     template <Type_t, class>
     friend class Iterator;  //!< Iterator class is friend to access private members to manipulate pointer.
 
-    static constexpr size_t m_bits = N;            //!< Number of bit for single value.
-    static constexpr size_t m_num_values = 8 / N;  //!< Number values in byte.
-    static constexpr size_t m_shift_init = 8 - N;  //!< Initial value for bit shift.
+    static constexpr size_t m_bits = N;                         //!< Number of bit for single value.
+    static constexpr size_t m_num_values = 8 / N;               //!< Number values in byte.
+    static constexpr size_t m_shift_init = N == 4 ? 0 : 8 - N;  //!< Initial value for bit shift.
 
     T* m_ptr;            //!< Pointer to T value used to get sub-byte value.
     size_t m_bit_shift;  //!< Current bit shift to get sub-byte value.
