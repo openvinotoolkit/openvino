@@ -3,9 +3,7 @@
 //
 
 #include "common_op_table.hpp"
-#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
 #include "openvino/op/range.hpp"
@@ -23,26 +21,9 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_segment_sum_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"SegmentSum"}, true);
+    default_op_checks(node, 2, {"SegmentSum"});
     auto data = node.get_input(0);
     auto segment_ids = node.get_input(1);
-
-    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
-
-    if (complex_type_mark) {
-        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        data = complex_type_mark->input_value(0);
-
-        OutputVector concat_inputs;
-        concat_inputs.push_back(segment_ids);
-        concat_inputs.push_back(make_shared<v0::Constant>(segment_ids.get_element_type(), Shape{1}, 2));
-
-        auto concat = make_shared<v0::Concat>(concat_inputs, 0);
-        auto reshape = make_shared<v1::Reshape>(data, concat, true);
-        set_node_name(node.get_name(), reshape);
-        auto complex_reshape = make_shared<ComplexTypeMark>(reshape, complex_part_type);
-        return {complex_reshape->output(0)};
-    }
 
     // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(segment_ids, 1);
