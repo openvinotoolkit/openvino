@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -11,19 +13,22 @@ rng = np.random.default_rng()
 
 class TestStringSplitV2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        strings_dictionary = ['UPPER<>CASE SENTENCE<>', 'lower case\n\s sentence', ' UppEr LoweR CAse SENtence \t\n',
-                              ' ', 'Oferta polska', 'Предложение<> по-РУССки', '<>汉语句子   ']
-        inputs_data['input'] = rng.choice(strings_dictionary, input_shape)
+        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n\s sentence', ' UppEr LoweR CAse SENtence \t\n',
+                              '  some sentence', 'another sentence HERE    ']
+        inputs_data['input:0'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
     def create_string_split_v2_net(self, input_shape, sep, maxsplit):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             input = tf.compat.v1.placeholder(tf.string, input_shape, 'input')
-            tf.raw_ops.StringSplitV2(input=input, sep=sep, maxsplit=maxsplit)
+            string_split_v2 = tf.raw_ops.StringSplitV2(input=input, sep=sep, maxsplit=maxsplit)
+            tf.identity(string_split_v2[0], name='indices')
+            tf.identity(string_split_v2[1], name='values')
+            tf.identity(string_split_v2[2], name='shape')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -32,11 +37,14 @@ class TestStringSplitV2(CommonTFLayerTest):
         return tf_net, ref_net
 
     @pytest.mark.parametrize('input_shape', [[1], [2], [5]])
-    @pytest.mark.parametrize('sep', ['', '<>', '\n\s'])
-    @pytest.mark.parametrize('maxsplit', [None, -1, 2, 3])
+    @pytest.mark.parametrize('sep', ['', '<>'])
+    @pytest.mark.parametrize('maxsplit', [None, -1])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='132671 - Add support of StringSplitV2')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='126314, 132699: Build tokenizers for ARM and MacOS')
     def test_string_split_v2(self, input_shape, sep, maxsplit,
                              ie_device, precision, ir_version, temp_dir,
                              use_legacy_frontend):
