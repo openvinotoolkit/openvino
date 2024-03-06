@@ -92,13 +92,16 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     this->graphEdges = graphEdges;
 
     std::size_t parameter_index = 0;
+    std::size_t result_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
             inputNodesMap_tmp[parameter_index] = node;
             std::cout << "[CreateGraph()] input name: " << node->getName() << ", index: " << parameter_index << ", node: " << node << std::endl;
             parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[node->getName()] = node;
+            outputNodesMap_tmp[result_index] = node;
+            std::cout << "[CreateGraph()] output name: " << node->getName() << ", index: " << result_index << ", node: " << node << std::endl;
+            result_index++;
         }
     }
 
@@ -149,7 +152,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             const std::string inputID = get_port_name(op->output(0));
-            outputNodesMap[inputID] = node;
+            outputNodesMap_tmp[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
+            std::cout << "[Replicate()] output name: " << inputID
+                      << ", index: " << model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))
+                      << ", node: " << node << std::endl;
         }
 
         op2node[op] = node;
@@ -212,7 +218,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         }
     }
 
-    for (auto &output : outputNodesMap) {
+    for (auto &output : outputNodesMap_tmp) {
         const auto& outputNode = output.second;
         const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
         const auto parentEdge = outputNode->getParentEdgeAt(0);
@@ -777,7 +783,7 @@ void Graph::AllocateWithReuse() {
                     // Store the output memory managers.
                     // So that, the infer requests can be able to access them.
                     int count = 0;
-                    for (auto &output : outputNodesMap) {
+                    for (auto &output : outputNodesMap_tmp) {
                         if (output.second == child) {
                             outputNodesMemMngrMap[output.first] = proxyMemMngr;
                             count++;
@@ -977,11 +983,11 @@ void Graph::PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& inp
 }
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
-void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
+void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
-    for (auto &outputMap : outputNodesMap) {
+    for (auto &outputMap : outputNodesMap_tmp) {
         auto name = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
@@ -990,7 +996,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         const auto ext_blob_map = output.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
+            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name);
         }
 
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
@@ -1648,7 +1654,7 @@ void Graph::EnforceInferencePrecision() {
      * Experiments show zero peformance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
-    for (const auto& entry : outputNodesMap) {
+    for (const auto& entry : outputNodesMap_tmp) {
         const auto& output = entry.second;
         // do not skip outputs which precisions are explicitly set equal to inferPrec
         if (output->getOriginalInputPrecisionAtPort(0) == inferPrec)

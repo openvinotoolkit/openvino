@@ -419,11 +419,9 @@ void TensorIterator::getSupportedDescriptors() {
         }
     }
 
-    const auto &outMap = sub_graph.GetOutputNodesMap();
+    const auto &outMap = sub_graph.GetOutputIndexNodesMap();
     for (const auto &out : tiOp->get_function()->get_results()) {
-        const auto prev = out->input_value(0);
-        const auto inputID = ov::op::util::create_ie_output_name(prev);
-        auto outNode = outMap.find(inputID);
+        auto outNode = outMap.find(tiOp->get_function()->get_result_index(out));
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             output_mem.push_back(outMem);

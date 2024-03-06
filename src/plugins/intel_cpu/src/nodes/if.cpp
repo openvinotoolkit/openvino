@@ -111,11 +111,11 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto &outMapThen = subGraphThen.GetOutputNodesMap();
+    const auto &outMapThen = subGraphThen.GetOutputIndexNodesMap();
     for (const auto& out : ifOp->get_then_body()->get_results()) {
         const auto prev = out->input_value(0);
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapThen.find(inputID);
+        auto outNode = outMapThen.find(ifOp->get_then_body()->get_result_index(out));
         if (outNode != outMapThen.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
@@ -124,11 +124,11 @@ void If::getSupportedDescriptors() {
         }
     }
 
-    const auto &outMapElse = subGraphElse.GetOutputNodesMap();
+    const auto &outMapElse = subGraphElse.GetOutputIndexNodesMap();
     for (const auto& out : ifOp->get_else_body()->get_results()) {
         const auto prev = out->input_value(0);
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
-        auto outNode = outMapElse.find(inputID);
+        auto outNode = outMapElse.find(ifOp->get_else_body()->get_result_index(out));
         if (outNode != outMapElse.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);

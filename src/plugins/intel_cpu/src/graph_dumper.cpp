@@ -140,7 +140,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             }
         }
 
-        for (auto && kvp : graph.outputNodesMap) {
+        for (auto && kvp : graph.outputNodesMap_tmp) {
             if (kvp.second == node) {
                 is_output = true;
                 break;

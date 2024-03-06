@@ -59,7 +59,7 @@ public:
                      std::string name);
 
     void PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& input);
-    void PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output);
+    void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -75,8 +75,8 @@ public:
         return inputNodesMap_tmp;
     }
 
-    std::map<std::string, NodePtr>& GetOutputNodesMap() {
-        return outputNodesMap;
+    std::map<std::size_t, NodePtr>& GetOutputIndexNodesMap() {
+        return outputNodesMap_tmp;
     }
 
     NodePtr getInputNodeByIndex(const std::size_t &name) {
@@ -86,15 +86,15 @@ public:
         return input->second;
     }
 
-    NodePtr getOutputNodeByName(const std::string &name) {
-        auto output = outputNodesMap.find(name);
-        if (output == outputNodesMap.end())
+    NodePtr getOutputNodeByIndex(const std::size_t &name) {
+        auto output = outputNodesMap_tmp.find(name);
+        if (output == outputNodesMap_tmp.end())
             OPENVINO_THROW("CPU execution graph doesn't contain output node with name: ", name);
         return output->second;
     }
 
-    bool hasOutputWithName(const std::string& name) const {
-        return outputNodesMap.count(name);
+    bool hasOutputWithIndex(const std::size_t& name) const {
+        return outputNodesMap_tmp.count(name);
     }
 
     dnnl::engine getEngine() const {
@@ -199,7 +199,7 @@ protected:
         status = Status::NotReady;
 
         inputNodesMap_tmp.clear();
-        outputNodesMap.clear();
+        outputNodesMap_tmp.clear();
         graphNodes.clear();
         graphEdges.clear();
         syncNodesInds.clear();
@@ -244,9 +244,9 @@ protected:
 private:
     // TODO: change std::map to std::unordered_map
     std::map<std::size_t, NodePtr> inputNodesMap_tmp;
-    std::map<std::string, NodePtr> outputNodesMap;
+    std::map<std::size_t, NodePtr> outputNodesMap_tmp;
 
-    std::unordered_map<std::string, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
     std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
