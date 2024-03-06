@@ -40,6 +40,7 @@ void InverseLayerTest::SetUp() {
 
     std::tie(input_shape, element_type, adjoint, m_seed, targetDevice) = GetParam();
 
+    ov::PartialShape parameter_input_shape(input_shape[0].first);
     init_input_shapes(input_shape);
 
     if (element_type == ov::element::bf16) {
@@ -47,7 +48,7 @@ void InverseLayerTest::SetUp() {
         abs_threshold = 1.0f;
     }
 
-    const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape[0].first);
+    const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, parameter_input_shape);
     data->set_friendly_name("data");
 
     auto inverse = std::make_shared<ov::op::v14::Inverse>(data, adjoint);
