@@ -8,6 +8,7 @@
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
 #include "gemm_inst.h"
+#include "broadcast_inst.h"
 #include "program_helpers.h"
 
 using namespace cldnn;
@@ -92,6 +93,17 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
             if (!end.empty() && !is_valid)
                 return;
+            node.can_be_optimized(true);
+            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+        });
+        program_helpers::do_for_types<broadcast>(*node, [](broadcast_node& node){
+            auto impl_params = node.get_kernel_impl_params();
+            if (node.is_output()
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                return;
+
             node.can_be_optimized(true);
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
         });
