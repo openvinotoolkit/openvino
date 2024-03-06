@@ -1374,7 +1374,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }
@@ -1696,12 +1696,15 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
-                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+                auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
-                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
-                reorder_impl->set_kernels(kernels);
+                if (impl_type == impl_types::ocl) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
+                    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                    reorder_impl->set_kernels(kernels);
+                }
 
                 reorder_inst->set_impl(reorder_impl->clone());
 
@@ -2017,7 +2020,10 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            if (fd.is_type<reorder>())
+                continue;
+
+            OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
     }
 
@@ -2072,31 +2078,42 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    instrumentation::perf_counter_key key {
-            _network.get_input_layouts(),
-            _impl_params->input_layouts,
-            _impl_params->output_layouts,
-            get_implementation_name(),
-            stage,
+    GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-            per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-            0,
-#endif
-            cache_hit,
-            memalloc_info
-    };
-
-    auto hash = instrumentation::perf_counter_hash()(key);
-    auto& d = _profiling_data[hash];
-    if (_profiling_info.find(hash) == _profiling_info.end()) {
-        _profiling_info.emplace(hash, key);
+    int64_t curr_iter = -1;
+    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
+        curr_iter = get_network().get_current_iteration_num();
     }
+    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+#else
+    {
+#endif
+        instrumentation::perf_counter_key key {
+                _network.get_input_layouts(),
+                _impl_params->input_layouts,
+                _impl_params->output_layouts,
+                get_implementation_name(),
+                stage,
+#ifdef GPU_DEBUG_CONFIG
+                per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+                0,
+#endif
+                cache_hit,
+                memalloc_info
+        };
 
-    auto& total_time = std::get<0>(d);
-    auto& total_iter = std::get<1>(d);
-    total_time += time;
-    total_iter++;
+        auto hash = instrumentation::perf_counter_hash()(key);
+        auto& d = _profiling_data[hash];
+        if (_profiling_info.find(hash) == _profiling_info.end()) {
+            _profiling_info.emplace(hash, key);
+        }
+
+        auto& total_time = std::get<0>(d);
+        auto& total_iter = std::get<1>(d);
+        total_time += time;
+        total_iter++;
+    }
 }
 
 std::string primitive_inst::get_implementation_name() const {

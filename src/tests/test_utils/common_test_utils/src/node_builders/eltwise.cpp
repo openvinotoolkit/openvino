@@ -9,6 +9,7 @@
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
