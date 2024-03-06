@@ -138,7 +138,7 @@ bool MaxPool::has_evaluate() const {
 namespace ov {
 namespace op {
 
-bool has_evaluate_util(ov::element::Type element_type) {
+bool has_evaluate_util(const ov::element::Type& element_type) {
     switch (element_type) {
     case element::i8:
     case element::i32:
