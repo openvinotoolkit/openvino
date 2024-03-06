@@ -171,6 +171,8 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
                     return op::PadMode::REFLECT;
                 case PaddingMode::PAD_SYMMETRIC:
                     return op::PadMode::SYMMETRIC;
+                default:
+                    return op::PadMode::CONSTANT;
                 }
             };
 
