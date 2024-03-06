@@ -50,8 +50,7 @@ inline void valid_dilated_kernel_with_padding(const v14::AvgPool* op,
                           pad_begin,
                           ", padding above dimension: ",
                           pad_end,
-                          ") and this is not ",
-                          "allowed.");
+                          ") and this is not allowed.");
 }
 
 template <class TOp, class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
