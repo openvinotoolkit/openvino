@@ -910,7 +910,14 @@ void ScaledDotProductAttention::createPrimitive() {
 #endif
         } else if (rtPrecision == ov::element::f16) {
 #ifdef OPENVINO_ARCH_X86_64
-            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
+            // TODO: amx_fp16
+            if (with_cpu_x86_avx512_core_fp16()) {
+                executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
+            } else {
+                executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
+            }
+#else
+            executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context);
 #endif
         } else {
 #ifdef OV_CPU_WITH_MLAS
