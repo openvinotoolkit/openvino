@@ -10,10 +10,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class Engine : public ov::IPlugin {
+class Plugin : public ov::IPlugin {
 public:
-    Engine();
-    ~Engine();
+    Plugin();
+    ~Plugin();
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
@@ -73,5 +73,5 @@ private:
 #endif
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

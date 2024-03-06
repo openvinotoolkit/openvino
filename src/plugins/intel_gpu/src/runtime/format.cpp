@@ -245,9 +245,20 @@ const format_traits& format::traits(type fmt) {
     return format_traits_map.at(fmt);
 }
 
+const format_traits& format::traits() const {
+    if (value == format::custom) {
+        OPENVINO_ASSERT(custom_traits.has_value(), "[GPU] Custom format is created w/o traits");
+        return *custom_traits;
+    }
+
+    return format::traits(value);
+}
+
 std::string format::to_string() const {
     if (value == any) {
         return "any";
+    } else if (value == custom) {
+        return "custom";
     }
     return traits(value).str;
 }
@@ -282,7 +293,7 @@ format format::get_default_format(size_t rank, bool is_weights, bool is_grouped)
     return default_fmt;
 }
 
-bool format::is_default_format(type fmt) {
+bool format::is_default_format(const format& fmt) {
     return fmt == get_default_format(dimension(fmt));
 }
 

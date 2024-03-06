@@ -274,7 +274,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
                        Algorithm::EltwiseAbs,
                        Algorithm::EltwiseSqrt,
                        Algorithm::EltwiseSoftRelu,
-                       Algorithm::EltwiseSigmoid);
+                       Algorithm::EltwiseSigmoid,
+                       Algorithm::EltwiseClamp);
 #elif defined(OPENVINO_ARCH_X86_64)
     return one_of(alg, Algorithm::EltwiseRelu,
                        Algorithm::EltwiseGeluErf,
