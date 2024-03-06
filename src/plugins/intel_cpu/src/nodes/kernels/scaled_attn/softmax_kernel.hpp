@@ -439,47 +439,8 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
 #endif
 }
 
-inline void multiply_scalar(float* a, float* a_dst, const float val, const size_t size) {
-#if defined(HAVE_AVX512F)
-    auto v_scale = _mm512_set1_ps(val);
-    __m512 v_a = {0};
-    size_t i = 0;
-    while (i + vec_len_f32_avx512 <= size) {
-        v_a = _mm512_loadu_ps(a + i);
-        v_a = _mm512_mul_ps(v_a, v_scale);
-        _mm512_storeu_ps(a_dst + i, v_a);
-        i += vec_len_f32_avx512;
-    }
-    if (i < size) {
-        __mmask16 mask = (1 << (size - i)) - 1;
-        v_a = _mm512_maskz_loadu_ps(mask, a + i);
-        v_a = _mm512_mul_ps(v_a, v_scale);
-        _mm512_mask_storeu_ps(a_dst + i, mask, v_a);
-    }
-#elif defined(HAVE_AVX2)
-    auto v_scale = _mm256_set1_ps(val);
-    __m256 v_a = {0};
-    size_t i = 0;
-    while (i + vec_len_f32_avx2 <= size) {
-        v_a = _mm256_loadu_ps(a + i);
-        v_a = _mm256_mul_ps(v_a, v_scale);
-        _mm256_storeu_ps(a_dst + i, v_a);
-        i += vec_len_f32_avx2;
-    }
-    if (i < size) {
-        auto mask = get_mask(size - i);
-        v_a = _mm256_maskload_ps(a + i, mask);
-        v_a = _mm256_mul_ps(v_a, v_scale);
-        _mm256_maskstore_ps(a_dst + i, mask, v_a);
-    }
-#else
-    for (size_t i = 0; i < size; i++) {
-        a_dst[i] = a[i] * val;
-    }
-#endif
-}
-
-inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, const size_t size) {
+template<typename T>
+inline void multiply_scalar(float* a, T* a_dst, const float val, const size_t size) {
 #if defined(HAVE_AVX512F)
     auto v_scale = _mm512_set1_ps(val);
     __m512 v_a = {0};
@@ -494,7 +455,23 @@ inline void multiply_scalar(float* a, ov::bfloat16* a_dst, const float val, cons
         __mmask16 mask = (1 << (size - i)) - 1;
         v_a = _mm512_maskz_loadu_ps(mask, a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
-        mm512_uni_mask_storeu_ps(a_dst + i, mask, v_a);
+        mm512_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
+    }
+#elif defined(HAVE_AVX2)
+    auto v_scale = _mm256_set1_ps(val);
+    __m256 v_a = {0};
+    size_t i = 0;
+    while (i + vec_len_f32_avx2 <= size) {
+        v_a = _mm256_loadu_ps(a + i);
+        v_a = _mm256_mul_ps(v_a, v_scale);
+        mm256_uni_storeu_ps(a_dst + i, v_a);
+        i += vec_len_f32_avx2;
+    }
+    if (i < size) {
+        auto mask = get_mask(size - i);
+        v_a = _mm256_maskload_ps(a + i, mask);
+        v_a = _mm256_mul_ps(v_a, v_scale);
+        mm256_uni_storeu_tail_ps(a_dst + i, v_a, size - i);
     }
 #else
     for (size_t i = 0; i < size; i++) {
@@ -516,6 +493,7 @@ inline void attn_softmax_kernel(float* a,
                                 ov::element::Type dst_precision) {
     using func_fp32_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float&);
     using func_bf16_type = void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float&);
+    using func_f16_type = void (*)(float*, float, const float*, const ov::float16*, const uint8_t*, bool, size_t, float&);
     static func_fp32_type funcs_fp32[] = {
         scale_add2_reduce_max<false, false, false>,
         scale_add2_reduce_max<false, false, true>,
@@ -536,12 +514,24 @@ inline void attn_softmax_kernel(float* a,
         scale_add2_reduce_max<true, true, false>,
         scale_add2_reduce_max<true, true, true>
     };
+    static func_f16_type funcs_f16[] = {
+        scale_add2_reduce_max<false, false, false>,
+        scale_add2_reduce_max<false, false, true>,
+        scale_add2_reduce_max<false, true, false>,
+        scale_add2_reduce_max<false, true, true>,
+        scale_add2_reduce_max<true, false, false>,
+        scale_add2_reduce_max<true, false, true>,
+        scale_add2_reduce_max<true, true, false>,
+        scale_add2_reduce_max<true, true, true>
+    };
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
     float max = std::numeric_limits<float>::lowest();
     if (attn_mask_prec == ov::element::f32) {
         funcs_fp32[dispatch](a, scale, alibi, static_cast<const float*>(attn_mask), causal_mask, select_nfltmax_at_0, len, max);
-    } else {
+    } else if (attn_mask_prec == ov::element::bf16) {
         funcs_bf16[dispatch](a, scale, alibi, static_cast<const ov::bfloat16*>(attn_mask), causal_mask, select_nfltmax_at_0, len, max);
+    } else {
+        funcs_f16[dispatch](a, scale, alibi, static_cast<const ov::float16*>(attn_mask), causal_mask, select_nfltmax_at_0, len, max);
     }
 
     float sum = 0.0f;
@@ -554,11 +544,15 @@ inline void attn_softmax_kernel(float* a,
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<float*>(a_dst) + len, 0, sizeof(float) * (total_size - len));
-    } else {
+    } else if (dst_precision == ov::element::bf16) {
         multiply_scalar(a, static_cast<ov::bfloat16*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score
         if (total_size > len)
             memset(static_cast<ov::bfloat16*>(a_dst) + len, 0, sizeof(ov::bfloat16) * (total_size - len));
+    } else {
+        multiply_scalar(a, static_cast<ov::float16*>(a_dst), scalar, len);
+        if (total_size > len)
+            memset(static_cast<ov::float16*>(a_dst) + len, 0, sizeof(ov::float16) * (total_size - len));
     }
 }
 

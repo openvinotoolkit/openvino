@@ -30,33 +30,45 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         return _mm512_castsi512_ps(_mm512_slli_epi32(y, 16));
     }
 
-    inline __m512 mm512_uni_loadu_ps(const ov::bfloat16* a) {
-        auto vec_bf16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
+    inline __m512 mm512_uni_loadu_ps(const float* addr) {
+        return _mm512_loadu_ps(addr);
+    }
+
+    inline __m512 mm512_uni_loadu_ps(const ov::bfloat16* addr) {
+        auto vec_bf16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(addr));
         return cvt_bf16_to_fp32(vec_bf16);
     }
 
-    inline __m512 mm512_uni_loadu_ps(const float* a) {
-        return _mm512_loadu_ps(a);
+    inline __m512 mm512_uni_loadu_ps(const ov::float16* addr) {
+        auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(addr));
+        return _mm512_cvtph_ps(vec_f16);
     }
 
-    inline __m512 mm512_uni_loadu_tail_ps(const float* a, size_t count) {
+    inline __m512 mm512_uni_loadu_tail_ps(const float* addr, size_t count) {
         __mmask16 mask = (1 << count) - 1;
-        return _mm512_maskz_loadu_ps(mask, a);
+        return _mm512_maskz_loadu_ps(mask, addr);
     }
 
-    inline __m512 mm512_uni_loadu_tail_ps(const ov::bfloat16* a, size_t count) {
+    inline __m512 mm512_uni_loadu_tail_ps(const ov::bfloat16* addr, size_t count) {
         auto mask = (1 << count) - 1;
-        auto bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        auto bf16_vec = _mm256_maskz_loadu_epi16(mask, addr);
         return cvt_bf16_to_fp32(bf16_vec);
     }
 
-    inline void mm512_uni_storeu_ps(float* a,  __m512 v) {
-        _mm512_storeu_ps(a, v);
+    inline __m512 mm512_uni_loadu_tail_ps(const ov::float16* addr, size_t count) {
+        auto mask = (1 << count) - 1;
+        auto f16_vec = _mm256_maskz_loadu_epi16(mask, addr);
+        return _mm512_cvtph_ps(f16_vec);
     }
-    inline void mm512_uni_storeu_ps(ov::bfloat16 *addr, __m512 xps) {
-        __m512i xpi32 = _mm512_castps_si512(xps);
+
+    inline void mm512_uni_storeu_ps(float* addr,  __m512 v) {
+        _mm512_storeu_ps(addr, v);
+    }
+
+    inline void mm512_uni_storeu_ps(ov::bfloat16 *addr, __m512 v) {
+        __m512i xpi32 = _mm512_castps_si512(v);
         __m512i nan = _mm512_set1_epi32(0xffff);
-        auto mask = _mm512_cmp_ps_mask(xps, xps, _CMP_ORD_Q);
+        auto mask = _mm512_cmp_ps_mask(v, v, _CMP_ORD_Q);
         __m512i ones = _mm512_set1_epi32(0x1);
         __m512i vec_bias = _mm512_set1_epi32(0x7fff);
         auto x = _mm512_and_si512(_mm512_srli_epi32(xpi32, 16), ones); // LSB = x[16]
@@ -65,10 +77,22 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         x = _mm512_mask_blend_epi32(mask, nan, x);                     // Check NaN before converting back to bf16
         _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), _mm512_cvtepi32_epi16(x));
     }
-    inline void mm512_uni_mask_storeu_ps(ov::bfloat16 *addr, __mmask16 mask_addr, __m512 xps) {
-        __m512i xpi32 = _mm512_castps_si512(xps);
+
+    inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
+        __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
+    }
+
+    inline void mm512_uni_storeu_tail_ps(float *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
+        _mm512_mask_storeu_ps(addr, mask_addr, v);
+    }
+
+    inline void mm512_uni_storeu_tail_ps(ov::bfloat16 *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
+        __m512i xpi32 = _mm512_castps_si512(v);
         __m512i nan = _mm512_set1_epi32(0xffff);
-        auto mask = _mm512_cmp_ps_mask(xps, xps, _CMP_ORD_Q);
+        auto mask = _mm512_cmp_ps_mask(v, v, _CMP_ORD_Q);
         __m512i ones = _mm512_set1_epi32(0x1);
         __m512i vec_bias = _mm512_set1_epi32(0x7fff);
         auto x = _mm512_and_si512(_mm512_srli_epi32(xpi32, 16), ones); // LSB = x[16]
@@ -78,13 +102,10 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         _mm512_mask_cvtepi32_storeu_epi16(addr, mask_addr, x);
     }
 
-    inline __m512 mm512_uni_loadu_ps(ov::float16* a) {
-        auto vec_f16 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(a));
-        return _mm512_cvtph_ps(vec_f16);
-    }
-    inline void mm512_uni_storeu_ps(ov::float16* addr,  __m512 v) {
+    inline void mm512_uni_storeu_tail_ps(ov::float16 *addr, __m512 v, size_t count) {
+        __mmask16 mask_addr = (1 << count) - 1;
         __m256i vec_f16 = _mm512_cvtps_ph(v, 0);
-        _mm256_storeu_si256(reinterpret_cast<__m256i *>(addr), vec_f16);
+        _mm256_mask_storeu_epi16(reinterpret_cast<__m256i *>(addr), mask_addr, vec_f16);
     }
 #endif
 
@@ -103,35 +124,49 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         };
         return _mm256_loadu_si256(&mask[N7]);
     }
-    inline __m256 mm256_uni_loadu_ps(const float* a) {
-        return _mm256_loadu_ps(a);
-    }
-    inline void mm256_uni_storeu_ps(float* a,  __m256 v) {
-        _mm256_storeu_ps(a, v);
+
+    inline __m256 mm256_uni_loadu_ps(const float* addr) {
+        return _mm256_loadu_ps(addr);
     }
 
-    inline __m256 mm256_uni_loadu_ps(const ov::bfloat16* a) {
-        auto vec_bf16 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(a));
+    inline __m256 mm256_uni_loadu_ps(const ov::bfloat16* addr) {
+        auto vec_bf16 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(addr));
         auto o = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(vec_bf16), 16));
         return o;
     }
 
-    inline __m256 mm256_uni_loadu_tail_ps(const float* a, const size_t count) {
-        auto mask = get_mask(count);
-        return _mm256_maskload_ps(a, mask);
+    inline __m256 mm256_uni_loadu_ps(const ov::float16* addr) {
+        auto vec_f16 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(addr));
+        auto o = _mm256_cvtph_ps(vec_f16);
+        return o;
     }
 
-    inline __m256 mm256_uni_loadu_tail_ps(const ov::bfloat16* a, const size_t count) {
+    inline __m256 mm256_uni_loadu_tail_ps(const float* addr, const size_t count) {
+        auto mask = get_mask(count);
+        return _mm256_maskload_ps(addr, mask);
+    }
+
+    inline __m256 mm256_uni_loadu_tail_ps(const ov::bfloat16* addr, const size_t count) {
         assert("AVX2 version of bfloat16 tail load is just for compilation pass");
         ov::bfloat16 tmp_values[8] = {0};
-        std::memcpy(tmp_values, a, count * sizeof(ov::bfloat16));
+        std::memcpy(tmp_values, addr, count * sizeof(ov::bfloat16));
         return mm256_uni_loadu_ps(tmp_values);
     }
 
-    inline void mm256_uni_storeu_ps(ov::bfloat16 *addr, __m256 xps) {
-        __m256i xpi32 = _mm256_castps_si256(xps);
+    inline __m256 mm256_uni_loadu_tail_ps(const ov::float16* addr, const size_t count) {
+        ov::float16 tmp_values[8] = {0};
+        std::memcpy(tmp_values, addr, count * sizeof(ov::float16));
+        return mm256_uni_loadu_ps(tmp_values);
+    }
+
+    inline void mm256_uni_storeu_ps(float* addr,  __m256 v) {
+        _mm256_storeu_ps(addr, v);
+    }
+
+    inline void mm256_uni_storeu_ps(ov::bfloat16 *addr, __m256 v) {
+        __m256i xpi32 = _mm256_castps_si256(v);
         __m256i nan = _mm256_set1_epi32(0xffff);
-        __m256i mask = _mm256_castps_si256(_mm256_cmp_ps(xps, xps, _CMP_ORD_Q));
+        __m256i mask = _mm256_castps_si256(_mm256_cmp_ps(v, v, _CMP_ORD_Q));
         __m256i ones = _mm256_set1_epi32(0x1);
         __m256i vec_bias = _mm256_set1_epi32(0x7fff);
         auto x = _mm256_and_si256(_mm256_srli_epi32(xpi32, 16), ones); // LSB = x[16]
@@ -144,14 +179,26 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), bf16_o);
     }
 
-    inline __m256 mm256_uni_loadu_ps(ov::float16* a) {
-        auto vec_f16 = _mm_loadu_si128(reinterpret_cast<__m128i*>(a));
-        auto o = _mm256_cvtph_ps(vec_f16);
-        return o;
-    }
-    inline void mm256_uni_storeu_ps(ov::float16* a,  __m256 v) {
+    inline void mm256_uni_storeu_ps(ov::float16* addr,  __m256 v) {
         __m128i vec_f16 = _mm256_cvtps_ph(v, 0);
-        _mm_storeu_si128(reinterpret_cast<__m128i *>(a), vec_f16);
+        _mm_storeu_si128(reinterpret_cast<__m128i *>(addr), vec_f16);
+    }
+
+    inline void mm256_uni_storeu_tail_ps(float *addr, __m256 v, size_t count) {
+        const auto mask = get_mask(count);
+        return _mm256_maskstore_ps(addr, mask, v);
+    }
+
+    inline void mm256_uni_storeu_tail_ps(ov::bfloat16 *addr, __m256 v, size_t count) {
+        ov::bfloat16 tmp_values[8];
+        mm256_uni_storeu_ps(tmp_values, v);
+        std::memcpy(addr, tmp_values, count * sizeof(ov::bfloat16));
+    }
+
+    inline void mm256_uni_storeu_tail_ps(ov::float16 *addr, __m256 v, size_t count) {
+        ov::float16 tmp_values[8];
+        mm256_uni_storeu_ps(tmp_values, v);
+        std::memcpy(addr, tmp_values, count * sizeof(ov::float16));
     }
 
     inline void hsum(__m256& x) {
@@ -163,6 +210,7 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
         x = _mm256_add_ps(x, y);              // x: 01234567 x x x x x x x
     }
+
     inline void hmax(__m256& x) {
         __m256 y;                             // x:  0 1 2 3   4 5 6 7
         y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
@@ -172,6 +220,7 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
         y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
         x = _mm256_max_ps(x, y);              // x: 01234567 x x x x x x x
     }
+
     inline void hmin(__m256& x) {
         __m256 y;                             // x:  0 1 2 3   4 5 6 7
         y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4

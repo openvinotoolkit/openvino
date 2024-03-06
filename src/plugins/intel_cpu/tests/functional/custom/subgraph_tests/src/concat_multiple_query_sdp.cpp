@@ -93,8 +93,8 @@ public:
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
-        if (qkvType == ElementType::bf16) {
-            configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
+        if (qkvType == ElementType::bf16 || qkvType == ElementType::f16) {
+            configuration[ov::hint::inference_precision.name()] = ov::element::Type(qkvType).get_type_name();
             rel_threshold = 0.01f;
         }
         init_input_shapes(inputShapes);
@@ -229,6 +229,10 @@ public:
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
@@ -287,7 +291,8 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     bool hasShapeOf;
     ElementType qkvType;
     std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
-    if (qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+    if ((qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
+        (qkvType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()))
         GTEST_SKIP();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
@@ -295,6 +300,10 @@ TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Transpose", 1);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    // use f32 as reference
+    if (qkvType == ElementType::f16) {
+        configuration["INFERENCE_PRECISION_HINT"] = "f32";
+    }
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -378,7 +387,7 @@ const std::vector<InputShapeAndTransposeOrder> inputShapeAndReorders = {{
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);

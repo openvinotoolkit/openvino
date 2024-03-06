@@ -18,6 +18,7 @@
 #include "shape_inference/custom/scaled_attn.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/plain_tensor.hpp"
+#include "utils/precision_support.h"
 
 #ifdef OV_CPU_WITH_MLAS
 #    include "mlas/sgemm.hpp"
@@ -907,6 +908,10 @@ void ScaledDotProductAttention::createPrimitive() {
 #ifdef OPENVINO_ARCH_X86_64
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
 #endif
+        } else if (rtPrecision == ov::element::f16) {
+#ifdef OPENVINO_ARCH_X86_64
+            executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context);
+#endif
         } else {
 #ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
@@ -1501,6 +1506,8 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
+    } else if (rtPrecision == ov::element::f16 && hasHardwareSupport(ov::element::f16)) {
+        rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;
     }

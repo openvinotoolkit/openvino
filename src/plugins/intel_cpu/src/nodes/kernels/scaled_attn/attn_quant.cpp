@@ -131,6 +131,8 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
         min = std::min(min, tmp);
     }
     scale = (max - min) / 255;
+    if (scale == 0)
+        scale = 0.0001f;
     zp = -min / scale;
 
     i = 0;
@@ -201,6 +203,8 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
         attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
         attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
+    } else if (k_src.get_precision() == ov::element::f16 && k_dst.get_precision() == ov::element::u8) {
+        attn_quant_mt<ov::float16, uint8_t>(k_src, v_src, k_dst, v_dst, k_scale_zp, v_scale_zp);
     } else {
         OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in attn_quantkv");
     }

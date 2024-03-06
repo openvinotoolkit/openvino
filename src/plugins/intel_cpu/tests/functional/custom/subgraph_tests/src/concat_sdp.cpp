@@ -70,8 +70,8 @@ public:
         std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
-        if (inType == ElementType::bf16) {
-            configuration.insert({"ENFORCE_BF16", "YES"});
+        if (inType == ElementType::bf16 || inType == ElementType::f16) {
+            configuration.insert({"INFERENCE_PRECISION_HINT", ov::element::Type(inType).get_type_name()});
             rel_threshold = 0.01f;
         }
         init_input_shapes(inputShapes);
@@ -159,6 +159,10 @@ public:
                 ov::Tensor t{ov::element::f32, shape};
                 strided_iota(static_cast<float*>(t.data()), t.get_size(), val, 0.1f);
                 inputs.insert({param, t});
+            } else if (param->get_element_type() == element::f16) {
+                ov::Tensor t{ov::element::f16, shape};
+                strided_iota(static_cast<ov::float16*>(t.data()), t.get_size(), val, 0.1f);
+                inputs.insert({param, t});
             } else {
                 ov::Tensor t{ov::element::bf16, shape};
                 strided_iota(static_cast<ov::bfloat16*>(t.data()), t.get_size(), val, 0.1f);
@@ -205,11 +209,25 @@ public:
 };
 
 TEST_P(ConcatSDPTest, CompareWithRefs) {
+    ElementType inType;
+    std::vector<InputShape> inputShapes;
+    bool hasShapeOf;
+    std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
+    if ((inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
+        (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()))
+        GTEST_SKIP();
+
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    // the range of our result will exceed f16 max value and there may be 'inf'. In softmax, there is a step:
+    //   v - max(v), if v is inf, the result of 'v-max(v)' will be nan
+    // use f32 as reference
+    if (inType == ElementType::f16) {
+        configuration["INFERENCE_PRECISION_HINT"] = "f32";
+    }
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -237,7 +255,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
-                         ::testing::Combine(::testing::Values(ElementType::f32),
+                         ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
                                             ::testing::Values(true, false)),
                          ConcatSDPTest::getTestCaseName);
