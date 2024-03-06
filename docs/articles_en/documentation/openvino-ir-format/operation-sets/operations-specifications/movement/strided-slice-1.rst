@@ -412,7 +412,7 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
                 <dim>10</dim> <!-- last dim -->
             </port>
             <port id="1">
-                <dim>3</dim> <!-- begin: [2, 1, 10, 10] - second dimension marked as ellipsis. third dimension is a new axis -->
+                <dim>3</dim> <!-- begin: [2, 1, 10, 10] - second dimension marked as ellipsis. third dimension marked as a new axis -->
             </port>
             <port id="2">
                 <dim>3</dim> <!-- end: [123, 1, 10, 5] -->
@@ -429,7 +429,7 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
                 <dim>10</dim>
                 <dim>10</dim> <!-- ellipsis skipped over 8 dimensions -->
                 <dim>10</dim> <!-- 8 = 10 - (4 - 1 - 1)>
-                <dim>10</dim> <!-- 10 - rank(input), 4 - rank(begin), 1 - new_axis_mask>
+                <dim>10</dim> <!-- 10 - rank(input), 4 - rank(begin), 1 - new_axis_mask -->
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>1</dim> <!-- new dimension from new_axis_mask, 'consumes' the penultimate slicing arguments -->
