@@ -116,8 +116,8 @@ OutputVector translate_stack_fx(const NodeContext& context) {
         // axis can be not present and that means that last input will have List type
         axis = context.const_input<int64_t>(num_elements - 1);
     } else {
-        auto stack_input =
-            context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(num_elements - 1)), dim));
+        auto stack_input = context.mark_node(
+            std::make_shared<v0::Unsqueeze>(context.get_input(static_cast<int>(num_elements - 1)), dim));
         list_elems.push_back(stack_input);
     }
     return translate_cat_common(context, list_elems, axis, true);
