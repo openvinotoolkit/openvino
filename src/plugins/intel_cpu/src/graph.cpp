@@ -91,9 +91,12 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
 
+    std::size_t parameter_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap[node->getName()] = node;
+            inputNodesMap_tmp[parameter_index] = node;
+            std::cout << "[CreateGraph()] input name: " << node->getName() << ", index: " << parameter_index << ", node: " << node << std::endl;
+            parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
             outputNodesMap[node->getName()] = node;
         }
@@ -135,7 +138,9 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
-            inputNodesMap[name] = node;
+            inputNodesMap_tmp[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
+            std::cout << "[Replicate()] input name: " << name << ", index: " << model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))
+                      << ", node: " << node << std::endl;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
@@ -192,7 +197,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
-    for (auto &input : inputNodesMap) {
+    for (auto &input : inputNodesMap_tmp) {
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
@@ -938,10 +943,11 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
+void Graph::PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap.find(name);
-    if (input_itr != inputNodesMap.end()) {
+    auto input_itr = inputNodesMap_tmp.find(name);
+    if (input_itr != inputNodesMap_tmp.end()) {
+        std::cout << "[PushInputData()] index: " << name << ", node: " << input_itr->second << std::endl;
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
         auto edgeMemory = childEdge->getMemoryPtr();

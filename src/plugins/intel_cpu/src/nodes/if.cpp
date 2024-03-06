@@ -85,9 +85,10 @@ void If::getSupportedDescriptors() {
     subGraphThen.CreateGraph(thenBody, context);
     subGraphElse.CreateGraph(elseBody, context);
 
-    const auto &inMapThen = subGraphThen.GetInputNodesMap();
+    const auto &inMapThen = subGraphThen.GetInputIndexNodesMap();
+    std::size_t subGraphThen_parameter_index = 0;
     for (const auto &param : ifOp->get_then_body()->get_parameters()) {
-        auto inNode = inMapThen.find(param->get_friendly_name());
+        auto inNode = inMapThen.find(subGraphThen_parameter_index);
         if (inNode != inMapThen.end()) {
             inputMemThen.push_back(getToMemories(inNode->second.get(), 0));
         } else {
@@ -96,11 +97,13 @@ void If::getSupportedDescriptors() {
                            " does not have input with name: ",
                            param->get_friendly_name());
         }
+        subGraphThen_parameter_index++;
     }
 
-    const auto &inMapElse = subGraphElse.GetInputNodesMap();
+    const auto &inMapElse = subGraphElse.GetInputIndexNodesMap();
+    std::size_t subGraphElse_parameter_index = 0;
     for (const auto &param : ifOp->get_else_body()->get_parameters()) {
-        auto inNode = inMapElse.find(param->get_friendly_name());
+        auto inNode = inMapElse.find(subGraphElse_parameter_index);
         if (inNode != inMapElse.end()) {
             inputMemElse.push_back(getToMemories(inNode->second.get(), 0));
         } else {
@@ -109,6 +112,7 @@ void If::getSupportedDescriptors() {
                            " does not have input with name: ",
                            param->get_friendly_name());
         }
+        subGraphElse_parameter_index++;
     }
 
     const auto &outMapThen = subGraphThen.GetOutputNodesMap();

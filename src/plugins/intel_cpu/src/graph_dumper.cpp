@@ -133,7 +133,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
 
     auto create_ngraph_node = [&](const NodePtr &node) {
         bool is_input = false, is_output = false, should_be_hold = false;
-        for (auto && kvp : graph.inputNodesMap) {
+        for (auto && kvp : graph.inputNodesMap_tmp) {
             if (kvp.second == node) {
                 is_input = true;
                 break;

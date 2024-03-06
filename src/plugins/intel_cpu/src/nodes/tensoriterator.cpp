@@ -411,9 +411,9 @@ void TensorIterator::getSupportedDescriptors() {
     const std::shared_ptr<const ov::Model> body = tiOp->get_function();
     sub_graph.CreateGraph(body, context);
 
-    const auto &inMap = sub_graph.GetInputNodesMap();
-    for (const auto &param : tiOp->get_function()->get_parameters()) {
-        auto inNode = inMap.find(param->get_friendly_name());
+    const auto &inMap = sub_graph.GetInputIndexNodesMap();
+    for (std::size_t parameter_idx = 0; tiOp->get_function()->get_parameters().size(); parameter_idx++) {
+        auto inNode = inMap.find(parameter_idx);
         if (inNode != inMap.end()) {
             input_mems.push_back(getToMemories(inNode->second.get(), 0));
         }
