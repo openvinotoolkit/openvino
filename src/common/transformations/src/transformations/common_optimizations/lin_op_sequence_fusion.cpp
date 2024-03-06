@@ -33,7 +33,7 @@ ov::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m_mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_add, m_mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
@@ -81,7 +81,7 @@ ov::pass::AddAddFusion::AddAddFusion() {
     auto m_add2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_add2 = ov::pass::pattern::wrap_type<ov::op::v1::Add>({m_add1, m_add2_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
@@ -116,7 +116,7 @@ ov::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_mul2_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto m_mul2 = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({m_mul1, m_mul2_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) -> bool {
         auto& label_to_output = m.get_pattern_value_map();
 
         auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
