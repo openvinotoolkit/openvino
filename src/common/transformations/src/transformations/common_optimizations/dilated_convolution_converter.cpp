@@ -36,7 +36,7 @@ ov::pass::DilatedConvolutionConverter::DilatedConvolutionConverter() {
     auto batch_to_space_pattern = pattern::wrap_type<ov::op::v1::BatchToSpace>(
         {conv_pattern, pattern::any_input(), crops_begin_pattern, crops_end_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto block_shape =
             std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(block_shape_pattern).get_node_shared_ptr());
