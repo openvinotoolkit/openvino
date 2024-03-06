@@ -28,5 +28,5 @@ Also ``ov::pass::ModelPass`` based transformations can be executed via ``ov::pas
 See Also
 ########
 
-* :doc:`OpenVINO™ Transformations <../transformations-api>`
+* :doc:`OpenVINO™ Transformations <../transformation-api>`
 

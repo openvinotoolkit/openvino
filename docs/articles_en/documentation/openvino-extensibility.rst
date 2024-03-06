@@ -21,7 +21,7 @@ OpenVINO Extensibility Mechanism
    :maxdepth: 1
    :hidden:
 
-   openvino-extensibility/transformations-api
+   openvino-extensibility/transformation-api
    OpenVINO Plugin Developer Guide <openvino-extensibility/openvino-plugin-library>
 
 
@@ -191,7 +191,7 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 See Also
 ########
 
-* :doc:`OpenVINO Transformations <openvino-extensibility/transformations-api>`
+* :doc:`OpenVINO Transformations <openvino-extensibility/transformation-api>`
 * :doc:`Using OpenVINO Runtime Samples <../learn-openvino/openvino-samples>`
 * :doc:`Hello Shape Infer SSD sample <../learn-openvino/openvino-samples/hello-reshape-ssd>`
 

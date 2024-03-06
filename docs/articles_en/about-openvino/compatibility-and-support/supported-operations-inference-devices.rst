@@ -1,4 +1,4 @@
-.. {#openvino_../additional-resources_supported_operations}
+.. {#openvino_resources_supported_operations}
 
 Supported Operations - by Inference Devices
 ===========================================

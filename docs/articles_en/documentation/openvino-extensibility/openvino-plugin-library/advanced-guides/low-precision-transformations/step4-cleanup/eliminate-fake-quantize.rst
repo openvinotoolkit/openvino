@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_EliminateFakeQuantizeTransformation}
+.. {#openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation}
 
 EliminateFakeQuantizeTransformation transformation
 ==================================================

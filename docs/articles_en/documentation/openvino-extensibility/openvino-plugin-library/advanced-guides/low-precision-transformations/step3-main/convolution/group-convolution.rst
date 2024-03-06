@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_GroupConvolutionTransformation}
+.. {#openvino_docs_OV_UG_lpt_GroupConvolutionTransformation}
 
 GroupConvolutionTransformation transformation
 =============================================

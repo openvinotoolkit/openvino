@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_AlignQuantizationParameters}
+.. {#openvino_docs_OV_UG_lpt_AlignQuantizationParameters}
 
 AlignQuantizationParameters transformation
 ==========================================

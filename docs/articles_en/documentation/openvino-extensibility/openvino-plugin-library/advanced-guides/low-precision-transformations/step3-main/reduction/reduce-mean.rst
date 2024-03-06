@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_ReduceMeanTransformation}
+.. {#openvino_docs_OV_UG_lpt_ReduceMeanTransformation}
 
 ReduceMeanTransformation transformation
 =======================================

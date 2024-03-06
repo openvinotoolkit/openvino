@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_ConvolutionTransformation}
+.. {#openvino_docs_OV_UG_lpt_ConvolutionTransformation}
 
 ConvolutionTransformation transformation
 ========================================

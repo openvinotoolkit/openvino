@@ -1,4 +1,4 @@
-.. {#../available-opsets8}
+.. {#openvino_docs_ops_opset8}
 
 opset8
 ======

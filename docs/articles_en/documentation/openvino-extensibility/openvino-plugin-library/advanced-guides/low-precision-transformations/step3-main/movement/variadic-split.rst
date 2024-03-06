@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_VariadicSplitTransformation}
+.. {#openvino_docs_OV_UG_lpt_VariadicSplitTransformation}
 
 VariadicSplitTransformation transformation
 ==========================================

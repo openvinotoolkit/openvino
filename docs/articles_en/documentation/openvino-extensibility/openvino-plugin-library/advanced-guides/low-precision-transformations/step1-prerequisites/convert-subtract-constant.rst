@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_ConvertSubtractConstant}
+.. {#openvino_docs_OV_UG_lpt_ConvertSubtractConstant}
 
 ConvertSubtractConstant transformation
 ======================================

@@ -39,7 +39,7 @@ without spaces 'tensor_name_1'.
 
 **State naming rule**: in most cases, the name of a state is a concatenation of the
 Parameter/Result tensor names. If there are no tensor names,
-:doc:`friendly names <../../../documentation/openvino-extensibility/transformations-api>` are used.
+:doc:`friendly names <../../../documentation/openvino-extensibility/transformation-api>` are used.
 
 
 **Examples:**

@@ -1,4 +1,4 @@
-.. {#../low-precision-transformations_step2_markup}
+.. {#openvino_docs_OV_UG_lpt_step2_markup}
 
 Step 2. Markup Transformations
 ==============================

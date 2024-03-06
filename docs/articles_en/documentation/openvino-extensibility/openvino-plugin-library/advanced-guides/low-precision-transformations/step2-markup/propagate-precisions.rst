@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_PropagatePrecisions}
+.. {#openvino_docs_OV_UG_lpt_PropagatePrecisions}
 
 PropagatePrecisions transformation
 ==================================
