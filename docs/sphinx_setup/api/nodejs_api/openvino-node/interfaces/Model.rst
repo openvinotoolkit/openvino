@@ -4,7 +4,7 @@ Interface Model
 .. rubric:: Interface Model
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface Model {
        inputs: Output[];
@@ -26,7 +26,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    inputs: Output[]
 
@@ -37,7 +37,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    outputs: Output[]
 
@@ -52,7 +52,7 @@ Methods
 .. rubric:: getName
 
 
-.. code-block:: json
+.. code-block:: ts
 
    getName(): string
 
@@ -66,7 +66,7 @@ Methods
 .. rubric:: input
 
 
-.. code-block:: json
+.. code-block:: ts
 
    input(nameOrId?): Output
 
@@ -76,7 +76,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      nameOrId: string|number
 
@@ -91,7 +91,7 @@ Methods
 .. rubric:: output
 
 
-.. code-block:: json
+.. code-block:: ts
 
    output(nameOrId?): Output
 
@@ -100,7 +100,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      nameOrId: string|number
 

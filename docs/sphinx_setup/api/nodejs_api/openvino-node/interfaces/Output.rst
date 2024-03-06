@@ -2,7 +2,7 @@ Interface Output
 ================
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface Output {
        anyName: string;
@@ -23,7 +23,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    anyName: string
 
@@ -36,7 +36,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    shape: number[]
 
@@ -51,7 +51,7 @@ Methods
 .. rubric:: getAnyName
 
 
-.. code-block:: json
+.. code-block:: ts
 
   getAnyName(): string
 
@@ -64,7 +64,7 @@ Methods
 .. rubric:: getPartialShape
 
 
-.. code-block:: json
+.. code-block:: ts
 
     getPartialShape(): PartialShape
 
@@ -77,13 +77,13 @@ Methods
 .. rubric:: getShape
 
 
-.. code-block:: json
+.. code-block:: ts
 
    getShape(): number[]
 
 **Returns**
 
-.. code-block:: json
+.. code-block:: ts
 
    number[]
 
@@ -93,13 +93,13 @@ Methods
 .. rubric:: toString
 
 
-.. code-block:: json
+.. code-block:: ts
 
    toString(): string
 
 **Returns**
 
-.. code-block:: json
+.. code-block:: ts
 
    string
 
