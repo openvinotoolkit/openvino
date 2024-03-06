@@ -115,7 +115,7 @@ Actual model compilation is done in the ``CompiledModel`` constructor. Refer to 
 transform_model()
 +++++++++++++++++
 
-The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, refer to :doc:`Writing OpenVINO™ transformations <../transformations-api>` guide. See detailed topics about model representation:
+The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, refer to :doc:`Writing OpenVINO™ transformations <../transformation-api>` guide. See detailed topics about model representation:
 
 * :doc:`Intermediate Representation and Operation Sets <../../openvino-ir-format/operation-sets>`
 * :doc:`Quantized models <advanced-guides/quantized-models>`.

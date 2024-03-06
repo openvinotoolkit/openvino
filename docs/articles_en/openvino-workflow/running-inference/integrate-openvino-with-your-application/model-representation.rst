@@ -243,6 +243,6 @@ Additional Resources
 
 * :doc:`Available Operation Sets <../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
 * :doc:`OpenVINO™ Runtime Extensibility Developer Guide <../../../documentation/openvino-extensibility>`.
-* :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformations-api>`.
+* :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformation-api>`.
 
 

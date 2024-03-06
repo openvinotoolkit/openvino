@@ -1,4 +1,4 @@
-.. {#../performance-benchmarks_faq}
+.. {#openvino_docs_performance_benchmarks_faq}
 
 Performance Information F.A.Q.
 ==============================

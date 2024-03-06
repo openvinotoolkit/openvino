@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_PropagateToInput}
+.. {#openvino_docs_OV_UG_lpt_PropagateToInput}
 
 PropagateToInput transformation
 ===============================

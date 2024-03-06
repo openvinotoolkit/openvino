@@ -1,11 +1,11 @@
-.. {#../low-precision-transformations_step4_cleanup}
+.. {#openvino_docs_OV_UG_lpt_step4_cleanup}
 
 Step 4. Cleanup Transformations
 ===============================
 
 
 .. meta::
-   :description: Check the list of transformations used to clean up the 
+   :description: Check the list of transformations used to clean up the
                  resulting model to avoid unhandled dequantization operations.
 
 .. toctree::

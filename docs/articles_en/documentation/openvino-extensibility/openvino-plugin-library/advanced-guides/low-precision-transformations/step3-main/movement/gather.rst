@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_GatherTransformation}
+.. {#openvino_docs_OV_UG_lpt_GatherTransformation}
 
 GatherTransformation transformation
 ===================================

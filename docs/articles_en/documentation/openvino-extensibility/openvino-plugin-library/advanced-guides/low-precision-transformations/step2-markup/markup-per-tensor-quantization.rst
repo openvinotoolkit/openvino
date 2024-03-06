@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_MarkupPerTensorQuantization}
+.. {#openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization}
 
 MarkupPerTensorQuantization transformation
 ==========================================

@@ -1,4 +1,4 @@
-.. {#openvino_docs_MO_DG_prepare_model_convert_model_../../../../../learn-openvino/interactive-tutorials-python}
+.. {#openvino_docs_MO_DG_prepare_model_convert_model_tutorials}
 
 [LEGACY] Model Conversion Tutorials
 ====================================================

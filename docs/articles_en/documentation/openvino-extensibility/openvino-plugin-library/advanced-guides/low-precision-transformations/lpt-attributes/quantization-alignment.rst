@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_QuantizationAlignment}
+.. {#openvino_docs_OV_UG_lpt_QuantizationAlignment}
 
 QuantizationAlignment Attribute
 ===============================

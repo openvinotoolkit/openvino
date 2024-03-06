@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_Precisions}
+.. {#openvino_docs_OV_UG_lpt_Precisions}
 
 Precisions Attribute
 ====================

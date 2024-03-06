@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_ReshapeTransformation}
+.. {#openvino_docs_OV_UG_lpt_ReshapeTransformation}
 
 ReshapeTransformation transformation
 ====================================

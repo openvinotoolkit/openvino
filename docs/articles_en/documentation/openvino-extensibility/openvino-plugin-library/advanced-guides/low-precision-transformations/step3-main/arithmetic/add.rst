@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_AddTransformation}
+.. {#openvino_docs_OV_UG_lpt_AddTransformation}
 
 AddTransformation transformation
 ================================

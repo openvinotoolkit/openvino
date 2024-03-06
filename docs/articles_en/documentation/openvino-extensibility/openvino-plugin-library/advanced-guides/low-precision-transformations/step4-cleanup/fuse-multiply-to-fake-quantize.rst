@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_FuseMultiplyToFakeQuantizeTransformation}
+.. {#openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation}
 
 FuseMultiplyToFakeQuantizeTransformation transformation
 =======================================================
