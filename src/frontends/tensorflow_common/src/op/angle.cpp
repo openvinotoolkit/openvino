@@ -49,7 +49,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto y = make_shared<v8::Gather>(complex, imag_index, gather_axis)->output(0);
 
     // handle the first condition : x>0
-    aut div_y_x = make_shared<v1::Divide>(y, x);
+    auto div_y_x = make_shared<v1::Divide>(y, x);
     auto atan = make_shared<v0::Atan>(div_y_x);
     auto const_zero = create_same_type_const_scalar<int32_t>(x, 0);
     auto result = atan->output(0);
@@ -84,7 +84,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     result_changed_type = make_shared<v1::Convert>(result, result_type);
 
     set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
-    return {result_changed_type};
+    {result_changed_type};
 }
 }  // namespace op
 }  // namespace tensorflow
