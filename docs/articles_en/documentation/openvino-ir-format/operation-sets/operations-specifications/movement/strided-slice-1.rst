@@ -20,22 +20,22 @@ The operation takes inputs with the following properties:
 
 * :math:`input` tensor to slice, with N dimensions.
 * :math:`begin, end, stride` inputs - 1D lists of integers of the same length M. **Stride input cannot contain any zeros.**
-* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask inputs` - bitmasks, 1D lists of integers (0 or 1). **Each mask can have a unique length**. :math:`ellipsis\_mask` can have up to one occurrence of the value 1.
+* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask inputs` - bitmasks, 1D lists of integers (0 or 1). **Each mask can have a unique length. Masks' lengths can differ from the rank of the input shape.**. :math:`ellipsis\_mask` can have up to one occurrence of the value 1.
 * :math:`new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
+
+.. note:: Negative Values in Begin and End (Negative Values Adjusting)
+
+   Negative values in begin, end (**NOT** stride) represent indexing from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 The basic slicing operation accumulates output elements as follows:
 
-* The operation iterates over the values of begin, end, and stride. At every step, the operation uses the i-th element of begin, end, and stride to perform the slicing.
+* The operation iterates over the values of begin, end, and stride. At every step, the operation uses the i-th element of begin, end, and stride to perform the slicing at the corresponding dimension.
 * Let :math:`slicing\_index = begin[i]`. This value determines the first index to start slicing. This sliced element is added to the output.
-* If :math:`begin[i] == end[i]`, only a single element is added to the output. The corresponding output dimension is then equal to 1 (in other words, the dimension is kept).
+* If :math:`begin[i] == end[i]`, only a single element from the corresponding dimension is added to the output. The corresponding output dimension is then equal to 1 (in other words, the dimension is kept).
 * At each step, the :math:`slicing\_index` is incremented by the value of :math:`stride[i]`. As long as the :math:`slicing\_index < end[i]`, the element corresponding to the :math:`slicing\_index` is added to the output.
 * Whenever :math:`slicing\_index >= end[i]`, the slicing stops, and the corresponding element is not added to the output.
 
 Notice that the basic slicing operation assumes N = M (that is, i-th slicing step corresponds to i-th dimension), as no masks are used.
-
-.. note:: Negative Values in Begin and End (Negative Values Adjusting)
-
-   Negative values represent indexing from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 .. note:: Indexing in Reverse
 
@@ -53,15 +53,15 @@ Notice that the basic slicing operation assumes N = M (that is, i-th slicing ste
    * If :math:`begin[i] >= size(dim)`, then :math:`begin[i] = size(dim) - 1`. If :math:`begin[i] < 0` (after Negative Values Adjusting), then :math:`begin[i] = 0`.
    * If :math:`end[i] >= size(dim)`, then :math:`end[i] = size(dim)`. If :math:`end[i] < 0` (after Negative Values Adjusting), then :math:`end[i] = -1`.
 
-The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. **If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended with zeros.**
+The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. **If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended (padded at the end) with zeros. If the length of the bitmask is greater than necessary, the remaining values are ignored.**
 
 During the i-th slicing step:
 
-* If the :math:`begin\_mask[i]` is set to one, the value of :math:`begin[i]` is set to 0 (size(dim) - 1 if slicing in reverse).
-* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value).
-* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step.
-* If the :math:`shrink\_axis\_mask[i]` is set to one, the values of :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the **stride[i]** value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining.
-* If the :math:`ellipsis\_mask[i]` is set to one, the :math:`begin[i], end[i], and stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`.
+* If the :math:`begin\_mask[i]` is set to one, the value of :math:`begin[i]` is set to 0 (size(dim) - 1 if slicing in reverse). Equivalent of swapping left handside of Python slicing operation :math:`array[0:10]` with :math:`array[:10]` (slice from the start).
+* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10] (assume len(array) = 10)` with :math:`array[0:]` (slice till the end, inclusive).
+* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...] -> array[..., 1, ...]`.
+* If the :math:`shrink\_axis\_mask[i]` is set to one, the value of  :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the **stride[i]** value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining. Equivalent of selecting only a given element without preserving dimension (numpy equivalent of keepdims=False) :math:`array[..., 0, ...] -> array[..., ...] (one less dimension)`.
+* If the :math:`ellipsis\_mask[i]` is set to one, the :math:`begin[i], end[i], and stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in Python :math:`array[0, ..., 0], rank(array) = 10 == array[0, :, :, :, :, :, :, :, :, 0] (equivalent operation)`.
 
 .. note:: The i-th Slicing Step and Dimension Modification
 
@@ -138,7 +138,7 @@ During the i-th slicing step:
 
 **Example**
 
-Basic example with different strides, standard slicing and in reverse.
+Basic example with different strides, standard slicing and in reverse. Equivalent of performing array[0:4, 1:4, 0:4:2, 1:4:2, 3:0:-1, 3:0:-2] on a 6D array.
 
 .. code-block:: xml
    :force:
@@ -176,7 +176,7 @@ Basic example with different strides, standard slicing and in reverse.
         </output>
     </layer>
 
-Example of clamping in standard and reverse slicing.
+Example of clamping in standard and reverse slicing. Equivalent of performing array[2:3, 2:1:-1] on a 2D array.
 
 .. code-block:: xml
    :force:
@@ -206,7 +206,7 @@ Example of clamping in standard and reverse slicing.
         </output>
     </layer>
 
-Example of negative slicing.
+Example of negative slicing. Equivalent of performing array[0:2, 0:2, 0:-1] on a 3D array.
 
 .. code-block:: xml
    :force:
@@ -238,13 +238,13 @@ Example of negative slicing.
         </output>
     </layer>
 
-Example of ``begin_mask`` & ``end_mask`` usage.
+Example of ``begin_mask`` & ``end_mask`` usage. Equivalent of performing array[1:, :, ::-1] on a 3D array.
 
 .. code-block:: xml
    :force:
 
     <layer ... type="StridedSlice" ...>
-        <data begin_mask="0,1,1" end_mask="1,1,1" new_axis_mask="0,0,0" shrink_axis_mask="0,0,0" ellipsis_mask="0,0,0" />
+        <data begin_mask="0,1,1" end_mask="1,1,1" new_axis_mask="0,0,0,0,0" shrink_axis_mask="0,0" ellipsis_mask="0" />
         <input>
             <port id="0">
                 <dim>2</dim>
@@ -270,7 +270,7 @@ Example of ``begin_mask`` & ``end_mask`` usage.
         </output>
     </layer>
 
-Example of ``new_axis_mask`` usage.
+Example of ``new_axis_mask`` usage. Equivalent of performing array[np.newaxis, 0:2, np.newaxis, 0:4] on a 2D array.
 
 .. code-block:: xml
    :force:
@@ -302,7 +302,7 @@ Example of ``new_axis_mask`` usage.
         </output>
     </layer>
 
-Example of ``shrink_axis_mask`` usage.
+Example of ``shrink_axis_mask`` usage. Equivalent of performing array[0:1, 0, 0:384, 0:640, 0:8] on a 5D array.
 
 .. code-block:: xml
    :force:
@@ -321,7 +321,7 @@ Example of ``shrink_axis_mask`` usage.
                 <dim>5</dim> <!-- begin: [0, 0, 0, 0, 0] -->
             </port>
             <port id="2">
-                <dim>5</dim> <!-- end: [1, 1, 384, 640, 8] -->
+                <dim>5</dim> <!-- end: [1, 0, 384, 640, 8] -->
             </port>
             <port id="3">
                 <dim>5</dim> <!-- stride: [1, 1, 1, 1, 1] -->
@@ -337,7 +337,7 @@ Example of ``shrink_axis_mask`` usage.
         </output>
     </layer>
 
-Example of ``ellipsis_mask`` usage.
+Example of ``ellipsis_mask`` usage. Equivalent of performing array[0, ..., 0] on a 10D array.
 
 .. code-block:: xml
    :force:
@@ -378,12 +378,62 @@ Example of ``ellipsis_mask`` usage.
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
-                <dim>10</dim> <!-- ellipsis skipped over dimensions to match pattern -->
+                <dim>10</dim> <!-- ellipsis skipped over 8 dimensions to match pattern -->
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>5</dim> <!-- last dim modified -->
+            </port>
+        </output>
+    </layer>
+
+Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalent of performing array[2:, ..., np.newaxis, :10] on a 10D array.
+
+.. code-block:: xml
+   :force:
+
+    <layer ... type="StridedSlice" ...>
+        <!-- this pattern aims to modify first and last dimension -->
+        <data begin_mask="0,0,1,1" end_mask="1,1,0,0" new_axis_mask="0,0,1" shrink_axis_mask="0" ellipsis_mask="0,1"/>
+        <input>
+            <port id="0">
+                <dim>10</dim> <!-- first dim -->
+                <dim>10</dim> 
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim> <!-- last dim -->
+            </port>
+            <port id="1">
+                <dim>3</dim> <!-- begin: [2, 1, 10, 10] - second dimension marked as ellipsis. third dimension is a new axis -->
+            </port>
+            <port id="2">
+                <dim>3</dim> <!-- end: [123, 1, 10, 5] -->
+            </port>
+            <port id="3">
+                <dim>3</dim> <!-- stride: [1, -1, 1, 1] -->
+            </port>
+        </input>
+        <output>
+            <port id="4">
+                <dim>8</dim> <!-- first dim modified, begin = 2, end = 10 -->
+                <dim>10</dim> 
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>10</dim> <!-- ellipsis skipped over 8 dimensions -->
+                <dim>10</dim> <!-- 8 = 10 - (4 - 1 - 1)>
+                <dim>10</dim> <!-- 10 - rank(input), 4 - rank(begin), 1 - new_axis_mask>
+                <dim>10</dim>
+                <dim>10</dim>
+                <dim>1</dim> <!-- new dimension from new_axis_mask, 'consumes' the penultimate slicing arguments -->
+                <dim>5</dim> <!-- last dim modified, begin = 0, end = 5 -->
             </port>
         </output>
     </layer>
