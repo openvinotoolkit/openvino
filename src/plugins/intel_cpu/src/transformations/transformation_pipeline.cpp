@@ -317,8 +317,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-        if (!hasHardwareSupport(ov::element::f16) ||
-            (hasHardwareSupport(ov::element::f16) && inferencePrecision != ov::element::f16)) {
+        if (inferencePrecision != ov::element::f16) {
                 map.insert({ov::element::f16, ov::element::f32});
         }
 #else
@@ -332,8 +331,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
-    if (hasHardwareSupport(ov::element::f16) && inferencePrecision == ov::element::f16) {
+    if (inferencePrecision == ov::element::f16) {
         precisions_map fp_convert_precision_map = {{ov::element::f32, ov::element::f16}};
+        //keep fq nodes in f32 prec to avoid performance degradation
         type_to_fuse_map f16_fuse_map = {{ov::opset1::FakeQuantize::get_type_info_static(), fuse_type_to_fq}};
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,

@@ -1598,7 +1598,7 @@ void Graph::EnforceInferencePrecision() {
     if (inferPrec == ov::element::f32)
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (hasHardwareSupport(ov::element::f16) && inferPrec == ov::element::f16)
+    if (inferPrec == ov::element::f16)
         return; // precision of configured by ov::pass::ConvertPrecision
 #endif
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;

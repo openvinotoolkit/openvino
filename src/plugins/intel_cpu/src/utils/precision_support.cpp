@@ -24,6 +24,8 @@ static bool hasFP16HardwareSupport(const ov::element::Type& precision) {
         return true;
     return false;
 #elif defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_ACL)
+    //has_fp16() works correctly on aarch64 only
+    //TODO: remove else branch as soon as ACL issue #1096 is fixed
     return arm_compute::CPUInfo::get().has_fp16();
 #else
     return false;

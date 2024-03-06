@@ -210,8 +210,7 @@ void Reorder::prepareParams() {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
     // Use transpose executor as a temporary WA.
-    if (hasHardwareSupport(ov::element::f16) &&
-        everyone_is(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+    if (everyone_is(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
         one_of(parentDesc->getShape().getRank(), 3u, 4u)) {
@@ -403,7 +402,7 @@ void Reorder::optimizedNspc2Ncsp() {
 
 void Reorder::execute(dnnl::stream strm) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (hasHardwareSupport(ov::element::f16) && transposeExecutor) {
+    if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
         return transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
