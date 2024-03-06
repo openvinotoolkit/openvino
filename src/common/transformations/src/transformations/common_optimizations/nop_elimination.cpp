@@ -397,7 +397,7 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>(pattern::consumers_count(1));
     auto non_zero = pattern::wrap_type<ov::op::v3::NonZero>({convert_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         auto convert = pattern_map.at(convert_pattern);
         // remove convert
@@ -977,7 +977,7 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
     auto second_label = pattern::wrap_type<op::v1::Reshape, op::v0::Unsqueeze>({binary_op_label, pattern::any_input()},
                                                                                pattern::rank_equals(1));
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
 
         auto second_node = pattern_to_node.at(second_label);
