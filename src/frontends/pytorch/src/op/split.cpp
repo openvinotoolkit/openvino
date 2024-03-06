@@ -47,7 +47,6 @@ OutputVector translate_unbind_int_fx(const NodeContext& context) {
         dim = context.get_input(1);
         dim_val = context.const_input<int>(1);
     }
-    
     auto shape = input.get_shape();
     if (dim_val < 0) {
         dim_val = static_cast<int>(shape.size()) + dim_val;
