@@ -320,17 +320,19 @@ std::ostream& operator<<(std::ostream& os, const BitProxy<T, N, S>& value) {
  */
 template <Type_t ET, class T>
 class Iterator {
+    using proxy_type = BitProxy<T, bit_width<ET>(), (ET == i4)>;
+
 public:
     using iterator_category = std::bidirectional_iterator_tag;
     using difference_type = std::ptrdiff_t;
-    using value_type = BitProxy<T, bit_width<ET>(), (ET == i4)>;
-    using reference = value_type&;
-    using pointer = T*;
+    using value_type = T;
+    using reference = proxy_type&;
+    using pointer = proxy_type*;
 
     static_assert(std::is_same<typename std::decay<T>::type, ov::fundamental_type_for<ET>>::value,
                   "Iterator value_type must be same as fundamental type of ET");
 
-    constexpr Iterator(pointer ptr) noexcept : m_et_ptr{ptr} {}
+    constexpr Iterator(T* ptr) noexcept : m_et_ptr{ptr} {}
 
     // Iteration operators
     template <Type_t ETT = ET>
@@ -465,7 +467,7 @@ public:
     }
 
 private:
-    value_type m_et_ptr;
+    proxy_type m_et_ptr;
 };
 
 /**
