@@ -10,6 +10,7 @@ from common.tf_layer_test_class import CommonTFLayerTest
 # Testing Cumsum operation
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/Cumsum
 
+
 class TestCumsum(CommonTFLayerTest):
     # input_shape - should be an array
     # axis - array which points on axis for the operation
@@ -22,10 +23,12 @@ class TestCumsum(CommonTFLayerTest):
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_input = tf.compat.v1.placeholder(tf.float32, input_shape, 'Input')
+            tf_input = tf.compat.v1.placeholder(tf.float32, input_shape, "Input")
 
             tf_axis = tf.constant(axis, dtype=tf.int32)
-            tf.raw_ops.Cumsum(x=tf_input, axis=tf_axis, exclusive=exclusive, reverse=reverse)
+            tf.raw_ops.Cumsum(
+                x=tf_input, axis=tf_axis, exclusive=exclusive, reverse=reverse
+            )
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -49,8 +52,22 @@ class TestCumsum(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_cumsum_basic(self, params, exclusive, reverse, ie_device, precision, ir_version, temp_dir,
-                          use_legacy_frontend):
-        self._test(*self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
+    def test_cumsum_basic(
+        self,
+        params,
+        exclusive,
+        reverse,
+        ie_device,
+        precision,
+        ir_version,
+        temp_dir,
+        use_legacy_frontend,
+    ):
+        self._test(
+            *self.create_cumsum_net(**params, exclusive=exclusive, reverse=reverse),
+            ie_device,
+            precision,
+            ir_version,
+            temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend
+        )
