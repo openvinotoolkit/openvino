@@ -121,9 +121,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
         size_t b_stride = 0;
         // must set actual stride when stride is not K/N
         if (b_transposed) {
-            b_stride = ldb == K ? 0 : ldb * weiType.size();
+            b_stride = ldb == K ? 0 : ldb * inType.size();
         } else {
-            b_stride = ldb == N ? 0 : ldb * weiType.size();
+            b_stride = ldb == N ? 0 : ldb * inType.size();
         }
         // K should use the original K
         init_brgemm_copy_b(brgCopyBKernel,
@@ -279,6 +279,7 @@ void BrgemmKernel::init_brgemm_copy_b(
         } else {
             brgCopyKernelConf.isa = dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
         }
+        brgCopyKernelConf.s8s8_compensation_required = dt_in0 == dnnl_data_type_t::dnnl_s8;
     }
 
     brgCopyKernelConf.has_zero_point_a = false;
