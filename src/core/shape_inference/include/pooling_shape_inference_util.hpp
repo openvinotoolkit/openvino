@@ -168,7 +168,10 @@ void align_ceil_torch_dimension_size(TDim& dim,
 }
 
 template <class TDim>
-TDim disallow_pooling_start_in_padding(TDim& dim, const size_t stride, const TDim* data_dim, const size_t pads_begin) {
+TDim disallow_pooling_start_in_padding(const TDim& dim,
+                                       const size_t stride,
+                                       const TDim* data_dim,
+                                       const size_t pads_begin) {
     // Ensure the last pooling doesn't start in padding.
     auto dim_min_length = dim.get_min_length();
     const auto last_pooling_min_start_index = (dim_min_length - 1) * stride;
