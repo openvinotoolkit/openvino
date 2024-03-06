@@ -39,7 +39,7 @@ void InverseLayerTest::SetUp() {
     std::vector<InputShape> input_shape;
     ov::element::Type element_type;
     bool adjoint;
-bool test_static;
+    bool test_static;
 
     std::tie(input_shape, element_type, adjoint, test_static, m_seed, targetDevice) = GetParam();
 

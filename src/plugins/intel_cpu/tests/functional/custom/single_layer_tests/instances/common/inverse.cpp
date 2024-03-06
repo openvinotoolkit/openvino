@@ -9,6 +9,12 @@ namespace {
 using ov::test::InverseLayerTest;
 
 const std::vector<std::vector<ov::test::InputShape>> input_shapes = {
+    {{{10, 10}, {{10, 10}}}},
+    {{{7, 7}, {{7, 7}}}},
+    {{{4, 4}, {{4, 4}}}},
+    {{{2, 10, 10}, {{2, 10, 10}}}},
+    {{{10, 7, 7}, {{10, 7, 7}}}},
+    {{{20, 4, 4}, {{20, 4, 4}}}},
     {{{ov::Dimension{1, 70}, -1}, {{10, 10}, {7, 7}, {4, 4}}}},
     {{{-1, ov::Dimension{1, 70}, -1}, {{2, 10, 10}, {10, 7, 7}, {20, 4, 4}}}}};
 
@@ -30,5 +36,4 @@ const auto params_dynamic = ::testing::Combine(shapes, dtypes, adjoint, test_dyn
 
 INSTANTIATE_TEST_SUITE_P(smoke_InverseStatic, InverseLayerTest, params_static, InverseLayerTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_InverseDynamic, InverseLayerTest, params_dynamic, InverseLayerTest::getTestCaseName);
-
 }  // namespace
