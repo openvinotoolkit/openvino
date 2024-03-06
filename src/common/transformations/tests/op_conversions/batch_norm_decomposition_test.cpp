@@ -18,6 +18,45 @@
 using namespace ov;
 using namespace testing;
 
+std::shared_ptr<ov::Model> get_ref_model_with_dyn_shapes(ov::element::Type precision, const PartialShape& input_shape) {
+    auto input = std::make_shared<opset1::Parameter>(precision, input_shape);
+    auto gamma = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+    auto beta = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+    auto mean = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+    auto var = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+    // scale_add = variance + eps
+    auto scale_add = std::make_shared<ov::op::v1::Add>(var, ov::op::v0::Constant::create(precision, Shape{}, {0.001}));
+    // scale = sqrt(variance + eps)
+    auto scale = std::make_shared<ov::op::v0::Sqrt>(scale_add);
+    // Divide `gamma` by `sqrt(variance + eps)`
+    auto gamma_div_scale = std::make_shared<ov::op::v1::Divide>(gamma, scale);
+
+    int64_t dims_to_add = input->get_partial_shape().rank().get_length() - 2;
+    const auto one = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto tail_shape_rank = ov::op::v0::Constant::create(element::i64, Shape{1}, {dims_to_add});
+    const auto tail_shape = std::make_shared<ov::op::v3::Broadcast>(one, tail_shape_rank);
+    const auto C_dim = std::make_shared<ov::op::v3::ShapeOf>(gamma);
+    // create new shape [1, C, 1, 1, ...]
+    const auto new_shape = std::make_shared<ov::op::v0::Concat>(OutputVector{one, C_dim, tail_shape}, 0);
+
+    std::shared_ptr<Node> gamma_div_scale_aligned =
+        std::make_shared<ov::op::v1::Reshape>(gamma_div_scale, new_shape, true);
+    std::shared_ptr<Node> beta_aligned = std::make_shared<ov::op::v1::Reshape>(beta, new_shape, true);
+    std::shared_ptr<Node> mean_aligned = std::make_shared<ov::op::v1::Reshape>(mean, new_shape, true);
+    std::shared_ptr<Node> mean_negative = std::make_shared<ov::op::v1::Multiply>(
+        mean_aligned,
+        ov::op::v0::Constant::create(mean_aligned->get_output_element_type(0), Shape{}, {-1}));
+
+    // input_sub_mean = input + mean * -1
+    auto input_sub_mean = std::make_shared<ov::op::v1::Add>(input, mean_negative);
+    // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
+    auto mul = std::make_shared<ov::op::v1::Multiply>(input_sub_mean, gamma_div_scale_aligned);
+    // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
+    auto add = std::make_shared<ov::op::v1::Add>(mul, beta_aligned);
+
+    return std::make_shared<ov::Model>(NodeVector{add}, ParameterVector{input, gamma, beta, mean, var});
+}
+
 TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset1) {
     const PartialShape input_shape{-1, -1, -1, -1};
     const auto precision = element::f32;
@@ -72,6 +111,42 @@ TEST_F(TransformationTestsF, BatchNormDecompositionStaticRankOpset5) {
 
         model_ref = std::make_shared<ov::Model>(NodeVector{add_2}, ParameterVector{input});
     }
+}
+
+TEST_F(TransformationTestsF, BatchNormDecompositionDynamicShapesOpset1) {
+    const PartialShape input_shape{-1, -1, -1, -1};
+    const auto precision = element::f32;
+    {
+        auto input = std::make_shared<opset1::Parameter>(precision, input_shape);
+        auto gamma = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto beta = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto mean = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto var = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto batch_norm = std::make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
+
+        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
+        manager.register_pass<ov::pass::BatchNormDecomposition>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+    { model_ref = get_ref_model_with_dyn_shapes(precision, input_shape); }
+}
+
+TEST_F(TransformationTestsF, BatchNormDecompositionDynamicShapesOpset5) {
+    const PartialShape input_shape{-1, -1, -1, -1};
+    const auto precision = element::f32;
+    {
+        auto input = std::make_shared<opset1::Parameter>(precision, input_shape);
+        auto gamma = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto beta = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto mean = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto var = std::make_shared<opset1::Parameter>(precision, PartialShape{-1});
+        auto batch_norm = std::make_shared<opset5::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
+
+        model = std::make_shared<ov::Model>(NodeVector{batch_norm}, ParameterVector{input, gamma, beta, mean, var});
+        manager.register_pass<ov::pass::BatchNormDecomposition>();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+    { model_ref = get_ref_model_with_dyn_shapes(precision, input_shape); }
 }
 
 TEST_F(TransformationTestsF, BatchNormDecompositionDynamicRank) {
