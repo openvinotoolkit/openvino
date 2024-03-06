@@ -58,6 +58,9 @@ private:
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
+    ov::element::Type srcType;
+    ov::element::Type weiType;
+    bool is_f16 = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {
@@ -79,6 +82,7 @@ private:
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
+
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
                             size_t K,

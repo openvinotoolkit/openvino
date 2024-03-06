@@ -28,18 +28,27 @@ void run_test(ov::element::Type rtPrec) {
     size_t K = 33;
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
-    bool is_bf16 = (rtPrec == ov::element::bf16);
+    bool is_f32 = (rtPrec == ov::element::f32);
+    bool is_f16 = (rtPrec == ov::element::f16);
     std::vector<T> a_data(M * K, (1.0f/33));
     std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
     std::vector<size_t> wsp(nthr * 4 * 1024, 0.0f);
-    std::vector<T> b_scracth(gemm.get_scratch_b_size(), 0.0f);
-    std::vector<T> a_scracth(gemm.get_scratch_a_size(), 0.0f);
-    if (is_bf16)
-        gemm.copy_buffer_b(b_data.data(), b_scracth.data());
+    std::vector<uint8_t> a_scratch(gemm.get_scratch_a_size(), 0.0f);
+    std::vector<uint8_t> b_scratch(gemm.get_scratch_b_size(), 0.0f);
+    if (!is_f32) {
+        gemm.copy_buffer_b(b_data.data(), b_scratch.data());
+    }
     auto m_block_size = gemm.get_mblk_size();
     auto m_blocks = (M + gemm.get_mblk_size() - 1) / m_block_size;
-    T* b_ptr = is_bf16 ? b_scracth.data() : b_data.data();
+    void* b_ptr = !is_f32 ? static_cast<void*>(b_scratch.data()) : static_cast<void*>(b_data.data());
+    auto print_data = [](T* ptr, size_t len) {
+        for (size_t i = 0; i < len; i++) {
+            std::cout << static_cast<float>(ptr[i]) << ",";
+        }
+        std::cout << std::endl;
+    };
+    // print_data(a_data.data(), K);
     ov::parallel_for2d(nthr, m_blocks, [&](size_t i, size_t m_blk) {
         auto m_start = m_blk * m_block_size;
         auto m_end = std::min(m_start + m_block_size, M);
@@ -49,7 +58,7 @@ void run_test(ov::element::Type rtPrec) {
                          b_ptr,
                          c_data.data() + i * M * N + m_start * N,
                          wsp.data() + i * 4 * 1024,
-                         a_scracth.data());
+                         a_scratch.data());
     });
     ov::parallel_for(nthr, [&](size_t i){
         for (size_t m = 0; m < M; m++) {
@@ -76,6 +85,8 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
 
     if (rtPrec == ov::element::bf16) {
         run_test<ov::bfloat16>(rtPrec);
+    } else if (rtPrec == ov::element::f16) {
+        run_test<ov::float16>(rtPrec);
     } else {
         run_test<float>(rtPrec);
     }
@@ -83,6 +94,6 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
 
 INSTANTIATE_TEST_SUITE_P(BrgemmKernelUnitTest,
                          BrgemmKernelTest,
-                         ::testing::Values(ov::element::f32, ov::element::bf16),
+                         ::testing::Values(ov::element::f32, ov::element::bf16, ov::element::f16),
                          BrgemmKernelTest::getTestCaseName);
 } // namespace brgemmUnitTest
