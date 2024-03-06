@@ -60,6 +60,10 @@ def download(test_data_dir, file_path):
                         response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12.onnx?download=")
                         with file_path.open('wb') as nfnet:
                             nfnet.write(response.content)
+                    elif test_data_dir / 'bvlcalexnet-12-qdq.onnx' == file_path:
+                        response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/alexnet/model/bvlcalexnet-12-qdq.onnx?download=")
+                        with file_path.open('wb') as nfnet:
+                            nfnet.write(response.content)
                     elif test_data_dir / 'efficientnet-lite4-11-qdq.onnx' == file_path:
                         response = requests.get("https://github.com/onnx/models/raw/main/validated/vision/classification/efficientnet-lite4/model/efficientnet-lite4-11-qdq.onnx?download=")
                         with file_path.open('wb') as nfnet:
