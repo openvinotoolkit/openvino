@@ -5,7 +5,6 @@
 #include "openvino/op/topk.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
