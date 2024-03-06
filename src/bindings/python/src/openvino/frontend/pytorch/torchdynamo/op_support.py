@@ -33,6 +33,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten._adaptive_avg_pool2d.default": None,
             "torch.ops.aten._adaptive_avg_pool3d.default": None,
             "torch.ops.aten._convolution.default": None,
+            "torch.ops.aten._embedding_bag.default": None,
             "torch.ops.aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default": None,
             "torch.ops.aten._local_scalar_dense.default": None,
             "torch.ops.aten._log_softmax.default": None,

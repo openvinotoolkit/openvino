@@ -252,6 +252,7 @@ OP_CONVERTER(translate_constant_pad_nd_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
+OP_CONVERTER(translate_embedding_bag_fx);
 OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
@@ -695,6 +696,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._adaptive_avg_pool2d.default", op::translate_adaptive_avg_pool2d},
         {"aten._adaptive_avg_pool3d.default", op::translate_adaptive_avg_pool3d},
         {"aten._convolution.default", op::translate_convolution},
+        {"aten._embedding_bag.default", op::translate_embedding_bag_fx},
         {"aten._fake_quantize_per_tensor_affine_cachemask_tensor_qparams.default",
          op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten._local_scalar_dense.default", op::skip_node},
