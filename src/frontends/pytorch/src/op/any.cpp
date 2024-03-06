@@ -5,6 +5,8 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/not_equal.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reshape.hpp"
 #include "utils.hpp"
 
 namespace ov {
