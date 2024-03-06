@@ -1,4 +1,4 @@
-.. {#../available-opsets13}
+.. {#openvino_docs_ops_opset13}
 
 opset13
 =======

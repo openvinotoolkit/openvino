@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_PadTransformation}
+.. {#openvino_docs_OV_UG_lpt_PadTransformation}
 
 PadTransformation transformation
 ================================

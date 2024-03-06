@@ -1,11 +1,11 @@
-.. {#../low-precision-transformations_step1_prerequisites}
+.. {#openvino_docs_OV_UG_lpt_step1_prerequisites}
 
 Step 1. Prerequisites Transformations
 =====================================
 
 
 .. meta::
-   :description: Learn about optional Prerequisites transformations, that 
+   :description: Learn about optional Prerequisites transformations, that
                  prepare a model before applying other low precision transformations.
 
 .. toctree::

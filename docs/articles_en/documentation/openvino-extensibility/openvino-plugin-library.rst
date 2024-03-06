@@ -19,7 +19,7 @@ Overview of OpenVINO Plugin Library
    Implement Compiled Model Functionality <openvino-plugin-library/compiled-model>
    Implement Synchronous Inference Request <openvino-plugin-library/synch-inference-request>
    Implement Asynchronous Inference Request <openvino-plugin-library/asynch-inference-request>
-   Provide Plugin Specific Properties <openvino-plugin-library/plugi-properties>
+   Provide Plugin Specific Properties <openvino-plugin-library/plugin-properties>
    Implement Remote Context <openvino-plugin-library/remote-context>
    Implement Remote Tensor <openvino-plugin-library/remote-tensor>
    openvino-plugin-library/build-plugin-using-cmake
@@ -63,7 +63,7 @@ OpenVINO plugin dynamic library consists of several main components:
     * Wraps the  :doc:`Inference Request <openvino-plugin-library/synch-inference-request>` class and runs pipeline stages in parallel on several task executors based on a device-specific pipeline structure.
 
 
-5.  :doc:`Plugin specific properties <openvino-plugin-library/plugi-properties>`:
+5.  :doc:`Plugin specific properties <openvino-plugin-library/plugin-properties>`:
 
     * Provides the plugin specific properties.
 
@@ -90,7 +90,7 @@ Detailed Guides
 *  Plugin and its components :doc:`testing <openvino-plugin-library/plugin-testing>`
 *  :doc:`Quantized networks <openvino-plugin-library/advanced-guides/quantized-models>`
 *  :doc:`Low precision transformations <openvino-plugin-library/advanced-guides/low-precision-transformations>` guide
-*  :doc:`Writing OpenVINO™ transformations <transformations-api>` guide
+*  :doc:`Writing OpenVINO™ transformations <transformation-api>` guide
 *  `Integration with AUTO Plugin <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto/docs/integration.md>`__
 
 API References

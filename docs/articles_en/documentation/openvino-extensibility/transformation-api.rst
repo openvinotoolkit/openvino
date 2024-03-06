@@ -13,9 +13,9 @@ Overview of Transformations API
    :maxdepth: 1
    :hidden:
 
-   transformations-api/model-pass
-   transformations-api/matcher-pass
-   transformations-api/graph-rewrite-pass
+   transformation-api/model-pass
+   transformation-api/matcher-pass
+   transformation-api/graph-rewrite-pass
 
 OpenVINO Transformation mechanism allows to develop transformation passes to modify ``ov::Model``. You can use this mechanism to apply additional optimizations to the original Model or transform unsupported subgraphs and operations to new operations which are supported by the plugin.
 This guide contains all necessary information that you need to start implementing OpenVINO™ transformations.
@@ -97,9 +97,9 @@ Transformations types
 
 OpenVINO™ Runtime has three main transformation types:
 
-* :doc:`Model pass <transformations-api/model-pass>` - straightforward way to work with ``ov::Model`` directly
-* :doc:`Matcher pass <transformations-api/matcher-pass>` - pattern-based transformation approach
-* :doc:`Graph rewrite pass <transformations-api/graph-rewrite-pass>` - container for matcher passes needed for efficient execution
+* :doc:`Model pass <transformation-api/model-pass>` - straightforward way to work with ``ov::Model`` directly
+* :doc:`Matcher pass <transformation-api/matcher-pass>` - pattern-based transformation approach
+* :doc:`Graph rewrite pass <transformation-api/graph-rewrite-pass>` - container for matcher passes needed for efficient execution
 
 .. image:: ./../../_static/images/transformations_structure.png
 

@@ -1,4 +1,4 @@
-.. {#../legacy-model-optimizer-extensibility_Model_Optimizer_Ports_Connections}
+.. {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
 
 [LEGACY] Graph Traversal and Modification
 ===========================================
