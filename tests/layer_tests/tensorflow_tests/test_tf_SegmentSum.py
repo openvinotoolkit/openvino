@@ -105,7 +105,7 @@ class TestSegmentSum(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_different_types)
     @pytest.mark.nightly
-    def test_segment_sum_data_different_types(
+    def test_segment_sum_different_types(
         self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend
     ):
         self._test(
