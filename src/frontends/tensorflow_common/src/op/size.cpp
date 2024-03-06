@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -22,6 +23,11 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Size"});
     auto input = node.get_input(0);
 
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+
+    if (complex_type_mark) {
+        input = complex_type_mark->input_value(0);
+    }
     // retrive attribute of the output type
     auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
 
