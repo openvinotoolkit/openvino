@@ -1241,14 +1241,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
             serializeFunc(xml_file, bin_file, model, m_version);
-        } catch (const std::ofstream::failure& e) {
-            // Handle file stream errors
-            std::cerr << "Exception opening/writing file. Not Enough Space in disk: " << e.what() << '\n';
-            std::remove(m_xmlPath.c_str());
-            std::remove(m_binPath.c_str());
-            throw; 
         } catch (const ov::AssertFailure& e) {
-            // Handle other any exceptions
+            // Handle exceptions
             std::cerr << "OpenVINO assertion failed: " << e.what() << '\n';
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
