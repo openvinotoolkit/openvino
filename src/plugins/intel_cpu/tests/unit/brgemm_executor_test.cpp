@@ -29,7 +29,6 @@ void run_test(ov::element::Type rtPrec) {
     ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
     bool is_f32 = (rtPrec == ov::element::f32);
-    bool is_f16 = (rtPrec == ov::element::f16);
     std::vector<T> a_data(M * K, (1.0f/33));
     std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
@@ -74,6 +73,8 @@ TEST_P(BrgemmKernelTest, simpleGemmTest) {
     if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (rtPrec == ov::element::f32 && !ov::with_cpu_x86_avx512_core())
+        GTEST_SKIP();
+    if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())
         GTEST_SKIP();
 
     if (rtPrec == ov::element::bf16) {
