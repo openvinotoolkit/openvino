@@ -88,7 +88,7 @@ TEST(ElementIteratorTest, u1_value_to_output_stream) {
 }
 
 TEST(ElementIteratorTest, read_u1_from_tensor) {
-    constexpr int8_t value = 0x80;
+    constexpr auto value = static_cast<int8_t>(0x80);
     auto iter = element::iterator<element::u1>(&value);
 
     std::stringstream s;
@@ -158,7 +158,7 @@ TEST(ElementIteratorTest, read_u2_data_iterator_with_offset) {
 }
 
 TEST(ElementIteratorTest, u2_value_to_output_stream) {
-    constexpr int8_t value = 0x80;
+    constexpr auto value = static_cast<int8_t>(0x80);
     auto iter = element::iterator<element::u2>(&value);
 
     std::stringstream s;
@@ -232,6 +232,7 @@ TEST(ElementIteratorTest, read_u3_from_tensor) {
 }
 
 // --- u4
+// nibbles are counted as [n1, n0]
 TEST(ElementIteratorTest, write_u4_data) {
     constexpr auto elements_count = 16;
     auto input = std::array<int8_t, elements_count>{1, 2, 3, 10, 12, 15, 14, 4, 7, 9, 11, 13, 8, 0, 5, 6};
@@ -240,7 +241,7 @@ TEST(ElementIteratorTest, write_u4_data) {
 
     std::copy(input.begin(), input.end(), iter);
 
-    EXPECT_THAT(output, ElementsAre(0x12, 0x3a, 0xcf, 0xe4, 0x79, 0xbd, 0x80, 0x56));
+    EXPECT_THAT(output, ElementsAre(0x21, 0xa3, 0xfc, 0x4e, 0x97, 0xdb, 0x08, 0x65));
 }
 
 TEST(ElementIteratorTest, read_const_u4_data) {
@@ -257,7 +258,7 @@ TEST(ElementIteratorTest, read_const_u4_data) {
     auto iter = element::iterator<element::u4>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
-                ElementsAre(1, 2, 3, 10, 12, 15, 14, 4, 7, 9, 11, 13, 0, 8, 5, 6));
+                ElementsAre(2, 1, 10, 3, 15, 12, 4, 14, 9, 7, 13, 11, 8, 0, 6, 5));
 }
 
 TEST(ElementIteratorTest, read_non_const_u4_data) {
@@ -274,31 +275,31 @@ TEST(ElementIteratorTest, read_non_const_u4_data) {
     auto iter = element::iterator<element::u4>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
-                ElementsAre(1, 2, 3, 10, 12, 15, 14, 4, 7, 9, 11, 13, 0, 8, 5, 6));
+                ElementsAre(2, 1, 10, 3, 15, 12, 4, 14, 9, 7, 13, 11, 8, 0, 6, 5));
 }
 
 TEST(ElementIteratorTest, read_u4_data_increment_decrement_iterator) {
-    auto input = std::array<int8_t, 2>{0x12, 0x3a};
+    auto input = std::array<int8_t, 3>{0x12, 0x3a};
     auto iter = element::iterator<element::u4>(input.data() + 1);
 
-    EXPECT_EQ(*iter--, 3);   // 2nd byte 1st nibble
-    EXPECT_EQ(*iter++, 2);   // 1st byte 2nd nibble
-    EXPECT_EQ(*++iter, 10);  // 2nd byte 2nd nibble
-    EXPECT_EQ(*iter--, 10);  // 2nd byte 2nd nibble
-    EXPECT_EQ(*--iter, 2);   // 1st byte 2nd nibble
+    EXPECT_EQ(*iter--, 10);  // 2nd byte 1st nibble
+    EXPECT_EQ(*iter++, 1);   // 1st byte 2nd nibble
+    EXPECT_EQ(*++iter, 3);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*iter--, 3);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*--iter, 1);   // 1st byte 2nd nibble
 }
 
 TEST(ElementIteratorTest, read_u4_data_iterator_with_offset) {
     auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
     auto iter = element::iterator<element::u4>(input.data() + 1);
 
-    EXPECT_EQ(*iter, 3);                // 2nd byte 1st nibble
-    EXPECT_EQ(*(iter - 2), 4);          // 1st byte 1st nibble
-    EXPECT_EQ(*(iter + 7), 11);         // 5th byte 2nd nibble
-    EXPECT_EQ(*(iter + 6), 5);          // 2nd byte 1st nibble
-    EXPECT_EQ(*(iter - 1), 2);          // 1st byte 2nd nibble
-    EXPECT_EQ(*std::prev(iter, 1), 2);  // 1st byte 2nd nibble
-    EXPECT_EQ(*std::next(iter, 2), 6);  // 3rd byte 1st nibble
+    EXPECT_EQ(*iter, 10);               // 2nd byte 1st nibble
+    EXPECT_EQ(*(iter - 2), 2);          // 1st byte 1st nibble
+    EXPECT_EQ(*(iter + 7), 5);          // 5th byte 2nd nibble
+    EXPECT_EQ(*(iter + 6), 11);         // 2nd byte 1st nibble
+    EXPECT_EQ(*(iter - 1), 4);          // 1st byte 2nd nibble
+    EXPECT_EQ(*std::prev(iter, 1), 4);  // 1st byte 2nd nibble
+    EXPECT_EQ(*std::next(iter, 2), 1);  // 3rd byte 1st nibble
 }
 
 TEST(ElementIteratorTest, read_u4_from_tensor) {
@@ -306,10 +307,11 @@ TEST(ElementIteratorTest, read_u4_from_tensor) {
     auto t = ov::Tensor(element::u4, Shape{5, 2}, input.data());
     auto iter = element::iterator<element::u4>(static_cast<int8_t*>(t.data(element::u4)));
 
-    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(4, 2, 3, 10, 6, 1, 7, 9, 5, 11));
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(2, 4, 10, 3, 1, 6, 9, 7, 11, 5));
 }
 
 // --- i4
+// nibbles are counted as [n1, n0]
 TEST(ElementIteratorTest, write_i4_data) {
     constexpr auto elements_count = 16;
     auto input = std::array<int8_t, elements_count>{1, 2, 3, -6, -4, -1, -2, 4, 7, -7, -5, -3, -8, 0, 5, 6};
@@ -318,7 +320,7 @@ TEST(ElementIteratorTest, write_i4_data) {
 
     std::copy(input.begin(), input.end(), iter);
 
-    EXPECT_THAT(output, ElementsAre(0x12, 0x3a, 0xcf, 0xe4, 0x79, 0xbd, 0x80, 0x56));
+    EXPECT_THAT(output, ElementsAre(0x21, 0xa3, 0xfc, 0x4e, 0x97, 0xdb, 0x08, 0x65));
 }
 
 TEST(ElementIteratorTest, read_const_i4_data) {
@@ -335,7 +337,7 @@ TEST(ElementIteratorTest, read_const_i4_data) {
     auto iter = element::iterator<element::i4>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
-                ElementsAre(1, 2, 3, -6, -4, -1, -2, 4, 7, -7, -5, -3, 0, -8, 5, 6));
+                ElementsAre(2, 1, -6, 3, -1, -4, 4, -2, -7, 7, -3, -5, -8, 0, 6, 5));
 }
 
 TEST(ElementIteratorTest, read_non_const_i4_data) {
@@ -352,35 +354,35 @@ TEST(ElementIteratorTest, read_non_const_i4_data) {
     auto iter = element::iterator<element::i4>(input.data());
 
     EXPECT_THAT(std::vector<int8_t>(iter, iter + elements_count),
-                ElementsAre(1, 2, 3, -6, -4, -1, -2, 4, 7, -7, -5, -3, 0, -8, 5, 6));
+                ElementsAre(2, 1, -6, 3, -1, -4, 4, -2, -7, 7, -3, -5, -8, 0, 6, 5));
 }
 
 TEST(ElementIteratorTest, read_i4_data_increment_decrement_iterator) {
     auto input = std::array<int8_t, 2>{0x12, 0x3a};
     auto iter = element::iterator<element::i4>(input.data() + 1);
 
-    EXPECT_EQ(*iter--, 3);   // 2nd byte 1st nibble
-    EXPECT_EQ(*iter++, 2);   // 1st byte 2nd nibble
-    EXPECT_EQ(*++iter, -6);  // 2nd byte 2nd nibble
-    EXPECT_EQ(*iter--, -6);  // 2nd byte 2nd nibble
-    EXPECT_EQ(*--iter, 2);   // 1st byte 2nd nibble
+    EXPECT_EQ(*iter--, -6);  // 2nd byte 1st nibble
+    EXPECT_EQ(*iter++, 1);   // 1st byte 2nd nibble
+    EXPECT_EQ(*++iter, 3);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*iter--, 3);   // 2nd byte 2nd nibble
+    EXPECT_EQ(*--iter, 1);   // 1st byte 2nd nibble
 }
 
 TEST(ElementIteratorTest, read_i4_data_iterator_with_offset) {
     auto input = std::array<int8_t, 5>{0x42, 0x3a, 0x61, 0x79, 0x5b};
     auto iter = element::iterator<element::i4>(input.data() + 1);
 
-    EXPECT_EQ(*iter, 3);                // 2nd byte 1st nibble
-    EXPECT_EQ(*(iter - 2), 4);          // 1st byte 1st nibble
-    EXPECT_EQ(*(iter + 7), -5);         // 5th byte 2nd nibble
-    EXPECT_EQ(*(iter + 6), 5);          // 2nd byte 1st nibble
-    EXPECT_EQ(*(iter - 1), 2);          // 1st byte 2nd nibble
-    EXPECT_EQ(*std::prev(iter, 1), 2);  // 1st byte 2nd nibble
-    EXPECT_EQ(*std::next(iter, 2), 6);  // 3rd byte 1st nibble
+    EXPECT_EQ(*iter, -6);               // 2nd byte 1st nibble
+    EXPECT_EQ(*(iter - 2), 2);          // 1st byte 1st nibble
+    EXPECT_EQ(*(iter + 7), 5);          // 5th byte 2nd nibble
+    EXPECT_EQ(*(iter + 6), -5);         // 2nd byte 1st nibble
+    EXPECT_EQ(*(iter - 1), 4);          // 1st byte 2nd nibble
+    EXPECT_EQ(*std::prev(iter, 1), 4);  // 1st byte 2nd nibble
+    EXPECT_EQ(*std::next(iter, 2), 1);  // 3rd byte 1st nibble
 }
 
 TEST(ElementIteratorTest, i4_value_to_output_stream) {
-    constexpr int8_t value = 0x91;
+    constexpr auto value = static_cast<int8_t>(0x19);
     auto iter = element::iterator<element::i4>(&value);
 
     std::stringstream s;
@@ -394,7 +396,7 @@ TEST(ElementIteratorTest, read_i4_from_tensor) {
     auto t = ov::Tensor(element::i4, Shape{10, 1, 1}, input.data());
     auto iter = element::iterator<element::i4>(static_cast<int8_t*>(t.data(element::i4)));
 
-    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(4, 2, 3, -6, 6, 1, 7, -7, 5, -5));
+    EXPECT_THAT(std::vector<int8_t>(iter, iter + t.get_size()), ElementsAre(2, 4, -6, 3, 1, 6, -7, 7, -5, 5));
 }
 
 // --- u6

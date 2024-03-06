@@ -31,7 +31,17 @@ namespace element {
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == Type_t::u1 || et == Type_t::u2 || et == Type_t::u4 || et == Type_t::i4;
+    return et == Type_t::u1 || et == Type_t::u2;
+}
+
+/**
+ * @brief Checks if element type is 4-bits type.
+ *
+ * @param et  Element type to check
+ * @return True if element type is nibble type otherwise false.
+ */
+constexpr bool is_nibble_type(Type_t et) {
+    return et == Type_t::u4 || et == Type_t::i4 || et == nf4;
 }
 
 /**
@@ -53,7 +63,7 @@ constexpr bool is_split_bit_type(Type_t et) {
  * @return True if element type use bytes for its value otherwise false.
  */
 constexpr bool is_byte_type(Type_t et) {
-    return !is_bit_type(et) && !is_split_bit_type(et) && et != Type_t::nf4;
+    return !is_bit_type(et) && !is_split_bit_type(et) && !is_nibble_type(et);
 }
 
 /**
@@ -163,7 +173,7 @@ public:
      * @return Value of BitProxy.
      */
     operator value_type() const {
-        constexpr uint8_t value_mask = util::make_n_bit_mask(m_bits);
+        constexpr auto value_mask = util::make_n_bit_mask(m_bits);
         uint8_t tmp = (*m_ptr >> m_bit_shift) & value_mask;
         if (S && (tmp & (1U << (m_bits - 1U)))) {
             // If N bit value MSB bit is set then value is negative.
@@ -178,7 +188,7 @@ public:
      * @param v  Value to be set.
      */
     BitProxy<T, N, S>& operator=(const value_type v) {
-        constexpr uint8_t value_mask = util::make_n_bit_mask(m_bits);
+        constexpr auto value_mask = util::make_n_bit_mask(m_bits);
         *m_ptr &= ~(value_mask << m_bit_shift);
         *m_ptr |= (static_cast<uint8_t>(v) & value_mask) << m_bit_shift;
         return *this;
@@ -282,7 +292,7 @@ public:
 
         tmp = m_bytes->b2 & ~((mask_upper >> lower_mask_bits) << (upper_mask_bits * m_bit_shift));
         tmp |= (((v & mask_upper) >> lower_mask_bits) << (upper_mask_bits * m_bit_shift));
-        m_bytes->b2 = tmp;
+        m_bytes->b2 = tmp & 0x00ff;
         return *this;
     }
 };
@@ -326,7 +336,14 @@ public:
     template <Type_t ETT = ET>
     typename std::enable_if<is_bit_type(ETT), Iterator<ET, T>>::type& operator++() {
         m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-        m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % ((m_et_ptr.m_num_values * m_et_ptr.m_bits));
+        m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
+        m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
+        return *this;
+    }
+
+    template <Type_t ETT = ET>
+    typename std::enable_if<is_nibble_type(ETT), Iterator<ET, T>>::type& operator++() {
+        m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
         m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
         return *this;
     }
@@ -354,6 +371,12 @@ public:
     }
 
     template <Type_t ETT = ET>
+    typename std::enable_if<is_nibble_type(ETT), Iterator<ET, T>>::type& operator+=(const difference_type& n) {
+        m_et_ptr.m_ptr += n / m_et_ptr.m_num_values;
+        return (n % m_et_ptr.m_num_values) ? ++*this : *this;
+    }
+
+    template <Type_t ETT = ET>
     typename std::enable_if<is_split_bit_type(ETT), Iterator<ET, T>>::type& operator+=(const difference_type& n) {
         const auto advance = n + m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift;
         m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values);
@@ -372,6 +395,13 @@ public:
         m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
         m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
         m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 0);
+        return *this;
+    }
+
+    template <Type_t ETT = ET>
+    typename std::enable_if<is_nibble_type(ETT), Iterator<ET, T>>::type& operator--() {
+        m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
+        m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 4);
         return *this;
     }
 
@@ -395,6 +425,12 @@ public:
         m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
         m_et_ptr.m_ptr -= advance / m_et_ptr.m_num_values;
         return *this;
+    }
+
+    template <Type_t ETT = ET>
+    typename std::enable_if<is_nibble_type(ETT), Iterator<ET, T>>::type& operator-=(const difference_type& n) {
+        m_et_ptr.m_ptr -= n / m_et_ptr.m_num_values;
+        return (n % m_et_ptr.m_num_values) ? --*this : *this;
     }
 
     template <Type_t ETT = ET>
