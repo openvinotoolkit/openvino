@@ -118,9 +118,9 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
 using RemoveUselessFP16ConvertCPUTest = RemoveUselessBF16ConvertCPUTest;
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-        GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    }
+    // if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+    //     GTEST_SKIP() << "Skipping test, platform don't support precision f16";
+    // }
 
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
     run();

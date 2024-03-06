@@ -118,9 +118,11 @@ void MatMulLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
-    if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16)
+    ov::element::Type inference_precision = (it != additionalConfig.end()) ?
+                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16)
         inType = outType = netType = ElementType::bf16;
-    else if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::f16)
+    else if (inference_precision == ov::element::f16)
         inType = outType = netType = ElementType::f16;
     else
         inType = outType = netType;
@@ -153,7 +155,6 @@ void MatMulLayerCPUTest::SetUp() {
 }
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
     if (inType == ElementType::bf16) {
         if (cpuNodeType == "FullyConnected") {

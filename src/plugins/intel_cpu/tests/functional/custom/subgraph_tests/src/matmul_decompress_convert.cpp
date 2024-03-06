@@ -200,10 +200,12 @@ protected:
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        ov::element::Type inference_precision = (it != additionalConfig.end()) ?
+                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        if (inference_precision == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
+        } else if (inference_precision == ov::element::f16) {
             convertOutType = inType = outType = netType = ElementType::f16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
@@ -242,14 +244,12 @@ protected:
 };
 
 TEST_P(MatMulDecompressConvertTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     check_execution_graph();
 }
 
 using MatMulDecompressConvertTest_FP16 = MatMulDecompressConvertTest;
 TEST_P(MatMulDecompressConvertTest_FP16, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
@@ -521,10 +521,12 @@ protected:
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        ov::element::Type inference_precision = (it != additionalConfig.end()) ?
+                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        if (inference_precision == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::f16) {
+        } else if (inference_precision == ov::element::f16) {
             convertOutType = inType = outType = netType = ElementType::f16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
