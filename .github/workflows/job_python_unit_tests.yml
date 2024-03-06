@@ -170,7 +170,7 @@ jobs:
 
       - name: OVC unit tests
         if: fromJSON(inputs.affected-components).MO.test
-        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: Install Python Layer tests dependencies
         run: |
