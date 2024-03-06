@@ -237,7 +237,7 @@ void append_spatial_shape(const TOp* op,
 
             dim = dim - kernel_dilated;
             dim = dim_divide(dim, stride[i]);
-            out_shape.push_back(std::move(set_pooling_ceil_behavior(dim, stride[i], data_dim, pads_begin[i])));
+            out_shape.push_back(set_pooling_ceil_behavior(dim, stride[i], data_dim, pads_begin[i]));
         } else {
             // If dimension is interval and is auto pad then result is dynamic shape as padding values are not correct.
             // Operator cannot keep separate auto padding values for upper, lower bounds.
