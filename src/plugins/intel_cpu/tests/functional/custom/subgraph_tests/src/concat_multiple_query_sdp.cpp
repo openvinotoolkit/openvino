@@ -18,6 +18,7 @@ namespace test {
 using InputShapeAndTransposeOrder = std::pair<std::vector<InputShape>, std::vector<size_t>>;
 using ConcatMultiQuerySDPParams = std::tuple<ElementType,
                                              InputShapeAndTransposeOrder,
+                                             bool, // force kvcahce int8
                                              bool  // has ShapeOf
                                              >;
 // Subgraph:
@@ -52,8 +53,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatMultiQuerySDPParams>& obj) {
         ElementType qkvType;
         InputShapeAndTransposeOrder inputShapeAndOrders;
+        bool forceKVU8;
         bool hasShapeof;
-        std::tie(qkvType, inputShapeAndOrders, hasShapeof) = obj.param;
+        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeof) = obj.param;
         std::ostringstream result;
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
@@ -72,6 +74,7 @@ public:
             result << ")_";
         }
         result << "Prc=" << qkvType << "_";
+        result << "ForceKVU8=" << forceKVU8 << "_";
         result << "HasShapeOf=" << hasShapeof << "_";
         result << "TransposeOrder=";
         result << "(";
@@ -85,9 +88,10 @@ public:
 
     void SetUp() override {
         InputShapeAndTransposeOrder inputShapeAndOrders;
+        bool forceKVU8;
         bool hasShapeOf;
         ElementType qkvType;
-        std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
         std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
         std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
         targetDevice = ov::test::utils::DEVICE_CPU;
@@ -97,6 +101,8 @@ public:
             configuration[ov::hint::inference_precision.name()] = ov::element::Type(qkvType).get_type_name();
             rel_threshold = 0.01f;
         }
+        if (forceKVU8)
+            configuration["KV_CACHE_PRECISION"] = "u8";
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
         // q,k,v
@@ -288,9 +294,10 @@ public:
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     InputShapeAndTransposeOrder inputShapeAndOrders;
+    bool forceKVU8;
     bool hasShapeOf;
     ElementType qkvType;
-    std::tie(qkvType, inputShapeAndOrders, hasShapeOf) = this->GetParam();
+    std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
     if ((qkvType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
         (qkvType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()))
         GTEST_SKIP();
@@ -389,6 +396,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatMultiQuerySDPTest,
                          ConcatMultiQuerySDPTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false)),
                          ConcatMultiQuerySDPTest::getTestCaseName);
 }  // namespace

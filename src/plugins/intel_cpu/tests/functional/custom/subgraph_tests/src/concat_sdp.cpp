@@ -16,6 +16,7 @@ namespace test {
 
 using ConcatSDPTestParams = std::tuple<ElementType,
                                        std::vector<InputShape>,
+                                       bool,                        // force kvcache int8
                                        bool                         // has ShapeOf
                                        >;
 // Subgraph:
@@ -41,8 +42,9 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatSDPTestParams>& obj) {
         ElementType inType;
         std::vector<InputShape> inputShapes;
+        bool forceKVU8;
         bool hasShapeof;
-        std::tie(inType, inputShapes, hasShapeof) = obj.param;
+        std::tie(inType, inputShapes, forceKVU8, hasShapeof) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -59,6 +61,7 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
+        result << "ForceKVU8=" << forceKVU8 << "_";
         result << "HasShapeOf=" << hasShapeof;
         return result.str();
     }
@@ -67,13 +70,17 @@ public:
         ElementType inType;
         std::vector<InputShape> inputShapes;
         bool hasShapeOf;
-        std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
+        bool forceKVU8;
+        std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         if (inType == ElementType::bf16 || inType == ElementType::f16) {
             configuration.insert({"INFERENCE_PRECISION_HINT", ov::element::Type(inType).get_type_name()});
             rel_threshold = 0.01f;
         }
+        if (forceKVU8)
+            configuration["KV_CACHE_PRECISION"] = "u8";
+
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
         // q,k,v
@@ -211,8 +218,9 @@ public:
 TEST_P(ConcatSDPTest, CompareWithRefs) {
     ElementType inType;
     std::vector<InputShape> inputShapes;
+    bool forceKVU8;
     bool hasShapeOf;
-    std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
+    std::tie(inType, inputShapes, forceKVU8, hasShapeOf) = this->GetParam();
     if ((inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16()) ||
         (inType == ElementType::f16 && !ov::with_cpu_x86_avx512_core_fp16()))
         GTEST_SKIP();
@@ -257,6 +265,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
+                                            ::testing::Values(true, false),
                                             ::testing::Values(true, false)),
                          ConcatSDPTest::getTestCaseName);
 
