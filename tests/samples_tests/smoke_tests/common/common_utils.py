@@ -27,7 +27,7 @@ def shell(cmd, env=None, cwd=None, out_format="plain"):
     else:
         cmd = " ".join(cmd)
 
-    sys.stdout.write("Running command:\n" + "".join(cmd) + "\n")
+    sys.stdout.write("Running command:\n" + " ".join(cmd) + "\n")
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     (stdout, stderr) = p.communicate()
     stdout = str(stdout.decode('utf-8'))

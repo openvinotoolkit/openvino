@@ -10,19 +10,17 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
 import pytest
 from common.samples_common_test_class import get_tests
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.specific_samples_parsers import parse_hello_reshape_ssd
 
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('500x500', 'cat.bmp')],
-                                       'm': [os.path.join('ssd512', 'FP32', 'ssd512.xml')],
-                                       'sample_type': ['C++','Python'],
-                                       'd': ['CPU']},
-                                       use_device=['d'], use_batch=False
-                           )
+test_data_fp32 = get_tests({
+    'i': ['samples_smoke_tests_data_2021.4/validation_set/500x500/cat.bmp'],
+    'm': ['samples_smoke_tests_data_2021.4/models/public/ssd512/FP16/ssd512.xml'],
+    'sample_type': ['C++','Python'],
+    'd': ['CPU']}, use_device=['d'], use_batch=False)
 
 
 class TestHelloShape(SamplesCommonTestClass):
