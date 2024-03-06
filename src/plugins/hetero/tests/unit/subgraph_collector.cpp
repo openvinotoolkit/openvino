@@ -544,28 +544,21 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
         {"result", "MOCK.0"},
     };
 
-    auto check_node = [&](std::map<std::string, std::string> node_map, std::string node_name) {
-        if (node_map.find(node_name) != node_map.end()) {
-            return true;
-        }
-        return false;
-    };
-
     auto supported_ops = supported_ops_with_affinity;
     ov::hetero::SubgraphsVector ordered_subgraphs;
     ov::hetero::SubgraphsMappingInfo actual_mapping_info;
     std::tie(ordered_subgraphs, actual_mapping_info) = get_model_subgraphs(model, supported_ops, true, false);
     for (const auto& subgraph : ordered_subgraphs) {
-        std::map<std::string, std::string> node_map;
+        std::set<std::string> node_set;
         auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
         for (auto& node : sub_model->get_ordered_ops()) {
-            node_map[node->get_friendly_name()] = subgraph._affinity;
+            node_set.insert(node->get_friendly_name());
         }
-        ASSERT_EQ(check_node(node_map, "transpose"), check_node(node_map, "constant2"));
-        ASSERT_EQ(check_node(node_map, "reshape"), check_node(node_map, "reshape_val"));
-        ASSERT_EQ(check_node(node_map, "gather"), check_node(node_map, "zero"));
-        ASSERT_EQ(check_node(node_map, "gather"), check_node(node_map, "one"));
-        if (check_node(node_map, "transpose") || check_node(node_map, "reshape") || check_node(node_map, "gather")) {
+        ASSERT_EQ(node_set.count("transpose"), node_set.count("constant2"));
+        ASSERT_EQ(node_set.count("reshape"), node_set.count("reshape_val"));
+        ASSERT_EQ(node_set.count("gather"), node_set.count("zero"));
+        ASSERT_EQ(node_set.count("gather"), node_set.count("one"));
+        if (node_set.count("transpose") || node_set.count("reshape") || node_set.count("gather")) {
             ASSERT_EQ(subgraph._affinity, "MOCK.1");
         }
     }
