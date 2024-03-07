@@ -130,8 +130,6 @@ select_inst::typed_primitive_inst(network& network, select_node const& node) : p
                 for (size_t d = 0; d < max_dim_count; d++) {
                     auto current_dim = deps[i].first->get_output_layout().get_tensor().raw[d];
 
-                    if (!(current_dim == output_tensor.raw[d] || current_dim == 1))
-                        std::cout << "error!" << std::endl;
                     CLDNN_ERROR_BOOL(node.id(),
                                         "Sizes equal or broadcast is possible",
                                         !(current_dim == output_tensor.raw[d] || current_dim == 1),
