@@ -13,7 +13,6 @@ Large Language Models Inference Guide
    :maxdepth: 1
    :hidden:
 
-   Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>
    LLM Inference with Optimum Intel <llm_inference>
    LLM Inference with OpenVINO API <llm_inference_native_ov>
 
@@ -52,6 +51,12 @@ It also offers advanced features like in-place KV-cache, dynamic quantization,
 KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative
 sampling.
 
+●	**Stateful model optimization**: the ``OVModelForCausalLM`` class defaults to transforming the
+model into a stateful form, optimizing inference performance and memory usage in long running text
+generation tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically
+activated for many supported models, while unsupported ones remain stateless. Learn more about
+the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
+
 OpenVINO offers two main paths for Generative AI use cases:
 
 * **Hugging Face**: use OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
@@ -78,9 +83,9 @@ if it needs to be optimized further. Optimum Intel provides interfaces that enab
 using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
 and export models to the OpenVINO model format for use in native API applications.
 
-* To proceed with Higging Face API, read :doc:`Loading and Optimizing LLMs with Optimum Intel <gen_ai_guide>` and :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` example.
+* To proceed with **Higging Face API**, read :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` guide.
 
-* To proceed with Native OpenVINO API, go to :doc:`Inference with Native OpenVINO <llm_inference_native_ov>` page.
+* To proceed with **Native OpenVINO API**, go to :doc:`Inference with Native OpenVINO <llm_inference_native_ov>` page.
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
 
