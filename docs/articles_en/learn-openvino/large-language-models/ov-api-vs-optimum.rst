@@ -51,11 +51,11 @@ It also offers advanced features like in-place KV-cache, dynamic quantization,
 KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative
 sampling.
 
-●	**Provides stateful model optimization**: the ``OVModelForCausalLM`` class defaults to transforming the
-model into a stateful form, optimizing inference performance and memory usage in long running text
-generation tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically
-activated for many supported models, while unsupported ones remain stateless. Learn more about
-the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
+●	**Provides stateful model optimization**: models from the Hugging Face Transformers are converted
+into a stateful form, optimizing inference performance and memory usage in long running text generation
+tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically activated
+for many supported models, while unsupported ones remain stateless.
+Learn more about the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
 
 OpenVINO offers two main paths for Generative AI use cases:
 
