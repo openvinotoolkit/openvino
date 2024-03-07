@@ -95,10 +95,10 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     std::size_t result_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap_tmp[parameter_index] = node;
+            inputNodesMap[parameter_index] = node;
             parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap_tmp[result_index] = node;
+            outputNodesMap[result_index] = node;
             result_index++;
         }
     }
@@ -138,14 +138,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            inputNodesMap_tmp[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
+            inputNodesMap[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            outputNodesMap_tmp[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
+            outputNodesMap[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
         }
 
         op2node[op] = node;
@@ -194,7 +194,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
     // enforce must be performed after inputs and outputs info are taken into account
     EnforceInferencePrecision();
     // also we need to change input/output precisions for consumers/producers to avoid inserting reorder
-    for (auto &input : inputNodesMap_tmp) {
+    for (auto &input : inputNodesMap) {
         const auto& inputNode = input.second;
         const auto precToSet = inputNode->getOriginalOutputPrecisionAtPort(0);
         const auto childEdges = inputNode->getChildEdgesAtPort(0);
@@ -208,7 +208,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         }
     }
 
-    for (auto &output : outputNodesMap_tmp) {
+    for (auto &output : outputNodesMap) {
         const auto& outputNode = output.second;
         const auto precToSet = outputNode->getOriginalInputPrecisionAtPort(0);
         const auto parentEdge = outputNode->getParentEdgeAt(0);
@@ -773,7 +773,7 @@ void Graph::AllocateWithReuse() {
                     // Store the output memory managers.
                     // So that, the infer requests can be able to access them.
                     int count = 0;
-                    for (auto &output : outputNodesMap_tmp) {
+                    for (auto &output : outputNodesMap) {
                         if (output.second == child) {
                             outputNodesMemMngrMap[output.first] = proxyMemMngr;
                             count++;
@@ -940,10 +940,10 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& input) {
+void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap_tmp.find(name);
-    if (input_itr != inputNodesMap_tmp.end()) {
+    auto input_itr = inputNodesMap.find(index);
+    if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
         auto edgeMemory = childEdge->getMemoryPtr();
@@ -967,7 +967,7 @@ void Graph::PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& inp
             }
         }
     } else {
-        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+        OPENVINO_THROW("Input blob for infer '", index, "' doesn't correspond to input in network");
     }
 }
 
@@ -976,7 +976,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
-    for (auto &outputMap : outputNodesMap_tmp) {
+    for (auto &outputMap : outputNodesMap) {
         auto name = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
@@ -1643,7 +1643,7 @@ void Graph::EnforceInferencePrecision() {
      * Experiments show zero peformance impact on average */
     std::unordered_set<NodePtr> nodesToSkip;
     // starting from output nodes
-    for (const auto& entry : outputNodesMap_tmp) {
+    for (const auto& entry : outputNodesMap) {
         const auto& output = entry.second;
         // do not skip outputs which precisions are explicitly set equal to inferPrec
         if (output->getOriginalInputPrecisionAtPort(0) == inferPrec)

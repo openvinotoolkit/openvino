@@ -94,7 +94,7 @@ private:
 
 private:
     void create_infer_request();
-    void init_tensor(const std::string& name, const ov::Output<const ov::Node>& port_tmp);
+    void init_tensor(const ov::Output<const ov::Node>& port_tmp);
 
     void push_input_data();
     void redefine_memory_for_input_nodes();
@@ -106,21 +106,20 @@ private:
     const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
 private:
-    std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks_tmp;
+    std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
 
     Graph* m_graph = nullptr;
-    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr_tmp;
-    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr_tmp;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr;
 
     std::shared_ptr<const CompiledModel> m_compiled_model;
     openvino::itt::handle_t m_profiling_task;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
 
-    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map_tmp;
-    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map_tmp;
-    std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_outputs;
-    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs_tmp;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
+    std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;
+    std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs;
 };
 
 }  // namespace intel_cpu
