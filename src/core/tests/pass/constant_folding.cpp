@@ -9,6 +9,7 @@
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acosh.hpp"
 #include "openvino/op/add.hpp"
@@ -64,7 +65,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/xor.hpp"
-#include "openvino/core/constant_fold_utils.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
