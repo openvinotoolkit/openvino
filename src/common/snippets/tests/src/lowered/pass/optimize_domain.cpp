@@ -54,8 +54,6 @@ TEST_P(OptimizeDomainTest, DomainOptimization) {
 
 namespace OptimizeDomainTestsInstantiation {
 
-// todo: Remove the architecture constraint after Subtract op being supported by Subgraph of ARM Snippets
-#if defined(OPENVINO_ARCH_X86_64)
 std::vector<OptimizeDomainParams> dopt_params = {
         // No broadcasting => dimensions collapsed
         {256, 4, {{14, 15, 1, 17}, {14, 15, 1, 17}}, {1, 1, 14, 255}, 1},
@@ -95,7 +93,6 @@ std::vector<OptimizeDomainParams> dopt_params = {
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DomainOptimization, OptimizeDomainTest,
                          ::testing::ValuesIn(dopt_params),
                          OptimizeDomainTest::getTestCaseName);
-#endif
 
 } // namespace OptimizeDomainTestsInstantiation
 }  // namespace snippets

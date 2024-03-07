@@ -46,7 +46,6 @@ auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> b
 auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
         if (!matmul || out_shape.is_dynamic() || out_shape.size() != 4)
@@ -57,13 +56,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         const bool is_int8 = (intype_0 == element::i8 || intype_0 == element::u8) && (intype_1 == element::i8);
         const bool is_bf16 = intype_0 == element::bf16 && intype_1 == element::bf16;
         return is_f32 || is_bf16 || is_int8;
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
-        return false;
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
         const auto& out_shape = n->get_output_partial_shape(0);
         if (transpose && out_shape.is_static()) {
@@ -87,32 +81,17 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             }
         }
         return false;
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
-        return false;
     };
 
     auto is_supported_fq_op = [](const std::shared_ptr<const Node>& n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         return CommonFakeQuantizeDecomposition::is_supported_fq(ov::as_type_ptr<const opset1::FakeQuantize>(n));
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
-        return false;
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         return ov::is_type<ov::op::v1::Select>(n);
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
-        return false;
     };
 
     auto is_supported_binary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         return ov::is_type<ov::op::v1::Add>(n)
             || ov::is_type<ov::op::v1::Divide>(n)
             || ov::is_type<ov::op::v1::Equal>(n)
@@ -135,15 +114,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ov::op::v1::Subtract>(n)
             || ov::is_type<ov::op::v0::Xor>(n)
             || ov::is_type<ov::op::v0::Convert>(n);
-#elif defined(OPENVINO_ARCH_ARM64)
-        return ov::is_type<ov::op::v1::Add>(n)
-            || ov::is_type<ov::op::v1::Multiply>(n);
-#endif
-        return false;
     };
 
     auto is_supported_unary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         return ov::is_type<ov::op::v0::Abs>(n)
             || ov::is_type<ov::op::v0::Clamp>(n)
             || ov::is_type<ov::op::v0::Floor>(n)
@@ -162,14 +135,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             || ov::is_type<ov::op::v7::Gelu>(n)
             || ov::is_type<ov::op::v4::Swish>(n)
             || ov::is_type<ov::op::v4::HSwish>(n);
-#elif defined(OPENVINO_ARCH_ARM64)
-        return ov::is_type<ov::op::v0::Relu>(n);
-#endif
-        return false;
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         if (n->get_input_size() != 1 || n->get_input_partial_shape(0).rank().is_dynamic())
             return false;
         int64_t axis = -1;
@@ -182,24 +150,15 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
             return false;
         }
         return axis >= 0 && axis == (rank.get_length() - 1);
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
-        return false;
     };
 
     auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
-#if defined(OPENVINO_ARCH_X86_64)
         // Broadcast is supported only for MHA tokenization where there are needed and special checks
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
             return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
         } else if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(n)) {
             return broadcast_v3->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
         }
-        return false;
-#elif defined(OPENVINO_ARCH_ARM64)
-        return false;
-#endif
         return false;
     };
 
@@ -652,7 +611,14 @@ TokenizeSnippets::TokenizeSnippets() {
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
-        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 11) {
+#if defined(OPENVINO_ARCH_ARM64)
+        // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 platform register, 3 registers for temporary use,
+        // and two stack related registers, it has 24 remaining registers.
+        const size_t max_data_ptr_count = 24;
+#else
+        const size_t max_data_ptr_count = 11;
+#endif
+        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > max_data_ptr_count) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
             std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";

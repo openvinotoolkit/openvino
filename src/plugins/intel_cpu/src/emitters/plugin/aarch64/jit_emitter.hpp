@@ -10,7 +10,6 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
-#include "emitters/utils.hpp"
 #include "node.h"
 
 
@@ -67,8 +66,8 @@ protected:
     size_t get_max_vecs_count() const;
     int32_t get_vec_length() const;
 
-    mutable std::vector<uint32_t> aux_vec_idxs;
-    mutable std::vector<uint32_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_vec_idxs;
+    mutable std::vector<size_t> aux_gpr_idxs;
 
     dnnl::impl::cpu::aarch64::jit_generator* h;
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa_;

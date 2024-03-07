@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,11 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
-class NopEmitter : public jit_emitter {
+class jit_nop_emitter : public jit_emitter {
 public:
-    NopEmitter(dnnl::impl::cpu::aarch64::jit_generator* h,
-               dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-               const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_nop_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+                    dnnl::impl::cpu::aarch64::cpu_isa_t isa,
+                    const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_count() const override {return 0;}
 
@@ -23,11 +23,11 @@ private:
                    const std::vector<size_t>& out) const override {}
 };
 
-class BroadcastMoveEmitter : public jit_emitter {
+class jit_broadcast_move_emitter : public jit_emitter {
 public:
-    BroadcastMoveEmitter(dnnl::impl::cpu::aarch64::jit_generator* h,
-                         dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                         const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_broadcast_move_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+                               dnnl::impl::cpu::aarch64::cpu_isa_t isa,
+                               const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_count() const override {return 1;}
 
@@ -42,11 +42,11 @@ private:
     size_t byte_size = 0lu;
 };
 
-class ScalarEmitter : public jit_emitter {
+class jit_scalar_emitter : public jit_emitter {
 public:
-    ScalarEmitter(dnnl::impl::cpu::aarch64::jit_generator* h,
-                  dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                  const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_scalar_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+                       dnnl::impl::cpu::aarch64::cpu_isa_t isa,
+                       const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_count() const override {return 0;}
 

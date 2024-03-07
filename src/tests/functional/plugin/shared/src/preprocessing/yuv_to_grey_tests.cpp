@@ -4,7 +4,6 @@
 
 #include "preprocessing/yuv_to_grey_tests.hpp"
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace preprocess {
@@ -26,7 +25,6 @@ void PreprocessingYUV2GreyTest::SetUp() {
 }
 
 void PreprocessingYUV2GreyTest::run() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     compile_model();
     infer();
     validate();

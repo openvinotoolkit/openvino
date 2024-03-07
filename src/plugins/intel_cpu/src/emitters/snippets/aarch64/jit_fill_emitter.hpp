@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,11 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
-class FillEmitter : public jit_emitter {
+class jit_fill_emitter : public jit_emitter {
 public:
-    FillEmitter(dnnl::impl::cpu::aarch64::jit_generator* h,
-                dnnl::impl::cpu::aarch64::cpu_isa_t isa,
-                const ov::snippets::lowered::ExpressionPtr& expr);
+    jit_fill_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+                     dnnl::impl::cpu::aarch64::cpu_isa_t isa,
+                     const ov::snippets::lowered::ExpressionPtr& expr);
 
     size_t get_inputs_count() const override {return 1;}
 
@@ -38,6 +38,9 @@ private:
     size_t offset = 0;
     uint32_t fill_value = 0x0;
 };
+
+template <>
+void jit_fill_emitter::emit_isa<dnnl::impl::cpu::aarch64::asimd>(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 
 }   // namespace aarch64
 }   // namespace intel_cpu
