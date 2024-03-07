@@ -120,6 +120,11 @@ const std::vector<std::vector<InputShape>> inShapesDynamicNumpy = {
         { {    -1, -1, -1}, {{   4, 5, 6}} },
         { {        -1, -1}, {{      5, 6}} }
     },
+    {
+        { {            -1}, {{         130048}} },
+        { {        -1, -1}, {{      2, 130048}} },
+        { {        -1, -1}, {{      2, 130048}} }
+    },
 };
 
 const auto numpyCases = ::testing::Combine(
