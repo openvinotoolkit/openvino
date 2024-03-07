@@ -60,9 +60,9 @@ MaxPool
 
   * **Description**: *rounding_type* is a type of rounding to be used to compute output shape. *ceil_torch* does not allow the last pooling to start in the padding area.
   * **Range of values**:
+    * *floor*
     * *ceil*
     * *ceil_torch*
-    * *floor*
   * **Type**: string
   * **Default value**: *floor*
   * **Required**: *no*

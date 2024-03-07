@@ -39,6 +39,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 1. Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = explicit``.
 
+Input shape:   (1, 1, 3, 3)
+Output shape:  (1, 1, 4, 4)
+
    .. code-block:: sh
 
       input = [[[[-1, 2, 3],
@@ -62,6 +65,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 2. Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and ``auto_pad = valid``.
 
+Input shape:   (1, 1, 7)
+Output shape:  (1, 1, 5)
+
    .. code-block:: sh
 
       input = [[[-1, 2, 3, 5, -7, 9, 1]]]
@@ -74,6 +80,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 
 3. Example 3 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = same_lower``.
+
+Input shape:   (1, 1, 3, 3)
+Output shape:  (1, 1, 3, 3)
 
    .. code-block:: sh
 
@@ -88,12 +97,14 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
                   [4, 5, 5]
                   [4, 8, 9]]]]
       output1 = [[[[0, 1, 2],
-                  [3, 4, 4]
+                  [3, 4, 4],
                   [3, 7, 8]]]]
 
 
 4. Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = same_upper``.
 
+Input shape:   (1, 2, 3, 3)
+Output shape:  (1, 2, 3, 3)
 
    .. code-block:: sh
 
@@ -114,7 +125,7 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
                    [8, 2, 1],
                    [8, 2, -3]]]]
       output1 = [[[[4, 4, 2],
-                   [7, 8, 8]
+                   [7, 8, 8],
                    [7, 8, 8]],
                   [[12, 11, 11],
                    [15, 16, 14],
@@ -122,6 +133,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 
 5. Example 5 shows how *MaxPool* operates with 4D input using 2D kernel and ``rounding_type = ceil_torch``.
+
+Input shape:   (1, 1, 3, 3)
+Output shape:  (1, 2, 2, 2)
 
    .. code-block:: sh
 
@@ -141,6 +155,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 6. Example 6 shows how *MaxPool* operates with 4D input using 2D kernel, ``auto_pad = valid`` and ``rounding_type = ceil``.
 
+Input shape:   (1, 1, 3, 3)
+Output shape:  (1, 2, 2, 2)
+
    .. code-block:: sh
 
       input = [[[[-1, 2, 3],
@@ -157,6 +174,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 
 7. Example 7 shows how *MaxPool* operates on 4D input using dilated 2D kernel, ``auto_pad = explicit`` and ``rounding_type = floor``.
+
+Input shape:   (1, 1, 3, 3)
+Output shape:  (1, 1, 3, 3)
 
    .. code-block:: sh
 
@@ -179,6 +199,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 
 8. Example 8 shows how *MaxPool* operates on 4D input using 2D kernel, with non-default ``axis`` value.
+
+Input shape:   (1, 2, 3, 3)
+Output shape:  (1, 2, 2, 2)
 
    .. code-block:: sh
 
