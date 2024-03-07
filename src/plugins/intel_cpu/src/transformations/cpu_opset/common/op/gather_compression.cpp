@@ -9,9 +9,8 @@ ov::intel_cpu::GatherCompressionNode::GatherCompressionNode(const ov::Output<Nod
                                                             const ov::Output<Node>& zp_compressed,
                                                             const ov::Output<Node>& scale_compressed,
                                                             const ov::Output<Node>& indices,
-                                                            const ov::Output<Node>& axis,
                                                             const ov::element::Type output_type)
-    : Op({data, zp_compressed, scale_compressed, indices, axis}),
+    : Op({data, zp_compressed, scale_compressed, indices}),
       m_output_type(output_type) {
     validate_and_infer_types();
 }
@@ -24,7 +23,6 @@ std::shared_ptr<ov::Node> ov::intel_cpu::GatherCompressionNode::clone_with_new_i
                                                                   new_args.at(1),
                                                                   new_args.at(2),
                                                                   new_args.at(3),
-                                                                  new_args.at(4),
                                                                   m_output_type);
 }
 
@@ -32,10 +30,10 @@ void ov::intel_cpu::GatherCompressionNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GatherCompressionNode_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-        input_size == 5,
+        input_size == 4,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
-        ", expected: 5.");
+        ", expected: 4.");
 
     // Weights/ZP/Scale shape
     const auto weights_pshape = get_input_partial_shape(0);

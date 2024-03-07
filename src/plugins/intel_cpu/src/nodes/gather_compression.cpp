@@ -36,10 +36,8 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 5 || op->get_output_size() != 1)
+    if (op->get_input_size() != 4 || op->get_output_size() != 1)
         THROW_ERROR("has incorrect number of input/output edges!");
-
-    isAxisInputConst = ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS));
 }
 
 void GatherCompression::initSupportedPrimitiveDescriptors() {
@@ -62,38 +60,13 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                           {LayoutType::ncsp, zpPrecision},
                           {LayoutType::ncsp, scalePrecision},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                          {LayoutType::ncsp, ov::element::i32}},
                          {{LayoutType::ncsp, ov::element::f32}},
                          ref_any);
 }
 
 bool GatherCompression::needPrepareParams() const {
-    return inputShapesModified();
-}
-
-void GatherCompression::prepareParams() {
-    auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input data memory.");
-
-    auto zpMemPtr = getSrcMemoryAtPort(GATHER_ZP);
-    if (!zpMemPtr || !zpMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input ZP memory.");
-
-    auto scaleMemPtr = getSrcMemoryAtPort(GATHER_SCALE);
-    if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input scale memory.");
-
-    auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
-    if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input indices memory.");
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_ERROR(" has unidentified preferable primitive descriptor.");
-
-    auto axisMemPtr = getSrcMemoryAtPort(GATHER_AXIS);
-    if (!axisMemPtr || !axisMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input axis memory.");
+    return false;
 }
 
 void GatherCompression::execute(dnnl::stream strm) {
@@ -132,22 +105,21 @@ void GatherCompression::execReferenceU4() {
                 ii = axisDim;
         }
 
-        auto get_u4_value = [&](int32_t indx) {
-            int ii_indx = indx >> 1;
-            int ii_offset = indx % 2;
-            if (ii_offset) {
-                return static_cast<float>(psrc[ii_indx] >> 4);
-            } else {
-                return static_cast<float>(psrc[ii_indx] & 0Xf);
-            }
-        };
-
-        int32_t offset = ii * feaDim;
         auto* dst = pdst + dstIdx * feaDim;
         auto& deq_zp = zp[ii];
         auto& deq_scale = scale[ii];
-        for (size_t k = 0; k < feaDim; k++) {
-            dst[k] = (get_u4_value(offset + k) - deq_zp) * deq_scale;
+
+        auto* pcur = psrc + ii*feaDim/2;
+        size_t k = 0;
+        for (; k < feaDim; k+=2) {
+            auto x = pcur[k>>1];
+            dst[k] = ((x & 0x0F) - deq_zp) * deq_scale;
+            dst[k+1] = ((x >> 4) - deq_zp) * deq_scale;
+        }
+        // Process last one if feaDim is odd
+        for (; k < feaDim; k++) {
+            auto x = pcur[k>>1];
+            dst[k] = ((x & 0x0F) - deq_zp) * deq_scale;
         }
     });
 }

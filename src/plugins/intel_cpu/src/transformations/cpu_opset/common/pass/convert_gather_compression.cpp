@@ -45,7 +45,17 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     auto multiply_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({subtract_pattern, ov::pass::pattern::any_input()});
 
     auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_pattern}, ov::pass::pattern::consumers_count(1));
-    auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>();
+    auto check_specific = [](Output<Node> output) -> bool {
+        auto node = std::dynamic_pointer_cast<opset10::Constant>(output.get_node_shared_ptr());
+        if (node->get_element_type() != ov::element::i32) {
+            return false;
+        }
+        if (node->get_shape() != ov::Shape(1, 1)) {
+            return false;
+        }
+        return node->cast_vector<int32_t>()[0] == 0;
+    };
+    auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>(check_specific);
     auto gather_pattern = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
@@ -102,24 +112,17 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         }
         // Shape=[?, 1]
         if (!(scale->get_shape().size() == 2 && scale->get_shape()[1] == 1u)) {
-            std::cout << "scale->get_shape()=" << scale->get_shape().to_string() << std::endl;
             return false;
         }
         auto input_scale = scale->get_element_type() != ov::element::f32
                                ? std::make_shared<opset10::Convert>(scale, ov::element::f32)
                                : scale;
 
-        auto gather_axis = pattern_map.at(const_pattern);
-        if (!(gather_axis.get_element_type() == ov::element::i32 && gather_axis.get_shape() == ov::Shape(1, 1))) {
-            return false;
-        }
-
         // Replace gather with GatherCompressionNode
         const auto gatherCompression = std::make_shared<GatherCompressionNode>(input,
                                                                                input_zp,
                                                                                input_scale,
                                                                                gather->get_input_node_shared_ptr(1),
-                                                                               gather->get_input_node_shared_ptr(2),
                                                                                gather->output(0).get_element_type());
 
         gatherCompression->set_friendly_name(gather->get_friendly_name());

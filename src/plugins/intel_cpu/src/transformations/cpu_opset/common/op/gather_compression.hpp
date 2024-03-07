@@ -20,7 +20,6 @@ public:
                           const ov::Output<Node>& zp_compressed,
                           const ov::Output<Node>& scale_compressed,
                           const ov::Output<Node>& indices,
-                          const ov::Output<Node>& axis,
                           const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;

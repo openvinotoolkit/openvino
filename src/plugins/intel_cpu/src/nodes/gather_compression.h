@@ -29,21 +29,18 @@ public:
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
-    void prepareParams() override;
 
 private:
     void execReference();
     void execReferenceU8();
     void execReferenceU4();
 
-    bool isAxisInputConst = false;
     bool reverseIndexing = false;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_ZP = 1;
     static constexpr size_t GATHER_SCALE = 2;
     static constexpr size_t GATHER_INDICES = 3;
-    static constexpr size_t GATHER_AXIS = 4;
 };
 
 }   // namespace node
