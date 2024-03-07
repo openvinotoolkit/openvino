@@ -190,7 +190,6 @@ bool MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v8_MaxPool_validate_and_infer_types);
 
-    const auto& input_shape_rank = get_input_partial_shape(0).rank();
     const auto normalized_axis = ov::op::pooling::get_normalized_axis(this, m_axis);
     this->set_axis(normalized_axis);
 
@@ -386,7 +385,6 @@ bool MaxPool::visit_attributes(AttributeVisitor& visitor) {
 void MaxPool::validate_and_infer_types() {
     OV_OP_SCOPE(v14_MaxPool_validate_and_infer_types);
 
-    const auto& input_shape_rank = get_input_partial_shape(0).rank();
     const auto normalized_axis = ov::op::pooling::get_normalized_axis(this, m_axis);
     this->set_axis(normalized_axis);
 
