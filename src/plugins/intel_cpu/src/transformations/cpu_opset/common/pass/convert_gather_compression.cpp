@@ -45,17 +45,7 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     auto multiply_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({subtract_pattern, ov::pass::pattern::any_input()});
 
     auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_pattern}, ov::pass::pattern::consumers_count(1));
-    auto check_specific = [](Output<Node> output) -> bool {
-        auto node = std::dynamic_pointer_cast<opset10::Constant>(output.get_node_shared_ptr());
-        if (node->get_element_type() != ov::element::i32) {
-            return false;
-        }
-        if (node->get_shape() != ov::Shape(1, 1)) {
-            return false;
-        }
-        return node->cast_vector<int32_t>()[0] == 0;
-    };
-    auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>(check_specific);
+    auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>();
     auto gather_pattern = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
@@ -93,7 +83,7 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
             return false;
         }
         // Shape=[?, 1]
-        if (!(zp->get_shape().size() == 2 && zp->get_shape()[1] == 1u)) {
+        if (!(zp->get_shape().size() == 2u && zp->get_shape()[1] == 1u)) {
             return false;
         }
         auto input_zp =
@@ -111,12 +101,22 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
             return false;
         }
         // Shape=[?, 1]
-        if (!(scale->get_shape().size() == 2 && scale->get_shape()[1] == 1u)) {
+        if (!(scale->get_shape().size() == 2u && scale->get_shape()[1] == 1u)) {
             return false;
         }
         auto input_scale = scale->get_element_type() != ov::element::f32
                                ? std::make_shared<opset10::Convert>(scale, ov::element::f32)
                                : scale;
+
+        auto const_gather = pattern_map.at(const_pattern);
+        auto const_gather_ptr = std::dynamic_pointer_cast<opset10::Constant>(const_gather.get_node_shared_ptr());
+        if (!const_gather_ptr) {
+            return false;
+        }
+        if (!(const_gather_ptr->get_element_type() == ov::element::i32 &&
+              const_gather_ptr->get_shape() == ov::Shape() && const_gather_ptr->cast_vector<int32_t>()[0] == 0)) {
+            return false;
+        }
 
         // Replace gather with GatherCompressionNode
         const auto gatherCompression = std::make_shared<GatherCompressionNode>(input,
