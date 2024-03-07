@@ -939,6 +939,42 @@ std::vector<InputShape> inputShapes2d_cache = {
         }
 };
 
+std::vector<InputShape> inputShapes2d_sse42_ICle4 = {
+        {{}, {{ 1, 1, 7, 7 }}},
+        {{}, {{ 1, 2, 7, 7 }}},
+        {{}, {{ 1, 3, 7, 7 }}},
+        {
+            //dynamic shape
+            { -1, 1, -1, {1, 200} },
+            { //target static shapes
+                { 2, 1, 7, 7 },
+                { 1, 1, 9, 9}
+            }
+        },
+        {
+            //dynamic shape
+            { -1, 3, -1, {1, 200} },
+            { //target static shapes
+                { 2, 3, 7, 7 },
+                { 1, 3, 9, 9}
+            }
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32_SSE42_ICle4, ConvolutionLayerCPUTest,
+                         ::testing::Combine(
+                                 ::testing::Combine(
+                                         convParams_ExplicitPadding_2D,
+                                         ::testing::Values(ElementType::f32),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::Values(ElementType::undefined),
+                                         ::testing::ValuesIn(inputShapes2d_sse42_ICle4),
+                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice({conv_sse42_2D})),
+                                 ::testing::ValuesIn(fusingParamsSet),
+                                 ::testing::Values(cpuEmptyPluginConfig)),
+                         ConvolutionLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
