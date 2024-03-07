@@ -21,9 +21,12 @@ namespace ov {
  */
 class MappedMemory {
 public:
+    virtual ~MappedMemory() = default;
+    
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
-    virtual ~MappedMemory() = default;
+    virtual size_t get_offset() const = 0;
+    virtual void set_offset(size_t offset) = 0;
 };
 
 /**
