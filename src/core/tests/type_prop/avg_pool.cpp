@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "dimension_util.hpp"
 #include "gtest/gtest.h"
 
 using namespace std;
@@ -688,6 +689,74 @@ TEST(type_prop, avg_pool_14_2d_deduce_strided_2) {
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{10, 20}));
     EXPECT_EQ(avg_pool->get_pads_begin(), (ov::Shape{0, 0}));
     EXPECT_EQ(avg_pool->get_pads_end(), (ov::Shape{0, 0}));
+}
+
+TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_1) {
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
+    const ov::Strides strides{2, 2};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{2, 2};
+    const bool exclude_pad = false;
+    const auto rounding_mode = ov::op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
+    auto mp =
+        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    const auto expected_output_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_1) {
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
+    const ov::Strides strides{2, 2};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{2, 2};
+    const bool exclude_pad = false;
+    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
+    auto mp =
+        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    const auto expected_output_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 4}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_2) {
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const ov::Strides strides{3, 3};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{3, 3};
+    const bool exclude_pad = false;
+    const auto rounding_mode = ov::op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
+    auto mp =
+        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    const auto expected_output_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_2) {
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const ov::Strides strides{3, 3};
+    const ov::Shape pads_begin{1, 1};
+    const ov::Shape pads_end{1, 1};
+    const ov::Shape kernel_shape{3, 3};
+    const bool exclude_pad = false;
+    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
+    auto mp =
+        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    const auto expected_output_shape =
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
 REGISTER_TYPED_TEST_SUITE_P(AvgPoolOperator,

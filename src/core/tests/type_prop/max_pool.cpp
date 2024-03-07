@@ -460,6 +460,78 @@ TEST(type_prop, max_pool_v14_4D_dynamic_dims_with_non_zero_low_range_ceil_torch_
     EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
 }
 
+TEST(type_prop, max_pool_v14_4D_dynamic_dims_ceil_mode_1) {
+    PartialShape arg_shape{Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape = PartialShape{Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_dynamic_dims_ceil_torch_mode_1) {
+    PartialShape arg_shape{Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
+    const Strides strides{2, 2};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::CEIL_TORCH;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape = PartialShape{Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 4}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_dynamic_dims_ceil_mode_2) {
+    PartialShape arg_shape{Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const Strides strides{3, 3};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{3, 3};
+    const auto rounding_mode = op::RoundingType::CEIL;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape = PartialShape{Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
+TEST(type_prop, max_pool_v14_4D_dynamic_dims_ceil_torch_mode_2) {
+    PartialShape arg_shape{Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const Strides strides{3, 3};
+    const Strides dilations{1, 1};
+    const Shape pads_begin{1, 1};
+    const Shape pads_end{1, 1};
+    const Shape kernel_shape{3, 3};
+    const auto rounding_mode = op::RoundingType::CEIL_TORCH;
+
+    const auto arg = make_shared<ov::op::v0::Parameter>(element::f32, arg_shape);
+    const auto mp =
+        make_shared<op::v14::MaxPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, rounding_mode);
+
+    const auto expected_output_shape = PartialShape{Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
+    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
+    EXPECT_EQ(mp->get_output_partial_shape(1), expected_output_shape);
+}
+
 REGISTER_TYPED_TEST_SUITE_P(MaxPoolOperator,
                             max_pool_3D_no_dilations,
                             max_pool_3D_with_dilations,

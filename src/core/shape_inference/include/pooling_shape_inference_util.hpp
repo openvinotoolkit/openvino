@@ -162,7 +162,7 @@ void align_ceil_torch_dimension_size(TDim& dim,
                                      const size_t last_pooling_start_index,
                                      const size_t data_dim_length,
                                      const size_t pads_begin) {
-    if (!(last_pooling_start_index > data_dim_length + pads_begin - 1)) {
+    if (!(last_pooling_start_index > data_dim_length + pads_begin - 1) && !ov::util::dim::is_inf_bound(dim)) {
         dim += 1;
     }
 }
@@ -174,16 +174,24 @@ TDim disallow_pooling_start_in_padding(const TDim& dim,
                                        const size_t pads_begin) {
     // Ensure the last pooling doesn't start in padding.
     auto dim_min_length = dim.get_min_length();
-    const auto last_pooling_min_start_index = (dim_min_length - 1) * stride;
+    const auto last_pooling_min_start_index = dim_min_length * stride;
     const auto data_dim_min_length = data_dim->get_min_length();
     align_ceil_torch_dimension_size(dim_min_length, last_pooling_min_start_index, data_dim_min_length, pads_begin);
     if (data_dim->is_static()) {
         return TDim(dim_min_length);
     } else {
-        auto dim_max_length = dim.get_max_length();
-        const auto last_pooling_max_start_index = (dim_max_length - 1) * stride;
-        const auto data_dim_max_length = data_dim->get_max_length();
-        align_ceil_torch_dimension_size(dim_max_length, last_pooling_max_start_index, data_dim_max_length, pads_begin);
+        Dimension::value_type dim_max_length;
+        if (data_dim->get_interval().has_upper_bound()) {
+            dim_max_length = dim.get_max_length();
+            const auto last_pooling_max_start_index = dim_max_length * stride;
+            const auto data_dim_max_length = data_dim->get_max_length();
+            align_ceil_torch_dimension_size(dim_max_length,
+                                            last_pooling_max_start_index,
+                                            data_dim_max_length,
+                                            pads_begin);
+        } else {
+            dim_max_length = -1;
+        }
         return TDim(dim_min_length, dim_max_length);
     }
 }
