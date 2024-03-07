@@ -3,11 +3,21 @@
 Performance Benchmarks
 ======================
 
-
 .. meta::
    :description: Use the benchmark results for Intel® Distribution of OpenVINO™
                  toolkit, that may help you decide what hardware to use or how
                  to plan the workload.
+
+.. raw:: html
+
+   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+
+.. container:: benchmark-banner
+
+   Results may vary. For more information, see
+   :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>` and
+   `the methodology section <#platforms-configurations-methodology>`__.
+   See :doc:`Legal Information <./additional-resources/legal-information>`.
 
 .. toctree::
    :maxdepth: 1
@@ -16,7 +26,6 @@ Performance Benchmarks
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
-
 
 This page presents benchmark results for `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
 and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative selection of public neural networks and Intel® devices.
@@ -196,7 +205,7 @@ Disclaimers
 
 * OpenVINO Model Server performance results are based on release 2023.3, as of February 13, 2024.
 
-The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration
+The results may not reflect all publicly available updates. Intel technologies' features and benefits depend on system configuration
 and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
 
 See configuration disclosure for details. No product can be absolutely secure.

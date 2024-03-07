@@ -1,0 +1,10 @@
+/* the bottom banner only for benchmark pages */
+/* ========================================== */
+
+.benchmark-banner {
+   position: sticky;
+   bottom: 0;
+   z-index: 1001;
+   border: 1px solid red;
+   background: #AAAAAA;
+}
