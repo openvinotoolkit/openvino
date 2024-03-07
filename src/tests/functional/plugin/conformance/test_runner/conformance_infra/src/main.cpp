@@ -10,13 +10,16 @@
 #include "gtest/gtest.h"
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/environment.hpp"
+#include "base/ov_behavior_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 #ifdef ENABLE_CONFORMANCE_PGQL
 #    include "common_test_utils/postgres_link.hpp"
+
 
 void RegisterTestCustomQueries(void) {
     std::map<std::string, std::string>& extTestQueries = *::PostgreSQLLink::get_ext_test_queries();
@@ -74,6 +77,7 @@ int main(int argc, char* argv[]) {
         throw std::runtime_error("Using mutually exclusive arguments: --extend_report and --report_unique_name");
     }
 
+    ov::test::utils::is_print_rel_influence_coef = true;
     ov::test::utils::disable_tests_skipping = true;
     ov::test::utils::OpSummary::setExtendReport(FLAGS_extend_report);
     ov::test::utils::OpSummary::setExtractBody(FLAGS_extract_body);
@@ -98,14 +102,14 @@ int main(int argc, char* argv[]) {
     ov::test::utils::CrashHandler::SetUpPipelineAfterCrash(FLAGS_ignore_crash);
 
     // ---------------------------Initialization of Gtest env -----------------------------------------------
-    ov::test::conformance::targetDevice = FLAGS_device.c_str();
+    ov::test::utils::target_device = FLAGS_device.c_str();
     ov::test::conformance::IRFolderPaths = ov::test::utils::splitStringByDelimiter(FLAGS_input_folders);
     ov::test::conformance::refCachePath = FLAGS_ref_dir.c_str();
     if (!FLAGS_plugin_lib_name.empty()) {
-        ov::test::conformance::targetPluginName = FLAGS_plugin_lib_name.c_str();
+        ov::test::utils::target_plugin_name = FLAGS_plugin_lib_name.c_str();
     }
     if (!FLAGS_config_path.empty()) {
-        ov::test::conformance::pluginConfig = ov::test::conformance::readPluginConfig(FLAGS_config_path);
+        ov::test::utils::global_plugin_config = ov::test::conformance::read_plugin_config(FLAGS_config_path);
     }
 
     ::testing::InitGoogleTest(&argc, argv);

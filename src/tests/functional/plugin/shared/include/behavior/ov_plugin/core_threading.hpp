@@ -13,6 +13,7 @@
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
 #include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "openvino/runtime/properties.hpp"
 
 using Device = std::string;
@@ -25,7 +26,6 @@ public:
                             const unsigned int iterations = 100,
                             const unsigned int threadsNum = 8) {
         std::vector<std::thread> threads(threadsNum);
-
         for (auto& thread : threads) {
             thread = std::thread([&]() {
                 for (unsigned int i = 0; i < iterations; ++i) {
@@ -109,6 +109,7 @@ protected:
     unsigned int numThreads;
     std::string cache_path;
     std::vector<std::shared_ptr<ov::Model>> models;
+
     void SetupModels() {
         ov::Core core;
         std::string ir_with_meta = R"V0G0N(
@@ -294,8 +295,8 @@ protected:
 };
 
 // tested function: set_property, compile_model
-TEST_P(CoreThreadingTestsWithCacheEnabled, smoke_compilemodel_cache_enabled) {
-    ov::Core core;
+TEST_P(CoreThreadingTestsWithCacheEnabled, smoke_compiled_model_cache_enabled) {
+    auto core = ov::test::utils::create_core();
     SetupModels();
     core.set_property(target_device, config);
     core.set_property(ov::cache_dir(cache_path));
@@ -338,7 +339,7 @@ public:
 
 // tested function: get_versions, unload_plugin
 TEST_P(CoreThreadingTest, smoke_GetVersions) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
     runParallel([&]() {
         auto versions = core.get_versions(target_device);
         ASSERT_LE(1u, versions.size());
@@ -348,7 +349,7 @@ TEST_P(CoreThreadingTest, smoke_GetVersions) {
 
 // tested function: get_property, UnregisterPlugin
 TEST_P(CoreThreadingTest, smoke_GetMetric) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
 
     runParallel([&] () {
         core.get_property(target_device, ov::internal::supported_properties);
@@ -358,21 +359,21 @@ TEST_P(CoreThreadingTest, smoke_GetMetric) {
 
 // tested function: set_property for already created plugins
 TEST_P(CoreThreadingTest, smoke_SetProperty_PluginExists) {
-    ov::Core core;
-    core.set_property(config);
+    auto core = ov::test::utils::create_core();
+    core.set_property(target_device, config);
     auto versions = core.get_versions(target_device);
     runParallel(
         [&]() {
-            core.set_property(config);
+            core.set_property(target_device, config);
         },
         10000);
 }
 
 // tested function: get_property, unload_plugin
 TEST_P(CoreThreadingTest, smoke_GetProperty_PluginExists) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
     std::string configKey = config.begin()->first;
-    core.set_property(config);
+    core.set_property(target_device, config);
     runParallel([&]() {
         core.get_property(target_device, configKey);
         safePluginUnload(core, target_device);
@@ -381,11 +382,9 @@ TEST_P(CoreThreadingTest, smoke_GetProperty_PluginExists) {
 
 // tested function: query_model
 TEST_P(CoreThreadingTest, smoke_QueryModel) {
-    ov::Core core;
-    auto model = ov::test::utils::make_2_input_subtract();
-
+    auto core = ov::test::utils::create_core();
     core.set_property(target_device, config);
-
+    auto model = ov::test::utils::make_2_input_subtract();
     auto refResult = core.query_model(model, target_device);
 
     runParallel(
@@ -452,11 +451,9 @@ protected:
 
 // tested function: compile_model
 TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
     std::atomic<unsigned int> counter{0u};
-
     SetupNetworks();
-
     core.set_property(target_device, config);
     runParallel(
         [&]() {
@@ -469,11 +466,9 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel) {
 
 // tested function: single Core compile_model accuracy
 TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
     std::atomic<unsigned int> counter{0u};
-
     SetupNetworks();
-
     core.set_property(target_device, config);
 
     runParallel(
@@ -515,11 +510,9 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_SingleCore) {
 
 // tested function: multi Core compile_model accuracy
 TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
-    ov::Core core;
+    auto core = ov::test::utils::create_core();
     std::atomic<unsigned int> counter{0u};
-
     SetupNetworks();
-
     core.set_property(target_device, config);
     runParallel(
         [&]() {
@@ -552,9 +545,9 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_Accuracy_MultipleCores) {
 
             // compare actual value using the second Core
             {
-                ov::Core core2;
-                core2.set_property(target_device, config);
-                auto outputRef = getOutputBlob(core2);
+                auto core_2 = ov::test::utils::create_core();
+                core_2.set_property(target_device, config);
+                auto outputRef = getOutputBlob(core_2);
                 ov::test::utils::compare(outputActual, outputRef);
             }
         },
@@ -571,7 +564,7 @@ TEST_P(CoreThreadingTestsWithIter, smoke_CompileModel_MultipleCores) {
     runParallel(
         [&]() {
             auto value = counter++;
-            ov::Core core;
+            auto core = ov::test::utils::create_core();;
             core.set_property(target_device, config);
             (void)core.compile_model(models[value % models.size()], target_device);
         },
