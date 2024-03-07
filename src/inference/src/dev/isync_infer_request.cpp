@@ -122,8 +122,8 @@ const std::shared_ptr<const ov::ICompiledModel>& ov::ISyncInferRequest::get_comp
 
 ov::ISyncInferRequest::FoundPort ov::ISyncInferRequest::find_port(const ov::Output<const ov::Node>& port) const {
     // check if the tensor names of target port is a subset of source port's tensor names
-    auto check_tensor_names = [](const std::unordered_set<std::__cxx11::string>& source,
-                                 const std::unordered_set<std::__cxx11::string>& target) {
+    auto check_tensor_names = [](const std::unordered_set<std::string>& source,
+                                 const std::unordered_set<std::string>& target) {
         for (auto const& name : target) {
             if (source.find(name) == source.end())
                 return false;
