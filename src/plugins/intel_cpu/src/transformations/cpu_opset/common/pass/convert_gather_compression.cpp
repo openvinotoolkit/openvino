@@ -114,7 +114,8 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
             return false;
         }
         if (!(const_gather_ptr->get_element_type() == ov::element::i32 &&
-              const_gather_ptr->get_shape() == ov::Shape() && const_gather_ptr->cast_vector<int32_t>()[0] == 0)) {
+              (const_gather_ptr->get_shape() == ov::Shape() || const_gather_ptr->get_shape() == ov::Shape(1, 1)) &&
+              const_gather_ptr->cast_vector<int32_t>()[0] == 0)) {
             return false;
         }
 

@@ -47,6 +47,7 @@ struct InputAndWeigthsShapeParams {
 using GatherWeightsDecompressParams = std::tuple<InputAndWeigthsShapeParams,
                                                  ov::element::Type,  // weights type
                                                  ov::AnyMap,         // additional config
+                                                 bool,               // Scalar axis or not
                                                  fusingSpecificParams,
                                                  bool>;  // should use decompression implementation
 
@@ -58,15 +59,17 @@ public:
         InputAndWeigthsShapeParams shape_params;
         ov::element::Type weights_precision;
         ov::AnyMap additional_config;
+        bool scalar_axis;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
-        std::tie(shape_params, weights_precision, additional_config, fusing_params, should_fuse) = obj.param;
+        std::tie(shape_params, weights_precision, additional_config, scalar_axis, fusing_params, should_fuse) = obj.param;
 
         std::ostringstream result;
         result << "data_shape=" << shape_params.data_shape << "_";
         result << "weights_shape=" << shape_params.weights_shape << "_";
         result << "weights_precision=" << weights_precision << "_";
+        result << "scalar_axis=" << scalar_axis << "_";
 
         result << "config=(";
         for (const auto& configEntry : additional_config) {
@@ -105,10 +108,11 @@ protected:
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
                                             const ov::Shape& weights_shape,
                                             const ov::element::Type& weights_precision,
-                                            const ov::element::Type data_precision) {
+                                            const ov::element::Type& data_precision,
+                                            const bool& scalar_axis) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i64, data_shape)};
         auto params_convert = std::make_shared<ov::op::v0::Convert>(params[0], ov::element::i32);
-        auto axis = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+        auto axis = ov::op::v0::Constant::create(element::i32, scalar_axis ? ov::Shape() : ov::Shape{1}, {0});
 
         const auto weights_subgraph = initDecompressionWeights(weights_shape,
                                                                weights_precision);
@@ -127,10 +131,11 @@ protected:
         InputAndWeigthsShapeParams shape_params;
         ov::element::Type weights_precision;
         ov::AnyMap additional_config;
+        bool scalar_axis;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
-        std::tie(shape_params, weights_precision, additional_config, fusing_params, should_fuse) = GetParam();
+        std::tie(shape_params, weights_precision, additional_config, scalar_axis, fusing_params, should_fuse) = GetParam();
 
         configuration.insert(additional_config.begin(), additional_config.end());
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
@@ -139,7 +144,7 @@ protected:
         ElementType netType = ov::element::f32;
         inType = outType = netType;
 
-        function = initSubgraph(inputDynamicShapes[0], shape_params.weights_shape, weights_precision, netType);
+        function = initSubgraph(inputDynamicShapes[0], shape_params.weights_shape, weights_precision, netType, scalar_axis);
     }
 
     void check_results() {
@@ -190,11 +195,14 @@ const std::vector<ov::element::Type> input_weights_precision = {{ov::element::u8
 
 const std::vector<fusingSpecificParams> fs_params{emptyFusingSpec, fusingBias};
 
+const std::vector<bool> vec_scalar_axis{true, false};
+
 INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                          GatherWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_weights_shapes),
                                             ::testing::ValuesIn(input_weights_precision),
                                             ::testing::ValuesIn(filter_additional_config()),
+                                            ::testing::ValuesIn(vec_scalar_axis),
                                             ::testing::ValuesIn(fs_params),
                                             ::testing::Values(true)),
                          GatherWeightsDecompression::getTestCaseName);
