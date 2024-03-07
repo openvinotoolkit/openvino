@@ -46,12 +46,25 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
-ModelDeserializer::ModelDeserializer(std::istream & istream, model_builder fn)
-    : _istream(istream)
-    , _model_builder(fn) {
-}
+ModelDeserializer::ModelDeserializer(std::istream& istream, model_builder fn)
+    : m_istream(&istream),
+      m_model_buffer(nullptr),
+      m_model_builder(fn) {}
+
+ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn)
+    : m_istream(nullptr),
+      m_model_buffer(buffer),
+      m_model_builder(fn) {}
 
 void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
+    if (m_model_buffer) {
+        parse_buffer(model);
+    } else {
+        parse_stream(model);
+    }
+}
+
+void ModelDeserializer::parse_stream(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
 
     std::string xmlString;
@@ -59,13 +72,13 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
 
     // get file size before seek content
     // blob from cache may have other header, skip it
-    const size_t _pos = _istream.tellg();
-    _istream.seekg(0, _istream.end);
-    const size_t file_size = _istream.tellg();
-    _istream.seekg(_pos, _istream.beg);
+    const size_t _pos = m_istream->tellg();
+    m_istream->seekg(0, m_istream->end);
+    const size_t file_size = m_istream->tellg();
+    m_istream->seekg(_pos, m_istream->beg);
 
     StreamSerialize::DataHeader hdr = {};
-    _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+    m_istream->read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
     // check if model header contains valid data
     bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
@@ -76,13 +89,13 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
         OPENVINO_THROW("Failed to read CPU device xml header");
     }
     // read model input/output precisions
-    _istream.seekg(hdr.custom_data_offset);
+    m_istream->seekg(hdr.custom_data_offset);
 
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
         xmlInOutString.resize(hdr.custom_data_size);
-        _istream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
+        m_istream->read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
         auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
@@ -90,22 +103,66 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     }
 
     // read blob content
-    _istream.seekg(hdr.consts_offset);
+    m_istream->seekg(hdr.consts_offset);
     if (hdr.consts_size) {
         dataBlob = ov::Tensor(ov::element::u8, ov::Shape({hdr.consts_size}));
-        _istream.read(static_cast<char *>(dataBlob.data(ov::element::u8)), hdr.consts_size);
+        m_istream->read(static_cast<char *>(dataBlob.data(ov::element::u8)), hdr.consts_size);
     }
 
     // read XML content
-    _istream.seekg(hdr.model_offset);
+    m_istream->seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
-    _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    m_istream->read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
     xmlString = ov::util::codec_xor(xmlString);
 
-    model = _model_builder(xmlString, std::move(dataBlob));
+    model = m_model_builder(xmlString, std::move(dataBlob));
 
     // Set Info
     pugi::xml_node root = xmlInOutDoc.child("cnndata");
+    setInfo(root, model);
+}
+
+void ModelDeserializer::parse_buffer(std::shared_ptr<ov::Model>& model) {
+    using namespace ov::pass;
+
+    ov::Tensor data_blob;
+    auto buffer_base = m_model_buffer->data();
+    const auto hdr_pos = m_model_buffer->get_offset();
+    const auto file_size = m_model_buffer->size();
+
+    StreamSerialize::DataHeader hdr = {};
+    std::memcpy(reinterpret_cast<char*>(&hdr), buffer_base + hdr_pos, sizeof hdr);
+
+    // Check if model header contains valid data.
+    bool is_valid_model = (hdr.custom_data_offset == sizeof(hdr) + hdr_pos) &&
+                          (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                          (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                          (hdr.model_size = file_size - hdr.model_offset);
+    if (!is_valid_model) {
+        OPENVINO_THROW("[CPU] Could not deserialize xml header.");
+    }
+
+    // Read model input/output precisions.
+    pugi::xml_document xml_in_out_doc;
+    if (hdr.custom_data_size > 0) {
+        auto res = xml_in_out_doc.load_string(buffer_base + hdr.custom_data_offset);
+        if (res.status != pugi::status_ok) {
+            OPENVINO_THROW("[CPU] Could to deserialize custom data.");
+        }
+    }
+
+    // Map blob content
+    if (hdr.consts_size) {
+        data_blob = ov::Tensor(element::u8, ov::Shape({hdr.consts_size}), reinterpret_cast<std::uint8_t*>(buffer_base) + hdr.consts_offset);
+    }
+
+    // XML content
+    const std::string xml_string(buffer_base + hdr.model_offset, hdr.model_size);
+
+    model = m_model_builder(xml_string, std::move(data_blob));
+
+    // Set Info
+    pugi::xml_node root = xml_in_out_doc.child("cnndata");
     setInfo(root, model);
 }
 
