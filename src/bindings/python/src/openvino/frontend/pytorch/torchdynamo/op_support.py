@@ -78,7 +78,6 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
             "torch.ops.aten.bitwise_or.Tensor": None,
-            "torch.ops.aten.bitwise_right_shift.Tensor": None,
             "torch.ops.aten.bitwise_xor.Tensor": None,
             "torch.ops.aten.bmm.default": None,
             "torch.ops.aten.cat.default": None,
