@@ -13,13 +13,27 @@
 namespace ov {
 namespace op {
 namespace pooling {
-
-int64_t get_normalized_axis(const ov::op::util::MaxPoolBase* op, const int64_t axis) {
+static int64_t get_normalized_axis(const ov::op::util::MaxPoolBase* op, const int64_t axis) {
     const auto rank = op->get_input_partial_shape(0).rank();
     return rank.is_static() ? ov::util::normalize_axis(op, axis, rank) : axis;
 }
-
 }  // namespace pooling
+static bool has_evaluate_util(const ov::element::Type& element_type) {
+    switch (element_type) {
+    case element::i8:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u32:
+    case element::u64:
+    case element::f16:
+    case element::f32:
+        return true;
+    default:
+        return false;
+    }
+}
+
 namespace v1 {
 
 MaxPool::MaxPool(const Output<Node>& arg,
@@ -137,23 +151,6 @@ bool MaxPool::has_evaluate() const {
 // ------------------------------ V8 ------------------------------
 namespace ov {
 namespace op {
-
-bool has_evaluate_util(const ov::element::Type& element_type) {
-    switch (element_type) {
-    case element::i8:
-    case element::i32:
-    case element::i64:
-    case element::u8:
-    case element::u32:
-    case element::u64:
-    case element::f16:
-    case element::f32:
-        return true;
-    default:
-        return false;
-    }
-}
-
 namespace v8 {
 
 MaxPool::MaxPool(const Output<Node>& arg,
