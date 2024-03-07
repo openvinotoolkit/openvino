@@ -32,6 +32,17 @@ public:
                                                       const ov::AnyMap& properties,
                                                       const ov::SoPtr<ov::IRemoteContext>& context) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;

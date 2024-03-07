@@ -589,21 +589,14 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkModel, const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
-
-    ModelDeserializer deserializer(networkModel, [this](const std::string& model, const ov::Tensor& weights) {
-        return get_core()->read_model(model, weights, true);
-    });
-
-    std::shared_ptr<ov::Model> model;
-    deserializer >> model;
-
+std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(std::shared_ptr<ov::Model>& model,
+                                                                  const ov::AnyMap& properties,
+                                                                  const std::shared_ptr<ov::MappedMemory>& model_buffer) const {
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
 
     // check ov::loaded_from_cache property and erase it to avoid exception in readProperties.
-    auto _config = config;
+    auto _config = properties;
     const auto& it = _config.find(ov::loaded_from_cache.name());
     bool loaded_from_cache = false;
     if (it != _config.end()) {
@@ -617,6 +610,40 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& networkMo
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
     return compiled_model;
 }
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream,
+                                                         const ov::AnyMap& properties) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+
+    ModelDeserializer deserializer(model_stream,
+        [this](const std::string& model, const ov::Tensor& weights) {
+            return get_core()->read_model(model, weights, true);
+        });
+
+    std::shared_ptr<ov::Model> model;
+    deserializer >> model;
+
+    return handle_imported_model(model, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+                                                         const ov::AnyMap& properties) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+    if (model_buffer && model_buffer->size() == 0) {
+        OPENVINO_THROW("Model file size is 0, file name");
+    }
+
+    ModelDeserializer deserializer(model_buffer,
+        [this](const std::string& model, const ov::Tensor& weights) {
+            return get_core()->read_model(model, weights, true);
+        });
+
+    std::shared_ptr<ov::Model> model;
+    deserializer >> model;
+
+    return handle_imported_model(model, properties, model_buffer);
+}
+
 }  // namespace intel_cpu
 }  // namespace ov
 

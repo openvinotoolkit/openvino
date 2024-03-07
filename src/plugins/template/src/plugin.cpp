@@ -131,6 +131,14 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 }
 // ! [plugin:import_model]
 
+// ! [plugin:import_model]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+	    std::shared_ptr<ov::MappedMemory>& model_buffer,
+	    const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+// ! [plugin:import_model]
+
 // ! [plugin:import_model_with_remote]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     std::istream& model,
@@ -180,6 +188,15 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
                                         fullConfig,
                                         loaded_from_cache);
     return compiled_model;
+}
+// ! [plugin:import_model_with_remote]
+
+// ! [plugin:import_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
+	    std::shared_ptr<ov::MappedMemory>& model_buffer,
+	    const ov::SoPtr<ov::IRemoteContext>& context,
+	    const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_model_with_remote]
 

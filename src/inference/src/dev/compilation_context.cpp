@@ -181,6 +181,20 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     return stream;
 }
 
+void operator>>(const char* xml_str, CompiledBlobHeader& header) {
+    pugi::xml_document document;
+    auto res = document.load_string(xml_str);
+
+    if (res.status != pugi::status_ok) {
+        OPENVINO_THROW("[COMPILATION CONTEXT] Could not read compiled blob header.");
+    }
+
+    auto compiled_blob_node = document.document_element();
+    header.m_ieVersion   = ov::util::pugixml::get_str_attr(compiled_blob_node, "ie_version");
+    header.m_fileInfo    = ov::util::pugixml::get_str_attr(compiled_blob_node, "file_info");
+    header.m_runtimeInfo = ov::util::pugixml::get_str_attr(compiled_blob_node, "runtime_info");
+}
+
 std::ostream& operator<<(std::ostream& stream, const CompiledBlobHeader& header) {
     pugi::xml_document document;
     auto compiledBlobNode = document.append_child("compiled_blob");

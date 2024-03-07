@@ -15,6 +15,7 @@
 #include <string>
 
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 
@@ -81,6 +82,22 @@ public:
     virtual void read_cache_entry(const std::string& id, StreamReader reader) = 0;
 
     /**
+     * @brief Function passing created input buffer
+     *
+     */
+    using BufferReader = std::function<void(std::shared_ptr<ov::MappedMemory>&)>;
+    /**
+     * @brief Callback when Inference Engine intends to read network from cache
+     *
+     * Client needs to call create ov::MappedMemory object and call reader(MappedMemory)
+     * Otherwise, network will not be read from cache and will be loaded as usual
+     *
+     * @param id Id of cache (hash of the network)
+     * @param reader Lambda function to be called when input MappedMemory is created
+     */
+    virtual void read_cache_entry(const std::string& id, BufferReader reader) = 0;
+
+    /**
      * @brief Callback when OpenVINO intends to remove cache entry
      *
      * Client needs to perform appropriate cleanup (e.g. delete a cache file)
@@ -136,6 +153,14 @@ private:
         if (ov::util::file_exists(blobFileName)) {
             std::ifstream stream(blobFileName, std::ios_base::binary);
             reader(stream);
+        }
+    }
+
+    void read_cache_entry(const std::string& id, BufferReader reader) override {
+        auto blob_file_name = getBlobFile(id);
+        if (ov::util::file_exists(blob_file_name)) {
+            auto buffer = ov::load_mmap_object(blob_file_name);
+            reader(buffer);
         }
     }
 
