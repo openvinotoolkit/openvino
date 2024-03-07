@@ -312,7 +312,6 @@ const std::vector<ConfigParams> testConfigs = {
     ConfigParams{false, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 1, 0, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 48, 0, false, true},
     ConfigParams{false, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
-    ConfigParams{false, 3, 5, false, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
     ConfigParams{true, 3, 5, true, 2, 5, false, ov::test::utils::DEVICE_GPU, 2, 0, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 48, 48, false, true},
     ConfigParams{true, 3, 5, false, 2, 5, true, ov::test::utils::DEVICE_GPU, 6, 6, false, true},

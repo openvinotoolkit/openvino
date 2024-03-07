@@ -45,7 +45,7 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_bfyx_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_bfyx_opt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_6;
 }
 

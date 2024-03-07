@@ -62,7 +62,7 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+DeviceFeaturesKey ReorderWeightsOpt::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
 
     bool requires_blocked_read_write_char = false;
@@ -200,7 +200,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
     return jit;
 }
 
-bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*options*/) const {
+bool ReorderWeightsOpt::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
@@ -216,12 +216,12 @@ bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*
     return true;
 }
 
-KernelsData ReorderWeightsOpt::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsOpt::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderWeightsOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

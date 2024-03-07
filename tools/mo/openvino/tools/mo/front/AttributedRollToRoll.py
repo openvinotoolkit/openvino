@@ -10,7 +10,7 @@ from openvino.tools.mo.graph.graph import Graph, rename_nodes
 class AttributedRollToRoll(FrontReplacementPattern):
     """
     This transformation converts AttributedRoll operation (axes and shift are specified as attributes) to Roll
-    operation (Inference Engine semantic).
+    operation (OpenVINO semantic).
     """
     enabled = True
 

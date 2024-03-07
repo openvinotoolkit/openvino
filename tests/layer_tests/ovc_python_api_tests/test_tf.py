@@ -978,7 +978,7 @@ class TFGraphDefNames(unittest.TestCase):
             tf.import_graph_def(tf_model, name='')
             for op in graph.get_operations():
                 if op.type == "Placeholder":
-                    input_list.append(op.name)
+                    input_list.append(op.name + ":0")
 
         for input in input_list:
             found = False
@@ -1066,7 +1066,7 @@ class TestTFConversionParams(CommonMOConvertTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_mo_convert_tf_model(self, params, ie_device, precision, ir_version,
-                                 temp_dir, use_new_frontend):
+                                 temp_dir, use_legacy_frontend):
         fw_model = params['fw_model']
         test_params = params['params_test']
         ref_model = params['ref_model']
@@ -1205,3 +1205,85 @@ class TestOutputTensorName(unittest.TestCase):
 
         assert ov_model.outputs[0].get_names() == {"result1:0", "result2:0", "add:0"}
         assert ov_model.outputs[1].get_names() == {"result1:0", "result2:0", "add:0"}
+
+
+class TestInputTensorName(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_input_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(path, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_input_name(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(model, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_input_with_identity(self):
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.ovc import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            input1 = tf.identity(x, name="x_identity")
+            input2 = tf.identity(y, name="y_identity")
+            add = tf.add(input1, input2, name="add")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.inputs[0].get_names() == {"x:0"}
+        assert ov_model.inputs[1].get_names() == {"y:0"}

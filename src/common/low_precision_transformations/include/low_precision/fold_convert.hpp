@@ -13,13 +13,13 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief FoldConvertTransformation evaluates Convert operation on Subtract constant subgraph.
  * Important notice: this transformation ignores DisableConstantFolding runtime attribute.
  *
  * For more details about the transformation, refer to
  * [FoldConvertTransformation](@ref openvino_docs_OV_UG_lpt_FoldConvertTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API FoldConvertTransformation : public CleanupTransformation {
 public:

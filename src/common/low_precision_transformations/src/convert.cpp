@@ -11,10 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -56,6 +58,8 @@ bool ConvertTransformation::transform(TransformationContext& context, ov::pass::
     replace_node(convert, subtract);
 
     subtract->set_friendly_name(convert->get_friendly_name());
+
+    OPENVINO_DEBUG << "LPT: done: " << subtract;
     return true;
 }
 

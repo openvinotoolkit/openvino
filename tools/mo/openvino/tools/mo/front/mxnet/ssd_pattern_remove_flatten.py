@@ -27,7 +27,7 @@ class SsdPatternRemoveFlatten(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find each occurrence of pattern: _contrib_MultiBoxPrior -> Flatten
-        remove Flatten layer - IE does not expect outputs to be flattened
+        remove Flatten layer - OV does not expect outputs to be flattened
 
         Parameters
         ----------

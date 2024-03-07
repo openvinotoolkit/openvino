@@ -15,13 +15,6 @@ struct select_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// select_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct select_optional_params : optional_params {
-    select_optional_params() : optional_params(KernelType::SELECT) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SelectKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class SelectKernelBase : public KernelBaseOpenCL {
@@ -33,10 +26,10 @@ public:
     JitConstants GetJitConstantsCommon(const select_params& params) const;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     virtual JitConstants GetJitConstants(const select_params& params) const;
     virtual DispatchData SetDefault(const select_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

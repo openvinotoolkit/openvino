@@ -46,7 +46,7 @@ ParamsKey FullyConnectedKernelIMAD::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey FullyConnectedKernelIMAD::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -81,8 +81,8 @@ FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefa
     return dispatchData;
 }
 
-bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options)) {
+bool FullyConnectedKernelIMAD::Validate(const Params& params) const {
+    if (!Parent::Validate(params)) {
         return false;
     }
 
@@ -254,7 +254,7 @@ JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_par
     return jit;
 }
 
-KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params) const {
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto tuning_data = GetTuningParams(fc_params);
     auto& input = fc_params.inputs[0];
@@ -262,7 +262,6 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    options,
                                                     input.GetLayout(),
                                                     tuning_data.sub_group_size == 8 ?
                                                     WeightsLayout::os_is_yx_osv8_isv4 :
@@ -276,7 +275,7 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     return res;
 }
 
-KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& params) const {
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto tuning_data = GetTuningParams(fc_params);
     auto output_3d = fc_params.outputs[0].GetLayout() == DataLayout::bfyx;

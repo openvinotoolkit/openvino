@@ -16,9 +16,6 @@ void mark_runtime_skippable_nodes::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
         auto& node = *itr++;
-        // Skip if the node is impl_types::cpu
-        if (node->get_preferred_impl_type() == impl_types::cpu)
-            return;
         // Set gathers that might be skipped at runtime as can_be_optimized.
         // If not set, memory dependency will not work for the nodes that are skipped at runtime
         program_helpers::do_for_types<gather>(*node, [](gather_node& node){

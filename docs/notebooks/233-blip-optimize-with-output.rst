@@ -55,18 +55,18 @@ Prerequisites
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     VISION_MODEL_OV = Path("blip_vision_model.xml")
     TEXT_ENCODER_OV = Path("blip_text_encoder.xml")
     TEXT_DECODER_OV = Path("blip_text_decoder_with_past.xml")
-
+    
     if not (VISION_MODEL_OV.exists() and TEXT_ENCODER_OV.exists() and TEXT_DECODER_OV.exists()):
         raise RuntimeError('This notebook should be run after 233-blip-convert notebook')
 
 .. code:: ipython3
 
     from transformers import BlipProcessor
-
+    
     processor = BlipProcessor.from_pretrained("Salesforce/blip-vqa-base")
 
 Quantize
@@ -107,7 +107,7 @@ understanding of vision, language and commonsense knowledge to answer.
     import numpy as np
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-
+    
     def preprocess_batch(batch, vision_model, inputs_info):
         """
         Preprocesses a dataset batch by loading and transforming image and text data.
@@ -128,14 +128,14 @@ understanding of vision, language and commonsense knowledge to answer.
                 "encoder_hidden_states": encoder_hidden_states,
                 "text_encoder_inputs": []
             }
-
+    
         text_encoder_inputs = {
             "input_ids": inputs["input_ids"],
             "attention_mask": inputs["attention_mask"]
         }
         inputs_info[image_id]["text_encoder_inputs"].append(text_encoder_inputs)
-
-
+    
+    
     def prepare_input_data(dataloader, vision_model, opt_init_steps):
         """
         Store calibration subset in List to reduce quantization time.
@@ -143,7 +143,7 @@ understanding of vision, language and commonsense knowledge to answer.
         inputs_info = {}
         for batch in tqdm(dataloader, total=opt_init_steps, desc="Prepare calibration data"):
             preprocess_batch(batch, vision_model, inputs_info)
-
+    
         calibration_subset = []
         for image_id in inputs_info:
             pixel_values = inputs_info[image_id]["pixel_values"]
@@ -158,8 +158,8 @@ understanding of vision, language and commonsense knowledge to answer.
                 }
                 calibration_subset.append(blip_inputs)
         return calibration_subset
-
-
+    
+    
     def prepare_dataset(vision_model, opt_init_steps=300, streaming=True):
         """
         Prepares a vision-text dataset for quantization.
@@ -176,7 +176,7 @@ time and depends on your internet connection.
 
     import nncf
     import openvino as ov
-
+    
     comp_vision_model = ov.compile_model(VISION_MODEL_OV)
     calibration_data = prepare_dataset(comp_vision_model)
 
@@ -205,17 +205,17 @@ Vision model
 .. code:: ipython3
 
     VISION_MODEL_OV_INT8 = Path(str(VISION_MODEL_OV).replace(".xml", "_int8.xml"))
-
+    
     core = ov.Core()
     ov_vision_model = core.read_model(VISION_MODEL_OV)
     vision_dataset = nncf.Dataset(calibration_data, lambda x: x["vision_model_inputs"])
-
+    
     quantized_model = nncf.quantize(
         model=ov_vision_model,
         calibration_dataset=vision_dataset,
         model_type=nncf.ModelType.TRANSFORMER
     )
-
+    
     ov.save_model(quantized_model, VISION_MODEL_OV_INT8)
 
 
@@ -244,7 +244,7 @@ Text encoder
 .. code:: ipython3
 
     TEXT_ENCODER_OV_INT8 = Path(str(TEXT_ENCODER_OV).replace(".xml", "_int8.xml"))
-
+    
     text_encoder_dataset = nncf.Dataset(calibration_data, lambda x: x["text_encoder_inputs"])
     ov_text_encoder = core.read_model(TEXT_ENCODER_OV)
     quantized_model = nncf.quantize(
@@ -290,7 +290,7 @@ The optimization process contains the following steps:
 .. code:: ipython3
 
     TEXT_DECODER_OV_INT8 = Path(str(TEXT_DECODER_OV).replace(".xml", "_int8.xml"))
-
+    
     text_decoder = core.read_model(TEXT_DECODER_OV)
     compressed_text_decoder = nncf.compress_weights(text_decoder)
     ov.save_model(compressed_text_decoder, str(TEXT_DECODER_OV_INT8))
@@ -303,7 +303,7 @@ Run optimized OpenVINO model
 The steps for making predictions with the optimized OpenVINO BLIP model
 are similar to the PyTorch model. Let us check the model result using
 the same input data from the `first
-notebook <233-blip-convert-with-output-with-output.html>`__.
+notebook <233-blip-convert-with-output.html>`__.
 
 .. code:: ipython3
 
@@ -316,18 +316,18 @@ notebook <233-blip-convert-with-output-with-output.html>`__.
     from functools import partial
     from transformers import BlipForQuestionAnswering
     from blip_model import OVBlipModel, text_decoder_forward
-
+    
     model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
     text_decoder = model.text_decoder
     text_decoder.eval()
-
+    
     text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=q_ov_text_decoder_with_past)
     int8_model = OVBlipModel(model.config, model.decoder_start_token_id, q_ov_vision_model, q_ov_text_encoder, text_decoder)
 
 .. code:: ipython3
 
     from PIL import Image
-
+    
     raw_image = Image.open("demo.jpg").convert('RGB')
     question = "how many dogs are in the picture?"
     # preprocess input data
@@ -341,7 +341,7 @@ Image Captioning
 .. code:: ipython3
 
     from utils import visualize_results
-
+    
     out = int8_model.generate_caption(inputs["pixel_values"], max_length=20)
     caption = processor.decode(out[0], skip_special_tokens=True)
     fig = visualize_results(raw_image, caption)
@@ -423,14 +423,14 @@ quantized models.
 
     import time
     import torch
-
+    
     def calculate_inference_time(blip_model, calibration_data, generate_caption):
         inference_time = []
         for inputs in calibration_data:
             pixel_values = torch.from_numpy(inputs["vision_model_inputs"]["pixel_values"])
             input_ids = torch.from_numpy(inputs["text_encoder_inputs"]["input_ids"])
             attention_mask = torch.from_numpy(inputs["text_encoder_inputs"]["attention_mask"])
-
+    
             start = time.perf_counter()
             if generate_caption:
                 _ = blip_model.generate_caption(pixel_values, max_length=20)
@@ -446,7 +446,7 @@ quantized models.
     fp_original_model = BlipForQuestionAnswering.from_pretrained("Salesforce/blip-vqa-base")
     fp_text_decoder = fp_original_model.text_decoder
     fp_text_decoder.eval()
-
+    
     comp_text_encoder = ov.compile_model(TEXT_ENCODER_OV)
     comp_text_decoder_with_past = ov.compile_model(TEXT_DECODER_OV)
     fp_text_decoder.forward = partial(text_decoder_forward, ov_text_decoder_with_past=comp_text_decoder_with_past)
@@ -455,10 +455,10 @@ quantized models.
 .. code:: ipython3
 
     validation_data = calibration_data[:100]
-
+    
     int8_caption_latency = calculate_inference_time(int8_model, validation_data, generate_caption=True)
     fp16_caption_latency = calculate_inference_time(fp16_model, validation_data, generate_caption=True)
-
+    
     print(f"Image Captioning speed up: {fp16_caption_latency / int8_caption_latency:.3f}")
 
 .. code:: ipython3

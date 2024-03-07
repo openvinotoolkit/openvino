@@ -14,7 +14,7 @@ class TRANSFORMATIONS_API ReshapeOptimizations;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Searches for Flatten-like Reshape operations and simplifies 2nd input of such Reshape using special zero
  * feature
  */

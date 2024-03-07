@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API LSTMStatesBroadcast;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief In case LSTMCell has constant initial hidden and cell state with single batch size
  * we make them broadcast-able by batch
  */

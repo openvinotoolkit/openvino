@@ -279,7 +279,7 @@ public:
     void rebuild_exec_deps(std::unordered_map<primitive_id, primitive_inst*> const& primitives);
     std::string get_implementation_name() const;
 
-    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time, bool per_iter_mode = false);
+    void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode = false);
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
@@ -377,9 +377,12 @@ protected:
     size_t _max_output_layout_count = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = true, bool runtime_alloc = false);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
+                                              bool reset_mem = true,
+                                              bool runtime_alloc = false);
     memory::ptr allocate_internal_buffer(size_t idx, bool reset = true);
-    static std::vector<primitive_inst*> build_exec_deps(std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
+    static std::vector<primitive_inst*> build_exec_deps(
+        std::vector<std::pair<primitive_inst*, int32_t>> const& mem_deps);
     int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling

@@ -44,13 +44,6 @@ struct pooling_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// pooling_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct pooling_optional_params : optional_params {
-    pooling_optional_params() : optional_params(KernelType::POOLING) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PoolingKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class PoolingKernelBase : public KernelBaseOpenCL {
@@ -63,10 +56,10 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const pooling_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const pooling_params& p) const;
     Datatype GetActivationType(const pooling_params& params) const;
     bool NeedsBoundaryCheck(const pooling_params& params) const;

@@ -35,8 +35,7 @@ ParamsKey MultinomialKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData MultinomialKernelRef::SetDefault(const multinomial_params &params,
-                                                    const optional_params&) const {
+CommonDispatchData MultinomialKernelRef::SetDefault(const multinomial_params &params) const {
     CommonDispatchData dispatch_data {};
     dispatch_data.gws = {GetBatchNum(params), params.with_replacement ? GetSamplesSize(params) : 1, 1};
     dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
@@ -55,15 +54,14 @@ JitConstants MultinomialKernelRef::GetJitConstants(const multinomial_params &par
     return jit;
 }
 
-KernelsData MultinomialKernelRef::GetKernelsData(const Params &params,
-                                                 const optional_params &options) const {
-    if (!Validate(params, options)) {
+KernelsData MultinomialKernelRef::GetKernelsData(const Params &params) const {
+    if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<multinomial_params>(params);
     multinomial_params &new_params = dynamic_cast<multinomial_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto dispatch_data = SetDefault(new_params);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto multinomial_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, multinomial_specific_jit, entry_point);
 
@@ -73,8 +71,8 @@ KernelsData MultinomialKernelRef::GetKernelsData(const Params &params,
     return {kernel_data};
 }
 
-bool MultinomialKernelRef::Validate(const Params &p, const optional_params &o) const {
-    if (p.GetType() != KernelType::MULTINOMIAL || o.GetType() != KernelType::MULTINOMIAL) {
+bool MultinomialKernelRef::Validate(const Params &p) const {
+    if (p.GetType() != KernelType::MULTINOMIAL) {
         return false;
     }
     const multinomial_params &params = dynamic_cast<const multinomial_params&>(p);

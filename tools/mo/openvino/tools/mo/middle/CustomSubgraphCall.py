@@ -180,7 +180,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
         """
         Adds reshape operation which changes shape of the tensor produced by TFSubgraphCall from 4D to real dimension
         of the tensor. The data_node_name node contains real dimensions of the tensor but they will be changed in the
-        add_reshapes_for_tf_subgraph_calls function to a 4D because IE TF call layer supports output in 4D only.
+        add_reshapes_for_tf_subgraph_calls function to a 4D because OV TF call layer supports output in 4D only.
         :param graph: graph to operate on.
         :param data_node_name: name of the data node to be reshaped to correct dimensions.
         :return: None
@@ -239,7 +239,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
     @staticmethod
     def add_reshapes_for_tf_subgraph_calls(graph: Graph):
         """
-        Input and output tensors of the TFCustomSubgraphCall must be 4D because IE layer accepts and produces only 4D
+        Input and output tensors of the TFCustomSubgraphCall must be 4D because OV layer accepts and produces only 4D
         tensors. This function adds reshape operations where it is necessary.
         :param graph: graph to operate on.
         :return: None.
@@ -262,7 +262,7 @@ class CustomSubgraphCall(MiddleReplacementPattern):
                         "node".format(data_node.shape, real_dims_count, node.name))
                     CustomSubgraphCall.add_reshape_after_data_node(graph, data_node.id)
 
-                    # need to update shape of the op so IE generates XML with 4D tensors
+                    # need to update shape of the op so OV generates XML with 4D tensors
                     out_shape = CustomSubgraphCall.make_shape_4d(data_node['shape'])
 
                     data_node['shape'] = out_shape

@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API GRUCellDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GRUCellDecomposition transformation decomposes GRUCell layer with inputs X, H, W, R, B
  * to Add, Split, MatMul, Multiply and Subtract ops according to the formula:
                 (.) - Denotes element-wise multiplication.

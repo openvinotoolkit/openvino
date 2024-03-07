@@ -9,7 +9,7 @@ namespace kernel_selector {
 
 gather_nd_kernel_selector::gather_nd_kernel_selector() { Attach<GatherNDKernelRef>(); }
 
-KernelsData gather_nd_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GATHER_ND);
+KernelsData gather_nd_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GATHER_ND);
 }
 }  // namespace kernel_selector

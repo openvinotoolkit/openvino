@@ -367,7 +367,20 @@ TEST_F(TransformationTestsF, OptimizeSS_Shared_Test_use_shapes_false) {
         manager.register_pass<ov::pass::StridedSliceOptimization>(false);
         manager.register_pass<pass::ConstantFolding>();
     }
-    // No SharedStridedSliceEraser transformation if use_shapes == false
+    {
+        auto source = std::make_shared<opset1::Parameter>(element::f32, Shape{5, 5, 5, 5});
+
+        auto begin1 = opset1::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+        auto end1 = opset1::Constant::create(element::i64, Shape{4}, {-1, -1, -1, -1});
+        auto stride1 = opset1::Constant::create(element::i64, Shape{4}, {1});
+        std::vector<int64_t> begin_mask1 = {0, 0, 0, 0};
+        std::vector<int64_t> end_mask1 = {0, 0, 0, 0};
+        auto ss1 = std::make_shared<opset1::StridedSlice>(source, begin1, end1, stride1, begin_mask1, end_mask1);
+
+        auto concat = std::make_shared<opset1::Concat>(NodeVector{ss1, ss1}, 0);
+
+        model_ref = std::make_shared<ov::Model>(NodeVector{concat}, ParameterVector{source});
+    }
 }
 
 TEST_F(TransformationTestsF, OptimizeSS_Groupped_Test_use_shapes_false) {

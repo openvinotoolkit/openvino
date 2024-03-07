@@ -19,13 +19,6 @@ struct reverse_params : public base_params {
     reverse_mode reverseMode = reverse_mode::index;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reverse_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reverse_optional_params : optional_params {
-    reverse_optional_params() : optional_params(KernelType::REVERSE) {}
-};
-
 class ReverseKernelRef : public KernelBaseOpenCL {
 public:
     ReverseKernelRef() : KernelBaseOpenCL("reverse_ref") {}
@@ -34,11 +27,11 @@ public:
 
     virtual JitConstants GetJitConstants(const reverse_params& params) const;
 
-    virtual CommonDispatchData SetDefault(const reverse_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const reverse_params& params) const;
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
     ParamsKey GetSupportedKey() const override;
 };

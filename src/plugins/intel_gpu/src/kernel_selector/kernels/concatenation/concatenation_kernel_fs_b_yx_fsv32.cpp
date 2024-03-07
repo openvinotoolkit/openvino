@@ -27,12 +27,12 @@ ParamsKey ConcatenationKernel_fs_b_yx_fsv32::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConcatenationKernel_fs_b_yx_fsv32::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConcatenationKernel_fs_b_yx_fsv32::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
-bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p, const optional_params& o) const {
-    if (!ConcatenationKernelBase::Validate(p, o)) {
+bool ConcatenationKernel_fs_b_yx_fsv32::Validate(const Params& p) const {
+    if (!ConcatenationKernelBase::Validate(p)) {
         return false;
     }
 
@@ -67,7 +67,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_fs_b_yx_fsv32::SetDefa
     return dispatchData;
 }
 
-KernelsPriority ConcatenationKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConcatenationKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
@@ -82,8 +82,8 @@ JitConstants ConcatenationKernel_fs_b_yx_fsv32::GetJitConstants(const concatenat
     return jit;
 }
 
-KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    if (!Validate(params, optParams)) {
+KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -106,7 +106,7 @@ KernelsData ConcatenationKernel_fs_b_yx_fsv32::GetKernelsData(const Params& para
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, optParams, i);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params,  i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);

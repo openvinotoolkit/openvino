@@ -24,23 +24,177 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     return idxs;
 }
 
+jit_snippets_call_args::~jit_snippets_call_args() {
+    delete[] loop_args;
+}
+
+void jit_snippets_call_args::register_loops(const std::vector<loop_args_t>& loops) {
+    num_loops = loops.size();
+    loop_args = new loop_args_t[num_loops];
+    std::copy(loops.begin(), loops.end(), loop_args);
+}
+
+jit_snippets_call_args::loop_args_t::loop_args_t(int64_t work_amount, const std::vector<int64_t>& ptr_increments,
+                                                 const std::vector<int64_t>& finalization_offsets)
+    : m_work_amount(work_amount) {
+    OV_CPU_JIT_EMITTER_ASSERT(ptr_increments.size() == finalization_offsets.size(), "Inconsistent sizes of ptr_increments and finalization_offsets");
+    m_num_data_ptrs = static_cast<int64_t>(ptr_increments.size());
+    init_pointers_and_copy_data(m_num_data_ptrs, ptr_increments.data(), finalization_offsets.data());
+}
+
+jit_snippets_call_args::loop_args_t::loop_args_t(const loop_args_t& other)
+    : m_work_amount(other.m_work_amount), m_num_data_ptrs(other.m_num_data_ptrs) {
+    init_pointers_and_copy_data(m_num_data_ptrs, other.m_ptr_increments, other.m_finalization_offsets);
+}
+
+jit_snippets_call_args::loop_args_t::~loop_args_t() {
+    delete[] m_ptr_increments;
+    delete[] m_finalization_offsets;
+}
+
+jit_snippets_call_args::loop_args_t& jit_snippets_call_args::loop_args_t::operator=(loop_args_t other) {
+    swap(*this, other);
+    return *this;
+}
+
+void jit_snippets_call_args::loop_args_t::init_pointers_and_copy_data(const int64_t num_elements, const int64_t* ptr_increments,
+                                                                      const int64_t* finalization_offsets) {
+    const size_t chunk_size = num_elements * sizeof(int64_t);
+    m_ptr_increments = new int64_t[num_elements];
+    m_finalization_offsets = new int64_t[num_elements];
+    std::memcpy(m_ptr_increments, ptr_increments, chunk_size);
+    std::memcpy(m_finalization_offsets, finalization_offsets, chunk_size);
+}
+
+void swap(jit_snippets_call_args::loop_args_t& first, jit_snippets_call_args::loop_args_t& second) {
+    std::swap(first.m_work_amount, second.m_work_amount);
+    std::swap(first.m_num_data_ptrs, second.m_num_data_ptrs);
+    std::swap(first.m_ptr_increments, second.m_ptr_increments);
+    std::swap(first.m_finalization_offsets, second.m_finalization_offsets);
+}
+
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_container_emitter(h, isa), reg_indexes_idx(abi_param1.getIdx()), reg_const_params_idx(abi_param2.getIdx()) {
+    : jit_container_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "invoked with invalid op argument");
     OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "invoked with empty body");
-    OV_CPU_JIT_EMITTER_ASSERT(kernel->compile_params != nullptr, "invoked with op::Kernel that contains no compile_params");
-
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
-    master_shape = body.get_master_shape();
-
-    // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
-    //       so we have to reproduce this behavior here
-    master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
-    const auto& io_exprs = body.get_IO_ops();
     num_inputs = 0;
     num_outputs = 0;
+    const auto& io_exprs = body.get_IO_ops();
+    for (const auto& expr : io_exprs) {
+        switch (expr->get_type()) {
+            case snippets::lowered::IOExpression::io_type::INPUT: {
+                num_inputs++;
+                break;
+            }
+            case snippets::lowered::IOExpression::io_type::OUTPUT: {
+                num_outputs++;
+                break;
+            } default : {
+                OV_CPU_JIT_EMITTER_THROW("detected unsupported io_type");
+            }
+        }
+        mem_access_exprs.push_back(expr);
+    }
+    std::set<size_t> unique_buffers;
+    for (const auto& expr : body) {
+        if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
+            const auto buffer_id = buffer->get_id();
+            if (unique_buffers.count(buffer_id) == 0) {
+                mem_access_exprs.push_back(expr);
+                unique_buffers.insert(buffer_id);
+            }
+        } else {
+            if (std::find(io_exprs.cbegin(), io_exprs.cend(), expr) == io_exprs.cend())
+                general_exprs.emplace_back(expr);
+        }
+    }
+    num_unique_buffers = unique_buffers.size();
+}
+
+void jit_kernel_emitter::init_reg_pools(const std::set<size_t>& gpr_blacklist, const std::set<size_t>& vec_blacklist) {
+    gp_regs_pool.resize(16);
+    vec_regs_pool.resize(16);
+    // It's easier to remove the last item during mapping, so fill descending to map ascending
+    for (size_t i = 0; i < 16; i++)
+        gp_regs_pool[i] = vec_regs_pool[i] = 15 - i;
+    auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
+        // It's important to keep the order of other elements
+        pool.erase(std::remove_if(pool.begin(), pool.end(),
+                                  [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
+    };
+    // Reserve stack base and pointer for push(...) and pop(...) operations
+    std::set<size_t> gprs_blacklist_extended{Xbyak::Operand::RSP, Xbyak::Operand::RBP};
+    gprs_blacklist_extended.insert(gpr_blacklist.begin(), gpr_blacklist.end());
+    // Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
+    remove_regs_from_pool(gp_regs_pool, gprs_blacklist_extended);
+    remove_regs_from_pool(vec_regs_pool, vec_blacklist);
+}
+
+void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+    validate_arguments(in, out);
+    emit_impl(in, out);
+}
+
+void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
+    OV_CPU_JIT_EMITTER_ASSERT(in.empty() && out.empty(), ": expects 0 registers on input and output");
+    const auto num_params = num_inputs + num_outputs + num_unique_buffers;
+    // The number of used gpr may be >= num_params since LoopBegin+LoopEnd could also use gpr to store work_amount
+    OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
+                              "number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
+                              " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
+}
+
+void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
+                                        const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+    // Initialize pools of gp and vec registers
+    // Reserve kernel regs (abi_param1 and, if there is, abi_param2), since they'll be used to pass runtime call args to kernel
+    init_reg_pools(kernel_regs, {});
+
+    mapping_info gpr_map_pool({}, gp_regs_pool);
+    mapping_info vec_map_pool({}, vec_regs_pool);
+
+    // Note that we can't use kernel_regs to store data pointers because
+    // these regs are used to calculate offsets for the data pointers
+    map_abstract_registers(gpr_map_pool, vec_map_pool, mem_access_exprs);
+    for (const auto& abstract_to_physical : gpr_map_pool.first)
+        data_ptr_regs_idx.push_back(abstract_to_physical.second);
+
+    vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
+    gpr_map_pool.second.insert(gpr_map_pool.second.end(), pool_gpr_idxs.cbegin(), pool_gpr_idxs.cend());
+    map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
+}
+
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    h->preamble();
+
+    auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
+
+    init_data_pointers(data_ptr_regs);
+    for (const auto& expression : body) {
+        const auto reg_info = expression->get_reg_info();
+        auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
+        auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
+        const auto& emitter = expression->get_emitter();
+        emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
+    }
+
+    h->postamble();
+}
+
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                                     const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(abi_param2.getIdx()) {
+    const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "jit_kernel_static_emitter expectes KernelStatic expression");
+    master_shape = body.get_master_shape();
+    io_shapes.reserve(num_inputs + num_outputs);
+    io_data_layouts.reserve(num_inputs + num_outputs);
+    io_data_sizes.reserve(num_inputs + num_outputs);
+    const auto& io_exprs = body.get_IO_ops();
     for (const auto& expr : io_exprs) {
         snippets::lowered::PortDescriptorPtr desc = nullptr;
         element::Type etype;
@@ -53,16 +207,14 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
                     desc = expr->get_output_port_descriptor(0);
                 }
                 etype = expr->get_node()->get_output_element_type(0);
-                num_inputs++;
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                num_outputs++;
                 desc = expr->get_input_port_descriptor(0);
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
-                OV_CPU_JIT_EMITTER_THROW("detected unsupported io_type");
+                OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
         const auto& shape = desc->get_shape();
@@ -74,77 +226,20 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         io_data_layouts.push_back(layout);
         io_data_sizes.push_back(etype.size());
     }
+    // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
+    //       so we have to reproduce this behavior here
+    master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
 
-    // Initialize pools of gp and vec registers
-    gp_regs_pool.resize(16);
-    vec_regs_pool.resize(16);
-    // It's easier to remove the last item during mapping, so fill descending to map ascending
-    for (size_t i = 0; i < 16; i++)
-        gp_regs_pool[i] = vec_regs_pool[i] = 15 - i;
-    // todo: it's more convenient to use std::set as a pool container (unique and always sorted),
-    //  but pools are vectors to align with emit_code signature. Change signature?
-    auto remove_regs_from_pool = [](std::vector<size_t>& pool, const std::set<size_t>& to_remove) {
-        // It's important to keep the order of other elements
-        pool.erase(std::remove_if(pool.begin(), pool.end(),
-                                       [&](size_t x) {return to_remove.count(x) != 0;}), pool.end());
-    };
-    // Reserve stack base and pointer for push(...) and pop(...) operations
-    // Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
-    remove_regs_from_pool(gp_regs_pool, {Xbyak::Operand::RSP, Xbyak::Operand::RBP,
-                                         reg_indexes_idx, reg_const_params_idx});
-
-    mapping_info gpr_map_pool({}, gp_regs_pool);
-    mapping_info vec_map_pool({}, vec_regs_pool);
-    snippets::lowered::LinearIR::container mem_access_exprs;
-    snippets::lowered::LinearIR::container general_exprs;
-    std::set<size_t> unique_buffers;
-
-    for (const auto& expr : body) {
-        // Brgemm is a special case since it incorporates input and output (we use onednn kernel)
-        // Just like Load & Store it requires offsets calculation
-        if (std::dynamic_pointer_cast<snippets::lowered::IOExpression>(expr)) {
-            mem_access_exprs.emplace_back(expr);
-        } else if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_id = buffer->get_id();
-            if (unique_buffers.count(buffer_id) == 0) {
-                mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_id);
-            }
-        } else {
-            general_exprs.emplace_back(expr);
-        }
-    }
-    num_unique_buffers = unique_buffers.size();
-
-    // Note that we can't use reg_indexes_idx or reg_const_params_idx to store data pointers because these two
-    // regs are used to calculate offsets for the data pointers
-    map_abstract_registers(gpr_map_pool, vec_map_pool, mem_access_exprs);
-    for (const auto& abstract_to_physical : gpr_map_pool.first)
-        data_ptr_regs_idx.push_back(abstract_to_physical.second);
-    // However we can use reg_indexes_idx and reg_const_params_idx for other operations since we won't need them
-    // after offsets calculation
-    gpr_map_pool.second.push_back(reg_indexes_idx);
-    gpr_map_pool.second.push_back(reg_const_params_idx);
-    map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
+    // - Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
+    // - However we can use reg_indexes_idx and reg_runtime_params_idx for non memory access operations
+    //   since we won't need them after offsets calculation
+    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx, reg_runtime_params_idx});
 }
 
-void jit_kernel_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
-                                   const std::vector<size_t> &pool_vec_idx, const std::vector<size_t> &pool_gpr_idxs) const {
-    validate_arguments(in, out);
-    emit_impl(in, out);
-}
+void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
+    Xbyak::Reg64 reg_indexes = Xbyak::Reg64(static_cast<int>(reg_indexes_idx));
+    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(reg_runtime_params_idx));
 
-void jit_kernel_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    OV_CPU_JIT_EMITTER_ASSERT(in.empty(), "got invalid number of inputs. Expected 0, got ", in.size());
-    OV_CPU_JIT_EMITTER_ASSERT(out.empty(), "got invalid number of outputs. Expected 0, got ", out.size());
-    const auto num_params = num_inputs + num_outputs + num_unique_buffers;
-    OV_CPU_JIT_EMITTER_ASSERT(data_ptr_regs_idx.size() == num_params,
-                              "number of inputs and outputs is inconsistent with the number of allocated registers ", num_params,
-                              " data_ptr_regs_idx.size() = ", data_ptr_regs_idx.size());
-}
-
-void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, const Xbyak::Reg64& reg_const_params,
-                                            const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
     const auto num_params = num_inputs + num_outputs;
     // Note that we don't need offset for the last dim, since it's handled directly by Tile emitter
     const size_t offset_rank = master_shape.size() - 1;
@@ -199,7 +294,7 @@ void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, con
     };
     const auto spare_corruptable_gpr = std::find_if(gp_regs_pool.begin(), gp_regs_pool.end(),
                                                    [this](size_t reg) {
-                                                        return reg != reg_indexes_idx && reg != reg_const_params_idx;
+                                                        return reg != reg_indexes_idx && reg != reg_runtime_params_idx;
                                                    });
     const bool last_iter_explicitly = spare_corruptable_gpr == gp_regs_pool.end();
     Reg64 reg_tmp = last_iter_explicitly ? data_ptr_regs[num_params - 1] : Reg64(static_cast<int>(*spare_corruptable_gpr));
@@ -209,45 +304,54 @@ void jit_kernel_emitter::init_data_pointers(const Xbyak::Reg64& reg_indexes, con
     // NOTE: Snippets Buffer Scratchpad has the common data pointer for all Buffers (even with different ID).
     //       The accessing memory is covered by correct offsets in each Buffer and the corresponding MemoryAccess ops
     for (size_t i = 0; i < num_unique_buffers; ++i) {
-        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_const_params + GET_OFF(buffer_scratchpad_ptr)]);
+        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
     size_t i = 0;
     for (; i < num_params - last_iter_explicitly; i++) {
         if (i < num_inputs)
-            h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
         else
-            h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
     // a rare case when num_params is maximal, so we have no spare gprs
-    // * Static case: we can use reg_const_params as the last reg_tmp for the last iteration (and corrupt it), since
+    // * Static case: we can use reg_runtime_params as the last reg_tmp for the last iteration (and corrupt it), since
     //     it won't be used anymore
-    // * Dynamic case: we will need reg_const_params to pass runtime args to LoopScheduler, so we have to
+    // * Dynamic case: we will need reg_runtime_params to pass runtime args to LoopScheduler, so we have to
     //     push a reg on the stack, and restore it value afterwards
     if (last_iter_explicitly) {
-        h->mov(data_ptr_regs[i], h->ptr[reg_const_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
-        reg_tmp = reg_const_params;
-        // can corrupt reg_const_params, since we won't use it anymore
+        h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+        reg_tmp = reg_runtime_params;
+        // can corrupt reg_runtime_params, since we won't use it anymore
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
     }
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    h->preamble();
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
+                                                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_kernel_emitter(h, isa, expr) {
+    const auto kernel = ov::as_type_ptr<snippets::op::KernelDynamic>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(kernel, "expectes KernelDynamic expression");
 
-    auto reg_indexes = Reg64(static_cast<int>(reg_indexes_idx));
-    auto reg_const_params = Reg64(static_cast<int>(reg_const_params_idx));
-    auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
+    // - Reserve abi_param1, since it wll be used to pass runtime call args to all dynamic emitters that needs runtime args
+    // - We cannot assign this register to the body emitters since runtime params MUST be valid during whole execution
+    //   for all dynamic emitters
+    init_body_regs({reg_runtime_params_idx});
+}
 
-    init_data_pointers(reg_indexes, reg_const_params, data_ptr_regs);
-    for (const auto& expression : body) {
-        const auto reg_info = expression->get_reg_info();
-        const auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
-        const auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
-        const auto& emitter = expression->get_emitter();
-        emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
+void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
+    Xbyak::Reg64 reg_runtime_params = Xbyak::Reg64(static_cast<int>(reg_runtime_params_idx));
+
+    const auto num_params = num_inputs + num_outputs;
+    for (size_t i = 0; i < num_unique_buffers; ++i) {
+        h->mov(data_ptr_regs[num_params + i], h->ptr[reg_runtime_params + GET_OFF(buffer_scratchpad_ptr)]);
     }
-    h->postamble();
+    for (size_t i = 0; i < num_params; i++) {
+        if (i < num_inputs)
+            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(src_ptrs) + i * sizeof(void*)]);
+        else
+            h->mov(data_ptr_regs[i], h->ptr[reg_runtime_params + GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*)]);
+    }
 }
 
 }   // namespace intel_cpu

@@ -23,7 +23,7 @@
 
 namespace ov {
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
  * @param[in] node The node will be used to get PrimitivesPriority attribute
  */

@@ -192,7 +192,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
         output += std::accumulate(mismatch_it.first,
                                   from_vec.end(),
                                   std::string{},
-                                  [&separator](std::string& a, const std::string&) -> std::string {
+                                  [&separator](std::string a, const std::string&) -> std::string {
                                       return a += ".." + separator;
                                   });
     }
@@ -203,7 +203,7 @@ std::string getRelativePath(const std::string& from, const std::string& to) {
     output += std::accumulate(mismatch_it.second,
                               to_vec.end(),
                               std::string{},
-                              [&separator](std::string& a, const std::string& b) -> std::string {
+                              [&separator](std::string a, const std::string& b) -> std::string {
                                   return a.empty() ? a += b : a += separator + b;
                               });
     return output;

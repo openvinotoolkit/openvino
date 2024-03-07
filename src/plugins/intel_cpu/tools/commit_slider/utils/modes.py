@@ -43,7 +43,7 @@ class CheckOutputMode(Mode):
         if not ("stopPattern" in cfg["runConfig"]):
             raise CfgError("stopPattern is not configured")
 
-    def compareCommits(self, lCommit, rCommit, list, cfg):
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
         isLeftBorderFailed = bool(self.getPseudoMetric(lCommit, cfg))
         isRightBorderGood = not self.getPseudoMetric(rCommit, cfg)
         curCommit = rCommit.replace('"', "")
@@ -176,11 +176,12 @@ class BenchmarkAppPerformanceMode(Mode):
                 PreliminaryAnalysisError.PreliminaryErrType.UNSTABLE_APPLICATION
                 )
 
-    def compareCommits(self, lCommit, rCommit, list, cfg):
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
         leftThroughput = self.getPseudoMetric(lCommit, cfg)
         rightThroughput = self.getPseudoMetric(rCommit, cfg)
-        curRel = rightThroughput / leftThroughput
-        isBad = not ((1 - curRel) < self.apprDev)
+        isBad, curRel = self.traversal.numericComparator(
+            leftThroughput, rightThroughput, self.apprDev
+        )
         if isBad:
             self.perfRel = curRel
         curCommit = rCommit.replace('"', "")
@@ -294,7 +295,7 @@ class CompareBlobsMode(Mode):
             filename = self.setCommitCash(commit, None)
         return filename
 
-    def compareCommits(self, lCommit, rCommit, list, cfg):
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
         leftBorderOutputName = self.getPseudoMetric(lCommit, cfg)
         rightBorderOutputName = self.getPseudoMetric(rCommit, cfg)
         fullLeftFileName = os.path.join(self.cachePath, leftBorderOutputName)

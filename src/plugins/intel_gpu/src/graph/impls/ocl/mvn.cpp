@@ -15,7 +15,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     using parent = typed_primitive_impl_ocl<mvn>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::mvn_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::mvn_params, kernel_selector::mvn_optional_params>;
+    using kernel_params_t = kernel_selector::mvn_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::mvn_impl)
 
@@ -35,7 +35,6 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<mvn>();
         auto params = get_default_params<kernel_selector::mvn_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(impl_param.get_program());
 
         params.mvnMode = primitive->across_channels() ? kernel_selector::mvn_mode::ACROSS_CHANNELS
                                                       : kernel_selector::mvn_mode::WITHIN_CHANNELS;
@@ -44,7 +43,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
 
         params.mvnEpsMode = primitive->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
                                                        : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
-        return {params, optional_params};
+        return params;
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -90,7 +89,7 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

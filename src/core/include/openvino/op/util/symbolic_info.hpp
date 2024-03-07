@@ -26,7 +26,7 @@ OPENVINO_API std::shared_ptr<ov::TableOfEquivalence> table_of_equivalence(const 
 OPENVINO_API void remove_symbolic_info(const std::shared_ptr<ov::Model>& model, bool outermost_model = true);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief SymbolicInfo class represents runtime info attribute that instructs ov::Output objects to skip invalidation of
  * partial values and labels during partial value propagation and keeps shared_ptr to TableOfEquivalence.
  */

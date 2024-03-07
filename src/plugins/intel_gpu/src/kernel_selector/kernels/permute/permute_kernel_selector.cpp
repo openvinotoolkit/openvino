@@ -19,7 +19,7 @@ permute_kernel_selector::permute_kernel_selector() {
     // Attach<PermuteKernel_f_y_axes>();
 }
 
-KernelsData permute_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::PERMUTE);
+KernelsData permute_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::PERMUTE);
 }
 }  // namespace kernel_selector

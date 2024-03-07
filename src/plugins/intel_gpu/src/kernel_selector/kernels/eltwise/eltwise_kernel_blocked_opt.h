@@ -22,8 +22,8 @@ public:
     EltwiseKernel_blocked_opt() : EltwiseKernelBase("eltwise_blocked_opt") {}
     virtual ~EltwiseKernel_blocked_opt() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
@@ -34,7 +34,7 @@ public:
     }
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     JitConstants MakeLoadJitConstants(const eltwise_params& params, bool useVload8) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
     DispatchData SetDefault(const eltwise_params& params) const override;

@@ -33,8 +33,8 @@ public:
 
     ov::AnyMap m_config;
     DeviceInformation m_device_info;
-    std::set<std::string> m_batched_inputs;
-    std::set<std::string> m_batched_outputs;
+    std::set<std::size_t> m_batched_inputs;
+    std::set<std::size_t> m_batched_outputs;
     ov::SoPtr<ov::IRemoteContext> m_remote_context;
 
     std::shared_ptr<CompiledModel> m_auto_batch_compile_model;
@@ -121,13 +121,13 @@ public:
 
         auto reshaped = m_model->clone();
         auto inputs = reshaped->inputs();
-        std::map<ov::Output<ov::Node>, ov::PartialShape> partial_shapes;
-        for (auto& input : inputs) {
-            auto input_shape = input.get_shape();
-            if (m_batched_inputs.find(ov::op::util::get_ie_output_name(input)) != m_batched_inputs.end()) {
+        std::map<std::size_t, ov::PartialShape> partial_shapes;
+        for (size_t input_id = 0; input_id < inputs.size(); input_id++) {
+            auto input_shape = inputs[input_id].get_shape();
+            if (m_batched_inputs.find(input_id) != m_batched_inputs.end()) {
                 input_shape[0] = m_batch_size;
             }
-            partial_shapes.insert({input, ov::PartialShape(input_shape)});
+            partial_shapes.insert({input_id, ov::PartialShape(input_shape)});
         }
 
         reshaped->reshape(partial_shapes);
@@ -228,15 +228,12 @@ public:
 
     void prepare_input(std::shared_ptr<ov::Model>& model, int batch_size) {
         const auto& params = model->get_parameters();
-        for (size_t i = 0; i < params.size(); i++) {
-            m_batched_inputs.insert(ov::op::util::get_ie_output_name(params[i]->output(0)));
+        for (size_t input_id = 0; input_id < params.size(); input_id++) {
+            m_batched_inputs.insert(input_id);
         }
         const auto& results = model->get_results();
-        for (size_t i = 0; i < results.size(); i++) {
-            const auto& output = results[i];
-            const auto& node = output->input_value(0);
-            m_batched_outputs.insert(
-                ov::op::util::get_ie_output_name(ov::Output<const ov::Node>(node.get_node(), node.get_index())));
+        for (size_t output_id = 0; output_id < results.size(); output_id++) {
+            m_batched_outputs.insert(output_id);
         }
     }
 };

@@ -11,7 +11,7 @@ namespace ov {
 namespace pass {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PushConstantToSubgraph transformation detects MultiSubGraphOp inputs
  * that can be constfoldable pushes that inputs to subgraphs.
  */

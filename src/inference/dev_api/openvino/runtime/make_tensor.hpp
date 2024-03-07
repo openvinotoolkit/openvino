@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Helpers to create OpenVINO Tensors
+ * @file openvino/runtime/make_tensor.hpp
+ */
+
 #pragma once
 
 #include "openvino/runtime/common.hpp"

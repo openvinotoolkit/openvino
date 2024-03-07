@@ -2,10 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <gtest/gtest.h>
+
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/opsets/opset9.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+
 
 using namespace CPUTestUtils;
 using namespace ov::opset9;

@@ -17,6 +17,6 @@ public:
     extract_image_patches_kernel_selector();
     virtual ~extract_image_patches_kernel_selector() = default;
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 }  // namespace kernel_selector

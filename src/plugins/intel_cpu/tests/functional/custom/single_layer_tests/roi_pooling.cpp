@@ -6,6 +6,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
 
 #include "utils/cpu_test_utils.hpp"
 #include "utils/bfloat16.hpp"

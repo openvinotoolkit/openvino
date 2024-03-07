@@ -53,7 +53,7 @@ void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& su
     for (const auto& out : sub_graph_op->get_output_descriptions()) {
         const auto& connect_to = results.at(out->m_body_value_index)->get_input_source_output(0);
         for (auto& input_to : sub_graph_op->output(out->m_output_index).get_target_inputs()) {
-            // create IE output name
+            // create OV output name
             std::string out_name = sub_graph_op->get_friendly_name();
             if (sub_graph_op->get_output_size() != 1)
                 out_name += "." + std::to_string(out->m_output_index);

@@ -27,17 +27,17 @@ JitConstants reorder_biplanar_nv12::GetJitConstants(const reorder_params& params
     return jit;
 }
 
-KernelsData reorder_biplanar_nv12::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData reorder_biplanar_nv12::GetKernelsData(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
     if (orgParams.inputs.size() != 2) {
         return {};
     }
-    KernelsData kd = GetCommonKernelsData(orgParams, options);
+    KernelsData kd = GetCommonKernelsData(orgParams);
     kd[0].kernels[0].params.arguments = GetArgsDesc(2, false, false);
     return kd;
 }
 
-KernelsPriority reorder_biplanar_nv12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority reorder_biplanar_nv12::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

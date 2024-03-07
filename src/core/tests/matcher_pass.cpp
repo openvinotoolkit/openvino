@@ -25,7 +25,7 @@ public:
         auto m_relu1 = ov::pass::pattern::wrap_type<ov::op::v0::Relu>(pattern::consumers_count(1));
         auto m_relu2 = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({m_relu1});
 
-        ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+        ov::graph_rewrite_callback callback = [m_relu1, this](pattern::Matcher& m) {
             // Map that helps to connect labels with matched outputs
             auto& node_to_output = m.get_pattern_value_map();
 

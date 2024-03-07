@@ -5,8 +5,8 @@
 #include "shared_test_classes/subgraph/quantized_group_convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/group_convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace ov {
 namespace test {
@@ -78,7 +78,7 @@ void QuantGroupConvBackpropDataLayerTest::SetUp() {
 
     auto weightsFq = ov::test::utils::make_fake_quantize(weightsNode, element_type, quantLevels, weightsFqConstShapes);
 
-    auto groupConvBackpropData = std::dynamic_pointer_cast<ov::opset1::GroupConvolutionBackpropData>(
+    auto groupConvBackpropData = std::dynamic_pointer_cast<ov::op::v1::GroupConvolutionBackpropData>(
             ov::test::utils::make_group_convolution_backprop_data(dataFq, weightsFq, element_type, stride, padBegin, padEnd, dilation, padType));
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupConvBackpropData)};

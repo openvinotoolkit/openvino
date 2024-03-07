@@ -70,4 +70,4 @@ private:
     std::map<std::string, ov::Any> config;
 };
 
-std::shared_ptr<InferApiBase> create_infer_api_wrapper(const int &api_version);
+std::shared_ptr<InferApiBase> create_infer_api_wrapper();

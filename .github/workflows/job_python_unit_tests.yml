@@ -38,19 +38,27 @@ jobs:
       LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
       - name: Set apt retries
+        if: runner.os == 'Linux'
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Download OpenVINO tokenizers extension
+        if: ${{ runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
+        uses: actions/download-artifact@v4
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
@@ -97,9 +105,13 @@ jobs:
         run: |
           # Install the core OV wheel
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*.whl
-          
+
+          if [[ "${{ runner.arch }}" != "ARM64" ]]; then
+            python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*.whl
+          fi
+
           extras_to_install="caffe,kaldi,onnx,tensorflow2,pytorch"
-          
+
           if [[ "${{ runner.arch }}" != "ARM64" ]]; then
             extras_to_install="mxnet,$extras_to_install"
           fi
@@ -136,22 +148,19 @@ jobs:
       - name: Model Optimizer unit tests
         if: fromJSON(inputs.affected-components).MO.test
         run: |
-          skip_filter=''
-          if [[ "${{ runner.os }}" != "Linux" ]] && [[ "${{ runner.arch }} != "ARM64" ]] || [[ "${{ runner.os }} != "macOS" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" != "ARM64" ]]; then
             # required for MxNet
             apt-get install -y libgomp1 libquadmath0
-          else
-            # Skips under Ticket: 122666
-            skip_filter='--ignore-glob=**/mo/unit_tests/mo/front/mxnet/**'
           fi
           
+          # Skips under tickets: 133405, 122666
           python3 -m pytest -s ${INSTALL_TEST_DIR}/mo/unit_tests \
               --junitxml=${INSTALL_TEST_DIR}/TEST-ModelOptimizer.xml \
-              "$skip_filter"
+              --ignore-glob="**/mo/unit_tests/mo/front/mxnet/**"
 
       - name: Python ONNX operators tests
         if: (fromJSON(inputs.affected-components).Python_API.test ||
-             fromJSON(inputs.affected-components).ONNX_FE.test) && 
+             fromJSON(inputs.affected-components).ONNX_FE.test) &&
              runner.arch != 'ARM64' # Ticket: 123325
         run: |
           # Skip test_onnx/test_zoo_models and test_onnx/test_backend due to long execution time - ONNX Model Zoo tests are run separately
@@ -174,13 +183,13 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
-          
+
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
             # Find gomp lib
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
             export LD_PRELOAD=${GOMP_LIB}
           fi
-          
+
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/mo_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_mo_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -192,13 +201,13 @@ jobs:
           # Import 'test_utils' installed in '<package_test>/tests/python/openvino'
           export PYTHONPATH=${INSTALL_TEST_DIR}/python
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          
+
           if [[ "${{ runner.os }}" == "Linux" ]] && [[ "${{ runner.arch }}" == "ARM64" ]]; then
             # Find gomp lib
             GOMP_LIB=$(find "${PIP_INSTALL_PATH}/torch/lib/../../torch.libs/" -name '*libgomp-*so*')
             export LD_PRELOAD=${GOMP_LIB}
           fi
-          
+
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
@@ -222,14 +231,14 @@ jobs:
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -n logical -m precommit_torch_export --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: EXPORT
 
       - name: PyTorch torch.compile TORCHFX Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' }}
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_fx_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -238,7 +247,7 @@ jobs:
           PYTORCH_TRACING_MODE: TORCHFX
 
       - name: PyTorch torch.compile TORCHSCRIPT Layer Tests
-        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' }}
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' }} # Ticket: 126287
         run: |
           python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/pytorch_tests -m precommit_ts_backend --junitxml=${INSTALL_TEST_DIR}/TEST-pytorch.xml
         env:
@@ -261,7 +270,7 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ --use_new_frontend -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/ -m precommit_tf_fe -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tf_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -271,24 +280,24 @@ jobs:
         run: |
           # requires 'unit_tests' from 'mo'
           export PYTHONPATH=${INSTALL_TEST_DIR}/mo
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ --use_new_frontend -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
+          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/ -m precommit_tf_fe --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
 
       - name: JAX Layer Tests - TF FE
-        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' }}
+        if: ${{ fromJSON(inputs.affected-components).TF_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
         run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit --junitxml=${INSTALL_TEST_DIR}/TEST-jax.xml
         env:
           TEST_DEVICE: CPU
 
       - name: TensorFlow 1 Layer Tests - Legacy FE
         if: fromJSON(inputs.affected-components).TF_FE.test
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_tests/test_tf_Roll.py --use_legacy_frontend --ir_version=10 --junitxml=${INSTALL_TEST_DIR}/TEST-tf_Roll.xml
 
       - name: TensorFlow 2 Layer Tests - Legacy FE
         if: fromJSON(inputs.affected-components).TF_FE.test
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow2_keras_tests/test_tf2_keras_activation.py --use_legacy_frontend --ir_version=11 -k "sigmoid" --junitxml=${INSTALL_TEST_DIR}/TEST-tf2_Activation.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -318,7 +327,7 @@ jobs:
           python3 ${OPENVINO_REPO}/docs/snippets/main.py
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-python

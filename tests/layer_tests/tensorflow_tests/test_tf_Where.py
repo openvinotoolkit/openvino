@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestWhere(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'condition' in inputs_info, "Test error: inputs_info must contain `condition`"
-        condition_shape = inputs_info['condition']
+        assert 'condition:0' in inputs_info, "Test error: inputs_info must contain `condition`"
+        condition_shape = inputs_info['condition:0']
         inputs_data = {}
-        inputs_data['condition'] = np.random.randint(-2, 2, condition_shape)
+        inputs_data['condition:0'] = np.random.randint(-2, 2, condition_shape)
         return inputs_data
 
     def create_where_net(self, condition_shape, condition_type):
@@ -37,7 +37,7 @@ class TestWhere(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_where_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                         use_new_frontend):
+                         use_legacy_frontend):
         self._test(*self.create_where_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

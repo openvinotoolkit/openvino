@@ -8,7 +8,7 @@
 namespace kernel_selector {
 detection_output_kernel_selector::detection_output_kernel_selector() { Attach<DetectionOutputKernelRef>(); }
 
-KernelsData detection_output_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::DETECTION_OUTPUT);
+KernelsData detection_output_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::DETECTION_OUTPUT);
 }
 }  // namespace kernel_selector

@@ -71,7 +71,10 @@ class TestCumSum(PytorchLayerTest):
     @pytest.mark.parametrize("out,dtype_from_input", [(False, False), (True, False), (True, True)])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_cumsum(self, axis, dtype, out, dtype_from_input, ie_device, precision, ir_version):
+        if out and PytorchLayerTest.use_torch_export():
+            pytest.skip(reason="export fails for out")
         self._test(*self.create_model(axis, dtype, out, dtype_from_input), ie_device, precision, ir_version, kwargs_to_prepare_input={"out": out, "out_dtype": dtype})

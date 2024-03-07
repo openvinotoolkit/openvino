@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API LogSoftmaxDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief LogSoftmaxDecomposition transformation into sub-graph x - log(reduce_sum(exp(x), axis)).
  */
 class ov::pass::LogSoftmaxDecomposition : public ov::pass::MatcherPass {

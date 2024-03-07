@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifyCTCGreedyDecoder converts v6:CTCGreedyDecoderSeqLen into v0::CTCGreedyDecoder.
  *
  *            data[N, T, C]    seq_len[N]

@@ -31,7 +31,7 @@ target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev)
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
 
 install(TARGETS ${TARGET_NAME}
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

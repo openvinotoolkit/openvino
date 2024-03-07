@@ -23,7 +23,7 @@ class TRANSFORMATIONS_API SwishFusionWithoutBeta;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x) with a Swish op.
  */
 class ov::pass::SwishFusionWithSigmoid : public ov::pass::MatcherPass {
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x * Sigmoid(x * beta) with a Swish op.
  */
 class ov::pass::SwishFusionWithSigmoidWithBeta : public ov::pass::MatcherPass {
@@ -43,7 +43,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x * beta)) with a Swish op.
  */
 class ov::pass::SwishFusionWithBeta : public ov::pass::MatcherPass {
@@ -53,7 +53,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusionWithSigmoid replaces a sub-graphs x / (1.0 + exp(-x)) with a Swish op.
  */
 class ov::pass::SwishFusionWithoutBeta : public ov::pass::MatcherPass {
@@ -63,7 +63,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SwishFusion transformation replaces various sub-graphs with a Swish op.
  */
 class ov::pass::SwishFusion : public ov::pass::GraphRewrite {

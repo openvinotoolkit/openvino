@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API MulFakeQuantizeFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief MulFakeQuantizeFusion transformation replaces following graph:
  * Mul->FakeQuantize to a single FakeQuantize
  * Restrictions:

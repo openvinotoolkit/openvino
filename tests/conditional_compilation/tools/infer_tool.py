@@ -34,7 +34,7 @@ def input_preparation(model):
 
 def infer(ir_path, device):
     """
-    Function to perform IE inference using python API "in place"
+    Function to perform OV inference using python API "in place"
     :param ir_path: Path to XML file of IR
     :param device: Device name for inference
     :return: Dict containing out blob name and out data

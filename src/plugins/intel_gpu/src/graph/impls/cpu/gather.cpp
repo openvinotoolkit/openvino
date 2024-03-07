@@ -57,6 +57,10 @@ struct gather_impl : public typed_primitive_impl<gather> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "gather::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
+        if (instance.can_be_optimized()) {
+            return stream.group_events(events);
+        }
+
         for (auto e : events) {
             e->wait();
         }

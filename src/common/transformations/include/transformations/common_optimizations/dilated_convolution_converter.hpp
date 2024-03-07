@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API DilatedConvolutionConverter;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief DilatedConvolutionConverter transformation replaces following graph:
  * SpaceToBatch -> Convolution(GroupConvolution) -> BatchToSpace
  * to a single Convolution(GroupConvolution) node with updated pads and dilations

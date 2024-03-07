@@ -17,7 +17,7 @@ extern const char* cpu_plugin_file_name;
 
 namespace {
 //
-// IE Class Common tests with <pluginName, deviceName params>
+// OV Class Common tests with <pluginName, deviceName params>
 //
 
 const std::vector<ov::AnyMap> configsWithEmpty = {{}};

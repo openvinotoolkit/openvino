@@ -82,8 +82,7 @@ def convert_model(
         :param extension:
             Paths to libraries (.so or .dll) with extensions, comma-separated
             list of paths, objects derived from BaseExtension class or lists of
-            objects. To disable all extensions including those that are placed
-            at the default location, pass an empty string.
+            objects.
         :param verbose:
             Print detailed information about conversion.
         :param share_weights:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,7 @@ _OPENVINO_OP_REG(LogicalXor, op::v1)
 _OPENVINO_OP_REG(LogicalNot, op::v1)
 _OPENVINO_OP_REG(MaxPool, op::v1)
 _OPENVINO_OP_REG(Mod, op::v1)
+_OPENVINO_OP_REG(Multiply, op::v1)
 _OPENVINO_OP_REG(NonMaxSuppression, op::v1)
 _OPENVINO_OP_REG(OneHot, op::v1)
 _OPENVINO_OP_REG(Pad, op::v1)
@@ -156,6 +157,8 @@ _OPENVINO_OP_REG(BitwiseOr, ov::op::v13)
 _OPENVINO_OP_REG(BitwiseXor, ov::op::v13)
 _OPENVINO_OP_REG(NMSRotated, ov::op::v13)
 _OPENVINO_OP_REG(Multinomial, ov::op::v13)
+
+_OPENVINO_OP_REG(Inverse, ov::op::v14)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)

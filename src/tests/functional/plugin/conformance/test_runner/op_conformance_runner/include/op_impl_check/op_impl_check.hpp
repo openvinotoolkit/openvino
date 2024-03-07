@@ -8,16 +8,13 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 
 namespace ov {
 namespace test {
 namespace op_conformance {
 
-using OpImplParams = std::tuple<
-        std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>,       // Function to check
-        std::string,                                                       // Target Device
-        ov::AnyMap>;                                                       // Plugin Config
+using OpImplParams = std::pair<ov::DiscreteTypeInfo, std::shared_ptr<ov::Model>>;      // Function to check
 
 class OpImplCheckTest : public testing::WithParamInterface<OpImplParams>,
                         public ov::test::TestsCommon {

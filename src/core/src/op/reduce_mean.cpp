@@ -45,13 +45,16 @@ bool ReduceMean::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;
-    return IF_TYPE_OF(v1_ReduceMean_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i32, i64, u32, u64),
-                      reduce_mean::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      reduction_axes);
+    return IF_TYPE_OF_CONVERT_TENSORS(v1_ReduceMean_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      reduce_mean::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      reduction_axes);
 }
 
 bool ReduceMean::has_evaluate() const {
