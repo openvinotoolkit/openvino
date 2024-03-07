@@ -899,20 +899,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.where.self", op::translate_where},
         {"aten.zeros_like.default", op::translate_zeros_like},
         {"get_attr", op::translate_constant},
-        {"prim::Constant", op::translate_constant},
-        {"prim::device", op::translate_constant},
-        {"prim::GetAttr", op::translate_get_attr},
-        {"prim::If", op::translate_if},
-        {"prim::is_cuda", op::return_false_scalar},
-        {"prim::ListConstruct", op::translate_list_construct},
-        {"prim::Loop", op::translate_loop},
-        {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
-        {"prim::PythonOp", op::translate_pythonop},
-        {"prim::requires_grad", op::return_false_scalar},
-        {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
-        {"torchvision::nms", op::translate_nms},
-        {"torchvision::roi_align", op::translate_roi_align},
+        {"torchvision.roi_align.default", op::translate_roi_align},
     };
 };
 
