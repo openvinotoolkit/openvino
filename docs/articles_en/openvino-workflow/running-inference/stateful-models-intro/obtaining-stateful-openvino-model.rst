@@ -12,7 +12,7 @@ and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
-  refer to the :doc:`Optimize and Deploy Generative AI Models <gen_ai_guide>` article).
+  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
