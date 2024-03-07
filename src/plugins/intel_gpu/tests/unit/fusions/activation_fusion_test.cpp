@@ -342,15 +342,15 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_fusings_gpu, activation_eltwise_activation, ::
 
 class reorder_activation_activation : public ActivationFusingTest {};
 TEST_P(reorder_activation_activation, basic) {
-    // reorder_data
-    //      |
-    //     sqrt
-    //       |
-    //     power data
-    //       \   /
-    //       divide
-    //         |
-    //       result (permute)
+    // reorder_data                      reorder_data
+    //      |                                 |
+    //     sqrt                               |
+    //       |               fuse             |
+    //     power data        ---->            | data
+    //       \   /                            |  /
+    //       divide                         divide
+    //         |                              |
+    //       result                         result
     //
     auto p = GetParam();
     create_topologies(
@@ -370,8 +370,8 @@ TEST_P(reorder_activation_activation, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reorder_activation_activation, ::testing::ValuesIn(std::vector<activation_test_params>{
     // Previously reorder data supports fusing only one activation.
     // This test case is to check if reorder data supports fusing two or more activations properly.
-    // Since this case is about reorder data, the layout should be bfyx or bfzyx
-    //    - bfyx : CASE_ACTIVATION_F32_0
+    // Since this case covers reorder_data using ReorderKernelRef, the layout should be bfyx or bfzyx.
+    //    - bfyx  : CASE_ACTIVATION_F32_0
     //    - bfzyx : CASE_ACTIVATION_3D_F32_0
     activation_test_params{ CASE_ACTIVATION_F32_0, 3, 5, "reorder_data" },
     activation_test_params{ CASE_ACTIVATION_3D_F32_0, 3, 5, "reorder_data" },

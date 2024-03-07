@@ -41,18 +41,11 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     if (params.surface_input)
         jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
 
-    // Fusing only one activation is handled by MakeActivationJitConstants() with params.activations.
+    // This is for the case of 'reorder_data' using ReorderkernelRef.
+    // Fusing just one activation was being handled by MakeActivationJitConstants() with params.activations.
     // But when there are two or more activations, fusing is not done with that.
-    // In such cases, it should use MakeFusedOpsJitConstants() with params.fused_ops.
-    // For now, this operations for fusing is limited to,
-    //     1) when there are two or more activations.
-    //     2) when ReorderKernelRef (reorder data) is selected. (see reorder_data.cl)
-    //
-    // Discussion :
-    //     1) Should MakeActivationJitConstants() support fusing two or more activations?
-    //     2) Is it necessary to use only MakeFusedOpsJitConstants() for fusing activations?
-    //
-    if (!params.fused_ops.empty() && params.fused_ops.size() > 1) {
+    // Thus to fuse activations in reorder_data, it should use MakeFusedOpsJitConstants() with params.fused_ops.
+    if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             idx_order = {"b", "f", "y", "x"};
