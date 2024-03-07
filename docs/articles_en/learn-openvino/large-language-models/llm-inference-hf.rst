@@ -239,8 +239,6 @@ Now the model can be converted to OpenVINO using Optimum Intel Python API or CLI
 Additional Resources
 #####################
 
-For more information on how to run text generation with Huggin Face APIs, see their documentation:
-
 * `Optimum Intel documentation <https://huggingface.co/docs/optimum/intel/inference>`__
 * :doc:`LLM Weight Compression <weight_compression>`
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
