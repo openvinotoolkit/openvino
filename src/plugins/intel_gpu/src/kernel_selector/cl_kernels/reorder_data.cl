@@ -154,9 +154,9 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx_B] = FUSED_OPS_RESULT;
     #else
-        output[output_idx_R] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
-        output[output_idx_G] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
-        output[output_idx_B] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
+        output[output_idx_R] = TO_OUTPUT_REORDER_TYPE(R);
+        output[output_idx_G] = TO_OUTPUT_REORDER_TYPE(G);
+        output[output_idx_B] = TO_OUTPUT_REORDER_TYPE(B);
     #endif
 #elif INPUT0_LAYOUT_IMAGE_2D_RGBA
     uint8 ov0 = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, v, u, w, z, y, x);
@@ -176,9 +176,9 @@ KERNEL (reorder_data)(
         FUSED_OPS;
         output[output_idx_2] = FUSED_OPS_RESULT;
     #else
-        output[output_idx_0] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s0), NL_M, NL_N);
-        output[output_idx_1] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s1), NL_M, NL_N);
-        output[output_idx_2] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s2), NL_M, NL_N);
+        output[output_idx_0] = TO_OUTPUT_REORDER_TYPE(colorRGBA.s0);
+        output[output_idx_1] = TO_OUTPUT_REORDER_TYPE(colorRGBA.s1);
+        output[output_idx_2] = TO_OUTPUT_REORDER_TYPE(colorRGBA.s2);
     #endif
     #if INPUT0_FEATURE_NUM == 4
         uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 3, v, u, w, z, y, x);
@@ -188,7 +188,7 @@ KERNEL (reorder_data)(
             FUSED_OPS;
             output[output_idx] = FUSED_OPS_RESULT;
         #else
-            output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(colorRGBA.s3), NL_M, NL_N);
+            output[output_idx] = TO_OUTPUT_REORDER_TYPE(colorRGBA.s3);
         #endif
     #endif
 #elif OUTPUT_LAYOUT_IMAGE_2D_RGBA
@@ -201,7 +201,7 @@ KERNEL (reorder_data)(
                 FUSED_OPS;
                 output[output_idx] = FUSED_OPS_RESULT;
             #else
-                output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(convert_long(res)), ACTIVATION_PARAMS_TYPED);
+                output[output_idx] = TO_OUTPUT_REORDER_TYPE(convert_long(res));
             #endif
         #else
             #if HAS_FUSED_OPS
@@ -209,7 +209,7 @@ KERNEL (reorder_data)(
                 FUSED_OPS;
                 output[output_idx] = FUSED_OPS_RESULT;
             #else
-                output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
+                output[output_idx] = TO_OUTPUT_REORDER_TYPE_SAT(res);
             #endif
         #endif
     #else
@@ -218,7 +218,7 @@ KERNEL (reorder_data)(
             FUSED_OPS;
             output[output_idx] = FUSED_OPS_RESULT;
         #else
-            output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
+            output[output_idx] = TO_OUTPUT_REORDER_TYPE(res);
         #endif
     #endif
 #endif
