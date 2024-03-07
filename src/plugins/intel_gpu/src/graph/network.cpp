@@ -422,29 +422,13 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
-                std::function<bool(const std::pair<const primitive_inst*, int32_t>&)> is_dep_output_memory_null;
-                is_dep_output_memory_null = [&](const std::pair<const primitive_inst*, int32_t>& dep) -> bool {
-                    if (dep.first->can_be_optimized()) {
-                        for (auto& dep_dep : dep.first->dependencies()) {
-                            if (dep_dep.first->is_dynamic()) {
-                                return is_dep_output_memory_null(dep_dep);
-                            } else {
-                                if (dep_dep.first->output_memory_ptr() == nullptr)
-                                    return true;
-                            }
-                        }
-                    }
-                    if (dep.first->output_memory_ptr() == nullptr)
-                        return true;
-                    return false;
-                };
 
                 // (dynamic) -> static optimizable reshape -> static optimizable reshape -> some_op
                 // In that case, it is a limit about second reshape.
                 auto prim = dep.first->get_impl_params()->desc;
                 if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
-                                                      prim->type == read_value::type_id() ||
-                                                      is_dep_output_memory_null(dep)))
+                                                      dep.first->output_memory_ptr() == nullptr ||
+                                                      prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
