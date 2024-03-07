@@ -169,18 +169,6 @@ This step is essential for interpreting the model's output.
   # Example output:
   ['<s> Quick brown fox was walking through the forest. He was looking for something']
 
-Stateful Model Optimization
-############################
-
-When you use the ``OVModelForCausalLM`` class, the model is transformed into a stateful form by default for optimization.
-This transformation improves inference performance and decreases runtime memory usage in long running text generation tasks.
-It is achieved by hiding the model's inputs and outputs that represent past KV-cache tensors, and handling them inside the model in a more efficient way.
-This feature is activated automatically for many supported text generation models, while unsupported models remain in a regular, stateless form.
-
-Model usage remains the same for stateful and stateless models with the Optimum-Intel API, as KV-cache is handled internally by text-generation API of Transformers library.
-The model's format matters when an OpenVINO IR model is exported from Optimum-Intel and used in an application with the native OpenVINO API.
-This is because stateful and stateless models have a different number of inputs and outputs.
-Learn more about the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
 
 Additional Resources
 ####################
