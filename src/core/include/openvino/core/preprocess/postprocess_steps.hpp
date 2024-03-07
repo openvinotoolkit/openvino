@@ -28,6 +28,29 @@ class OPENVINO_API PostProcessSteps final {
 
     /// \brief Default empty internal constructor
     PostProcessSteps();
+    TEST(PostProcessSteps, Mean){
+  cv::Mat rgb(100, 100, CV_8UC3);
+
+  PostProcessSteps steps;
+  steps.mean(127);
+  
+  cv::Mat nv12 = steps.execute(rgb);
+  
+}
+
+TEST(PostProcessSteps, Scale){
+
+}
+
+TEST(PostProcessSteps, Chain) {
+  cv::Mat rgb(100, 100, CV_8UC3);
+  
+  PostProcessSteps steps;
+  steps.mean(127).scale(0.5);
+  
+  cv::Mat nv12 = steps.execute(rgb);
+}
+
 
 public:
     /// \brief Default destructor
