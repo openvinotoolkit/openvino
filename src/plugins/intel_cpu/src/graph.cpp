@@ -96,11 +96,9 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
             inputNodesMap_tmp[parameter_index] = node;
-            std::cout << "[CreateGraph()] input name: " << node->getName() << ", index: " << parameter_index << ", node: " << node << std::endl;
             parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
             outputNodesMap_tmp[result_index] = node;
-            std::cout << "[CreateGraph()] output name: " << node->getName() << ", index: " << result_index << ", node: " << node << std::endl;
             result_index++;
         }
     }
@@ -140,22 +138,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
             inputNodesMap_tmp[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
-            std::cout << "[Replicate()] input name: " << name
-                      << ", index: " << model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))
-                      << ", node: " << node << std::endl;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            const std::string inputID = get_port_name(op->output(0));
             outputNodesMap_tmp[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
-            std::cout << "[Replicate()] output name: " << inputID
-                      << ", index: " << model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))
-                      << ", node: " << node << std::endl;
         }
 
         op2node[op] = node;
@@ -954,7 +944,6 @@ void Graph::PushInputData(const std::size_t& name, const ov::SoPtr<ITensor>& inp
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap_tmp.find(name);
     if (input_itr != inputNodesMap_tmp.end()) {
-        std::cout << "[PushInputData()] index: " << name << ", node: " << input_itr->second << std::endl;
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
         auto edgeMemory = childEdge->getMemoryPtr();
