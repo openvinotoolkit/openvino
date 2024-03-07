@@ -88,7 +88,7 @@ Find the latest documentation, from getting started guides to advanced topics, a
 
 [Developer documentation](./docs/dev/index.md) on GitHub contains information about architectural decisions implemented within OpenVINO [components](./docs/dev/index.md#openvino-components). It offers all the essential information required for [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) to OpenVINO.
 
-For additional resources, read:
+To learn more, refer to the additional resources:
 
 * [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Release Notes](https://docs.openvino.ai/2024/openvino_release_notes.html)
@@ -102,7 +102,7 @@ Explore the list of [Good First Issues](https://github.com/openvinotoolkit/openv
 To be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
 Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
 
-Ask questions and seek support on:
+Ask questions and get support on:
 
 * [GitHub Issues](https://github.com/openvinotoolkit/openvino/issues)
 * OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG)
