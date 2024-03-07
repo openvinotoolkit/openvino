@@ -14,7 +14,7 @@ INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory,
                          OVInferRequestVariableStateTest,
                          ::testing::Values(memoryStateParams(OVInferRequestVariableStateTest::get_network(),
                                                              {"c_1-3", "r_1-3"},
-                                                             targetDevice,
+                                                             ov::test::utils::target_device,
                                                              ov::AnyMap({}))),
                          OVInferRequestVariableStateTest::getTestCaseName);
 }  // namespace

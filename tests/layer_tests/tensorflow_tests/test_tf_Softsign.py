@@ -2,63 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from common.layer_test_class import check_ir_version
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
-
-from unit_tests.utils.graph import build_graph
 
 
 class TestSoftsign(CommonTFLayerTest):
     def create_softsign_net(self, shape, ir_version, use_legacy_frontend):
-        """
-            Tensorflow net                 IR net
-
-            Input->Softsign       =>       Input->Softsign
-
-        """
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
 
             tf.nn.softsign(input)
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
-
-        ref_net = None
-
-        if check_ir_version(10, None, ir_version) and not use_legacy_frontend:
-            nodes_attributes = {
-                'input': {'kind': 'op', 'type': 'Parameter'},
-                'input_data': {'shape': shape, 'kind': 'data'},
-                'Softsign': {'kind': 'op', 'type': 'Softsign'},
-                'Softsign_data': {'shape': shape, 'kind': 'data'},
-                'result': {'kind': 'op', 'type': 'Result'}
-            }
-
-            ref_net = build_graph(nodes_attributes,
-                                  [('input', 'input_data'),
-                                   ('input_data', 'Softsign'),
-                                   ('Softsign', 'Softsign_data'),
-                                   ('Softsign_data', 'result')
-                                   ])
-
-        return tf_net, ref_net
+        return tf_net, None
 
     @pytest.mark.parametrize("params",
                              [

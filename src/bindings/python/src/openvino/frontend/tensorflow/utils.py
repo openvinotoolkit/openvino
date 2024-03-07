@@ -151,13 +151,28 @@ def get_concrete_func(tf_function, example_input, input_needs_packing, error_mes
     return concrete_func
 
 
-def create_generic_function_from_keras_model(keras_model):
-    import tensorflow as tf
-    assert isinstance(keras_model, tf.keras.Model), \
-        "[TensorFlow Frontend] internal error: the input model must be of Keras model type"
+def get_signature_from_input(keras_model):
     if not hasattr(keras_model, 'input') or getattr(keras_model, 'input') is None:
         return None
-    keras_input_signature = getattr(keras_model, 'input')
+    return getattr(keras_model, 'input')
+
+
+def get_signature_from_input_signature(keras_model):
+    if not hasattr(keras_model, 'input_signature') or getattr(keras_model, 'input_signature') is None:
+        return None
+    return getattr(keras_model, 'input_signature')
+
+
+def create_generic_function_from_keras_model(keras_model):
+    import tensorflow as tf
+    assert isinstance(keras_model, (tf.keras.Model, tf.Module)), \
+        "[TensorFlow Frontend] internal error: the input model must be of tf.keras.Model or tf.Module model type"
+
+    keras_input_signature = get_signature_from_input(keras_model)
+    if keras_input_signature is None:
+        keras_input_signature = get_signature_from_input_signature(keras_model)
+    if keras_input_signature is None:
+        return None
     tf_input_signature = None
     wrapper_function = None
     if isinstance(keras_input_signature, dict):
@@ -218,7 +233,7 @@ def trace_tf_model(model, input_shapes, input_types, example_input):
     elif isinstance(model, tf.types.experimental.GenericFunction):
         tf_function = model
         input_needs_packing = False
-    elif isinstance(model, tf.keras.Model):
+    elif isinstance(model, (tf.keras.Model, tf.Module)):
         tf_function = create_generic_function_from_keras_model(model)
         if tf_function is not None:
             input_needs_packing = False
@@ -380,7 +395,7 @@ def extract_model_graph(argv):
         argv["input_model"] = model.graph
         return True
     if Version(env_setup["tensorflow"]) >= parse("2.6.0") and isinstance(model, (tf.types.experimental.GenericFunction,
-                                                                               tf.types.experimental.ConcreteFunction)):
+                                                                                 tf.types.experimental.ConcreteFunction)):
         return True
     if isinstance(model, tf.train.Checkpoint):
         if isinstance(model.root, tf.keras.Model):

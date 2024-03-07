@@ -205,7 +205,6 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
             } else {
                 ASSERT_EQ(fmtsNum, actualOutputMemoryFormats.size());
             }
-
             for (size_t i = 0; i < fmtsNum; i++) {
                 const auto actualOutputMemoryFormat = getExecValue(ov::exec_model_info::OUTPUT_LAYOUTS);
                 const auto shape = node->get_output_partial_shape(i);
@@ -382,6 +381,10 @@ void CPUTestsBase::updateSelectedType(const std::string& primitiveType,
             if (netType == ov::element::u8) {
                 // Node::getPrimitiveDescriptorType() returns i8 for u8
                 return ov::element::i8;
+            }
+            if (netType == ov::element::u32) {
+                // Node::getPrimitiveDescriptorType() returns i32 for u32
+                return ov::element::i32;
             }
             return netType;
         }
