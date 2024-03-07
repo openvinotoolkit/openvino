@@ -4,12 +4,10 @@
 #pragma once
 
 #include <functional>
-#include <ostream>
-#include <memory>
-#include <string>
+#include <iostream>
 
 #include "openvino/core/model.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -27,11 +25,15 @@ class ModelDeserializer {
 public:
     typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
     ModelDeserializer(std::istream& istream, model_builder fn);
+    ModelDeserializer(std::shared_ptr<ov::MappedMemory>& _buffer, model_builder fn);
     void operator>>(std::shared_ptr<ov::Model>& model);
+    void parse_buffer(std::shared_ptr<ov::Model>& model);
+    void parse_stream(std::shared_ptr<ov::Model>& model);
 
 private:
-    std::istream& _istream;
-    model_builder _model_builder;
+    std::istream* m_istream;
+    std::shared_ptr<ov::MappedMemory> m_model_buffer;
+    model_builder m_model_builder;
 };
 
 }   // namespace intel_cpu

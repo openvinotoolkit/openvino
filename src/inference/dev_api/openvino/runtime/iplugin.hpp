@@ -20,6 +20,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "openvino/util/pp.hpp"
 
 namespace ov {
@@ -182,6 +183,28 @@ public:
      * @return An Compiled model
      */
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const = 0;
+    /**
+     * @brief Creates an compiled model from an previously exported model file using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model_buffer Reference to model memory object
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+                                                             const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model_buffer Reference to model memory object
+     * @param context A pointer to plugin context derived from RemoteContext class used to
+     *        execute the network
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
 
