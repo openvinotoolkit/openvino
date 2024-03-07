@@ -91,11 +91,15 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
 
+    std::size_t parameter_index = 0;
+    std::size_t result_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap[node->getName()] = node;
+            inputNodesMap[parameter_index] = node;
+            parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[node->getName()] = node;
+            outputNodesMap[result_index] = node;
+            result_index++;
         }
     }
 
@@ -134,16 +138,14 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
-            inputNodesMap[name] = node;
+            inputNodesMap[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            const std::string inputID = get_port_name(op->output(0));
-            outputNodesMap[inputID] = node;
+            outputNodesMap[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
         }
 
         op2node[op] = node;
@@ -938,9 +940,9 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
+void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap.find(name);
+    auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
@@ -965,12 +967,12 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
             }
         }
     } else {
-        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+        OPENVINO_THROW("Input blob for infer '", index, "' doesn't correspond to input in network");
     }
 }
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
-void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
+void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
@@ -983,7 +985,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         const auto ext_blob_map = output.find(name);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
+            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name);
         }
 
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
