@@ -559,6 +559,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_op_translators[paddle_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return paddle_conv_ext->get_converter()(context);
         };
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }
 

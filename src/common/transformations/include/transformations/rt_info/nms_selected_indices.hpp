@@ -21,7 +21,7 @@ TRANSFORMATIONS_API bool has_nms_selected_indices(const Node* node);
 
 TRANSFORMATIONS_API void set_nms_selected_indices(Node* node);
 
-class TRANSFORMATIONS_API NmsSelectedIndices : ov::RuntimeAttribute {
+class TRANSFORMATIONS_API NmsSelectedIndices : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("nms_selected_indices", "0");
     NmsSelectedIndices() = default;

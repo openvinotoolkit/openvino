@@ -379,6 +379,9 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
             continue;
         if (supportedWeightsPrecisions.find(weightsNode->getOriginalOutputPrecisionAtPort(0)) == supportedWeightsPrecisions.end())
             continue;
+        if (withSubtract &&
+            !one_of(subtractConstNode->getOriginalOutputPrecisionAtPort(0), weightsNode->getOriginalOutputPrecisionAtPort(0), ov::element::f32))
+            continue;
 
         // Shape limitations
         const auto weightsShape = weightsNode->getOutputShapeAtPort(0);
@@ -412,6 +415,8 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
         auto check_decompression_shape = [&decompressionConstShape](const VectorDims& shape_to_check) {
             if (shape_to_check.size() > decompressionConstShape.size())
                 return false;
+            if (shape_to_check.size() == 1 && shape_to_check[0] == 1)
+                return true;
             const auto comparison_start_pos = decompressionConstShape.size() - shape_to_check.size();
             // in case of different ranks shapes are compared taking into account ranks numpy broadcasting
             return std::equal(shape_to_check.begin(), shape_to_check.end(), decompressionConstShape.begin() + comparison_start_pos);
@@ -463,8 +468,7 @@ void GraphOptimizer::FuseFCAndWeightsDecompression(Graph &graph) {
                 OPENVINO_THROW("Cannot cast ", eltwiseNode->getName(), " to Eltwise node.");
             }
 
-            VectorDims memoryDims(decompressionConstShape.size(), 1);
-            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape(memoryDims));
+            CpuBlockedMemoryDesc memoryDesc(ov::element::f32, Shape({1}));
             auto memory = std::make_shared<Memory>(graph.getEngine(), memoryDesc, nullptr, false);
             (static_cast<float *>(memory->getData()))[0] = -1.f * eltwiseNode->getGamma();
             fcNode->fuseDecompressionSubtract(memory);
@@ -539,9 +543,17 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         NodePtr subtractNode = mulParent;
         if (!expectedNode(subtractNode, Type::Eltwise))
             continue;
-        auto subtractConstNode = subtractNode->getParentEdgeAt(1)->getParent();
+        NodePtr subtractConvertNode, subtractConstNode;
+        NodePtr subtractParent = subtractNode->getParentEdgeAt(1)->getParent();
+        if (expectedNode(subtractParent, Type::Convert)) {
+            subtractConvertNode = subtractParent;
+            subtractParent = subtractConvertNode->getParentEdgeAt(0)->getParent();
+        }
+        subtractConstNode = subtractParent;
         if (!expectedNode(subtractConstNode, Type::Input))
             continue;
+
+        const bool withSubtractConvert = subtractConvertNode != nullptr;
 
         auto convertNode = subtractNode->getParentEdgeAt(0)->getParent();
         if (!expectedNode(convertNode, Type::Convert))
@@ -593,6 +605,11 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         gatherNode->addOriginalLayer(multiplyNode->getOriginalLayers());
         gatherNode->addOriginalLayer(convertNode->getOriginalLayers());
 
+        if (withSubtractConvert) {
+            gatherNode->addOriginalLayer(subtractConvertNode->getOriginalLayers());
+            auto subtractConvertEdge = subtractConvertNode->getChildEdges()[0].lock();
+            graph.RemoveEdge(subtractConvertEdge);
+        }
         gatherNode->addOriginalLayer(subtractNode->getOriginalLayers());
         auto subtractConstEdge = subtractConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(subtractConstEdge);
@@ -600,6 +617,8 @@ void GraphOptimizer::FuseGatherAndWeightsDecompression(Graph &graph) {
         auto multiplyConstEdge = multiplyConstNode->getChildEdges()[0].lock();
         graph.RemoveEdge(multiplyConstEdge);
 
+        if (withSubtractConvert)
+            graph.DropNode(subtractConvertNode);
         graph.DropNode(convertNode);
         graph.DropNode(subtractNode);
         graph.DropNode(multiplyNode);
@@ -943,36 +962,35 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
 void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
     auto& graphNodes = graph.GetNodes();
 
-    auto isSuitableParentNode = [](NodePtr parentNode) {
-        return parentNode->getType() == Type::Convert && parentNode->getChildEdges().size() == 1 &&
-               (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::u8 ||
-                parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::i8) &&
-               parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
-    };
-
-    auto isSuitableChildNode = [](NodePtr childNode) {
-        return childNode->getType() == Type::Eltwise && childNode->getParentEdges().size() != 2;
-    };
-
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift);
         auto parentNode = *parent;
-        if (!isSuitableParentNode(parentNode)) {
+        if (parentNode->getType() != Type::Convert) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ParentNode);
-
-        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSuitableChildNode(childNode)) {
+        const auto& childEdges = parentNode->getChildEdges();
+        if (childEdges.size() != 1) {
             parent++;
             continue;
         }
 
-        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
+        const auto edge = childEdges[0].lock();
+        auto childNode = edge->getChild();
+        if (childNode->getType() != Type::Eltwise) {
+            parent++;
+            continue;
+        }
 
-        auto parents = parentNode->parentEdges;
+        const auto eltwise = dynamic_cast<ov::intel_cpu::node::Eltwise*>(childNode.get());
+        if (!eltwise->canFuseParent(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        const auto parents = parentNode->parentEdges;
         for (size_t i = 0; i < parents.size(); i++) {
             auto p_edge = parents[i].lock();
             if (!p_edge) continue;
@@ -1478,19 +1496,19 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
-            parent++;
-            continue;
-        }
-#endif
 
         auto fuseCandidate = childNode->getChildEdgeAt(0)->getChild();
         if (parentNode->getType() == Type::BinaryConvolution && !parentNode->canFuse(fuseCandidate)) {
             parent++;
             continue;
         }
+
+#if defined(OV_CPU_WITH_ACL)
+        if (!parentNode->getFusedWith().empty()) {
+            parent++;
+            continue;
+        }
+#endif
 
         if (!DnnlExtensionUtils::isUnarySupportedAsPostOp(fuseCandidate->getAlgorithm())) {
             parent++;
@@ -1534,13 +1552,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (parentNode->getOriginalInputPrecisionAtPort(0) == ov::element::f16) {
-            parent++;
-            continue;
-        }
-#endif
 
         childNode->fuseInto(parentNode);
 
@@ -1668,6 +1679,10 @@ static bool is_data_dependency(const std::shared_ptr<Node> &parent,
  */
 
 void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph) {
+#if !defined(OPENVINO_ARCH_X86) && !defined(OPENVINO_ARCH_X86_64)
+    return;
+#endif
+
     auto &graphNodes = graph.GetNodes();
 
     auto isFusingSupported = [&](NodePtr conv, NodePtr child) {
@@ -1799,11 +1814,6 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph &graph)
         if (mergedConv->isConstant() && !sum->isConstant())
             continue;
 
-//Disable ACL post-ops in fp16 to avoid performance degradation
-#if defined(OPENVINO_ARCH_ARM64)
-        if (mergedConv->getOriginalInputPrecisionAtPort(0) == ov::element::f16)
-            continue;
-#endif
         // Disable fusing for Add with broadcasing in case of known data ranges. Add with brodcasting triggers
         // non-optimal code path inside Convolution node, so better to avoid fusing at all.
         const auto& shape1 = sum->getInputShapeAtPort(0);

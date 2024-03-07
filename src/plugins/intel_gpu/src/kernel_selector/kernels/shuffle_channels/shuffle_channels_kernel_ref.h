@@ -17,23 +17,16 @@ struct shuffle_channels_params : public base_params {
     int32_t axis;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// shuffle_channels_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct shuffle_channels_optional_params : optional_params {
-    shuffle_channels_optional_params() : optional_params(KernelType::SHUFFLE_CHANNELS) {}
-};
-
 class ShuffleChannelsKernelRef : public KernelBaseOpenCL {
 public:
     ShuffleChannelsKernelRef() : KernelBaseOpenCL("shuffle_channels_ref") {}
     virtual ~ShuffleChannelsKernelRef() {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
-    virtual CommonDispatchData SetDefault(const shuffle_channels_params& params, const optional_params&) const;
+    bool Validate(const Params&) const override;
+    virtual CommonDispatchData SetDefault(const shuffle_channels_params& params) const;
     virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
 };
 }  // namespace kernel_selector

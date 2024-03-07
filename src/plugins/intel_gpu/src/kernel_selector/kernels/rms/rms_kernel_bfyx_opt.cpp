@@ -118,8 +118,8 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     return dispatchData;
 }
 
-bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o))
+bool RMSKernelBfyxOpt::Validate(const Params& p) const {
+    if (!Parent::Validate(p))
         return false;
 
     const rms_params& params = static_cast<const rms_params&>(p);
@@ -141,11 +141,11 @@ bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const
     return true;
 }
 
-KernelsData RMSKernelBfyxOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData RMSKernelBfyxOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority RMSKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority RMSKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

@@ -83,13 +83,12 @@ void FullyConnectedKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 }
 
 KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
-                                                           const optional_params &options,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
                                                            const std::string exeMode,
                                                            int autoTuneIndex,
                                                            int kernel_number) const {
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -111,7 +110,6 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     bool succeed = UpdateWeightsParams(newParams,
-                                       options,
                                        wl,
                                        kd.weightsReorderParams,
                                        GetSupportedKey());
@@ -122,7 +120,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     kd.kernels.resize(1);
 
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options, kernel_number);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, kernel_number);
 
     const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex, kernel_number);
     auto cldnn_jit = GetJitConstants(newParams, dispatchData);
@@ -148,7 +146,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;
@@ -164,12 +162,10 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
 }
 
 KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,
-                                                                 const optional_params &options,
                                                                  DataLayout dl,
                                                                  WeightsLayout wl,
                                                                  const int autoTuneIndex) const {
     return GetCommonKernelsData(params,
-                                options,
                                 dl,
                                 wl,
                                 GetAutoTuneOptions(autoTuneIndex),
@@ -181,7 +177,7 @@ JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const full
     return {};
 }
 
-bool FullyConnectedKernelBase::Validate(const Params& p, const optional_params&) const {
+bool FullyConnectedKernelBase::Validate(const Params& p) const {
     const fully_connected_params& params = static_cast<const fully_connected_params&>(p);
 
     if (params.GetType() != KernelType::FULLY_CONNECTED) {

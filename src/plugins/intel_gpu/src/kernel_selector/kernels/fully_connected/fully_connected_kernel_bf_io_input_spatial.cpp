@@ -21,7 +21,7 @@ ParamsKey FullyConnected_bf_io_input_spatial::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey FullyConnected_bf_io_input_spatial::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();
@@ -47,7 +47,7 @@ FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spat
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const fully_connected_params&>(params);
     const auto& input = p.inputs[0];
     const auto& output = p.outputs[0];
@@ -59,8 +59,8 @@ KernelsPriority FullyConnected_bf_io_input_spatial::GetKernelsPriority(const Par
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
-bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedKernelBase::Validate(p, o)) {
+bool FullyConnected_bf_io_input_spatial::Validate(const Params& p) const {
+    if (!FullyConnectedKernelBase::Validate(p)) {
         return false;
     }
 
@@ -81,17 +81,15 @@ bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optiona
     return true;
 }
 
-KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& params,
-                                                               const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams, DataLayout::bf, WeightsLayout::io);
+KernelsData FullyConnected_bf_io_input_spatial::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params,  DataLayout::bf, WeightsLayout::io);
 }
 
-KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const Params& params, const optional_params& optParams) const {
+KernelsData FullyConnected_bf_io_input_spatial::GetKernelsDataForAutoTune(const Params& params) const {
     KernelsData res = {};
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::bf,
                                                     WeightsLayout::io,
                                                     static_cast<int>(i));

@@ -69,6 +69,33 @@ OutputVector translate_sum(const NodeContext& context) {
     return {sum};
 };
 
+OutputVector translate_sum_fx(const NodeContext& context) {
+    num_inputs_check(context, 1, 3);
+    bool keep_dims = false;
+    auto data = context.get_input(0);
+    auto data_dtype = simplified_type_interpret(context.get_input_type(0));
+    if (context.has_attribute("dtype")) {
+        auto dtype = context.get_attribute<element::Type>("dtype");
+        data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, dtype));
+    } else if ((data.get_element_type() == element::boolean || data.get_element_type() == element::u8) ||
+               (data_dtype.is<element::Type>() && (data_dtype.as<element::Type>() == element::boolean ||
+                                                   data_dtype.as<element::Type>() == element::u8))) {
+        // PyTorch sum converts bool and uint8 to i64 for preventing overflow
+        data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::i64));
+    }
+    Output<Node> axes;
+    if (context.input_is_none(1)) {
+        axes = get_axes_range(context, 0);
+    } else {
+        axes = context.get_input(static_cast<int>(1));
+    }
+    if (!context.input_is_none(2)) {
+        keep_dims = context.const_input<bool>(2);
+    }
+
+    return {context.mark_node(std::make_shared<ov::op::v1::ReduceSum>(data, axes, keep_dims))};
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend

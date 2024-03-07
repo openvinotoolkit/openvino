@@ -11,8 +11,8 @@ class ReorderWeightsImageWinograd6x3Kernel : public ReorderKernelBase {
 public:
     ReorderWeightsImageWinograd6x3Kernel() : ReorderKernelBase("reorder_weights_image_winograd_6x3_s1") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 };

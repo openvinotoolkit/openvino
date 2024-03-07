@@ -15,14 +15,14 @@ class TestComplexConjugateTranspose(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         
         rng = np.random.default_rng()
-        assert 'real_part' in inputs_info
-        real_part_shape = inputs_info['real_part']
-        assert 'imag_part' in inputs_info
-        imag_part_shape = inputs_info['imag_part']
+        assert 'real_part:0' in inputs_info
+        real_part_shape = inputs_info['real_part:0']
+        assert 'imag_part:0' in inputs_info
+        imag_part_shape = inputs_info['imag_part:0']
         
         inputs_data = {}
-        inputs_data['real_part'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
-        inputs_data['imag_part'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
+        inputs_data['real_part:0'] = 4 * rng.random(real_part_shape).astype(np.float32) - 2
+        inputs_data['imag_part:0'] = 4 * rng.random(imag_part_shape).astype(np.float32) - 2
         
         return inputs_data
     
@@ -65,21 +65,21 @@ class TestComplexConjugateTranspose(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         self._test(*self.create_complex_conjugate_transpose_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestConjugateTranspose(CommonTFLayerTest):
     
     def _prepare_input(self, inputs_info):
         
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         
         inputs_data = {}
-        inputs_data['input'] = np.random.default_rng().random(input_shape).astype(np.float32)
+        inputs_data['input:0'] = np.random.default_rng().random(input_shape).astype(np.float32)
         
         return inputs_data
     
@@ -116,7 +116,7 @@ class TestConjugateTranspose(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_conjugate_transpose(self, params, ie_device, precision, ir_version, temp_dir,
-                                 use_new_frontend):
+                                 use_legacy_frontend):
         self._test(*self.create_conjugate_transpose_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

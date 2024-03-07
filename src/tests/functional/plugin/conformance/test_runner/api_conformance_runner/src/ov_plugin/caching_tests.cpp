@@ -41,8 +41,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getAnyTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::test::utils::target_device),
+                                 ::testing::Values(ov::AnyMap({}))),
                          CompileModelCacheTestBase::getTestCaseName);
 
 // Convolution/UnaryElementwiseArithmetic/BinaryElementwiseArithmetic is not supported boolean elemnt type
@@ -51,8 +51,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_numeric, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getNumericTypeOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyNumericTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::test::utils::target_device),
+                                 ::testing::Values(ov::AnyMap({}))),
                          CompileModelCacheTestBase::getTestCaseName);
 
 // LSTMcell supported floating-point element type
@@ -61,8 +61,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_floating_point, CompileModelCacheTestBase,
                                  ::testing::ValuesIn(CompileModelCacheTestBase::getFloatingPointOnlyFunctions()),
                                  ::testing::ValuesIn(ovElemAnyFloatingPointTypesTemplate),
                                  ::testing::ValuesIn(ovBatchSizesTemplate),
-                                 ::testing::Values(targetDevice),
-                                 ::testing::Values(pluginConfig)),
+                                 ::testing::Values(ov::test::utils::target_device),
+                                 ::testing::Values(ov::AnyMap({}))),
                          CompileModelCacheTestBase::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
@@ -71,8 +71,8 @@ const std::vector<ov::AnyMap> default_properties = {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, CompileModelCacheRuntimePropertiesTestBase,
                         ::testing::Combine(
-                                ::testing::Values(targetDevice),
-                                ::testing::ValuesIn(ov::test::conformance::generate_ov_configs(default_properties))),
+                                ::testing::Values(ov::test::utils::target_device),
+                                ::testing::ValuesIn(default_properties)),
                         CompileModelCacheRuntimePropertiesTestBase::getTestCaseName);
 
 } // namespace

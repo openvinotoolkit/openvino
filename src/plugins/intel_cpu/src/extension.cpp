@@ -16,6 +16,7 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
+#include "transformations/cpu_opset/common/op/rope.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -67,6 +68,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::FullyConnectedNode)                         \
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
+    OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
@@ -148,12 +150,15 @@ private:
     OP_EXTENSION(ov::snippets::op::Fill)                     \
     OP_EXTENSION(ov::snippets::op::HorizonMax)               \
     OP_EXTENSION(ov::snippets::op::HorizonSum)               \
-    OP_EXTENSION(ov::snippets::op::Kernel)                   \
+    OP_EXTENSION(ov::snippets::op::KernelStatic)             \
+    OP_EXTENSION(ov::snippets::op::KernelDynamic)            \
     OP_EXTENSION(ov::snippets::op::IntermediateMemoryBuffer) \
     OP_EXTENSION(ov::snippets::op::Load)                     \
     OP_EXTENSION(ov::snippets::op::LoadReshape)              \
-    OP_EXTENSION(ov::snippets::op::LoopBegin)                \
-    OP_EXTENSION(ov::snippets::op::LoopEnd)                  \
+    OP_EXTENSION(ov::snippets::op::LoopBeginStatic)          \
+    OP_EXTENSION(ov::snippets::op::LoopBeginDynamic)         \
+    OP_EXTENSION(ov::snippets::op::LoopEndStatic)            \
+    OP_EXTENSION(ov::snippets::op::LoopEndDynamic)           \
     OP_EXTENSION(ov::snippets::op::NewMemoryBuffer)          \
     OP_EXTENSION(ov::snippets::op::Nop)                      \
     OP_EXTENSION(ov::snippets::op::PowerStatic)              \

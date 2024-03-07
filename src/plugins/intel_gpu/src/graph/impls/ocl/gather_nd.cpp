@@ -15,7 +15,7 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
     using parent = typed_primitive_impl_ocl<gather_nd>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::gather_nd_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::gather_nd_params, kernel_selector::gather_nd_optional_params>;
+    using kernel_params_t = kernel_selector::gather_nd_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::gather_nd_impl)
 
@@ -35,19 +35,18 @@ struct gather_nd_impl : typed_primitive_impl_ocl<gather_nd> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<gather_nd>();
         auto params = get_default_params<kernel_selector::gather_nd_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::gather_nd_optional_params>(impl_param.get_program());
 
         params.indices_rank = primitive->indices_rank;
         params.batch_dims = primitive->batch_dims;
         params.batch_merged_output = primitive->batch_merged_output;
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

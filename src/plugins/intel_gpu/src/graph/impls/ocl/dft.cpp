@@ -14,7 +14,7 @@ namespace ocl {
 struct dft_impl : typed_primitive_impl_ocl<dft> {
     using typed_primitive_impl_ocl::typed_primitive_impl_ocl;
     using kernel_selector_t = kernel_selector::dft_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::dft_params, kernel_selector::dft_optional_params>;
+    using kernel_params_t = kernel_selector::dft_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::dft_impl)
 
@@ -103,8 +103,7 @@ struct dft_impl : typed_primitive_impl_ocl<dft> {
             }
         }
 
-        auto optional_params = get_default_optional_params<kernel_selector::dft_optional_params>(impl_param.get_program());
-        return {params, optional_params};
+        return params;
     }
 };
 

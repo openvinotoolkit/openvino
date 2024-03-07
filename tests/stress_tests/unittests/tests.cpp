@@ -79,15 +79,15 @@ TEST_P(UnitTestSuite, infer_request_inference_full_pipeline) {
 
 INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuiteNoModel,
                          ::testing::ValuesIn(generateTestsParams(
-                                 {"processes", "threads", "iterations", "devices", "api_versions"})),
+                                 {"processes", "threads", "iterations", "devices"})),
                          getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuiteNoDevice,
                          ::testing::ValuesIn(generateTestsParams(
-                                 {"processes", "threads", "iterations", "models", "api_versions"})),
+                                 {"processes", "threads", "iterations", "models"})),
                          getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuite,
                          ::testing::ValuesIn(generateTestsParams(
-                                 {"processes", "threads", "iterations", "devices", "models", "api_versions"})),
+                                 {"processes", "threads", "iterations", "devices", "models"})),
                          getTestCaseName);

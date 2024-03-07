@@ -15,7 +15,7 @@ std::vector<ov::DiscreteTypeInfo> ov::pass::pattern::op::Optional::get_optional_
 bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
                                                   const Output<Node>& pattern_value,
                                                   const Output<Node>& graph_value) {
-    ov::OutputVector or_in_values{input_value(0)};
+    ov::OutputVector or_in_values = input_values();
     auto wrap_node = std::make_shared<ov::pass::pattern::op::WrapType>(optional_types, m_predicate, or_in_values);
     or_in_values.push_back(wrap_node);
 

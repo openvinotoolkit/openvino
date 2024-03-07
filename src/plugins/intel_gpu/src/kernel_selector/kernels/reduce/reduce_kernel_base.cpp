@@ -10,7 +10,7 @@
 
 namespace kernel_selector {
 
-bool ReduceKernelBase::Validate(const Params& p, const optional_params&) const {
+bool ReduceKernelBase::Validate(const Params& p) const {
     auto& params = dynamic_cast<const reduce_params&>(p);
 
     if (params.GetType() != KernelType::REDUCE) {
@@ -242,9 +242,8 @@ void ReduceKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
-                                                   const optional_params& options) const {
-    if (!Validate(p, options)) {
+KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p) const {
+    if (!Validate(p)) {
         return {};
     }
 
@@ -254,7 +253,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
     KernelData kd = KernelData::Default<reduce_params>(params);
 
     auto cldnn_jit = GetJitConstants(params);
-    auto entry_point = GetEntryPoint(kernelName, params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
@@ -272,7 +271,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     params.inputs[0].is_dynamic());
+                     params.is_shape_agnostic);
 
     return {kd};
 }

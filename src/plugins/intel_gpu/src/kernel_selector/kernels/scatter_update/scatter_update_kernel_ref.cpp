@@ -286,8 +286,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     return jit;
 }
 
-bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: SCATTER_UPDATE || o.GetType() != KernelType::SCATTER_UPDATE) {
+bool ScatterUpdateKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: SCATTER_UPDATE) {
         return false;
     }
 
@@ -315,8 +315,8 @@ void ScatterUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -341,7 +341,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
 
     for (size_t i = start_with_iteration; i < 2; ++i) {
         auto dispatchData = SetDefault(newParams, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
@@ -351,13 +351,13 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
         clKernelData& kernel = kd.kernels[i - start_with_iteration];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, 3, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     }
 
     return {kd};
 }
 
-KernelsPriority ScatterUpdateKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ScatterUpdateKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

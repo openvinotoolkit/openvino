@@ -4,8 +4,10 @@
 
 #pragma once
 
+#ifndef OPENVINO_ARCH_ARM64
 #include "cpu/x64/jit_generator.hpp"
 #include "dnnl_types.h"
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -31,7 +33,7 @@ struct jit_dft_args {
     size_t output_end;
 };
 
-
+#ifndef OPENVINO_ARCH_ARM64
 struct jit_dft_kernel {
     jit_dft_kernel(bool is_inverse, enum dft_type type) : is_inverse_(is_inverse), kernel_type_(type) {}
 
@@ -100,5 +102,6 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::
         Vmm perm_high;
 };
 
+#endif
 }   // namespace intel_cpu
 }   // namespace ov

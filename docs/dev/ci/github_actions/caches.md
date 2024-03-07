@@ -9,7 +9,7 @@ Three types of caches are available:
   * Available for both GitHub-hosted and self-hosted runners
   * Accessible by `actions/cache` action
   * Limited to 10 GB per repository
-  * Suitable for small dependencies caches and artefacts that could be reused between runs 
+  * Suitable for small dependencies caches and artefacts that could be reused between runs
 * [Shared drive cache](#shared-drive-cache-usage-and-structure)
   * Available only to the self-hosted runners
   * Automatically available via a certain path
@@ -40,10 +40,11 @@ CPU_Functional_Tests:
         key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
     ...
 ```
-with a particular key: `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`. 
+with a particular key: `${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}`.
 
 Then it could be seen in the [repository's cache](https://github.com/openvinotoolkit/openvino/actions/caches):
-![gha_cache_example](../../../sphinx_setup/_static/images/ci/gha_cache_example.png)
+
+![gha_cache_example](../../assets/CI_gha_cache_example.png)
 
 The next runs could download the artefact from the repository's cache with `actions/cache/restore` and use it:
 ```yaml
@@ -66,11 +67,11 @@ Refer to the [`actions/cache`'s documentation](https://github.com/actions/cache)
 
 ## Shared Drive Cache Usage and Structure
 
-This cache could be used to store dependencies and large assets (models, datasets, etc.) that are to be used by different workflow jobs. 
+This cache could be used to store dependencies and large assets (models, datasets, etc.) that are to be used by different workflow jobs.
 
 **Note**: This cache is enabled for the Linux [self-hosted runners](./runners.md) only.
 
-The drive is available on the self-hosted machines, and to make it available inside [the Docker containers](./docker_images.md), 
+The drive is available on the self-hosted machines, and to make it available inside [the Docker containers](./docker_images.md),
 the mounting point should be added under the `container`'s `volumes` key in a job configuration:
 ```yaml
 Build:
@@ -89,7 +90,7 @@ The first `/mount` in `- /mount:/mount` is the path on the runner, the second `/
 
 * `pip` cache
   * Accessible via an environment variable `PIP_CACHE_PATH: /mount/caches/pip/linux` defined on a workflow level
-  * Used in the jobs that have Python usage 
+  * Used in the jobs that have Python usage
 * onnx models for tests
   * Accessible by the path: `/mount/onnxtestdata`
   * Used in the `ONNX Models tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow
@@ -100,7 +101,7 @@ To add new resources, contact someone from the CI team for assistance.
 
 ## Cloud Storage via Azure Blob Storage
 
-This cache is used for sharing OpenVINO build artefacts between runs. 
+This cache is used for sharing OpenVINO build artefacts between runs.
 The [`sccache`](https://github.com/mozilla/sccache) tool can cache, upload and download build files to/from [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs).
 
 **Note**: This cache is enabled for [self-hosted runners](./runners.md) only.

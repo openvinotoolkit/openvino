@@ -12,7 +12,8 @@ from utils.break_validator import validateBMOutput, BmValidationError
 from test_data import FirstBadVersionData, FirstValidVersionData,\
     BmStableData, BmValidatorSteppedBreakData, BmValidatorSteppedBreakData2,\
     BenchmarkAppDataUnstable, BenchmarkAppDataStable, BenchmarkAppNoDegradationData,\
-    BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData
+    BenchmarkAppUnstableDevData, BenchmarkAppWrongPathData, BenchmarkAppPathFoundData,\
+    BenchmarkFirstFixedAppData
 
 
 class CommitSliderTest(TestCase):
@@ -42,6 +43,13 @@ class CommitSliderTest(TestCase):
     def testBmStable(self):
         breakCommit, updatedData = getExpectedCommit(
             BenchmarkAppDataStable())
+        actualCommit, _ = getActualCommit(updatedData)
+        self.assertEqual(breakCommit, actualCommit)
+
+    @skip_commit_slider_devtest
+    def testBmFirstFixed(self):
+        breakCommit, updatedData = getExpectedCommit(
+            BenchmarkFirstFixedAppData())
         actualCommit, _ = getActualCommit(updatedData)
         self.assertEqual(breakCommit, actualCommit)
 

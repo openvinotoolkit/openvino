@@ -18,7 +18,7 @@ public:
         return instance_;
     }
 
-    KernelsData GetBestKernels(const Params &params, const optional_params &options) const override;
+    KernelsData GetBestKernels(const Params &params) const override;
 
 private:
     random_uniform_kernel_selector();

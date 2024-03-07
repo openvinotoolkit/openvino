@@ -13,12 +13,12 @@ public:
     ConcatenationKernel_fs_b_yx_fsv32() : ConcatenationKernelBase("concatenation_gpu_fs_b_yx_fsv32") {}
     virtual ~ConcatenationKernel_fs_b_yx_fsv32() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const concatenation_params& params) const override;
     JitConstants GetJitConstants(const concatenation_params& params) const override;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

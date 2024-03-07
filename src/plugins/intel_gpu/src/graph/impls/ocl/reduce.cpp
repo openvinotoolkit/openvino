@@ -64,7 +64,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     using parent = typed_primitive_impl_ocl<reduce>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::reduce_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::reduce_params, kernel_selector::reduce_optional_params>;
+    using kernel_params_t = kernel_selector::reduce_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reduce_impl)
 
@@ -82,17 +82,16 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<reduce>();
         auto params = get_default_params<kernel_selector::reduce_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
         params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
         params.keepDims = primitive->keep_dims;
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

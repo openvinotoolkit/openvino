@@ -5,13 +5,21 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
 
 OPS = {
+    "aten::abs": torch.abs,
+    "aten::abs_": torch.abs_,
     "aten::rsqrt": torch.rsqrt,
     "aten::sqrt": torch.sqrt,
+    "aten::erf": torch.erf,
+    "aten::erf_": torch.erf_,
+    "aten::erfc": torch.erfc,
+    "aten::erfc_": torch.erfc_,
     "aten::exp": torch.exp,
     "aten::exp_": torch.exp_,
+    "aten::expm1": torch.expm1,
+    "aten::expm1_": torch.expm1_,
     "aten::relu": torch.relu,
     "aten::relu_": torch.relu_,
     "aten::ceil": torch.ceil,
@@ -20,6 +28,20 @@ OPS = {
     "aten::floor_": torch.floor_,
     "aten::sigmoid": torch.sigmoid,
     "aten::sigmoid_": torch.sigmoid_,
+    "aten::reciprocal": torch.reciprocal,
+    "aten::reciprocal_": torch.reciprocal_,
+    "aten::relu6": F.relu6,
+    "aten::selu": F.selu,
+    "aten::silu": F.silu,
+    "aten::log": torch.log,
+    "aten::log_": torch.log_,
+    "aten::log2": torch.log2,
+    "aten::log2_": torch.log2_,
+    "aten::log10": torch.log10,
+    "aten::log10_": torch.log10_,
+    "aten::log1p": torch.log1p,
+    "aten::log1p_": torch.log1p_,
+    "aten::log_sigmoid": F.logsigmoid,
     "aten::cos": torch.cos,
     "aten::cos_": torch.cos_,
     "aten::sin": torch.sin,
@@ -46,6 +68,7 @@ OPS = {
     "aten::atanh_": torch.atanh_
 }
 
+
 class unary_op_net(torch.nn.Module):
     def __init__(self, op, dtype):
         super(unary_op_net, self).__init__()
@@ -58,6 +81,32 @@ class unary_op_net(torch.nn.Module):
         return y, x1
 
 
+class unary_op_out_net(torch.nn.Module):
+    def __init__(self, op, dtype):
+        super(unary_op_out_net, self).__init__()
+        self.dtype = dtype
+        self.op = op
+
+    def forward(self, x):
+        x1 = x.to(self.dtype)
+        y = self.op(x1)
+        z = torch.empty_like(y)
+        y1 = self.op(x1, out=z)
+        return y1, z
+
+
+class unary_func_op_inplace_net(torch.nn.Module):
+    def __init__(self, op, dtype):
+        super(unary_func_op_inplace_net, self).__init__()
+        self.dtype = dtype
+        self.op = op
+
+    def forward(self, x):
+        x1 = x.to(self.dtype)
+        y = self.op(x1, inplace=True)
+        return y, x1
+
+
 class TestUnaryOp(PytorchLayerTest):
     def _prepare_input(self):
         # random number in range [1, 11)
@@ -66,33 +115,43 @@ class TestUnaryOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
     @pytest.mark.parametrize("op_type",
-    [
-        "aten::rsqrt",
-        "aten::sqrt",
-        "aten::exp",
-        "aten::relu",
-        "aten::relu_",
-        "aten::ceil",
-        "aten::ceil_",
-        "aten::floor",
-        "aten::floor_",
-        "aten::sigmoid",
-        # trigonometry
-        "aten::cos",
-        "aten::sin",
-        "aten::tan",
-        "aten::cosh",
-        "aten::sinh",
-        "aten::tanh",
-        "aten::acos",
-        "aten::asin",
-        "aten::atan",
-        "aten::acosh",
-        "aten::asinh",
-        "aten::atanh"
-    ])
+                             [
+                                 "aten::abs",
+                                 "aten::rsqrt",
+                                 "aten::sqrt",
+                                 "aten::erf",
+                                 "aten::erfc",
+                                 "aten::exp",
+                                 "aten::expm1",
+                                 "aten::relu",
+                                 skip_if_export("aten::relu_"),
+                                 "aten::ceil",
+                                 skip_if_export("aten::ceil_"),
+                                 "aten::floor",
+                                 skip_if_export("aten::floor_"),
+                                 "aten::sigmoid",
+                                 "aten::reciprocal",
+                                 "aten::log",
+                                 "aten::log2",
+                                 "aten::log10",
+                                 "aten::log1p",
+                                 # trigonometry
+                                 "aten::cos",
+                                 "aten::sin",
+                                 "aten::tan",
+                                 "aten::cosh",
+                                 "aten::sinh",
+                                 "aten::tanh",
+                                 "aten::acos",
+                                 "aten::asin",
+                                 "aten::atan",
+                                 "aten::acosh",
+                                 "aten::asinh",
+                                 "aten::atanh"
+                             ])
     def test_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
@@ -102,52 +161,92 @@ class TestUnaryOp(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("op_type",
-    [
-        # some pytorch inplace ops do not support int
-        "aten::exp_",
-        "aten::sigmoid_",
-        # trigonometry
-        "aten::cos_",
-        "aten::sin_",
-        "aten::tan_",
-        "aten::cosh_",
-        "aten::sinh_",
-        "aten::tanh_",
-        "aten::acos_",
-        "aten::asin_",
-        "aten::atan_",
-        "aten::acosh_",
-        "aten::asinh_",
-        "aten::atanh_"
-    ])
+                             [
+                                 # some pytorch inplace ops do not support int
+                                 "aten::abs_",
+                                 "aten::erf_",
+                                 "aten::erfc_",
+                                 "aten::exp_",
+                                 "aten::expm1_",
+                                 "aten::sigmoid_",
+                                 "aten::reciprocal_",
+                                 "aten::relu6",
+                                 "aten::selu",
+                                 "aten::silu",
+                                 "aten::log_sigmoid",
+                                 "aten::log_",
+                                 "aten::log2_",
+                                 "aten::log10_",
+                                 "aten::log1p_",
+                                 # trigonometry
+                                 "aten::cos_",
+                                 "aten::sin_",
+                                 "aten::tan_",
+                                 "aten::cosh_",
+                                 "aten::sinh_",
+                                 "aten::tanh_",
+                                 "aten::acos_",
+                                 "aten::asin_",
+                                 "aten::atan_",
+                                 "aten::acosh_",
+                                 "aten::asinh_",
+                                 "aten::atanh_"
+                             ])
     def test_unary_op_float(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(unary_op_net(OPS[op_type], dtype), None, op_type,
                    ie_device, precision, ir_version)
 
-
-class glu_net(torch.nn.Module):
-    def __init__(self, dim, dtype):
-        super(glu_net, self).__init__()
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int8, torch.uint8, torch.int32, torch.int64])
+    @pytest.mark.parametrize("op_type",
+                             [
+                                 "aten::abs",
+                                 "aten::rsqrt",
+                                 "aten::sqrt",
+                                 "aten::erf",
+                                 "aten::erfc",
+                                 "aten::exp",
+                                 "aten::expm1",
+                                 "aten::relu",
+                                 "aten::ceil",
+                                 "aten::floor",
+                                 "aten::sigmoid",
+                                 "aten::reciprocal",
+                                 "aten::log",
+                                 "aten::log2",
+                                 "aten::log10",
+                                 "aten::log1p",
+                                 # trigonometry
+                                 "aten::cos",
+                                 "aten::sin",
+                                 "aten::tan",
+                                 "aten::cosh",
+                                 "aten::sinh",
+                                 "aten::tanh",
+                                 "aten::acos",
+                                 "aten::asin",
+                                 "aten::atan",
+                                 "aten::acosh",
+                                 "aten::asinh",
+                                 "aten::atanh"
+                             ])
+    def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self.dim = dim
-
-    def forward(self, x):
-        y = F.glu(x.to(self.dtype), dim=self.dim)
-        return y
-
-
-class TestGluOp(PytorchLayerTest):
-    def _prepare_input(self):
-        # random number in range [1, 11)
-        x = torch.rand(2, 4, 10, 10) * 10 + 1
-        return (x.to(self.dtype).numpy(),)
+        self._test(unary_op_out_net(OPS[op_type], dtype), None, op_type,
+                   ie_device, precision, ir_version)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("dim", [0, 1, 2, 3, -1, -2])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_glu(self, dim, dtype, ie_device, precision, ir_version):
+    @pytest.mark.parametrize("op_type",
+                             [
+                                 "aten::relu6",
+                                 "aten::selu",
+                                 "aten::silu",
+                             ])
+    def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
-        self._test(glu_net(dim, dtype), None, "aten::glu",
+        self._test(unary_func_op_inplace_net(OPS[op_type], dtype), None, op_type + "_",
                    ie_device, precision, ir_version)

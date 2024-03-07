@@ -29,8 +29,8 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey PoolingKernel_b_fs_yx_fsv16::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -76,7 +76,7 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
     return dispatchData;
 }
 
-KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& params) const {
     const auto& pooling_p = static_cast<const pooling_params&>(params);
 
     return pooling_p.outputs[0].Batch().v == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_7;
@@ -142,8 +142,8 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     return jit;
 }
 
-bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!PoolingKernelBase::Validate(p, o)) {
+bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
+    if (!PoolingKernelBase::Validate(p)) {
         return false;
     }
 
@@ -157,7 +157,7 @@ bool PoolingKernel_b_fs_yx_fsv16::Validate(const Params& p, const optional_param
     return true;
 }
 
-KernelsData PoolingKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector

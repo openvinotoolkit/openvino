@@ -15,7 +15,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
     using parent = typed_primitive_impl_ocl<region_yolo>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::region_yolo_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::region_yolo_params, kernel_selector::region_yolo_optional_params>;
+    using kernel_params_t = kernel_selector::region_yolo_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::region_yolo_impl)
 
@@ -26,7 +26,6 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<region_yolo>();
         auto params = get_default_params<kernel_selector::region_yolo_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::region_yolo_optional_params>(impl_param.get_program());
 
         params.coords = primitive->coords;
         params.classes = primitive->classes;
@@ -34,7 +33,7 @@ struct region_yolo_impl : typed_primitive_impl_ocl<region_yolo> {
         params.do_softmax = primitive->do_softmax;
         params.mask_size = primitive->mask_size;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

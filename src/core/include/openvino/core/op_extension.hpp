@@ -62,6 +62,7 @@ namespace detail {
 OV_COLLECT_ATTACHED_EXTENSIONS(onnx)
 OV_COLLECT_ATTACHED_EXTENSIONS(paddle)
 OV_COLLECT_ATTACHED_EXTENSIONS(tensorflow)
+OV_COLLECT_ATTACHED_EXTENSIONS(pytorch)
 }  // namespace detail
 
 /**
@@ -98,6 +99,7 @@ public:
         detail::collect_attached_extensions_onnx<T>(res);
         detail::collect_attached_extensions_paddle<T>(res);
         detail::collect_attached_extensions_tensorflow<T>(res);
+        detail::collect_attached_extensions_pytorch<T>(res);
         return res;
     }
 };

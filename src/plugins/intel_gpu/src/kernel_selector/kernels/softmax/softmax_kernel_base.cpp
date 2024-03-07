@@ -35,16 +35,16 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     return dispatchData;
 }
 
-bool SoftmaxKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SOFT_MAX || o.GetType() != KernelType::SOFT_MAX) {
+bool SoftmaxKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SOFT_MAX) {
         return false;
     }
 
     return true;
 }
 
-KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -53,7 +53,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
 
     auto dispatchData = SetDefault(orgParams);
     auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -69,13 +69,13 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params, const 
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }
 
-bool SoftmaxKernelBaseBF::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o)) {
+bool SoftmaxKernelBaseBF::Validate(const Params& p) const {
+    if (!Parent::Validate(p)) {
         return false;
     }
 
