@@ -154,7 +154,8 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{
     {11, element::boolean},
     {12, element::i8},  // quantized i8
     {13, element::u8},  // quantized u8
-    {14, element::i32}  // quantized i32
+    {14, element::i32}, // quantized i32
+    {15, element::bf16}
 };
 
 const std::unordered_map<std::string, ov::op::PadType> TORCH_AUTO_PAD_TO_OV{{"valid", ov::op::PadType::VALID},
