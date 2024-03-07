@@ -1,6 +1,8 @@
 # Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -49,7 +51,10 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     @pytest.mark.parametrize('row_partition_types', [["ROW_SPLITS"]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='132675 - Add support of RaggedTensorToTensor')
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='126314, 132699: Build tokenizers for ARM and MacOS')
     def test_ragged_tensor_to_tensor(self, shape_type, shape_value, values_shape, values_type, default_value,
                                      row_partition_tensors, row_partition_types,
                                      ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
