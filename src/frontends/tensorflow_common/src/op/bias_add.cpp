@@ -26,9 +26,6 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
     auto complex_type_inputs = (complex_type_mark_value || complex_type_mark_bias) ? true : false;
     // validations prior to processing
     if (complex_type_inputs) {
-        FRONT_END_GENERAL_CHECK(complex_type_mark_value != nullptr && complex_type_mark_bias != nullptr,
-                        "Mul gox complex and non-complex inputs. Inputs should be of same type.");
-
         // extractions for complex processing
         bias = complex_type_mark_bias->input_value(0);
         value = complex_type_mark_value->input_value(0);
@@ -61,13 +58,6 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         auto axes_unsqueeze_node =
             make_shared<v0::Constant>(element::i64, Shape{axes_unsqueeze.size()}, axes_unsqueeze);
         bias_reshaped = make_shared<v0::Unsqueeze>(bias, axes_unsqueeze_node);
-    }
-
-    if (complex_type_inputs){
-        auto complex_add_res = make_shared<v1::Add>(value, bias_reshaped);
-        auto complex_result = make_shared<ComplexTypeMark>(complex_add_res->output(0), complex_type_mark_value->get_complex_part_type());
-        set_node_name(node.get_name(), complex_result);
-        return complex_result->outputs();
     }
 
     auto res = make_shared<v1::Add>(value, bias_reshaped);
