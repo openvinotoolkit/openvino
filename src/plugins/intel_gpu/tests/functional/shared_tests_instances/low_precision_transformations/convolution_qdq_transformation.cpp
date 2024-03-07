@@ -73,7 +73,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
 
     // Actual:
@@ -127,7 +127,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
 
     // Actual:
@@ -178,7 +178,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
-        "FP32"
+        ov::element::f32.get_type_name()
     },
 
     // Actual:
@@ -229,7 +229,7 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
             { {0.2f}, ov::element::f32, {}, false }
         },
         "Convolution",
-        "U8"
+        ov::element::u8.get_type_name()
     },
 };
 
