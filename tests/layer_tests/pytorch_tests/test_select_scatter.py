@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-
 from pytorch_layer_test_class import PytorchLayerTest
-
+import torch
 
 
 class TestSelectScatter(PytorchLayerTest):
@@ -14,7 +13,6 @@ class TestSelectScatter(PytorchLayerTest):
 
     def create_model(self, src, dim, index):
 
-        import torch
         class aten_select_scatter(torch.nn.Module):
             def __init__(self, src=None, dim=None, index=None):
                 super(aten_select_scatter, self).__init__()
@@ -30,7 +28,6 @@ class TestSelectScatter(PytorchLayerTest):
 
         return aten_select_scatter(src, dim, index), ref_net, "aten::select_scatter"
 
-    import torch
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(("src", "dim", "index"),
                              [(torch.ones(2), 0, 0),])
