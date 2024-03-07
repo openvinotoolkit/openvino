@@ -44,7 +44,9 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     // Fusing only one activation is handled by MakeActivationJitConstants() with params.activations.
     // But when there are two or more activations, fusing is not done with that.
     // In such cases, it should use MakeFusedOpsJitConstants() with params.fused_ops.
-    // For now, this operations for fusing is performed 1) when there are two or more activations, 2) reorder_ref
+    // For now, this operations for fusing is limited to,
+    //     1) when there are two or more activations.
+    //     2) when ReorderKernelRef (reorder data) is selected. (see reorder_data.cl)
     //
     // Discussion :
     //     1) Should MakeActivationJitConstants() support fusing two or more activations?
