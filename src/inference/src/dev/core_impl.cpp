@@ -1635,7 +1635,7 @@ std::map<std::string, ov::Version> ov::CoreImpl::get_versions(const std::string&
         try {
             ov::Plugin plugin = get_plugin(deviceNameLocal);
             versions[deviceNameLocal] = plugin.get_version();
-        } catch (const ov::Exception& ex) {
+        } catch (const std::runtime_error& ex) {
             std::string exception(ex.what());
             if (exception.find("not registered in the OpenVINO Runtime") == std::string::npos) {
                 throw;
