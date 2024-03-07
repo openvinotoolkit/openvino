@@ -138,12 +138,12 @@ private:
     // X20    | src ptr
     // X21    | src ptr
     // X22    | src ptr
-    // X23    | src ptr
+    // X23    | temporary & kernel used (oneDNN: X_TMP_0)
     // X24    | src ptr
     // X25    | src ptr
-    // X26    | temporary
+    // X26    | src ptr
     // X27    | temporary
-    // X28    | kernel used (X_DEFAULT_ADDR)
+    // X28    | temporary & kernel used (oneDNN: X_DEFAULT_ADDR)
 
     // X29    | [not used: The Frame Pointer (FP)]
     // X30    | [not used: The Link Register (LR)]
@@ -156,14 +156,26 @@ private:
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
-        return XReg(19 + idx);
+
+        const uint32_t base = 19;
+        if ((base + idx) == 23) {
+            idx++;
+        }
+
+        return XReg(base + idx);
     }
 
     inline XReg get_aux_gpr(const uint32_t idx) {
-        if (idx > 2) {
+        if (idx > 3) {
             OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
-        return XReg(26 + idx);
+
+        if (idx == 0) {
+            return XReg(23);
+        }
+
+        const uint32_t base = 27;
+        return XReg(base + idx - 1);
     }
 
     // Vector registers mapping
