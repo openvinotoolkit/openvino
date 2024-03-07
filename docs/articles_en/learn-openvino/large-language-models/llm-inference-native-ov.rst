@@ -12,7 +12,7 @@ Model optimization can be performed within Hugging Face or directly using NNCF a
 
 .. note::
 
-  It is recommended to use models in 4-bit precision, as maintaining the model in its original precision can significantly decrease performance.
+  It is recommended to use models in 4-bit precision, as maintaining the model in its original precision may result in significantly decreased performance.
 
 Inference code that uses native API cannot benefit from Hugging Face pipelines. You need to write your custom code or take it from the available examples. Below are some examples of popular Generative AI scenarios:
 
@@ -34,7 +34,8 @@ An inference pipeline for a text generation LLM is set up in the following stage
 3.	Run token generation loop.
 4.	De-tokenize outputs.
 
-**Prerequisites**
+Prerequisites
+########################
 
 Linux operating system (as of the current version).
 
@@ -62,7 +63,7 @@ Linux operating system (as of the current version).
 
 
 Convert Hugging Face tokenizer and model to OpenVINO IR format
-######################################################################
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 **Convert Tokenizer**
 
@@ -176,5 +177,6 @@ Additional Resources
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+* `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * :doc:`Stateful Models Low-Level Details <openvino_docs_OV_UG_stateful_models_intro>`
 * :doc:`Working with Textual Data <openvino_docs_OV_UG_string_tensors>`

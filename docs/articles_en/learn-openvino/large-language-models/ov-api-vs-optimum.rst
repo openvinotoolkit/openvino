@@ -85,7 +85,7 @@ and export models to the OpenVINO model format for use in native API application
 
 * To proceed with **Higging Face API**, read :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` guide.
 
-* To proceed with **Native OpenVINO API**, go to :doc:`Inference with Native OpenVINO <llm_inference_native_ov>` page.
+* To proceed with **Native OpenVINO API**, go to :doc:`LLM Inference with Native OpenVINO <llm_inference_native_ov>` page.
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
 
