@@ -29,21 +29,6 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr());
 
-    if (complex_type_mark) {
-        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        data = complex_type_mark->input_value(0);
-
-        OutputVector concat_inputs;
-        concat_inputs.push_back(segment_ids);
-        concat_inputs.push_back(make_shared<v0::Constant>(segment_ids.get_element_type(), Shape{1}, 2));
-
-        auto concat = make_shared<v0::Concat>(concat_inputs, 0);
-        auto reshape = make_shared<v1::Reshape>(data, concat, true);
-        set_node_name(node.get_name(), reshape);
-        auto complex_reshape = make_shared<ComplexTypeMark>(reshape, complex_part_type);
-        return {complex_reshape->output(0)};
-    }
-
     // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(segment_ids, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(segment_ids, 0);
@@ -65,6 +50,16 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
     auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+    shared_ptr<ComplexTypeMark> complex_emb_segment_sum;
+    if (complex_type_mark) {
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+        data = complex_type_mark->input_value(0);
+
+        complex_emb_segment_sum = make_shared<ComplexTypeMark>(emb_segment_sum, complex_part_type);
+        set_node_name(node.get_name(), complex_emb_segment_sum);
+        return {complex_emb_segment_sum};
+    };
+
     set_node_name(node.get_name(), emb_segment_sum);
     return {emb_segment_sum};
 }
