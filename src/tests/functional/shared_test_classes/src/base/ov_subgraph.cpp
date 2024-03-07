@@ -479,7 +479,7 @@ void SubgraphBaseTest::validate() {
 #else
     std::thread t_device([this, &actualOutputs, &actual_output_error] {
         // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
-        // If exception has been not caught then application will be terminated with crash. (CVS-133676)
+        // If exception is not caught then application would be terminated with crash. (CVS-133676)
         try {
             actualOutputs = get_plugin_outputs();
         } catch (...) {
