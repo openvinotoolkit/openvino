@@ -156,8 +156,6 @@ def main():
         return x
 
     paddle_set_value("set_value8", data, value, set_value8, dtype, starts, ends, steps)
-    result = np.load("/tmp/set_value8/output0.npy")
-    print(result)
 
     # shape = (10, 5)
     # dtype = "float32"

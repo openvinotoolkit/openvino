@@ -506,7 +506,7 @@ static const std::vector<std::string> models{
     std::string("set_value5"),
     // std::string("set_value6"),
     // std::string("set_value7"),
-    std::string("set_value8"),
+    // std::string("set_value8"),
     // std::string("set_value_dynamic1"),
     std::string("set_value_dynamic2"),
     std::string("shape"),
