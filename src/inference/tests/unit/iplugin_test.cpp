@@ -81,7 +81,7 @@ MATCHER_P(blob_in_map_pointer_is_same, ref_blob, "") {
     return reinterpret_cast<float*>(arg.begin()->second->buffer()) == reinterpret_cast<float*>(ref_blob->buffer());
 }
 
-TEST_F(IPluginTest, SetIncorrectTensorNameForPort) {
+TEST_F(IPluginTest, SetTensorWithIncorrectPortNames) {
     ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, {1, 3, 2, 2});
     auto updated_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
     updated_param->set_friendly_name("Param");
@@ -96,7 +96,7 @@ TEST_F(IPluginTest, SetIncorrectTensorNameForPort) {
     EXPECT_THROW(mock_infer_request->set_tensor(updated_param->output(0), tensor), ov::Exception);
 }
 
-TEST_F(IPluginTest, SetCorrectTensorNameForPort) {
+TEST_F(IPluginTest, SetTensorWithCorrectPortNames) {
     ov::SoPtr<ov::ITensor> tensor = ov::make_tensor(ov::element::f32, {1, 3, 2, 2});
     auto updated_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
     updated_param->set_friendly_name("Param");
