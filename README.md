@@ -10,16 +10,6 @@
 [![brew Downloads](https://img.shields.io/homebrew/installs/dy/openvino)](https://formulae.brew.sh/formula/openvino)
  </div>
 
-## Contents:
- - [Getting Started](#getting-started)
- - [Installation](#installation)
- - [Tutorials](#tutorials)
- - [Products Powered by OpenVINO](#products-povered-by-openvino)
- - [Documentation](#documentation)
- - [Contribution and Support](#contribution-and-support)
- - [License](#license)
-
-
 Welcome to OpenVINO™, an open-source software toolkit for optimizing and deploying deep learning models.
 
 - **Inference Optimization**: Boost deep learning performance in computer vision, automatic speech recognition, natural language processing, and many other common tasks.
@@ -27,15 +17,20 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 - **Broad Platform Compatibility**: Reduce resource demands and efficiently deploy on a range of platforms from edge to cloud.
 - **Community and Ecosystem**: Join an active community contributing to the enhancement of deep learning performance across various domains.
 
+### Installation
+
+Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/openvino_docs_install_guides_overview.html) to see all distribution channels or use this command for quick installation:
+
+```
+pip install openvino
+```
+
+Check [system requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for detailed information.
+
 ### Getting Started
 
 [OpenVINO Quickstart example](https://docs.openvino.ai/2024/notebooks/201-vision-monodepth-with-output.html) will walk you through the basics to deploy your first model.
 
-### Installation
-
-Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/openvino_docs_install_guides_overview.html).
-
-Check [system requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for detailed information.
 
 ### Tutorials
 
