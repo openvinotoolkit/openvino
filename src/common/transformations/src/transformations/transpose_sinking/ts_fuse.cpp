@@ -26,7 +26,7 @@ TSFuse::TSFuse() {
                                                   CheckTransposeConsumers);
     auto transpose_2_label =
         pattern::wrap_type<ov::op::v1::Transpose>({transpose_1_label, pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1_label);
