@@ -117,12 +117,39 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
         h->str(Xbyak_aarch64::XReg(preserved_gpr_idxs[i]), pre_ptr(h->sp, -16));
     }
 
+    const size_t aux_vec_idxs_size = aux_vec_idxs.size();
+    if (aux_vec_idxs_size > 1ull) {
+        for (size_t i = 0; i < (aux_vec_idxs_size - 1); i += 2) {
+            h->stp(Xbyak_aarch64::XReg(aux_vec_idxs[i]),
+                   Xbyak_aarch64::XReg(aux_vec_idxs[i + 1]),
+                   pre_ptr(h->sp, -get_vec_length() * 2));
+        }
+    }
+    if (aux_vec_idxs_size % 2) {
+        h->str(Xbyak_aarch64::XReg(aux_vec_idxs[aux_vec_idxs_size - 1]),
+               pre_ptr(h->sp, -get_vec_length()));
+    }
+
     if (!entry_map_.empty()) {
         load_table_addr();
     }
 }
 
 void jit_emitter::emitter_postamble() const {
+    const int aux_vec_idxs_size = static_cast<int>(aux_vec_idxs.size());
+    if (aux_vec_idxs_size % 2) {
+        h->ldr(Xbyak_aarch64::XReg(aux_vec_idxs[aux_vec_idxs_size - 1]),
+               post_ptr(h->sp, get_vec_length()));
+    }
+    if (aux_vec_idxs_size > 1) {
+        const int begin = aux_vec_idxs_size - ((aux_vec_idxs_size % 2) ? 2 : 1);
+        for (int i = begin; i >= 0; i -= 2) {
+            h->ldp(Xbyak_aarch64::XReg(aux_vec_idxs[i - 1]),
+                   Xbyak_aarch64::XReg(aux_vec_idxs[i]),
+                   post_ptr(h->sp, get_vec_length() * 2));
+        }
+    }
+
     const int size = static_cast<int>(preserved_gpr_idxs.size());
     for (int i = (size - 1); i >= 0; --i) {
         h->ldr(Xbyak_aarch64::XReg(preserved_gpr_idxs[i]), post_ptr(h->sp, 16));
