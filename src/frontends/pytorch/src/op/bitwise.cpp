@@ -7,8 +7,6 @@
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/logical_not.hpp"
 #include "utils.hpp"
 
 namespace ov {
