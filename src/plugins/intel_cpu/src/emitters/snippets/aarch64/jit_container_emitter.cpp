@@ -1,8 +1,9 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "jit_container_emitter.hpp"
+#include "emitters/utils.hpp"
 
 using namespace Xbyak_aarch64;
 

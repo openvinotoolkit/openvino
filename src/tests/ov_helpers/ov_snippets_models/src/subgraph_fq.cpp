@@ -59,6 +59,19 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
                                                                               std::vector<float>{127},
                                                                               ov::element::i8);
     auto fq1 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq0, ov::element::f32, fq1_data);
+// ARM has enough gprs to tokenize three fq into one subgraph
+#if defined(OPENVINO_ARCH_ARM64)
+    auto fq2_data = ov::builder::subgraph::FakeQuantizeOnDataWithConstant(256,
+                                                                              std::vector<ov::Shape>{{1, 3, 1, 1}, {1, 3, 1, 1}, {1}, {1}},
+                                                                              std::vector<float>{-98.16883, -142.82466, -155.0642700},
+                                                                              std::vector<float>{97.334106, 141.599884, 153.8145446},
+                                                                              std::vector<float>{0},
+                                                                              std::vector<float>{255},
+                                                                              ov::element::u8);
+    auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(fq1, ov::element::f32, fq2_data);
+    auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0},
+                                      std::make_shared<ov::Model>(NodeVector{fq2}, ParameterVector{indata0}));
+#else
     auto subgraph0 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{data0},
                                           std::make_shared<ov::Model>(NodeVector{fq1}, ParameterVector{indata0}));
 
@@ -73,6 +86,7 @@ std::shared_ptr<ov::Model> ThreeFQFunction::initReference() const {
     auto fq2 = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(indata1, ov::element::f32, fq2_data);
     auto subgraph1 = std::make_shared<ov::snippets::op::Subgraph>(NodeVector{subgraph0},
                                       std::make_shared<ov::Model>(NodeVector{fq2}, ParameterVector{indata1}));
+#endif
 
     return std::make_shared<ov::Model>(NodeVector{subgraph1}, ParameterVector{data0});
 }

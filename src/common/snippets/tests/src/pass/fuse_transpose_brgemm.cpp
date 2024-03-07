@@ -40,9 +40,6 @@ TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {
 
 namespace FuseTransposeBrgemmTestsInstantiation {
 using ov::Shape;
-
-// todo: Remove the architecture constraint after MatMul op being supported by Subgraph of ARM Snippets
-#if defined(OPENVINO_ARCH_X86_64)
 std::vector<fuseTransposeBrgemmParams> test_params{
     {{{1, 49, 2, 23}, {2, 2, 23, 39}}, 0},
     {{{1, 2, 49, 23}, {2, 23, 1, 39}}, 1},
@@ -52,7 +49,6 @@ std::vector<fuseTransposeBrgemmParams> test_params{
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FuseTransposeMatMul, FuseTransposeBrgemmTests,
                          ::testing::ValuesIn(test_params),
                          FuseTransposeBrgemmTests::getTestCaseName);
-#endif
 
 } // namespace FuseTransposeBrgemmTestsInstantiation
 }  // namespace snippets

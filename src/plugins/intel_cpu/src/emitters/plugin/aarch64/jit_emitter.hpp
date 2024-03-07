@@ -10,7 +10,6 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include "snippets/snippets_isa.hpp"
 #include "snippets/generator.hpp"
-#include "emitters/utils.hpp"
 #include "node.h"
 
 

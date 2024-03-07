@@ -9,9 +9,6 @@ namespace ov {
 namespace test {
 namespace snippets {
 namespace {
-
-// todo: Remove the architecture constraint after jit_eltwise_emitters for ARM having supported jit_power_dynamic_emitter
-#if defined(OPENVINO_ARCH_X86_64)
 // Note that we need these shapes to cover all cases of code emission (none/one/multiple of scalar/vector tiles)
 std::vector<InputShape> input_shapes {{{}, {{1, 64, 10, 10}}},
                                       {{}, {{1, 1, 17, 37}}},
@@ -33,7 +30,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MaxNumParamsEltwise, MaxNumParamsEltwise
                              ::testing::Values(1),
                              ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          MaxNumParamsEltwise::getTestCaseName);
-#endif
 
 } // namespace
 } // namespace snippets

@@ -140,10 +140,10 @@
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
 #include "dnnl.hpp"
-#if !defined(OPENVINO_ARCH_ARM64)
-#include "cpu/x64/cpu_isa_traits.hpp"
-#else
+#if defined(OPENVINO_ARCH_ARM64)
 #include "cpu/aarch64/cpu_isa_traits.hpp"
+#else
+#include "cpu/x64/cpu_isa_traits.hpp"
 #endif
 #include "openvino/core/validation_util.hpp"
 
@@ -784,16 +784,16 @@ void Transformations::PostLpt() {
 }
 
 void Transformations::MainSnippets(void) {
-    auto isSnippetsSupported = [](const ov::element::Type &inferencePrecision){
+    auto is_supported_isa = [](){
 #if defined(OPENVINO_ARCH_X86_64)
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
-        return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd) && inferencePrecision == ov::element::f32;
+        return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #endif
         return false;
     };
 
-    if (snippetsMode == Config::SnippetsMode::Disable || !isSnippetsSupported(inferencePrecision))
+    if (snippetsMode == Config::SnippetsMode::Disable || !is_supported_isa())
         return;
 
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
@@ -869,6 +869,33 @@ void Transformations::MainSnippets(void) {
     };
 #endif // OPENVINO_ARCH_X86_64
 
+    auto has_supported_in_out = [](const std::shared_ptr<const ov::Node> &n) -> bool {
+        auto supported = [&n](descriptor::Tensor& t) -> bool {
+            auto get_supported_element_types = []() {
+#if defined(OPENVINO_ARCH_ARM64)
+                static const std::set<ov::element::Type> supported_element_types =
+                    { ov::element::f32 };
+#else
+                static const std::set<ov::element::Type> supported_element_types =
+                    { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+#endif
+                return supported_element_types;
+            };
+            // TODO [122585] Need to add dynamic rank support
+            if (t.get_partial_shape().rank().is_dynamic())
+                return false;
+            // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
+            //  So i32 is supported exclusively for transposes and broadcast
+            return get_supported_element_types().count(t.get_element_type()) != 0 ||
+                   (t.get_element_type() == ov::element::i32 &&
+                   (ov::is_type<const opset1::Transpose>(n) || ov::is_type<const opset1::Broadcast>(n)));
+        };
+        const auto&  inputs = n->inputs();
+        const auto&  outputs = n->outputs();
+        return std::all_of(inputs.begin(), inputs.end(), [&](const Input<const ov::Node>& in) {return  supported(in.get_tensor());}) &&
+               std::all_of(outputs.begin(), outputs.end(), [&](const Output<const ov::Node>& out) {return  supported(out.get_tensor());});
+    };
+
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             // Tranformation callback is called on MatMul0
@@ -941,6 +968,12 @@ void Transformations::MainSnippets(void) {
                 return false;
             },
             snippets::pass::TokenizeSnippets);
+            CPU_SET_CALLBACK_ARM(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                const bool is_support_op = ov::is_type<const ov::op::v1::Add>(n) ||
+                                           ov::is_type<const ov::op::v1::Multiply>(n) ||
+                                           ov::is_type<const ov::op::v0::Relu>(n);
+                return !is_support_op || !has_supported_in_out(n);
+            }, snippets::pass::TokenizeSnippets);
     }
     snippetsManager.run_passes(model);
 }

@@ -9,10 +9,10 @@
 #include "openvino/pass/visualize_tree.hpp"
 #include "snippets/op/subgraph.hpp"
 
-#if !defined(OPENVINO_ARCH_ARM64)
-#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
-#else
+#if defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
+#else
+#include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #endif
 
 #include <array>
@@ -69,10 +69,10 @@ private:
     size_t outputNum = 0;
 
     // Holds ISA version used is codeGeneration target
-#if !defined(OPENVINO_ARCH_ARM64)
-    dnnl::impl::cpu::x64::cpu_isa_t host_isa;
-#else
+#if defined(OPENVINO_ARCH_ARM64)
     dnnl::impl::cpu::aarch64::cpu_isa_t host_isa;
+#else
+    dnnl::impl::cpu::x64::cpu_isa_t host_isa;
 #endif
 
     std::vector<MemoryPtr> srcMemPtrs = {};
@@ -103,10 +103,6 @@ private:
             bool schedule_created();
 
         private:
-#if defined(OPENVINO_ARCH_ARM64)
-            using jit_snippets_compile_args = aarch64::jit_snippets_compile_args;
-            using jit_snippets_call_args = aarch64::jit_snippets_call_args;
-#endif
             static const size_t rank6D {6};
 
             typedef void (*kernel)(const void *, const void *);
