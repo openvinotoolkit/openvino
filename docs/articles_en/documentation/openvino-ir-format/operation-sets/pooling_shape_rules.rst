@@ -39,14 +39,11 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
 
 1. Example 1 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = explicit``.
 
-Input shape:   (1, 1, 3, 3)
-Output shape:  (1, 1, 4, 4)
-
    .. code-block:: sh
 
       input = [[[[-1, 2, 3],
                  [4, 5, -6],
-                 [-7, 8, 9]]]]
+                 [-7, 8, 9]]]]   # shape: (1, 1, 3, 3)
       strides = [1, 1]
       pads_begin = [1, 1]
       pads_end = [1, 1]
@@ -56,55 +53,46 @@ Output shape:  (1, 1, 4, 4)
       output0 = [[[[-1, 2, 3, 3],
                    [4, 5, 5, -6],
                    [4, 8, 9, 9],
-                   [-7, 8, 9, 9]]]]
+                   [-7, 8, 9, 9]]]]   # shape: (1, 1, 4, 4)
       output1 = [[[[0, 1, 2, 2],
                    [3, 4, 4, 5],
                    [3, 7, 8, 8],
-                   [6, 7, 8, 8]]]]
+                   [6, 7, 8, 8]]]]   # shape: (1, 1, 4, 4)
 
 
 2. Example 2 shows how *MaxPool* operates with 3D input using 1D kernel and ``auto_pad = valid``.
 
-Input shape:   (1, 1, 7)
-Output shape:  (1, 1, 5)
-
    .. code-block:: sh
 
-      input = [[[-1, 2, 3, 5, -7, 9, 1]]]
+      input = [[[-1, 2, 3, 5, -7, 9, 1]]]   # shape: (1, 1, 7)
       strides = [1]
       kernel = [3]
       rounding_type = "floor"
       auto_pad = "valid"
-      output0 = [[[3, 5, 5, 9, 9]]]
-      output1 = [[[2, 3, 3, 5, 5]]]
+      output0 = [[[3, 5, 5, 9, 9]]]   # shape: (1, 1, 5)
+      output1 = [[[2, 3, 3, 5, 5]]]   # shape: (1, 1, 5)
 
 
 3. Example 3 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = same_lower``.
-
-Input shape:   (1, 1, 3, 3)
-Output shape:  (1, 1, 3, 3)
 
    .. code-block:: sh
 
       input = [[[[-1, 2, 3],
                [4, 5, -6],
-               [-7, 8, 9]]]]
+               [-7, 8, 9]]]]   # shape: (1, 1, 3, 3)
       strides = [1, 1]
       kernel = [2, 2]
       rounding_type = "floor"
       auto_pad = "same_lower"
       output0 = [[[[-1, 2, 3],
                   [4, 5, 5]
-                  [4, 8, 9]]]]
+                  [4, 8, 9]]]]   # shape: (1, 1, 3, 3)
       output1 = [[[[0, 1, 2],
                   [3, 4, 4],
-                  [3, 7, 8]]]]
+                  [3, 7, 8]]]]   # shape: (1, 1, 3, 3)
 
 
 4. Example 4 shows how *MaxPool* operates with 4D input using 2D kernel and ``auto_pad = same_upper``.
-
-Input shape:   (1, 2, 3, 3)
-Output shape:  (1, 2, 3, 3)
 
    .. code-block:: sh
 
@@ -113,7 +101,7 @@ Output shape:  (1, 2, 3, 3)
                  [-7, 8, 9]],
                 [[2, -1, 5],
                  [6, -7, 1],
-                 [8, 2, -3]]]]
+                 [8, 2, -3]]]]   # shape: (1, 2, 3, 3)
       strides = [1, 1]
       kernel = [2, 2]
       rounding_type = "floor"
@@ -123,66 +111,57 @@ Output shape:  (1, 2, 3, 3)
                    [8, 9, 9]],
                   [[6, 5, 5],
                    [8, 2, 1],
-                   [8, 2, -3]]]]
+                   [8, 2, -3]]]]   # shape: (1, 2, 3, 3)
       output1 = [[[[4, 4, 2],
                    [7, 8, 8],
                    [7, 8, 8]],
                   [[12, 11, 11],
                    [15, 16, 14],
-                   [15, 16, 17]]]]
+                   [15, 16, 17]]]]   # shape: (1, 2, 3, 3)
 
 
 5. Example 5 shows how *MaxPool* operates with 4D input using 2D kernel and ``rounding_type = ceil_torch``.
-
-Input shape:   (1, 1, 3, 3)
-Output shape:  (1, 2, 2, 2)
 
    .. code-block:: sh
 
       input = [[[[1, 2, 3],
                  [4, 5, 6],
-                 [7, 8, 9]]]]
+                 [7, 8, 9]]]]   # shape: (1, 1, 3, 3)
       strides = [2, 2]
       kernel = [2, 2]
       pads_begin = [1, 1]
       pads_end = [1, 1]
       rounding_type = "ceil_torch"
       output0 = [[[[1, 3],
-                   [7, 9]]]]
+                   [7, 9]]]]   # shape: (1, 2, 2, 2)
       output1 = [[[[0, 2],
-                   [6, 8]]]]
+                   [6, 8]]]]   # shape: (1, 2, 2, 2)
 
 
 6. Example 6 shows how *MaxPool* operates with 4D input using 2D kernel, ``auto_pad = valid`` and ``rounding_type = ceil``.
-
-Input shape:   (1, 1, 3, 3)
-Output shape:  (1, 2, 2, 2)
 
    .. code-block:: sh
 
       input = [[[[-1, 2, 3],
                  [4, 5, -6],
-                 [-7, 8, 9]]]]
+                 [-7, 8, 9]]]]   # shape: (1, 1, 3, 3)
       strides = [2, 2]
       kernel = [2, 2]
       rounding_type = "ceil"
       auto_pad = "valid"
       output0 = [[[[5, 3],
-                   [8, 9]]]]
+                   [8, 9]]]]   # shape: (1, 2, 2, 2)
       output1 = [[[[4, 2],
-                   [7, 8]]]]
+                   [7, 8]]]]   # shape: (1, 2, 2, 2)
 
 
 7. Example 7 shows how *MaxPool* operates on 4D input using dilated 2D kernel, ``auto_pad = explicit`` and ``rounding_type = floor``.
-
-Input shape:   (1, 1, 3, 3)
-Output shape:  (1, 1, 3, 3)
 
    .. code-block:: sh
 
       input = [[[[1, 2, 3],
                  [4, 5, 6],
-                 [7, 8, 9]]]]
+                 [7, 8, 9]]]]   # shape: (1, 1, 3, 3)
       strides = [1, 1]
       kernel = [2, 2]
       dilations = [2, 2]
@@ -192,10 +171,10 @@ Output shape:  (1, 1, 3, 3)
       pads_end = [1, 1]
       output0 = [[[[5, 6, 5],
                    [8, 9, 8],
-                   [5, 6, 5]]]]
+                   [5, 6, 5]]]]   # shape: (1, 1, 3, 3)
       output1 = [[[[4, 5, 4],
                    [7, 8, 7],
-                   [4, 5, 4]]]]
+                   [4, 5, 4]]]]   # shape: (1, 1, 3, 3)
 
 
 8. Example 8 shows how *MaxPool* operates on 4D input using 2D kernel, with non-default ``axis`` value.
@@ -210,8 +189,7 @@ Output shape:  (1, 2, 2, 2)
                  [7, 8, 9]],
                 [[10, 11, 12],
                  [13, 14, 15],
-                 [16, 17, 18]]
-                 ]]
+                 [16, 17, 18]]]]   # shape: (1, 2, 3, 3)
       strides = [1, 1]
       kernel = [2, 2]
       dilations = [1, 1]
@@ -223,8 +201,8 @@ Output shape:  (1, 2, 2, 2)
       output0 = [[[[5, 6],
                    [8, 9]],
                   [[14, 15],
-                   [17, 18]]]]
+                   [17, 18]]]]   # shape: (1, 2, 2, 2)
       output1 = [[[[4, 5],
                    [7, 8]],
                   [[4, 5],
-                   [7, 8]]]]
+                   [7, 8]]]]   # shape: (1, 2, 2, 2)
