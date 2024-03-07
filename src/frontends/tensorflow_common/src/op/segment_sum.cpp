@@ -58,10 +58,10 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
         complex_emb_segment_sum = make_shared<ComplexTypeMark>(emb_segment_sum, complex_part_type);
         set_node_name(node.get_name(), complex_emb_segment_sum);
         return {complex_emb_segment_sum};
-    };
-
-    set_node_name(node.get_name(), emb_segment_sum);
-    return {emb_segment_sum};
+    } else {
+        set_node_name(node.get_name(), emb_segment_sum);
+        return {emb_segment_sum};
+    }
 }
 }  // namespace op
 }  // namespace tensorflow
