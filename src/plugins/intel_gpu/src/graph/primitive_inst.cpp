@@ -152,7 +152,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 const layout& layout,
                                 allocation_type type,
                                 bool reusable_across_network,
-                                const std::set<std::string>& memory_dependencies,
+                                const std::set<size_t>& memory_dependencies,
                                 bool reset = true,
                                 memory* curr_memory = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
@@ -160,8 +160,8 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     // Use layout with max tensor for dynamic shape with upper bound
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
-            pool.release_memory(curr_memory, _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+            pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
+        return pool.get_memory(layout, _node.id(), _node.get_unique_id(), net_id, memory_dependencies, type, reusable_across_network, reset);
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -962,7 +962,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                     for (auto& user : users) {
                         GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                        user->_runtime_memory_dependencies.insert(id());
+                        user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
                         if (user->can_be_optimized())
                             update_memory_dependencies(user->get_user_insts());
                     }
@@ -1465,7 +1465,7 @@ primitive_inst::primitive_inst(network& network)
     , _mem_allocated(false)
     , _type(nullptr) {}
 
-primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
+primitive_inst::primitive_inst(network & network, program_node const& node, bool allocate_memory)
     : _network(network)
     , _node(&node)
     , _node_output_layout(node.get_output_layout())
@@ -1775,7 +1775,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& _node,
                                             const kernel_impl_params& impl_params,
-                                            const std::set<primitive_id>& memory_dependencies,
+                                            const std::set<size_t>& memory_dependencies,
                                             uint32_t net_id,
                                             bool is_internal,
                                             size_t idx,
@@ -2124,5 +2124,4 @@ std::string primitive_inst::get_implementation_name() const {
 
     return "undef";
 }
-
 }  // namespace cldnn
