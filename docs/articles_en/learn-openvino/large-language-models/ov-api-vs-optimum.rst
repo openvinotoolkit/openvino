@@ -51,7 +51,7 @@ It also offers advanced features like in-place KV-cache, dynamic quantization,
 KV-cache quantization and encapsulation, dynamic beam size configuration, and speculative
 sampling.
 
-●	**Stateful model optimization**: the ``OVModelForCausalLM`` class defaults to transforming the
+●	**Provides stateful model optimization**: the ``OVModelForCausalLM`` class defaults to transforming the
 model into a stateful form, optimizing inference performance and memory usage in long running text
 generation tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically
 activated for many supported models, while unsupported ones remain stateless. Learn more about
