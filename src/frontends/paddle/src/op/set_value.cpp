@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
-#include <limits>
 
 namespace ov {
 namespace frontend {
@@ -158,12 +159,12 @@ NamedOutputs set_value(const NodeContext& node) {
     const auto value_target_shape =
         std::make_shared<default_opset::ScatterNDUpdate>(input_shape, axes_node, value_shape_update_node);
 
-
     // 4.5 broadcast
     auto value_shape = std::make_shared<default_opset::ShapeOf>(value_node);
     auto value_rank = std::make_shared<default_opset::ShapeOf>(value_shape);
     auto value_rank_scalar = std::make_shared<default_opset::Squeeze>(value_rank);
-    Output<Node> broadcast_axes = std::make_shared<default_opset::Range>(zero_node, value_rank_scalar, one_node, element::i64);
+    Output<Node> broadcast_axes =
+        std::make_shared<default_opset::Range>(zero_node, value_rank_scalar, one_node, element::i64);
     value_node = std::make_shared<default_opset::Broadcast>(value_node, value_target_shape, broadcast_axes);
 
     // get total number of elements
