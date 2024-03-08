@@ -20,6 +20,10 @@ def paddle_model_check_instance(model, class_str):
     else:
         return False
 
+def is_paddle_model(model):
+    possible_instances = ["paddle.hapi.model.Model", "paddle.nn.layer.layers.Layer", "paddle.fluid.dygraph.layers.Layer", "paddle.base.Executor", "paddle.fluid.executor.Executor"]
+    is_instance = [paddle_model_check_instance(model, possible_instance) for possible_instance in possible_instances]
+    return any(is_instance)
 
 class paddle_frontend_converter:
     def __init__(self, model, inputs=None, outputs=None):
