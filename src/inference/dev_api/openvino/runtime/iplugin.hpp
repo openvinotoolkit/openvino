@@ -186,7 +186,7 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
     /**
-     * @brief Creates an compiled model from an previously exported model file using plugin implementation
+     * @brief Creates a compiled model from a previously exported model file using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
      * @param model_buffer Reference to model memory object
      * @param properties A ov::AnyMap of properties
@@ -196,7 +196,7 @@ public:
                                                              const ov::AnyMap& properties) const = 0;
 
     /**
-     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     * @brief Creates a compiled model from a previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
      * @param model_buffer Reference to model memory object
      * @param context A pointer to plugin context derived from RemoteContext class used to
