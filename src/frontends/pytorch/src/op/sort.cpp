@@ -51,7 +51,7 @@ OutputVector translate_sort_fx(const NodeContext& context) {
     if (!context.input_is_none(1)) {
         dim = context.const_input<int64_t>(1);
     }
-    if (!context.input_is_none(1)) {
+    if (!context.input_is_none(2)) {
         descending = context.const_input<bool>(2);
     }
 
