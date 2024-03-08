@@ -104,8 +104,14 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
                 return;
 
-            node.can_be_optimized(true);
-            GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            if (node.is_dynamic()) {
+                // If the user is reorder, it could be fused to broadcast in the remove_redundant_reorders pass.
+                // In this case, broadcast can not be optimized due to different input and output shapes.
+                if (node.have_user_with_type<reorder>() && node.get_users().size() == 1)
+                    return;
+                node.can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
         });
     }
 }
