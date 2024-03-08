@@ -89,9 +89,9 @@ using NNCF which substantially reduces the model footprint and inference latency
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
 
     # or if model was already converted
-
     model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
 
+    # save model after optimization
     model.save_pretrained(optimized_model_path)
 
 
@@ -118,12 +118,12 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
     )
 
     # or if model was already converted
-
     mmodel = OVModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
     )
 
+    # save model after optimization
     model.save_pretrained(optimized_model_path)
 
 
