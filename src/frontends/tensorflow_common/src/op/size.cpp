@@ -26,6 +26,7 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
 
     if (complex_type_mark) {
+        // Treat each complex number as a single element, exactly like TensorFlow's tf.size
         input = complex_type_mark->input_value(0);
     }
     // retrive attribute of the output type
@@ -39,6 +40,13 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     auto shape_of = make_shared<v3::ShapeOf>(input, out_type);
     auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
     auto size = make_shared<v1::ReduceProd>(shape_of, axis);
+
+    if (complex_type_mark) {
+        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
+        auto complex_size = make_shared<ComplexTypeMark>(size, complex_part_type);
+        set_node_name(node.get_name(), complex_size);
+        return {complex_size->output(0)};
+    }
     set_node_name(node.get_name(), size);
     return {size};
 }
