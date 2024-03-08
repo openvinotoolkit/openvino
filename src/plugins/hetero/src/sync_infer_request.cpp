@@ -44,8 +44,9 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         const auto& output_port = m_subrequests[submodel_idx_out]->get_compiled_model()->outputs()[port_idx_out];
         const auto& output_tensor = m_subrequests[submodel_idx_out]->get_tensor(output_port);
         if (temp_tensor_map.find(output_port) == temp_tensor_map.end()) {
-            temp_tensor_map[output_port] = {ov::make_tensor(output_tensor->get_element_type(), output_tensor->get_shape()),
-                                            nullptr};
+            temp_tensor_map[output_port] = {
+                ov::make_tensor(output_tensor->get_element_type(), output_tensor->get_shape()),
+                nullptr};
         }
         m_subrequests[submodel_idx_out]->set_tensor(output_port, temp_tensor_map[output_port]);
         const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
