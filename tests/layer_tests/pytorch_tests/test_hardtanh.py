@@ -11,8 +11,8 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestHardtanh(PytorchLayerTest):
-    def _prepare_input(self):
-        return (np.round(np.array(5.00 * np.random.rand(10, 10) - 2.50, dtype=np.float32), 4),)
+    def _prepare_input(self, input_dtype="float32", input_shape=(1, 3, 10, 10)):
+        return (np.random.default_rng().uniform(-100.0, 100.0, input_shape).astype(input_dtype),)
 
     def create_model(self, min_val, max_val, inplace):
         import torch
@@ -34,8 +34,11 @@ class TestHardtanh(PytorchLayerTest):
 
     @pytest.mark.parametrize(("min_val", "max_val"), [[-1.0,1.0], [0, 1.0], [-2.0, 2.0]])
     @pytest.mark.parametrize("inplace", [True, False])
+    @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
+    @pytest.mark.parametrize("input_shape", [(1, 3, 10, 10), (100,), (24, 24)])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_hardtanh(self, min_val, max_val, inplace, ie_device, precision, ir_version):
-        self._test(*self.create_model(min_val, max_val, inplace), ie_device, precision, ir_version)
+    def test_hardtanh(self, min_val, max_val, inplace, input_dtype, input_shape, ie_device, precision, ir_version):
+        self._test(*self.create_model(min_val, max_val, inplace), ie_device, precision, ir_version,
+                kwargs_to_prepare_input= {"input_dtype": input_dtype, "input_shape": input_shape})
