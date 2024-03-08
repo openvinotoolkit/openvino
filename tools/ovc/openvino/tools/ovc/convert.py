@@ -52,9 +52,9 @@ def convert_model(
             PaddlePaddle
             paddle.hapi.model.Model
             paddle.nn.layer.layers.Layer
-            paddle.fluid.dygraph.layers.Layer   # deprecated since v2.5
+            paddle.fluid.dygraph.layers.Layer   # deprecated since paddle v2.5
             paddle.base.Executor
-            paddle.fluid.executor.Executor      # deprecated since v2.6
+            paddle.fluid.executor.Executor      # deprecated since paddle v2.6
 
         :param input:
             Information of model input required for model conversion.
