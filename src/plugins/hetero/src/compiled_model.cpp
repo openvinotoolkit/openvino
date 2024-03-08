@@ -10,7 +10,6 @@
 #include "graph_debug_dump.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
-#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -46,23 +45,8 @@ void ov::hetero::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& 
         auto it_info = node_info.find("affinity");
         if (it_info != node_info.end()) {
             OPENVINO_ASSERT(it_info->second.is<std::string>(), "Unexpected type of \"affinity\" attribute");
-            auto node_affinity = it_info->second.as<std::string>();
-            query_model_result.emplace(node->get_friendly_name(), node_affinity);
+            query_model_result.emplace(node->get_friendly_name(), it_info->second.as<std::string>());
             user_set_affinities = true;
-            if (ov::op::util::is_parameter(node) || (node->get_users().size() > 1)) {
-                for (const auto& output : node->outputs()) {
-                    for (auto out_inputs : output.get_target_inputs()) {
-                        auto node_info = out_inputs.get_node()->get_rt_info();
-                        auto it_info = node_info.find("affinity");
-                        if (it_info->second.as<std::string>() != node_affinity) {
-                            auto convert = std::make_shared<ov::op::v0::Convert>(output, out_inputs.get_element_type());
-                            ov::copy_runtime_info(node, convert);
-                            out_inputs.replace_source_output(convert);
-                            query_model_result.emplace(convert->get_friendly_name(), node_affinity);
-                        }
-                    }
-                }
-            }
         }
     }
 
