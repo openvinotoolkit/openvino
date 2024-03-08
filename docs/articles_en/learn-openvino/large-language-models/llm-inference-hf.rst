@@ -151,7 +151,7 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
 
 .. note::
 
-   Optimum-Intel has a predefined set of weight quantization parameters for popuar models, such ``meta-llama/Llama-2-7b`` or ``Qwen/Qwen-7B-Chat``. These parameters are used by default when only ``bits=4`` is specified in the config.
+   Optimum-Intel has a predefined set of weight quantization parameters for popular models, such as ``meta-llama/Llama-2-7b`` or ``Qwen/Qwen-7B-Chat``. These parameters are used by default only when ``bits=4`` is specified in the config.
 
 For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
 
