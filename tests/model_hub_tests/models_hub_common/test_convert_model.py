@@ -96,13 +96,12 @@ class TestConvertModel:
         inputs_info = self.get_inputs_info(fw_model)
         print("Prepare input data")
         inputs = self.prepare_inputs(inputs_info)
-        # Infer original model before conversion to ensure that all weights are initialized
-        print("Infer the original model")
-        fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Convert the model into ov::Model")
         ov_model = self.convert_model(fw_model)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
+        print("Infer the original model")
+        fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Compare framework and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
 
