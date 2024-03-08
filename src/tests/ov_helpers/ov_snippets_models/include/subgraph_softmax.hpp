@@ -9,15 +9,25 @@
 namespace ov {
 namespace test {
 namespace snippets {
+enum SoftmaxVersion { V1, V8 };
+std::ostream &operator<<(std::ostream& os, const SoftmaxVersion& version);
 
 class SoftmaxFunction : public SnippetsFunctionBase {
 public:
-    explicit SoftmaxFunction(const std::vector<PartialShape>& inputShapes, int axis) : SnippetsFunctionBase(inputShapes), axis(axis) {
+    explicit SoftmaxFunction(const std::vector<PartialShape>& inputShapes,
+                             int axis,
+                             SoftmaxVersion softmax_version = SoftmaxVersion::V8)
+        : SnippetsFunctionBase(inputShapes),
+          axis(axis),
+          softmax_version(softmax_version) {
         OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
     }
+
 protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
+    std::shared_ptr<ov::Model> initLowered() const override;
     int axis;
+    SoftmaxVersion softmax_version;
 };
 
 class AddSoftmaxFunction : public SnippetsFunctionBase {

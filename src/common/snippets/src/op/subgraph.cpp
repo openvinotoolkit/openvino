@@ -12,11 +12,12 @@
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
+#include "snippets/pass/softmax_decomposition.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/set_softmax_ports.hpp"
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
+#include "snippets/pass/reduce_to_snippets_reduce.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -33,7 +34,6 @@
 #include "snippets/lowered/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/lowered/pass/propagate_layout.hpp"
-#include "snippets/lowered/pass/softmax_decomposition.hpp"
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 #include "snippets/lowered/pass/move_result_out_of_loop.hpp"
 #include "snippets/lowered/pass/clean_repeated_ptr_shifts.hpp"
@@ -43,6 +43,7 @@
 #include "snippets/lowered/pass/insert_perf_count.hpp"
 #include "snippets/lowered/pass/validate_shapes.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
+#include "snippets/lowered/pass/reduce_decomposition.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -391,9 +392,10 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();
-        manager.register_pass<snippets::pass::SetSoftmaxPorts>();
+        manager.register_pass<snippets::pass::SoftmaxDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
+    manager.register_pass<snippets::pass::ReduceToSnippetsReduce>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
 
@@ -422,7 +424,7 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
-    pipeline.register_pass<lowered::pass::SoftmaxDecomposition>(vector_size);
+    pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();

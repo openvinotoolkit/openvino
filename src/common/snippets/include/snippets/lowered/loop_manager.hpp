@@ -345,8 +345,6 @@ public:
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
-     *        Note: This method should be removed when Softmax decomposition will be moved on data flow pipeline since
-     *              all decompositions should be call on this pipeline
      * @param new_expr_begin the first expression iterator
      * @param new_expr_end the next iterator after the last expression
      * @param decomposed_expr the expression that is decomposed into several other exprs

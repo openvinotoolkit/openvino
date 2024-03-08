@@ -14,13 +14,11 @@ namespace snippets {
 
 std::string FuseTransposeBrgemmTests::getTestCaseName(testing::TestParamInfo<fuseTransposeBrgemmParams> obj) {
     std::vector<PartialShape> input_shapes(2);
-    PartialShape master_shape;
     size_t transpose_position;
-    std::tie(input_shapes, master_shape, transpose_position) = obj.param;
+    std::tie(input_shapes, transpose_position) = obj.param;
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({input_shapes[0]}) << "_";
     result << "IS[1]=" << ov::test::utils::partialShape2str({input_shapes[1]}) << "_";
-    result << "MS=" << ov::test::utils::partialShape2str({master_shape}) << "_";
     result << "Pos=" << transpose_position << "_";
     return result.str();
 }
@@ -29,13 +27,13 @@ void FuseTransposeBrgemmTests::SetUp() {
     LoweringTests::SetUp();
     std::vector<PartialShape> input_shapes(2);
     size_t transpose_position;
-    std::tie(input_shapes, master_shape, transpose_position) = this->GetParam();
+    std::tie(input_shapes, transpose_position) = this->GetParam();
 
     snippets_model = std::make_shared<Transpose0213MatMulLoweredFunction>(input_shapes, transpose_position);
 }
 
 TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {
-    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal(), master_shape);
+    auto subgraph = getLoweredSubgraph(snippets_model->getOriginal());
     model = subgraph->body_ptr();
     model_ref = snippets_model->getLowered();
 }
@@ -43,9 +41,9 @@ TEST_P(FuseTransposeBrgemmTests, FuseTransposeMatmul) {
 namespace FuseTransposeBrgemmTestsInstantiation {
 using ov::Shape;
 std::vector<fuseTransposeBrgemmParams> test_params{
-        {{{1, 49, 2, 23}, {2, 2, 23, 39}}, {2, 2, 49, 23}, 0},
-        {{{1, 2, 49, 23}, {2, 23, 1, 39}}, {2, 2, 49, 39}, 1},
-        {{{1, 2, 49, 23}, {2, 2, 23, 39}}, {2, 2, 49, 39}, 2},
+    {{{1, 49, 2, 23}, {2, 2, 23, 39}}, 0},
+    {{{1, 2, 49, 23}, {2, 23, 1, 39}}, 1},
+    {{{1, 2, 49, 23}, {2, 2, 23, 39}}, 2},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_FuseTransposeMatMul, FuseTransposeBrgemmTests,

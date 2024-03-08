@@ -23,6 +23,8 @@ OV_OP(BroadcastMove, ov::snippets::op)
 OV_OP(Scalar, ov::snippets::op)
 OV_OP(Nop, ov::snippets::op)
 OV_OP(RankNormalization, ov::snippets::op)
+OV_OP(ReduceMax, ov::snippets::op)
+OV_OP(ReduceSum, ov::snippets::op)
 
 #ifdef SNIPPETS_DEBUG_CAPS
 OV_OP(PerfCountBegin, ov::snippets::op)

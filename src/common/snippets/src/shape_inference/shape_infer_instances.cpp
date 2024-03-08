@@ -233,5 +233,18 @@ Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 
+ReduceShapeInfer::ReduceShapeInfer(const std::shared_ptr<Node>& n) {
+    const auto& reduce = as_type_ptr<ov::snippets::op::ReduceBase>(n);
+    OPENVINO_ASSERT(reduce, "Invalid node passed to ReduceShapeInfer.");
+    m_axis = reduce->get_axis();
+}
+
+Result ReduceShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 1, "Invalid number of shapes passed ReduceShapeInfer");
+    VectorDims result_shape = input_shapes[0].get();
+    result_shape[m_axis] = 1;
+    return {{result_shape}, ShapeInferStatus::success};
+}
+
 } // namespace snippets
 } // namespace ov

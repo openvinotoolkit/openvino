@@ -243,8 +243,10 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
 
 void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
     for (auto& expr : m_expressions) {
-        if (!expr->get_emitter())
+        if (!expr->get_emitter()) {
             expr->m_emitter = target->get(expr->get_node()->get_type_info())(expr);
+            OPENVINO_ASSERT(expr->m_emitter, "Emitter can't be created for the node ", expr->get_node());
+        }
     }
 }
 
