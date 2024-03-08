@@ -29,6 +29,11 @@
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/is_finite.hpp"
 
 namespace ov {
 namespace intel_gpu {

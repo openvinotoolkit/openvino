@@ -154,7 +154,7 @@ pass::MatMulMultiplyFusion::MatMulMultiplyFusion() {
     auto matmul_pattern = pattern::wrap_type<ov::op::v0::MatMul>({input_pattern, weights_pattern});
     auto mul_pattern = pattern::wrap_type<ov::op::v1::Multiply>({matmul_pattern, mul_const_pattern});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& weights = pattern_map.at(weights_pattern);
         auto mul = pattern_map.at(mul_pattern).get_node_shared_ptr();

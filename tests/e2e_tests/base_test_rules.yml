@@ -1,0 +1,475 @@
+# Test rules configuration file
+#
+# Controls which tests will be run by applying specified rules to all discovered
+# tests and filtering out non-conforming ones
+#
+# Rules specification:
+#
+# :attr rules:  specifies rules to be applied to tests. For example, (CPU, FP32)
+#               rule states that for CPU device, only FP32 precision is
+#               expected. thus, any other configurations like (CPU, FP16), (CPU,
+#               INT8), etc. are to be excluded from parameters setup for testing
+#
+#               Note: any value in rules may represent a list of values:
+#               "device: [GPU, OTHER], precision: [FP32, FP16]",
+#               "model: [TF_Amazon_RL_LSTM, TF_DeepSpeech]"...
+#
+# :attr filter_by:  specifies which parameters are not comparable and must be
+#                   handled in a special way when applying rules. For example,
+#                   rules for CPU must not affect other devices (GPU, MYRIAD,
+#                   ...). Specifying "filter_by: device" means: "if device !=
+#                   CPU/GPU/..., do not apply CPU/GPU/... rules to it". Same
+#                   logic is useful when dealing with specific models.
+#
+#                   Note: One can specify multiple filters the following way:
+#                   "filter_by: [device, precision]"
+#
+[
+  {
+    rules: [
+      { device: CPU, precision: [ FP32, FP16, BF16 ] },
+      { device: GPU, precision: [ FP32, FP16 ] },
+    ],
+    filter_by: device
+  },
+  {
+    rules: [
+      { model: CAFFE_Dilation, device: [ CPU ] }, #- CVS-21098
+      { model: Caffe2_DarkNet_53, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_121, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_161, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_169, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_201, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_264, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_DenseNet_201_kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_Fit_a_Line, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_InceptionV4, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MGANet, batch: 1 }, # model has concat layer (axis=1) which has constant input with fixed shape [1, 64, 240, 416]
+      { model: Caffe2_MobileNet, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNet_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV2_x0_25, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV2_x0_5, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV2_x1_0, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV2_x1_5, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV2_x2_0, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_MobileNetV3, device: [ CPU ] }, # Only CPU were requested (CVS-38834)
+      { model: Caffe2_Recognize_Digits_conv, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_Recognize_Digits_mlp, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet18, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet18_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet18_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet18_kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet34, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet34_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet34_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet34_kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet34_3D_Kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_vc, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet50_kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_kinetics, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet101_DUC_HDC_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet152, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet152_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet152_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet152_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet152_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNet200_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt50_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt50_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt50_vd_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt50_vd_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_32x8d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_32x16d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_32x32d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt101_vd_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt152_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ResNeXt152_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_SE_ResNeXt101, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_SE_ResNeXt152, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_SE_ResNeXt50, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ShuffleNetV2_x0_25, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ShuffleNetV2_x0_33, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ShuffleNetV2_x0_5, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ShuffleNetV2_x1_5, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_ShuffleNetV2_x2_0, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_VGG16, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_VGG16_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: Caffe2_VGG16_BN_opset7, batch: 1 }, # model is not reshape-able by batch
+
+      { model: IR_action_recognition_0001_decoder_internal, batch: 1 },
+      { model: IR_action_recognition_0001_encoder_internal, batch: 1 },
+      { model: IR_driver_action_recognition_adas_0002_decoder_internal, batch: 1 },
+      { model: IR_driver_action_recognition_adas_0002_encoder_internal, batch: 1 },
+      { model: IR_face_detection_adas_binary_0001_internal, precision: FP32 },
+      { model: IR_handwritten_score_recognition_0001_internal, batch: 1 },
+      { model: IR_license_plate_recognition_barrier_0001, batch: 1 },
+      { model: IR_pedestrian_detection_adas_binary_0001_internal, precision: FP32 },
+      { model: IR_person_detection_action_recognition_0005_internal, batch: 1 },
+      { model: IR_person_detection_action_recognition_teacher_0002_internal, batch: 1 },
+      { model: IR_person_detection_raisinghand_recognition_0001_internal, batch: 1 },
+      { model: IR_ResNet50_binary_0001_internal, precision: FP32 },
+      { model: IR_text_recognition_0012_internal, batch: 1 },
+      { model: IR_vehicle_detection_adas_binary_0001_internal, precision: FP32 },
+      { model: IR_vehicle_license_plate_detection_barrier_0106_internal, batch: 1 },
+
+      { model: KALDI_Cnn_Tdnn_Lstm, device: CPU }, # Only CPU was requested (CVS-62030)
+      { model: KALDI_Cnn_Tdnn1g_Sp, device: CPU, batch: 1 }, # Only CPU was requested (CVS-82245)
+      { model: KALDI_Cnntdnnf, device: CPU }, # Only CPU was requested (CVS-48079)
+      { model: KALDI_Librispeech_Nnet2_Splice_Constdims, batch: 1 }, # (CVS-28939), also model is not reshape-able
+      { model: KALDI_nnet3_lstm_1m, device: CPU, precision: FP32 }, # Only CPU with FP32 was requested (CVS-54307)
+      { model: KALDI_Rm_Convnet, device: CPU }, # This model isn't supported on GNA (CVS-51943)
+
+      { model: MXNET_Brain_tumor_segmentation, device: GPU, batch: 1 },
+      { model: MXNET_Brain_tumor_segmentation, device: CPU }, #This model cannot be run on GPU with batch>1 (CVS-19959)
+      { model: MXNET_DeformablePSROIPoolingRfcn, batch: 1 }, # model output will return the same value regardless of value
+      { model: MXNET_Encoder_Multilayer, batch: 1 }, # Hardcoded original reshape value
+      { model: MXNET_RNN_Bidirectional_transducer_decoder, batch: 1 }, # Non reshape-able TI
+      { model: MXNET_RNN_Bidirectional_transducer_encoder, batch: 1 }, # Non reshape-able TI
+      { model: MXNET_RNN_Bidirectional_single_layer, batch: 1 }, # Non reshape-able TI
+      { model: MXNET_RNN_Transducer_multi_batch, batch: 1 },
+      { model: MXNET_SSD_Vgg16_300_Voc_GluonCV, device: GPU, precision: FP32 }, # GPU do not support FP16 (CVS-87076)
+      { model: MXNET_SSD_Vgg16_300_Voc_GluonCV, device: CPU },
+      { model: MXNET_Word_lm, batch: 1 },
+
+      { model: ONNX_BabbleLabs_Wavenet, batch: [ 1, 2 ], device: CPU },
+      { model: ONNX_BERT_INT8, batch: [ 1, 2 ], device: CPU }, # It takes enormous time to run it on the GPU, also int8 status for that is unclear
+      { model: ONNX_BERT_NER_FACE_HUG, batch: 1, device: CPU }, # (CVS-51234)
+      { model: ONNX_BERT_BASE_CASED_SQUAD2, batch: 1 }, # model is not reshape-able by batch (CVS-102507)
+      { model: ONNX_Conformer_CTC_Hindi, device: [ CPU ] }, # (CVS-91910)
+      { model: ONNX_ConvPoolFcReLu, device: [ CPU, GNA ], batch: 1 }, # CVS-42787
+      { model: ONNX_Intel_DNS, device: [ CPU ], batch: 1 }, # (CVS-51694), model is not reshape-able
+      { model: ONNX_LPCNet_Decoder, device: [ CPU ] }, # Only CPU target was requested (CVS-41247)
+      { model: ONNX_LPCNet_Encoder, device: [ CPU ] }, # Only CPU target was requested (CVS-41247)
+      { model: ONNX_NSNet2_GRU, device: [ CPU, GNA ], batch: 1 }, # For models with GRU operations, the only supported batch size is 1 (CVS-22369)
+      { model: ONNX_Runtime_DarkNet_53, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_BridgeTower, device: [ CPU ] }, #requested only for CPU (CVS-108319)
+      { model: ONNX_Runtime_CorelPainterNNArt, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_DCSCN, device: CPU }, # Only CPU target was requested (CVS-37078)
+      { model: ONNX_Runtime_DenseNet_121, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_DenseNet_161, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_DenseNet_169, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_DenseNet_201, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_DenseNet_264, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_F3NET, device: [ CPU ] }, # Only CPU target was requested (CVS-42385)
+      { model: ONNX_Runtime_fp16_InceptionV1, precision: FP16 },
+      { model: ONNX_Runtime_fp16_ShuffleNet, precision: FP16 },
+      { model: ONNX_Runtime_fp16_Tiny_Yolo_V2, precision: FP16 },
+      { model: ONNX_Runtime_MNIST_convinteger, device: CPU }, #FP16 for GPU is not supported (CVS-106711)
+      { model: ONNX_Runtime_MNIST_convinteger, precision: FP32, device: GPU }, #FP16 for GPU is not supported (CVS-106711)
+      { model: ONNX_Runtime_Mobile_Former, batch: 1, device: CPU }, # model is not reshape-able by batch because of hardcoded values in Reshape node 'Reshape_118', and only CPU was requested
+      { model: ONNX_Runtime_MobileNet_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_MobileNet_convinteger, device: [ CPU ] }, # GPU does not support FP16 (CVS-92497)
+      { model: ONNX_Runtime_MobileNet_convinteger, device: [ GPU ], precision: FP32 }, # GPU does not support FP16 (CVS-92497)
+      { model: ONNX_Runtime_MobileNetV2_x0_25, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_MobileNetV2_x0_5, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_MobileNetV2_x1_0, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_MobileNetV2_x1_5, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_MobileNetV2_x2_0, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_RCAN_rg10_rb20_f64, device: GPU, batch: 1 }, # return full GPU when XDEPS-5646 will be fixed
+      { model: ONNX_Runtime_RCAN_rg10_rb20_f64, device: CPU }, # return full GPU when XDEPS-5646 will be fixed
+      { model: ONNX_Runtime_ResNet18, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet18_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet18_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet34, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet34_V1_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet34_V2_opset7, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet50_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet50_vc, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet50_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet101_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet101_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet152_pp, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet152_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNet200_vd, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt50_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt50_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt50_vd_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt50_vd_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_32x16d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_32x32d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_32x8d_wsl, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt101_vd_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt152_32x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ResNeXt152_64x4d, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ssd_mobilenet_V1_coco_mlperf_opset10, device: CPU }, # revert GPU support when CVS-61600 will be fixed
+      { model: ONNX_Runtime_ssd_resnet34_mlperf_opset10, device: CPU }, # revert GPU support when CVS-61600 will be fixed
+      { model: ONNX_Runtime_ShuffleNetV2_x0_25, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ShuffleNetV2_x0_33, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ShuffleNetV2_x0_5, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ShuffleNetV2_x1_5, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_ShuffleNetV2_x2_0, batch: 1 }, # model is not reshape-able by batch
+      { model: ONNX_Runtime_Wav2vec2, device: CPU }, # return GPU when CVS-104558 will be fixed
+      { model: ONNX_SplitConvPoolConcatFc, device: [ CPU, GNA ], batch: 1 }, # CVS-42787
+      { model: ONNX_TwoInputsConvPoolConcatFcRelu, device: [ CPU, GNA ], batch: 1 }, # CVS-42787
+      { model: ONNX_Esrgan, device: [ CPU ] }, # (CVS-102883)
+      { model: ONNX_V_Diffusion,  batch: 1 }, # Batch reshape are not available because of constant values in node with friendly_name '/net/net.4/main/main.5/main/main.5/main/main.5/main/main.2/Reshape
+
+      { model: Precollected_ONNX_Resnet34_BiLSTM_ucf0_85, batch: 1 },
+      { model: Precollected_ResNet34_1lstm_ucf082, batch: 1 },
+      { model: Precollected_ResNet34_1mkinetics_self_attn_no_norm065, batch: 1 },
+
+      { model: ONNX_3D_UNet, batch: 1 }, # (CVS-42580) model is not reshape-able
+      { model: ONNX_BERT_EMD, device: [ CPU ] }, # (CVS-48001)
+      { model: ONNX_CLIP, device: [ CPU ] }, # (CVS-99096)
+      { model: ONNX_Customized_Cascade_Rcnn, batch: 1, device: [ CPU ] }, # (CVS-51956)
+      { model: ONNX_Data2Vec_Audio, batch: 1, device: CPU }, # revert GPU support when CVS-104109 will be fixed
+      { model: ONNX_DETR_ResNet50_INT8, device: CPU }, # (CVS-55245)
+      { model: ONNX_DETR_ResNet50_INT8, device: GPU, precision: FP32 }, # (CVS-109561) F16 has out-of-range computed values, not covered by the GPU plugin
+      { model: ONNX_DLRM_rnd, device: CPU, batch: 1 }, # model supported on CPU and not reshape-able by batch
+      { model: ONNX_DLRM_rnd_dot, device: CPU, batch: 1 }, # model supported on CPU and not reshape-able by batch
+      { model: ONNX_DLRM_rnd_cat, device: CPU, batch: 1 }, # model supported on CPU and not reshape-able by batch
+      { model: ONNX_FasterRCNN_ResNet50_FPN, batch: 1 }, # model is not made for batch not equal to 1
+      { model: ONNX_iSeebetter, device: GPU, batch: 1 }, # return full GPU when XDEPS-6238 will be fixed
+      { model: ONNX_iSeebetter, device: CPU }, # return full GPU when XDEPS-6238 will be fixed
+      { model: ONNX_KSHD_Head_Detection, device: CPU }, # model supported on CPU (CVS-30554)
+      { model: ONNX_Magic_Video_Super_Res_WDSR, device: GPU, precision: FP32 }, # (CVS-56198), GPU do not support FP16 (CVS-59192)
+      { model: ONNX_Magic_Video_Super_Res_WDSR, device: CPU }, # (CVS-56198)
+      { model: ONNX_MagixStyleSwap, batch: 1 }, # (CVS-82204)  model doesn't support batch dimension
+      { model: ONNX_MagixStyleSwap_INT8, batch: 1 }, # (CVS-82204)  model doesn't support batch dimension
+      { model: ONNX_MaskRCNN_ResNet50_FPN_with_cfg, batch: 1, device: CPU }, # this model doesn't support reshape; The model is not supported on GPU because it contains Experimental* layers (CVS-25104)
+      { model: ONNX_MaskRCNN_ResNet50_FPN_wo_cfg_wo_infer, batch: 1, device: CPU }, # CVS-39838
+      { model: ONNX_ModNet, device: [ CPU,GPU ] }, # (CVS-51155)
+      { model: ONNX_OpenNMT_Decoder_English2Hindi, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_OpenNMT_Decoder_Hindi2English, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_OpenNMT_Encoder_English2Hindi, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_OpenNMT_Encoder_Hindi2English, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_OpenNMT_Generator_English2Hindi, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_OpenNMT_Generator_Hindi2English, device: [ CPU ] }, # Only CPU was requested (CVS-52414)
+      { model: ONNX_Roberta, device: [ CPU ] },
+      { model: ONNX_Roberta, precision: FP32, device: [ GPU ] }, # FP16 on GPU is not supported (CVS-111033)
+      { model: ONNX_SR_Kuaishou_Blur, device: [ CPU ] }, # (CVS-71146) CPU only until e2e will support dGPU
+      { model: ONNX_SR_Kuaishou_Blocky, device: [ CPU ] }, # (CVS-71146) CPU only until e2e will support dGPU
+      { model: ONNX_SR_Kuaishou_Defocusv4, device: [ CPU ] }, # (CVS-71146) CPU only until e2e will support dGPU
+      { model: ONNX_SR_Kuaishou_Dirtylens, batch: 1, device: [ CPU ] }, # (CVS-71146) model is not reshape-able by batch because of hardcoded values in Reshape node 'Reshape_67'
+      { model: ONNX_SR_Kuaishou_Noise, device: [ CPU ] }, # (CVS-71146) CPU only until e2e will support dGPU
+      { model: ONNX_SSD_ResNet34_New_MLPerf05, batch: 1 }, # This model is not reshapable (CVS-25049)
+      { model: ONNX_Stable_Diffusion_Text_Encoder, batch: 1 }, # model is not reshape-able by batch because of hardcoded values in Reshape_146 node
+      { model: ONNX_Stable_Diffusion_Vae, device: GPU, batch: 1, precision: FP32 }, # model is not reshape-able by batch because of hardcoded values in Reshape_42 node, return full GPU when XDEPS-6238 will be fixed
+      { model: ONNX_Stable_Diffusion_Vae, device: CPU, batch: 1 }, # model is not reshape-able by batch because of hardcoded values in Reshape_42 node, return full GPU when XDEPS-6238 will be fixed
+      { model: ONNX_Stable_Diffusion_Unet, batch: 1 }, # model is not reshape-able by batch because of Add '/down_blocks.0/resnets.0/Add' node in which comes tensors with different shapes
+      { model: ONNX_Tacotron2Decoder, device: [ CPU ] }, # Only CPU target was requested (CVS-40048)
+      { model: ONNX_Tacotron2Encoder, batch: 1, device: [ CPU ] }, # Only CPU target was requested (CVS-40048); model use case does not use batch size (CVS-58358)
+      { model: ONNX_Tacotron2Postnet, device: [ CPU ] }, # Only CPU target was requested (CVS-40048)
+      { model: ONNX_WeNet_Decoder, device: [ CPU ] }, # (CVS-62026)
+      { model: ONNX_WeNet_Encoder, device: [ CPU ] }, # (CVS-62026)
+      { model: ONNX_WhisperEncoder, batch: 1 }, # Batch and spatial reshape not available due to fully connected node with name: MatMul_3507
+      { model: ONNX_WhisperDecoder, batch: 1}, # Batch and spatial reshape not available due to fully connected node with name: MatMul_3507
+      { model: Detectron2_MarkRCNN, batch: 1}, # Batch is absent in shape. Spatial reshape not available due  node with name: Add_6031
+      { model: ONNX_YoloV5_S6_1, device: [ CPU ] }, # (CVS-102522)
+      { model: ONNX_YoloV5_M6_1, device: [ CPU ] }, # (CVS-102532)
+      { model: ONNX_Decodec_24, batch: 1 }, # Batch reshape are not available because of constant values in /Reshape_9 node
+      { model: ONNX_TinyBert, device: [ CPU ] }, # (CVS-48254)
+      { model: ONNX_CVT,  batch: 1 }, # Model is not reshape-able by batch due to node opset1:: /cvt/encoder/stages.0/embedding/convolution_embeddings/Reshape
+
+      # For PDPD models only CPU and GPU were requested (no ticket)
+      { model: PDPD_BERT_BASE_UNCASED_SST2, device: [ CPU ], batch: 1}, # (CVS-71981)
+      { model: PDPD_FastSCNN, device: [ CPU ] }, # (CVS-48738)
+      { model: PDPD_PPOCRv2_cls, device: [ CPU ] }, # (CVS-71300)
+      { model: PDPD_PPOCRv2_det, device: [ CPU ] }, # (CVS-71300)
+      { model: PDPD_PPOCRv2_rec, device: [ CPU ] }, # (CVS-71300)
+      { model: PDPD_SSD_MobileNetV3, device: [ CPU ], batch: 1 }, # (CVS-71981)
+      { model: PDPD_YOLOv3, device: [ CPU ] }, # (CVS-48738)
+      { model: PDPD_PPYOLO, device: [ CPU ] }, # (CVS-48738)
+      { model: PDPD_PPYOLOv2, device: [ CPU ] }, # (CVS-69465)
+      { model: PDPD_FastRCNN, batch: 1, device: [ CPU ] }, # revert GPU support when CVS-100016 will be fixed
+
+      { model: PyTorch_TimmTwinsPCPVTBase,  batch: 1 }, # Model is not reshape-able by batch due to node aten::reshape_81 because it has fixed shapes
+      { model: PyTorch_TimmTwinsPCPVTLarge,  batch: 1 }, # Model is not reshape-able by batch due to node aten::reshape_81 because it has fixed shapes
+      { model: PyTorch_TimmTwinsPCPVTSmall,  batch: 1 }, # Model is not reshape-able by batch due to node aten::reshape_81 because it has fixed shapes
+      { model: PyTorch_TimmTwinsSVTBase,  batch: 1 }, # Model is not reshape-able by batch due to node aten::view_75 because it has fixed shapes
+      { model: PyTorch_TimmTwinsSVTLarge,  batch: 1 }, # Model is not reshape-able by batch due to node aten::view_75 because it has fixed shapes
+      { model: PyTorch_TimmTwinsSVTSmall,  batch: 1 }, # Model is not reshape-able by batch due to node aten::view_75 because it has fixed shapes
+      { model: Pytorch_FinBERT, batch: 1 }, # Model is not reshape-able by batch due to node aten::view/Reshape_65 because it has fixed shapes
+      { model: Pytorch_CVT, batch: 1 },  # Model is not reshape-able by batch due to node 'opset1::Reshape aten::view/Reshape'because it has fixed shapes
+      { model: Pytorch_BERTmini, batch: 1 }, # Model is not reshape-able by batch due to node aten::view/Reshape_126 because it has fixed shapes
+      { model: Pytorch_Blip, device: [ CPU ] }, # CVS-105259
+      { model: Pytorch_BridgeTower, batch: 1, device: [ CPU ] }, # Model is not reshape-able by batch due to additional operation in node aten::add/Add_1435 between nodes with changed shape and constant. Model requested only for CPU CVS-108319
+      { model: Pytorch_V_Diffusion, batch: 1 }, # Model is not reshape-able by batch due to node pset1::Reshape aten::group_norm/Reshape_81 because it has fixed shapes
+      { model: Pytorch_Bloom, batch: 1 }, # Model is not reshape-able by batch due to node opset1::Reshape aten::reshape/Reshape because it has fixed shapes
+      { model: Pytorch_Tabnine, batch: 1 }, # Model is not reshape-able by batch due to node aten::view/Reshape_34 because it has fixed shapes
+      { model: Pytorch_Gpt_J_6B, batch: 1, device: [ CPU ] }, # Model is not reshape-able by batch because node opset1::Reshape aten::view/Reshape_13360 has fixed shapes
+      { model: Pytorch_SegmentationAnyImgEncoder, batch: 1, device: [ CPU ] }, # Model is not reshape-able by batch because node hardcoded shape node opset1::Reshape aten::view/Reshape (aten::pad_99[0]:f32[2,70,70,768] has fixed shape. Model was requested only for CPU CVS-108279
+      { model: Pytorch_SegmentationAnyMaskPredictor, batch: 1, device: [ CPU ] }, # Model is not reshape-able due to prim::ListConstruct node support only constant inputs. Model was requested only for CPU CVS-108279
+      { model: Pytorch_Stable_Diffusion_2_1_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+      { model: Pytorch_Stable_Diffusion_2_1_Unet,  device: [ CPU ],  batch: 1 }, # Model is not reshape-able by batch because node aten::group_norm/Reshape_53 has fixed shapes
+      { model: Pytorch_Stable_Diffusion_2_1_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+      { model: Pytorch_Stable_Diffusion_2_1_Vae_Encoder,  device: [ CPU ],  batch: 1}, # Model is not reshape-able by batch because node aten::group_norm/Reshape_14 has fixed shapes
+      { model: Pytorch_Stable_Diffusion_2_Inpainting_Text_Encoder,  device: [ CPU ]}, # (CVS-110572)
+      { model: Pytorch_Stable_Diffusion_2_Inpainting_Unet, device: [ CPU ],  batch: 1 }, # Model is not reshape-able by batch because node aten::group_norm/Reshape_53 has fixed shapes
+      { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Decoder,  device: [ CPU ]}, # (CVS-110572)
+      { model: Pytorch_Stable_Diffusion_2_Inpainting_Vae_Encoder,  device: [ CPU ],  batch: 1}, # Model is not reshape-able by batch because node aten::group_norm/Reshape_71 has fixed shapes
+      { model: Pytorch_StableLM,  device: [ CPU ]}, # Model was requested only for CPU CVS-111394
+      { model: Pytorch_Dolly_V2, batch: 1, device: [ CPU ] }, # (CVS-108396) Model is not reshape-able by batch due to node '__module.gpt_neox.layers.0.attention/aten::view/Reshape' because it has fixed shapes
+      { model: Pytorch_GPT3, batch: 1}, #  Model is not reshape-able by batch due to node with name ''opset1::Reshape aten::view/Reshape_3041' because it has fixed shapes
+      { model: Pytorch_Llama_3b_v2, device: [ CPU ] }, # (CVS-106319)
+      { model: Pytorch_CocoSpade, batch: 1}, #  Model is not reshape-able by batch because of fixed shapes in aten::copy_/Broadcast
+      { model: Pytorch_Detectron2_MaskRCNN, batch: 1}, # Batch is absent in shape
+
+      { model: TF_3DGAN, batch: 1 }, # Model has constant shape [1,1,1,1,200] for node gen/Reshape
+      { model: TF_GoogleNet_v3, batch: 1 }, # Model is not reshape-able by batch due to node opset1::Reshape InceptionV3/Predictions/Reshape_1
+      { model: TF_A3C_LSTM_GitHub, batch: 1 }, # "States are not broadcastable by batch"
+      { model: TF_ALBERT, batch: 1 }, # not reshape-able by batch size due to node bert/embeddings/Reshape
+      { model: TF_Alibaba_ShuffleSeg_138, batch: 1 }, #Model has fixed input shape [1,256,512,3]
+      { model: TF_Alibaba_ShuffleSeg_02, batch: 1 }, #Model has fixed input shape [1,256,512,3], CVS-19228
+      { model: TF_Amazon_RL_LSTM, batch: 1 },
+      { model: TF_Basic_LSTM_L, device: [ CPU, GNA ],  batch: 1 },
+      { model: TF_BERT, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_BASE_UNCASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_BASE_CASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_LARGE_UNCASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_LARGE_CASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_MULTI_CASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_MULTI_UNCASED, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_CHINESE, batch: 1 }, # Constant shape for layer bert/encoder/Reshape
+      { model: TF_BERT_XNLI, device: [ CPU ], batch: 1 },  # Only CPU target was requested (CVS-35249), model is not reshape-able
+      { model: TF_BlackMagic_Model_E, device: [ CPU ] }, # revert GPU support when CVS-104715 will be fixed
+      { model: TF_CNN_Transformer, batch: 1, device: [ CPU ] } , # not reshape-able by batch size due to node cnn_and_rnn/transformer/layer_0/attention/self/Reshape
+      { model: TF_CNN_Transformer, batch: 1, device: [ GPU ], precision: FP32 }, # FP16 on GPU give inf in inf/ref results (CVS-114137)
+      { model: TF_CRNN, batch: 1 }, # Model is not reshapable
+      { model: TF_CTPN, batch: 1 }, #Model does not support batch more than 1 (CVS-19388)
+      { model: TF_Cyberlink_Object_Removal, batch: 1 }, # model is not reshape-able because of Convolution node "generator/model.3/conv1/ffc/convg2g/fu/conv_layer/Conv2D" in which data batch channel count will not match filter input channel count
+      { model: TF_Cyberlink_NST_1, batch: 1 }, # model is not reshape-able because of node Subtract_80 (CVS-106559)
+      { model: TF_Cyberlink_NST_2, device: [ CPU ] }, # GPU does not support FP16 (CVS-102674)
+      { model: TF_Cyberlink_NST_2, device: [ GPU ], precision: FP32 }, # GPU does not support FP16 (CVS-102674)
+      { model: TF_Custom_WD, device: CPU }, # model wasn't requested for GPU
+      { model: TF_Dark_Channel_Dehazing, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_DeepLabV3_MobileNet_V2, batch: 1 }, #Model has fixed input shape [1, ?, ?, 3]
+      { model: TF_DeepSpeech041, batch: 1 },
+      { model: TF_DeepSpeech061, batch: 1 },
+      { model: TF_DeepSpeech061_LowLatency2_Transform, batch: 1, device: [ CPU, GNA ] },
+      { model: TF_DeepSpeech061_MakeStateful_Transform, batch: 1, device: [ CPU, GNA ] },
+      { model: TF_DeepSpeech071, batch: 1 },
+      { model: TF_DIEN_Alibaba, precision: FP32 }, # (CVS-32215), a minimal sub-graph strictly needs FP32 mode (CVS-52843)
+      { model: TF_Enhance3_Lite, batch: 1 }, # not reshape-able by batch size due to Transpose Sinking
+      { model: TF_EDSR3, batch: 1, precision: FP16 }, # (CVS-51157) model is not reshape-able, FP16 only
+      { model: TF_Faster_RCNN_nas_coco, device: CPU }, #GPU was disabled. This model can't be load on GPU device because of large model size
+      { model: TF_FSMN, batch: 1, device: CPU }, # not reshape-able with batch = 2, only CPU support was requested (CVS-22562)
+      { model: TF_FSMN_LowLatency2_Transform, batch: 1, device: CPU }, # not reshape-able with batch = 2, only CPU support was requested (CVS-22562)
+      { model: TF_GNMT, device: CPU }, # GPU is requested in CVS-20579 but nothing is moving there
+      { model: TF_Inpaint, batch: 1 }, # The model does not support batch 2. It contains a Concat operation with a Constant with a fixed batch dimension value
+      { model: TF_IstaNet, device: GPU, batch: 2 }, # (CVS-49595), return full GPU when XDEPS-6238 will be fixed
+      { model: TF_IstaNet, device: CPU }, # (CVS-49595), return full GPU when XDEPS-6238 will be fixed
+      { model: TF_JDCOM, device: [ CPU ] }, # (CVS-30633)
+      { model: TF_L0_Smoothing, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_LiteResNet50_INT8, device: CPU },
+      { model: TF_LiteResNet50_INT8, device: GPU, precision: FP32 }, # FP32 support only (CVS-25776)
+      { model: TF_LM_1B, batch: 1 }, # model is not reshape-able
+      { model: TF_LM_1B_DynamicSequenceLength, batch: 1 }, # model is not reshape-ablу
+      { model: TF_LSTM_Multicell, batch: 1, device: [ CPU ] }, # this model doesn't support reshape, GPU plugin does not support BOOL precision
+      { model: TF_Microsoft_Model_A, device: [ CPU ] }, # (CVS-50555)
+      { model: TF_Microsoft_Model_E, device: [ CPU ] }, # (CVS-50555)
+      { model: TF_Multiscale_Tone_Manipulation, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_Nifty_Net, device: CPU }, # Add GPU/MYRIAD after native support of BatchToSpace/SpaceToBatch on these devices
+      { model: TF_Nonlocal_Dehazing, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_Pencil_Drawing, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_PixelLink, batch: 1 }, # Model is not reshapable
+      { model: TF_Photographic_Style, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_Relative_Total_Variation, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_ResNet_50_fp32_official, precision: FP32 },
+      { model: TF_ResNet_50_fp32_v2_official, precision: FP32 },
+      { model: TF_Result_Combined, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_Result_Parametrized, device: CPU }, #return GPU when CVS-107581 will be fixed
+      { model: TF_Retina_Net, batch: 1 },
+      { model: TF_Rudin_Osher_Fatemi, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_Sample0DimSplit, batch: 1, device: CPU },
+      { model: TF_Ssd_MobileNet_v1_coco_quantized_finetuned, device: CPU },
+      { model: TF_Ssd_MobileNet_v1_coco_quantized_finetuned, device: GPU, precision: FP32 }, # FP32 support only (CVS-25776)
+      { model: TF_StyleGAN2, batch: 1 }, # model is not reshape-able because of Convolution node "Gs/_Run/Gs/G_synthesis/4x4/Conv/Conv2D" in which data batch channel count will not match filter input channel count
+      { model: TF_STN, batch: 1 }, # not reshape-able by batch size due to node bilinear_interpolation_2/Reshape
+      { model: TF_Topaz_Labs_MaskAI_SRGAN, batch: 1 }, # model isn't reshape-able
+      { model: TF_TopazDenoise, batch: 1 }, # (CVS-47322)
+      { model: TF_TCN, device: CPU }, # revert GPU support when CVS-101359 will be fixed
+      { model: TF_TV_L1, device: CPU }, # revert GPU support when CVS-101355 will be fixed
+      { model: TF_UNet_3D, device: CPU }, #It takes more than 20 minutes to run it on GPU
+      { model: TF_Unrolled_Basic_LSTM, device: [ CPU, GNA ],  batch: 1 },
+      { model: TF_VNet, batch: 1 },
+      { model: TF_Wide_And_Deep, device: CPU, batch: 1 }, # model wasn't requested for GPU and doesn't support reshape
+      { model: TF_xj_feature_model_v2, device: [ CPU ], precision: FP32, batch: 1 }, # Only CPU and FP32 were requested (CVS-38601), not reshape-able by batch size due to Transpose Sinking
+      { model: TF_XLNET_LARGE_CASED, batch: 1, precision: FP32 }, # Constant shape for layer (CVS-28211), weights are clipped to infinity
+      { model: TF_XLNET_LARGE_SQUAD, batch: 1 }, # model is not reshape-able because of hardcoded values in model/transformer/layer_0/rel_attn/einsum_2/Reshape_2
+      { model: TF_XLNET_BASE_CASED, batch: 1, precision: FP32 }, # weights are clipped to infinity; Run only on batch equal to 1 because of hardcoding (CVS-43022)
+      { model: TF_XLNET_IMDB, batch: 1, precision: FP32 }, # weights are clipped to infinity; Run only on batch equal to 1 because of hardcoding (CVS-43022)
+
+      { model: TF_V2_3D_UNet, batch: 1 }, # (CVS-42580) model is not reshape-able
+      { model: TF_V2_Context_Encoder, batch: 1, device: CPU }, # revert GPU support when CVS-101969 will be fixed
+      { model: TF_V2_Context_Joint, batch: 1 },
+      { model: TF_V2_CustomOCR, batch: 1, device: CPU }, # (CVS-66717)
+      { model: TF_V2_BERT_Multi_Cased_Static, device: [ CPU ], batch: 1 }, # (CVS-42073), not reshape-able by batch du to Transpose Sinking
+      { model: TF_V2_BERT_Multi_Cased_DynamicSequenceLength, device: [ CPU ], precision: FP32, batch: 1 }, # (CVS-42073) model is not reshape-able, FP32 only, not reshape-able by batch due to Transpose Sinking
+      { model: TF_V2_Efficient_Det, batch: 1 }, # model is not reshape-able by batch
+      { model: TF_V2_Faster_RCNN_ResNet50_v1_atrous_coco, batch: 1}, # (CVS-35524)
+      { model: TF_V2_Faster_RCNN_Inception_ResNet_v2_atrous_coco, batch: 1}, # (CVS-51980)
+      { model: TF_V2_Faster_RCNN_Inception_ResNet_v2_atrous_coco_No_Config, batch: 1, device: CPU }, # not reshapable by batch, return GPU when CVS-107375 will be fixed
+      { model: TF_V2_Mask_RCNN_ResNetv2_atrous_coco, batch: 1 }, # (CVS-51981)
+      { model: TF_V2_Mask_RCNN_ResNetv2_atrous_coco_No_Config, batch: 1 }, # not reshape-able by batch due to node reshape:Squeeze_4691575
+      { model: TF_V2_MobileNet, batch: 1 }, # not reshape-able by batch due to node Transpose_213060
+      { model: TF_V2_SSDMobileNetV1FPN, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDMobileNetV1FPN_No_Config, batch: 1 }, # not reshape-able by batch due to node reshape:Squeeze_8487548
+      { model: TF_V2_SSDMobileNetV2Original, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDMobileNetV2Custom, batch: 1, device: [ CPU ] }, # (CVS-50258), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDMobileNetV2Custom_No_Config, batch: 1 }, # not reshapable by batch
+      { model: TF_V2_SSDMobileNetV2FPNLite, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDResNet50V1FPN, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDResNet101V1FPN, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_SSDResNet152V1FPN, batch: 1, device: [ CPU ] }, # (CVS-46209), the TF 2.X OD API models aren't reshape-able (CVS-50264)
+      { model: TF_V2_Wide_And_Deep, device: CPU, batch: 1 }, # model wasn't requested for GPU and doesn't support reshape
+
+      { model: TFLite_AlbertLiteBase, device: CPU, batch: 1 }, # Model is not reshape-able because of hardcoded values in reshape node
+      { model: TFLite_AlbertLiteBase, device: GPU, precision: FP32, batch: 1 }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_AttentionCenter, device: CPU }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_AttentionCenter, device: GPU, precision: FP32 }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_FaceDetectionShortRange, device: CPU }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_FaceDetectionShortRange, device: GPU, precision: FP32 }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_IrisLandmark, device: CPU }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_IrisLandmark, device: GPU, precision: FP32 }, # Leave only FP32 for GPU as FP16 give nan in inf results
+      { model: TFLite_MoveNet, device: CPU, batch: 1} , # batch - model is not reshape-able because of Squeeze node which squeezes by batch, device - GPU dynamism doesn't support this model (CVS-105557)
+      { model: TFLite_GermanMBMelGAN, device: CPU }, # GPU dynamism doesn't support this model (CVS-105553)
+      { model: TFLite_YamNet, device: CPU, batch: 1 }, # Model doesn't have batch dimension, exclude GPU because this model is dynamic
+      { model: TFLite_YamNetClassification, batch: 1 }, # Model doesn't have batch dimension
+      { model: TFLite_SSDLiteOD, batch: 1 }, # Model is not reshape-able because of Reshape 113 node
+
+      { model: RNNT_GNA_Decoder, device: GNA, batch: 1 }, # (CVS-53114)
+      { model: RNNT_GNA_Decoder_LowLatency2, device: GNA, batch: 1 }, # (CVS-53114)
+      { model: RNNT_GNA_Encoder, device: GNA, batch: 1 }, # (CVS-53114)
+      { model: RNNT_GNA_Encoder_LowLatency2_Transform, device: GNA, batch: 1 }, # (CVS-53114)
+
+      # These models shouldn't be run on GNA
+      { model: KALDI_Tedlium_Tdnn_Lstm, device: not GNA }, # (CVS-28939)
+      { model: KALDI_Ted_Lstm_Ld5, device: not GNA }, # (CVS-28939)
+      { model: KALDI_Aspire_Tdnn, device: not GNA }, # (CVS-28939)# (CVS-53114)
+    ],
+    filter_by: model
+  },
+  {
+    rules: [
+      { model: KALDI_Librispeech_Tdnn, device: GNA, batch: 1 }, # GNA plugin doesn't support batch 2 for models with LSTM and Convolutional layers (CVS-26359)
+      { model: KALDI_Rm_Cnn4a, device: GNA, batch: 1 },
+      { model: KALDI_Rm_Lstm4f, device: GNA, batch: 1 },
+      { model: KALDI_Rm_Nnet4a, device: GNA, batch: 1 },
+      { model: KALDI_Swbd_Nnet6c_Mpe, device: GNA, batch: 1 },
+      { model: KALDI_Tedlium_Dnn4, device: GNA, batch: [ 1, 2 ] },
+      { model: KALDI_Tedlium_Lstm4f, device: GNA, batch: 1 },
+      { model: KALDI_Tdnn, device: GNA, batch: 1 },
+      { model: KALDI_Tdnn2, device: GNA, batch: 1 },
+      { model: KALDI_Tdnn2_Output_Affine, device: GNA, batch: 1 },
+      { model: KALDI_Wsj_Cnn4b, device: GNA, batch: 1 },
+      { model: KALDI_Wsj_Dnn5b, device: GNA, batch: [ 1, 2 ] },
+      { model: KALDI_Librispeech_Nnet2_Splice_Constdims, device: GNA, batch: 1 }, # (CVS-28939), also model is not reshape-able
+    ],
+    filter_by: [ device, model ]
+  },
+]

@@ -26,6 +26,7 @@
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
@@ -150,7 +151,7 @@ ov::pass::SplitConcatPairToInterpolateFusion::SplitConcatPairToInterpolateFusion
     //
     // Detect only concat, because we don't know how many inputs will go into concat.
     auto concat_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Concat>();
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto concat = std::dynamic_pointer_cast<ov::op::v0::Concat>(m.get_match_root());
         if (!concat)
             return false;

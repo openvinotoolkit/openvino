@@ -4,6 +4,7 @@
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/op/convolution.hpp"
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
@@ -166,6 +167,16 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         return false;
     };
 
+    auto is_grouped_conv = [](ov::Node* op) -> bool {
+        if (ov::is_type<ov::op::v1::GroupConvolution>(op))
+            return true;
+
+        if (ov::is_type<op::Convolution>(op)) {
+            return ov::as_type<op::Convolution>(op)->get_groups() > 0;
+        }
+
+        return false;
+    };
     // WA to inconsistency between input and const 1d tensors
     // For Concat along batch we go with batch interpretation
     // For Gather input we go with batch interpretation
@@ -205,7 +216,7 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                     slope_shape[slope_shape.size() - j] = constDims[constDims.size() - j];
                 constDims = slope_shape;
             }
-        } else if (ov::is_type<ov::op::v1::GroupConvolution>(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
+        } else if (is_grouped_conv(outOp) && node.get_index() == 1 && !p.use_new_shape_infer()) {
             auto input_shape = outOp->get_input_partial_shape(0);
             if (constDims.size() == 4 && input_shape.size() == 3) { // In case of weight dim 4 and input dim 3,
                 constDims.push_back(1);                             // The weight cldnn tensor adds 1d to the end as the input cldnn tensor does

@@ -11,30 +11,41 @@
  limitations under the License.
 """
 import os
+import pathlib
 import pytest
 import re
 import sys
 import logging as log
-from common.samples_common_test_class import get_cmd_output, get_tests
+from common.samples_common_test_class import get_cmd_output, get_tests, download
 from common.samples_common_test_class import SamplesCommonTestClass
 from common.common_utils import shell
 from pathlib import Path
 import shutil
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
-test_data_fp32 = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                       'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                       'sample_type': ['C++', 'C']},
-                          )
-
-test_data_fp32_unicode = get_tests(cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                                               'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                                               'sample_type': ['C++']},
-                                  )
+def get_executable(sample_language):
+    return pathlib.Path(os.environ['IE_APP_PATH'], 'hello_classification' + ('' if sample_language == 'C++' else '_c')).with_suffix('.exe' if os.name == 'nt' else '')
 
 
-class TestHello(SamplesCommonTestClass):
+def prepend(cache, model, inp):
+    test_data_dir = cache.mkdir('test_data')
+    return download(test_data_dir, test_data_dir / model), download(test_data_dir, test_data_dir / inp)
+
+
+test_data_fp32 = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],  # Remove the model forom .md and .rst if removed from here
+    'sample_type': ['C++', 'C'],
+})
+
+test_data_fp32_unicode = get_tests({
+    'i': ['dog-224x224.bmp'],
+    'm': ['bvlcalexnet-12.onnx'],
+    'sample_type': ['C++'],
+})
+
+
+class Test_hello_classification(SamplesCommonTestClass):
     sample_name = 'hello_classification'
 
     @pytest.mark.parametrize("param", test_data_fp32)
@@ -46,20 +57,18 @@ class TestHello(SamplesCommonTestClass):
         """
 
         # Run _test function, that returns stdout or 0.
-        stdout = self._test(param, cache, use_preffix=False, get_cmd_func=self.get_hello_cmd_line)
-        if not stdout:
-            return 0
+        output = get_cmd_output(get_executable(param['sample_type']), *prepend(cache, param['m'], param['i']), param['d'])
 
-        stdout = stdout.split('\n')
+        output = output.split('\n')
 
         is_ok = True
-        for line in range(len(stdout)):
-            if re.match('\\d+ +\\d+.\\d+$', stdout[line].replace('[ INFO ]', '').strip()) is not None:
-                top1 = stdout[line].replace('[ INFO ]', '').strip().split(' ')[0]
+        for line in range(len(output)):
+            if re.match('\\d+ +\\d+.\\d+$', output[line].replace('[ INFO ]', '').strip()) is not None:
+                top1 = output[line].replace('[ INFO ]', '').strip().split(' ')[0]
                 top1 = re.sub('\\D', '', top1)
                 if '215' not in top1:
                     is_ok = False
-                    log.error('Expected class 215, Detected class {}'.format(top1))
+                    log.error('Expected class 262, Detected class {}'.format(top1))
                 break
         assert is_ok, 'Wrong top1 class'
         log.info('Accuracy passed')
@@ -79,11 +88,10 @@ class TestHello(SamplesCommonTestClass):
         tmp_image_dir.mkdir()
         tmp_model_dir.mkdir()
 
-        test_data_dir = cache.makedir('test_data_dir') / 'samples_smoke_tests_data_2021.4'
+        test_data_dir = cache.makedir('test_data')
         # Copy files
-        shutil.copy(test_data_dir / 'validation_set' / param['i'], tmp_image_dir)
-        shutil.copy(test_data_dir / 'models' / 'public' / param['m'], tmp_model_dir)
-        shutil.copy(test_data_dir / 'models' / 'public' / Path(param['m'].replace('.xml', '.bin')), tmp_model_dir)
+        shutil.copy(test_data_dir / param['i'], tmp_image_dir)
+        shutil.copy(test_data_dir / param['m'], tmp_model_dir)
 
         image_path = tmp_image_dir / Path(param['i']).name
         original_image_name = image_path.name.split(sep='.')[0]
@@ -130,7 +138,6 @@ class TestHello(SamplesCommonTestClass):
 
                 new_model_path = tmp_model_dir / (original_model_name + f"_{model_name.decode('utf-8')}.xml")
                 model_path.rename(new_model_path)
-                Path(str(model_path).replace('.xml', '.bin')).rename(Path(str(new_model_path).replace('.xml', '.bin')))
                 stdout = get_cmd_output(executable_path, new_model_path, image_path, param['d'])
                 probs = []
                 for line in stdout.split(sep='\n'):

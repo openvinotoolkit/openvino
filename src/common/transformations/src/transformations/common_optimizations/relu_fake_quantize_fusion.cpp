@@ -26,7 +26,7 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
                                                                               pass::pattern::any_input(),
                                                                               pass::pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto relu = pattern_map[relu_pattern];

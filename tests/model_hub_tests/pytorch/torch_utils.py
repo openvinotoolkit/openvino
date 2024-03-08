@@ -50,14 +50,6 @@ class TestTorchConvertModel(TestConvertModel):
         torch.set_grad_enabled(False)
 
     def load_model(self, model_name, model_link):
-        if self.cached_model is not None and self.cached_model[0] == model_name and self.cached_model[1] == model_link:
-            return self.cached_model[2]
-        else:
-            res = self.load_model_impl(model_name, model_link)
-            self.cached_model = (model_name, model_link, res)
-            return res
-
-    def load_model_impl(self, model_name, model_link):
         raise "load_model is not implemented"
 
     def get_inputs_info(self, model_obj):
@@ -81,6 +73,7 @@ class TestTorchConvertModel(TestConvertModel):
 
             input_shapes = []
             input_types = []
+            model_obj.eval()
             if isinstance(self.example, dict):
                 graph = export(model_obj, tuple(), self.example)
                 for input_data in self.example.values():

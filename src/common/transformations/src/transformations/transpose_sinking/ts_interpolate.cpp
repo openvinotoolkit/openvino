@@ -14,6 +14,7 @@
 #include "openvino/util/common_util.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -24,8 +25,8 @@ TSInterpolateForward::TSInterpolateForward() {
     MATCHER_SCOPE(TSInterpolateForward);
     create_pattern<ov::op::v4::Interpolate>(true, {0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         // remove Transpose on 1st input:
         auto transpose_parent = transpose_info.transpose->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
@@ -75,7 +76,7 @@ TSInterpolateBackward::TSInterpolateBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

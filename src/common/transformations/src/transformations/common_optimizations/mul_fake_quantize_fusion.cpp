@@ -30,7 +30,7 @@ ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                                               pass::pattern::any_input(),
                                                                               pass::pattern::any_input(),
                                                                               pass::pattern::any_input()});
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
         const auto& type = input.get_element_type();

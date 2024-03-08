@@ -113,6 +113,7 @@ def get_model_path(request, tmp_path):
 @pytest.mark.parametrize("config", [
     None,
     {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+    {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
 ])
 def test_compact_api(model_type, device_name, config, request):
     compiled_model = None

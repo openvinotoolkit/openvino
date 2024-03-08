@@ -10,12 +10,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::Gelu7Downgrade::Gelu7Downgrade() {
     MATCHER_SCOPE(Gelu7Downgrade);
     auto gelu = ov::pass::pattern::wrap_type<ov::op::v7::Gelu>();
 
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto gelu_node = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 

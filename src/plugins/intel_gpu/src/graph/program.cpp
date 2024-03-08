@@ -769,7 +769,9 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 void program::prepare_memory_dependencies() {
     if (!_config.get_property(ov::intel_gpu::enable_memory_pool))
         return;
-
+    for (auto& node : get_processing_order()) {
+        node->add_memory_dependency(node->get_unique_id());
+    }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
@@ -781,9 +783,13 @@ std::string program::get_memory_dependencies_string() const {
     while (itr != processing_order.end()) {
         auto& node = *itr;
         itr++;
-        mem_dep = mem_dep.append("primitive: ").append(node->id()).append(" restricted list: ");
+        mem_dep = mem_dep.append("primitive: ")
+                         .append(node->id())
+                         .append("(unique_id:")
+                         .append(std::to_string(node->get_unique_id()))
+                         .append(") restricted list: ");
         for (auto it : node->get_memory_dependencies())
-            mem_dep = mem_dep.append(it).append(", ");
+            mem_dep = mem_dep.append(std::to_string(it)).append(",");
         mem_dep = mem_dep.append("\n");
     }
     return mem_dep;

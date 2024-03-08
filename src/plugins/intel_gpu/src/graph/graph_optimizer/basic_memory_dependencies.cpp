@@ -20,7 +20,7 @@ using namespace cldnn;
 void basic_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::BasicMemoryDependencies");
     auto itr = p.get_processing_order().begin();
-    std::vector<primitive_id> past_outputs;
+    std::vector<size_t> past_outputs;
     while (itr != p.get_processing_order().end()) {
         auto& node = *itr;
         itr++;
@@ -62,7 +62,7 @@ void basic_memory_dependencies::run(program& p) {
         node->add_memory_dependency(past_outputs);
         // if current node is an output add it to the outputs list after restriction.
         if (node->is_output()) {
-            past_outputs.push_back(node->id());
+            past_outputs.push_back(node->get_unique_id());
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
                 for (auto& dep : node->get_dependencies()) {

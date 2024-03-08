@@ -3,6 +3,7 @@ abcp4/mymodel-test,mymodel,skip,Load problem
 abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
+adept/persimmon-8b-base,persimmon
 aerner/lm-v2,open-llama,xfail,Example input problem
 afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
@@ -18,7 +19,6 @@ anugunj/omnivore-swinL-in21k,omnivore,skip,Load problem
 apple/mobilevitv2-1.0-imagenet1k-256,mobilevitv2,xfail,Unsupported op aten::col2im
 ArthurZ/jukebox_prior_0,jukebox_prior,skip,Load problem
 ArthurZ/jukebox-vqvae,jukebox_vqvae,skip,Load problem
-ArthurZ/persimmon-8b-base,persimmon
 ashishpatel26/span-marker-bert-base-fewnerd-coarse-super,span-marker,skip,Load problem
 asi/albert-act-tiny,albert_act,skip,Load problem
 BAAI/AltCLIP,altclip

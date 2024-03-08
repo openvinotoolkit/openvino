@@ -8,13 +8,14 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::pass::ConvertPad12ToPad1::ConvertPad12ToPad1() {
     MATCHER_SCOPE(ConvertPad12ToPad1);
 
     const auto pad_v12_pattern = pattern::wrap_type<ov::op::v12::Pad>();
 
-    const matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pad_v12 = std::dynamic_pointer_cast<ov::op::v12::Pad>(m.get_match_root());
         if (!pad_v12 || transformation_callback(pad_v12)) {
             return false;

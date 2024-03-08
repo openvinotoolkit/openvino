@@ -5,3 +5,4 @@
 add_subdirectory(layer_tests)
 add_subdirectory(model_hub_tests)
 add_subdirectory(samples_tests)
+add_subdirectory(e2e_tests)

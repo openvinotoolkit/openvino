@@ -16,6 +16,7 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
+#include "transformations/cpu_opset/common/op/rope.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -67,6 +68,7 @@ private:
     OP_EXTENSION(ov::intel_cpu::FullyConnectedNode)                         \
     OP_EXTENSION(ov::intel_cpu::LeakyReluNode)                              \
     OP_EXTENSION(ov::intel_cpu::PowerStaticNode)                            \
+    OP_EXTENSION(ov::intel_cpu::RoPENode)                                   \
     OP_EXTENSION(ov::intel_cpu::SwishNode)                                  \
     OP_EXTENSION(ov::intel_cpu::NgramNode)                                  \
     OP_EXTENSION(ov::op::internal::NonMaxSuppressionIEInternal)             \
@@ -164,7 +166,9 @@ private:
     OP_EXTENSION(ov::snippets::op::Store)                    \
     OP_EXTENSION(ov::snippets::op::Subgraph)                 \
     OP_EXTENSION(ov::snippets::op::VectorBuffer)             \
-    OP_EXTENSION(ov::snippets::op::RankNormalization)
+    OP_EXTENSION(ov::snippets::op::RankNormalization)        \
+    OP_EXTENSION(ov::snippets::op::ReduceMax)                \
+    OP_EXTENSION(ov::snippets::op::ReduceSum)
 
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
     {CPU_EXTENSIONS TYPE_RELAXED_EXTENSIONS SNIPPETS_EXTENSIONS SNIPPETS_DEBUG_CAPS_EXTENSIONS}));

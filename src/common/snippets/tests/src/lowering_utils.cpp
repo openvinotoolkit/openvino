@@ -53,6 +53,8 @@ DummyTargetMachine::DummyTargetMachine(const std::vector<ov::Node::type_info_t>&
     jitters[ov::snippets::op::NewMemoryBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::VectorBuffer::get_type_info_static()] = dummy_functor;
     jitters[ov::snippets::op::Fill::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = dummy_functor;
+    jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = dummy_functor;
 
     for (const auto& elem : custom_opset) {
         jitters[elem] = dummy_functor;
@@ -77,7 +79,7 @@ void LoweringTests::TearDown() {
         model_ref = cloned_model;
     }
     manager.run_passes(model);
-        ASSERT_NO_THROW(check_rt_info(model));
+    ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();
@@ -110,7 +112,6 @@ std::shared_ptr<ov::snippets::op::Subgraph> LoweringTests::getSubgraph(const std
 
 std::shared_ptr<ov::snippets::op::Subgraph>
         LoweringTests::getLoweredSubgraph(const std::shared_ptr<Model> &f,
-                                          const ov::PartialShape& master_shape,
                                           const std::vector<ov::snippets::pass::Manager::PositionedPassBase>& backend_passes,
                                           const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& lowered_pass_config,
                                           const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes,

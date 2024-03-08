@@ -137,7 +137,6 @@ private:
     void handle_quantize_node(program& p, quantize_node& quantize_node);
     void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
     void remove_fake_reorders(program& p, reorder_node& reorder_node);
-    void prepare_asymmetric_quantization(program& p, convolution_node& convolution_node);
     void prepare_scale_shift_opt(program &p, quantize_node& quantize_node);
     bool optimize_quantize(program &p, quantize_node& quantize_node);
 };
@@ -328,7 +327,7 @@ public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
     void add_memory_dependency(program_node* node, program_node* dep) {
         if (node->can_be_optimized() || !dep->can_be_optimized()) {
-            node->add_memory_dependency(dep->id());
+            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->id() == dep->id()) {
                 return;

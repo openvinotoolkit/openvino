@@ -50,7 +50,6 @@ public:
      */
     virtual size_t get_lanes() const = 0;
 
-
     /**
      * @brief called by generator to all the emitter for a target machine
      * @return a map by node's type info with callbacks to create an instance of emitter for corresponding operation type

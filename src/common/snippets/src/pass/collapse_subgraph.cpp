@@ -162,6 +162,22 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return false;
     };
 
+    auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        if (ov::is_type<const ov::op::v1::ReduceMax>(n) || ov::is_type<const ov::op::v1::ReduceSum>(n)) {
+            const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
+            const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+            const auto rank = n->get_input_partial_shape(0).rank();
+            if (rank.is_dynamic() || !reduce_base->get_keep_dims() || !axis_constant || shape_size(axis_constant->get_shape()) != 1)
+                return false;
+
+            const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
+            const auto normalized_axis = ov::util::normalize_axis(n->get_friendly_name(), axis_value, rank);
+            // Note: Reduction only over the last dimension is currently supported
+            return normalized_axis == rank.get_length() - 1;
+        }
+        return false;
+    };
+
     return is_supported_fq_op(n) ||
            is_supported_unary_eltwise_op(n) ||
            is_supported_binary_eltwise_op(n) ||
@@ -169,7 +185,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
            is_supported_transpose(n) ||
            is_supported_softmax(n) ||
            is_supported_matmul(n) ||
-           is_supported_broadcast_op(n);
+           is_supported_broadcast_op(n) ||
+           is_supported_reduce_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
@@ -178,11 +195,13 @@ auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
         if (t.get_partial_shape().rank().is_dynamic())
             return false;
         // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
-        //  So i32 is supported exclusively for transposes and broadcast
+        //  So i32 is exclusively supported for specific set of operations
         return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
                 (t.get_element_type() == ov::element::i32 &&
                         (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n)));
+                         ov::is_type<const opset1::Broadcast>(n) ||
+                         ov::is_type<const opset1::ReduceMax>(n) ||
+                         ov::is_type<const opset1::ReduceSum>(n)));
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();

@@ -22,6 +22,9 @@
 #include "cumulative_compiled_model.hpp"
 #include "cumulative_schedule.hpp"
 #include "itt.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 
 namespace {
     const std::string get_model_precision(const std::shared_ptr<const ov::Model> &model) {

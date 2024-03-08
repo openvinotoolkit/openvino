@@ -4,6 +4,7 @@
 
 #include "utils.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/op/gather.hpp"
 #include "cpu_opset/common/op/fully_connected.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/utils/utils.hpp"
@@ -54,7 +55,7 @@ bool has_matmul_with_compressed_weights(const std::shared_ptr<const ov::Model>& 
 //         \   /   /
 //          Gather
 bool is_gather_with_compressed_weights(const std::shared_ptr<const ov::Node>& node) {
-    if (!ov::is_type<ov::opset8::Gather>(node)) {
+    if (!ov::is_type<ov::op::v8::Gather>(node)) {
         return false;
     }
     if (node->get_input_size() != 3) {

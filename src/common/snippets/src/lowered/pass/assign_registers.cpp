@@ -101,7 +101,7 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
                     static_cast<Reg>(num_results + num_parameters + buffer_id);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
-            // Only in SoftmaxDecomposition ReduceMax and ReduceSum use HorizonMax/HorizonSum and VectorBuffer.
+            // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
             const auto& input_tensor = expr->get_input_port_connector(0);
