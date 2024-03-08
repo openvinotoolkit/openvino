@@ -28,6 +28,53 @@ class OPENVINO_API PostProcessSteps final {
 
     /// \brief Default empty internal constructor
     PostProcessSteps();
+    // test for mean 
+   TEST(PostProcessSteps, MeanFloat) {
+    cv::Mat img(100, 100, CV_8UC3); 
+  PostProcessSteps steps;
+  steps.mean(127.0f);
+  cv::Mat out = steps.execute(img);
+  ASSERT_EQ(out.type(), CV_8UC3);
+}
+TEST(PostProcessSteps, MeanVec){
+  cv::Mat img(100, 100, CV_8UC3);
+  std::vector<float> means = {123, 117, 110};
+  PostProcessSteps steps;
+  steps.mean(means);
+  cv::Mat out = steps.execute(img);
+
+}
+// test for scale 
+TEST(PostProcessSteps, ScaleFloat) {
+  cv::Mat img(100, 100, CV_8UC3);
+
+  PostProcessSteps steps;
+  steps.scale(0.5f);
+
+  cv::Mat out = steps.execute(img);
+
+}
+
+TEST(PostProcessSteps, ScaleVec){
+  cv::Mat img(100, 100, CV_8UC3);
+  std::vector<float> scales = {0.5f, 0.75f, 1.0f};
+  PostProcessSteps steps;
+  steps.scale(scales);
+  cv::Mat out = steps.execute(img);
+
+}
+// test for chain
+TEST(PostProcessSteps, Chain) {
+  cv::Mat img(100, 100, CV_8UC3);
+  
+  PostProcessSteps steps;
+  steps.mean(127).scale(0.5f);
+
+  cv::Mat out = steps.execute(img);
+
+}
+
+
 
 public:
     /// \brief Default destructor
