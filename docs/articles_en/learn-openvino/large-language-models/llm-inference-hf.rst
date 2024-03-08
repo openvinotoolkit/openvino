@@ -83,23 +83,27 @@ In this case, you can load the converted model in OpenVINO representation direct
 Optimum-Intel API also provides out-of-the-box model optimization through weight compression
 using NNCF which substantially reduces the model footprint and inference latency:
 
-* CLI usage:
+.. tab-set::
 
-.. code-block:: python
+   .. tab-item:: CLI
+      :sync: CLI
 
-    optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
+       .. code-block:: python
 
+       optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
 
-* API usage:
-.. code-block:: python
+   .. tab-item:: API
+      :sync: API
 
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
+      .. code-block:: python
 
-    # or if model was already converted
-    model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+          model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
 
-    # save model after optimization
-    model.save_pretrained(optimized_model_path)
+          # or if model was already converted
+          model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+
+          # save model after optimization
+          model.save_pretrained(optimized_model_path)
 
 
 Weight compression is applied by default to models larger than one billion parameters and is
@@ -113,40 +117,44 @@ also available for CLI interface as the ``--int8`` option.
 compression with ``OVWeightQuantizationConfig`` class to control weight quantization parameters.
 
 
-* CLI usage:
+.. tab-set::
 
-.. code-block:: python
+   .. tab-item:: CLI
+      :sync: CLI
 
-    optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
+      .. code-block:: python
+
+      optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
 
 
-* API usage:
+   .. tab-item:: API
+      :sync: API
 
-.. code-block:: python
+      .. code-block:: python
 
-    from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
-    import nncf
+          from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
+          import nncf
 
-    model = OVModelForCausalLM.from_pretrained(
-        model_id,
-        export=True,
-        quantization_config=OVWeightQuantizationConfig(bits=4),
-    )
+          model = OVModelForCausalLM.from_pretrained(
+              model_id,
+              export=True,
+              quantization_config=OVWeightQuantizationConfig(bits=4),
+          )
 
-    # or if model was already converted
-    model = OVModelForCausalLM.from_pretrained(
-        model_path,
-        quantization_config=OVWeightQuantizationConfig(bits=4),
-    )
+          # or if model was already converted
+          model = OVModelForCausalLM.from_pretrained(
+              model_path,
+              quantization_config=OVWeightQuantizationConfig(bits=4),
+          )
 
-    # use custom parameters for weight quantization
-    mmodel = OVModelForCausalLM.from_pretrained(
-        model_path,
-        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
-    )
+          # use custom parameters for weight quantization
+          mmodel = OVModelForCausalLM.from_pretrained(
+              model_path,
+              quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+          )
 
-    # save model after optimization
-    model.save_pretrained(optimized_model_path)
+          # save model after optimization
+          model.save_pretrained(optimized_model_path)
 
 
 .. note::
