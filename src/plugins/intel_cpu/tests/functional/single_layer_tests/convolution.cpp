@@ -353,6 +353,14 @@ std::vector<InputShape> inputShapesPlain2Blocked1d = {
         },
         {
         //dynamic shapes
+            {-1, 2, {1, 200}},
+            { //target static shapes
+                {2, 2, 7},
+                {1, 2, 9}
+            }
+        },
+        {
+        //dynamic shapes
             {-1, 3, {1, 200}},
             { //target static shapes
                 {2, 3, 7},
@@ -360,6 +368,8 @@ std::vector<InputShape> inputShapesPlain2Blocked1d = {
             }
         }
 };
+
+std::vector<InputShape> inputShapesSmallIC1d = inputShapesPlain2Blocked1d;
 
 /* ============= Convolution params (2D) ============= */
 const std::vector<SizeVector> kernels2d = { {3, 3}, {1, 1} };
@@ -403,6 +413,14 @@ std::vector<InputShape> inputShapesPlain2Blocked2d = {
         },
         {
             //dynamic shape
+            { -1, 2, -1, {1, 200} },
+            { //target static shapes
+                { 2, 2, 7, 7 },
+                { 1, 2, 9, 9}
+            }
+        },
+        {
+            //dynamic shape
             { -1, 3, -1, {1, 200} },
             { //target static shapes
                 { 2, 3, 7, 7 },
@@ -410,6 +428,8 @@ std::vector<InputShape> inputShapesPlain2Blocked2d = {
             }
         }
 };
+
+std::vector<InputShape> inputShapesSmallIC2d = inputShapesPlain2Blocked2d;
 
 /* ============= Convolution params (3D) ============= */
 const std::vector<SizeVector> kernels3d = { {3, 3, 3}, {1, 1, 1} };
@@ -852,22 +872,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_I8, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<CPUSpecificParams> CPUParams_1D_plain_to_blocked = {
+const std::vector<CPUSpecificParams> CPUParams_1D_small_IC = {
+        conv_sse42_1D,
         conv_sse42_plain_to_blocked_1D,
         conv_avx2_plain_to_blocked_1D,
         conv_avx512_plain_to_blocked_1D,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_SmallIC_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_1D,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapesPlain2Blocked1d),
+                                         ::testing::ValuesIn(inputShapesSmallIC1d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D_plain_to_blocked)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_1D_small_IC)),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1057,22 +1078,23 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_I8_dilated, ConvolutionLayerCPUTest,
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
+const std::vector<CPUSpecificParams> CPUParams_2D_small_IC = {
+        conv_sse42_2D,
         conv_sse42_plain_to_blocked_2D,
         conv_avx2_plain_to_blocked_2D,
         conv_avx512_plain_to_blocked_2D,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_SmallIC_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapesPlain2Blocked2d),
+                                         ::testing::ValuesIn(inputShapesSmallIC2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_plain_to_blocked)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_small_IC)),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
@@ -1091,16 +1113,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_PlainToBlocked_BF16, ConvolutionLayerCPUT
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Conv_PlainToBlocked_2D_FP32_dilated, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_SmallIC_2D_FP32_dilated, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D_dilated,
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapesPlain2Blocked2d),
+                                         ::testing::ValuesIn(inputShapesSmallIC2d),
                                          ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_plain_to_blocked)),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_2D_small_IC)),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(cpuEmptyPluginConfig)),
                          ConvolutionLayerCPUTest::getTestCaseName);
