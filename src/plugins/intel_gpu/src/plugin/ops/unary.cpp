@@ -9,6 +9,8 @@
 #include "openvino/op/elu.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/exp.hpp"
