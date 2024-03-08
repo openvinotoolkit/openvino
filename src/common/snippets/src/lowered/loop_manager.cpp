@@ -40,7 +40,7 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
 }
 
 LoopInfo::SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment) {
-    const auto tail_size = loop_work_amount % loop_increment;
+    const auto tail_size = utils::is_dynamic_value(loop_work_amount) ? 1lu : loop_work_amount % loop_increment;
     if (tail_size != 0) {
         m_last_iter_handlers.register_pass<lowered::pass::UpdateMemoryAccessCounts>(tail_size);
         m_last_iter_handlers.register_pass<lowered::pass::UpdateSubtensors>(tail_size);
@@ -54,15 +54,15 @@ LoopInfo::SpecificIterationHandlers::SpecificIterationHandlers(lowered::pass::Pa
       m_main_body_handlers(std::move(main_body_handlers)),
       m_last_iter_handlers(std::move(last_iter_handlers)) {}
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_first_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_first_iter_handlers() const {
     return m_first_iter_handlers;
 }
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_main_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_main_iter_handlers() const {
     return m_main_body_handlers;
 }
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_last_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_last_iter_handlers() const {
     return m_last_iter_handlers;
 }
 
@@ -70,9 +70,9 @@ LoopInfo::SpecificIterationHandlers LoopInfo::SpecificIterationHandlers::merge_h
     const SpecificIterationHandlers& lhs,
     const SpecificIterationHandlers& rhs) {
     return LoopInfo::SpecificIterationHandlers(
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handelrs(), rhs.get_first_iter_handelrs()),
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handelrs(), rhs.get_main_iter_handelrs()),
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handelrs(), rhs.get_last_iter_handelrs()));
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handlers(), rhs.get_first_iter_handlers()),
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handlers(), rhs.get_main_iter_handlers()),
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handlers(), rhs.get_last_iter_handlers()));
 }
 
 LoopInfo::LoopInfo(size_t work_amount,

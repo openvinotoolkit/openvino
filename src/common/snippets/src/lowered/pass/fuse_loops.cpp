@@ -52,8 +52,8 @@ bool FuseLoops::can_be_fused(const LinearIR::LoopManager::LoopInfoPtr& loop_uppe
     // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
     // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
     // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
-    const bool first_iter_handlers_match = loop_upper->get_handlers().get_first_iter_handelrs().empty() ==
-                                           loop_lower->get_handlers().get_first_iter_handelrs().empty();
+    const bool first_iter_handlers_match = loop_upper->get_handlers().get_first_iter_handlers().empty() ==
+                                           loop_lower->get_handlers().get_first_iter_handlers().empty();
     const bool increments_match = loop_upper->get_increment() == loop_lower->get_increment();
     return first_iter_handlers_match && increments_match;
 }

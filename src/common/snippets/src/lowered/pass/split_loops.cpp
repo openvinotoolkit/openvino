@@ -25,7 +25,7 @@ bool SplitLoops::can_be_split(const LoopInfoPtr& loop_to_split, const LoopInfoPt
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
-    const bool only_main_body = handlers.get_first_iter_handelrs().empty() && handlers.get_last_iter_handelrs().empty();
+    const bool only_main_body = handlers.get_first_iter_handlers().empty() && handlers.get_last_iter_handlers().empty();
     return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
