@@ -260,8 +260,6 @@ OP_CONVERTER(translate_full_fx);
 OP_CONVERTER(translate_gelu_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
-OP_CONVERTER(translate_isinf_fx);
-OP_CONVERTER(translate_isnan_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
 OP_CONVERTER(translate_log_softmax_fx);
@@ -803,6 +801,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.hardtanh_.default", op::inplace_op<op::translate_hardtanh>},
         {"aten.index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
+        {"aten.isfinite.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsFinite>>},
         {"aten.isinf.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsInf>>},
         {"aten.isnan.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::IsNaN>>},
         {"aten.le.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::LessEqual>},

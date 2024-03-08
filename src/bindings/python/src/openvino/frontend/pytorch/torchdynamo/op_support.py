@@ -137,6 +137,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.hardtanh_.default": None,
             "torch.ops.aten.index.Tensor": None,
             "torch.ops.aten.index_select.default": None,
+            "torch.ops.aten.isfinite.default": None,
             "torch.ops.aten.isinf.default": None,
             "torch.ops.aten.isnan.default": None,
             "torch.ops.aten.le.Scalar": None,
