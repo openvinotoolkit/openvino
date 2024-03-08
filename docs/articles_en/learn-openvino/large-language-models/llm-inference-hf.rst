@@ -40,7 +40,7 @@ such as ``OVModelForSeq2SeqLM``, though this guide will focus on CausalLM.
 
 By setting the parameter ``export=True``, the model is converted to OpenVINO IR format on the fly.
 
-Recommendation is to save model to disk after conversion using ``save_pretrained()`` and loading it from disk at deployment time via ``from_pretrained()`` for better efficiency.
+It is recommended to save model to disk after conversion using ``save_pretrained()`` and loading it from disk at deployment time via ``from_pretrained()`` for better efficiency.
 
 .. code-block:: python
 
