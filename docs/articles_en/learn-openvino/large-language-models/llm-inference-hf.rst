@@ -84,6 +84,14 @@ In this case, you can load the converted model in OpenVINO representation direct
 Optimum-Intel API also provides out-of-the-box model optimization through weight compression
 using NNCF which substantially reduces the model footprint and inference latency:
 
+* CLI usage:
+
+.. code-block:: python
+
+    optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
+
+
+* API usage:
 .. code-block:: python
 
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
@@ -106,6 +114,15 @@ also available for CLI interface as the ``--int8`` option.
 compression with ``OVWeightQuantizationConfig`` class to control weight quantization parameters.
 
 
+* CLI usage:
+
+.. code-block:: python
+
+    optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
+
+
+* API usage:
+
 .. code-block:: python
 
     from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
@@ -114,10 +131,16 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
     model = OVModelForCausalLM.from_pretrained(
         model_id,
         export=True,
-        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+        quantization_config=OVWeightQuantizationConfig(bits=4),
     )
 
     # or if model was already converted
+    mmodel = OVModelForCausalLM.from_pretrained(
+        model_path,
+        quantization_config=OVWeightQuantizationConfig(bits=4),
+    )
+
+    # use custom parameters for weight quantization
     mmodel = OVModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
@@ -127,7 +150,10 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
     model.save_pretrained(optimized_model_path)
 
 
-The optimized model can be saved as usual with a call to ``save_pretrained()``.
+.. note::
+
+   Optimum-Intel has a predefined set of weight quantization parameters for popuar models, such ``meta-llama/Llama-2-7b`` or ``Qwen/Qwen-7B-Chat``. These parameters are used by default when only ``bits=4`` is specified in the config.
+
 For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
 
 .. note::
