@@ -145,11 +145,6 @@ OutputVector translate_var(const NodeContext& context) {
     return {res[0]};
 }
 
-OutputVector translate_var_correction_fx(const NodeContext& context) {
-    auto res = translate_var_mean(context);
-    return {context.mark_node(make_list_construct(res))};
-}
-
 OutputVector translate_std(const NodeContext& context) {
     auto res = translate_var_mean(context);
     auto var = res[0];
