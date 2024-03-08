@@ -581,18 +581,14 @@ TEST(type_prop, avg_pool_invalid_rounding_type) {
 
     const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
 
-    OV_EXPECT_THROW(
-        std::ignore = make_shared<ov::op::v1::AvgPool>(param,
-                                                       window_movement_strides,
-                                                       pads_begin,
-                                                       pads_end,
-                                                       kernel,
-                                                       true,
-                                                       ov::op::RoundingType::CEIL_TORCH);
-        ,
-        ov::NodeValidationFailure,
-        HasSubstr(
-            "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions."));
+    OV_EXPECT_THROW(std::ignore = make_shared<ov::op::v1::AvgPool>(param,
+                                                                   window_movement_strides,
+                                                                   pads_begin,
+                                                                   pads_end,
+                                                                   kernel,
+                                                                   true,
+                                                                   ov::op::RoundingType::CEIL_TORCH);
+                    , ov::NodeValidationFailure, HasSubstr("Rounding CEIL_TORCH is not supported."));
 }
 
 TEST(type_prop, avg_pool_14_auto_padding_ceil_torch) {

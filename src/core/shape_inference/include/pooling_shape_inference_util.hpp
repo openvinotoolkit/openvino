@@ -26,6 +26,11 @@ void padding(const TOp* op, const TContainer& pads_begin, const TContainer& pads
                           pads_end.size());
 }
 
+template <class TOp>
+constexpr bool has_torch_ceil_mode() {
+    return std::is_same<TOp, v14::AvgPool>::value || std::is_same<TOp, v14::MaxPool>::value;
+}
+
 template <class TOp, class TShape>
 void attributes(const TOp* op, const TShape& data_shape, const Strides& dilations) {
     const auto& data_rank = data_shape.rank();
@@ -38,7 +43,6 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
     const auto& kernel = op->get_kernel();
     const auto num_spatial = kernel.size();
     const auto& strides = op->get_strides();
-    const auto& rounding_type = op->get_rounding_type();
 
     NODE_VALIDATION_CHECK(op,
                           strides.size() == num_spatial,
@@ -63,11 +67,10 @@ void attributes(const TOp* op, const TShape& data_shape, const Strides& dilation
                           std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
                           "Kernel dilations has zero dimension(s). ",
                           dilations);
-    NODE_VALIDATION_CHECK(
-        op,
-        !(!ov::is_type<ov::op::v14::AvgPool>(op) && !ov::is_type<ov::op::v14::MaxPool>(op) &&
-          rounding_type == ov::op::RoundingType::CEIL_TORCH),
-        "The CEIL_TORCH rounding type has been introduced in opset 14 and is unavailable in earlier versions.");
+    if (!has_torch_ceil_mode<TOp>()) {
+        const auto is_ceil_torch = op->get_rounding_type() == RoundingType::CEIL_TORCH;
+        NODE_VALIDATION_CHECK(op, !is_ceil_torch, "Rounding CEIL_TORCH is not supported.");
+    }
 }
 }  // namespace validate
 
