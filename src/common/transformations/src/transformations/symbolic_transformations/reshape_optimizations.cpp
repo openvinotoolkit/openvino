@@ -7,6 +7,7 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"

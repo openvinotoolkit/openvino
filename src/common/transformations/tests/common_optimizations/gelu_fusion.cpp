@@ -20,6 +20,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"

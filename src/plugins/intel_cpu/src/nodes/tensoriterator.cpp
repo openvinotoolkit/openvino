@@ -11,6 +11,8 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/debug_capabilities.h"
+#include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/loop.hpp"
 
 #include <string>
 #include <vector>

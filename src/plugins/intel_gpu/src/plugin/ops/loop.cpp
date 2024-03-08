@@ -7,6 +7,7 @@
 
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/utils/utils.hpp"
