@@ -288,6 +288,7 @@ def fetchAppOutput(cfg, commit):
                 item["dst"],
                 item["src"]
             )
+        commitLogger.info("App command: {}".format(appCmd))
         # initialize venv
         p = subprocess.Popen('rm -rf {}'.format(
                 cfg["venvCfg"]["venvDir"]
@@ -318,7 +319,6 @@ def fetchAppOutput(cfg, commit):
         p = subprocess.Popen(
             appCmd,
             executable="/bin/bash",
-            # cwd=appPath,
             cwd=cfg["venvCfg"]["venvDir"],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -676,10 +676,21 @@ def applySubstitutionRules(cfg: map, rules: list, commit: str=None):
             multistepStrFormat(
                 content,
                 rule["placeholder"],
-                srcPos[commit] if commit is not None else srcPos
+                getMapValueByShortHash(srcPos, commit)\
+                    if commit is not None\
+                    else srcPos
             )
         )
         cfg = deepMapUpdate(cfg, pathToDst, dstPos)
+
+def getMapValueByShortHash(map: dict, commit: str):
+    for k in map:
+        if getMeaningfullCommitTail(k) ==\
+            getMeaningfullCommitTail(commit):
+            return map[k]
+    raise Exception("No {} in {}".format(
+        commit, map.keys()
+    ))
 
 def multistepStrFormat(input: str, placeholder: str, substitution: str):
     return input.replace(

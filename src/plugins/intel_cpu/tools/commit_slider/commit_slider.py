@@ -6,6 +6,7 @@ import os
 import shutil
 import sys
 from distutils.dir_util import copy_tree
+from distutils.errors import DistutilsFileError
 from utils.helpers import safeClearDir, getParams
 
 args, cfgData, customCfgPath = getParams()
@@ -69,7 +70,11 @@ else:
     tempCachePath = cfgData["cachePath"].format(workPath=workPath)
     permCachePath = cfgData["cachePath"].format(workPath=curPath)
     safeClearDir(permCachePath, cfgData)
-    copy_tree(tempCachePath, permCachePath)
+    try:
+        copy_tree(tempCachePath, permCachePath)
+    except DistutilsFileError:
+        # prevent exception raising while cache is empty
+        pass
 
     try:
         shutil.copyfile(

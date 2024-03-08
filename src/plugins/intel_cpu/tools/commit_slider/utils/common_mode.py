@@ -119,6 +119,14 @@ class Mode(ABC):
                         c1=newList[0], c2=newList[-1])
                 )
                 list = newList
+            elif self.traversal.isComparative():
+                raise util.PreliminaryAnalysisError(
+                    "No degradation for reduced interval: \
+                    {i1} and {i2} don't differ".format(
+                        i1=list[0], i2=list[-1]),
+                    util.PreliminaryAnalysisError.\
+                        PreliminaryErrType.NO_DEGRADATION
+                    )
         else:
             self.preliminaryCheck(list, cfg)
         return list
