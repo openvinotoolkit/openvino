@@ -49,7 +49,7 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     auto mul = std::make_shared<ov::op::v1::Multiply>(input, reversed_pow_as_sqrt);
     auto divide_or_mul = std::make_shared<pattern::op::Or>(OutputVector{divide, mul});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
