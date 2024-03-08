@@ -90,7 +90,7 @@ using NNCF which substantially reduces the model footprint and inference latency
 
        .. code-block:: python
 
-       optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
+          optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
 
    .. tab-item:: API
       :sync: API
@@ -124,7 +124,7 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
 
       .. code-block:: python
 
-      optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
+          optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
 
 
    .. tab-item:: API
