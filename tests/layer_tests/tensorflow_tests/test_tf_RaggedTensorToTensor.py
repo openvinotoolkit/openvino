@@ -16,9 +16,9 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
         assert 'values:0' in inputs_info, "Test error: inputs_info must contain `values`"
         values_shape = inputs_info['values:0']
         inputs_data = {}
-        if np.issubdtype(self.input_type, np.floating):
+        if np.issubdtype(self.values_type, np.floating):
             inputs_data['values:0'] = rng.uniform(-5.0, 5.0, values_shape).astype(self.values_type)
-        elif np.issubdtype(self.input_type, np.signedinteger):
+        elif np.issubdtype(self.values_type, np.signedinteger):
             inputs_data['values:0'] = rng.integers(-8, 8, values_shape).astype(self.values_type)
         else:
             inputs_data['values:0'] = rng.integers(0, 8, values_shape).astype(self.values_type)
@@ -43,7 +43,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
         return tf_net, None
 
     @pytest.mark.parametrize('shape_type', [np.int32, np.int64])
-    @pytest.mark.parametrize('shape_value', [[4, 8], [-1, 64]])
+    @pytest.mark.parametrize('shape_value', [[4, 8], [-1, 64], [5, -1], [-1, -1]])
     @pytest.mark.parametrize('values_shape', [[40], [100]])
     @pytest.mark.parametrize('values_type', [np.float32, np.int32, np.int64])
     @pytest.mark.parametrize('default_value', [-1, 0])
