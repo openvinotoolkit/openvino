@@ -310,9 +310,8 @@ The ``ov::hint::performance_mode`` property enables you to specify a performance
 
 The THROUGHPUT and CUMULATIVE_THROUGHPUT hints below only improve performance in an
 asynchronous inference pipeline. For information on asynchronous inference, see the
-:doc:`Async API documentation < ./../../integrate-openvino-with-your-application/
-
-       ../integrate-openvino-with-your-application/inference-request>` . The following notebooks provide examples of how to set up an asynchronous pipeline:
+:doc:`Async API documentation <../integrate-openvino-with-your-application/inference-request>` .
+The following notebooks provide examples of how to set up an asynchronous pipeline:
 
 * :doc:`Image Classification Async Sample <../../../learn-openvino/openvino-samples/image-classification-async>`
 * `Notebook - Asynchronous Inference with OpenVINO™ <./../../../notebooks/115-async-api-with-output.html>`__
