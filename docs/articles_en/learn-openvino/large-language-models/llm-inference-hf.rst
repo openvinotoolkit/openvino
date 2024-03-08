@@ -40,8 +40,7 @@ such as ``OVModelForSeq2SeqLM``, though this guide will focus on CausalLM.
 
 By setting the parameter ``export=True``, the model is converted to OpenVINO IR format on the fly.
 
-After that, you can call ``save_pretrained()`` method to save model to the folder in the OpenVINO
-Intermediate Representation and use it further.
+Recommendation is to save model to disk after conversion using ``save_pretrained()`` and loading it from disk at deployment time via ``from_pretrained()`` for better efficiency.
 
 .. code-block:: python
 
@@ -135,7 +134,7 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
     )
 
     # or if model was already converted
-    mmodel = OVModelForCausalLM.from_pretrained(
+    model = OVModelForCausalLM.from_pretrained(
         model_path,
         quantization_config=OVWeightQuantizationConfig(bits=4),
     )
