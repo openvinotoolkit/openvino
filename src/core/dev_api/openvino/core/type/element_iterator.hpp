@@ -45,7 +45,7 @@ constexpr bool is_nibble_type(Type_t et) {
 }
 
 /**
- * @brief Checks if element type is split split bit type.
+ * @brief Checks if element type is split bit type.
  *
  * The value is stored in byte(s) like [b0, b1, x, .., x, b2, b3].
  *
@@ -57,10 +57,10 @@ constexpr bool is_split_bit_type(Type_t et) {
 }
 
 /**
- * @brief Check element type if is using only byte.
+ * @brief Check element type is using only byte(s).
  *
  * @param et  Element type to check.
- * @return True if element type use bytes for its value otherwise false.
+ * @return True if element type use byte(s) for its value otherwise false.
  */
 constexpr bool is_byte_type(Type_t et) {
     return !is_bit_type(et) && !is_split_bit_type(et) && !is_nibble_type(et);
@@ -114,7 +114,7 @@ constexpr size_t bit_width<Type_t::u6>() {
  *
  * @tparam T  Fundamental type of sub-byte value which must be same as fundamental type of element::Type_t.
  * @tparam N  Number of bits for sub-byte value.
- * @tparam S  Flag to indicate sub-byte value i signed.
+ * @tparam S  Flag to indicate sub-byte value is signed.
  * @tparam Enable class for specific type, bit layouts.
  */
 template <class T, size_t N, bool S, class Enable = void>
@@ -125,7 +125,7 @@ class BitProxy {};
  *
  * @tparam T  Fundamental type of sub-byte value which must be same as fundamental type of element::Type_t.
  * @tparam N  Number of bits for sub-byte value.
- * @tparam S  Flag to indicate sub-byte value i signed.
+ * @tparam S  Flag to indicate sub-byte value is signed.
  */
 template <class T, size_t N, bool S>
 class BitProxy<T, N, S, typename std::enable_if<N != 3 && N != 6>::type> {
@@ -137,8 +137,8 @@ private:
     static constexpr size_t m_num_values = 8 / N;               //!< Number values in byte.
     static constexpr size_t m_shift_init = N == 4 ? 0 : 8 - N;  //!< Initial value for bit shift.
 
-    T* m_ptr;            //!< Pointer to T value used to get sub-byte value.
-    size_t m_bit_shift;  //!< Current bit shift to get sub-byte value.
+    T* m_ptr;            //!< Pointer to T used to get value.
+    size_t m_bit_shift;  //!< Current bit shift to get value.
 
     constexpr BitProxy(T* ptr) noexcept : m_ptr{ptr}, m_bit_shift{m_shift_init} {}
 
@@ -224,7 +224,7 @@ private:
         ByteValue* m_bytes;  //!< Pointer to buffer as 3 bytes representation.
     };
 
-    size_t m_bit_shift;  //!< Current bit shift to get BitProxy value.
+    size_t m_bit_shift;  //!< Current bit shift to get value.
 
     constexpr BitProxy(T* ptr) noexcept : m_ptr{ptr}, m_bit_shift{m_shift_init} {}
 
@@ -326,8 +326,8 @@ public:
     using iterator_category = std::bidirectional_iterator_tag;
     using difference_type = std::ptrdiff_t;
     using value_type = T;
-    using reference = proxy_type&;
-    using pointer = proxy_type*;
+    using reference = typename std::conditional<std::is_const<T>::value, const proxy_type&, proxy_type&>::type;
+    using pointer = typename std::conditional<std::is_const<T>::value, const proxy_type*, proxy_type*>::type;
 
     static_assert(std::is_same<typename std::decay<T>::type, ov::fundamental_type_for<ET>>::value,
                   "Iterator value_type must be same as fundamental type of ET");
@@ -450,18 +450,15 @@ public:
     }
 
     // compare operators
-    template <Type_t ETT = ET, typename std::enable_if<!is_byte_type(ETT)>::type* = nullptr>
     constexpr bool operator!=(const Iterator<ET, T>& rhs) const {
         return (m_et_ptr.m_ptr != rhs.m_et_ptr.m_ptr) || (m_et_ptr.m_bit_shift != rhs.m_et_ptr.m_bit_shift);
     }
 
     // dereference operators
-    template <Type_t ETT = ET, typename std::enable_if<!is_byte_type(ETT)>::type* = nullptr>
-    reference operator*() const {
+    constexpr const proxy_type& operator*() const {
         return m_et_ptr;
     }
 
-    template <Type_t ETT = ET, typename std::enable_if<!is_byte_type(ETT)>::type* = nullptr>
     reference operator*() {
         return m_et_ptr;
     }
