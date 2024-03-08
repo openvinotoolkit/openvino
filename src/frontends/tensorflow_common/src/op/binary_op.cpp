@@ -147,22 +147,23 @@ OutputVector translate_addv2_op(const NodeContext& node) {
     default_op_checks(node, 2, {}, true);
     auto lhs = node.get_input(0);
     auto rhs = node.get_input(1);
-    auto result = make_shared<v1::Add>(lhs, rhs);
-
+    
     auto complex_type_mark_lhs = as_type_ptr<ComplexTypeMark>(lhs.get_node_shared_ptr());
     auto complex_type_mark_rhs = as_type_ptr<ComplexTypeMark>(rhs.get_node_shared_ptr());
-    if (complex_type_mark_lhs || complex_type_mark_rhs) {
-        FRONT_END_GENERAL_CHECK(complex_type_mark_lhs != nullptr && complex_type_mark_rhs != nullptr,
-                                "AddV2 got complex and non-complex inputs. Inputs should be of the same type.");
+    auto complex_type_inputs = (complex_type_mark_lhs ||  complex_type_mark_rhs) ? true : false;
+    
+    if (complex_type_inputs) {
         lhs = complex_type_mark_lhs->input_value(0);
         rhs = complex_type_mark_rhs->input_value(0);
-
-        // Wrap the result with ComplexTypeMark and return
-        auto complex_result = make_shared<ComplexTypeMark>(result, complex_type_mark_lhs->get_complex_part_type());
-        return {complex_result};
     }
 
-    // If inputs are not complex, return the result as is
+    auto result = make_shared<v1::Add>(lhs, rhs);
+    if(complex_type_inputs){
+        auto complex_result = make_shared<ComplexTypeMark>(result, complex_type_mark_lhs->get_complex_part_type());
+        set_node_name(node.get_name(), complex_result);
+        return {complex_result};
+    }
+    
     set_node_name(node.get_name(), result);
     return {result};
 }
