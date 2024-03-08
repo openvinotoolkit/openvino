@@ -187,7 +187,7 @@ configure_package_config_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOCo
 
 list(APPEND INSTALL_PATH_VARS "OPENVINO_LIB_DIR")
 # remove generator expression at the end, because searching in Release / Debug
-# will be done by inside OpenVINOConfig.cmak / ACLConfig.cmake
+# will be done by inside OpenVINOConfig.cmake / ACLConfig.cmake
 string(REPLACE "$<CONFIG>" "" OPENVINO_LIB_DIR "${OV_CPACK_LIBRARYDIR}")
 
 set(OV_TBB_DIR "${OV_TBB_DIR_INSTALL}")

@@ -178,8 +178,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # in case of static libraries, Intel GPU shares oneDNN with CPU plugin
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_cpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
+        set(onednn_output_dir "${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}")
+        if(OV_GENERATOR_MULTI_CONFIG)
+            # TODO: here we assume Release config is used, but it will not work for debug
+            set(onednn_output_dir "${onednn_output_dir}/Release")
+        endif()
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-        set(ONEDNN_GPU_LIB_PATH ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+        set(ONEDNN_GPU_LIB_PATH ${onednn_output_dir}/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
 
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
