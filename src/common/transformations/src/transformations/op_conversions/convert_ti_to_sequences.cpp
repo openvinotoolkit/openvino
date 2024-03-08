@@ -14,6 +14,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gru_cell.hpp"
@@ -24,12 +25,16 @@
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -559,12 +564,12 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
     auto sequence_index_or_label =
         std::make_shared<pattern::op::Or>(OutputVector{sequence_index_label, sequence_index_reshaped_label});
     auto gather_body_label =
-        pattern::wrap_type<opset8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
-                                           pattern::rank_equals(2));
+        pattern::wrap_type<ov::op::v8::Gather>({X_body_label, sequence_index_or_label, gather_axis_label},
+                                               pattern::rank_equals(2));
     auto W_label = pattern::any_input();
     auto R_label = pattern::any_input();
     auto B_label = pattern::wrap_type<op::v0::Constant>();
-    auto lstm_cell_label = pattern::wrap_type<opset4::LSTMCell>(
+    auto lstm_cell_label = pattern::wrap_type<ov::op::v4::LSTMCell>(
         {gather_body_label, H_body_label, C_body_label, W_label, R_label, B_label});
     auto scatter_index_new_shape_label = pattern::wrap_type<op::v0::Constant>();
     auto scatter_index_body_label =
@@ -577,7 +582,7 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         pattern::rank_equals(3));
     auto loop_output_label = pattern::wrap_type<op::v0::Result>({scatter_body_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto match_root = m.get_match_root();
 
@@ -1091,7 +1096,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
 
     auto concat_label = pattern::wrap_type<op::v0::Concat>({squeeze_forward_label, squeeze_reverse_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_map();
         auto lstm_forward = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_forward_label));
         auto lstm_reverse = ov::as_type_ptr<op::v5::LSTMSequence>(pattern_map.at(lstm_sequence_reverse_label));
