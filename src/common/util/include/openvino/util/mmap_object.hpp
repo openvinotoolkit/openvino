@@ -22,7 +22,7 @@ namespace ov {
 class MappedMemory {
 public:
     virtual ~MappedMemory() = default;
-    
+
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
     virtual size_t get_offset() const = 0;
