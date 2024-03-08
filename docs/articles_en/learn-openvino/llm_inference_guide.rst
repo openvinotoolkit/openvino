@@ -55,12 +55,11 @@ sampling.
 into a stateful form, optimizing inference performance and memory usage in long running text generation
 tasks by managing past KV-cache tensors more efficiently internally. This feature is automatically activated
 for many supported models, while unsupported ones remain stateless.
-Learn more about the :doc:`Stateful models and State API <openvino_docs_OV_UG_stateful_models_intro>`.
+Learn more about the :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
 
 OpenVINO offers two main paths for Generative AI use cases:
 
 * **Hugging Face**: use OpenVINO as a backend for Hugging Face frameworks (transformers, diffusers) through the `Optimum Intel <https://huggingface.co/docs/optimum/intel/inference>`__ extension.
-
 * **Native OpenVINO**: use OpenVINO native APIs (Python and C++) with `custom pipeline code <https://github.com/openvinotoolkit/openvino.genai>`__.
 
 In both cases, the OpenVINO runtime is used for inference,
@@ -83,9 +82,8 @@ if it needs to be optimized further. Optimum Intel provides interfaces that enab
 using `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__,
 and export models to the OpenVINO model format for use in native API applications.
 
-* To proceed with **Hugging Face API**, read :doc:`LLM Inference with Hugging Face and Optimum Intel <llm_inference>` guide.
-
-* To proceed with **Native OpenVINO API**, go to :doc:`LLM Inference with Native OpenVINO <llm_inference_native_ov>` page.
+* To proceed with **Hugging Face API**, read :doc:`LLM Inference with Hugging Face and Optimum Intel <./llm_inference_guide/llm-inference-hf>` guide.
+* To proceed with **Native OpenVINO API**, go to :doc:`LLM Inference with Native OpenVINO <./llm_inference_guide/llm-inference-native-ov>` page.
 
 The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
 
