@@ -105,36 +105,39 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_FP32_dilated_empty_fusing, ConvolutionLayerCPUT
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<CPUSpecificParams> CPUParams_2D_plain_to_blocked = {
+const std::vector<CPUSpecificParams> CPUParams_2D_small_IC = {
+        conv_sse42_2D,
         conv_sse42_plain_to_blocked_2D,
         conv_avx2_plain_to_blocked_2D,
         conv_avx512_plain_to_blocked_2D,
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_PlainToBlocked_FP32, ConvolutionLayerCPUTest,
+const std::vector<InputShape>& inputShapesSmallIC2d = inputShapesPlain2Blocked2d();
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_2D_SmallIC_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D(),
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapesPlain2Blocked2d()),
+                                         ::testing::ValuesIn(inputShapesSmallIC2d),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_2D_plain_to_blocked)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_2D_small_IC)),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(Conv_PlainToBlocked_2D_FP32_dilated, ConvolutionLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_SmallIC_2D_FP32_dilated, ConvolutionLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::Combine(
                                          convParams_ExplicitPadding_2D_dilated(),
                                          ::testing::Values(ElementType::f32),
                                          ::testing::Values(ElementType::undefined),
                                          ::testing::Values(ElementType::undefined),
-                                         ::testing::ValuesIn(inputShapesPlain2Blocked2d()),
+                                         ::testing::ValuesIn(inputShapesSmallIC2d),
                                          ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_2D_plain_to_blocked)),
+                                 ::testing::ValuesIn(filterCPUInfo(CPUParams_2D_small_IC)),
                                  ::testing::Values(emptyFusingSpec),
                                  ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
