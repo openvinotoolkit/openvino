@@ -7,6 +7,8 @@
 #include<vector>
 #include"boolvariant.hpp"
 #include "common_op_table.hpp"
+#include<concat.hpp>
+#include<tensor.hpp>
 #include <host_tensor.hpp>
 
 using namespace std;
