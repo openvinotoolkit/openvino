@@ -81,22 +81,18 @@ In this case, you can load the converted model in OpenVINO representation direct
     model = OVModelForCausalLM.from_pretrained(model_id)
 
 
-By default, inference will run on CPU. To select a different inference device, for example, GPU,
-add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after
-the model has been loaded, use the ``.to()`` method. The device naming convention is the same
-as in OpenVINO native API:
-
-.. code-block:: python
-
-    model.to("GPU")
-
-
 Optimum-Intel API also provides out-of-the-box model optimization through weight compression
 using NNCF which substantially reduces the model footprint and inference latency:
 
 .. code-block:: python
 
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
+
+    # or if model was already converted
+
+    model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+
+    model.save_pretrained(optimized_model_path)
 
 
 Weight compression is applied by default to models larger than one billion parameters and is
@@ -120,6 +116,15 @@ compression with ``OVWeightQuantizationConfig`` class to control weight quantiza
         export=True,
         quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
     )
+
+    # or if model was already converted
+
+    mmodel = OVModelForCausalLM.from_pretrained(
+        model_path,
+        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+    )
+
+    model.save_pretrained(optimized_model_path)
 
 
 The optimized model can be saved as usual with a call to ``save_pretrained()``.
@@ -168,13 +173,14 @@ an inference pipeline. This setup allows for easy text processing and model inte
   Converting LLMs on the fly every time to OpenVINO IR is a resource intensive task.
   It is a good practice to convert the model once, save it in a folder and load it for inference.
 
-By default, inference will run on CPU. To switch to a different device, the ``device`` attribute
-from the ``from_pretrained`` function can be used. The device naming convention is the
-same as in OpenVINO native API:
+By default, inference will run on CPU. To select a different inference device, for example, GPU,
+add ``device="GPU"`` to the ``from_pretrained()`` call. To switch to a different device after
+the model has been loaded, use the ``.to()`` method. The device naming convention is the same
+as in OpenVINO native API:
 
 .. code-block:: python
 
-  model = OVModelForCausalLM.from_pretrained(model_id, export=True, device="GPU")
+    model.to("GPU")
 
 Enabling OpenVINO Runtime Optimizations
 ############################################################
