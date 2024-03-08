@@ -509,7 +509,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeOnInputsFunction::initOriginal() const 
     const auto mulConst = ov::test::utils::deprecated::make_constant(precision, ov::Shape({1}), std::vector<float>{1}, true);
     const auto mul = std::make_shared<ov::op::v1::Multiply>(param1, mulConst);
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, mul, transA, transB);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(matMul0, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2, transA, transB);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
@@ -526,7 +526,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeFunction::initOriginal() const {
     float transA = false;
     float transB = false;
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, param1, transA, transB);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(matMul0, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2, transA, transB);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
@@ -553,7 +553,7 @@ std::shared_ptr<ov::Model> MHAWOTransposeSplitMFunction::initReference() const {
     auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], reshape2->get_shape());
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(data0, data1);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(matMul0, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, data2);
 
     const auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{reshape0, reshape1, reshape2},
@@ -698,7 +698,7 @@ std::shared_ptr<ov::Model> MHAQuantMatMul0Function::initOriginal() const {
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, fq1);
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, addParam);
-    const auto softMax = std::make_shared<ov::opset8::Softmax>(add, -1);
+    const auto softMax = std::make_shared<ov::op::v8::Softmax>(add, -1);
 
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
     auto fq2 = ov::test::utils::make_fake_quantize(matMul1, ov::element::f32, 256, {1},
@@ -950,7 +950,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initOriginal() const {
     }
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1, false, m_transposed_b);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(matMul0, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(matMul1)};
@@ -993,7 +993,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
     }
 
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(matMul0, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 
     auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data0, in1, data2},
@@ -1036,7 +1036,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initOriginal() const
     const auto target_shape_const_2 = ov::opset1::Constant::create(ov::element::i32, ov::Shape{mm_out_shape.size()}, mm_out_shape);
     const auto reshape_2 = std::make_shared<ov::opset1::Reshape>(add_2, target_shape_const_2, false);
 
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(reshape_2, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(reshape_2, -1);
     const auto matmul_1 = std::make_shared<ov::opset1::MatMul>(softmax, param_4);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(matmul_1)};
@@ -1074,7 +1074,7 @@ std::shared_ptr<ov::Model> MHAWithExtractedReshapeFunction::initReference() cons
 
     const auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(param_0, param_1);
     const auto add_internal = std::make_shared<ov::opset1::Add>(matmul_0, param_2);
-    const auto softmax = std::make_shared<ov::opset8::Softmax>(add_internal, -1);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_internal, -1);
     const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_3);
 
     auto subgraph_model = std::make_shared<ov::Model>(NodeVector{matmul_1}, ov::ParameterVector{param_0, param_1, param_2, param_3});

@@ -20,6 +20,8 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/softmax.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
