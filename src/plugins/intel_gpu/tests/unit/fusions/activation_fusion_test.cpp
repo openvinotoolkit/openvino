@@ -9,8 +9,6 @@
 #include <intel_gpu/primitives/quantize.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/permute.hpp>
 
 #include <cmath>
 
