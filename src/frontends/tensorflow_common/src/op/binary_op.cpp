@@ -160,7 +160,7 @@ OutputVector translate_addv2_op(const NodeContext& node) {
     auto result = make_shared<v1::Add>(lhs, rhs);
     if(complex_type_inputs){
         auto complex_result = make_shared<ComplexTypeMark>(result, complex_type_mark_lhs->get_complex_part_type());
-        set_node_name(node.get_name(), complex_result);
+        set_node_name(node.get_name(), result);
         return {complex_result};
     }
     
