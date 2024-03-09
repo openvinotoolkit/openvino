@@ -61,7 +61,7 @@ std::tuple<Output<Node>, Output<Node>> get_transpose_perm(ov::pass::NodeRegistry
     Output<Node> perm = rg.make<v0::Concat>(shapes_list, 0);                              // [1, 0]
     auto diff = rg.make<v1::Subtract>(tensor_rank_correct_type, positive_dim_plus1_vec);  // 1
 
-    // add the suffix if exists
+    // compute the perm
     perm = rg.make<v1::Pad>(perm, const_0_vec, diff, const_0, PadMode::CONSTANT);  // [1, 0, 0]
     auto negative_range =
         rg.make<v4::Range>(const_0, rg.make<v0::Negative>(positive_dim_plus1), const_neg_1, element::i32);  // [0, -1]
