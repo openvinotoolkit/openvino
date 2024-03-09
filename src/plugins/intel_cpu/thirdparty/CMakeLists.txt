@@ -66,6 +66,7 @@ function(ov_add_onednn_common)
         # build oneDNN to be compatible with Intel GPU plugin
         set(DNNL_ENABLE_PRIMITIVE_GPU_ISA "XEHP;XEHPG;XEHPC" CACHE STRING "" FORCE)
         set(DNNL_GPU_RUNTIME "OCL" CACHE STRING "" FORCE)
+        set(DNNL_EXPERIMENTAL_PROFILING ON CACHE BOOL "" FORCE)
 
         # Keep in sync with https://github.com/openvinotoolkit/openvino/blob/releases/2024/0/src/plugins/intel_gpu/CMakeLists.txt#L30
         set(INTEL_GPU_TARGET_OCL_VERSION "200" CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
