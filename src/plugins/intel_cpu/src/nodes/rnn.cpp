@@ -19,6 +19,12 @@
 #include "ov_ops/augru_sequence.hpp"
 
 #include "openvino/core/node.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/lstm_cell.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>

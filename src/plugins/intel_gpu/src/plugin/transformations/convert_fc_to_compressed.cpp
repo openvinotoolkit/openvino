@@ -19,6 +19,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/multiply.hpp"
 
 namespace ov {
 namespace intel_gpu {
