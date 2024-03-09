@@ -50,18 +50,12 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
     auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
-    shared_ptr<ComplexTypeMark> complex_emb_segment_sum;
     if (complex_type_mark) {
-        element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        data = complex_type_mark->input_value(0);
-
-        complex_emb_segment_sum = make_shared<ComplexTypeMark>(emb_segment_sum, complex_part_type);
-        set_node_name(node.get_name(), complex_emb_segment_sum);
-        return {complex_emb_segment_sum};
-    } else {
-        set_node_name(node.get_name(), emb_segment_sum);
-        return {emb_segment_sum};
+        auto data = complex_type_mark->input_value(0);
+        auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
     }
+    set_node_name(node.get_name(), emb_segment_sum);
+    return {emb_segment_sum};
 }
 }  // namespace op
 }  // namespace tensorflow
