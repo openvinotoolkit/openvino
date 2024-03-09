@@ -222,6 +222,8 @@ class TestAdd(CommonTFLayerTest):
                                                           use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision,
                    ir_version=ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
+
+
 class TestComplexAdd(CommonTFLayerTest):
         def _prepare_input(self, inputs_info):
             rng = np.random.default_rng()
