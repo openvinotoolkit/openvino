@@ -48,10 +48,9 @@ struct Configuration {
 
     ov::hint::Priority model_priority = ov::hint::Priority::DEFAULT;
 
-    int optimal_batch_size = 4;
-    int max_batch_size = 4;
+    int optimal_batch_size = 1;
+    int max_batch_size = 1;
     bool loaded_from_cache = false;
-    bool enable_mmap = false;
     int compilation_num_threads = 1;
     int inference_num_threads = 1;
 };
