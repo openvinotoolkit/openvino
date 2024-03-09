@@ -65,8 +65,8 @@ if(NOT BUILD_SHARED_LIBS)
     # because oneDNN externals depend on it)
     install(TARGETS OpenCL EXPORT dnnl-targets
             ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${OV_CPACK_COMP_CORE})
+else()
+    # TODO: remove before merge
+    install(TARGETS OpenCL
+            LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE})
 endif()
-
-# TODO: remove before merge
-install(TARGETS OpenCL
-        LIBRARY DESTINATION ${OV_CPACK_PLUGINSDIR} COMPONENT ${OV_CPACK_COMP_CORE})

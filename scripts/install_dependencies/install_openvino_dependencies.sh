@@ -131,7 +131,7 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=(ocl-icd-libopencl1 libtbb2)
+    pkgs_core=(libtbb2)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
@@ -140,7 +140,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(ocl-icd-libopencl1)
+    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
@@ -223,7 +223,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         pkgs_python+=(python3 python3-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
-    pkgs_core+=("${!pkgs_gpu}")
 elif [ "$os" == "opensuse-leap15.3" ] ; then
     pkgs_core=(libtbb2 libtbbmalloc2)
     pkgs_gpu=(libOpenCL1)
