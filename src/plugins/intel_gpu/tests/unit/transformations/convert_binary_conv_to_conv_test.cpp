@@ -20,7 +20,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/pad.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
