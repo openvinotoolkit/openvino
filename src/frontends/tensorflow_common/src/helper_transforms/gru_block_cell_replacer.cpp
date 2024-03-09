@@ -12,7 +12,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"

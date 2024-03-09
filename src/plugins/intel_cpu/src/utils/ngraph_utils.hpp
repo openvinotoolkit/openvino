@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cassert>
-#include "openvino/op/util/op_types.hpp"
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
