@@ -9,6 +9,7 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
@@ -589,6 +590,13 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
     auto _value = rg.make<opset10::ConvertLike>(value, data);
     auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
     return rg.make<opset10::Select>(bool_mask, _value, data);
+}
+
+Output<Node> masked_select(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask) {
+    auto _index = rg.make<opset10::NonZero>(mask);
+    return rg.make<opset10::GatherND>(data, _index);
 }
 
 }  // namespace pytorch

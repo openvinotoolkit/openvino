@@ -127,6 +127,7 @@ OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
+OP_CONVERTER(translate_masked_select);
 OP_CONVERTER(translate_max);
 OP_CONVERTER(translate_maximum);
 OP_CONVERTER(translate_max_poolnd);
@@ -499,6 +500,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::masked_fill_", op::inplace_op<op::translate_masked_fill>},
         {"aten::masked_scatter", op::translate_masked_scatter},
         {"aten::masked_scatter_", op::inplace_op<op::translate_masked_scatter>},
+        {"aten::masked_select", op::translate_masked_select},
         {"aten::matmul", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::max", op::translate_max},
         {"aten::maximum", op::translate_maximum},

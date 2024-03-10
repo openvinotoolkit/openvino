@@ -210,6 +210,7 @@ This page lists operations supported by OpenVINO Framework Frontend.
       aten::masked_fill_
       aten::masked_scatter
       aten::masked_scatter_
+      aten::masked_select
       aten::matmul
       aten::max
       aten::max_pool1d

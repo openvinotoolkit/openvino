@@ -107,6 +107,10 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
+Output<Node> masked_select(ov::pass::NodeRegistry& rg,
+                         const Output<Node>& data,
+                         const Output<Node>& mask);
+
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
 OutputVector inplace_op(const NodeContext& context) {
