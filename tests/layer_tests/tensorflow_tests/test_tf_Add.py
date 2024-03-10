@@ -254,6 +254,8 @@ class TestComplexAdd(CommonTFLayerTest):
                 complex1 = tf.raw_ops.Complex(real=param_real1, imag=param_imag1)
                 complex2 = tf.raw_ops.Complex(real=param_real2, imag=param_imag2)
                 add = tf.raw_ops.AddV2(x=complex1, y=complex2, name="complex_add")
+                real = tf.raw_ops.Real(input=add)
+                img = tf.raw_ops.Imag(input=add)
                 tf.compat.v1.global_variables_initializer()
                 tf_net = sess.graph_def
 
