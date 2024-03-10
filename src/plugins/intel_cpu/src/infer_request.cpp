@@ -449,11 +449,9 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 }
 
 void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ITensor>>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
+    if (find_port(port).is_input()) {
+        m_batched_tensors[port.get_tensor_ptr()] = tensors;
+        return;
     }
     OPENVINO_THROW("Cannot find port to set_tensors!");
 }
