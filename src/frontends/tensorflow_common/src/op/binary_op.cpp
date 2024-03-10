@@ -144,7 +144,7 @@ OutputVector translate_mul_op(const NodeContext& node) {
 }
 
 OutputVector translate_addv2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {}, true);
+    default_op_checks(node, 2, {"Add", "AddV2"}, true);
     auto lhs = node.get_input(0);
     auto rhs = node.get_input(1);
 
