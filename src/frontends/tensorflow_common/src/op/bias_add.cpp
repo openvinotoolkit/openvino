@@ -62,6 +62,11 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
 
     auto res = make_shared<v1::Add>(value, bias_reshaped);
     set_node_name(node.get_name(), res);
+
+    if (complex_type_inputs) {
+        auto complex_reshape = make_shared<ComplexTypeMark>(res, complex_type_mark_value->get_complex_part_type());
+        return {complex_reshape->output(0)};
+    }
     return res->outputs();
 }
 }  // namespace op
