@@ -168,7 +168,7 @@ class TestComplexBiasAdd(CommonTFLayerTest):
         inputs_data['x_imag:0'] = 4 * rng.random(x_imag_shape).astype(np.float64) - 2
         return inputs_data
 
-    def create_complex_bias_add_net(self, shape, ir_version, use_legacy_frontend, output_type=tf.float64):
+    def create_complex_bias_add_net(self, shape, data_format, ir_version, use_legacy_frontend, output_type=tf.float64):
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
@@ -186,19 +186,23 @@ class TestComplexBiasAdd(CommonTFLayerTest):
             complex_input = tf.complex(x_real, x_imag)
             complex_bias = tf.complex(y_real, y_imag)
 
-            result = tf.raw_ops.BiasAdd(value=complex_input, bias=complex_bias,data_format='NHWC',name="ComplexBiasAdd")
+            result = tf.raw_ops.BiasAdd(value=complex_input, bias=complex_bias,data_format=data_format,name="ComplexBiasAdd")
+            real = tf.raw_ops.Real(input=result)
+            img = tf.raw_ops.Imag(input=result)
 
             tf_net = sess.graph_def
 
         return tf_net, None
 
     test_data_2D = [
-        dict(shape=[1, 1]),
-        dict(shape=[1, 224])
+        dict(shape=[1, 1], data_format="NHWC"),
+        dict(shape=[1, 224], data_format="NHWC"),
+        dict(shape=[1, 1], data_format="NCHW"),
+        dict(shape=[1, 224], data_format="NCHW"),
     ]
 
     @pytest.mark.parametrize("params", test_data_2D)
-    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
     def test_complex_bias_add(self, params, ie_device, precision, ir_version, temp_dir,
                               use_legacy_frontend):
         self._test(*self.create_complex_bias_add_net(**params, ir_version=ir_version,
