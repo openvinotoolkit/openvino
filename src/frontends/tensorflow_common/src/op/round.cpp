@@ -1,15 +1,18 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#pragma once
 
 #include "openvino/op/round.hpp"
 #include<complex>
 #include<vector>
-#include"boolvariant.hpp"
+#include"helper_ops/boolvariant.hpp"
 #include "common_op_table.hpp"
 #include<concat.hpp>
 #include<tensor.hpp>
 #include <host_tensor.hpp>
+#include"helper_ops/complex_tensor_reshape.hpp"
+#include "helper_ops/flatten_tensor.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -18,56 +21,6 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
-
-class ComplexTensor {
-public:
-    // Constructor
-    ComplexTensor(const ov::Output<ov::Node>& tensor, const ov::Output<ov::Node>& shape)
-        : tensor_(tensor), shape_(shape) {}
-
-    // Method to extract the real part of the tensor
-    std::vector<float> real() const {
-        std::vector<float> real_tensor(tensor_.size());
-        for (int i = 0; i < tensor_.size(); ++i) {
-            real_tensor[i] = tensor_[i].real();
-        }
-        return real_tensor;
-    }
-
-    // Method to extract the imaginary part of the tensor
-    std::vector<float> imag() const {
-        std::vector<float> imag_tensor(tensor_.size());
-        for (int i = 0; i < tensor_.size(); ++i) {
-            imag_tensor[i] = tensor_[i].imag();
-        }
-        return imag_tensor;
-    }
-
-    // Method to get the shape of the tensor
-    std::vector<int> shape() const {
-        return shape_;
-    }
-
- private:
-    std::vector<std::complex<float>> tensor_;
-    std::vector<int> shape_;
-};
-
-// Flat the tensor
-std::vector<std::complex<float>> flatten(const ov::Output<ov::Node>& tensor) {
-    auto host_tensor_ptr = tensor.get_tensor_ptr();
-    auto data_ptr = host_tensor_ptr->get_data_ptr<std::complex<float>>();
-    
-    // Assuming the tensor is 1D or 2D, calculate the total number of elements.
-    auto shape = host_tensor_ptr->get_shape();
-    size_t num_elements = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
-    
-    // Create a vector from the data pointer.
-    std::vector<std::complex<float>> flat_tensor(data_ptr, data_ptr + num_elements);
-    
-    return flat_tensor;
-}
-}
 
 std::vector<size_t> get_shape(const ov::Output<ov::Node>& tensor) {
     auto host_tensor_ptr = tensor.get_tensor_ptr();
@@ -107,9 +60,15 @@ OutputVector translate_round_op(const NodeContext& node) {
         res->get_rt_info()["ComplexTypeMark"] = std::make_shared<ov::BoolVariant>(true);
         auto flatten_in = flatten(input);
         auto tensor_shape = get_shape(input); 
-        ComplexTensor complexTensor(flatten_in, tensor_shape);
-        auto real = complexTensor.real();
-        auto imag = complexTensor.imag();
+
+        // Extract the real and imaginary parts of the tensor
+        std::vector<float> real(flatten_in.size());
+        std::vector<float> imag(flatten_in.size());
+        for (int i = 0; i < flatten_in.size(); ++i) {
+            real[i] = flatten_in[i].real();
+            imag[i] = flatten_in[i].imag();
+        }
+
         auto real_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{real.size()}, real);
         auto imag_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{imag.size()}, imag);
         auto shape_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{tensor_shape.size()}, tensor_shape);
