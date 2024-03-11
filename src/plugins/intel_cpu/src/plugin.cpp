@@ -275,7 +275,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                           const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Plugin::compile_model");
     CREATE_DEBUG_TIMER(debugLoadTimer);
-
     // verification of supported input
     for (const auto& ii : model->inputs()) {
         auto input_precision = ii.get_element_type();
@@ -472,6 +471,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties{
             RW_property(ov::num_streams.name()),
+            RW_property(ov::cpu_core_ids.name()),
             RW_property(ov::affinity.name()),
             RW_property(ov::inference_num_threads.name()),
             RW_property(ov::enable_profiling.name()),

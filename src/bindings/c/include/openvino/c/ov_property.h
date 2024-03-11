@@ -114,6 +114,13 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_num_streams;
 
 /**
+ * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_cpu_core_ids;
+
+/**
  * @brief Read-write property to set/get the name for setting CPU affinity per thread option.
  * @ingroup ov_property_c_api
  */

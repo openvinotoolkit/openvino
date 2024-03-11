@@ -30,7 +30,7 @@ OPENVINO_RUNTIME_API bool check_open_mp_env_vars(bool include_omp_num_threads = 
  * @ingroup    ov_dev_api_system_conf
  * @return     NUMA nodes
  */
-OPENVINO_RUNTIME_API std::vector<int> get_available_numa_nodes();
+OPENVINO_RUNTIME_API std::vector<int> get_available_numa_nodes(int executor_id);
 
 /**
  * @brief      Returns available CPU cores types (on Linux, and Windows) and ONLY with TBB, single core type is assumed
@@ -49,7 +49,7 @@ OPENVINO_RUNTIME_API std::vector<int> get_available_cores_types();
  * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
-OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false);
+OPENVINO_RUNTIME_API int get_number_of_cpu_cores(int executor_id, bool big_cores_only = false);
 
 /**
  * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original
@@ -59,7 +59,7 @@ OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false);
  * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of logical CPU cores.
  */
-OPENVINO_RUNTIME_API int get_number_of_logical_cpu_cores(bool big_cores_only = false);
+OPENVINO_RUNTIME_API int get_number_of_logical_cpu_cores(int executor_id, bool big_cores_only = false);
 
 /**
  * @brief      Returns number of blocked CPU cores. Please note that this is a temporary interface for performance
@@ -67,7 +67,7 @@ OPENVINO_RUNTIME_API int get_number_of_logical_cpu_cores(bool big_cores_only = f
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of blocked CPU cores.
  */
-OPENVINO_RUNTIME_API int get_number_of_blocked_cores();
+OPENVINO_RUNTIME_API int get_number_of_blocked_cores(int executor_id);
 
 /**
  * @brief      Checks whether CPU supports SSE 4.2 capability
@@ -158,21 +158,21 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
  * @ingroup    ov_dev_api_system_conf
  * @return     `True` is CPU mapping is available, `false` otherwise
  */
-OPENVINO_RUNTIME_API bool is_cpu_map_available();
+OPENVINO_RUNTIME_API bool is_cpu_map_available(int executor_id);
 
 /**
  * @brief      Get number of numa nodes
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of numa nodes
  */
-OPENVINO_RUNTIME_API int get_num_numa_nodes();
+OPENVINO_RUNTIME_API int get_num_numa_nodes(int executor_id);
 
 /**
  * @brief      Get number of sockets
  * @ingroup    ov_dev_api_system_conf
  * @return     Number of sockets
  */
-OPENVINO_RUNTIME_API int get_num_sockets();
+OPENVINO_RUNTIME_API int get_num_sockets(int executor_id);
 
 /**
  * @brief      Returns a table of number of processor types on Linux/Windows
@@ -189,14 +189,14 @@ OPENVINO_RUNTIME_API int get_num_sockets();
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table();
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_proc_type_table(int executor_id);
 
 /**
  * @brief      Returns the socket ID in cpu mapping table of the currently running thread.
  * @ingroup    ov_dev_api_system_conf
  * @return     socket ID in cpu mapping
  */
-OPENVINO_RUNTIME_API int get_current_socket_id();
+OPENVINO_RUNTIME_API int get_current_socket_id(int executor_id);
 
 /**
  * @brief      Returns a table of original number of processor types without filtering other plugins occupying CPU
@@ -206,7 +206,7 @@ OPENVINO_RUNTIME_API int get_current_socket_id();
  * @ingroup    ov_dev_api_system_conf
  * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table();
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_org_proc_type_table(int executor_id);
 
 /**
  * @enum       ColumnOfProcessorTypeTable
@@ -255,9 +255,12 @@ enum ProcessorUseStatus {
  * @param[in]  stream_processors processors grouped in stream which is used in core binding in cpu streams executor
  * @param[in]  cpu_status set cpu status
  */
-OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_table,
+OPENVINO_RUNTIME_API void reserve_available_cpus(int executor_id,
+                                                 const std::vector<std::vector<int>> streams_info_table,
                                                  std::vector<std::vector<int>>& stream_processors,
                                                  const int cpu_status = NOT_USED);
+
+OPENVINO_RUNTIME_API int config_available_cpus(int executor_id, std::vector<int>& cpuids);
 
 /**
  * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
@@ -265,7 +268,7 @@ OPENVINO_RUNTIME_API void reserve_available_cpus(const std::vector<std::vector<i
  * @param[in]  cpu_ids cpus in cpu_mapping.
  * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
  */
-OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const int used);
+OPENVINO_RUNTIME_API void set_cpu_used(int executor_id, const std::vector<int>& cpu_ids, const int used);
 
 /**
  * @brief      Get socket id by current numa node id
@@ -273,7 +276,7 @@ OPENVINO_RUNTIME_API void set_cpu_used(const std::vector<int>& cpu_ids, const in
  * @param[in]  numa_node_id numa node id
  * @return     socket id
  */
-OPENVINO_RUNTIME_API int get_socket_by_numa_node(int numa_node_id);
+OPENVINO_RUNTIME_API int get_socket_by_numa_node(int executor_id, int numa_node_id);
 
 /**
  * @brief      Get original socket id by current socket id, the input socket id is recalculated after filtering (like

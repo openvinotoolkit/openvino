@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <execinfo.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -66,6 +68,7 @@ public:
 
     private:
         std::string _name;            //!< Used by `ITT` to name executor threads
+        int _executor_id = -1;
         int _streams = 1;             //!< Number of streams.
         int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
@@ -163,6 +166,9 @@ public:
         std::string get_name() const {
             return _name;
         }
+        int get_executor_id() const {
+            return _executor_id;
+        }
         int get_streams() const {
             return _streams;
         }
@@ -208,7 +214,7 @@ public:
          */
         static Config make_default_multi_threaded(const Config& initial);
 
-        static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
+        static int get_default_num_streams(int executor_id);  // no network specifics considered (only CPU's caps);
 
         /**
          * @brief Get and reserve cpu ids based on configuration and hardware information
