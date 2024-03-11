@@ -23,7 +23,7 @@ void CheckInplaceDirection(const std::shared_ptr<Graph> graph, const std::string
     const std::vector<NodePtr>& graph_nodes = graph->GetNodes();
     size_t actualCount = 0;
     for (auto &node : graph_nodes) {
-        if (node->getName().find(patial_name) != std::string::npos) {
+        if (node->getName().find(partial_name) != std::string::npos) {
             auto parentEdge = node->getParentEdgeAt(inport);
             if (undesiredDirection == 0)
                 ASSERT_TRUE(parentEdge->inPlace(Edge::LOOK_BOTH));
