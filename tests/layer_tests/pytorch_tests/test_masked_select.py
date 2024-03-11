@@ -42,6 +42,8 @@ class TestMaskedSelect(PytorchLayerTest):
     def test_masked_select(self, mask_select, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version,
+                   dynamic_shapes=False,
+                   trace_model=True,
                    kwargs_to_prepare_input={'mask_select': mask_select, 'mask_dtype': bool, "input_dtype": input_dtype})
 
     @pytest.mark.skipif(parse_version(torch.__version__) >= parse_version("2.1.0"), reason="pytorch 2.1 and above does not support nonboolean mask")
@@ -54,4 +56,6 @@ class TestMaskedSelect(PytorchLayerTest):
     def test_masked_select_non_bool_mask(self, mask_select, mask_dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version,
+                   dynamic_shapes=False,
+                   trace_model=True,
                    kwargs_to_prepare_input={'mask_select': mask_select, 'mask_dtype': mask_dtype, "input_dtype": input_dtype})
