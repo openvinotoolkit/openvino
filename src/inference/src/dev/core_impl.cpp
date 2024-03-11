@@ -744,19 +744,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent,
-                                    plugin,
-                                    parsed._config,
-                                    ov::SoPtr<ov::IRemoteContext>{},
-                                    coreConfig.get_enable_mmap(),
-                                    [&]() {
-                                        return compile_model_and_cache(plugin,
-                                                                       model,
-                                                                       parsed._config,
-                                                                       ov::SoPtr<ov::IRemoteContext>{},
-                                                                       cacheContent);
-                                    });
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+            return compile_model_and_cache(plugin,
+                                           model,
+                                           parsed._config,
+                                           ov::SoPtr<ov::IRemoteContext>{},
+                                           cacheContent);
+        });
     } else {
         res = plugin.compile_model(model, parsed._config);
     }
@@ -782,8 +777,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (cacheManager && device_supports_model_caching(plugin) && !is_proxy_device(plugin)) {
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId = ov::ModelCache::compute_hash(model, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, coreConfig.get_enable_mmap(), [&]() {
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        res = load_model_from_cache(cacheContent, plugin, parsed._config, context, [&]() {
             return compile_model_and_cache(plugin, model, parsed._config, context, cacheContent);
         });
     } else {
@@ -807,17 +802,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CacheContent cacheContent{cacheManager, model_path};
         cacheContent.blobId = ov::ModelCache::compute_hash(model_path, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model =
-            load_model_from_cache(cacheContent,
-                                  plugin,
-                                  parsed._config,
-                                  ov::SoPtr<ov::IRemoteContext>{},
-                                  coreConfig.get_enable_mmap(),
-                                  [&]() {
-                                      auto model = read_model(model_path, std::string{});
-                                      return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
-                                  });
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto model = read_model(model_path, std::string{});
+                return compile_model_and_cache(plugin, model, parsed._config, {}, cacheContent);
+            });
     } else {
         compiled_model = plugin.compile_model(model_path, parsed._config);
     }
@@ -840,20 +830,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         CacheContent cacheContent{cacheManager};
         cacheContent.blobId =
             ov::ModelCache::compute_hash(model_str, weights, create_compile_config(plugin, parsed._config));
-        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
-        compiled_model = load_model_from_cache(cacheContent,
-                                               plugin,
+        std::unique_ptr<CacheGuardEntry> lock = cacheGuard.get_hash_lock(cacheContent.blobId);
+        compiled_model =
+            load_model_from_cache(cacheContent, plugin, parsed._config, ov::SoPtr<ov::IRemoteContext>{}, [&]() {
+                auto model = read_model(model_str, weights);
+                return compile_model_and_cache(plugin,
+                                               model,
                                                parsed._config,
                                                ov::SoPtr<ov::IRemoteContext>{},
-                                               coreConfig.get_enable_mmap(),
-                                               [&]() {
-                                                   auto model = read_model(model_str, weights);
-                                                   return compile_model_and_cache(plugin,
-                                                                                  model,
-                                                                                  parsed._config,
-                                                                                  ov::SoPtr<ov::IRemoteContext>{},
-                                                                                  cacheContent);
-                                               });
+                                               cacheContent);
+            });
     } else {
         auto model = read_model(model_str, weights);
         compiled_model = plugin.compile_model(model, parsed._config);
@@ -1415,15 +1401,15 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     ov::Plugin& plugin,
     const ov::AnyMap& config,
     const ov::SoPtr<ov::IRemoteContext>& context,
-    const bool enable_mmap,
     std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda) {
     ov::SoPtr<ov::ICompiledModel> compiled_model;
     struct HeaderException {};
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
+    bool use_mmap = plugin.supports_model_caching_with_mmap();
     try {
         bool mmap_failed = false;
-        if (enable_mmap) {
+        if (use_mmap) {
             try {
                 cacheContent.cacheManager->read_cache_entry(
                     cacheContent.blobId,
@@ -1471,7 +1457,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 mmap_failed = true;
             }
         }
-        if (!enable_mmap || mmap_failed) {
+        if (!use_mmap || mmap_failed) {
             cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,

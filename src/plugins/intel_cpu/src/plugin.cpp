@@ -4,6 +4,7 @@
 
 #include "plugin.h"
 
+#include "cpu_streams_calculation.hpp"
 #include "internal_properties.hpp"
 #include "itt.h"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -11,7 +12,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "serialize.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/denormals.hpp"
@@ -482,6 +482,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
@@ -589,9 +590,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(std::shared_ptr<ov::Model>& model,
-                                                                  const ov::AnyMap& properties,
-                                                                  const std::shared_ptr<ov::MappedMemory>& model_buffer) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(ModelDeserializer& deserializer,
+                                                                  const ov::AnyMap& properties) const {
+    std::shared_ptr<ov::Model> model;
+    deserializer >> model;
+
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
 
@@ -608,6 +611,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::handle_imported_model(std::shared_pt
     // import config props from caching model
     calculate_streams(conf, model, true);
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
+
     return compiled_model;
 }
 
@@ -620,28 +624,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
             return get_core()->read_model(model, weights, true);
         });
 
-    std::shared_ptr<ov::Model> model;
-    deserializer >> model;
-
-    return handle_imported_model(model, properties);
+    return handle_imported_model(deserializer, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Any& model_variant,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
-    if (model_buffer && model_buffer->size() == 0) {
-        OPENVINO_THROW("Model file size is 0, file name");
+
+    if (model_variant.is<std::istream*>()) {
+        auto model_stream = model_variant.as<std::istream *>();
+
+        return import_model(model_stream, properties);
+    } else if (model_variant.is<std::shared_ptr<ov::MappedMemory>>()) {
+        auto& mapped_model = model_variant.as<std::shared_ptr<ov::MappedMemory>>();
+        if (mapped_model == nullptr || mapped_model->size() == 0lu) {
+            OPENVINO_THROW("Invalid Mapped Memory object.");
+        }
+
+        ModelDeserializer deserializer(mapped_model,
+            [this](const std::string& model, const ov::Tensor& weights) {
+                return get_core()->read_model(model, weights, true);
+            });
+
+        return handle_imported_model(deserializer, properties);
     }
 
-    ModelDeserializer deserializer(model_buffer,
-        [this](const std::string& model, const ov::Tensor& weights) {
-            return get_core()->read_model(model, weights, true);
-        });
-
-    std::shared_ptr<ov::Model> model;
-    deserializer >> model;
-
-    return handle_imported_model(model, properties, model_buffer);
+    return nullptr;
 }
 
 }  // namespace intel_cpu
