@@ -55,17 +55,16 @@ TEST_P(ParseBatchDeviceTest, ParseBatchDeviceTestCase) {
     }
 }
 
-auto DeviceProperties = [](const std::string& device_name, const uint32_t batch_size) {
+auto batch_device_properties = [](const std::string& device_name, const uint32_t batch_size) {
     auto prop = ov::AnyMap({{device_name, ov::AnyMap({ov::hint::num_requests(batch_size)})}});
     return ov::AnyMap({{ov::device::properties.name(), prop}});
 };
 
-const std::vector<batch_device_config_params>
-    batch_device_test_configs = {
-        batch_device_config_params{"CPU", DeviceProperties("CPU", 4), 4, false},
-        batch_device_config_params{"CPU", DeviceProperties("CPU", -1), -1, true},
-        batch_device_config_params{"CPU", DeviceProperties("CPU", 0), 0, true},
-        batch_device_config_params{"CPU", {}, 0, false},
+const std::vector<batch_device_config_params> batch_device_test_configs = {
+    batch_device_config_params{"CPU", batch_device_properties("CPU", 4), 4, false},
+    batch_device_config_params{"CPU", batch_device_properties("CPU", -1), -1, true},
+    batch_device_config_params{"CPU", batch_device_properties("CPU", 0), 0, true},
+    batch_device_config_params{"CPU", {}, 0, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

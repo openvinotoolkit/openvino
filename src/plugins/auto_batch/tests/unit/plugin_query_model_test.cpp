@@ -62,17 +62,17 @@ TEST_P(QueryModelTest, QueryModelTestCase) {
     }
 }
 
-auto DeviceProperties = [](const std::string& device_name, const uint32_t batch_size) {
+auto create_properties = [](const std::string& device_name, const uint32_t batch_size) {
     return ov::AnyMap({{device_name, ov::AnyMap({ov::hint::num_requests(batch_size)})}});
 };
 const std::vector<query_model_params> query_model_params_test = {
     query_model_params{{{}}, true},
     query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}}, true},
-    query_model_params{{{ov::device::priorities("CPU")}, {ov::device::properties.name(), DeviceProperties("CPU", 4)}},
+    query_model_params{{{ov::device::priorities("CPU")}, {ov::device::properties.name(), create_properties("CPU", 4)}},
                        false},
     query_model_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
                         {ov::device::priorities("CPU")},
-                        {ov::device::properties.name(), DeviceProperties("CPU", 4)}},
+                        {ov::device::properties.name(), create_properties("CPU", 4)}},
                        false},
 };
 

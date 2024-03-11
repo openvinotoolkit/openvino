@@ -129,7 +129,7 @@ TEST_P(PluginCompileModelTest, PluginCompileModelBatchedModelWithRemoteContextTe
     ASSERT_NO_THROW(m_plugin->compile_model(m_model, m_plugin_properities, m_remote_context));
 }
 
-auto DeviceProperties = [](const std::string& device_name, const uint32_t batch_size) {
+auto create_device_properties = [](const std::string& device_name, const uint32_t batch_size) {
     return ov::AnyMap({{device_name, ov::AnyMap({ov::hint::num_requests(batch_size)})}});
 };
 const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = {
@@ -141,7 +141,7 @@ const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = 
                                 {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
                                {{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
                                 {ov::device::priorities("CPU")},
-                                {ov::device::properties.name(), DeviceProperties("CPU", 32)}},
+                                {ov::device::properties.name(), create_device_properties("CPU", 32)}},
                                32},
     plugin_compile_model_param{{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT},
                                 {ov::optimal_batch_size.name(), static_cast<unsigned int>(16)},
@@ -150,7 +150,7 @@ const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = 
                                 {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
                                {{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
                                 {ov::device::priorities("GPU")},
-                                {ov::device::properties.name(), DeviceProperties("GPU", 32)}},
+                                {ov::device::properties.name(), create_device_properties("GPU", 32)}},
                                32},
     // Case 2: CPU batch size is figured out by min of opt_batch_size and infReq_num
     //         If config contains "PERFORMANCE_HINT_NUM_REQUESTS"
@@ -215,7 +215,7 @@ const std::vector<plugin_compile_model_param> plugin_compile_model_param_test = 
                                 {ov::intel_gpu::device_total_mem_size.name(), static_cast<uint64_t>(4096000000)}},
                                {{ov::auto_batch_timeout(static_cast<uint32_t>(200))},
                                 {ov::device::priorities("CPU")},
-                                {ov::device::properties.name(), DeviceProperties("CPU", 32)}},
+                                {ov::device::properties.name(), create_device_properties("CPU", 32)}},
                                32},
 };
 

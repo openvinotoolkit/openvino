@@ -105,29 +105,29 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDeviceTestCase) {
     }
 }
 
-auto DeviceProperties = [](const std::string& device_name, const uint32_t batch_size) {
+auto meta_device_properties = [](const std::string& device_name, const uint32_t batch_size) {
     return ov::AnyMap({{device_name, ov::AnyMap({ov::hint::num_requests(batch_size)})}});
 };
 
 const std::vector<meta_device_params> meta_device_test_configs = {
     meta_device_params{"CPU", {}, DeviceInformation{"CPU", {}, 0}, false},
     meta_device_params{"CPU",
-                       {{ov::cache_dir("./")}, {ov::device::properties.name(), DeviceProperties("CPU", 4)}},
+                       {{ov::cache_dir("./")}, {ov::device::properties.name(), meta_device_properties("CPU", 4)}},
                        DeviceInformation{"CPU", {{ov::cache_dir("./")}}, 4},
                        false},
     meta_device_params{"GPU",
-                       {{ov::cache_dir("./")}, {ov::device::properties.name(), DeviceProperties("GPU", 4)}},
+                       {{ov::cache_dir("./")}, {ov::device::properties.name(), meta_device_properties("GPU", 4)}},
                        DeviceInformation{"GPU", {{ov::cache_dir("./")}}, 4},
                        false},
     meta_device_params{"GPU",
                        {{ov::cache_dir("./")},
                         {ov::optimal_batch_size.name(), "16"},
-                        {ov::device::properties.name(), DeviceProperties("GPU", 8)}},
+                        {ov::device::properties.name(), meta_device_properties("GPU", 8)}},
                        DeviceInformation{"GPU", {{ov::cache_dir("./")}, {ov::optimal_batch_size.name(), "16"}}, 8},
                        false},
     meta_device_params{
         "CPU",
-        {{ov::optimal_batch_size.name(), "16"}, {ov::device::properties.name(), DeviceProperties("CPU", 4)}},
+        {{ov::optimal_batch_size.name(), "16"}, {ov::device::properties.name(), meta_device_properties("CPU", 4)}},
         DeviceInformation{"CPU", {{}}, 4},
         true},
     meta_device_params{"CPU",
