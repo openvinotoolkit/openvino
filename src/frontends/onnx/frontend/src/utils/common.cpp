@@ -259,9 +259,12 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
         if (unsupported_operations->size() > 0) {
             *output_stream << std::endl;
         }
-        *output_stream << "Errors during ONNX translation: \n";
+        *output_stream << "Errors during ONNX translation:";
         for (const auto& failure_message : *failures) {
-            *output_stream << failure_message << std::endl;
+            auto pos = failure_message.find_last_not_of('\n');
+            *output_stream << std::endl
+                           << (pos > 0 && pos < failure_message.length() ? failure_message.substr(0, pos + 1)
+                                                                         : failure_message);
         }
     }
 
