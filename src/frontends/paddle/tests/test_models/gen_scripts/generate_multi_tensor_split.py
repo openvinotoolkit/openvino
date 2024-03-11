@@ -6,7 +6,7 @@ import numpy as np
 import sys
 import os
 
-from save_model import save_inference_model
+from save_model import saveModel
 
 if paddle.__version__ >= '2.6.0':
     import paddle.base as fluid
@@ -40,11 +40,7 @@ def create_multi_output_model():
     inp_dict = {'x': inp_blob_1}
     res_paddle = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-    save_inference_model(os.path.join(sys.argv[1], "multi_tensor_split"),
-                                  list(inp_dict.keys()), var, exe,
-                                  model_filename="multi_tensor_split.pdmodel",
-                                  params_filename="multi_tensor_split.pdiparams")
-
+    paddle.static.io.save_inference_model(os.path.join(sys.argv[1], "multi_tensor_split", "multi_tensor_split"), [x], var, exe)
 
 create_multi_output_model()
 

@@ -24,7 +24,7 @@ def gather_nd(name: str, x, y):
         saveModel(
             name,
             exe,
-            feedkeys=["x", "index"],
+            feed_vars=[data, index],
             fetchlist=[out],
             inputs=[x, y],
             outputs=[outs[0]],

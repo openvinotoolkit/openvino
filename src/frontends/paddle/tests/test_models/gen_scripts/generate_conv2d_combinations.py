@@ -18,8 +18,8 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with paddle.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=[feed], fetchlist=fetch_list, inputs=[input_x],
-                  outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+        saveModel(name, exe, feed_vars=[feed], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def paddle_conv2d(input_x, name, input_shape, kernel, dilation, padding, stride, groups=1, use_cudnn=True):

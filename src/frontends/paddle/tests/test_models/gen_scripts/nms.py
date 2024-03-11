@@ -105,12 +105,16 @@ def NMS(name: str, bboxes, scores, attrs: dict, rois_num=None, verbose=False):
         else:
             index = np.array(output_lod.pop(0)).astype(data_feeder.convert_dtype(
                 output[2].dtype)) if output[2] is not None else None
+            
+        feed_vars = [node_boxes, node_scores]
+        if node_rois_num is not None:
+            feed_vars.append(node_rois_num)
         # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
         output_np = [out, nms_rois_num, index]
         saveModel(name,
                   exe,
-                  feedkeys=list(feed_dict.keys()),
+                  feed_vars=feed_vars,
                   fetchlist=fetch_vars,
                   inputs=list(feed_dict.values()),
                   outputs=[x for x in output_np if x is not None],

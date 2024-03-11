@@ -43,7 +43,8 @@ def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=Non
             out = callback(paddle.clone(node_x), node_v, node_starts, node_ends, node_steps)
 
         outs = exe.run(feed=feed, fetch_list=[out])
-        saveModel(name, exe, feedkeys=list(feed.keys()), fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
+        feed_vars = [node_x, node_v]
+        saveModel(name, exe, feed_vars=feed_vars, fetchlist=[out], inputs=inputs, outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def build_slice(starts, ends, steps) -> list:

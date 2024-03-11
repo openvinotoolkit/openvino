@@ -30,7 +30,7 @@ def not_equal(name: str, x, y, data_type, cast_to_fp32=False):
             feed={'x': x, 'y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                 inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

@@ -6,7 +6,7 @@ import numpy as np
 import os
 import sys
 
-from save_model import save_inference_model
+from save_model import saveModel
 
 if paddle.__version__ >= '2.6.0':
     import paddle.base as fluid
@@ -33,5 +33,4 @@ var = [test_layer]
 res_paddle = exe.run(fluid.default_main_program(),
                      fetch_list=var, feed=inp_dict)
 
-save_inference_model(os.path.join(sys.argv[1], "conv2d_s"), list(inp_dict.keys()), var, exe,
-                                     model_filename="conv2d.pdmodel", params_filename="conv2d.pdiparams")
+saveModel(os.path.join(sys.argv[1], "conv2d_s", "conv2d_s"), exe, feed_vars=[x], fetchlist=var, inputs=[inp_blob], outputs=[res_paddle[0]], target_dir=sys.argv[1])

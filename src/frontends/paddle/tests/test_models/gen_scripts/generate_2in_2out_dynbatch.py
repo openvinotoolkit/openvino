@@ -5,7 +5,7 @@ import paddle
 import numpy as np
 import os
 import sys
-from save_model import save_inference_model
+from save_model import saveModel 
 
 if paddle.__version__ >= '2.6.0':
     import paddle.base as fluid
@@ -63,5 +63,12 @@ inp_dict = {'inputX1': inp_blob1, 'inputX2': inp_blob2}
 var = [relu3a, relu3b]
 res_paddle = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-save_inference_model(os.path.join(sys.argv[1], "2in_2out_dynbatch"), list(inp_dict.keys()), var, exe,
-                              model_filename="2in_2out_dynbatch.pdmodel", params_filename="2in_2out_dynbatch.pdiparams")
+
+# save_inference_model(os.path.join(sys.argv[1], "2in_2out_dynbatch"), list(inp_dict.keys()), var, exe,
+#                               model_filename="2in_2out_dynbatch.pdmodel", params_filename="2in_2out_dynbatch.pdiparams")
+mode_name = "2in_2out_dynbatch"
+feed_vars = [x1, x2]
+fetch_list = [relu3a, relu3b]
+inputs = [inp_blob1, inp_blob2]
+outputs = res_paddle
+saveModel(mode_name, exe, feed_vars, fetch_list, inputs, outputs, target_dir=sys.argv[1])

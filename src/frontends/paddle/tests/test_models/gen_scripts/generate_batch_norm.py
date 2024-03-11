@@ -36,7 +36,7 @@ def batch_norm1(name : str, x, scale, bias, mean, var, data_layout):
         feed={'x': x},
         fetch_list=[out])
 
-    saveModel(name, exe, feedkeys=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+    saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -67,7 +67,7 @@ def batch_norm2(name : str, x, scale, bias, mean, var, data_layout):
         feed={'x': x},
         fetch_list=[out])
 
-    saveModel(name, exe, feedkeys=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
+    saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

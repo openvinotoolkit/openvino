@@ -55,12 +55,15 @@ def paddle_tile(name: str, x, repeat_times, to_tensor=False, tensor_list=False):
             feed = {"x": x, "repeat_times": repeat_times}
         else:
             feed = {"x": x}
+        feed_vars = [node_x]
+        if to_tensor:
+            feed_vars.append(repeat_times_list)
         outs = exe.run(feed=feed, fetch_list=[out])
 
         saveModel(
             name,
             exe,
-            feedkeys=[*feed.keys()],
+            feed_vars=feed_vars,
             fetchlist=[out],
             inputs=[*feed.values()],
             outputs=[outs[0]],

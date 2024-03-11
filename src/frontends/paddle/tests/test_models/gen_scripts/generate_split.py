@@ -31,7 +31,7 @@ def split(name : str, x, attrs : dict):
         print("outputs: ", type(outs),len(outs))
         print("out: ", type(out), len(out))
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -59,7 +59,7 @@ def split_dim_tensor(name : str, x, attrs : dict, dim):
         print("outputs: ", type(outs),len(outs))
         print("out: ", type(out), len(out))
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -87,7 +87,7 @@ def split_test_list_tensor(name : str, x, attrs : dict):
         print("outputs: ", type(outs),len(outs))
         print("out: ", type(out), len(out))
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=out, inputs=[x], outputs=outs, target_dir=sys.argv[1])
 
     return outs[0]
 

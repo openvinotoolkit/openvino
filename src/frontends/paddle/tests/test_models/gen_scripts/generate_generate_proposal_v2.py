@@ -65,7 +65,7 @@ def generate_proposals_v2(name: str, input_data: dict, attr: dict):
 
         # Save inputs in order of OpenVINO model, to facilite Fuzzy test, 
         # which accepts inputs and outputs in this order as well. 
-        saveModel(name, exe, feedkeys=['scores', 'bbox_deltas', 'im_shape', 'anchors', 'var'],
+        saveModel(name, exe, feed_vars=[scores, bbox_deltas, im_shape, anchors, variances],
                   fetchlist=[rois, roi_probs, rois_num],
                   inputs=[scores_np, bbox_deltas_np, im_shape_np, anchors_np, variances_np],
                   outputs=outs, target_dir=sys.argv[1])

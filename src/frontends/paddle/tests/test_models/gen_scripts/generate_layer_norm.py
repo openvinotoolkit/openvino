@@ -33,7 +33,7 @@ def layer_norm(name:str, x, begin_norm_axis, scale=True, shift=True, param_attr=
             feed={'x': x},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[data], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

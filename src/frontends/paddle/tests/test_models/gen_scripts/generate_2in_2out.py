@@ -63,8 +63,7 @@ inp_dict = {'inputX1': inp_blob1, 'inputX2': inp_blob2}
 var = [relu3a, relu3b]
 res_paddle = exe.run(fluid.default_main_program(), fetch_list=var, feed=inp_dict)
 
-saveModel("2in_2out", exe, feedkeys=[x1, x2],
+saveModel("2in_2out", exe, feed_vars=[x1, x2],
           fetchlist=var,
           inputs=[inp_blob1, inp_blob2],
-          outputs=[res_paddle[0], res_paddle[1]], target_dir=sys.argv[1],
-          use_static_api=True)
+          outputs=[res_paddle[0], res_paddle[1]], target_dir=sys.argv[1])

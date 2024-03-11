@@ -35,7 +35,7 @@ def elementwise_add(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -62,7 +62,7 @@ def elementwise_sub(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -89,7 +89,7 @@ def elementwise_div(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -119,7 +119,7 @@ def elementwise_mod(name: str, x, y, in_dtype, is_api=False, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -146,7 +146,7 @@ def elementwise_mul(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -170,7 +170,7 @@ def elementwise_mul_bool(name: str, x, y, in_dtype='bool'):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -197,7 +197,7 @@ def elementwise_min(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -224,7 +224,7 @@ def elementwise_max(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -251,7 +251,7 @@ def elementwise_pow(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
@@ -278,7 +278,7 @@ def elementwise_floordiv(name: str, x, y, in_dtype, axis=-1):
         outs = exe.run(
             feed={'x': x, 'y': y},
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out], inputs=[
                   x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

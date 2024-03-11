@@ -28,7 +28,7 @@ def full(name : str, shape : list, dtype, value):
         outs = exe.run(
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -56,9 +56,9 @@ def full_tensor(name : str, shape : list, dtype, value):
             fetch_list=[out])
 
         if paddle.__version__ >= '2.5.1':
-            saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array(value).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(name, exe, feed_vars=[node_value], fetchlist=[out], inputs=[np.array(value).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
         else:
-            saveModel(name, exe, feedkeys=["value"], fetchlist=[out], inputs=[np.array([value]).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
+            saveModel(name, exe, feed_vars=[node_value], fetchlist=[out], inputs=[np.array([value]).astype(dtype)], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -81,7 +81,7 @@ def full_shape_tensor(name : str, shape, dtype, value):
         outs = exe.run(
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -101,7 +101,7 @@ def full_shape_tensor_list(name : str, shape: list, dtype, value):
 
         outs = exe.run(
             fetch_list=[out])
-        saveModel(name, exe, feedkeys=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[], fetchlist=[out], inputs=[], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

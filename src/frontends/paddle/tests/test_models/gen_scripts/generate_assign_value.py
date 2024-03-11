@@ -28,7 +28,7 @@ def paddle_assign_value(name, test_x):
             fetch_list=[result]
         )
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[result], inputs=[test_x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[result], inputs=[test_x], outputs=[outs[0]], target_dir=sys.argv[1])
 
 
 def compare():

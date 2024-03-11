@@ -32,7 +32,7 @@ def equal_logical_and(name : str, x, y, z):
             feed={'x': x, 'y': y, 'z': z},
             fetch_list=[out])
             
-        saveModel(name, exe, feedkeys=['x', 'y', 'z'], fetchlist=[out], 
+        saveModel(name, exe, feed_vars=[node_x, node_y, node_z], fetchlist=[out],
             inputs=[x, y, z], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
