@@ -17,15 +17,6 @@ import typing
 import torch
 
 
-class no_jit_trace:
-    def __enter__(self):
-        self.state = torch._C._get_tracing_state()
-        torch._C._set_tracing_state(None)
-
-    def __exit__(self, *args):
-        torch._C._set_tracing_state(self.state)
-        self.state = None
-
 class TorchScriptPythonDecoder (Decoder):
     def __init__(
             self,
@@ -64,6 +55,7 @@ class TorchScriptPythonDecoder (Decoder):
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
+            print(self.graph_element)
             self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element
@@ -97,47 +89,6 @@ class TorchScriptPythonDecoder (Decoder):
                     preserved_attributes.append(name)
         return preserved_attributes
 
-    def _patch_modules(self, model, orig_forward_name):
-        def module_patcher(module, name):
-            extension = None
-            if module in self.module_extensions:
-                extension = self.module_extensions[module]
-            elif module.__class__ in self.module_extensions:
-                extension = self.module_extensions[module.__class__]
-            elif name in self.module_extensions:
-                extension = self.module_extensions[name]
-
-            if extension:
-                # The Trampoline class is instantiated for every module replacement, so we can use class members individually for each module.
-                class Trampoline(torch.autograd.Function):
-                    target_extension = extension
-                    original_module = module
-                    stashed_args = None
-                    stashed_kwargs = None
-                    @staticmethod
-                    def forward(*args, **kwargs):
-                        with no_jit_trace():
-                            # `module`` is going to be passed to a user-defined function `evaluate`
-                            # `module` is patched: forward function was replaced, and we are acutally in this patched function right in this code
-                            # if we pass `module` as-is to the user code below, and it happens to call forward it will lead to infinite recursion or fail
-                            # so we need to temporary patch the module back to the original forward and then return it back again
-                            patched_forward = module.forward  # stash the current forward to be able to return it back
-                            module.forward = getattr(module, orig_forward_name)  # set original forward for the module
-                            results = extension.evaluate(module, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)  # call user code
-                            module.forward = patched_forward  # return patched forward back
-                            return results
-                def new_forward(*args, **kwargs):
-                    Trampoline.stashed_args = args
-                    Trampoline.stashed_kwargs = kwargs
-                    return extension.convert(module, Trampoline.apply, *args, **kwargs)
-                setattr(module, orig_forward_name, module.forward)
-                module.forward = new_forward
-
-        patch_model.patch_model(model, module_patcher, '_openvino_module_extension_patch_orig_forward')
-
-    def _unpatch_modules(self, model, orig_forward_name):
-        patch_model.unpatch_model(model, orig_forward_name)
-
     def _get_scripted_model(self, pt_module, example_inputs=None, skip_freeze=False):
         import torch
         import inspect
@@ -151,17 +102,17 @@ class TorchScriptPythonDecoder (Decoder):
             input_params = inspect.signature(pt_module.forward if hasattr(
                 pt_module, "forward") else pt_module.__call__).parameters
             input_signature = list(input_params)
+            # name of attribute in a patched module where the original forward method is kept
+            orig_forward_name = '_openvino_module_extension_patch_orig_forward'
+            if self.module_extensions:
+                patch_model.patch_model(pt_module, self.module_extensions, orig_forward_name)
+
             if example_inputs is None:
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
-
-                # name of attribute in a patched module where the original forward method is kept
-                orig_forward_name = '_openvino_module_extension_patch_orig_forward'
-                if self.module_extensions:
-                    self._patch_modules(pt_module, orig_forward_name)
 
                 gptq_patched = False
 
@@ -183,8 +134,8 @@ class TorchScriptPythonDecoder (Decoder):
                 finally:
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
-                    if self.module_extensions:
-                        self._unpatch_modules(pt_module, orig_forward_name)
+            if self.module_extensions:
+                patch_model.unpatch_model(pt_module, orig_forward_name)
 
             if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops

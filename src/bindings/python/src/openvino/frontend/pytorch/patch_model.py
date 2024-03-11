@@ -5,8 +5,20 @@
 # flake8: noqa
 # mypy: ignore-errors
 
+import torch
 
-def patch_model(model, module_patcher, orig_forward_name):
+
+class no_jit_trace:
+    def __enter__(self):
+        self.state = torch._C._get_tracing_state()
+        torch._C._set_tracing_state(None)
+
+    def __exit__(self, *args):
+        torch._C._set_tracing_state(self.state)
+        self.state = None
+
+
+def patch_model(model, module_extensions, orig_forward_name):
     for name, m in model.named_modules():
         # TODO: Use one way to identify a patched module, currently GPTQ model patching uses different name of attribute
         if hasattr(m, orig_forward_name):
@@ -14,7 +26,46 @@ def patch_model(model, module_patcher, orig_forward_name):
             print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
                   'Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.')
             continue
-        module_patcher(m, name)
+        extension = None
+        if m in module_extensions:
+            extension = module_extensions[m]
+        elif m.__class__ in module_extensions:
+            extension = module_extensions[m.__class__]
+        elif name in module_extensions:
+            extension = module_extensions[name]
+
+        if extension:
+            # The Trampoline class is instantiated for every module replacement, so we can use class members individually for each module.
+            class Trampoline(torch.autograd.Function):
+                target_extension = extension
+                original_module = m
+                stashed_args = None
+                stashed_kwargs = None
+
+                @staticmethod
+                @torch.jit.ignore
+                def forward(*args, **kwargs):
+                    with no_jit_trace():
+                        # `module` is going to be passed to a user-defined function `evaluate`
+                        # `module` is patched: forward function was replaced, and we are actually in this patched function right in this code
+                        # if we pass `module` as-is to the user code below, and it happens to call forward it will lead to infinite recursion or fail
+                        # so we need to temporary patch the module back to the original forward and then return it back again
+                        # stash the current forward to be able to return it back
+                        patched_forward = m.forward
+                        # set original forward for the module
+                        m.forward = getattr(m, orig_forward_name)
+                        # call user code
+                        results = extension.evaluate(
+                            m, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)
+                        m.forward = patched_forward  # return patched forward back
+                        return results
+
+            def new_forward(*args, **kwargs):
+                Trampoline.stashed_args = args
+                Trampoline.stashed_kwargs = kwargs
+                return extension.convert(m, Trampoline.apply, *args, **kwargs)
+            setattr(m, orig_forward_name, m.forward)
+            m.forward = new_forward
 
 
 def unpatch_model(model, orig_forward_name):

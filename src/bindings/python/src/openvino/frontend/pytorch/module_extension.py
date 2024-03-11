@@ -11,7 +11,7 @@ class ModuleExtension:
     def __init__(self, module, target_op, evaluate=None, convert=None):
         """
         Creates an extension that replaces entire PyTorch module by a single operation.
-        This functionality works with PyTorch models only. A module can be indentified by
+        This functionality works with PyTorch models only. A module can be identified by
         module type (e.g. torch.nn.Linear), module instance in the model or module name.
 
         Args:
@@ -39,4 +39,4 @@ class ModuleExtension:
             self.evaluate = lambda module, *args, **kwargs: module(*args, **kwargs)
         self.convert = convert
         if self.convert is None:
-            self.convert = lambda target_op, *args, **kwargs: target_op(*args, **kwargs)
+            self.convert = lambda module, target_op, *args, **kwargs: target_op(*args, **kwargs)
