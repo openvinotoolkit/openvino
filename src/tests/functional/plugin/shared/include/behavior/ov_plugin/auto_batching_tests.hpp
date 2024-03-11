@@ -75,9 +75,10 @@ protected:
             // minimize timeout to reduce test time
             config.insert(ov::auto_batch_timeout(1));
 
-            auto compiled_model = core->compile_model(model, std::string(ov::test::utils::DEVICE_BATCH) + ":" +
-                                                      target_device + "(" + std::to_string(num_batch) + ")",
-                                                      config);
+            // set batch size
+            config.insert(ov::device::properties(target_device, ov::hint::num_requests(num_batch)));
+            auto compiled_model =
+                core->compile_model(model, std::string(ov::test::utils::DEVICE_BATCH) + ":" + target_device, config);
 
             auto network_outputs = model->outputs();
             ASSERT_EQ(network_outputs.size(), 1) << " Auto-Batching tests use networks with single output";

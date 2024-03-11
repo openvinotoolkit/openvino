@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,8 @@ protected:
     DeviceInformation parse_meta_device(const std::string& devices_batch_config, const ov::AnyMap& user_config) const;
 
     static DeviceInformation parse_batch_device(const std::string& device_with_batch);
+
+    static uint32_t parse_batch_size(const std::string& device_name, const ov::AnyMap& properties);
 
 private:
     mutable ov::AnyMap m_plugin_config;

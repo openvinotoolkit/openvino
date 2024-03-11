@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,9 @@
 namespace ov {
 namespace autobatch_plugin {
 
-std::vector<std::string> supported_configKeys = {ov::device::priorities.name(), ov::auto_batch_timeout.name()};
+std::vector<std::string> supported_configKeys = {ov::device::priorities.name(),
+                                                 ov::auto_batch_timeout.name(),
+                                                 ov::device::properties.name()};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
@@ -29,6 +31,9 @@ inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_con
 }
 
 DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batch) {
+    if (device_with_batch.find("-") != std::string::npos) {
+        OPENVINO_THROW("Invalide Batch device name ", device_with_batch);
+    }
     auto openingBracket = device_with_batch.find_first_of('(');
     auto closingBracket = device_with_batch.find_first_of(')', openingBracket);
     auto deviceName = device_with_batch.substr(0, openingBracket);
@@ -44,9 +49,48 @@ DeviceInformation Plugin::parse_batch_device(const std::string& device_with_batc
     return {std::move(deviceName), {{}}, static_cast<uint32_t>(batch)};
 }
 
+uint32_t Plugin::parse_batch_size(const std::string& device_name, const ov::AnyMap& properties) {
+    uint32_t num_requests = 0;
+    // Parse batch_size from ov::device::properties
+    auto item = properties.find(ov::device::properties.name());
+    if (item != properties.end()) {
+        ov::AnyMap devices_properties = item->second.as<ov::AnyMap>();
+        auto it = devices_properties.find(device_name);
+
+        if (it != devices_properties.end()) {
+            auto props = it->second.as<ov::AnyMap>();
+            if (props.find(ov::hint::num_requests.name()) != props.end()) {
+                try {
+                    num_requests = props.at(ov::hint::num_requests.name()).as<uint32_t>();
+                    if ((num_requests == 0) || num_requests == (uint32_t)-1) {
+                        OPENVINO_THROW("BATCH can got valid num_request: ",
+                                       props.at(ov::hint::num_requests.name()).as<std::string>());
+                    }
+                } catch (...) {
+                    OPENVINO_THROW("BATCH can got valid num_request: ",
+                                   props.at(ov::hint::num_requests.name()).as<std::string>());
+                }
+            }
+        }
+    }
+    return num_requests;
+}
+
 DeviceInformation Plugin::parse_meta_device(const std::string& devices_batch_config,
                                             const ov::AnyMap& user_config) const {
+    if (devices_batch_config.find(",") != std::string::npos) {
+        OPENVINO_THROW("BATCH accepts only one device in list but got '", devices_batch_config, "'");
+    }
+    // Batch_size will be got from ov::device::properties, while devices_name_with_batch_config will be deprecated
+    // after 25.0.
+    // For example:
+    //    DeviceName = "BATCH:GPU", ov::device::properties("GPU",ov::hint::num_requests(8)),
+    //    while similar DeviceName = "BATCH:GPU(8)" will be deprecated.
     auto meta_device = parse_batch_device(devices_batch_config);
+    auto batch_size = parse_batch_size(meta_device.device_name, user_config);
+    if (batch_size > 0) {
+        meta_device.device_batch_size = batch_size;
+    }
     meta_device.device_config = get_core()->get_supported_property(meta_device.device_name, user_config);
     // check that no irrelevant config-keys left
     for (const auto& k : user_config) {
@@ -130,7 +174,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto full_properties = merge_properties(m_plugin_config, properties);
     auto device_batch = full_properties.find(ov::device::priorities.name());
     if (device_batch == full_properties.end()) {
-        OPENVINO_THROW("ov::device::priorities key for AUTO NATCH is not set for BATCH device");
+        OPENVINO_THROW("ov::device::priorities key for AUTO BATCH is not set for BATCH device");
     }
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 

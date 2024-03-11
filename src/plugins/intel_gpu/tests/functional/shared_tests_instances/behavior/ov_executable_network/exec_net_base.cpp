@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,11 +13,11 @@ auto configs = []() {
 };
 
 auto autoBatchConfigs = []() {
-    return std::vector<ov::AnyMap>{
-        // explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
-        {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_GPU) + "(4)"},
-         // no timeout to avoid increasing the test time
-         ov::auto_batch_timeout(0)}};
+    return std::vector<ov::AnyMap>{// explicit batch size 4 to avoid fallback to no auto-batching (i.e. plain GPU)
+                                   {{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU},
+                                    ov::device::properties(ov::test::utils::DEVICE_GPU, ov::hint::num_requests(4)),
+                                    // no timeout to avoid increasing the test time
+                                    ov::auto_batch_timeout(0)}};
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVCompiledModelBaseTest,

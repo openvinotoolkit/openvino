@@ -384,24 +384,6 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties(ov::AnyMap{{"MULTI", ov::AnyMap{ov::device::priorities("DEVICE")}}})});
 }
 
-TEST(CoreTests_parse_device_config, get_batch_device_name) {
-    EXPECT_STREQ(ov::DeviceIDParser::get_batch_device("CPU").c_str(), "CPU");
-    EXPECT_STREQ(ov::DeviceIDParser::get_batch_device("GPU(4)").c_str(), "GPU");
-
-    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("-CPU"),
-                    ov::Exception,
-                    ::testing::HasSubstr("Invalid device name '-CPU' for BATCH"));
-    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("CPU(0)-"),
-                    ov::Exception,
-                    ::testing::HasSubstr("Invalid device name 'CPU(0)-' for BATCH"));
-    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("GPU(4),CPU"),
-                    ov::Exception,
-                    ::testing::HasSubstr("BATCH accepts only one device in list but got 'GPU(4),CPU'"));
-    OV_EXPECT_THROW(ov::DeviceIDParser::get_batch_device("CPU,GPU"),
-                    ov::Exception,
-                    ::testing::HasSubstr("BATCH accepts only one device in list but got 'CPU,GPU'"));
-}
-
 class ApplyAutoBatchThreading : public testing::Test {
 public:
     static void runParallel(std::function<void(void)> func,

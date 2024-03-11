@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,9 +81,14 @@ const std::vector<ov::AnyMap> hetero_properties = {
 };
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)")},
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(1)},
-    {ov::device::priorities(std::string(ov::test::utils::DEVICE_CPU) + "(4)"), ov::auto_batch_timeout(10)},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU, ov::hint::num_requests(4))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU, ov::hint::num_requests(4)),
+     ov::auto_batch_timeout(1)},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU, ov::hint::num_requests(4)),
+     ov::auto_batch_timeout(10)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

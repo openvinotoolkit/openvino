@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,10 +20,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
                          OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_batch_properties = {
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"}},
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE)},
+     {ov::device::properties(ov::test::utils::DEVICE_TEMPLATE, ov::hint::num_requests(4))}},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE)},
+     {ov::device::properties(ov::test::utils::DEVICE_TEMPLATE, ov::hint::num_requests(4))},
      {ov::auto_batch_timeout(1)}},
-    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE) + "(4)"},
+    {{ov::device::priorities.name(), std::string(ov::test::utils::DEVICE_TEMPLATE)},
+     {ov::device::properties(ov::test::utils::DEVICE_TEMPLATE, ov::hint::num_requests(4))},
      {ov::auto_batch_timeout(10)}},
 };
 

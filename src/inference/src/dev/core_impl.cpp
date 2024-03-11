@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,13 +54,6 @@ void allowNotImplemented(F&& f) {
     try {
         f();
     } catch (const ov::NotImplemented&) {
-    }
-}
-
-void stripDeviceName(std::string& device, const std::string& substr) {
-    auto pos = device.find(substr);
-    if (pos == 0) {
-        device.erase(pos, substr.length());
     }
 }
 
@@ -539,7 +532,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
-    stripDeviceName(deviceName, "-");
     std::map<std::string, PluginDescriptor>::const_iterator it;
     {
         // Global lock to find plugin.
