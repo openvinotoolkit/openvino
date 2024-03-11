@@ -983,21 +983,21 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
     for (auto &outputMap : outputNodesMap) {
-        auto name = outputMap.first;
+        auto output_index = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
-        const auto ext_blob_map = output.find(name);
+        const auto ext_blob_map = output.find(output_index);
         const auto ext_blob = ext_blob_map->second;
         if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name);
+            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with output_index: ", output_index);
         }
 
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
+        DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -1013,12 +1013,12 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), ", intr ptr ", intr_blob.getData());
             expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
@@ -1038,7 +1038,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
-        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
+        DEBUG_LOG(output_index, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1050,7 +1050,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor index", output_index, " is different from the external one");
             size_t size_to_copy = intr_blob.getSize();
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
