@@ -25,7 +25,7 @@ class ModelDeserializer {
 public:
     typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
     ModelDeserializer(std::istream& istream, model_builder fn);
-    ModelDeserializer(std::shared_ptr<ov::MappedMemory>& _buffer, model_builder fn);
+    ModelDeserializer(const std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn);
     void operator>>(std::shared_ptr<ov::Model>& model);
     void parse_buffer(std::shared_ptr<ov::Model>& model);
     void parse_stream(std::shared_ptr<ov::Model>& model);
