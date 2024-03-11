@@ -59,7 +59,7 @@ Linux operating system (as of the current version).
 
    .. code-block:: python
 
-      pip install transformers optimum[transformers]
+      pip install optimum[openvino]
 
 
 Convert Hugging Face tokenizer and model to OpenVINO IR format
