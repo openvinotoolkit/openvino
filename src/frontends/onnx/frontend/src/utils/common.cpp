@@ -12,7 +12,9 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/logical_and.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
@@ -162,15 +164,25 @@ bool is_optimized_out(const ov::Output<ov::Node>& node_output) {
 
 bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
                                     const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
-                                    std::ostream* output_stream) {
-    std::string additional_error_message = "";
+                                    std::ostream* output_stream,
+                                    std::shared_ptr<std::set<std::string>> unsupported_operations,
+                                    std::shared_ptr<std::set<std::string>> failures) {
+    if (partially_converted == nullptr) {
+        return false;
+    }
+
     const std::string sep = ", ";
-    std::set<std::string> unsupported_operations;
-    std::set<std::string> failures;
+    bool first_call = !unsupported_operations || !failures;
+    if (!unsupported_operations) {
+        unsupported_operations = std::make_shared<std::set<std::string>>();
+    }
+    if (!failures) {
+        failures = std::make_shared<std::set<std::string>>();
+    }
 
     auto print_unsupported = [&](const std::shared_ptr<ov::op::util::FrameworkNode> fw_node) {
         if (output_stream) {
-            if (unsupported_operations.size() == 0) {
+            if (unsupported_operations->size() == 0) {
                 *output_stream << "OpenVINO does not support the following ONNX operations: ";
             } else {
                 *output_stream << sep;
@@ -186,56 +198,74 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
         if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
             auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
-            if (unsupported_operations.count(node_name) > 0) {
+            if (unsupported_operations->count(node_name) > 0) {
                 continue;
             }
 
             print_unsupported(fw_node);
-            unsupported_operations.insert(node_name);
+            unsupported_operations->insert(node_name);
         } else if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
 
             if (fw_node->additional_error_message().empty()) {
                 auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
-                if (unsupported_operations.count(node_name) > 0) {
+                if (unsupported_operations->count(node_name) > 0) {
                     continue;
                 }
                 print_unsupported(fw_node);
-                unsupported_operations.insert(node_name);
+                unsupported_operations->insert(node_name);
             } else {
-                additional_error_message += fw_node->additional_error_message();
+                const auto node_fail = fw_node->additional_error_message();
+                if (failures->count(node_fail) > 0) {
+                    continue;
+                }
+                failures->insert(node_fail);
             }
 
-            const auto node_fail = attrs.find(ov::frontend::onnx::NotSupportedONNXNode::failed_conversion_key);
-            if (node_fail == attrs.end() || failures.count(node_fail->second) > 0) {
-                continue;
-            }
-            failures.insert(node_fail->second);
+        } else if (const auto& if_node = std::dynamic_pointer_cast<ov::op::v8::If>(node)) {
+            collect_translation_exceptions(if_node->get_then_body(),
+                                           telemetry,
+                                           output_stream,
+                                           unsupported_operations,
+                                           failures);
+            collect_translation_exceptions(if_node->get_else_body(),
+                                           telemetry,
+                                           output_stream,
+                                           unsupported_operations,
+                                           failures);
+        } else if (const auto& loop_node = std::dynamic_pointer_cast<ov::op::v5::Loop>(node)) {
+            collect_translation_exceptions(loop_node->get_function(),
+                                           telemetry,
+                                           output_stream,
+                                           unsupported_operations,
+                                           failures);
         }
     }
 
-    for (auto item : unsupported_operations) {
-        std::cerr << "Unsupported: " << item << std::endl;
-    }
-
-    for (auto item : failures) {
-        std::cerr << "Failure: " << item << std::endl;
+    if (!first_call) {
+        return unsupported_operations->size() != 0 || failures->size() != 0;
     }
 
     if (telemetry) {
-        for (const auto& op : unsupported_operations) {
+        for (const auto& op : *unsupported_operations) {
             telemetry->send_event("error_cause", "onnx_" + op);
         }
-        for (const auto& str : failures) {
+        for (const auto& str : *failures) {
             telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(str, "[ONNX Frontend] "));
         }
     }
 
-    if (output_stream && !additional_error_message.empty()) {
-        *output_stream << "Errors during ONNX translation: \n" << additional_error_message;
+    if (output_stream && failures->size() > 0) {
+        if (unsupported_operations->size() > 0) {
+            *output_stream << std::endl;
+        }
+        *output_stream << "Errors during ONNX translation: \n";
+        for (const auto& failure_message : *failures) {
+            *output_stream << failure_message << std::endl;
+        }
     }
 
-    return unsupported_operations.size() != 0 || failures.size() != 0;
+    return unsupported_operations->size() != 0 || failures->size() != 0;
 }
 
 }  // namespace  common

@@ -158,10 +158,16 @@ bool is_optimized_out(const ov::Output<ov::Node>& node_output);
 /// \param partially_converted ov::Model which has been partially converted
 /// \param telemetry Pointer on a TelemetryExtension if telemetry is enabled
 /// \param output_stream Pointer on a stream for printint error messages
+/// \param unsupported_operations Set for collecting list of unsupported operations, should be nullptr for
+///                               first call (will be created internally)
+/// \param failures Set for collecting list of failed conversions, should be nullptr for
+///                 first call (will be created internally)
 /// \return Returns true in case any issues has been found
 bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
                                     const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry = nullptr,
-                                    std::ostream* output_stream = nullptr);
+                                    std::ostream* output_stream = nullptr,
+                                    std::shared_ptr<std::set<std::string>> unsupported_operations = nullptr,
+                                    std::shared_ptr<std::set<std::string>> failures = nullptr);
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend
