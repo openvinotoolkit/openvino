@@ -49,10 +49,10 @@ void SyncInferRequest::create_infer_request() {
 
     // Alocate memory for each tensor if static shape
     for (const auto& it : m_input_ports_map) {
-        init_tensor(it.second);
+        init_tensor(it.first, it.second, ov::ISyncInferRequest::FoundPort::Type::INPUT);
     }
     for (const auto& it : m_output_ports_map) {
-        init_tensor(it.second);
+        init_tensor(it.first, it.second, ov::ISyncInferRequest::FoundPort::Type::OUTPUT);
     }
 
     //create states according to the list of the MemoryStateNodes
@@ -459,17 +459,18 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
     OPENVINO_THROW("Cannot find port to set_tensors!");
 }
 
-void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
+void SyncInferRequest::init_tensor(const std::size_t& port_index,
+                                   const ov::Output<const ov::Node>& port,
+                                   const ov::ISyncInferRequest::FoundPort::Type& type) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
     if (!m_graph || !m_graph->IsReady())
         OPENVINO_THROW("Graph is not ready!");
 
     ov::SoPtr<ITensor> tensor;
-    if (find_port(port).is_input()) {
-        auto input_port_index = find_port(port).idx;
-        OPENVINO_ASSERT(m_graph->inputNodesMap.find(input_port_index) != m_graph->inputNodesMap.end(),
+    if (type == ov::ISyncInferRequest::FoundPort::Type::INPUT) {
+        OPENVINO_ASSERT(m_graph->inputNodesMap.find(port_index) != m_graph->inputNodesMap.end(),
                         "Tensor with index: ",
-                        input_port_index,
+                        port_index,
                         " exists in CPU plugin graph, but absents in network inputs");
         tensor = ov::ISyncInferRequest::get_tensor(port);
 
@@ -491,22 +492,21 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
             if (!isDynamic) {
                 auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (mem_desc_ptr->isCompatible(
-                        m_graph->getInputNodeByIndex(input_port_index)->getChildEdgeAt(0)->getMemory().getDesc())) {
-                    m_input_external_ptr[input_port_index] = tensor;
+                        m_graph->getInputNodeByIndex(port_index)->getChildEdgeAt(0)->getMemory().getDesc())) {
+                    m_input_external_ptr[port_index] = tensor;
                 }
             }
         }
     }
 
-    if (find_port(port).is_output()) {
-        auto output_port_index = find_port(port).idx;
+    if (type == ov::ISyncInferRequest::FoundPort::Type::OUTPUT) {
         const auto& outMap = m_graph->outputNodesMap;
-        auto output = outMap.find(output_port_index);
+        auto output = outMap.find(port_index);
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with index: ",
-                        output_port_index,
+                        port_index,
                         " exists in CPU plugin graph, but absents in network outputs");
-        if (m_outputs.find(output_port_index) == m_outputs.end()) {
+        if (m_outputs.find(port_index) == m_outputs.end()) {
             const auto& port_shape = port.get_partial_shape();
             const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
@@ -540,7 +540,7 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
                             output->second->getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
                         OutputControlBlock control_block{model_prec, Shape{shape}};
 
-                        DEBUG_LOG(output_port_index,
+                        DEBUG_LOG(port_index,
                                 ", tensor ",
                                 control_block.tensor(),
                                 ", memmngr ",
@@ -550,7 +550,7 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
 
                         tensor = control_block.tensor();
                         if (model_prec == graph_prec)
-                            m_outputControlBlocks.emplace(std::make_pair(output_port_index, std::move(control_block)));
+                            m_outputControlBlocks.emplace(std::make_pair(port_index, std::move(control_block)));
                     }
                 } else {
                     tensor_shape = shape.to_shape();
@@ -570,7 +570,7 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
                          return dims != 0;
                      }))) {
                     OPENVINO_THROW("ParameterMismatch: Network input and output use the same index: ",
-                                   output_port_index,
+                                   port_index,
                                    ", but expect tensors with different shapes. Input shape: ",
                                    ov::PartialShape(blobDims),
                                    ", output shape: ",
@@ -580,7 +580,7 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
                 const auto netOutPrc = port.get_element_type();
                 if (netOutPrc != tensor->get_element_type()) {
                     OPENVINO_THROW("ParameterMismatch: Network input and output use the same index: ",
-                                   output_port_index,
+                                   port_index,
                                    " but expect tensor with different precision: ",
                                    tensor->get_element_type(),
                                    " for input and ",
@@ -588,16 +588,16 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
                                    " for output.");
                 }
             }
-            m_outputs[output_port_index] = tensor;
-            if (!port_shape.is_dynamic() && !m_output_external_ptr.count(output_port_index)) {
+            m_outputs[port_index] = tensor;
+            if (!port_shape.is_dynamic() && !m_output_external_ptr.count(port_index)) {
                 auto desc = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
                 if (desc->isCompatible(output->second->getParentEdgeAt(0)->getMemory().getDesc())) {
-                    m_output_external_ptr[output_port_index] = tensor;
+                    m_output_external_ptr[port_index] = tensor;
                 }
             }
             // update tensors in case of multiple output ports with the same name
             for (const auto& out : m_output_ports_map) {
-                if ((out.first == output_port_index) && tensor) {
+                if ((out.first == port_index) && tensor) {
                     ov::ISyncInferRequest::set_tensor(out.second, tensor);
                 }
             }
