@@ -25,8 +25,7 @@ const std::vector<ov::AnyMap> multi_Auto_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("YES")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::intel_auto::enable_startup_fallback("NO")},
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(true)},
-    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}
-};
+    {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE), ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoMultiBehaviorTests,
                          OVPropertiesTests,
