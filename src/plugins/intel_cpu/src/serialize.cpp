@@ -51,7 +51,7 @@ ModelDeserializer::ModelDeserializer(std::istream& istream, model_builder fn)
       m_model_buffer(nullptr),
       m_model_builder(fn) {}
 
-ModelDeserializer::ModelDeserializer(std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn)
+ModelDeserializer::ModelDeserializer(const std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn)
     : m_istream(nullptr),
       m_model_buffer(buffer),
       m_model_builder(fn) {}

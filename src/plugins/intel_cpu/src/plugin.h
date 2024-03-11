@@ -5,7 +5,7 @@
 #pragma once
 
 #include "compiled_model.h"
-#include "cpu_streams_calculation.hpp"
+#include "serialize.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -33,8 +33,11 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED(
             "Not Implemented import_model with RemoteContext is not supported by CPU plugin!");
     };
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer, const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model(std::shared_ptr<ov::MappedMemory>& model_buffer,
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
+                                                     const ov::AnyMap& properties) const override;
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override {
         OPENVINO_THROW_NOT_IMPLEMENTED(
@@ -57,9 +60,8 @@ private:
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     std::shared_ptr<ov::ICompiledModel> handle_imported_model(
-        std::shared_ptr<ov::Model>& cnnnetwork,
-        const ov::AnyMap& properties,
-        const std::shared_ptr<ov::MappedMemory>& model_buffer = nullptr) const;
+        ModelDeserializer& deserializer,
+        const ov::AnyMap& properties) const;
 
     Config engConfig;
     /* Explicily configured streams have higher priority than performance hints.

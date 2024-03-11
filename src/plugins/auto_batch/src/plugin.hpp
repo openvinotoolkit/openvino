@@ -53,6 +53,17 @@ public:
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
 #ifdef AUTOBATCH_UNITTEST
 
 public:
