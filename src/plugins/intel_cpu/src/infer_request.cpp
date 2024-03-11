@@ -26,11 +26,14 @@ namespace intel_cpu {
 SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_compiled_model(compiled_model) {
-    for (const auto& in : get_inputs()) {
-        m_input_ports_map[find_port(in).idx] = in;
+    const auto& inputs = get_inputs();
+    for (std::size_t input_index = 0; input_index < inputs.size(); input_index++) {
+        m_input_ports_map[input_index] = inputs[input_index];
     }
-    for (const auto& out : get_outputs()) {
-        m_output_ports_map[find_port(out).idx] = out;
+
+    const auto& outputs = get_outputs();
+    for (std::size_t output_index = 0; output_index < outputs.size(); output_index++) {
+        m_output_ports_map[output_index] = outputs[output_index];
     }
     create_infer_request();
 }
@@ -79,12 +82,12 @@ void SyncInferRequest::commit_states() {
 
 void SyncInferRequest::redefine_memory_for_input_nodes() {
     const auto cpuInputNodes = m_graph->GetInputNodesMap();
-    for (const auto& port : get_inputs()) {
-        const auto inputNode = cpuInputNodes.find(find_port(port).idx);
+    for (const auto& input_port : m_input_ports_map) {
+        const auto inputNode = cpuInputNodes.find(input_port.first);
         if (inputNode == cpuInputNodes.end())
-            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", find_port(port).idx);
+            OPENVINO_THROW("CPU execution graph doesn't contain input node with index: ", input_port.first);
         if (inputNode->second->isDynamicNode()) {
-            auto tensor = get_tensor(port);
+            auto tensor = get_tensor(input_port.second);
             inputNode->second->redefineOutputMemory({tensor->get_shape()});
         }
     }
@@ -92,11 +95,10 @@ void SyncInferRequest::redefine_memory_for_input_nodes() {
 
 void SyncInferRequest::update_external_tensor_ptrs() {
     // Update it due to batched_tensors case will update input tensor
-    for (auto input : get_inputs()) {
-        auto input_index = find_port(input).idx;
-        if (m_input_external_ptr.find(input_index) != m_input_external_ptr.end()) {
-            auto tensor = get_tensor(input);
-            m_input_external_ptr[input_index] = tensor;
+    for (auto input : m_input_ports_map) {
+        if (m_input_external_ptr.find(input.first) != m_input_external_ptr.end()) {
+            auto tensor = get_tensor(input.second);
+            m_input_external_ptr[input.first] = tensor;
         }
     }
 }
@@ -594,9 +596,9 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
                 }
             }
             // update tensors in case of multiple output ports with the same name
-            for (const auto& out : get_outputs()) {
-                if ((find_port(out).idx == output_port_index) && tensor && port != out) {
-                    ov::ISyncInferRequest::set_tensor(out, tensor);
+            for (const auto& out : m_output_ports_map) {
+                if ((out.first == output_port_index) && tensor) {
+                    ov::ISyncInferRequest::set_tensor(out.second, tensor);
                 }
             }
         }
@@ -608,9 +610,9 @@ void SyncInferRequest::init_tensor(const ov::Output<const ov::Node>& port) {
 }
 
 void SyncInferRequest::push_input_data() {
-    for (auto input : get_inputs()) {
-        auto tensor = get_tensor(input);
-        m_graph->PushInputData(find_port(input).idx, tensor);
+    for (auto& input : m_input_ports_map) {
+        auto tensor = get_tensor(input.second);
+        m_graph->PushInputData(input.first, tensor);
     }
 }
 
