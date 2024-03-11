@@ -355,10 +355,10 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         in_tensor->get_size() == ov::shape_size(in_port.get_shape()) && in_port.get_shape().size() > 0) {
         tensor = ov::make_tensor(in_tensor->get_element_type(), in_port.get_shape(), in_tensor->data());
     }
-    auto port_index = find_port(in_port).idx;
+    auto port_found = find_port(in_port);
     auto mem_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(tensor);
-    bool is_input = ov::op::util::is_parameter(port.get_node());
-    if (is_input) {
+    if (port_found.is_input()) {
+        auto input_index = port_found.idx;
         const auto netInPrc = port.get_element_type();
         if (netInPrc != tensor->get_element_type()) {
             OPENVINO_THROW("ParameterMismatch: Failed to set tensor for input with precision: ",
@@ -371,7 +371,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const bool isDynamic = shape.is_dynamic();
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
             OPENVINO_THROW("Can't set the input tensor with index: ",
-                           port_index,
+                           input_index,
                            ", because the model input (shape=",
                            shape,
                            ") and the tensor (shape=",
@@ -381,7 +381,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
             OPENVINO_THROW("Can't set input tensor with index: ",
-                           port_index,
+                           input_index,
                            ", because the model input size = ",
                            ov::shape_size(shape.to_shape()),
                            " and the tensor size = ",
@@ -389,7 +389,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        MemoryDescPtr actualDesc = m_graph->getInputNodeByIndex(port_index)->getBaseMemDescAtOutputPort(0);
+        MemoryDescPtr actualDesc = m_graph->getInputNodeByIndex(input_index)->getBaseMemDescAtOutputPort(0);
         if (!actualDesc->isDefined()) {
             // we must define desc for dynamic case
             // otherwise we got incorrect check on shape compatibility inside isCompatible
@@ -399,11 +399,12 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         }
 
         if (actualDesc->isCompatible(*mem_desc_ptr)) {
-            m_input_external_ptr[port_index] = tensor;
-        } else if (m_input_external_ptr.find(port_index) != m_input_external_ptr.end()) {
-            m_input_external_ptr.erase(port_index);
+            m_input_external_ptr[input_index] = tensor;
+        } else if (m_input_external_ptr.find(input_index) != m_input_external_ptr.end()) {
+            m_input_external_ptr.erase(input_index);
         }
     } else {
+        auto output_index = port_found.idx;
         const auto netOutPrc = port.get_element_type();
         if (netOutPrc != tensor->get_element_type()) {
             OPENVINO_THROW("ParameterMismatch: Failed to set tensor for output with precision: ",
@@ -417,7 +418,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
             OPENVINO_THROW("Can't set the output tensor with index: ",
-                           port_index,
+                           output_index,
                            ", because the model output tensor (shape=",
                            shape,
                            ") and the current tensor (shape=",
@@ -427,7 +428,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
 
         if (!isDynamic && ov::shape_size(shape.to_shape()) != tensor->get_size()) {
             OPENVINO_THROW("Can't set the output tensor with index: ",
-                           port_index,
+                           output_index,
                            ", because the model output size = ",
                            ov::shape_size(shape.to_shape()),
                            " and the currernt tensor size = ",
@@ -435,15 +436,15 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                            " are different.");
         }
 
-        const auto& desc = m_graph->getOutputNodeByIndex(port_index)->getParentEdgeAt(0)->getMemory().getDesc();
+        const auto& desc = m_graph->getOutputNodeByIndex(output_index)->getParentEdgeAt(0)->getMemory().getDesc();
         if (!isDynamic && mem_desc_ptr->isCompatible(desc)) {
-            m_output_external_ptr[port_index] = tensor;
-        } else if (m_output_external_ptr.find(port_index) != m_output_external_ptr.end()) {
-            m_output_external_ptr.erase(port_index);
+            m_output_external_ptr[output_index] = tensor;
+        } else if (m_output_external_ptr.find(output_index) != m_output_external_ptr.end()) {
+            m_output_external_ptr.erase(output_index);
         }
 
-        m_outputs[find_port(in_port).idx] = tensor;
-        m_outputControlBlocks.erase(find_port(in_port).idx); // now the memory is under user's control
+        m_outputs[output_index] = tensor;
+        m_outputControlBlocks.erase(output_index); // now the memory is under user's control
     }
     ov::ISyncInferRequest::set_tensor(port, tensor);
 }
