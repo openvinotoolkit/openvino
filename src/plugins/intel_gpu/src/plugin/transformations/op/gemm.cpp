@@ -5,9 +5,11 @@
 #include "intel_gpu/op/gemm.hpp"
 #include "matmul_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
+#include "reshape_shape_inference.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/reshape.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -48,6 +50,8 @@ void Gemm::validate_and_infer_types() {
                                   std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
                                   m_target_shape_a,
                                   m_target_shape_b,
+                                  m_output_pattern_a,
+                                  m_output_pattern_b,
                                   m_order_a,
                                   m_order_b,
                                   m_order_c);
@@ -68,17 +72,15 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                           std::vector<ov::PartialShape> input_shapes,
                                           const std::vector<int32_t>& target_shape_a,
                                           const std::vector<int32_t>& target_shape_b,
+                                          const std::vector<int64_t>& output_pattern_a,
+                                          const std::vector<int64_t>& output_pattern_b,
                                           const std::vector<int64_t>& order_a,
                                           const std::vector<int64_t>& order_b,
                                           const std::vector<int64_t>& order_c) {
-    auto transpose_shape = [](const ov::PartialShape shape, const std::vector<int64_t>& order) {
-        auto shape_transposed = ov::PartialShape::dynamic(shape.rank());
-        for (size_t i = 0; i < order.size(); i++) {
-            shape_transposed[i] = shape[order[i]];
-        }
+    auto shape_a = input_shapes[0];
+    auto shape_b = input_shapes[1];
 
-        return shape_transposed;
-    };
+    // broadcasted shapes
     auto broadcast_shape = [](const ov::PartialShape shape, const std::vector<int32_t>& target_shape) {
         ov::op::v3::Broadcast broadcast;
         auto tshape = target_shape;
@@ -89,16 +91,34 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
                                        std::vector<ov::PartialShape>{shape, ov::PartialShape(ov::Shape{tshape.size()})},
                                        ov::make_tensor_accessor(const_data));
     };
-    auto shape_a = input_shapes[0];
-    auto shape_b = input_shapes[1];
-
-    // broadcasted shapes
     auto shape_a_b = (target_shape_a.size() > 1) ? broadcast_shape(shape_a, target_shape_a)[0] : shape_a;
     auto shape_b_b = (target_shape_b.size() > 1) ? broadcast_shape(shape_b, target_shape_b)[0] : shape_b;
 
+    // reshaped shapes
+    auto reshape_shape = [](const ov::PartialShape shape, const std::vector<int64_t>& output_pattern) {
+        ov::op::v1::Reshape reshape;
+        auto opattern = output_pattern;
+        reshape.set_special_zero(true);
+        std::unordered_map<size_t, ov::Tensor> const_data;
+        const_data.emplace(1, ov::Tensor(ov::element::i64, ov::Shape{opattern.size()}, static_cast<void*>(opattern.data())));
+        return ov::op::v1::shape_infer(&reshape,
+                                       std::vector<ov::PartialShape>{shape, ov::PartialShape(ov::Shape{opattern.size()})},
+                                       ov::make_tensor_accessor(const_data));
+    };
+    auto shape_a_r = (output_pattern_a.size() > 1) ? reshape_shape(shape_a_b, output_pattern_a)[0] : shape_a_b;
+    auto shape_b_r = (output_pattern_b.size() > 1) ? reshape_shape(shape_b_b, output_pattern_b)[0] : shape_b_b;
+
     // transposed shapes
-    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a_b, order_a) : shape_a_b;
-    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b_b, order_b) : shape_b_b;
+    auto transpose_shape = [](const ov::PartialShape shape, const std::vector<int64_t>& order) {
+        auto shape_transposed = ov::PartialShape::dynamic(shape.rank());
+        for (size_t i = 0; i < order.size(); i++) {
+            shape_transposed[i] = shape[order[i]];
+        }
+
+        return shape_transposed;
+    };
+    auto shape_a_t = (order_a.size() > 1) ? transpose_shape(shape_a_r, order_a) : shape_a_r;
+    auto shape_b_t = (order_b.size() > 1) ? transpose_shape(shape_b_r, order_b) : shape_b_r;
     auto out_shapes = ov::op::v0::shape_infer(dynamic_cast<const ov::op::v0::MatMul*>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
     if (order_c.size() > 0) {

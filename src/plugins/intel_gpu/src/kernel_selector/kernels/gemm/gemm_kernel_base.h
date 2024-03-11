@@ -21,6 +21,8 @@ struct gemm_params : public base_params {
     uint32_t transpose_input1;
     std::vector<int32_t> input0_target_shape;
     std::vector<int32_t> input1_target_shape;
+    std::vector<int64_t> input0_output_pattern;
+    std::vector<int64_t> input1_output_pattern;
     std::vector<int64_t> input0_order;
     std::vector<int64_t> input1_order;
     std::vector<int64_t> output_order;

@@ -10,6 +10,18 @@
 
 #include "intel_gpu/op/gemm.hpp"
 
+namespace {
+template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
+int find_index_from_vec(const std::vector<T>& vec, const DT value) {
+    int idx = 0;
+    for (auto v : vec) {
+        if (v != static_cast<T>(value))
+            break;
+        idx += 1;
+    }
+    return idx;
+}
+}  // namespace
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gemm)
 
@@ -129,6 +141,8 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& node, const 
                                                                           input_shapes,
                                                                           prim->input0_target_shape,
                                                                           prim->input1_target_shape,
+                                                                          prim->input0_output_pattern,
+                                                                          prim->input1_output_pattern,
                                                                           prim->input0_order,
                                                                           prim->input1_order,
                                                                           prim->output_order);
@@ -144,6 +158,29 @@ template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(ge
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
                                                        const std::vector<layout>& input_layouts) {
+    auto get_fused_ops_input_shape = [&](const ov::PartialShape& input_pshape,
+                                         const std::vector<int32_t>& target_shape,
+                                         const std::vector<int64_t>& output_pattern) {
+        ov::PartialShape fused_ops_input_pshape;
+
+        if (target_shape.size() > 0 && output_pattern.size() > 0) {
+            if (input_pshape.is_static()) {
+                auto input_shape = input_pshape.to_shape();
+                int idx_recalc = find_index_from_vec(target_shape, 1);
+                int idx_target = find_index_from_vec(output_pattern, 0);
+                size_t shape_count = input_shape[idx_target] * input_shape[idx_recalc];
+                input_shape[idx_recalc] = shape_count;
+                input_shape.erase(input_shape.begin() + idx_target);
+                fused_ops_input_pshape = ov::PartialShape(input_shape);
+            } else {
+                fused_ops_input_pshape = ov::PartialShape::dynamic(output_pattern.size());
+            }
+        } else {
+            fused_ops_input_pshape = input_pshape;
+        }
+        return fused_ops_input_pshape;
+    };
+
     auto get_updated_input_shape = [&](const ov::PartialShape& input_pshape, size_t input_rank, size_t output_rank, bool transpose, bool first_input) {
         ov::PartialShape updated_input_pshape;
 
@@ -178,8 +215,8 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
         return updated_input_pshape;
     };
 
-    auto input0_pshape = input_layouts[0].get_partial_shape();
-    auto input1_pshape = input_layouts[1].get_partial_shape();
+    auto input0_pshape = get_fused_ops_input_shape(input_layouts[0].get_partial_shape(), primitive->input0_target_shape, primitive->input0_output_pattern);
+    auto input1_pshape = get_fused_ops_input_shape(input_layouts[1].get_partial_shape(), primitive->input1_target_shape, primitive->input1_output_pattern);
 
     bool reordered = primitive->input_rank > 4 || primitive->weight_rank > 4;
     size_t output_rank = std::max(primitive->input_rank, primitive->weight_rank);
@@ -191,7 +228,13 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 
     std::vector<layout> layouts = input_layouts;
     layouts[0].set_partial_shape(updated_input0_pshape);
+    if (primitive->input0_target_shape.size() > input_rank) {
+        layouts[0].format = format::adjust_to_rank(layouts[0].format, input_rank);
+    }
     layouts[1].set_partial_shape(updated_input1_pshape);
+    if (primitive->input1_target_shape.size() > weight_rank) {
+        layouts[1].format = format::adjust_to_rank(layouts[1].format, weight_rank);
+    }
 
     if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();

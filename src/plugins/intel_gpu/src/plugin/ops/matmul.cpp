@@ -169,6 +169,8 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                 op->get_input0_target_shape(),
                                 op->get_input1_target_shape(),
+                                op->get_input0_output_pattern(),
+                                op->get_input1_output_pattern(),
                                 op->get_input0_order(),
                                 op->get_input1_order(),
                                 op->get_output_order(),

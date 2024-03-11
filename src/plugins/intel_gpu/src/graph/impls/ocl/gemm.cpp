@@ -169,6 +169,8 @@ public:
         params.transpose_input1 = primitive->transpose_input1;
         params.input0_target_shape = primitive->input0_target_shape;
         params.input1_target_shape = primitive->input1_target_shape;
+        params.input0_output_pattern = primitive->input0_output_pattern;
+        params.input1_output_pattern = primitive->input1_output_pattern;
         params.input0_order = primitive->input0_order;
         params.input1_order = primitive->input1_order;
         params.output_order = primitive->output_order;

@@ -52,6 +52,8 @@ void IndirectGemm::validate_and_infer_types() {
                                   std::vector<ov::PartialShape>{get_input_partial_shape(0), get_input_partial_shape(1)},
                                   m_target_shape_a,
                                   m_target_shape_b,
+                                  m_output_pattern_a,
+                                  m_output_pattern_b,
                                   m_order_a,
                                   m_order_b,
                                   m_order_c);
