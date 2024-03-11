@@ -179,7 +179,141 @@ protected:
     }
 };
 
+class StridedSliceLayerReshapeGPUTest : virtual public StridedSliceLayerGPUTest {
+public:
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        ov::Tensor tensor;
+
+        // input0: data
+        int32_t idx = 0;
+        tensor = ov::test::utils::create_and_fill_tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
+        inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
+
+        // input1: begin
+        if (rest_input_type[0] == ov::test::utils::InputLayerType::PARAMETER) {
+            idx += 1;
+            tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < begin.size(); i++) {
+                dataPtr[i] = static_cast<float>(begin[i]);
+            }
+            inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
+        }
+
+        // input2: end
+        if (rest_input_type[1] == ov::test::utils::InputLayerType::PARAMETER) {
+            idx += 1;
+            tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < end.size(); i++) {
+                dataPtr[i] = static_cast<float>(end[i]);
+            }
+            inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
+        }
+
+        // input3: stride
+        if (rest_input_type[2] == ov::test::utils::InputLayerType::PARAMETER) {
+            idx += 1;
+            tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
+            auto *dataPtr = tensor.data<float>();
+            for (size_t i = 0; i < stride.size(); i++) {
+                dataPtr[i] = static_cast<float>(stride[i]);
+            }
+            inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
+        }
+
+        // data for input_1d
+        idx += 1;
+        tensor = ov::test::utils::create_and_fill_tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
+        inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
+
+        inferRequestNum++;
+    }
+
+protected:
+    std::vector<int64_t> begin;
+    std::vector<int64_t> end;
+    std::vector<int64_t> stride;
+    std::vector<ov::test::utils::InputLayerType> rest_input_type;
+    size_t inferRequestNum = 0;
+
+    void SetUp() override {
+        InputShape shapes;
+        StridedSliceParams ssParams;
+        std::tie(shapes, ssParams, inType, rest_input_type) = this->GetParam();
+
+        begin = ssParams.begin;
+        end = ssParams.end;
+        stride = ssParams.stride;
+
+        targetDevice = ov::test::utils::DEVICE_GPU;
+
+        std::vector<InputShape> inputShapes;
+
+        ov::PartialShape input_1d_shape{1024};
+
+        inputShapes.push_back(shapes);
+        if (rest_input_type[0] == ov::test::utils::InputLayerType::PARAMETER)
+            inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
+        if (rest_input_type[1] == ov::test::utils::InputLayerType::PARAMETER)
+            inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
+        if (rest_input_type[2] == ov::test::utils::InputLayerType::PARAMETER)
+            inputShapes.push_back(InputShape({static_cast<int64_t>(stride.size())}, std::vector<ov::Shape>(shapes.second.size(), {stride.size()})));
+
+        inputShapes.push_back(InputShape(input_1d_shape, {input_1d_shape.to_shape()}));
+
+        init_input_shapes(inputShapes);
+
+        ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
+
+        std::shared_ptr<ov::Node> beginInput, endInput, strideInput;
+        if (rest_input_type[0] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{begin.size()});
+            params.push_back(beginNode);
+            beginInput = beginNode;
+        } else {
+            beginInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{begin.size()}, begin);
+        }
+
+        if (rest_input_type[1] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{end.size()});
+            params.push_back(endNode);
+            endInput = endNode;
+        } else {
+            endInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{end.size()}, end);
+        }
+
+        if (rest_input_type[2] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto strideNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{stride.size()});
+            params.push_back(strideNode);
+            strideInput = strideNode;
+        } else {
+            strideInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{stride.size()}, stride);
+        }
+
+        auto input_1d = std::make_shared<ov::op::v0::Parameter>(inType, input_1d_shape.to_shape());
+        params.push_back(input_1d);
+
+        auto ss = std::make_shared<ov::op::v1::StridedSlice>(input_1d, beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
+                                                                 ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(params[0], ss);
+
+        ov::ResultVector results;
+        for (size_t i = 0; i < mul->get_output_size(); i++) {
+            results.push_back(std::make_shared<ov::op::v0::Result>(mul->output(i)));
+        }
+
+        function = std::make_shared<ov::Model>(results, params, "StridedSlice");
+    }
+};
+
 TEST_P(StridedSliceLayerGPUTest, Inference) {
+    run();
+}
+
+TEST_P(StridedSliceLayerReshapeGPUTest, Inference) {
     run();
 }
 
@@ -305,3 +439,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_6D, StridedSliceLa
                              ::testing::ValuesIn(rest_input_types)),
                          StridedSliceLayerGPUTest::getTestCaseName);
 } // namespace
+
+const std::vector<InputShape> inputShapesDynamic3D = {
+        {{-1, -1, -1},
+         {{ 1, 1024, 2 }}},
+};
+const std::vector<StridedSliceParams> paramsPlain3D = {
+        StridedSliceParams{ { 0, 0, 0 }, { 0, 0, 0 }, { 1, 1, 1 }, { 0, 1, 0 }, { 0, 1, 0 },  { 1, 0, 1 },  { },  { } },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_new_axis_3D, StridedSliceLayerReshapeGPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(inputShapesDynamic3D),
+                             ::testing::ValuesIn(paramsPlain3D),
+                             ::testing::ValuesIn(model_types),
+                             ::testing::Values(rest_input_types[0])),
+                         StridedSliceLayerGPUTest::getTestCaseName);
