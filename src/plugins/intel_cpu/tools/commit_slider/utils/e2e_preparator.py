@@ -3,8 +3,23 @@
 
 from os import walk, path
 from utils.helpers import CfgError
-import yaml
 from pathlib import Path
+
+# WA to keep CI job working until we add requirements
+try:
+    import yaml
+except:
+    import subprocess
+    import sys
+    p = subprocess.Popen('{py} -m pip install pyyaml'.format(
+            sys.executable
+        ),
+        shell=True,
+        executable="/bin/bash"
+    )
+    p.wait()
+    p.communicate()
+    import yaml
 
 def getWheelVersion(manifestPath: str):
     fullPath = path.join(manifestPath, 'manifest.yml')
