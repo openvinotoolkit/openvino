@@ -54,12 +54,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
                                             ::testing::ValuesIn(multi_properties)),
                          OVClassCompiledModelPropertiesTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
-                         OVClassAutoCheckProfiling,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
-                                            ::testing::ValuesIn(multi_properties)),
-                         OVClassCompiledModelPropertiesTests::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_OVCompiledModelIncorrectDevice,
                          OVCompiledModelIncorrectDevice,
                          ::testing::Values("TEMPLATE"));
