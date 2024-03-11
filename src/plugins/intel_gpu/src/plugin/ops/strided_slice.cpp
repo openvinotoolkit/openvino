@@ -53,7 +53,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<int64_t> strides = stride_constant ? stride_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
     do {
-        if (!begin_constant || !end_constant || !stride_constant || input_pshape.is_dynamic()) {
+        if (!begin_constant || !end_constant || !stride_constant || input_pshape.is_dynamic() || p.use_new_shape_infer()) {
             break;
         }
 
@@ -265,7 +265,7 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto output_shape = output_pshape.is_static() ? output_pshape.to_shape() : ov::Shape{};
 
     std::shared_ptr<cldnn::strided_slice> stridedSlicePrim = nullptr;
-    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() && !output_pshape.is_dynamic()) {
+    if (begin_constant && end_constant && stride_constant && !input_pshape.is_dynamic() && !output_pshape.is_dynamic() && !p.use_new_shape_infer()) {
         stridedSlicePrim = std::make_shared<cldnn::strided_slice>(layerName,
                                                                   inputs[0],
                                                                   begin,
