@@ -138,14 +138,20 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            inputNodesMap[model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op))] = node;
+            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+            if (input_index == -1)
+                OPENVINO_THROW("Can not find op: ", op->get_friendly_name(), " in model parameter list!");
+            inputNodesMap[input_index] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            outputNodesMap[model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op))] = node;
+            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+            if (output_index == -1)
+                OPENVINO_THROW("Can not find op: ", op->get_friendly_name(), " in model result list!");
+            outputNodesMap[output_index] = node;
         }
 
         op2node[op] = node;
