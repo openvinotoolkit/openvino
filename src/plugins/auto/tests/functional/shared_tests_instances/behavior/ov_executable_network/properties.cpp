@@ -138,4 +138,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          OVClassCompiledModelGetPropertyTest_MODEL_PRIORITY,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
+
+const std::vector<ov::AnyMap> default_properties = {
+    {ov::enable_profiling(false)},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Profiling_test,
+                         OVClassCompiledModelPropertiesDefaultTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
+                                            ::testing::ValuesIn(default_properties)),
+                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 }  // namespace
+
