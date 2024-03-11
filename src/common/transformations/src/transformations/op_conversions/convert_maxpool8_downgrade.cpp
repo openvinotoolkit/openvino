@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
-
 #include "itt.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/op_conversions/convert_maxpool8_to_maxpool1_downgrade.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace std;

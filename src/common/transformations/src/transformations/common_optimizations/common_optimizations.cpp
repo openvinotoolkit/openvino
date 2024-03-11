@@ -66,6 +66,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_avg_pool_downgrade.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
@@ -78,7 +79,8 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool14_to_maxpool8_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool8_to_maxpool1_downgrade.hpp"
 #include "transformations/op_conversions/convert_maxpool_upgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
@@ -211,6 +213,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
     REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1)
     REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
+    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertPriorBox8To0)
     REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1)
@@ -223,6 +226,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertPad12ToPad1)
     REGISTER_PASS(manager, ConvertScatterElementsUpdate12ToScatterElementsUpdate3)
     REGISTER_PASS(manager, ConcatFusion)
+    REGISTER_PASS(manager, ConvertAvgPool14ToAvgPool1)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)

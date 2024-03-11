@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -15,6 +13,7 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/op_conversions/convert_maxpool8_to_maxpool1_downgrade.hpp"
 using namespace ov;
 using namespace testing;
 
