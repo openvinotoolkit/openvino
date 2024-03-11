@@ -4629,8 +4629,6 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
 
 TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
 {
-#define USE_OLD_WEIGHTS_FORMAT 0
-
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_fp16) {
@@ -4640,11 +4638,7 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
     }
 
     const auto input_format   = format::yxfb;
-#if USE_OLD_WEIGHTS_FORMAT
-    const auto weights_format = format::bfyx;
-#else
     const auto weights_format = format::yxfb;
-#endif
     const auto biases_format  = format::bfyx;
     const auto output_format  = input_format;
 
@@ -4708,18 +4702,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
 
     std::vector<float> weights_vals;
     weights_vals.reserve(weights_y * weights_x * input_feature_count * output_feature_count);
-#if USE_OLD_WEIGHTS_FORMAT
-    for (uint32_t ofi = 0; ofi < output_feature_count; ++ofi)
-    {
-        for (uint32_t ifi = 0; ifi < input_feature_count; ++ifi)
-        {
-            for (uint32_t yxi = 0; yxi < weights_y * weights_x; ++yxi)
-            {
-                weights_vals.push_back((ofi * input_feature_count + ifi + 1) * weights_vals_template[yxi]);
-            }
-        }
-    }
-#else
     for (uint32_t yxi = 0; yxi < weights_y * weights_x; ++yxi)
     {
         for (uint32_t ifi = 0; ifi < input_feature_count; ++ifi)
@@ -4730,7 +4712,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
             }
         }
     }
-#endif
     set_values(weights, weights_vals);
 
     // biases:
@@ -4820,8 +4801,6 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
             }
         }
     }
-
-#undef USE_OLD_WEIGHTS_FORMAT
 }
 
 using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
@@ -8069,13 +8048,22 @@ public:
         topo.add(input_layout("input", input_lay));
         topo.add(reorder("input_reorder", input_info("input"), reordered_layout));
         std::string input_id = "input_reorder";
+        std::string azp_id = "";
+        std::string wzp_id = "";
+        std::string bias_id = "";
+        std::string comp_id = "";
+
         if (has_input_zp()) {
-            auto input_zp_lay = layout(input_type(), format::bfyx, tensor(feature(input_features())));
+            auto input_zp_lay = layout(this->input_type(), format::bfyx, tensor(feature(this->input_features())));
+            auto input_comp_lay = layout(ov::element::f32, format::bfyx, tensor(feature(this->output_features())));
             auto input_zp_mem = engine.allocate_memory(input_zp_lay);
-            set_values(input_zp_mem, _input_zp);
-            topo.add(data("input_zp", input_zp_mem));
-            topo.add(eltwise("input_asymm", { input_info("input_reorder"), input_info("input_zp") }, eltwise_mode::sub));
-            input_id = "input_asymm";
+            auto input_comp_mem = engine.allocate_memory(input_comp_lay);
+            set_values(input_zp_mem, this->_input_zp);
+            set_values(input_comp_mem, this->_compensation);
+            azp_id = "input_zp";
+            comp_id = "compensation";
+            topo.add(data(azp_id, input_zp_mem));
+            topo.add(data(comp_id, input_comp_mem));
         }
         topo.add(data("weights", wei_mem));
         std::string weights_id = "weights";
@@ -8083,43 +8071,33 @@ public:
             auto weights_zp_lay = layout(weights_type(), format::bfyx, tensor(batch(output_features())));
             auto weights_zp_mem = engine.allocate_memory(weights_zp_lay);
             set_values(weights_zp_mem, _weights_zp);
-            topo.add(data("weights_zp", weights_zp_mem));
-            topo.add(eltwise("weights_asymm", { input_info("weights"), input_info("weights_zp") }, eltwise_mode::sub));
-            weights_id = "weights_asymm";
+            wzp_id = "weights_zp";
+            topo.add(data(wzp_id, weights_zp_mem));
         }
-        if (!has_bias()) {
-            auto conv_prim = convolution(
-                "conv",
-                input_info(input_id),
-                weights_id,
-                no_bias,
-                static_cast<uint32_t>(groups()),
-                {static_cast<uint64_t>(_stride_y), static_cast<uint64_t>(_stride_x)},
-                {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)},
-                {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
-                {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
-                grouped_weights_shape());
-            conv_prim.output_data_types = {output_type()};
-            topo.add(conv_prim);
-        } else {
-            auto bias_lay = layout(output_type(), format::bfyx, tensor(feature(output_features())));
+        if (this->has_bias()) {
+            auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
             auto bias_mem = engine.allocate_memory(bias_lay);
-            set_values(bias_mem, _bias);
-            topo.add(data("bias", bias_mem));
-            auto conv_prim = convolution(
+            bias_id = "bias";
+            set_values(bias_mem, this->_bias);
+            topo.add(data(bias_id, bias_mem));
+        }
+
+        auto conv_prim = convolution(
                 "conv",
                 input_info(input_id),
                 weights_id,
-                "bias",
-                static_cast<uint32_t>(groups()),
-                {static_cast<uint64_t>(_stride_y), static_cast<uint64_t>(_stride_x)},
-                {static_cast<uint64_t>(_dilation_y), static_cast<uint64_t>(_dilation_x)},
-                {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
-                {static_cast<std::ptrdiff_t>(_offset_y), static_cast<std::ptrdiff_t>(_offset_x)},
-                grouped_weights_shape());
-            conv_prim.output_data_types = {output_type()};
-            topo.add(conv_prim);
-        }
+                bias_id,
+                wzp_id,
+                azp_id,
+                comp_id,
+                static_cast<uint32_t>(this->groups()),
+                {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
+                {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)},
+                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
+                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
+                this->grouped_weights_shape(),
+                this->output_type());
+        topo.add(conv_prim);
 
         return topo;
     }
@@ -8231,6 +8209,10 @@ public:
         _weights_zp = std::move(weights_zp);
     }
 
+    void set_compensation(VF<float> compensation) {
+        _compensation = std::move(compensation);
+    }
+
     void set_padded_input(bool padded_input) {
         _padded_input = padded_input;
     }
@@ -8250,6 +8232,7 @@ protected:
     VF<OutputT> _bias;
     VF<InputT> _input_zp;
     VF<WeightsT> _weights_zp;
+    VF<float> _compensation;
     format::type _input_fmt;
     int _stride_x, _stride_y;
     int _offset_x, _offset_y;
@@ -8403,6 +8386,14 @@ public:
         this->set_padded_input(params.need_padded_input);
         this->set_bigger_pad(params.bigger_pad);
         this->set_grouped_weights_shape(params.grouped_weights_shape);
+
+        auto spatial_size = this->filter_x() * this->filter_y();
+        auto w = params.grouped_weights_shape ? flatten_5d(format::bfzyx, this->_grouped_weights) : flatten_4d(format::bfyx, this->_weights);
+        auto compensation = params.asymmetric_data ? get_compensation(w, this->_input_zp, this->_weights_zp,
+                                                                      this->groups(), this->output_features() / this->groups(),
+                                                                      this->input_features() / this->groups(), spatial_size)
+                                                   : VF<float>();
+        this->set_compensation(std::move(compensation));
     }
 
     void run_random(const convolution_random_test_all_params& params) {
@@ -8410,6 +8401,46 @@ public:
 
         VVVVF<OutputT> expected = calculate_reference();
         ASSERT_NO_FATAL_FAILURE(this->run_expect(expected));
+    }
+
+    VF<float> get_compensation(VF<WeightsT> w_tensor, VF<InputT> azp_tensor, VF<WeightsT> wzp_tensor,
+                                 int64_t groups, size_t output_channels, size_t input_channels, size_t spatial_size) {
+        size_t azp_total = std::max<size_t>(azp_tensor.size(), 1);
+        size_t wzp_total = std::max<size_t>(wzp_tensor.size(), 1);
+        const size_t groups_count = std::max<int64_t>(groups, 1);
+        VF<float> compensation(output_channels * groups_count);
+
+        float* comp = compensation.data();
+        const WeightsT* w = w_tensor.data();
+        const WeightsT* wzp = !wzp_tensor.empty() ? wzp_tensor.data() : nullptr;
+        const InputT* azp = !azp_tensor.empty() ? azp_tensor.data() : nullptr;
+
+        if (!azp)
+            return {};
+
+        for (size_t g = 0; g < groups_count; g++) {
+            for (size_t oc = 0; oc < output_channels; oc++) {
+                float c = 0.f;
+                for (size_t ic = 0; ic < input_channels; ic++) {
+                    for (size_t k = 0; k < spatial_size; k++) {
+                        size_t azp_offset = (g * input_channels + ic) % azp_total;
+                        size_t wzp_offset = (g * output_channels + oc) % wzp_total;
+                        const auto w_offset = g * output_channels * input_channels * spatial_size
+                                            + oc * input_channels * spatial_size
+                                            + ic * spatial_size
+                                            + k;
+
+                        c += w[w_offset] * azp[azp_offset];
+                        if (wzp) {
+                            c -= azp[azp_offset] * wzp[wzp_offset];
+                        }
+                    }
+                }
+                comp[(g * output_channels + oc)] = -c;
+            }
+        }
+
+        return compensation;
     }
 
     tests::random_generator _rg;
@@ -8473,13 +8504,21 @@ public:
         topo.add(input_layout("input", input_lay));
         topo.add(reorder("input_reorder", input_info("input"), reordered_layout));
         std::string input_id = "input_reorder";
+        std::string azp_id = "";
+        std::string wzp_id = "";
+        std::string bias_id = "";
+        std::string comp_id = "";
         if (this->has_input_zp()) {
             auto input_zp_lay = layout(this->input_type(), format::bfyx, tensor(feature(this->input_features())));
+            auto input_comp_lay = layout(ov::element::f32, format::bfyx, tensor(feature(this->output_features())));
             auto input_zp_mem = engine.allocate_memory(input_zp_lay);
+            auto input_comp_mem = engine.allocate_memory(input_comp_lay);
             set_values(input_zp_mem, this->_input_zp);
-            topo.add(data("input_zp", input_zp_mem));
-            topo.add(eltwise("input_asymm", { input_info("input_reorder"), input_info("input_zp") }, eltwise_mode::sub));
-            input_id = "input_asymm";
+            set_values(input_comp_mem, this->_compensation);
+            azp_id = "input_zp";
+            comp_id = "compensation";
+            topo.add(data(azp_id, input_zp_mem));
+            topo.add(data(comp_id, input_comp_mem));
         }
         topo.add(data("weights", wei_mem));
         std::string weights_id = "weights";
@@ -8487,43 +8526,33 @@ public:
             auto weights_zp_lay = layout(this->weights_type(), format::bfyx, tensor(batch(this->output_features())));
             auto weights_zp_mem = engine.allocate_memory(weights_zp_lay);
             set_values(weights_zp_mem, this->_weights_zp);
-            topo.add(data("weights_zp", weights_zp_mem));
-            topo.add(eltwise("weights_asymm", { input_info("weights"), input_info("weights_zp") }, eltwise_mode::sub));
-            weights_id = "weights_asymm";
+            wzp_id = "weights_zp";
+            topo.add(data(wzp_id, weights_zp_mem));
         }
-        if (!this->has_bias()) {
-            auto conv_prim = convolution(
-                "conv",
-                input_info(input_id),
-                weights_id,
-                no_bias,
-                static_cast<uint32_t>(this->groups()),
-                {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
-                {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)},
-                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
-                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
-                this->grouped_weights_shape());
-            conv_prim.output_data_types = {this->output_type()};
-            topo.add(conv_prim);
-        } else {
+        if (this->has_bias()) {
             auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
             auto bias_mem = engine.allocate_memory(bias_lay);
+            bias_id = "bias";
             set_values(bias_mem, this->_bias);
-            topo.add(data("bias", bias_mem));
-            auto conv_prim = convolution(
+            topo.add(data(bias_id, bias_mem));
+        }
+
+        auto conv_prim = convolution(
                 "conv",
                 input_info(input_id),
                 weights_id,
-                "bias",
+                bias_id,
+                wzp_id,
+                azp_id,
+                comp_id,
                 static_cast<uint32_t>(this->groups()),
                 {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
                 {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)},
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
                 {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
-                this->grouped_weights_shape());
-            conv_prim.output_data_types = {this->output_type()};
-            topo.add(conv_prim);
-        }
+                this->grouped_weights_shape(),
+                this->output_type());
+        topo.add(conv_prim);
 
         return topo;
     }
