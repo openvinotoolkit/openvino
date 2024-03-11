@@ -132,58 +132,42 @@ void PreStepsList::add_mean_impl(const std::vector<float>& values) {
 
 void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
                                 const std::vector<int>& pads_end,
-                                const std::vector<float>& values,
+                                const std::vector<float>& pad_values,
                                 PaddingMode mode) {
     std::string name;
-    name = "pad(begin " + vector_to_string(pads_begin) + 
+    name = "pad(begin " + vector_to_string(pads_begin) +
             ", end " + vector_to_string(pads_end);
     switch (mode) {
-        case PaddingMode::PAD_CONSTANT:
-            name += ", with " + vector_to_string(values) + ")";
+        case PaddingMode::CONSTANT:
+            name += ", with " + vector_to_string(pad_values) + ")";
             break;
-        case PaddingMode::PAD_EDGE:
-            name += ", copied from edge";
+        case PaddingMode::EDGE:
+            name += ", copied from edge)";
             break;
-        case PaddingMode::PAD_REFLECT:
-            name += ", reflected from tensor";
+        case PaddingMode::REFLECT:
+            name += ", reflected from tensor)";
             break;
-        case PaddingMode::PAD_SYMMETRIC:
-            name += ", symmetrically added from tensor";
+        case PaddingMode::SYMMETRIC:
+            name += ", symmetrically added from tensor)";
             break;
     }
 
     m_actions.emplace_back(
-        [pads_begin, pads_end, values, mode](const std::vector<Output<Node>>& nodes,
+        [pads_begin, pads_end, pad_values, mode](const std::vector<Output<Node>>& nodes,
                                              const std::shared_ptr<Model>& function,
                                              PreprocessingContext& ctxt) {
-            OPENVINO_ASSERT(!nodes.empty(), "Internal error: Can't add pad for empty input.");
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't pad multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
 
-            const auto to_mode = [](const PaddingMode mode) -> op::PadMode {
-                switch (mode) {
-                case PaddingMode::PAD_CONSTANT:
-                    return op::PadMode::CONSTANT;
-                case PaddingMode::PAD_EDGE:
-                    return op::PadMode::EDGE;
-                case PaddingMode::PAD_REFLECT:
-                    return op::PadMode::REFLECT;
-                case PaddingMode::PAD_SYMMETRIC:
-                    return op::PadMode::SYMMETRIC;
-                default:
-                    return op::PadMode::CONSTANT;
-                }
-            };
-
-            auto node = nodes[0];
-            auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, values);
+            const auto& node = nodes[0];
+            auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, pad_values);
 
             auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
             auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
-            auto npad_value = opset8::Constant::create(element::f32, Shape{}, values);
+            auto npad_value = opset8::Constant::create(element::f32, Shape{}, pad_values);
 
-            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, to_mode(mode));
+            auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, mode);
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
         }, name);
 }

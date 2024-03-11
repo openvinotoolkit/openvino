@@ -921,7 +921,7 @@ TEST(pre_post_process, pad_vector_constant_layout) {
     std::stringstream exp_dump;
     exp_dump << PartialShape{1, 3, 200, 200};
     try{
-        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::PAD_CONSTANT);
+        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::CONSTANT);
         p.build();
     } catch (const ov::Exception& err) {
         // Padded shape should be {1, 3, 200, 200}
@@ -935,7 +935,7 @@ TEST(pre_post_process, pad_vector_out_of_range) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
     auto p = PrePostProcessor(f);
 
-    ASSERT_THROW(p.input().preprocess().pad({0, 0, -2, 0}, {0, 0, -4, 1}, 0, PaddingMode::PAD_CONSTANT); p.build(),
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, -2, 0}, {0, 0, -4, 1}, 0, PaddingMode::CONSTANT); p.build(),
                  ov::AssertFailure);
 }
 
@@ -943,7 +943,7 @@ TEST(pre_post_process, pad_vector_dim_mismatch) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
     auto p = PrePostProcessor(f);
 
-    ASSERT_THROW(p.input().preprocess().pad({0, 0, 2, 0, 1}, {0, 0, 4, 1, 1}, 0, PaddingMode::PAD_CONSTANT); p.build(),
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, 2, 0, 1}, {0, 0, 4, 1, 1}, 0, PaddingMode::CONSTANT); p.build(),
                  ov::AssertFailure);
 }
 

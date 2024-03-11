@@ -447,7 +447,7 @@ inline std::shared_ptr<Model> pad_constant() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
     auto p = PrePostProcessor(function);
-    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::PAD_CONSTANT);
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::CONSTANT);
     function = p.build();
     return function;
 }
@@ -456,7 +456,7 @@ inline std::shared_ptr<Model> pad_edge() {
     using namespace ov::preprocess;
     auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
     auto p = PrePostProcessor(function);
-    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::PAD_EDGE);
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::EDGE);
     function = p.build();
     return function;
 }
