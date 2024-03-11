@@ -99,7 +99,7 @@ The OpenVINO Repository includes the following components. Click on the componen
 
 OpenVINO Components include:
 
-  * [OpenVINO™ Runtime] - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
+  * [OpenVINO™ Runtime](https://docs.openvino.ai/2024/openvino-workflow/running-inference.html) - is a set of C++ libraries with C and Python bindings providing a common API to deliver inference solutions on the platform of your choice.
     * [core](./src/core) - provides the base API for model representation and modification.
     * [inference](./src/inference) - provides an API to infer models on the device.
     * [transformations](./src/common/transformations) - contains the set of common transformations which are used in OpenVINO plugins.
@@ -109,8 +109,8 @@ OpenVINO Components include:
         * [python](./src/bindings/python) - Python API for OpenVINO™ Runtime
 * [Plugins](./src/plugins) - contains OpenVINO plugins which are maintained in open-source by the OpenVINO team. For more information, take a look at the [list of supported devices](#supported-hardware-matrix).
 * [Frontends](./src/frontends) - contains available OpenVINO frontends that allow reading models from the native framework format.
-* [OpenVINO Model Converter (OVC)] - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
-* [Samples] - applications in C, C++ and Python languages that show basic OpenVINO use cases.
+* [OpenVINO Model Converter (OVC)](https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html) - is a cross-platform command-line tool that facilitates the transition between training and deployment environments, and adjusts deep learning models for optimal execution on end-point target devices.
+* [Samples](https://github.com/openvinotoolkit/openvino/tree/master/samples) - applications in C, C++ and Python languages that show basic OpenVINO use cases.
 
 #### OpenVINO Component Structure
 
