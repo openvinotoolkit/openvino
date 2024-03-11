@@ -84,14 +84,12 @@ ExecNetwork::ExecNetwork(const InferenceEngine::CNNNetwork &network,
     if (!core)
         IE_THROW() << "Unable to get API version. Core is unavailable";
     _cfg.isLegacyApi = !core->isNewAPI();
-
-
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = _plugin->executorManager()->getExecutor("CPU");
     } else {
         auto streamsExecutorConfig =
-            is_cpu_map_available()
+            is_cpu_map_available(_cfg.streamExecutorConfig._executor_id)
                 ? _cfg.streamExecutorConfig
                 : InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig,
                                                                                       isFloatModel);
@@ -289,6 +287,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::optimal_number_of_infer_requests.name()),
             RO_property(ov::num_streams.name()),
             RO_property(ov::affinity.name()),
+            RO_property(ov::cpu_core_ids.name()),
             RO_property(ov::inference_num_threads.name()),
             RO_property(ov::enable_profiling.name()),
             RO_property(ov::hint::inference_precision.name()),
@@ -314,6 +313,15 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::num_streams) {
         const auto streams = config.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+    } else if (name == ov::cpu_core_ids) {
+        std::string strRes = "";
+        for (auto& it : config.streamExecutorConfig._stream_processor_ids) {
+            for (auto j : it) {
+                strRes += std::to_string(j);
+                strRes += ",";
+            }
+        }
+        return strRes;
     } else if (name == ov::affinity) {
         const auto affinity = config.streamExecutorConfig._threadBindingType;
         switch (affinity) {

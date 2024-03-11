@@ -27,8 +27,8 @@ bool PinThreadToVacantCore(int thrIdx,
 bool PinCurrentThreadByMask(int ncores, const CpuSet& procMask) {
     return ov::threading::pin_current_thread_by_mask(ncores, procMask);
 }
-bool PinCurrentThreadToSocket(int socket) {
-    return ov::threading::pin_current_thread_to_socket(socket);
+bool PinCurrentThreadToSocket(int executor_id, int socket) {
+    return ov::threading::pin_current_thread_to_socket(executor_id, socket);
 }
 
 }  //  namespace InferenceEngine

@@ -76,11 +76,11 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _streams = static_cast<int>(get_available_numa_nodes().size());
+                _streams = static_cast<int>(get_available_numa_nodes(_executor_id).size());
                 _streams_changed = true;
             } else if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
                 // bare minimum of streams (that evenly divides available number of cores)
-                _streams = get_default_num_streams();
+                _streams = get_default_num_streams(_executor_id);
                 _streams_changed = true;
             } else {
                 int val_i;
@@ -103,12 +103,12 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
         } else if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
-                _streams = static_cast<int32_t>(get_available_numa_nodes().size());
+                _streams = static_cast<int32_t>(get_available_numa_nodes(_executor_id).size());
                 _streams_changed = true;
             } else if (streams == ov::streams::AUTO) {
                 // bare minimum of streams (that evenly divides available number of cores)
-                if (!is_cpu_map_available()) {
-                    _streams = get_default_num_streams();
+                if (!is_cpu_map_available(_executor_id)) {
+                    _streams = get_default_num_streams(_executor_id);
                 }
             } else if (streams.num >= 0) {
                 _streams = streams.num;
@@ -120,6 +120,20 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                "ov::streams::NUMA|ov::streams::AUTO, Got: ",
                                streams);
             }
+        } else if (key == ov::cpu_core_ids) {
+            std::string ids_str = value.as<std::string>();
+            std::vector<int> ids;
+            std::stringstream ss(ids_str);
+            std::string item;
+            while (getline(ss, item, ',')) {
+                ids.push_back(std::stoi(item));
+            }
+            _executor_id = config_available_cpus(_executor_id, ids);
+            printf("### update excutor id=%d, name=%s ids=%s, streams=%d\n",
+                   _executor_id,
+                   _name.c_str(),
+                   ids_str.c_str(),
+                   _streams);
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
             int val_i;
             try {
@@ -257,6 +271,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
             CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
             CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
             ov::num_streams.name(),
+            ov::cpu_core_ids.name(),
             ov::inference_num_threads.name(),
             ov::internal::threads_per_stream.name(),
             ov::affinity.name(),
@@ -292,6 +307,15 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
         return {std::to_string(_streams)};
     } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
         return {std::to_string(_threads)};
+    } else if (key == ov::cpu_core_ids) {
+        std::string strRes = "";
+        for (auto& it : _stream_processor_ids) {
+            for (auto j : it) {
+                strRes += std::to_string(j);
+                strRes += ",";
+            }
+        }
+        return {strRes};
     } else if (key == ov::inference_num_threads) {
         return decltype(ov::inference_num_threads)::value_type{_threads};
     } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM) || key == ov::internal::threads_per_stream) {
@@ -315,11 +339,12 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
     return {};
 }
 
-int IStreamsExecutor::Config::get_default_num_streams(const bool enable_hyper_thread) {
-    const int sockets = static_cast<int>(get_available_numa_nodes().size());
+int IStreamsExecutor::Config::get_default_num_streams(int executor_id, const bool enable_hyper_thread) {
+    const int sockets = static_cast<int>(get_available_numa_nodes(executor_id).size());
     // bare minimum of streams (that evenly divides available number of core)
-    const int num_cores = sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : get_number_of_cpu_cores())
-                                       : get_number_of_cpu_cores();
+    const int num_cores =
+        sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : get_number_of_cpu_cores(executor_id))
+                     : get_number_of_cpu_cores(executor_id);
     if (0 == num_cores % 4)
         return std::max(4, num_cores / 4);
     else if (0 == num_cores % 5)
@@ -330,11 +355,12 @@ int IStreamsExecutor::Config::get_default_num_streams(const bool enable_hyper_th
         return 1;
 }
 
-int IStreamsExecutor::Config::get_hybrid_num_streams(std::map<std::string, std::string>& config,
+int IStreamsExecutor::Config::get_hybrid_num_streams(int executor_id,
+                                                     std::map<std::string, std::string>& config,
                                                      const int stream_mode) {
     const int num_cores = parallel_get_max_threads();
-    const int num_cores_phy = get_number_of_cpu_cores();
-    const int num_big_cores_phy = get_number_of_cpu_cores(true);
+    const int num_cores_phy = get_number_of_cpu_cores(executor_id);
+    const int num_big_cores_phy = get_number_of_cpu_cores(executor_id, true);
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     int big_core_streams = 0;
@@ -394,8 +420,8 @@ int IStreamsExecutor::Config::get_hybrid_num_streams(std::map<std::string, std::
 
 void IStreamsExecutor::Config::update_hybrid_custom_threads(Config& config) {
     const auto num_cores = parallel_get_max_threads();
-    const auto num_cores_phys = get_number_of_cpu_cores();
-    const auto num_big_cores_phys = get_number_of_cpu_cores(true);
+    const auto num_cores_phys = get_number_of_cpu_cores(config._executor_id);
+    const auto num_big_cores_phys = get_number_of_cpu_cores(config._executor_id, true);
     const auto num_big_cores = num_cores > num_cores_phys ? num_big_cores_phys * 2 : num_big_cores_phys;
     const auto num_small_cores_phys = num_cores_phys - num_big_cores_phys;
     const auto threads = config._threads ? config._threads : num_cores;
@@ -457,14 +483,17 @@ void IStreamsExecutor::Config::update_hybrid_custom_threads(Config& config) {
 
 IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(const IStreamsExecutor::Config& initial,
                                                                                const bool fp_intesive) {
-    const auto envThreads = parallel_get_env_threads();
-    const auto& numaNodes = get_available_numa_nodes();
-    const int numaNodesNum = static_cast<int>(numaNodes.size());
+    printf("### IStreamsExecutor::Config::make_default_multi_threaded  %d, %s\n",
+           initial._executor_id,
+           initial._name.c_str());
     auto streamExecutorConfig = initial;
+    const auto envThreads = parallel_get_env_threads();
+    const auto& numaNodes = get_available_numa_nodes(streamExecutorConfig._executor_id);
+    const int numaNodesNum = static_cast<int>(numaNodes.size());
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
-    int num_cores_default = get_number_of_cpu_cores();
+    int num_cores_default = get_number_of_cpu_cores(streamExecutorConfig._executor_id);
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     // additional latency-case logic for hybrid processors:
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
@@ -535,8 +564,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_threads(const ISt
     if (config._streams_info_table.size() == 0 || (status == CPU_USED && !config._cpu_reservation)) {
         return config;
     }
-
-    reserve_available_cpus(config._streams_info_table, config._stream_processor_ids, status);
+    reserve_available_cpus(config._executor_id, config._streams_info_table, config._stream_processor_ids, status);
 
     config._streams = 0;
     config._threads = 0;
@@ -557,7 +585,7 @@ void IStreamsExecutor::Config::update_executor_config(int stream_nums,
                                                       int threads_per_stream,
                                                       IStreamsExecutor::Config::PreferredCoreType core_type,
                                                       bool cpu_pinning) {
-    const auto proc_type_table = ov::get_proc_type_table();
+    const auto proc_type_table = ov::get_proc_type_table(_executor_id);
 
     if (proc_type_table.empty()) {
         return;

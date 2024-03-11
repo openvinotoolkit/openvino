@@ -334,7 +334,7 @@ void Engine::GetPerformanceStreams(Config& config, const std::shared_ptr<ngraph:
 
 void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Function>& function, bool imported) {
     // import config props from caching model
-    if (imported && !is_cpu_map_available()) {
+    if (imported && !is_cpu_map_available(engConfig.streamExecutorConfig._executor_id)) {
         if (function->has_rt_info("intel_cpu_hints_config") && !conf.perfHintsConfig.ovPerfHint.empty()) {
             const auto mode_name = conf.perfHintsConfig.ovPerfHint;
             if (mode_name == CONFIG_VALUE(LATENCY) || mode_name == CONFIG_VALUE(THROUGHPUT)) {
@@ -350,7 +350,7 @@ void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Functi
         }
     }
 
-    if (is_cpu_map_available()) {
+    if (is_cpu_map_available(engConfig.streamExecutorConfig._executor_id)) {
         const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
         if (imported && function->has_rt_info("intel_cpu_hints_config")) {
             // load model_prefer_threads from cache
@@ -380,14 +380,15 @@ void Engine::CalculateStreams(Config& conf, const std::shared_ptr<ngraph::Functi
 StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                                         int stream_mode,
                                         const bool enable_hyper_thread) const {
-    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    const int sockets = static_cast<int>(getAvailableNUMANodes(engConfig.streamExecutorConfig._executor_id).size());
     const int num_cores =
         thread_binding_type == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE
             ? parallel_get_max_threads()
-            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads() : getNumberOfCPUCores())
-                            : getNumberOfCPUCores());
-    const int num_cores_phy = getNumberOfCPUCores();
-    const int num_big_cores_phy = getNumberOfCPUCores(true);
+            : (sockets == 1 ? (enable_hyper_thread ? parallel_get_max_threads()
+                               : getNumberOfCPUCores(engConfig.streamExecutorConfig._executor_id))
+                            : getNumberOfCPUCores(engConfig.streamExecutorConfig._executor_id));
+    const int num_cores_phy = getNumberOfCPUCores(engConfig.streamExecutorConfig._executor_id);
+    const int num_big_cores_phy = getNumberOfCPUCores(0, true);
     const int num_small_cores = num_cores_phy - num_big_cores_phy;
     const int num_big_cores = num_cores > num_cores_phy ? num_big_cores_phy * 2 : num_big_cores_phy;
     StreamCfg stream_cfg = {0};
@@ -507,7 +508,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Engine::LoadExeNetworkImpl");
     CREATE_DEBUG_TIMER(debugLoadTimer);
-
     // verification of supported input
     for (const auto &ii : network.getInputsInfo()) {
         auto input_precision = ii.second->getPrecision();
@@ -548,7 +548,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     Transformations transformations(nGraphFunc, enableLPT, inferencePrecision, isLegacyAPI(), snippetsMode, conf);
     transformations.UpToLpt();
 
-    if (!is_cpu_map_available()) {
+    if (!is_cpu_map_available(engConfig.streamExecutorConfig._executor_id)) {
         ApplyPerformanceHints(config, nGraphFunc);
     }
 
@@ -619,6 +619,16 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::num_streams) {
         const auto streams = engConfig.streamExecutorConfig._streams;
         return decltype(ov::num_streams)::value_type(streams); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
+    } else if (name == ov::cpu_core_ids) {
+        std::string strRes = "";
+        for(auto& it : engConfig.streamExecutorConfig._stream_processor_ids) {
+            for(auto j : it){
+                strRes += std::to_string(j);
+                strRes += ",";
+            }
+        }
+        return strRes;
+        // return decltype(ov::cpu_core_ids)::value_type("Unknown"); // ov::num_streams has special negative values (AUTO = -1, NUMA = -2)
     } else if (name == ov::affinity) {
         const auto affinity = engConfig.streamExecutorConfig._threadBindingType;
         switch (affinity) {
@@ -740,6 +750,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         };
         // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
+                                                    RW_property(ov::cpu_core_ids.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
                                                     RW_property(ov::enable_profiling.name()),
@@ -854,7 +865,6 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istream& networkModel,
                                             const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "ImportNetwork");
-
     CNNNetworkDeserializer deserializer(networkModel,
         [this](const std::string& model, const Blob::CPtr& weights) {
             return GetCore()->ReadNetwork(model, weights, true);

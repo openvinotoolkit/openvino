@@ -34,8 +34,8 @@ inline bool checkOpenMpEnvVars(bool includeOMPNumThreads = true) {
  * @ingroup    ie_dev_api_system_conf
  * @return     NUMA nodes
  */
-inline std::vector<int> getAvailableNUMANodes() {
-    return ov::get_available_numa_nodes();
+inline std::vector<int> getAvailableNUMANodes(int executor_id) {
+    return ov::get_available_numa_nodes(executor_id);
 }
 
 /**
@@ -57,8 +57,8 @@ inline std::vector<int> getAvailableCoresTypes() {
  * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
-inline int getNumberOfCPUCores(bool bigCoresOnly = false) {
-    return ov::get_number_of_cpu_cores(bigCoresOnly);
+inline int getNumberOfCPUCores(int executor_id, bool bigCoresOnly = false) {
+    return ov::get_number_of_cpu_cores(executor_id, bigCoresOnly);
 }
 
 /**
@@ -69,8 +69,8 @@ inline int getNumberOfCPUCores(bool bigCoresOnly = false) {
  * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of logical CPU cores.
  */
-inline int getNumberOfLogicalCPUCores(bool bigCoresOnly = false) {
-    return ov::get_number_of_logical_cpu_cores(bigCoresOnly);
+inline int getNumberOfLogicalCPUCores(int model_id, bool bigCoresOnly = false) {
+    return ov::get_number_of_logical_cpu_cores(model_id, bigCoresOnly);
 }
 
 /**

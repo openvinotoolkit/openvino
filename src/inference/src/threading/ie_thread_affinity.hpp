@@ -73,5 +73,5 @@ bool PinCurrentThreadByMask(int ncores, const CpuSet& processMask);
  * @param[in]  socket  The socket id
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinCurrentThreadToSocket(int socket);
+bool PinCurrentThreadToSocket(int executor_id, int socket);
 }  //  namespace InferenceEngine

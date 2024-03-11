@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <execinfo.h>
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -79,12 +81,15 @@ public:
          * @return configured values
          */
         static Config make_default_multi_threaded(const Config& initial, const bool fp_intesive = true);
-        static int get_default_num_streams(
-            const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
-        static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
+        static int get_default_num_streams(int executor_id, const bool enable_hyper_thread = true);
+        // no network specifics considered (only CPU's caps);
+        static int get_hybrid_num_streams(int executor_id,
+                                          std::map<std::string, std::string>& config,
+                                          const int stream_mode);
         static void update_hybrid_custom_threads(Config& config);
         static Config reserve_cpu_threads(const Config& initial);
 
+        int _executor_id;
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
         int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
@@ -140,7 +145,8 @@ public:
                PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
                std::vector<std::vector<int>> streamsInfoTable = {},
                bool cpuReservation = false)
-            : _name{name},
+            : _executor_id(-1),
+              _name{name},
               _streams{streams},
               _threadsPerStream{threadsPerStream},
               _threadBindingType{threadBindingType},

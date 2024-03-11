@@ -79,7 +79,7 @@ struct CPUStreamsExecutor::Impl {
                                                           _impl->_usedNumaNodes.size()))
                               : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            if (is_cpu_map_available() && _impl->_config._streams_info_table.size() > 0) {
+            if (is_cpu_map_available(_impl->_config._executor_id) && _impl->_config._streams_info_table.size() > 0) {
                 init_stream();
             } else {
                 init_stream_legacy();
@@ -100,7 +100,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif OV_THREAD == OV_THREAD_SEQ
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                pin_current_thread_to_socket(_numaNodeId);
+                pin_current_thread_to_socket(_impl->_config._executor_id, _numaNodeId);
             } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                 CpuSet processMask;
                 int ncpus = 0;
@@ -121,7 +121,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (_impl->_config._name.find("StreamsExecutor") == std::string::npos) {
-                set_cpu_used(_cpu_ids, NOT_USED);
+                set_cpu_used(_impl->_config._executor_id, _cpu_ids, NOT_USED);
             }
             if (nullptr != _observer) {
                 _observer->observe(false);
@@ -137,7 +137,7 @@ struct CPUStreamsExecutor::Impl {
                                    const int numa_node_id,
                                    const int max_threads_per_core) {
             _numaNodeId = std::max(0, numa_node_id);
-            _socketId = get_socket_by_numa_node(_numaNodeId);
+            _socketId = get_socket_by_numa_node(_impl->_config._executor_id, _numaNodeId);
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_max_concurrency(concurrency)
@@ -185,7 +185,7 @@ struct CPUStreamsExecutor::Impl {
             int numa_node_id;
             int max_threads_per_core;
             StreamCreateType stream_type;
-            const auto org_proc_type_table = get_org_proc_type_table();
+            const auto org_proc_type_table = get_org_proc_type_table(_impl->_config._executor_id);
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
 
             get_cur_stream_info(stream_id,
@@ -439,7 +439,7 @@ struct CPUStreamsExecutor::Impl {
               },
               this) {
         _exectorMgr = executor_manager();
-        auto numaNodes = get_available_numa_nodes();
+        auto numaNodes = get_available_numa_nodes(_config._executor_id);
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(_config._streams, numaNodes.size()),
@@ -448,10 +448,11 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-        if (!is_cpu_map_available() && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
+        if (!is_cpu_map_available(config._executor_id) &&
+            ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             const auto core_types = custom::info::core_types();
-            const auto num_core_phys = get_number_of_cpu_cores();
-            num_big_core_phys = get_number_of_cpu_cores(true);
+            const auto num_core_phys = get_number_of_cpu_cores(_config._executor_id);
+            num_big_core_phys = get_number_of_cpu_cores(_config._executor_id, true);
             const auto num_small_core_phys = num_core_phys - num_big_core_phys;
             int sum = 0;
             // reversed order, so BIG cores are first

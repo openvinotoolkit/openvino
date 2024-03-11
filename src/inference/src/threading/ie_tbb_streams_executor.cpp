@@ -176,7 +176,7 @@ struct TBBStreamsExecutor::Impl {
                 new tbb::global_control{tbb::global_control::max_allowed_parallelism,
                                         static_cast<std::size_t>(_config._streams * _config._threadsPerStream + 1)});
         }
-        auto numaNodes = getAvailableNUMANodes();
+        auto numaNodes = getAvailableNUMANodes(_config._executor_id);
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min(static_cast<std::size_t>(_config._streams), numaNodes.size()),

@@ -25,12 +25,14 @@ IStreamsExecutor::~IStreamsExecutor() {}
 std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
     return get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
 }
-int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
-    return get_default_num_streams(enable_hyper_thread);
+int IStreamsExecutor::Config::GetDefaultNumStreams(int executor_id, const bool enable_hyper_thread) {
+    return get_default_num_streams(executor_id, enable_hyper_thread);
 }
 
-int IStreamsExecutor::Config::GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode) {
-    return get_hybrid_num_streams(config, stream_mode);
+int IStreamsExecutor::Config::GetHybridNumStreams(int executor_id,
+                                                  std::map<std::string, std::string>& config,
+                                                  const int stream_mode) {
+    return get_hybrid_num_streams(executor_id, config, stream_mode);
 }
 
 void IStreamsExecutor::Config::SetConfig(const std::string& key, const std::string& value) {

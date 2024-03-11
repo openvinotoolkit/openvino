@@ -413,6 +413,9 @@ int main(int argc, char* argv[]) {
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             auto supported_properties = core.get_property(device, ov::supported_properties);
+            // for( auto& it : supported_properties) {
+            //     printf("### key = %s\n", it.c_str());
+            // }
 
             auto supported = [&](const std::string& key) {
                 return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=
@@ -523,12 +526,23 @@ int main(int argc, char* argv[]) {
                     }
                 }
             };
+
+            auto set_cpu_core_ids = [&] {
+                if (supported(ov::cpu_core_ids.name())) {
+                    device_config[ov::cpu_core_ids.name()] = FLAGS_cpu_core_ids;
+                } else {
+                    throw std::logic_error("Device " + device + " doesn't support config key '" +
+                                           ov::cpu_core_ids.name() + "'! " + " values =  " + FLAGS_cpu_core_ids);
+                }
+            };
+
             if (isFlagSetInCommandLine("nthreads"))
                 set_nthreads_pin("nthreads");
 
             if (isFlagSetInCommandLine("pin"))
                 set_nthreads_pin("pin");
 
+            set_cpu_core_ids();
             set_throughput_streams();
             set_infer_precision();
 

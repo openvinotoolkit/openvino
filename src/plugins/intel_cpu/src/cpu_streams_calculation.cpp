@@ -521,7 +521,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 
 void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>& ngraphFunc, Config& config) {
     InferenceEngine::IStreamsExecutor::Config& executor_config = config.streamExecutorConfig;
-    std::vector<std::vector<int>> proc_type_table = get_proc_type_table();
+    std::vector<std::vector<int>> proc_type_table = get_proc_type_table(executor_config._executor_id);
 
     generate_stream_info(streams, ngraphFunc, config, proc_type_table);
 
@@ -531,9 +531,9 @@ void get_num_streams(const int streams, const std::shared_ptr<ngraph::Function>&
 
 int get_default_latency_streams(Config::LatencyThreadingMode latency_threading_mode) {
     if (latency_threading_mode == Config::LatencyThreadingMode::PER_NUMA_NODE) {
-        return get_num_sockets();
+        return get_num_sockets(-1);
     } else if (latency_threading_mode == Config::LatencyThreadingMode::PER_SOCKET) {
-        return get_num_numa_nodes();
+        return get_num_numa_nodes(-1);
     } else {
         return 1;
     }

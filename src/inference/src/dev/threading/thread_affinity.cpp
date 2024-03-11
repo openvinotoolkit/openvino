@@ -87,9 +87,9 @@ bool pin_thread_to_vacant_core(int thrIdx,
     return res;
 }
 
-bool pin_current_thread_to_socket(int socket) {
-    const int sockets = ov::get_available_numa_nodes().size();
-    const int cores = ov::get_number_of_cpu_cores();
+bool pin_current_thread_to_socket(int executor_id, int socket) {
+    const int sockets = ov::get_available_numa_nodes(executor_id).size();
+    const int cores = ov::get_number_of_cpu_cores(executor_id);
     const int cores_per_socket = cores / sockets;
 
     int ncpus = 0;
@@ -133,7 +133,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     DWORD_PTR mask = *procMask.get();
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
-bool pin_current_thread_to_socket(int socket) {
+bool pin_current_thread_to_socket(int executor_id, int socket) {
     return false;
 }
 #else   // no threads pinning/binding on MacOS
@@ -153,7 +153,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     return false;
 }
-bool pin_current_thread_to_socket(int socket) {
+bool pin_current_thread_to_socket(int executor_id, int socket) {
     return false;
 }
 #endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
