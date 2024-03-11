@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2023.2
+OpenVINO 2023.3
 ============================
 
 .. meta::
@@ -24,7 +24,7 @@ OpenVINO 2023.2
          		<ul class="splide__list">
          			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
 
-                  <li class="splide__slide"Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.<br>
+                  <li class="splide__slide">Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.<br>
                      <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
                   </li>
                   <li class="splide__slide">OpenVINO via PyTorch 2.0 torch.compile()<br>Use OpenVINO directly in PyTorch-native applications!<br>
