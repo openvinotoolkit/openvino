@@ -94,9 +94,7 @@ private:
 
 private:
     void create_infer_request();
-    void init_tensor(const std::size_t& port_index,
-                     const ov::Output<const ov::Node>& port,
-                     const ov::ISyncInferRequest::FoundPort::Type& type);
+    void init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type);
 
     void push_input_data();
     void redefine_memory_for_input_nodes();

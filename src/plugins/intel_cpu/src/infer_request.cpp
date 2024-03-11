@@ -49,10 +49,10 @@ void SyncInferRequest::create_infer_request() {
 
     // Alocate memory for each tensor if static shape
     for (const auto& it : m_input_ports_map) {
-        init_tensor(it.first, it.second, ov::ISyncInferRequest::FoundPort::Type::INPUT);
+        init_tensor(it.first, ov::ISyncInferRequest::FoundPort::Type::INPUT);
     }
     for (const auto& it : m_output_ports_map) {
-        init_tensor(it.first, it.second, ov::ISyncInferRequest::FoundPort::Type::OUTPUT);
+        init_tensor(it.first, ov::ISyncInferRequest::FoundPort::Type::OUTPUT);
     }
 
     //create states according to the list of the MemoryStateNodes
@@ -459,9 +459,7 @@ void SyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port, c
     OPENVINO_THROW("Cannot find port to set_tensors!");
 }
 
-void SyncInferRequest::init_tensor(const std::size_t& port_index,
-                                   const ov::Output<const ov::Node>& port,
-                                   const ov::ISyncInferRequest::FoundPort::Type& type) {
+void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "init_tensor");
     if (!m_graph || !m_graph->IsReady())
         OPENVINO_THROW("Graph is not ready!");
@@ -472,6 +470,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index,
                         "Tensor with index: ",
                         port_index,
                         " exists in CPU plugin graph, but absents in network inputs");
+        const auto& port = m_input_ports_map[port_index];
         tensor = ov::ISyncInferRequest::get_tensor(port);
 
         if (!tensor) {
@@ -507,6 +506,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index,
                         port_index,
                         " exists in CPU plugin graph, but absents in network outputs");
         if (m_outputs.find(port_index) == m_outputs.end()) {
+            const auto& port = m_output_ports_map[port_index];
             const auto& port_shape = port.get_partial_shape();
             const auto& graph_shape = output->second->getInputShapeAtPort(0);
 
@@ -604,7 +604,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index,
         }
     }
     if (!tensor) {
-        OPENVINO_THROW("Cannot find tensor with name: ", port.get_any_name());
+        OPENVINO_THROW("Cannot find tensor with index: ", port_index);
     }
     return;
 }
