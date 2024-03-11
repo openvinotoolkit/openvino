@@ -10,6 +10,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
+#include "node/include/core_set_property_args.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
@@ -20,7 +21,9 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("setProperty", &CoreWrap::set_property),
+                        InstanceMethod("getProperty", &CoreWrap::get_property)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -229,4 +232,53 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
         js_devices[i++] = dev;
 
     return js_devices;
+}
+
+Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
+    try {
+        CoreSetPropertyArgs* args;
+        args = new CoreSetPropertyArgs(info);
+
+        if (args->device_name.empty()) {
+            _core.set_property(args->parameters);
+        } else {
+            _core.set_property(args->device_name, args->parameters);
+        }
+
+        // delete args;
+
+        return info.Env().Undefined();
+    } catch (std::runtime_error& err) {
+        reportError(info.Env(), err.what());
+
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
+    const size_t args_length = info.Length();
+    std::string device_name;
+
+    if (!(info[0].IsString() || (args_length == 2 && info[0].IsString() && info[1].IsString())))
+        throw std::runtime_error("Invalid arguments of get_property function");
+
+    if (args_length == 2) device_name = info[0].ToString();
+    
+    std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
+
+    ov::Any value;
+
+    if (device_name.empty()) {
+        value = _core.get_property(property_name);
+    } else {
+        value = _core.get_property(device_name, property_name);
+    }
+
+    if (value.is<std::string>()) {
+        return Napi::String::New(info.Env(), value.as<std::string>());
+    } else if (value.is<bool>()) {
+        return Napi::Boolean::New(info.Env(), value.as<bool>());
+    }
+
+    return info.Env().Undefined();
 }
