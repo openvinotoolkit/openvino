@@ -316,16 +316,16 @@ std::shared_ptr<ov::Model> Graph::decode() {
         std::set<std::string> unsupported_operations;
         std::set<std::string> failures;
         for (const auto& node : function->get_ordered_ops()) {
-            if (const auto& fw_node = std::dynamic_pointer_cast<frontend::ONNXFrameworkNode>(node)) {
+            if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
                 const auto& attrs = fw_node->get_attrs();
                 auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
                 if (unsupported_operations.count(node_name) > 0) {
                     continue;
                 }
                 unsupported_operations.insert(node_name);
-            } else if (const auto& fw_node = std::dynamic_pointer_cast<frontend::NotSupportedONNXNode>(node)) {
+            } else if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
                 const auto& attrs = fw_node->get_attrs();
-                const auto node_fail = attrs.find(frontend::NotSupportedONNXNode::failed_conversion_key);
+                const auto node_fail = attrs.find(ov::frontend::onnx::NotSupportedONNXNode::failed_conversion_key);
                 if (node_fail == attrs.end() || failures.count(node_fail->second) > 0) {
                     continue;
                 }
