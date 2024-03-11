@@ -16,6 +16,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/multiply.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -3997,6 +3998,34 @@ TEST_P(UnsupportedTypesTest, convert_like) {
     EXPECT_EQ(count_ops_of_type<op::v1::ConvertLike>(m), 1);
     EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 2);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, type_relaxed) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto cond = op::v0::Constant::create(element::boolean, shape_in, {1});
+    auto param = std::make_shared<op::v0::Parameter>(type, shape_in);
+    auto constant1 = op::v0::Constant::create(type, shape_in, {2});
+    auto then_value = std::make_shared<op::v0::Concat>(OutputVector{param, constant1}, 2);
+    auto constant2 = op::v0::Constant::create(type, shape_in, {3});
+    auto else_value = std::make_shared<op::v3::Broadcast>(
+        constant2,
+        op::v0::Constant::create(element::u64, Shape{shape_in.size()}, Shape{shape_in[0], shape_in[1], 2}));
+    auto select = make_shared<op::v1::Select>(cond, then_value, else_value);
+    auto type_relaxed = make_shared<op::TypeRelaxed<op::v1::Select>>(*select,
+                                                                     element::TypeVector{element::boolean},
+                                                                     element::TypeVector{});
+    auto m = make_shared<Model>(type_relaxed, ParameterVector{param});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 7);
+    EXPECT_EQ(count_ops_of_type<op::v1::Select>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
+    EXPECT_EQ(count_ops_of_type<op::v3::Broadcast>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Concat>(m), 1);
     ASSERT_EQ(m->get_results().size(), 1);
 }
 
