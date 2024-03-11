@@ -20,7 +20,7 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
                         InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
                         InstanceMethod("output", &CompiledModelWrap::get_output),
                         InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs"),
-                        InstanceMethod("export_model", &CompiledModelWrap::export_model)});
+                        InstanceMethod("exportModel", &CompiledModelWrap::export_model)});
 }
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
