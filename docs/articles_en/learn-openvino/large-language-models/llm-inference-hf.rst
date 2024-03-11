@@ -40,8 +40,7 @@ such as ``OVModelForSeq2SeqLM``, though this guide will focus on CausalLM.
 
 By setting the parameter ``export=True``, the model is converted to OpenVINO IR format on the fly.
 
-After that, you can call ``save_pretrained()`` method to save model to the folder in the OpenVINO
-Intermediate Representation and use it further.
+It is recommended to save model to disk after conversion using ``save_pretrained()`` and loading it from disk at deployment time via ``from_pretrained()`` for better efficiency.
 
 .. code-block:: python
 
@@ -84,15 +83,27 @@ In this case, you can load the converted model in OpenVINO representation direct
 Optimum-Intel API also provides out-of-the-box model optimization through weight compression
 using NNCF which substantially reduces the model footprint and inference latency:
 
-.. code-block:: python
+.. tab-set::
 
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
+   .. tab-item:: CLI
+      :sync: CLI
 
-    # or if model was already converted
-    model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+       .. code-block:: python
 
-    # save model after optimization
-    model.save_pretrained(optimized_model_path)
+          optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int8 ov_llama_2
+
+   .. tab-item:: API
+      :sync: API
+
+      .. code-block:: python
+
+          model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
+
+          # or if model was already converted
+          model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
+
+          # save model after optimization
+          model.save_pretrained(optimized_model_path)
 
 
 Weight compression is applied by default to models larger than one billion parameters and is
@@ -106,28 +117,50 @@ also available for CLI interface as the ``--int8`` option.
 compression with ``OVWeightQuantizationConfig`` class to control weight quantization parameters.
 
 
-.. code-block:: python
+.. tab-set::
 
-    from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
-    import nncf
+   .. tab-item:: CLI
+      :sync: CLI
 
-    model = OVModelForCausalLM.from_pretrained(
-        model_id,
-        export=True,
-        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
-    )
+      .. code-block:: python
 
-    # or if model was already converted
-    mmodel = OVModelForCausalLM.from_pretrained(
-        model_path,
-        quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
-    )
-
-    # save model after optimization
-    model.save_pretrained(optimized_model_path)
+          optimum-cli export openvino --model meta-llama/Llama-2-7b-chat-hf --weight-format int4 ov_llama_2
 
 
-The optimized model can be saved as usual with a call to ``save_pretrained()``.
+   .. tab-item:: API
+      :sync: API
+
+      .. code-block:: python
+
+          from optimum.intel import OVModelForCausalLM, OVWeightQuantizationConfig
+          import nncf
+
+          model = OVModelForCausalLM.from_pretrained(
+              model_id,
+              export=True,
+              quantization_config=OVWeightQuantizationConfig(bits=4),
+          )
+
+          # or if model was already converted
+          model = OVModelForCausalLM.from_pretrained(
+              model_path,
+              quantization_config=OVWeightQuantizationConfig(bits=4),
+          )
+
+          # use custom parameters for weight quantization
+          mmodel = OVModelForCausalLM.from_pretrained(
+              model_path,
+              quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
+          )
+
+          # save model after optimization
+          model.save_pretrained(optimized_model_path)
+
+
+.. note::
+
+   Optimum-Intel has a predefined set of weight quantization parameters for popular models, such as ``meta-llama/Llama-2-7b`` or ``Qwen/Qwen-7B-Chat``. These parameters are used by default only when ``bits=4`` is specified in the config.
+
 For more details on compression options, refer to the :doc:`weight compression guide <weight_compression>`.
 
 .. note::

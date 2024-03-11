@@ -87,50 +87,52 @@ and export models to the OpenVINO model format for use in native API application
 
 * To proceed with **Native OpenVINO API**, go to :doc:`LLM Inference with Native OpenVINO <llm_inference_native_ov>` page.
 
-The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches.
+The table below summarizes the differences between Hugging Face and the native OpenVINO API approaches:
 
-.. list-table::
-   :widths: 20 25 55
-   :header-rows: 1
+.. dropdown:: Differences between Hugging Face and the native OpenVINO API
 
-   * -
-     - Hugging Face through OpenVINO
-     - OpenVINO Native API
-   * - Model support
-     - Supports transformer-based models such as LLMs
-     - Supports all model architectures from most frameworks
-   * - APIs
-     - Python (Hugging Face API)
-     - Python, C++ (OpenVINO API)
-   * - Model Format
-     - Source Framework / OpenVINO
-     - Source Framework / OpenVINO
-   * - Inference code
-     - Hugging Face based
-     - Custom inference pipelines
-   * - Additional dependencies
-     - Many Hugging Face dependencies
-     - Lightweight (e.g. numpy, etc.)
-   * - Application footprint
-     - Large
-     - Small
-   * - Pre/post-processing and glue code
-     - Provided through high-level Hugging Face APIs
-     - Must be custom implemented (see OpenVINO samples and notebooks)
-   * - Performance
-     - Good, but less efficient compared to native APIs
-     - Inherent speed advantage with C++, but requires hands-on optimization
-   * - Flexibility
-     - Constrained to Hugging Face API
-     - High flexibility with Python and C++; allows custom coding
-   * - Learning Curve and Effort
-     - Lower learning curve; quick to integrate
-     - Higher learning curve; requires more effort in integration
-   * - Ideal Use Case
-     - Ideal for quick prototyping and Python-centric projects
-     - Best suited for high-performance, resource-optimized production environments
-   * - Model Serving
-     - Paid service, based on CPU/GPU usage with Hugging Face
-     - Free code solution, run script for own server; costs may incur for cloud services like AWS but generally cheaper than Hugging Face rates
+  .. list-table::
+    :widths: 20 25 55
+    :header-rows: 1
+
+    * -
+      - Hugging Face through OpenVINO
+      - OpenVINO Native API
+    * - Model support
+      - Supports transformer-based models such as LLMs
+      - Supports all model architectures from most frameworks
+    * - APIs
+      - Python (Hugging Face API)
+      - Python, C++ (OpenVINO API)
+    * - Model Format
+      - Source Framework / OpenVINO
+      - Source Framework / OpenVINO
+    * - Inference code
+      - Hugging Face based
+      - Custom inference pipelines
+    * - Additional dependencies
+      - Many Hugging Face dependencies
+      - Lightweight (e.g. numpy, etc.)
+    * - Application footprint
+      - Large
+      - Small
+    * - Pre/post-processing and glue code
+      - Provided through high-level Hugging Face APIs
+      - Must be custom implemented (see OpenVINO samples and notebooks)
+    * - Performance
+      - Good, but less efficient compared to native APIs
+      - Inherent speed advantage with C++, but requires hands-on optimization
+    * - Flexibility
+      - Constrained to Hugging Face API
+      - High flexibility with Python and C++; allows custom coding
+    * - Learning Curve and Effort
+      - Lower learning curve; quick to integrate
+      - Higher learning curve; requires more effort in integration
+    * - Ideal Use Case
+      - Ideal for quick prototyping and Python-centric projects
+      - Best suited for high-performance, resource-optimized production environments
+    * - Model Serving
+      - Paid service, based on CPU/GPU usage with Hugging Face
+      - Free code solution, run script for own server; costs may incur for cloud services like AWS but generally cheaper than Hugging Face rates
 
 
