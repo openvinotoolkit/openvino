@@ -4,7 +4,7 @@
 
 #include <common_test_utils/common_utils.hpp>
 #include <thread>
-
+#include "openvino/op/non_max_suppression.hpp"
 #include "include/auto_unit_test.hpp"
 
 using DynamicOutputConfigParams = std::tuple<

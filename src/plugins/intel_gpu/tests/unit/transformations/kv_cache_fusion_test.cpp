@@ -19,8 +19,10 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/sink.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
