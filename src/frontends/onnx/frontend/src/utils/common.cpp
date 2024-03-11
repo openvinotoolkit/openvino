@@ -18,6 +18,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
@@ -159,42 +160,82 @@ bool is_optimized_out(const ov::Output<ov::Node>& node_output) {
     return rt_info.find(OPTIMIZED_OUT_NODE) != rt_info.end();
 }
 
-std::string collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted) {
-    std::string fully_unsupported_ops = "OpenVINO does not support the following ONNX operations: ";
-    std::string additional_error_message = "Errors during ONNX translation: \n";
+bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_converted,
+                                    const std::shared_ptr<ov::frontend::TelemetryExtension>& telemetry,
+                                    std::ostream* output_stream) {
+    std::string additional_error_message = "";
     const std::string sep = ", ";
+    std::set<std::string> unsupported_operations;
+    std::set<std::string> failures;
 
-    bool unsupported_found = false;
-    bool additional_error_found = false;
-    for (const auto& op : partially_converted->get_ops()) {
-        if (const auto unsupported = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(op)) {
-            if (unsupported->additional_error_message().empty()) {
-                fully_unsupported_ops += (unsupported->get_attrs().get_opset_name().empty()
-                                              ? ""
-                                              : unsupported->get_attrs().get_opset_name() + ".") +
-                                         unsupported->get_attrs().get_type_name() + sep;
-                unsupported_found = true;
+    auto print_unsupported = [&](const std::shared_ptr<ov::op::util::FrameworkNode> fw_node) {
+        if (output_stream) {
+            if (unsupported_operations.size() == 0) {
+                *output_stream << "OpenVINO does not support the following ONNX operations: ";
             } else {
-                additional_error_message += unsupported->additional_error_message();
-                additional_error_found = true;
+                *output_stream << sep;
             }
+            *output_stream << (fw_node->get_attrs().get_opset_name().empty()
+                                   ? ""
+                                   : fw_node->get_attrs().get_opset_name() + ".")
+                           << fw_node->get_attrs().get_type_name();
+        }
+    };
+
+    for (const auto& node : partially_converted->get_ordered_ops()) {
+        if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::ONNXFrameworkNode>(node)) {
+            const auto& attrs = fw_node->get_attrs();
+            auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
+            if (unsupported_operations.count(node_name) > 0) {
+                continue;
+            }
+
+            print_unsupported(fw_node);
+            unsupported_operations.insert(node_name);
+        } else if (const auto& fw_node = std::dynamic_pointer_cast<ov::frontend::onnx::NotSupportedONNXNode>(node)) {
+            const auto& attrs = fw_node->get_attrs();
+
+            if (fw_node->additional_error_message().empty()) {
+                auto node_name = attrs.get_opset_name() + "." + attrs.get_type_name();
+                if (unsupported_operations.count(node_name) > 0) {
+                    continue;
+                }
+                print_unsupported(fw_node);
+                unsupported_operations.insert(node_name);
+            } else {
+                additional_error_message += fw_node->additional_error_message();
+            }
+
+            const auto node_fail = attrs.find(ov::frontend::onnx::NotSupportedONNXNode::failed_conversion_key);
+            if (node_fail == attrs.end() || failures.count(node_fail->second) > 0) {
+                continue;
+            }
+            failures.insert(node_fail->second);
         }
     }
-    fully_unsupported_ops = fully_unsupported_ops.substr(0, fully_unsupported_ops.size() - sep.size());
-    // remove redundant new line
-    additional_error_message =
-        (additional_error_message.empty() || additional_error_message[additional_error_message.length() - 1] != '\n')
-            ? additional_error_message
-            : additional_error_message.erase(additional_error_message.length() - 1);
-    if (unsupported_found && additional_error_found) {
-        return fully_unsupported_ops + "\n" + additional_error_message;
-    } else if (unsupported_found) {
-        return fully_unsupported_ops;
-    } else if (additional_error_found) {
-        return additional_error_message;
-    } else {
-        return "";
+
+    for (auto item : unsupported_operations) {
+        std::cerr << "Unsupported: " << item << std::endl;
     }
+
+    for (auto item : failures) {
+        std::cerr << "Failure: " << item << std::endl;
+    }
+
+    if (telemetry) {
+        for (const auto& op : unsupported_operations) {
+            telemetry->send_event("error_cause", "onnx_" + op);
+        }
+        for (const auto& str : failures) {
+            telemetry->send_event("error_info", ov::util::filter_lines_by_prefix(str, "[ONNX Frontend] "));
+        }
+    }
+
+    if (output_stream && !additional_error_message.empty()) {
+        *output_stream << "Errors during ONNX translation: \n" << additional_error_message;
+    }
+
+    return unsupported_operations.size() != 0 || failures.size() != 0;
 }
 
 }  // namespace  common
