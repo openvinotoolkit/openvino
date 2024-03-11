@@ -24,10 +24,7 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
     return idxs;
 }
 
-jit_snippets_call_args::jit_snippets_call_args() : amx_tile_config(new amx_tile_config_t()) {}
-
 jit_snippets_call_args::~jit_snippets_call_args() {
-    delete amx_tile_config;
     delete[] loop_args;
 }
 

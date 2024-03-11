@@ -20,11 +20,16 @@ namespace intel_cpu {
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
 
+struct amx_tile_config_t {
+    size_t M = 0;
+    size_t K = 0;
+    size_t N = 0;
+};
+
 struct jit_snippets_call_args {
-    struct amx_tile_config_t;
     struct loop_args_t;
 
-    jit_snippets_call_args();
+    jit_snippets_call_args() = default;
     ~jit_snippets_call_args();
 
     void register_loops(const std::vector<loop_args_t>& loops);
@@ -37,7 +42,7 @@ struct jit_snippets_call_args {
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
     int32_t num_loops = 0;
     loop_args_t* loop_args = nullptr;
-    amx_tile_config_t* amx_tile_config = nullptr;
+    amx_tile_config_t amx_tile_config;
 };
 
 struct jit_snippets_call_args::loop_args_t {
@@ -59,12 +64,6 @@ private:
     int64_t m_num_data_ptrs = 0;
     int64_t* m_ptr_increments = nullptr;
     int64_t* m_finalization_offsets = nullptr;
-};
-
-struct jit_snippets_call_args::amx_tile_config_t {
-    size_t M = 0;
-    size_t K = 0;
-    size_t N = 0;
 };
 
 struct jit_snippets_compile_args {

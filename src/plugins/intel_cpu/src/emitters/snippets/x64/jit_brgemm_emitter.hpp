@@ -17,7 +17,7 @@ struct jit_brgemm_call_args {
     const void* B = nullptr;
     void* C = nullptr;
     void* scratch = nullptr;
-    jit_snippets_call_args::amx_tile_config_t* amx_tile_config = nullptr;
+    amx_tile_config_t* amx_tile_config = nullptr;
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(jit_brgemm_call_args, field)
 

@@ -146,7 +146,7 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
 void jit_brgemm_emitter::init_brgemm_kernel(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& kernel) {
     brgemm_t desc;
     const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
-    auto isa = ctx.is_with_amx ? isa_undef
+    auto isa = ctx.is_with_amx ? avx512_core_amx
                                : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
     auto status = brgemm_desc_init(&desc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
                                    false, false, brgemm_row_major, 1.f, ctx.beta, ctx.LDA, ctx.LDB, ctx.LDC, ctx.M, ctx.N, ctx.K, nullptr);
@@ -199,15 +199,6 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kern
                                                               const brgemmCtx*,
                                                               jit_brgemm_call_args*)>(kernel_execute);
     h->mov(h->rbp, reinterpret_cast<uintptr_t>(brgemm_kernel_overload));
-    // todo: several of addr_{A, B, C} could be also abi_paramX, so one of them could be corrupted
-    //  if moving directly h->uni_vmovq(abi_paramX, adr_X). Save them to vector regs to avoid corruption.
-    //  It's likely that a more efficient solution exists.
-    h->uni_vmovq(Xmm(0), addr_A);
-    h->uni_vmovq(Xmm(1), addr_B);
-    h->uni_vmovq(Xmm(2), addr_C);
-    if (m_with_scratch)
-        h->uni_vmovq(Xmm(3), scratch);
-
     auto reserved_stack_size = sizeof(jit_brgemm_call_args);
 #ifdef _WIN32
     // Before function call we should also allocate stack area for ABI parameters (shadow space)
@@ -217,34 +208,29 @@ void jit_brgemm_emitter::emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kern
     // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
 
-    const auto data_ptr_reg = [&](Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) {
-        h->uni_vmovq(reg, xmm);
-        if (bytes_offset) h->add(reg, bytes_offset);
+    auto write_addr_on_stack = [&](size_t arg_offset, Reg64 addr, size_t addr_offset) {
+        const auto stack_frame = h->qword[h->rsp + arg_offset];
+        h->mov(stack_frame, addr);
+        if (addr_offset) h->add(stack_frame, addr_offset);
     };
 
-    data_ptr_reg(Xmm(0), h->r8, in0_kernel_offset);
-    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(A)], h->r8);
-
-    data_ptr_reg(Xmm(1), h->r9, in1_kernel_offset);
-    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(B)], h->r9);
-
-    data_ptr_reg(Xmm(2), h->r10, out0_kernel_offset);
-    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(C)], h->r10);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(A), addr_A, in0_kernel_offset);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(B), addr_B, in1_kernel_offset);
+    write_addr_on_stack(GET_OFF_BRGEMM_ARGS(C), addr_C, out0_kernel_offset);
 
     if (m_with_scratch) {
-        data_ptr_reg(Xmm(3), h->r11, in2_kernel_offset);
-        h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(scratch)], h->r11);
+        write_addr_on_stack(GET_OFF_BRGEMM_ARGS(scratch), scratch, in2_kernel_offset);
     } else {
         h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(scratch)], reinterpret_cast<uintptr_t>(nullptr));
     }
 
     // abi_param1 always contains jit_snippets_call_args which has amx tile config for each thread
-    h->mov(h->r12, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
-    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(amx_tile_config)], h->r12);
+    h->lea(h->r10, h->ptr[abi_param1 + GET_OFF(amx_tile_config)]);
+    h->mov(h->qword[h->rsp + GET_OFF_BRGEMM_ARGS(amx_tile_config)], h->r10);
 
     h->mov(abi_param1, reinterpret_cast<uintptr_t>(brg_kernel));
     h->mov(abi_param2, reinterpret_cast<uintptr_t>(&m_ctx));
-    h->lea(abi_param3, h->ptr[h->rsp]);
+    h->mov(abi_param3, h->rsp);
 
     internal_call_rsp_align();
     h->call(h->rbp);
