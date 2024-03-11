@@ -14,15 +14,15 @@
 #include "openvino/op/reshape.hpp"
 #include "thread_local.hpp"
 
-std::shared_ptr<ov::Model> makeSplitConcat(std::vector<size_t> inputShape = {1, 4, 24, 24},
+std::shared_ptr<ov::Model> make_split_concat(std::vector<size_t> inputShape = {1, 4, 24, 24},
                                            ov::element::Type_t type = ov::element::Type_t::f32);
 
 void core_get_property_test(std::string target_device)
 {
     std::promise<void> call_finish_promise;
-    std::future<void> call_finish_future = call_finish_promise.get_future();
+    auto call_finish_future = call_finish_promise.get_future();
     std::promise<void> thread_exit_promise;
-    std::future<void> thread_exit_future = thread_exit_promise.get_future();
+    auto thread_exit_future = thread_exit_promise.get_future();
     std::thread sub_thread;
     {
         ov::Core ie;
@@ -40,7 +40,7 @@ void core_get_property_test(std::string target_device)
     }
 }
 
-std::shared_ptr<ov::Model> makeSplitConcat(std::vector<size_t> inputShape, ov::element::Type_t type)
+std::shared_ptr<ov::Model> make_split_concat(std::vector<size_t> inputShape, ov::element::Type_t type)
 {
     auto param1 = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{inputShape});
     param1->set_friendly_name("Param1");
@@ -56,9 +56,9 @@ std::shared_ptr<ov::Model> makeSplitConcat(std::vector<size_t> inputShape, ov::e
     concat->output(0).get_tensor().set_names({"Concat"});
     auto result = std::make_shared<ov::op::v0::Result>(concat);
     result->set_friendly_name("Result");
-    auto fn_ptr = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
-    fn_ptr->set_friendly_name("SplitConcat");
-    return fn_ptr;
+    auto model_ptr = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1});
+    model_ptr->set_friendly_name("SplitConcat");
+    return model_ptr;
 }
 
 void core_infer_test(std::string target_device)
@@ -68,7 +68,7 @@ void core_infer_test(std::string target_device)
     std::promise<void> thread_exit_promise;
     std::future<void> thread_exit_future = thread_exit_promise.get_future();
     std::thread sub_thread;
-    auto actualNetwork = makeSplitConcat();
+    auto actualNetwork = make_split_concat();
     {
         ov::Core ie;
         auto net = ie.compile_model(actualNetwork, target_device);

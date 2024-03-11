@@ -51,26 +51,24 @@ TEST(LoadLibraryTest, load_free_library)
     }
 }
 
-typedef void (*TEST_FUNC)(std::string);
+typedef void (*TestFunc)(std::string);
 
 TEST_P(ThreadLocalTest, get_property_test)
 {
-    HMODULE shared_object = LoadLibraryA("ov_thread_local.dll");
-    TEST_FUNC procAddr = reinterpret_cast<TEST_FUNC>(GetProcAddress(shared_object, "core_get_property_test"));
+    auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, "core_get_property_test"));
     procAddr(target_device);
     FreeLibrary(shared_object);
 }
 
 TEST_P(ThreadLocalTest, infer_test)
 {
-    HMODULE shared_object = LoadLibraryA("ov_thread_local.dll");
-    TEST_FUNC procAddr = reinterpret_cast<TEST_FUNC>(GetProcAddress(shared_object, "core_infer_test"));
+    auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, "core_infer_test"));
     procAddr(target_device);
     FreeLibrary(shared_object);
 }
 
-std::vector<std::string> test_device = {"CPU", "GPU"};
-
 INSTANTIATE_TEST_SUITE_P(OV_ThreadLocalTests,
-                         ThreadLocalTest, ::testing::ValuesIn(test_device),
+                         ThreadLocalTest, ::testing::Values("CPU", "GPU"),
                          ThreadLocalTest::getTestCaseName);
