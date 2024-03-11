@@ -39,36 +39,6 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/pugixml
 add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
 target_link_libraries(${TARGET_NAME} PUBLIC tests_shared_lib)
 
-#target_link_libraries(${TARGET_NAME}
-#    PUBLIC
-#        gtest
-#        pugixml
-#        gflags
-#        tests_shared_lib
-#    PRIVATE
-#        gtest_main)
-
-#target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-#add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gtest
-#                 ${CMAKE_CURRENT_BINARY_DIR}/gtest_build
-#                EXCLUDE_FROM_ALL)
-
-# add ov_thread_local_test tool
-#ov_add_test_target(
-#        NAME ${TARGET_NAME}
-#        TYPE SHARED
-#        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-#        INCLUDES
-#            ${CMAKE_CURRENT_SOURCE_DIR}/
-        #LINK_LIBRARIES
-            #gtest
- #       DEPENDENCIES
-#            openvino
-#            openvino_intel_gna_plugin
-#            openvino_intel_cpu_plugin
-#        ADD_CPPLINT
-#)
 
 
 
