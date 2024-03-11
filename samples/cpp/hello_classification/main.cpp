@@ -82,7 +82,7 @@ int tmain(int argc, tchar* argv[]) {
         // - convert layout to 'NCHW' (from 'NHWC' specified above at tensor layout)
         // - apply linear resize from tensor spatial dims to model spatial dims
         ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-        // 4) Here we suppose model has 'NCHW' layout for input
+        // 4) Suppose model has 'NCHW' layout for input
         ppp.input().model().set_layout("NCHW");
         // 5) Set output tensor information:
         // - precision of tensor is supposed to be 'f32'
