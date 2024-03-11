@@ -4,7 +4,6 @@
 
 include(options)
 include(target_flags)
-include(set_configurations)
 
 set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
 list (APPEND OV_OPTIONS CPACK_GENERATOR)
@@ -18,8 +17,14 @@ ov_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
 if(OV_GENERATOR_MULTI_CONFIG)
     ov_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" OFF)
+    set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo;MinSizeRel" CACHE STRING "" FORCE)
 else()
     ov_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
+    if(NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+    endif()
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY HELPSTRING "Choose the type of build")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug;Release;RelWithDebInfo;MinSizeRel")
 endif()
 
 if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT (WIN32 OR CMAKE_CROSSCOMPILING))
