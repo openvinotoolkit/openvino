@@ -33,4 +33,3 @@ google/vit-base-patch16-224,hf_transformers
 sentence-transformers/paraphrase-mpnet-base-v2,hf_transformers,xfail,134787 - randomly fails on accuracy
 facebook/sam-vit-base,hf_transformers
 distilbert/distilgpt2,hf_transformers
-openai-community/gpt2,hf_transformers
