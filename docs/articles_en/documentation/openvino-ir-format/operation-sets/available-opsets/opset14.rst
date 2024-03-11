@@ -168,6 +168,7 @@ Table of Contents
 * :doc:`RNNCell <openvino_docs_ops_sequence_RNNCell_3>`
 * :doc:`RNNSequence <openvino_docs_ops_sequence_RNNSequence_5>`
 * :doc:`ROIAlign <openvino_docs_ops_detection_ROIAlign_9>`
+* :doc:`ROIAlignRotated <openvino_docs_ops_detection_ROIAlignRotated_14>`
 * :doc:`ROIPooling <openvino_docs_ops_detection_ROIPooling_1>`
 * :doc:`Roll <openvino_docs_ops_movement_Roll_7>`
 * :doc:`Round <openvino_docs_ops_arithmetic_Round_5>`
