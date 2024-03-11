@@ -25,9 +25,7 @@ class TestSegmentSum(CommonTFLayerTest):
         )
         return inputs_data
 
-    def create_segment_sum_net(
-        self, data_shape, segment_ids_shape, data_type, segment_ids_type
-    ):
+    def create_segment_sum_net(self, data_shape, segment_ids_shape, data_type, segment_ids_type):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
@@ -75,14 +73,7 @@ class TestSegmentSum(CommonTFLayerTest):
     ):
         if not use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        self._test(
-            *self.create_segment_sum_net(**params),
-            ie_device,
-            precision,
-            ir_version,
-            temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend
-        )
+        self._test(*self.create_segment_sum_net(**params),ie_device,precision,ir_version,temp_dir=temp_dir,use_legacy_frontend=use_legacy_frontend)
 
     test_data_different_types = [
         dict(
@@ -118,14 +109,7 @@ class TestSegmentSum(CommonTFLayerTest):
     ):
         if not use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        self._test(
-            *self.create_segment_sum_net(**params),
-            ie_device,
-            precision,
-            ir_version,
-            temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend
-        )
+        self._test(*self.create_segment_sum_net(**params),ie_device,precision,ir_version,temp_dir=temp_dir,use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexSegmentSum(CommonTFLayerTest):
@@ -195,14 +179,7 @@ class TestComplexSegmentSum(CommonTFLayerTest):
         if not use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
 
-        self._test(
-            *self.create_segment_sum_net(**params),
-            ie_device,
-            precision,
-            ir_version,
-            temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend
-        )
+        self._test(*self.create_segment_sum_net(**params),ie_device,precision,ir_version,temp_dir=temp_dir,use_legacy_frontend=use_legacy_frontend)
 
     test_data_complex_different_types = [
         dict(
@@ -238,11 +215,4 @@ class TestComplexSegmentSum(CommonTFLayerTest):
     ):
         if not use_legacy_frontend:
             pytest.skip("SegmentSum operation is not supported via legacy frontend.")
-        self._test(
-            *self.create_segment_sum_net(**params),
-            ie_device,
-            precision,
-            ir_version,
-            temp_dir=temp_dir,
-            use_legacy_frontend=use_legacy_frontend
-        )
+        self._test(*self.create_segment_sum_net(**params),ie_device,precision,ir_version,temp_dir=temp_dir,use_legacy_frontend=use_legacy_frontend)

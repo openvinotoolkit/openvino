@@ -49,13 +49,15 @@ OutputVector translate_segment_sum_op(const NodeContext& node) {
     auto num_indices = make_shared<v0::Squeeze>(segment_ids_shape, squeeze_axis);
     auto indices = make_shared<v4::Range>(const_zero, num_indices, const_one, indices_type);
 
-    auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+    auto emb_segment_sum_real = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
     if (complex_type_mark) {
         auto data = complex_type_mark->input_value(0);
-        auto emb_segment_sum = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+        auto emb_segment_sum_complex = make_shared<v3::EmbeddingSegmentsSum>(data, indices, segment_ids, num_segments);
+        set_node_name(node.get_name(), emb_segment_sum_complex);
+        return {emb_segment_sum_complex};
     }
-    set_node_name(node.get_name(), emb_segment_sum);
-    return {emb_segment_sum};
+    set_node_name(node.get_name(), emb_segment_sum_real);
+    return {emb_segment_sum_real};
 }
 }  // namespace op
 }  // namespace tensorflow
