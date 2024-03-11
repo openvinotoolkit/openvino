@@ -25,6 +25,7 @@ else()
     endif()
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY HELPSTRING "Choose the type of build")
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug;Release;RelWithDebInfo;MinSizeRel")
+    set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE} CACHE STRING "" FORCE)
 endif()
 
 if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT (WIN32 OR CMAKE_CROSSCOMPILING))
