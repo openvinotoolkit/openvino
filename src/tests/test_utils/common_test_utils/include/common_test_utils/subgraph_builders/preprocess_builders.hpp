@@ -443,6 +443,25 @@ inline std::shared_ptr<Model> crop_dynamic() {
     return function;
 }
 
+inline std::shared_ptr<Model> pad_constant() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::PAD_CONSTANT);
+    function = p.build();
+    return function;
+}
+
+inline std::shared_ptr<Model> pad_edge() {
+    using namespace ov::preprocess;
+    auto function = create_preprocess_1input(ov::element::f32, PartialShape{1, 3, 10, 10});
+    auto p = PrePostProcessor(function);
+    p.input().preprocess().pad({0, 0, 2, 2}, {0, 0, -1, 3}, 0, PaddingMode::PAD_EDGE);
+    function = p.build();
+    return function;
+}
+
+
 inline std::vector<preprocess_func> generic_preprocess_functions() {
     return std::vector<preprocess_func>{
         preprocess_func(mean_only, "mean_only", 0.01f),
