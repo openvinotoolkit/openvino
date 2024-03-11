@@ -128,6 +128,15 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
 
+    // The transformations below have to be a part of MOC transformations.
+    // They delete StridedSlices which do nothing, just return the same data tensor to output.
+    // But in some plugins, deletion of these "useless" StridedSlices can cause functional issues.
+    // tickets: 135242, 135241
+    auto strided_slice_elimination = manager.register_pass<GraphRewrite>();
+    ADD_MATCHER(strided_slice_elimination, NopStridedSlice)
+    ADD_MATCHER(strided_slice_elimination, NopStridedSliceByShape)
+    strided_slice_elimination->set_name("ov::pass::StridedSliceElimination");
+
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
