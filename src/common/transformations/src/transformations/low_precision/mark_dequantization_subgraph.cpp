@@ -32,7 +32,7 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
     auto multiply_no_subtract_pattern = pattern::wrap_type<opset10::Multiply>({convert_pattern, pattern::any_input()});
     auto root = std::make_shared<pattern::op::Or>(OutputVector{multiply_pattern, multiply_no_subtract_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) -> bool {
         const auto& pattern_map = m.get_pattern_value_map();
         auto convert = pattern_map.at(convert_pattern).get_node_shared_ptr();
         auto input = pattern_map.at(input_pattern);

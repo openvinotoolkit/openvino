@@ -23,11 +23,11 @@ extern std::unordered_set<std::string> available_devices;
 
 void register_plugin(ov::Core& ov_core) noexcept;
 void register_template_plugin(ov::Core& ov_core) noexcept;
-ov::Core create_core(const std::string& in_target_device = target_device);
+ov::Core create_core(const std::string& in_target_device = std::string());
 
 class PluginCache {
 public:
-    std::shared_ptr<ov::Core> core(const std::string& in_target_device = target_device);
+    std::shared_ptr<ov::Core> core(const std::string& in_target_device = std::string());
 
     static PluginCache& get();
     void reset();

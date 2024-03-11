@@ -18,7 +18,7 @@ Assign
 
 ReadValue, Assign, and Variable define a coherent mechanism for reading, writing and
 storing a memory buffer between inference calls. More details can be found on the
-:doc:`StateAPI<openvino_docs_OV_UG_stateful_models_intro>` documentation page.
+:doc:`State API <../../../../../../openvino-workflow/running-inference/stateful-models>` documentation page.
 
 *Assign* sets an input value to the ``variable_id`` variable. This value will be read
 by the *ReadValue* operation on the next inference call if it has not been reset.

@@ -4,38 +4,52 @@
 
 #include <utility>
 #include <gtest/gtest.h>
+#include "common_test_utils/test_common.hpp"
 #include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/system_conf.hpp"
 
-TEST(BrgemmKernel, simple_gemm_test) {
-    if (!ov::with_cpu_x86_bfloat16())
-        GTEST_SKIP();
+namespace brgemmUnitTest {
+class BrgemmKernelTest : public ov::test::TestsCommon, public testing::WithParamInterface<ov::element::Type> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& obj) {
+        ov::element::Type rtPrec;
+        rtPrec = obj.param;
+        std::ostringstream result;
+        result << "Prec=" << rtPrec.to_string() << std::endl;
+        return result.str();
+    }
+};
+
+template <typename T>
+void run_test(ov::element::Type rtPrec) {
     size_t M = 33;
     size_t N = 32;
     size_t K = 33;
-    ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false);
-    std::vector<ov::bfloat16> a_data(M * K, (1.0f/33));
-    std::vector<ov::bfloat16> b_data(K * N, 4.0f);
+    ov::intel_cpu::BrgemmKernel gemm(M, N, K, K, N, N, false, rtPrec);
     size_t nthr = 8;
+    bool is_bf16 = (rtPrec == ov::element::bf16);
+    std::vector<T> a_data(M * K, (1.0f/33));
+    std::vector<T> b_data(K * N, 4.0f);
     std::vector<float> c_data(nthr * M * N, 0.0f);
     std::vector<size_t> wsp(nthr * 4 * 1024, 0.0f);
-    std::vector<ov::bfloat16> b_scracth(gemm.get_scratch_b_size(), 0.0f);
-    std::vector<ov::bfloat16> a_scracth(gemm.get_scratch_a_size(), 0.0f);
-
-    gemm.copy_buffer_b(b_data.data(), b_scracth.data());
+    std::vector<T> b_scracth(gemm.get_scratch_b_size(), 0.0f);
+    std::vector<T> a_scracth(gemm.get_scratch_a_size(), 0.0f);
+    if (is_bf16)
+        gemm.copy_buffer_b(b_data.data(), b_scracth.data());
     auto m_block_size = gemm.get_mblk_size();
     auto m_blocks = (M + gemm.get_mblk_size() - 1) / m_block_size;
+    T* b_ptr = is_bf16 ? b_scracth.data() : b_data.data();
     ov::parallel_for2d(nthr, m_blocks, [&](size_t i, size_t m_blk) {
         auto m_start = m_blk * m_block_size;
         auto m_end = std::min(m_start + m_block_size, M);
         auto m_cnt = m_end - m_start;
-        gemm.executeGemmPackedB(m_cnt < m_block_size,
-                                a_data.data() + m_start * K,
-                                b_scracth.data(),
-                                c_data.data() + i * M * N + m_start * N,
-                                wsp.data() + i * 4 * 1024,
-                                a_scracth.data());
+        gemm.executeGemm(m_cnt < m_block_size,
+                         a_data.data() + m_start * K,
+                         b_ptr,
+                         c_data.data() + i * M * N + m_start * N,
+                         wsp.data() + i * 4 * 1024,
+                         a_scracth.data());
     });
     ov::parallel_for(nthr, [&](size_t i){
         for (size_t m = 0; m < M; m++) {
@@ -52,3 +66,23 @@ TEST(BrgemmKernel, simple_gemm_test) {
         }
     });
 }
+
+TEST_P(BrgemmKernelTest, simpleGemmTest) {
+    ov::element::Type rtPrec = this->GetParam();
+    if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (rtPrec == ov::element::f32 && !ov::with_cpu_x86_avx512_core())
+        GTEST_SKIP();
+
+    if (rtPrec == ov::element::bf16) {
+        run_test<ov::bfloat16>(rtPrec);
+    } else {
+        run_test<float>(rtPrec);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(BrgemmKernelUnitTest,
+                         BrgemmKernelTest,
+                         ::testing::Values(ov::element::f32, ov::element::bf16),
+                         BrgemmKernelTest::getTestCaseName);
+} // namespace brgemmUnitTest
