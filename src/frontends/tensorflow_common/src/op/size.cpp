@@ -30,7 +30,7 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     auto out_type = node.get_attribute<element::Type>("out_type", element::i32);
 
     if (complex_type_mark) {
-        
+
         input = complex_type_mark->input_value(0);
 
         // compute the input tensor size
@@ -38,8 +38,9 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
         auto axis = make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto complex_size = make_shared<v1::ReduceProd>(shape_of, axis);
 
-        // Since I'm handling complex numbers, I need to divide the size by 2 because real and imaginary parts are counted separately
-        auto complex_size_divided_by_two = make_shared<v1::Divide>(complex_size, make_shared<v0::Constant>(element::i32, Shape{}, 2));
+        // Since I'm handling complex numbers, needed to divide the size by 2 because real and imaginary parts are counted separately
+        auto complex_size_divided_by_two = 
+            make_shared<v1::Divide>(complex_size, make_shared<v0::Constant>(element::i32, Shape{}, 2));
 
         set_node_name(node.get_name(), complex_size_divided_by_two);
         return {complex_size_divided_by_two->output(0)};
