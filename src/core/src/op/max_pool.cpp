@@ -34,6 +34,101 @@ static bool has_evaluate_util(const ov::element::Type& element_type) {
     }
 }
 
+namespace maxpool {
+
+struct Evaluate : element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t ET, class T = fundamental_type_for<ET>>
+    static result_type visit(const Tensor& in,
+                             Tensor& out_values,
+                             Tensor& out_indices,
+                             const Shape& in_shape,
+                             const Shape& out_shape,
+                             const Shape& kernel,
+                             const Strides& strides,
+                             const Strides& dilations,
+                             const Shape& pads_begin,
+                             const Shape& pads_end,
+                             const int64_t axis) {
+        using namespace ov::element;
+        return IF_TYPE_OF(maxpool_eval_by_idx_type,
+                          OV_PP_ET_LIST(i32, i64),
+                          EvalByIdxType,
+                          out_indices.get_element_type(),
+                          in.data<const T>(),
+                          out_values.data<T>(),
+                          out_indices,
+                          in_shape,
+                          out_shape,
+                          kernel,
+                          strides,
+                          dilations,
+                          pads_begin,
+                          pads_end,
+                          axis);
+    }
+
+private:
+    struct EvalByIdxType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
+        static result_type visit(const T* in_data,
+                                 T* out_values_data,
+                                 Tensor& out_indices,
+                                 const Shape& in_shape,
+                                 const Shape& out_shape,
+                                 const Shape& kernel,
+                                 const Strides& strides,
+                                 const Strides& dilations,
+                                 const Shape& pads_begin,
+                                 const Shape& pads_end,
+                                 const int64_t axis) {
+            reference::max_pool(in_data,
+                                out_values_data,
+                                out_indices.data<I>(),
+                                in_shape,
+                                out_shape,
+                                kernel,
+                                strides,
+                                dilations,
+                                pads_begin,
+                                pads_end,
+                                axis);
+            return true;
+        }
+    };
+};
+
+static bool evaluate_util(const ov::op::util::MaxPoolBase* op,
+                          TensorVector& outputs,
+                          const TensorVector& inputs,
+                          const Strides& dilations,
+                          const size_t axis) {
+    using namespace ov::element;
+    return IF_TYPE_OF_CONVERT_TENSORS(MaxPool_evaluate_util,
+                                      op,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
+                                      Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      outputs[1],
+                                      inputs[0].get_shape(),
+                                      outputs[0].get_shape(),
+                                      op->get_kernel(),
+                                      op->get_strides(),
+                                      dilations,
+                                      op->get_pads_begin(),
+                                      op->get_pads_end(),
+                                      axis);
+}
+
+}  // namespace maxpool
+
 namespace v1 {
 
 MaxPool::MaxPool(const Output<Node>& arg,
@@ -211,73 +306,6 @@ std::shared_ptr<Node> MaxPool::clone_with_new_inputs(const OutputVector& new_arg
                                          m_axis);
 }
 
-namespace maxpool {
-struct Evaluate : element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t ET, class T = fundamental_type_for<ET>>
-    static result_type visit(const Tensor& in,
-                             Tensor& out_values,
-                             Tensor& out_indices,
-                             const Shape& in_shape,
-                             const Shape& out_shape,
-                             const Shape& kernel,
-                             const Strides& strides,
-                             const Strides& dilations,
-                             const Shape& pads_begin,
-                             const Shape& pads_end,
-                             const int64_t axis) {
-        using namespace ov::element;
-        return IF_TYPE_OF(maxpool_eval_by_idx_type,
-                          OV_PP_ET_LIST(i32, i64),
-                          EvalByIdxType,
-                          out_indices.get_element_type(),
-                          in.data<const T>(),
-                          out_values.data<T>(),
-                          out_indices,
-                          in_shape,
-                          out_shape,
-                          kernel,
-                          strides,
-                          dilations,
-                          pads_begin,
-                          pads_end,
-                          axis);
-    }
-
-private:
-    struct EvalByIdxType : public element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
-
-        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
-        static result_type visit(const T* in_data,
-                                 T* out_values_data,
-                                 Tensor& out_indices,
-                                 const Shape& in_shape,
-                                 const Shape& out_shape,
-                                 const Shape& kernel,
-                                 const Strides& strides,
-                                 const Strides& dilations,
-                                 const Shape& pads_begin,
-                                 const Shape& pads_end,
-                                 const int64_t axis) {
-            reference::max_pool(in_data,
-                                out_values_data,
-                                out_indices.data<I>(),
-                                in_shape,
-                                out_shape,
-                                kernel,
-                                strides,
-                                dilations,
-                                pads_begin,
-                                pads_end,
-                                axis);
-            return true;
-        }
-    };
-};
-}  // namespace maxpool
-
 bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v8_MaxPool_evaluate);
 
@@ -285,27 +313,11 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
+    const auto dilations = this->get_dilations();
+    const auto axis = this->get_axis();
 
     outputs[0].set_shape(output_shape.get_shape());
-    using namespace ov::element;
-    return IF_TYPE_OF_CONVERT_TENSORS(v8_MaxPool_evaluate,
-                                      this,
-                                      outputs,
-                                      inputs,
-                                      OV_PP_ET_LIST(f32, i8, i32, i64, u8, u32, u64),
-                                      maxpool::Evaluate,
-                                      inputs[0].get_element_type(),
-                                      inputs[0],
-                                      outputs[0],
-                                      outputs[1],
-                                      inputs[0].get_shape(),
-                                      outputs[0].get_shape(),
-                                      get_kernel(),
-                                      get_strides(),
-                                      get_dilations(),
-                                      get_pads_begin(),
-                                      get_pads_end(),
-                                      get_axis());
+    return ov::op::maxpool::evaluate_util(this, outputs, inputs, dilations, axis);
 }
 
 bool MaxPool::has_evaluate() const {
@@ -406,98 +418,18 @@ std::shared_ptr<Node> MaxPool::clone_with_new_inputs(const OutputVector& new_arg
                                           m_axis);
 }
 
-namespace maxpool {
-struct Evaluate : element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t ET, class T = fundamental_type_for<ET>>
-    static result_type visit(const Tensor& in,
-                             Tensor& out_values,
-                             Tensor& out_indices,
-                             const Shape& in_shape,
-                             const Shape& out_shape,
-                             const Shape& kernel,
-                             const Strides& strides,
-                             const Strides& dilations,
-                             const Shape& pads_begin,
-                             const Shape& pads_end,
-                             const int64_t axis) {
-        using namespace ov::element;
-        return IF_TYPE_OF(maxpool_eval_by_idx_type,
-                          OV_PP_ET_LIST(i32, i64),
-                          EvalByIdxType,
-                          out_indices.get_element_type(),
-                          in.data<const T>(),
-                          out_values.data<T>(),
-                          out_indices,
-                          in_shape,
-                          out_shape,
-                          kernel,
-                          strides,
-                          dilations,
-                          pads_begin,
-                          pads_end,
-                          axis);
-    }
-
-private:
-    struct EvalByIdxType : public element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
-
-        template <element::Type_t ET, class T, class I = fundamental_type_for<ET>>
-        static result_type visit(const T* in_data,
-                                 T* out_values_data,
-                                 Tensor& out_indices,
-                                 const Shape& in_shape,
-                                 const Shape& out_shape,
-                                 const Shape& kernel,
-                                 const Strides& strides,
-                                 const Strides& dilations,
-                                 const Shape& pads_begin,
-                                 const Shape& pads_end,
-                                 const int64_t axis) {
-            reference::max_pool(in_data,
-                                out_values_data,
-                                out_indices.data<I>(),
-                                in_shape,
-                                out_shape,
-                                kernel,
-                                strides,
-                                dilations,
-                                pads_begin,
-                                pads_end,
-                                axis);
-            return true;
-        }
-    };
-};
-}  // namespace maxpool
-
 bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v14_MaxPool_evaluate);
-
     const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     outputs[0].set_shape(output_shape.get_shape());
-    using namespace ov::element;
-    return IF_TYPE_OF(v14_MaxPool_evaluate,
-                      OV_PP_ET_LIST(f16, f32, i8, i32, i64, u8, u32, u64),
-                      maxpool::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      outputs[1],
-                      inputs[0].get_shape(),
-                      outputs[0].get_shape(),
-                      get_kernel(),
-                      get_strides(),
-                      get_dilations(),
-                      get_pads_begin(),
-                      get_pads_end(),
-                      get_axis());
+    const auto dilations = this->get_dilations();
+    const auto axis = this->get_axis();
+
+    return ov::op::maxpool::evaluate_util(this, outputs, inputs, dilations, axis);
 }
 
 bool MaxPool::has_evaluate() const {
