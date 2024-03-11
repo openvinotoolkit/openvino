@@ -149,4 +149,3 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_Profiling_test,
                                             ::testing::ValuesIn(default_properties)),
                          OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 }  // namespace
-
