@@ -137,9 +137,8 @@ The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example 
 
 Be mindful about time and runners usage when adding new steps, jobs and workflows. When adding any new test or changing
 the scope of an existing test, always check the test execution time in your PR. As a rule of thumb, the execution time
-of any pipeline in the precommit should not be greater than 60 minutes. Also note that even if the execution time is
-according to the guidelines, it may be costy if uses multi-core runners, as they are more expensive than less powerful machines.
-If unsure, include a comment in your PR asking for advice.
+of any workflow in the precommit should be less than 60 minutes. Also note that even if, as recommended, the execution time is
+less than 60 minutes, it may be unreasonably costly to run a powerful multi-core runner for a long time without a proper workload.
 
 ### Adding a Step
 
