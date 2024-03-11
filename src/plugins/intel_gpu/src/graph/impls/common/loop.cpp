@@ -111,6 +111,10 @@ struct loop_impl : typed_primitive_impl<loop> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, loop_inst& instance) override {
+        // Wait for event completion
+        for (auto& e : events) {
+            e->wait();
+        }
         const auto& impl_params = instance.get_impl_params();
         const auto& primitive = impl_params->typed_desc<loop>();
         auto& outer_network = instance.get_network();
@@ -191,15 +195,6 @@ struct loop_impl : typed_primitive_impl<loop> {
         }
 
         const auto& concatenated_input_mem_mappings = instance.concatenated_input_mem_mappings;
-        const auto& backedge_memory_mappings = instance.backedge_memory_mappings;
-
-        // If there are concatenated_input_mem_mappings or backedge_memory_mappings we need to wait for
-        // previous tasks before accessing memory in get_sliced_mem() and setup_iteration() functions
-        if (!concatenated_input_mem_mappings.empty() || !backedge_memory_mappings.empty()) {
-            for (auto& e : events) {
-                e->wait();
-            }
-        }
 
         // Set sliced input data
         for (size_t i = 0; i < concatenated_input_mem_mappings.size(); ++i) {
