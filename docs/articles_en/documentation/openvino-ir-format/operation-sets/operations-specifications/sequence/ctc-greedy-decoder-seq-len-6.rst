@@ -27,7 +27,7 @@ Decoding is done in two steps:
 
 Sequences in the batch can have different length. The lengths of sequences are coded in the second input integer tensor ``sequence_length``.
 
-The main difference between :doc:`CTCGreedyDecoder <openvino_docs_ops_sequence_CTCGreedyDecoder_1>` and CTCGreedyDecoderSeqLen is in the second input. CTCGreedyDecoder uses 2D input floating-point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
+The main difference between :doc:`CTCGreedyDecoder <ctc-greedy-decoder-1>` and CTCGreedyDecoderSeqLen is in the second input. CTCGreedyDecoder uses 2D input floating-point tensor with sequence masks for each sequence in the batch while CTCGreedyDecoderSeqLen uses 1D integer tensor with sequence lengths.
 
 **Attributes**
 
