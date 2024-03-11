@@ -54,19 +54,18 @@ Contains detailed information about OpenVINO and guides you from installation th
 
 [**Developer documentation**](./docs/dev/index.md)
 
-Focuses on how OpenVINO [components](./docs/dev/index.md#openvino-components) work, describing [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
+Focuses on how OpenVINO [components](./docs/dev/index.md#openvino-components) work and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
 
 ## Contribution and Support
 
 Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
-Explore the [Good First Issues section](./CONTRIBUTING.md#3-start-working-on-your-good-first-issue), if you're looking for a place to start contributing. We welcome contributions of all kinds!
+Read the [Good First Issues section](./CONTRIBUTING.md#3-start-working-on-your-good-first-issue), if you're looking for a place to start contributing. We welcome contributions of all kinds!
 
 You can ask questions and get support on:
 
 * [GitHub Issues](https://github.com/openvinotoolkit/openvino/issues).
 * OpenVINO channels on the [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG).
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on Stack Overflow\*.
-* Intel Developer Software [Forum](https://community.intel.com/t5/Developer-Software-Forums/ct-p/developer-software-forums).
 
 ## Additional Resources
 
@@ -80,6 +79,3 @@ You can ask questions and get support on:
 ---
 \* Other names and brands may be claimed as the property of others.
 
-[OpenVINO™ Runtime]:https://docs.openvino.ai/2023.1/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
-[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.1/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc
-[Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples
