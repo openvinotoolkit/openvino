@@ -4,6 +4,7 @@
 
 include(options)
 include(target_flags)
+include(set_configurations)
 
 set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
 list (APPEND OV_OPTIONS CPACK_GENERATOR)
