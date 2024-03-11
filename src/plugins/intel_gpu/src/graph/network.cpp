@@ -1379,7 +1379,7 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
         GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
-        _memory_pool->release_memory(&inst_mem, node.id(), get_id());
+        _memory_pool->release_memory(&inst_mem, node.get_unique_id(), node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
 }
