@@ -11,7 +11,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article.
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../../openvino-extensibility/frontend-extensions>` article.
 
 Model Optimizer provides various base classes to implement :ref:`Front Phase Transformations <mo_front_phase_transformations>`,
 :ref:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :ref:`Back Phase Transformations <mo_back_phase_transformations>`.
@@ -19,7 +19,7 @@ All classes have the following common class attributes and methods:
 
 1. The ``enabled`` attribute specifies whether the transformation is enabled or not. The value can be changed during runtime to enable or disable execution of the transformation during a model conversion. Default value is ``True``.
 2. The ``id`` attribute specifies a unique transformation string identifier. This transformation identifier can be used to enable (disable) the transformation by setting environment variable ``MO_ENABLED_TRANSFORMS`` (``MO_DISABLED_TRANSFORMS``) with a comma separated list of ``ids``. The environment variables override the value of the ``enabled`` attribute of the transformation. Instead of using ``id`` attribute value you can add fully defined class name to ``MO_ENABLED_TRANSFORMS`` (``MO_DISABLED_TRANSFORMS``) variable, ``extensions.back.NonmalizeToNormalizeL2.NormalizeToNormalizeL2`` for example. It is an optional attribute.
-3. The ``run_not_recursively`` attribute specifies whether the transformation should be executed in the sub-graphs, for example, body of the :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` and the :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>`. Default value is ``True``.
+3. The ``run_not_recursively`` attribute specifies whether the transformation should be executed in the sub-graphs, for example, body of the :doc:`TensorIterator <../../../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/tensor-iterator-1>` and the :doc:`Loop <../../../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/loop-5>`. Default value is ``True``.
 4. The ``force_clean_up`` attribute specifies whether the graph clean up should be executed after the transformation. The graph cleanup removes nodes of the graph not reachable from the model inputs. Default value is ``False``.
 5. The ``force_shape_inference`` attribute specifies whether the nodes marked with ``need_shape_inference`` attribute equal to ``True`` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes, input(s) of which were changed during the transformation, or you can set this attribute manually in the transformation for the specific nodes. Default value is ``False``.
 6. Attribute ``graph_condition`` specifies a list of functions with one parameter -- ``Graph`` object. The transformation is executed if and only if all functions return ``True``. If the attribute is not set, no check is performed.
@@ -34,7 +34,7 @@ order. To execute the transformation during a proper model conversion phase, Mod
 anchor transformations that do nothing. All transformations are ordered with respect to these anchor transformations.
 The diagram below shows anchor transformations, some of built-in transformations and dependencies between them:
 
-.. image:: _static/images/MO_transformations_graph.svg
+.. image:: ../../../../../_static/images/MO_transformations_graph.svg
 
 User-defined transformations are executed after the corresponding ``Start`` and before the corresponding ``Finish`` anchor
 transformations by default (if ``run_before()`` and ``run_after()`` methods have not been overridden).
@@ -89,7 +89,7 @@ The sub-graph pattern is defined in the ``pattern()`` function. This function sh
   * The third element (optional) is the dictionary with expected edge attributes. This dictionary usually contains attributes like ``in`` and ``out``, defining input and output ports.
 
 Consider the example of a front transformation implemented in the ``extensions/front/Mish_fusion.py`` file performing
-fusing of the sub-graph defining the :doc:`Mish <openvino_docs_ops_activation_Mish_4>` activation function into a single
+fusing of the sub-graph defining the :doc:`Mish <../../../../openvino-ir-format/operation-sets/operations-specifications/activation/mish-4>` activation function into a single
 operation:
 
 .. code-block:: py
@@ -210,7 +210,7 @@ Then, Model Optimizer executes the ``find_and_replace_pattern(self, graph)`` met
 provides a ``Graph`` object as an input.
 
 Consider the example of a generic front transformation from the ``extensions/front/SqueezeNormalize.py`` file performing
-normalization of the :doc:`Squeeze <openvino_docs_ops_shape_Squeeze_1>` operation. Older version of the operation had a list of
+normalization of the :doc:`Squeeze <../../../../openvino-ir-format/operation-sets/operations-specifications/shape/squeeze-1>` operation. Older version of the operation had a list of
 axes to squeeze as an attribute, but now it is a separate input. For backward compatibility, the Model Optimizer
 operation supports both semantics. Before IR generation, however, the operation should be normalized according to the
 specification.
@@ -381,7 +381,7 @@ the list is important. The ``i``-th element of the list describes the ``i``-th o
 obtained using ``match.output_node(i)`` call. The order of elements can be manually changed in the configuration file.
 Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
 
-For more examples of this type of transformation, refer to the :doc:`Converting TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>` guide.
+For more examples of this type of transformation, refer to the :doc:`Converting TensorFlow Object Detection API Models <../../legacy-conversion-api/[legacy]-supported-model-formats/[legacy]-conversion-tutorials/convert-tensorflow-object-detection>` guide.
 
 .. _start_end_points_front_phase_transformations:
 
@@ -397,7 +397,7 @@ base class and works as follows:
    1. Starts a graph traversal from every start node following the direction of the graph edges. The search stops in an end node or in the case of a node without consumers. All visited nodes are added to the matched sub-graph.
    2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from the "start" list. In this step, the edges are traversed in the opposite edge direction. All newly visited nodes are added to the matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the matched sub-graph.
    3. Checks that all "end" nodes were reached from "start" nodes. If not, it exits with an error.
-   4. Checks that there are no :doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` operations among added nodes. If they exist, the sub-graph depends on the inputs of the model. Such configuration is considered incorrect so  Model Optimizer exits with an error.
+   4. Checks that there are no :doc:`Parameter <../../../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/parameter-1>` operations among added nodes. If they exist, the sub-graph depends on the inputs of the model. Such configuration is considered incorrect so  Model Optimizer exits with an error.
 
 This algorithm finds all nodes "between" start and end nodes and nodes needed for calculation of non-input nodes of the
 matched sub-graph.
@@ -447,10 +447,10 @@ respectively.
    The ``include_inputs_to_sub_graph`` and ``include_outputs_to_sub_graph`` parameters are redundant and should be always equal to ``true``.
 
 .. note::
-   This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it is not possible to specify, for example, the :doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>` node as input because it has two inputs: data tensor and tensor with weights.
+   This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it is not possible to specify, for example, the :doc:`Convolution <../../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-1>` node as input because it has two inputs: data tensor and tensor with weights.
 
 For other examples of transformations with points, refer to the
-:doc:`Converting TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>` guide.
+:doc:`Converting TensorFlow Object Detection API Models <../../legacy-conversion-api/[legacy]-supported-model-formats/[legacy]-conversion-tutorials/convert-tensorflow-object-detection>` guide.
 
 .. _generic_transformations_config_front_phase_transformations:
 
@@ -600,8 +600,8 @@ For the example of this transformation, refer to the ``extensions/back/GatherNor
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
-* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
+* :doc:`Model Optimizer Extensibility <../../legacy-model-optimizer-extensibility>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <../../legacy-model-optimizer-extensibility/[legacy]-graph-traversal-and-modification>`
+* :doc:`Model Optimizer Extensions <../[legacy]-model-optimizer-extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <../[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 

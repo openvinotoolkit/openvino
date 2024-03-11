@@ -5,15 +5,15 @@ Converting TensorFlow Slim Image Classification Model Library Models
 
 
 .. meta::
-   :description: Learn how to convert a Slim Image 
-                 Classification model from TensorFlow to the OpenVINO 
+   :description: Learn how to convert a Slim Image
+                 Classification model from TensorFlow to the OpenVINO
                  Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
 
 `TensorFlow-Slim Image Classification Model Library <https://github.com/tensorflow/models/tree/master/research/slim/README.md>`__ is a library to define, train and evaluate classification models in TensorFlow. The library contains Python scripts defining the classification topologies together with checkpoint files for several pre-trained classification topologies. To convert a TensorFlow-Slim library model, complete the following steps:
 
@@ -24,7 +24,7 @@ Converting TensorFlow Slim Image Classification Model Library Models
 
 The `Example of an Inception V1 Model Conversion <#example_of_an_inception_v1_model_conversion>`__ below illustrates the process of converting an Inception V1 Model.
 
-Example of an Inception V1 Model Conversion 
+Example of an Inception V1 Model Conversion
 ###########################################
 
 This example demonstrates how to convert the model on Linux OSes, but it could be easily adopted for the Windows OSes.
@@ -87,7 +87,7 @@ The ``-b`` command line parameter is required because model conversion API canno
 
 For the information on why ``--mean_values`` and ``--scale`` command-line parameters are used, refer to the `Mean and Scale Values for TensorFlow-Slim Models <#Mean-and-Scale-Values-for-TensorFlow-Slim-Models>`__.
 
-Mean and Scale Values for TensorFlow-Slim Models 
+Mean and Scale Values for TensorFlow-Slim Models
 #################################################
 
 The TensorFlow-Slim Models were trained with normalized input data. There are several different normalization algorithms used in the Slim library. OpenVINO classification sample does not perform image pre-processing except resizing to the input layer size. It is necessary to pass mean and scale values to model conversion API so they are embedded into the generated IR in order to get correct classification results.
@@ -115,5 +115,5 @@ OpenVINO classification sample reads an input image as a three-dimensional array
 
 Similarly, the mean/scale values can be determined for other Slim models.
 
-The exact mean/scale values are defined in the table with list of supported TensorFlow-Slim models at the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+The exact mean/scale values are defined in the table with list of supported TensorFlow-Slim models at the :doc:`Converting a TensorFlow Model <../[legacy]-convert-tensorflow>` guide.
 

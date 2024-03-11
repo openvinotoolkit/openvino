@@ -4,15 +4,19 @@ Precision Control
 =================
 
 
-The choice of data types is essential to the inference runtime, which can have a huge impact on the performance and other metrics. Usually 2 types of precision are identified:
+The choice of data types is essential to the inference runtime, which can have a huge impact on
+the performance and other metrics. Usually 2 types of precision are identified:
 
 1. Model storage precision (IR precision),
 2. Model inference precision.
 
-Inference precision no longer depends on the precision of IR, which means that users
-have several options to find the balance between model performance and accuracy.
+Inference precision no longer depends on the precision of IR, which means that users have
+several options to find the balance between model performance and accuracy.
 
-Essentially, the IR precision becomes a way of compressing the model by reducing the precision of the weights, and it does not affect how the devices execute the model. This change clears up a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU by default, and the behavior between devices was different.
+Essentially, the IR precision becomes a way of compressing the model by reducing the precision
+of the weights, and it does not affect how the devices execute the model. This change clears up
+a lot of confusion where, for example, you couldn't execute a high-performance model on the GPU
+by default, and the behavior between devices was different.
 
 This guide will focus on how to control inference precision. And using lower precision is important for performance because compute bandwidth tends to be higher for smaller data types, and hardware often has special blocks for efficient multiply-accumulate operations with smaller data types only (e.g. Intel Xᵉ Matrix Extensions (XMX) on GPU and Intel Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O operations requires less memory due to the smaller tensor byte size. This guide will focus on how to control inference precision.
 
@@ -25,7 +29,7 @@ Execution Mode
 * In **ACCURACY mode**, the device cannot convert floating point tensors to a smaller floating point type, so devices try to keep the accuracy metrics as close as possible to the original values ​​obtained after training relative to the device's real capabilities. This means that most devices will infer with ``f32`` precision if your device supports it.
 * In **PERFORMANCE mode**, the device can convert to smaller data types and apply other optimizations that may have some impact on accuracy rates, although we still try to minimize accuracy loss and may use mixed precision execution in some cases.
 
-If the model has been quantized using :doc:`OpenVINO optimization tools <ptq_introduction>` or any other method, the quantized operators will be executed with the target integer precision if the device has hardware acceleration for that type. For example, quantized ``int8`` primitives are executed with ``int8`` precision for both **ACCURACY** and **PERFORMANCE modes** if the device provides higher compute bandwidth for 8-bit data types compared to any available floating-point type. On the other hand, devices without hardware acceleration for the ``int8`` data type can keep such operators in floating point precision, and the exact floating point type will be affected by ``execution_mode`` and ``inference_precision`` properties.
+If the model has been quantized using :doc:`OpenVINO optimization tools <../../model-optimization-guide/quantizing-models-post-training>` or any other method, the quantized operators will be executed with the target integer precision if the device has hardware acceleration for that type. For example, quantized ``int8`` primitives are executed with ``int8`` precision for both **ACCURACY** and **PERFORMANCE modes** if the device provides higher compute bandwidth for 8-bit data types compared to any available floating-point type. On the other hand, devices without hardware acceleration for the ``int8`` data type can keep such operators in floating point precision, and the exact floating point type will be affected by ``execution_mode`` and ``inference_precision`` properties.
 
 Code examples:
 
@@ -59,6 +63,6 @@ Inference Precision
 Additional Resources
 ####################
 
-* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 

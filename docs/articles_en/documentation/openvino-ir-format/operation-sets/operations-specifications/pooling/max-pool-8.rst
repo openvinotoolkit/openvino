@@ -5,7 +5,7 @@ MaxPool
 
 
 .. meta::
-  :description: Learn about MaxPool-8 - a pooling operation, which can 
+  :description: Learn about MaxPool-8 - a pooling operation, which can
                 be performed on a 3D, 4D or 5D input tensor.
 
 **Versioned name**: *MaxPool-8*
@@ -103,18 +103,18 @@ MaxPool
 
 **Outputs**:
 
-  * **1**: Input shape can be either ``[N, C, H]``, ``[N, C, H, W]``, or ``[N, C, H, W, D]``. The corresponding output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output tensor has the same data type as the input tensor.
+* **1**: Input shape can be either ``[N, C, H]``, ``[N, C, H, W]``, or ``[N, C, H, W, D]``. The corresponding output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output tensor has the same data type as the input tensor.
 
-  * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
-    Shape of this output matches the first output. The type of this output can be specified using the ``index_element_type`` attribute.
-    Values are computed as indices in a tensor flattened to 1D, not considering padding. Examples for a 5D input tensor:
+* **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
+  Shape of this output matches the first output. The type of this output can be specified using the ``index_element_type`` attribute.
+  Values are computed as indices in a tensor flattened to 1D, not considering padding. Examples for a 5D input tensor:
 
-    * When ``axis == 0``, the values are in the range ``[0, N * C * H * W * D)``.
-    * When ``axis == 2``, the values are in the range ``[0, H * W * D)``.
+  * When ``axis == 0``, the values are in the range ``[0, N * C * H * W * D)``.
+  * When ``axis == 2``, the values are in the range ``[0, H * W * D)``.
 
-    .. note::
+  .. note::
 
-       The values of this output can only be calculated correctly if ``pads_value`` is set to ``-infinity``.
+      The values of this output can only be calculated correctly if ``pads_value`` is set to ``-infinity``.
 
 
 **Types**

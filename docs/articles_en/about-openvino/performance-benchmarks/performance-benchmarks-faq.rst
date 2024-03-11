@@ -19,7 +19,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of :doc:`Open Model Zoo <model_zoo>`.
+   All models used are included in the GitHub repository of :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 
@@ -31,10 +31,10 @@ Performance Information F.A.Q.
 
    All of the performance benchmarks are generated using the
    open-source tool within the Intel® Distribution of OpenVINO™ toolkit
-   called :doc:`benchmark_app <openvino_sample_benchmark_tool>`.
+   called :doc:`benchmark_app <../../learn-openvino/openvino-samples/benchmark-tool>`.
    This tool is available for Python and C++ apps.
 
-   For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <openvino_docs_MO_DG_Getting_Performance_Numbers>`.
+   For a simple instruction on testing performance, see the :doc:`Getting Performance Numbers Guide <getting-performance-numbers>`.
 
 .. dropdown:: Where can I find a more detailed description of the workloads used for benchmarking?
 
@@ -121,7 +121,7 @@ Performance Information F.A.Q.
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
    Set of guidelines and recommendations to optimize models are available in the
-   :doc:`optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+   :doc:`optimization guide <../../openvino-workflow/running-inference/optimize-inference>`.
    Join the conversation in the `Community Forum <https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit>`__ for further support.
 
 .. dropdown:: Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
@@ -135,7 +135,7 @@ Performance Information F.A.Q.
    hardware. For comparison on boost factors for different network models
    and a selection of Intel® CPU architectures, including AVX-2 with Intel®
    Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel®
-   Xeon® 8270, refer to the :doc:`Model Accuracy for INT8 and FP32 Precision <openvino_docs_performance_int8_vs_fp32>`
+   Xeon® 8270, refer to the :doc:`Model Accuracy for INT8 and FP32 Precision <model-accuracy-int8-fp32>`
 
 .. dropdown:: Where can I search for OpenVINO™ performance results based on HW-platforms?
 

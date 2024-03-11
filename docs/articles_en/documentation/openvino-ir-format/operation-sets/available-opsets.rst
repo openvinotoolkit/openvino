@@ -12,20 +12,20 @@ Available Operation Sets
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_ops_opset14
-   openvino_docs_ops_opset13
-   openvino_docs_ops_opset12
-   openvino_docs_ops_opset11
-   openvino_docs_ops_opset10
-   openvino_docs_ops_opset9
-   openvino_docs_ops_opset8
-   openvino_docs_ops_opset7
-   openvino_docs_ops_opset6
-   openvino_docs_ops_opset5
-   openvino_docs_ops_opset4
-   openvino_docs_ops_opset3
-   openvino_docs_ops_opset2
-   openvino_docs_ops_opset1
+   available-opsets/opset14
+   available-opsets/opset13
+   available-opsets/opset12
+   available-opsets/opset11
+   available-opsets/opset10
+   available-opsets/opset9
+   available-opsets/opset8
+   available-opsets/opset7
+   available-opsets/opset6
+   available-opsets/opset5
+   available-opsets/opset4
+   available-opsets/opset3
+   available-opsets/opset2
+   available-opsets/opset1
 
 
 According to capabilities of supported deep learning frameworks and hardware capabilities of a target inference device, all operations are combined into operation sets each fully supported in a specific version of OpenVINO™ toolkit.
@@ -38,39 +38,39 @@ This topic provides a complete list of available sets of operations supported in
     * - OpenVINO™ Version
       - Actual Operations Set
     * - 2024.0
-      - :doc:`opset14 <openvino_docs_ops_opset14>`
+      - :doc:`opset14 <available-opsets/opset14>`
     * - 2023.2
-      - :doc:`opset13 <openvino_docs_ops_opset13>`
+      - :doc:`opset13 <available-opsets/opset13>`
     * - 2023.1
-      - :doc:`opset12 <openvino_docs_ops_opset12>`
+      - :doc:`opset12 <available-opsets/opset12>`
     * - 2023.0
-      - :doc:`opset11 <openvino_docs_ops_opset11>`
+      - :doc:`opset11 <available-opsets/opset11>`
     * - 2022.3
-      - :doc:`opset10 <openvino_docs_ops_opset10>`
+      - :doc:`opset10 <available-opsets/opset10>`
     * - 2022.2
-      - :doc:`opset9 <openvino_docs_ops_opset9>`
+      - :doc:`opset9 <available-opsets/opset9>`
     * - 2022.1
-      - :doc:`opset8 <openvino_docs_ops_opset8>`
+      - :doc:`opset8 <available-opsets/opset8>`
     * - 2021.4
-      - :doc:`opset7 <openvino_docs_ops_opset7>`
+      - :doc:`opset7 <available-opsets/opset7>`
     * - 2021.3
-      - :doc:`opset6 <openvino_docs_ops_opset6>`
+      - :doc:`opset6 <available-opsets/opset6>`
     * - 2021.2
-      - :doc:`opset5 <openvino_docs_ops_opset5>`
+      - :doc:`opset5 <available-opsets/opset5>`
     * - 2021.1
-      - :doc:`opset4 <openvino_docs_ops_opset4>`
+      - :doc:`opset4 <available-opsets/opset4>`
     * - 2020.4
-      - :doc:`opset3 <openvino_docs_ops_opset3>`
+      - :doc:`opset3 <available-opsets/opset3>`
     * - 2020.3
-      - :doc:`opset2 <openvino_docs_ops_opset2>`
+      - :doc:`opset2 <available-opsets/opset2>`
     * - 2020.2
-      - :doc:`opset2 <openvino_docs_ops_opset2>`
+      - :doc:`opset2 <available-opsets/opset2>`
     * - 2020.1
-      - :doc:`opset1 <openvino_docs_ops_opset1>`
+      - :doc:`opset1 <available-opsets/opset1>`
 
 See Also
 ########
 
-:doc:`Operation Sets in OpenVINO <openvino_docs_MO_DG_IR_and_opsets>`
-:doc:`OpenVINO IR format <openvino_ir>`
+* :doc:`Operation Sets in OpenVINO <../operation-sets>`
+* :doc:`OpenVINO IR format <../../openvino-ir-format>`
 

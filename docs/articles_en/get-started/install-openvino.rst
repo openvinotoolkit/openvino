@@ -1,0 +1,65 @@
+.. {#openvino_docs_install_guides_overview}
+
+Install OpenVINO™ 2024.0
+==========================
+
+
+.. meta::
+   :description: install OpenVINO Runtime package, using the distribution channel
+                 of your choice.
+
+
+.. toctree::
+   :maxdepth: 3
+   :hidden:
+
+   OpenVINO Runtime on Linux <install-openvino/install-openvino-linux>
+   OpenVINO Runtime on Windows <install-openvino/install-openvino-windows>
+   OpenVINO Runtime on macOS <install-openvino/install-openvino-macos>
+
+
+.. raw:: html
+
+   <script type="module" crossorigin src="../_static/selector-tool/assets/index-f34d1fad.js"></script>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <iframe id="selector" src="../_static/selector-tool/selector-6ad56e0.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
+
+.. warning::
+
+   The OpenVINO™ Development Tools package has been deprecated and removed from the default
+   installation options. For new projects, the OpenVINO runtime package now includes
+   all necessary components.
+
+   The OpenVINO Development Tools is still available for older versions of OpenVINO,
+   as well as the current one, from the GitHub repository and PyPI. :doc:`Learn more <../documentation/legacy-features/install-dev-tools>`.
+
+
+.. tip::
+
+   OpenVINO 2024.0, described here, is not a Long-Term-Support version!
+   All currently supported versions are:
+
+   * 2024.0 (development)
+   * 2023.3 (LTS)
+   * 2022.3 (LTS)
+
+   Moreover, different OpenVINO distributions may support slightly different sets of features.
+   Read installation guides for particular distributions for more details.
+
+   .. dropdown:: Distribution Comparison for OpenVINO 2024.0
+
+      ===============  ==========  ======  =========  ========  ============ ========== ==========
+       Device           Archives    PyPI    APT/YUM    Conda     Homebrew     vcpkg      Conan
+      ===============  ==========  ======  =========  ========  ============ ========== ==========
+       CPU              V           V        V         V          V           V          V
+       GPU              V           V        V         V          V           V          V
+       NPU              V          n/a      n/a       n/a        n/a         n/a        n/a
+      ===============  ==========  ======  =========  ========  ============ ========== ==========
+
+| **Build OpenVINO from source**
+|    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,
+     follow the `OpenVINO Build Instructions <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__.
+
+
+
+

@@ -5,7 +5,7 @@ Datumaro
 
 
 .. meta::
-   :description: Start working with Datumaro, which offers functionalities for basic data 
+   :description: Start working with Datumaro, which offers functionalities for basic data
                  import/export, validation, correction, filtration and transformations.
 
 
@@ -21,11 +21,11 @@ Plus, enjoy `Jupyter notebooks <https://github.com/openvinotoolkit/datumaro/tree
 Detailed Workflow
 #################
 
-.. image:: ./_static/images/datumaro.png
+.. image:: ./../../_static/images/datumaro.png
 
 1. To start working with Datumaro, download public datasets or prepare your own annotated dataset.
 
-   .. note:: 
+   .. note::
       Datumaro provides a CLI `datum download` for downloading `TensorFlow Datasets <https://www.tensorflow.org/datasets>`__.
 
 2. Import data into Datumaro and manipulate the dataset for the data quality using `Validator`, `Corrector`, and `Filter`.
@@ -34,17 +34,17 @@ Detailed Workflow
 
 4. Merge two datasets to a large-scale dataset.
 
-   .. note:: 
+   .. note::
       There are some choices of merger, i.e., `ExactMerger`, `IntersectMerger`, and `UnionMerger`.
 
 5. Split the unified dataset into subsets, e.g., `train`, `valid`, and `test` through `Splitter`.
 
-   .. note:: 
+   .. note::
       We can split data with a given ratio of subsets according to both the number of samples or
       annotations. Please see `SplitTask` for the task-specific split.
 
 6. Export the cleaned and unified dataset for follow-up workflows such as model training.
-Go to :doc:`OpenVINO™ Training Extensions <ote_documentation>`.
+Go to :doc:`OpenVINO™ Training Extensions <openvino-training-extensions>`.
 
 If the results are unsatisfactory, add datasets and perform the same steps, starting with dataset annotation.
 

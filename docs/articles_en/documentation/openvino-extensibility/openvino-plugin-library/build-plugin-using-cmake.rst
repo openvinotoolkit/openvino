@@ -1,4 +1,4 @@
-.. {#openvino_docs_ov_plugin_dg_plugin_build}
+.. {#plugin_build}
 
 Build Plugin Using CMake
 ========================

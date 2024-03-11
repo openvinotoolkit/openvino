@@ -12,9 +12,9 @@ Model Preparation
    :maxdepth: 1
    :hidden:
 
-   Convert to OpenVINO Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>
-   Conversion Parameters <openvino_docs_OV_Converter_UG_Conversion_Options>
-   Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>
+   Convert to OpenVINO Model <model-preparation/convert-model-to-ir>
+   Conversion Parameters <model-preparation/conversion-parameters>
+   Setting Input Shapes <model-preparation/setting-input-shapes>
 
 
 OpenVINO supports the following model formats:
@@ -30,13 +30,13 @@ The easiest way to obtain a model is to download it from an online database, suc
 `TensorFlow Hub <https://tfhub.dev/>`__, `Hugging Face <https://huggingface.co/>`__, and
 `Torchvision models <https://pytorch.org/hub/>`__. Now you have two options:
 
-* Skip model conversion and :doc:`run inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+* Skip model conversion and :doc:`run inference <running-inference/integrate-openvino-with-your-application>`
   directly from the **TensorFlow, TensorFlow Lite, ONNX, or PaddlePaddle** source format.
   Conversion will still be performed but it will happen automatically and "under the hood".
   This option, while convenient, offers lower performance and stability, as well as fewer
   optimization options.
 
-* Explicitly :doc:`convert the model to OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`.
+* Explicitly :doc:`convert the model to OpenVINO IR <model-preparation/convert-model-to-ir>`.
   This approach offers the best possible results and is the recommended one, especially for
   production-ready solutions. Consider storing your model in this format to minimize
   first-inference latency, perform model optimizations, and save space on your drive, in some
@@ -46,10 +46,10 @@ The easiest way to obtain a model is to download it from an online database, suc
     (``openvino.convert_model`` and ``openvino.save_model``)
   * the `ovc <#convert-a-model-in-cli-ovc>`__  command line tool.
 
-  Once saved as :doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`
+  Once saved as :doc:`OpenVINO IR <model-preparation/convert-model-to-ir>`
   (a set of ``.xml`` and ``.bin`` files), the model may be deployed with maximum performance.
   Because it is already optimized for
-  :doc:`OpenVINO inference <openvino_docs_OV_UG_Integrate_OV_with_your_application>`,
+  :doc:`OpenVINO inference <running-inference/integrate-openvino-with-your-application>`,
   it can be read, compiled, and inferred with no additional delay.
 
 .. note::
@@ -58,7 +58,7 @@ The easiest way to obtain a model is to download it from an online database, suc
    projects are recommended to transition to the new solutions, keeping in mind that they are
    not fully backwards compatible with ``openvino.tools.mo.convert_model`` or the ``mo``
    CLI tool. For more details, see the
-   :doc:`Model Conversion API Transition Guide <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`.
+   :doc:`Model Conversion API Transition Guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
 
    For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
@@ -89,16 +89,15 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
     run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling
     inference.
 
-For more information on each function, see the :doc:`OpenVINO workflow <openvino_workflow>`
+For more information on each function, see the :doc:`OpenVINO workflow <../openvino-workflow>`
 page.
 
 Convert a Model with Python: ``convert_model``
 ##############################################
 
 Model Conversion API in Python uses the ``openvino.convert_model`` function, to turn a model
-into the `openvino.Model <api/ie_python_api/_autosummary/openvino.runtime.Model.html>`__
-object and load it to memory. Now it can be: saved to a drive with ``openvino.save_model``
-or further :doc:`optimized with NNCF <openvino_docs_model_optimization_guide>` before saving.
+into the openvino.Model object and load it to memory. Now it can be: saved to a drive with ``openvino.save_model``
+or further :doc:`optimized with NNCF <model-optimization>` before saving.
 
 
 See how to use ``openvino.convert_model`` with models from some of the most popular
@@ -264,7 +263,7 @@ public repositories:
   application.
 
 Before saving the model to OpenVINO IR, consider
-:doc:`Post-training Optimization <ptq_introduction>` to achieve more efficient inference and
+:doc:`Post-training Optimization <model-optimization-guide/quantizing-models-post-training>` to achieve more efficient inference and
 a smaller model.
 
 
@@ -275,7 +274,7 @@ Convert a Model in CLI: ``ovc``
 and ``openvino.save_model`` functionalities, providing the exact same results, if the same set
 of parameters is used for saving into OpenVINO IR. It converts files from one of the supported
 formats to
-:doc:`OpenVINO IR <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`,
+:doc:`OpenVINO IR <model-preparation/convert-model-to-ir>`,
 which can then be read, compiled, and run by the final inference application.
 
 .. note::
@@ -287,20 +286,20 @@ Additional Resources
 The following articles describe in detail how to obtain and prepare your model depending on
 the source model type:
 
-* :doc:`Convert different model formats to the ov.Model format <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`.
-* :doc:`Review all available conversion parameters <openvino_docs_OV_Converter_UG_Conversion_Options>`.
+* :doc:`Convert different model formats to the ov.Model format <model-preparation/convert-model-to-ir>`.
+* :doc:`Review all available conversion parameters <model-preparation/conversion-parameters>`.
 
 To achieve the best model inference performance and more compact OpenVINO IR representation
 follow:
 
-* :doc:`Post-training optimization <ptq_introduction>`
-* :doc:`Model inference in OpenVINO Runtime <openvino_docs_OV_UG_OV_Runtime_User_Guide>`
+* :doc:`Post-training optimization <model-optimization-guide/quantizing-models-post-training>`
+* :doc:`Model inference in OpenVINO Runtime <running-inference>`
 
 If you are still using the legacy conversion API (``mo`` or ``openvino.tools.mo.convert_model``),
 refer to the following materials:
 
-* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
-* :doc:`Legacy Model Conversion API <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+* :doc:`Transition from legacy mo and ov.tools.mo.convert_model <../documentation/legacy-features/transition-legacy-conversion-api>`
+* :doc:`Legacy Model Conversion API <../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
 
 
 

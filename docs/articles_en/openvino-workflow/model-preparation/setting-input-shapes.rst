@@ -18,14 +18,14 @@ Doing so at the model preparation stage, not at runtime, can be beneficial in te
 performance and memory consumption.
 
 For more information on changing input shapes in runtime, refer to the
-:doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
+:doc:`Changing input shapes <../running-inference/changing-input-shape>` guide.
 To learn more about dynamic shapes in runtime, refer to the
-:doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
+:doc:`Dynamic Shapes <../running-inference/dynamic-shapes>` guide.
 
 The OpenVINO Runtime API may present certain limitations in inferring models with undefined
-dimensions on some hardware. See the :doc:`Feature support matrix <openvino_supported_devices>`
+dimensions on some hardware. See the :doc:`Feature support matrix <../../about-openvino/compatibility-and-support/supported-devices>`
 for reference. In this case, the ``input`` parameter and the
-:doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined
+:doc:`reshape method <../running-inference/changing-input-shape>` can help to resolve undefined
 dimensions.
 
 For example, run model conversion for the TensorFlow MobileNet model with the single input

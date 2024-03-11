@@ -21,8 +21,8 @@ Operation semantics may impose restrictions on input shapes of the operation.
 Shape collision during shape propagation may be a sign that new shape does not satisfy the restrictions.
 Changing the model input shape may result in intermediate operations shape collision. For example, in the following:
 
-* The :doc:`Reshape <openvino_docs_ops_shape_Reshape_1>` operation with a hard-coded output shape value,
-* The :doc:`MatMul <openvino_docs_ops_matrix_MatMul_1>` operation with the ``Const`` second input and this input cannot be resized by spatial dimensions due to operation semantics.
+* The :doc:`Reshape <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>` operation with a hard-coded output shape value,
+* The :doc:`MatMul <../../../openvino-ir-format/operation-sets/operations-specifications/matrix/matmul-1>` operation with the ``Const`` second input and this input cannot be resized by spatial dimensions due to operation semantics.
 
 Model structure and logic should not change significantly after model reshaping.
 
@@ -46,11 +46,11 @@ To fix some operators which prevent normal shape propagation:
 
   With ``1:reshaped[2]``, it is required to cut the second input (counting from zero, so ``1:`` means the second input) of the operation named ``reshaped`` and replace it with a ``Parameter`` with shape ``[2]``.
   With ``->[0 -1]``, this new ``Parameter`` is replaced by a ``Constant`` operator which has the ``[0, -1]`` value.
-  Since the ``Reshape`` operator has ``0`` and ``-1`` as specific values, it allows propagating shapes freely without losing the intended meaning of ``Reshape``.   For more information, see :doc:`the specification <openvino_docs_ops_shape_Reshape_1>`.
+  Since the ``Reshape`` operator has ``0`` and ``-1`` as specific values, it allows propagating shapes freely without losing the intended meaning of ``Reshape``.   For more information, see :doc:`the specification <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`.
 
-  .. image:: _static/images/batch_relaxation.png
+  .. image:: ../../../../_static/images/batch_relaxation.png
 
-* transform the model conversion on the back phase. For more information, see the :doc:`How to Convert a Model <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`,
-* transform OpenVINO Model during the runtime. For more information, see :doc:`OpenVINO Runtime Transformations <openvino_docs_transformations>`,
+* transform the model conversion on the back phase. For more information, see the :doc:`How to Convert a Model <../legacy-model-optimizer-extensibility>`,
+* transform OpenVINO Model during the runtime. For more information, see :doc:`OpenVINO Runtime Transformations <../../../openvino-extensibility/transformation-api>`,
 * modify the original model with the help of the original framework.
 

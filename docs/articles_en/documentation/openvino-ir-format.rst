@@ -13,16 +13,16 @@ OpenVINO IR format
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_IR_and_opsets
-   openvino_docs_ops_opset
-   openvino_docs_operations_specifications
-   openvino_docs_ops_broadcast_rules
-   openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference
+   openvino-ir-format/operation-sets
+   openvino-ir-format/operation-sets/available-opsets
+   openvino-ir-format/operation-sets/operations-specifications
+   openvino-ir-format/operation-sets/broadcast-rules
+   openvino-ir-format/intermediate-representation-int8-inference
 
 
 OpenVINO IR is the proprietary model format of OpenVINO, benefiting from the full extent
 of its features. It is obtained by converting a model from one of the
-:doc:`supported formats <openvino_docs_model_processing_introduction>`
+:doc:`supported formats <../openvino-workflow/model-preparation>`
 using the model conversion API or OpenVINO Converter. The process translates common
 deep learning operations of the original network to their counterpart representations in
 OpenVINO and tunes them with the associated weights and biases.
@@ -31,7 +31,7 @@ The resulting OpenVINO IR format contains two files:
 * ``.xml`` - Describes the model topology.
 * ``.bin`` - Contains the weights and binary data.
 
-:doc:`See why converting to OpenVINO IR is recommended <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_IR>`
+:doc:`See why converting to OpenVINO IR is recommended <../openvino-workflow/model-preparation/convert-model-to-ir>`
 
 
 IR Structure
@@ -161,5 +161,5 @@ The IR does not use explicit data nodes described in the previous section. In co
 Additional Resources
 ####################
 
-* :doc:`IR and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
+* :doc:`IR and Operation Sets <openvino-ir-format/operation-sets>`
 

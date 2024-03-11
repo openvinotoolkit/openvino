@@ -147,8 +147,8 @@ Here is an example of an implementation for the internal operation `SparseFillEm
 https://github.com/openvinotoolkit/openvino/blob/7f3c95c161bc78ab2aefa6eab8b008142fb945bc/src/frontends/tensorflow/src/helper_ops/sparse_fill_empty_rows.hpp#L17-L55
 
 In the second step, `Internal Transformation` based on `ov::pass::MatcherPass` must convert sub-graphs with internal operations into sub-graphs consisting only of the OpenVINO opset.
-For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformations-api.html)
-and [OpenVINO Matcher Pass](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformations-api/matcher-pass.html) documentation.
+For more information about `ov::pass::MatcherPass` based transformations and their development, read [Overview of Transformations API](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformation-api.html)
+and [OpenVINO Matcher Pass](https://docs.openvino.ai/2024/documentation/openvino-extensibility/transformation-api/matcher-pass.html) documentation.
 The internal transformation must be called in the `ov::frontend::tensorflow::FrontEnd::normalize()` method.
 It is important to check the order of applying internal transformations to avoid situations when some internal operation
 breaks a graph pattern with an internal operation for another internal transformation.

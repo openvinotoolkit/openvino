@@ -17,7 +17,7 @@ BitwiseOr
 
 After broadcasting input tensors *a* and *b*, *BitwiseOr* performs a bitwise logical OR operation for each corresponding element in the given tensors, based on the following algorithm.
 
-For ``boolean`` type tensors, BitwiseOr is equivalent to :doc:`LogicalOr <openvino_docs_ops_logical_LogicalOr_1>`.
+For ``boolean`` type tensors, BitwiseOr is equivalent to :doc:`LogicalOr <../logical/logical-or-1>`.
 
 If tensor is of ``any supported integer`` type, for each element of the tensor:
 
@@ -60,8 +60,8 @@ Example 2 - *BitwiseOr* output for uint8 tensor:
   * **Range of values**:
 
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`,
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`,
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
 
   * **Type**: string
   * **Default value**: "numpy"

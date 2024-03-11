@@ -44,7 +44,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       Execution diagram:
 
-      .. image:: _static/images/torch_compile_backend_openvino.svg
+      .. image:: ../_static/images/torch_compile_backend_openvino.svg
          :width: 992px
          :height: 720px
          :scale: 60%
@@ -61,7 +61,7 @@ To use ``torch.compile``, you need to add an import statement and define one of 
 
       Execution diagram:
 
-      .. image:: _static/images/torch_compile_backend_openvino_ts.svg
+      .. image:: ../_static/images/torch_compile_backend_openvino_ts.svg
          :width: 1088px
          :height: 720px
          :scale: 60%
@@ -174,8 +174,6 @@ The ``torch.compile`` feature is part of PyTorch 2.0, and is based on:
 * **AOTAutograd** - generates the backward graph corresponding to the forward graph captured by TorchDynamo.
 * **PrimTorch** - decomposes complicated PyTorch operations into simpler and more elementary ops.
 * **TorchInductor** - a deep learning compiler that generates fast code for multiple accelerators and backends.
-
-
 
 
 When the PyTorch module is wrapped with ``torch.compile``, TorchDynamo traces the module and

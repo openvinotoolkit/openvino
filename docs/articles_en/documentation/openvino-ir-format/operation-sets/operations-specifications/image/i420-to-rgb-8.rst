@@ -16,7 +16,7 @@ I420toRGB
 
 **Detailed description:**
 
-Conversion of each pixel from I420 (YUV) to RGB space is represented by the following formulas (same as in :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>`):
+Conversion of each pixel from I420 (YUV) to RGB space is represented by the following formulas (same as in :doc:`NV12toRGB <nv12-to-rgb-8>`):
 
 .. math::
 

@@ -4,17 +4,17 @@
 ============================================
 
 .. meta::
-   :description: Learn how to convert a model from a 
+   :description: Learn how to convert a model from a
                  TensorFlow format to the OpenVINO Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Model <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Converting a TensorFlow Model <../../../../../openvino-workflow/model-preparation/convert-model-tensorflow>` article.
 
 
-.. note:: TensorFlow models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
+.. note:: TensorFlow models are supported via FrontEnd API. You may skip conversion to IR and read models directly by OpenVINO runtime API. Refer to the :doc:`inference example <../../../../../openvino-workflow/running-inference/integrate-openvino-with-your-application>` for more details. Using ``convert_model`` is still necessary in more complex cases, such as new custom inputs/outputs in model pruning, adding pre-processing, or using Python conversion extensions.
 
 The conversion instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
@@ -125,7 +125,7 @@ TensorFlow 2 SavedModel format has a specific graph structure due to eager execu
 pruning, find custom input nodes in the ``StatefulPartitionedCall/*`` subgraph.
 
 Since the 2023.0 release, direct pruning of models in SavedModel format is not supported.
-It is essential to freeze the model before pruning. Use the following code snippet for model freezing: 
+It is essential to freeze the model before pruning. Use the following code snippet for model freezing:
 
 .. code-block:: py
    :force:
@@ -311,12 +311,12 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../../../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Frequently Asked Questions (FAQ)
 ################################
 
-The model conversion API provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`. The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` to help you understand what went wrong.
+The model conversion API provides explanatory messages if it is unable to run to completion due to typographical errors, incorrectly used options, or other issues. The message describes the potential cause of the problem and gives a link to the :doc:`Model Optimizer FAQ <../[legacy]-model-optimizer-faq>`. The FAQ provides instructions on how to resolve most issues. The FAQ also includes links to relevant sections in :doc:`Convert a Model <../../legacy-conversion-api>` to help you understand what went wrong.
 
 Summary
 #######
@@ -331,9 +331,9 @@ In this document, you learned:
 Additional Resources
 ####################
 
-See the :doc:`Model Conversion Tutorials <openvino_docs_MO_DG_prepare_model_convert_model_tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
+See the :doc:`Model Conversion Tutorials <[legacy]-conversion-tutorials>` page for a set of tutorials providing step-by-step instructions for converting specific TensorFlow models. Here are some examples:
 
-* :doc:`Convert TensorFlow EfficientDet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_EfficientDet_Models>`
-* :doc:`Convert TensorFlow FaceNet Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_FaceNet_From_Tensorflow>`
-* :doc:`Convert TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>`
+* :doc:`Convert TensorFlow EfficientDet Models <[legacy]-conversion-tutorials/convert-tensorflow-efficient-det>`
+* :doc:`Convert TensorFlow FaceNet Models <[legacy]-conversion-tutorials/convert-tensorflow-face-net>`
+* :doc:`Convert TensorFlow Object Detection API Models <[legacy]-conversion-tutorials/convert-tensorflow-object-detection>`
 

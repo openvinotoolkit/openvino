@@ -16,11 +16,11 @@ NV12toBGR
 
 **Detailed description**:
 
-Similar to *NV12toRGB* but output channels for each pixel are reversed so that the first channel is ``blue``, the second one is ``green``, the last one is ``red``.  See detailed conversion formulas in the :doc:`NV12toRGB description <openvino_docs_ops_image_NV12toRGB_8>`.
+Similar to *NV12toRGB* but output channels for each pixel are reversed so that the first channel is ``blue``, the second one is ``green``, the last one is ``red``.  See detailed conversion formulas in the :doc:`NV12toRGB description <nv12-to-rgb-8>`.
 
 **Inputs:**
 
-Same as specified for :doc:`NV12toRGB <openvino_docs_ops_image_NV12toRGB_8>` operation.
+Same as specified for :doc:`NV12toRGB <nv12-to-rgb-8>` operation.
 
 **Outputs:**
 

@@ -5,8 +5,8 @@ ExperimentalDetectronPriorGridGenerator
 
 
 .. meta::
-  :description: Learn about ExperimentalDetectronPriorGridGenerator-6 - 
-                an object detection operation, which can be performed on three 
+  :description: Learn about ExperimentalDetectronPriorGridGenerator-6 -
+                an object detection operation, which can be performed on three
                 required input tensors.
 
 **Versioned name**: *ExperimentalDetectronPriorGridGenerator-6*
@@ -27,7 +27,7 @@ Numbers of generated cells is ``featmap_height`` and ``featmap_width`` if *h* an
 
   * **Description**: The *flatten* attribute specifies whether the output tensor should be 2D or 4D.
   * **Range of values**:
-     
+
     * ``true`` - the output tensor should be a 2D tensor
     * ``false`` - the output tensor should be a 4D tensor
   * **Type**: ``boolean``
@@ -69,7 +69,7 @@ Numbers of generated cells is ``featmap_height`` and ``featmap_width`` if *h* an
 **Inputs**
 
 * **1**: A 2D tensor of type *T* with shape ``[number_of_priors, 4]`` contains priors. **Required.**
-* **2**: A 4D tensor of type *T* with input feature map ``[1, number_of_channels, featmap_height, featmap_width]``. This operation uses only sizes of this input tensor, not its data.**Required.**
+* **2**: A 4D tensor of type *T* with input feature map ``[1, number_of_channels, featmap_height, featmap_width]``. This operation uses only sizes of this input tensor, not its data. **Required.**
 * **3**: A 4D tensor of type *T* with input image ``[1, number_of_channels, image_height, image_width]``. The number of channels of both feature map and input image tensors must match. This operation uses only sizes of this input tensor, not its data. **Required.**
 
 **Outputs**
@@ -84,7 +84,7 @@ Numbers of generated cells is ``featmap_height`` and ``featmap_width`` if *h* an
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="ExperimentalDetectronPriorGridGenerator" version="opset6">
        <data flatten="true" h="0" stride_x="32.0" stride_y="32.0" w="0"/>
        <input>

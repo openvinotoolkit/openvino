@@ -7,7 +7,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Model Preparation <openvino_docs_model_processing_introduction>` article. 
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Model Preparation <../../../../openvino-workflow/model-preparation>` article. 
 
 Model conversion API is represented by ``convert_model()`` method in openvino.tools.mo namespace. ``convert_model()`` is compatible with types from openvino.runtime, like PartialShape, Layout, Type, etc.
 
@@ -32,8 +32,8 @@ Example of converting a PyTorch model directly from memory:
 
 The following types are supported as an input model for ``convert_model()``:
 
-* PyTorch - ``torch.nn.Module``, ``torch.jit.ScriptModule``, ``torch.jit.ScriptFunction``. Refer to the :doc:`Converting a PyTorch Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_PyTorch>` article for more details.
-* TensorFlow / TensorFlow 2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.Graph``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``. Refer to the :doc:`Converting a TensorFlow Model<openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` article for more details.
+* PyTorch - ``torch.nn.Module``, ``torch.jit.ScriptModule``, ``torch.jit.ScriptFunction``. Refer to the :doc:`Converting a PyTorch Model<[legacy]-supported-model-formats/[legacy]-convert-pytorch>` article for more details.
+* TensorFlow / TensorFlow 2 / Keras - ``tf.keras.Model``, ``tf.keras.layers.Layer``, ``tf.compat.v1.Graph``, ``tf.compat.v1.GraphDef``, ``tf.Module``, ``tf.function``, ``tf.compat.v1.session``, ``tf.train.checkpoint``. Refer to the :doc:`Converting a TensorFlow Model<[legacy]-supported-model-formats/[legacy]-convert-tensorflow>` article for more details.
 
 ``convert_model()`` accepts all parameters available in the MO command-line tool. Parameters can be specified by Python classes or string analogs, similar to the command-line tool.
 

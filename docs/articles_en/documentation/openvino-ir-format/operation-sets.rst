@@ -20,7 +20,7 @@ Input data can be in the form of images, video, text, audio, or preprocessed inf
 
 Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
 
-.. image:: _static/images/small_IR_graph_demonstration.png
+.. image:: ../../_static/images/small_IR_graph_demonstration.png
 
 Vertices in the graph represent layers or operation instances such as convolution, pooling, and element-wise operations with tensors.
 The terms of "layer" and "operation" are used interchangeably within OpenVINO documentation and define how the input data is processed to produce output data for a node in a graph.
@@ -59,19 +59,19 @@ A set consists of several groups of operations:
 
 * Specialized operations that implement complex algorithms dedicated for models of specific type, for example, ``DetectionOutput``, ``RegionYolo``, ``PriorBox``.
 
-For more information, refer to the complete description of the supported operation sets in the :doc:`Available Operation Sets <openvino_docs_ops_opset>` article.
+For more information, refer to the complete description of the supported operation sets in the :doc:`Available Operation Sets <operation-sets/available-opsets>` article.
 
 How to Read Opset Specification
 ############################### 
 
-In the :doc:`Available Operation Sets <openvino_docs_ops_opset>` there are opsets and there are operations.
+In the :doc:`Available Operation Sets <operation-sets/available-opsets>` there are opsets and there are operations.
 Each opset specification has a list of links to operations descriptions that are included into that specific opset.
 Two or more opsets may refer to the same operation.
 That means an operation is kept unchanged from one operation set to another.
 
 The description of each operation has a ``Versioned name`` field.
-For example, the `ReLU` entry point in :doc:`opset1 <openvino_docs_ops_opset1>` refers to :doc:`ReLU-1 <openvino_docs_ops_activation_ReLU_1>` as the versioned name.
-Meanwhile, `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single :doc:`description <openvino_docs_ops_activation_ReLU_1>`, which means that ``opset1`` and ``opset2`` share the same operation ``ReLU``.
+For example, the `ReLU` entry point in :doc:`opset1 <operation-sets/available-opsets/opset1>` refers to :doc:`ReLU-1 <operation-sets/operations-specifications/activation/relu-1>` as the versioned name.
+Meanwhile, `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single :doc:`description <operation-sets/operations-specifications/activation/relu-1>`, which means that ``opset1`` and ``opset2`` share the same operation ``ReLU``.
 
 To differentiate versions of the same operation type such as ``ReLU``, the ``-N`` suffix is used in a versioned name of the operation.
 The ``N`` suffix usually refers to the first occurrence of ``opsetN`` where this version of the operation is introduced.

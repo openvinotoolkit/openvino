@@ -75,7 +75,7 @@ def add_glob_directive(tutorials_file):
         if ':glob:' not in readfile:
             add_glob = readfile\
                 .replace(":hidden:\n", ":hidden:\n   :glob:\n")\
-                .replace("notebooks_installation\n", "notebooks_installation\n   notebooks/*\n")
+                .replace("   interactive-tutorials-python/notebooks-installation\n", "   interactive-tutorials-python/notebooks-installation\n   ../../notebooks/*\n")
             mainfile.seek(0)
             mainfile.write(add_glob)
             mainfile.truncate()

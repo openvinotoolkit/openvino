@@ -8,9 +8,9 @@ Legacy Features and Components
    :maxdepth: 1
    :hidden:
 
-   OpenVINO Development Tools package <openvino_docs_install_guides_install_dev_tools>
-   Model Optimizer / Conversion API <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>
-   Open Model ZOO <model_zoo>
+   OpenVINO Development Tools package <legacy-features/install-dev-tools>
+   Model Optimizer / Conversion API <legacy-features/transition-legacy-conversion-api>
+   Open Model ZOO <legacy-features/model-zoo>
 
 
 Since OpenVINO has grown very rapidly in recent years, a number of its features
@@ -32,7 +32,7 @@ offering.
     Accuracy Checker, Annotation Converter, Post-Training Optimization Tool,
     and Open Model Zoo tools. Most of these tools have been either removed,
     replaced by other solutions, or moved to the OpenVINO Runtime package.
-|   :doc:`See how to install Development Tools <openvino_docs_install_guides_install_dev_tools>`
+|   :doc:`See how to install Development Tools <legacy-features/install-dev-tools>`
 
 
 | **Model Optimizer / Conversion API**
@@ -43,8 +43,8 @@ offering.
     when all major model frameworks became supported directly. For converting model
     files explicitly, it has been replaced with a more light-weight and efficient
     solution, the OpenVINO Converter (launched with OpenVINO 2023.1).
-|   :doc:`See how to use OVC <openvino_docs_model_processing_introduction>`
-|   :doc:`See how to transition from the legacy solution <openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition>`
+|   :doc:`See how to use OVC <../openvino-workflow/model-preparation>`
+|   :doc:`See how to transition from the legacy solution <legacy-features/transition-legacy-conversion-api>`
 
 
 | **Open Model ZOO**
@@ -57,7 +57,7 @@ offering.
     other model repositories have recently grown in size and popularity,
     Open Model ZOO will no longer be maintained. You may still use its resources
     until they are fully removed.
-|   :doc:`See the Open Model ZOO documentation <model_zoo>`
+|   :doc:`See the Open Model ZOO documentation <legacy-features/model-zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
 
 | **Apache MXNet, Caffe, and Kaldi model formats**
@@ -65,7 +65,7 @@ offering.
 |   *Old solution:* model support discontinued with OpenVINO 2024.0
 |
 |   `The last version supporting Apache MXNet, Caffe, and Kaldi model formats <https://docs.openvino.ai/2023.3/mxnet_caffe_kaldi.html>`__
-|   :doc:`See the currently supported frameworks <openvino_docs_model_processing_introduction>`
+|   :doc:`See the currently supported frameworks <../openvino-workflow/model-preparation>`
 
 
 | **Post-training Optimization Tool (POT)**
@@ -75,7 +75,7 @@ offering.
 |   Neural Network Compression Framework (NNCF) now offers the same functionality as POT,
     apart from its original feature set.
 
-|   :doc:`See how to use NNCF for model optimization <openvino_docs_model_optimization_guide>`
+|   :doc:`See how to use NNCF for model optimization <../openvino-workflow/model-optimization>`
 |   `Check the NNCF GitHub project, including documentation <https://github.com/openvinotoolkit/nncf>`__
 
 | **Inference API 1.0**

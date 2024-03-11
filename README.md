@@ -160,9 +160,9 @@ You can also check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awe
 ## System requirements
 
 The system requirements vary depending on platform and are available on dedicated pages:
-- [Linux](https://docs.openvino.ai/2024/get-started/install-openvino-overview/install-openvino-linux-header.html)
-- [Windows](https://docs.openvino.ai/2024/get-started/install-openvino-overview/install-openvino-windows-header.html)
-- [macOS](https://docs.openvino.ai/2024/get-started/install-openvino-overview/install-openvino-macos-header.html)
+- [Linux](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-linux.html)
+- [Windows](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-windows.html)
+- [macOS](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-macos.html)
 
 ## How to build
 

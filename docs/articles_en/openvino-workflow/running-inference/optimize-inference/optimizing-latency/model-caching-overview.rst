@@ -10,19 +10,19 @@ Model Caching Overview
                  reduce duration of model compilation on application startup.
 
 
-As described in :doc:`Integrate OpenVINO™ with Your Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`,
+As described in :doc:`Integrate OpenVINO™ with Your Application <../../integrate-openvino-with-your-application>`,
 a common application flow consists of the following steps:
 
 1. | **Create a Core object**:
    |   First step to manage available devices and read model objects
 2. | **Read the Intermediate Representation**:
-   |   Read an Intermediate Representation file into an object of the `ov::Model <classov_1_1Model.html#doxid-classov-1-1-model>`__
+   |   Read an Intermediate Representation file into an object of the `ov::Model <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_model.html>`__
 3. | **Prepare inputs and outputs**:
    |   If needed, manipulate precision, memory layout, size or color format
 4. | **Set configuration**:
    |   Pass device-specific loading configurations to the device
 5. | **Compile and Load Network to device**:
-   |   Use the `ov::Core::compile_model() <classov_1_1Core.html#doxid-classov-1-1-core-1a46555f0803e8c29524626be08e7f5c5a>`__ method with a specific device
+   |   Use the `ov::Core::compile_model() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__ method with a specific device
 6. | **Set input data**:
    |   Specify input tensor
 7. | **Execute**:
@@ -67,7 +67,7 @@ If the device does not support the import/export capability, cache is not create
 Note that the first ``compile_model`` operation takes slightly longer, as the cache needs to be created -
 the compiled blob is saved into a cache file:
 
-.. image:: _static/images/caching_enabled.svg
+.. image:: ../../../../_static/images/caching_enabled.svg
 
 
 Make it even faster: use compile_model(modelPath)
@@ -113,7 +113,7 @@ With model caching enabled, the total load time is even shorter, if ``read_model
          :fragment: [ov:caching:part2]
 
 
-.. image:: _static/images/caching_times.svg
+.. image:: ../../../../_static/images/caching_times.svg
 
 Advanced Examples
 ++++++++++++++++++++

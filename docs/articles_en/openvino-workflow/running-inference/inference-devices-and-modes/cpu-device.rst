@@ -14,7 +14,7 @@ CPU Device
 The CPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. It is developed to achieve high performance inference of neural networks on Intel® x86-64 and Arm® CPUs. The newer 11th generation and later Intel® CPUs provide even further performance boost, especially with INT8 models.
 For an in-depth description of CPU plugin, see:
 
-- `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
+- `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/cmake_options_for_custom_compilation.md>`__.
 - `OpenVINO Runtime CPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_cpu/>`__.
 
 .. note::
@@ -64,7 +64,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - ``i8`` (Intel® x86-64)
   - ``u1`` (Intel® x86-64)
 
-:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out supported data types for all detected devices.
 
 
 Quantized Data Types Specifics
@@ -73,7 +73,7 @@ Quantized Data Types Specifics
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 The ``u1/u8/i8`` data types are used for quantized operations only, i.e., those are not selected automatically for non-quantized operations.
 
-For more details on how to get a quantized model see the :doc:`low-precision optimization guide <openvino_docs_model_optimization_guide>`.
+For more details on how to get a quantized model see the :doc:`low-precision optimization guide <../../model-optimization>`.
 
 .. note::
 
@@ -100,7 +100,7 @@ Using the ``bf16`` precision provides the following performance benefits:
 - ``bfloat16`` data type allows using Intel® Advanced Matrix Extension (AMX), which provides dramatically faster computations on corresponding hardware in comparison with AVX512 or AVX2 instructions in many DL operation implementations.
 - Reduced memory consumption since ``bfloat16`` data half the size of 32-bit float.
 
-To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <openvino_docs_OV_UG_query_api>`
+To check if the CPU device can support the ``bfloat16`` data type, use the :doc:`query device properties interface <query-device-properties>`
 to query ``ov::device::capabilities`` property, which should contain ``BF16`` in the list of CPU capabilities:
 
 
@@ -186,7 +186,7 @@ calculations (has the ``AVX512_BF16`` or ``AMX`` extension) then ``bf16`` type i
 If the accuracy in this mode is not good enough, then set ``ov::hint::execution_mode`` to ``ov::hint::ExecutionMode::ACCURACY`` to enforce the plugin to
 use the ``f32`` precision in floating point calculations.
 
-For more details and code examples, see the :doc:`Precision Control <openvino_docs_OV_UG_Precision_Control>`.
+For more details and code examples, see the :doc:`Precision Control <../optimize-inference/precision-control>`.
 
 Supported Features
 ###########################################################
@@ -214,7 +214,7 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
          :fragment: [compile_model_multi]
 
 
-For more details, see the :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>` article.
+For more details, see the :doc:`Multi-device execution <multi-device>` article.
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -224,13 +224,13 @@ property is set for CPU plugin, then multiple streams are created for the model.
 host thread, which means that incoming infer requests can be processed simultaneously. Each stream is pinned to its own group of
 physical cores with respect to NUMA nodes physical memory usage to minimize overhead on data transfer between NUMA nodes.
 
-For more details, see the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+For more details, see the :doc:`optimization guide <../optimize-inference>`.
 
 .. note::
 
    When it comes to latency, be aware that running only one stream on multi-socket platform may introduce additional overheads
    on data transfer between NUMA nodes. In that case it is better to use the ``ov::hint::PerformanceMode::LATENCY`` performance hint.
-   For more details see the :doc:`performance hints <openvino_docs_OV_UG_Performance_Hints>` overview.
+   For more details see the :doc:`performance hints <../optimize-inference/high-level-performance-hints>` overview.
 
 .. note::
 
@@ -268,13 +268,13 @@ with the static input shape to get the best performance.
          :fragment: [static_shape]
 
 
-For more details, see the :doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`.
+For more details, see the :doc:`dynamic shapes guide <../dynamic-shapes>`.
 
 Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 CPU plugin supports a full set of the preprocessing operations, providing high performance implementations for them.
-For more details, see :doc:`preprocessing API guide <openvino_docs_OV_UG_Preprocessing_Overview>`.
+For more details, see :doc:`preprocessing API guide <../optimize-inference/optimize-preprocessing>`.
 
 
 .. dropdown:: The CPU plugin support for handling tensor precision conversion is limited to the following ov::element types:
@@ -305,22 +305,22 @@ so the aforementioned transformation steps will be skipped. These transformation
 model compilation, so caching this representation reduces time spent for subsequent compilations of the model, thereby reducing
 first inference latency (FIL).
 
-For more details, see the :doc:`model caching <openvino_docs_OV_UG_Model_caching_overview>` overview.
+For more details, see the :doc:`model caching <../optimize-inference/optimizing-latency/model-caching-overview>` overview.
 
 Extensibility
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 CPU plugin supports fallback on ``ov::Op`` reference implementation if the plugin does not have its own implementation for such operation.
-That means that :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>` can be used for the plugin extension as well.
+That means that :doc:`OpenVINO™ Extensibility Mechanism <../../../documentation/openvino-extensibility>` can be used for the plugin extension as well.
 Enabling fallback on a custom operation implementation is possible by overriding the ``ov::Op::evaluate`` method in the derived operation
-class (see :doc:`custom OpenVINO™ operations <openvino_docs_Extensibility_UG_add_openvino_ops>` for details).
+class (see :doc:`custom OpenVINO™ operations <../../../documentation/openvino-extensibility/custom-openvino-operations>` for details).
 
 Stateful Models
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 The CPU plugin supports stateful models without any limitations.
 
-For details, see :doc:`stateful models guide <openvino_docs_OV_UG_stateful_models_intro>`.
+For details, see :doc:`stateful models guide <../stateful-models>`.
 
 Supported Properties
 ###########################################################
@@ -377,7 +377,7 @@ Multi-Threading Optimization
 
 CPU inference will infer an input or multiple inputs in parallel on multiple logical processors.
 
-User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU resources.
+User can use the following properties to limit available CPU resource for model inference. If the platform or operating system can support this behavior, OpenVINO Runtime will perform multi-threading scheduling based on limited available CPU.
 
 - ``ov::inference_num_threads`` limits number of logical processors used for CPU inference.
   If the number set by the user is greater than the number of logical processors on the platform, multi-threading scheduler only uses the platform number for CPU inference.
@@ -435,7 +435,8 @@ In some use cases, OpenVINO Runtime will enable CPU threads pinning by default f
          :fragment: [ov:intel_cpu:multi_threading:part1]
 
 
-user can check the :doc:`optimization guide <openvino_docs_deployment_optimization_guide_tput_advanced>` for details on multi-stream execution
+For details on multi-stream execution check the
+:doc:`optimization guide <../optimize-inference/optimizing-throughput/advanced_throughput_options>`.
 
 .. note::
 
@@ -555,9 +556,9 @@ Currently, the ``sparse weights decompression feature`` is supported with the fo
 Additional Resources
 ###########################################################
 
-* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`
-* :doc:`Optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`
-* `CPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
+* :doc:`Optimization guide <../optimize-inference>`
+* `CPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/README.md>`__
 
 
 

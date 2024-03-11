@@ -6,9 +6,9 @@ System Requirements
 
 .. note::
 
-   Certain hardware (including but not limited to GPU, GNA, and latest CPUs) requires manual
-   installation of specific drivers and/or other software components to work correctly and/or
-   to utilize hardware capabilities at their best. This might require updates to operating
+   Certain hardware, including but not limited to GPU and NPU, requires manual installation of
+   specific drivers and/or other software components to work correctly and/or to utilize
+   hardware capabilities at their best. This might require updates to the operating
    system, including but not limited to Linux kernel, please refer to their documentation
    for details. These modifications should be handled by user and are not part of OpenVINO
    installation.
@@ -39,7 +39,6 @@ CPU
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
       * Ubuntu 18 ARM64
-      * Debian 9 ARM
 
 GPU
 ##########
@@ -68,18 +67,18 @@ GPU
 
    .. tab-item:: Additional considerations
 
-      * The use of of GPU requires drivers that are not included in the Intel®
+      * The use of GPU requires drivers that are not included in the Intel®
         Distribution of OpenVINO™ toolkit package.
-      * A chipset that supports processor graphics is required for Intel® Xeon®
-        processors. Processor graphics are not included in all processors. See
-        `Product Specifications  <https://ark.intel.com/>`__
+      * Processor graphics are not included in all processors. See
+        `Product Specifications <https://ark.intel.com/>`__
         for information about your processor.
       * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
         for Intel discrete graphic cards does not fully support Ubuntu 20.04.
         We recommend using Ubuntu 22.04 when executing on discrete graphics.
       * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
-        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8.
+        for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8 (some hardware may require
+        higher versions of drivers).
 
 Intel® Neural Processing Unit
 ################################
@@ -93,10 +92,10 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Additional considerations
 
-      * These Accelerators require :doc:`drivers <openvino_docs_install_guides_configurations_for_intel_npu>`
+      * These Accelerators require :doc:`drivers <../get-started/configurations/configurations-intel-npu>`
         that are not included in the Intel® Distribution of OpenVINO™ toolkit package.
       * Users can access the NPU plugin through the OpenVINO archives on
-        the :doc:`download page <openvino_docs_install_guides_overview>`.
+        the :doc:`download page <../get-started/install-openvino>`.
 
 
 Intel® Gaussian & Neural Accelerator
@@ -131,7 +130,7 @@ Operating systems and developer environment
       * GNU Compiler Collection and CMake are needed for building from source:
 
         * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
-        * `CMake <https://cmake.org/download/>`__ 3.10 or higher
+        * `CMake <https://cmake.org/download/>`__ 3.13 or higher
 
       Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors, 11th Gen
       Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors, 12th Gen
@@ -144,8 +143,8 @@ Operating systems and developer environment
       Build environment components:
 
       * `Microsoft Visual Studio 2019 <https://visualstudio.microsoft.com/vs/older-downloads/>`__
-      * `CMake <https://cmake.org/download/>`__ 3.10 or higher
-      * `Python* 3.8-3.11 <http://www.python.org/downloads/>`__
+      * `CMake <https://cmake.org/download/>`__ 3.16 or higher
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -155,15 +154,15 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * `Xcode* 10.3 <https://developer.apple.com/xcode/>`__
-      * `Python* 3.8-3.11 <http://www.python.org/downloads/>`__
-      * `CMake <https://cmake.org/download/>`__ 3.10 or higher
+      * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
+      * `CMake <https://cmake.org/download/>`__ 3.13 or higher
+      * `Python <http://www.python.org/downloads/>`__ 3.8-3.11
 
    .. tab-item:: DL frameworks versions:
 
-      * TensorFlow 1.15, 2.12
-      * ONNX 1.14.1
-      * PaddlePaddle 2.4
+      * TensorFlow 1.15, 2.13.1
+      * ONNX 1.15
+      * PaddlePaddle 2.5
 
       This package can be installed on other versions of DL Frameworks
       but only the versions specified here are fully validated.
@@ -177,6 +176,8 @@ Operating systems and developer environment
    with either oneTBB or legacy TBB on all the systems listed here. System
    compatibility and performance are improved on Hybrid CPUs
    such as 12th Gen Intel Core and above.
+
+
 
 
 Legal Information

@@ -7,7 +7,7 @@ Conversion Parameters
 .. meta::
    :description: Model Conversion API provides several parameters to adjust model conversion.
 
-This document describes all available parameters for ``openvino.convert_model``, ``ovc``, and ``openvino.save_model`` without focusing on a particular framework model format. Use this information for your reference as a common description of the conversion API capabilities in general. Part of the options can be not relevant to some specific frameworks. Use :doc:`Supported Model Formats <openvino_docs_model_processing_introduction>` page for more dedicated framework-dependent tutorials.
+This document describes all available parameters for ``openvino.convert_model``, ``ovc``, and ``openvino.save_model`` without focusing on a particular framework model format. Use this information for your reference as a common description of the conversion API capabilities in general. Part of the options can be not relevant to some specific frameworks. Use :doc:`Supported Model Formats <../model-preparation>` page for more dedicated framework-dependent tutorials.
 
 In most cases when it is required to convert a model the following simple syntax can be used:
 
@@ -38,9 +38,9 @@ In most cases when it is required to convert a model the following simple syntax
 
 Providing just a path to the model or model object as ``openvino.convert_model`` argument is frequently enough to make a successful conversion. However, depending on the model topology and original deep learning framework, additional parameters may be required, which are described below.
 
-- ``example_input`` parameter available in Python ``openvino.convert_model`` only is intended to trace the model to obtain its graph representation. This parameter is crucial for converting PyTorch models and may sometimes be required for TensorFlow models. For more details, refer to the :doc:`PyTorch Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch>` or :doc:`TensorFlow Model Conversion <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow>`.
+- ``example_input`` parameter available in Python ``openvino.convert_model`` only is intended to trace the model to obtain its graph representation. This parameter is crucial for converting PyTorch models and may sometimes be required for TensorFlow models. For more details, refer to the :doc:`PyTorch Model Conversion <convert-model-pytorch>` or :doc:`TensorFlow Model Conversion <convert-model-tensorflow>`.
 
-- ``input`` parameter to set or override shapes for model inputs. It configures dynamic and static dimensions in model inputs depending on your inference requirements. For more information on this parameter, refer to the :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` guide.
+- ``input`` parameter to set or override shapes for model inputs. It configures dynamic and static dimensions in model inputs depending on your inference requirements. For more information on this parameter, refer to the :doc:`Setting Input Shapes <setting-input-shapes>` guide.
 
 - ``output`` parameter to select one or multiple outputs from the original model. This is useful when the model has outputs that are not required for inference in a deployment scenario. By specifying only necessary outputs, you can create a more compact model that infers faster.
 
@@ -67,15 +67,15 @@ Providing just a path to the model or model object as ``openvino.convert_model``
           ovc path_to_your_model --compress_to_fp16=False
 
 For details on how plugins handle compressed ``FP16`` models, see
-:doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
+:doc:`Inference Devices and Modes <../running-inference/inference-devices-and-modes>`.
 
 .. note::
 
    ``FP16`` compression is sometimes used as the initial step for ``INT8`` quantization.
-   Refer to the :doc:`Post-training optimization <ptq_introduction>` guide for more
+   Refer to the :doc:`Post-training optimization <../model-optimization-guide/quantizing-models-post-training>` guide for more
    information about that.
 
-- ``extension`` parameter which makes possible conversion of the models consisting of operations that are not supported by OpenVINO out-of-the-box. It requires implementing of an OpenVINO extension first, please refer to :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` guide.
+- ``extension`` parameter which makes possible conversion of the models consisting of operations that are not supported by OpenVINO out-of-the-box. It requires implementing of an OpenVINO extension first, please refer to :doc:`Frontend Extensions <../../documentation/openvino-extensibility/frontend-extensions>` guide.
 
 - ``share_weigths`` parameter with default value ``True`` allows reusing memory with original weights. For models loaded in Python and then passed to ``openvino.convert_model``, that means that OpenVINO model will share the same areas in program memory where the original weights are located. For models loaded from files by ``openvino.convert_model``, file memory mapping is used to avoid extra memory allocation. When enabled, the original model cannot be destroyed (Python object cannot be deallocated and original model file cannot be deleted) for the whole lifetime of OpenVINO model. If it is not desired, set ``share_weights=False`` when calling ``openvino.convert_model``.
 

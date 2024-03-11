@@ -12,22 +12,22 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor
-   openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions
+   [legacy]-model-optimizer-extensions/[legacy]-model-optimizer-operation
+   [legacy]-model-optimizer-extensions/[legacy]-optimizer-extractor
+   [legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../openvino-extensibility/frontend-extensions>` article. 
 
 Model Optimizer extensions enable you to inject some logic to the model conversion pipeline without changing the Model
 Optimizer core code. There are three types of the Model Optimizer extensions:
 
-1. :doc:`Model Optimizer operation <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation>`.
-2. A :doc:`framework operation extractor <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor>`.
-3. A :doc:`model transformation <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Transformation_Extensions>`, which can be executed during front, middle or back phase of the model conversion.
+1. :doc:`Model Optimizer operation <[legacy]-model-optimizer-extensions/[legacy]-model-optimizer-operation>`.
+2. A :doc:`framework operation extractor <[legacy]-model-optimizer-extensions/[legacy]-optimizer-extractor>`.
+3. A :doc:`model transformation <[legacy]-model-optimizer-extensions/[legacy]-graph-transformation-extensions>`, which can be executed during front, middle or back phase of the model conversion.
 
 An extension is just a plain text file with a Python code. The file should contain a class (or classes) inherited from
 one of extension base classes. Extension files should be saved to a directory with the following structure:
@@ -56,7 +56,7 @@ Model Optimizer uses the same layout internally to keep built-in extensions. The
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
+* :doc:`Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <[legacy]-graph-traversal-and-modification>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 

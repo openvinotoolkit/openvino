@@ -13,12 +13,12 @@ Attributes
    :caption: Attributes
    :hidden:
 
-   AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>
-   IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>   
-   PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>
-   Precisions <openvino_docs_OV_UG_lpt_Precisions>
-   QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
-   QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>
+   AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>
+   IntervalsAlignment <lpt-attributes/intervals-alignment>
+   PrecisionPreserved <lpt-attributes/precision-preserved>
+   Precisions <lpt-attributes/precisions>
+   QuantizationAlignment <lpt-attributes/quantization-alignment>
+   QuantizationGranularity <lpt-attributes/quantization-granularity>
 
 Introduction
 ############
@@ -30,31 +30,31 @@ Introduction
       - Target
       - Required
       - Mutable
-    * - :doc:`AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>`
+    * - :doc:`AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>`
       - Precision
       - No
       - Yes
-    * - :doc:`IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>`
+    * - :doc:`IntervalsAlignment <lpt-attributes/intervals-alignment>`
       - Quantization interval
       - Yes
       - Yes
-    * - :doc:`PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>`
+    * - :doc:`PrecisionPreserved <lpt-attributes/precision-preserved>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`Precisions <openvino_docs_OV_UG_lpt_Precisions>`
+    * - :doc:`Precisions <lpt-attributes/precisions>`
       - Precision
       - Yes
       - Yes
-    * - :doc:`QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>`
+    * - :doc:`QuantizationAlignment <lpt-attributes/quantization-alignment>`
       - Quantization granularity
       - Yes
       - Yes
-    * - :doc:`QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>`
+    * - :doc:`QuantizationGranularity <lpt-attributes/quantization-granularity>`
       - Quantization granularity
       - Yes
-      - No 
-      
+      - No
+
 
 ``Target`` attribute group defines attribute usage during model transformation for the best performance:
 
@@ -88,13 +88,13 @@ Attributes usage by transformations:
       - AlignQuantizationIntervals, AlignQuantizationParameters, FakeQuantizeDecompositionTransformation, MarkupAvgPoolPrecisionPreserved
     * - AvgPoolPrecisionPreserved
       - MarkupAvgPoolPrecisionPreserved
-      - 
+      -
     * - Precisions
       - MarkupCanBeQuantized, MarkupPrecisions
       - FakeQuantizeDecompositionTransformation
     * - PerTensorQuantization
       - MarkupPerTensorQuantization
-      - 
+      -
     * - IntervalsAlignment
       - AlignQuantizationIntervals
       - FakeQuantizeDecompositionTransformation
@@ -102,6 +102,6 @@ Attributes usage by transformations:
       - AlignQuantizationParameters
       - FakeQuantizeDecompositionTransformation
 
-.. note::                                                                     
+.. note::
    The same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, ``Precision`` attribute instances are created in ``MarkupCanBeQuantized`` and ``MarkupPrecisions`` transformations, but the reasons for their creation are different.
 

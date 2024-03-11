@@ -12,8 +12,8 @@ Plugin API Reference
    :maxdepth: 1
    :hidden:
 
-   ../api/c_cpp_api/group__ov__dev__api
-   ../api/c_cpp_api/group__ie__transformation__api
+   ../../../api/c_cpp_api/group__ov__dev__api
+   ../../../api/c_cpp_api/group__ie__transformation__api
 
 The guides below provides extra API references needed for OpenVINO plugin development:
 
