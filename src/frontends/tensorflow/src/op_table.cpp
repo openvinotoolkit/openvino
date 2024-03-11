@@ -379,6 +379,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StatelessWhile", CreatorFunction(translate_while_op)},
         {"StridedSlice", CreatorFunction(translate_strided_slice_op)},
         {"Switch", CreatorFunction(translate_switch_op)},
+        {"TensorScatterUpdate", CreatorFunction(translate_tensor_scatter_update_op)},
         {"TensorArrayCloseV3", CreatorFunction(translate_tensor_array_close_v3_op)},
         {"TensorArrayConcatV3", CreatorFunction(translate_tensor_array_concat_v3_op)},
         {"TensorArrayGatherV3", CreatorFunction(translate_tensor_array_gather_v3_op)},
