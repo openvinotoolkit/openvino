@@ -37,13 +37,12 @@ class TestMaskedSelect(PytorchLayerTest):
     @pytest.mark.parametrize(
         "mask_select", ['zeros', 'ones', 'random'])
     @pytest.mark.parametrize("input_dtype", [np.float32, np.float64, int, np.int32])
-    @pytest.mark.parametrize("mask_dtype", [bool])  # np.float32 incorrectly casted to bool
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_masked_select(self, mask_select, mask_dtype, input_dtype, ie_device, precision, ir_version):
+    def test_masked_select(self, mask_select, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(),
                    ie_device, precision, ir_version,
-                   kwargs_to_prepare_input={'mask_select': mask_select, 'mask_dtype': mask_dtype, "input_dtype": input_dtype})
+                   kwargs_to_prepare_input={'mask_select': mask_select, 'mask_dtype': bool, "input_dtype": input_dtype})
 
     @pytest.mark.skipif(parse_version(torch.__version__) >= parse_version("2.1.0"), reason="pytorch 2.1 and above does not support nonboolean mask")
     @pytest.mark.parametrize(
