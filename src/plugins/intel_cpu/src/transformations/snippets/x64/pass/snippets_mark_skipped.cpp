@@ -280,8 +280,21 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node> &node, con
                 if ((bias_out.get_target_inputs().size() > 1) || !ov::op::util::is_on_constant_path(bias_out))
                     break;
                 const auto& bias_pshape = bias_out.get_partial_shape();
-                if (((bias_pshape[fusingAxis] == parent_pshape[fusingAxis]) || (is_dq_scales && bias_pshape[fusingAxis] == 1)) &&
-                    (bias_pshape[fusingAxis] == static_cast<int64_t>(shape_size(bias_pshape.get_shape()))))
+                if (bias_pshape.is_dynamic())
+                    break;
+                auto getNormalizedPShape = [](const ov::PartialShape &dims, size_t ndims) ->  ov::PartialShape {
+                    if (dims.size() >= ndims)
+                        return dims;
+                    ov::PartialShape pshape(std::vector<size_t>(ndims, 1));
+                    std::copy(dims.rbegin(), dims.rend(), pshape.rbegin());
+                    return pshape;
+                };
+                const auto bias_pshape_norm = getNormalizedPShape(bias_pshape, parent_pshape.size());
+                if (fusingAxis >= static_cast<int>(bias_pshape_norm.size()) || fusingAxis >= static_cast<int>(parent_pshape.size()) ||
+                    bias_pshape_norm.size() != parent_pshape.size() || bias_pshape_norm.size() < 2)
+                    break;
+                if (((bias_pshape_norm[fusingAxis] == parent_pshape[fusingAxis]) || (is_dq_scales && bias_pshape_norm[fusingAxis] == 1)) &&
+                    (bias_pshape_norm[fusingAxis] == static_cast<int64_t>(shape_size(bias_pshape_norm.get_shape()))))
                     return true;
             }
         }
