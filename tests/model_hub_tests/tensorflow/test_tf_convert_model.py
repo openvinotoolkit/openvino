@@ -107,7 +107,6 @@ class TestTFHubConvertModel(TestConvertModel):
 
         # TF FE loses output structure in case when original model has output dictionary, where values are tuples.
         # OV generates in this case a list of tensors with inner tensor names.
-        #In this case OV output needs to be packed to original FW structure
         # TODO:Remove this method when OV supports output dictionary of tuples - Ticket TODO
         return repack_ov_result_to_tf_format(ov_outputs, self.output_signature)
 
