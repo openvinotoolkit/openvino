@@ -19,13 +19,13 @@ Welcome to OpenVINO™, an open-source software toolkit for optimizing and deplo
 
 ### Installation
 
-Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/openvino_docs_install_guides_overview.html) to see all distribution channels or use this command for quick installation:
+Get your OpenVINO installation command with just a few clicks. [Go to the installation page](https://docs.openvino.ai/2024/get-started/install-openvino.html) to see all distribution channels or use this command for quick installation:
 
 ```
 pip install openvino
 ```
 
-Check [system requirements](https://docs.openvino.ai/2024/system_requirements.html) and [supported devices](https://docs.openvino.ai/2024/openvino_docs_OV_UG_supported_plugins_Supported_Devices.html) for detailed information.
+Check [system requirements](https://docs.openvino.ai/2024/about-openvino/system-requirements.html) and [supported devices](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html) for detailed information.
 
 ### Getting Started
 
@@ -64,7 +64,7 @@ Find the latest documentation, from getting started guides to advanced topics, a
 To learn more, refer to the additional resources:
 
 * [Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
-* [Release Notes](https://docs.openvino.ai/2024/openvino_release_notes.html)
+* [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/) and [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
 
 ### Contribution and Support
