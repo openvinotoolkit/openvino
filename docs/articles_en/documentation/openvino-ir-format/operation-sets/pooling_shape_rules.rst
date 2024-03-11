@@ -133,9 +133,9 @@ If ``rounding_type`` is set to ``ceil_torch``, the last pooling operation within
       pads_end = [1, 1]
       rounding_type = "ceil_torch"
       output0 = [[[[1, 3],
-                   [7, 9]]]]   # shape: (1, 2, 2, 2)
+                   [7, 9]]]]   # shape: (1, 1, 2, 2)
       output1 = [[[[0, 2],
-                   [6, 8]]]]   # shape: (1, 2, 2, 2)
+                   [6, 8]]]]   # shape: (1, 1, 2, 2)
 
 
 6. Example 6 shows how *MaxPool* operates with 4D input using 2D kernel, ``auto_pad = valid`` and ``rounding_type = ceil``.
