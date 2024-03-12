@@ -168,9 +168,8 @@ struct loop_impl : typed_primitive_impl<loop> {
         int64_t execution_condition = 1;
         if (!primitive->first_execution_condition_id.empty()) {
             // Wait for completion of the execution_condition of outer_network
-            auto first_execution_condition_event = outer_network.get_primitive_event(primitive->first_execution_condition_id);
-            if (first_execution_condition_event)
-                first_execution_condition_event->wait();
+            if (outer_network.has_event(primitive->first_execution_condition_id))
+                outer_network.get_primitive_event(primitive->first_execution_condition_id)->wait();
             memory::ptr first_execution_condition_mem = outer_network.get_primitive(primitive->first_execution_condition_id)->output_memory_ptr();
             execution_condition = read_scalar_value(first_execution_condition_mem, stream);
         }
