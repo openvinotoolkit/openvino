@@ -537,13 +537,13 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    size_t indices_rank = indices_shape.size();
+    size_t updates_rank = indices_shape.size();
 
     const auto data_dim_size = data_shape[axis];
     const auto index_dim_size = indices_shape[axis];
 
     if (axis < 0)
-        axis += indices_rank;
+        axis += updates_rank;
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
@@ -554,7 +554,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
             splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-            VectorDims start_coord(indices_rank, 0);
+            VectorDims start_coord(updates_rank, 0);
             getCoordinate(start_coord, start, squashed_indices_shape);
 
             VectorDims indices_coord(start_coord);
@@ -574,7 +574,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 }
 
                 // update indices_coord
-                for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                for (int32_t j = updates_rank - 1; j >= 0; j--) {
                     indices_coord[j]++;
                     if (indices_coord[j] < squashed_indices_shape[j]) {
                         break;
@@ -586,47 +586,77 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         });
     }
 
+// 5D example:
+// shapeND: n     c     d     h    w
+// blockND: ncdhw cdhw  dhw   hw   w    1
+// index  : 0      1    2     3    4    5
+    DataType *dataPtr = mem_data->getDataAs<DataType>();
+    uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
+    DataType *updatePtr = mem_updates->getDataAs<DataType>();
+
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices    
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
+        size_t i, worker, dst_idx = 0, indices_idx = 0;
+        int32_t j;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        VectorDims start_coord(indices_rank, 0);
+        VectorDims start_coord(updates_rank, 0);
         getCoordinate(start_coord, start, squashed_indices_shape);
 
         VectorDims indices_coord(start_coord);
         VectorDims data_coord(indices_coord);
 
-        if (axis == static_cast<int>(indices_rank - 1)) {
-            for (size_t worker = start; worker < end; worker++) {
-                data_coord = indices_coord;
+        std::vector<size_t> dataBlockND = getBlockND(data_shape);
+        std::vector<size_t> indicesBlockND = getBlockND(indices_shape);
+        VectorDims tensorItr(start_coord);
+        for (i = 0; i < static_cast<size_t>(axis); ++i) {
+            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
+        }
+        for (i++; i < updates_rank; ++i) {
+            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
+        }
+
+        if (axis == static_cast<int>(updates_rank - 1)) {
+            for (worker = start; worker < end; worker++) {
                 // inner axis loop for better performance
-                for (size_t i = 0; i < index_dim_size; i++) {
-                    indices_coord[axis] = i;
-                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
-                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
-                    if (normalized_idxValue < data_dim_size) {
-                        data_coord[axis] = normalized_idxValue;
-                        DataType& dst = data_buf.at<DataType, size_t>(data_coord);
-                        DataType src = updates_buf.at<DataType, size_t>(indices_coord);
-                        kernel_func(dst, src);
-                    }
+                for (i = 0; i < index_dim_size; i++) {
+                    int64_t idxValue = getIndicesValue(indicesPtr, indices_idx + i * indicesBlockND[axis + 1]);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    // TODO check up idxValue
+                    auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
+                    auto src = updatePtr + indices_idx + i * indicesBlockND[axis + 1];
+                    kernel_func(*dst, *src);
                 }
 
-                // update indices_coord
-                for (int32_t j = indices_rank - 1; j >= 0; j--) {
-                    indices_coord[j]++;
-                    if (indices_coord[j] < squashed_indices_shape[j]) {
+                // increment
+                for (j = updates_rank - 1; j >= 0; j--) {
+                    tensorItr[j]++;
+                    if (tensorItr[j] < squashed_indices_shape[j]) {
+                        if (j != axis) {
+                            dst_idx += dataBlockND[j + 1];
+                            indices_idx += indicesBlockND[j + 1];
+                        }
                         break;
                     } else {
-                        indices_coord[j] = 0;
+                        tensorItr[j] = 0;
+                        for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
+                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
+                        }
+                        for (i++; i < updates_rank; ++i) {
+                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
+                        }
                     }
                 }
             }
         } else {
             // external axis loop for better performance
-            for (size_t i = 0; i < index_dim_size; i++) {
+            for (i = 0; i < index_dim_size; i++) {
                 indices_coord = start_coord;
-                for (size_t worker = start; worker < end; worker++) {
+                for (worker = start; worker < end; worker++) {
                     indices_coord[axis] = i;
                     data_coord = indices_coord;
                     IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
@@ -639,7 +669,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
 
                     // update indices_coord
-                    for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                    for (j = updates_rank - 1; j >= 0; j--) {
                         indices_coord[j]++;
                         if (indices_coord[j] < squashed_indices_shape[j]) {
                             break;
@@ -662,13 +692,13 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    size_t indices_rank = indices_shape.size();
+    size_t updates_rank = indices_shape.size();
 
     const auto data_dim_size = data_shape[axis];
     const auto index_dim_size = indices_shape[axis];
 
     if (axis < 0)
-        axis += indices_rank;
+        axis += updates_rank;
 
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
