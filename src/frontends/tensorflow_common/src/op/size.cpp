@@ -40,7 +40,6 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
         // need to divide the size by 2 because real and imaginary parts are counted separately
         auto complex_size_divided_by_two =
             make_shared<v1::Divide>(complex_size, make_shared<v0::Constant>(element::i32, Shape{}, 2));
-
         set_node_name(node.get_name(), complex_size_divided_by_two);
         return {complex_size_divided_by_two->output(0)};
     }
