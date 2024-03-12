@@ -74,7 +74,7 @@ Example 3 shows how *GatherND* operates when `indices` tensor has leading dimens
     .. note::
         
        The calculation of output shape is incorrect for non-default *batch_dims* value greater than one.
-       For correct calculations use the :doc:`GatherND_8 <openvino_docs_ops_movement_Gather_8>` operation.
+       For correct calculations use the :doc:`GatherND_8 <gather-8>` operation.
 
   * **Range of values**: integer number and belongs to ``[0; min(data.rank, indices.rank))``
   * **Type**: int

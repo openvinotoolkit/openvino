@@ -11,24 +11,24 @@ Inference Device Support
 
 The OpenVINO™ runtime enables you to use a selection of devices to run your
 deep learning models:
-:doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`,
-:doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`,
-:doc:`NPU <openvino_docs_OV_UG_supported_plugins_NPU>`.
+:doc:`CPU <../../openvino-workflow/running-inference/inference-devices-and-modes/cpu-device>`,
+:doc:`GPU <../../openvino-workflow/running-inference/inference-devices-and-modes/gpu-device>`,
+:doc:`NPU <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`.
 
-| For their usage guides, see :doc:`Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
-| For a detailed list of devices, see :doc:`System Requirements <system_requirements>`.
+| For their usage guides, see :doc:`Devices and Modes <../../openvino-workflow/running-inference/inference-devices-and-modes>`.
+| For a detailed list of devices, see :doc:`System Requirements <../system-requirements>`.
 
 Beside running inference with a specific device,
 OpenVINO offers the option of running automated inference with the following inference modes:
 
-* :doc:`Automatic Device Selection <openvino_docs_OV_UG_supported_plugins_AUTO>` - automatically selects the best device
+* :doc:`Automatic Device Selection <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>` - automatically selects the best device
   available for the given task. It offers many additional options and optimizations, including inference on
   multiple devices at the same time.
-* :doc:`Heterogeneous Inference <openvino_docs_OV_UG_Hetero_execution>` - enables splitting inference among several devices
+* :doc:`Heterogeneous Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>` - enables splitting inference among several devices
   automatically, for example, if one device doesn't support certain operations.
-* :doc:`Multi-device Inference <openvino_docs_OV_UG_Running_on_multiple_devices>` - executes inference on multiple devices.
+* :doc:`Multi-device Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/multi-device>` - executes inference on multiple devices.
   Currently, this mode is considered a legacy solution. Using Automatic Device Selection is advised.
-* :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` - automatically groups inference requests to improve
+* :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` - automatically groups inference requests to improve
   device utilization.
 
 
@@ -36,20 +36,20 @@ OpenVINO offers the option of running automated inference with the following inf
 Feature Support and API Coverage
 #################################
 
-================================================================================== ======= ========== ===========
- Supported Feature                                                                  CPU     GPU        NPU
-================================================================================== ======= ========== ===========
- :doc:`Heterogeneous execution <openvino_docs_OV_UG_Hetero_execution>`              Yes     Yes        No
- :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`    Yes     Yes        Partial
- :doc:`Automatic batching <openvino_docs_OV_UG_Automatic_Batching>`                 No      Yes        No
- :doc:`Multi-stream execution <openvino_docs_deployment_optimization_guide_tput>`   Yes     Yes        No
- :doc:`Models caching <openvino_docs_OV_UG_Model_caching_overview>`                 Yes     Partial    Yes
- :doc:`Dynamic shapes <openvino_docs_OV_UG_DynamicShapes>`                          Yes     Partial    No
- :doc:`Import/Export <openvino_ecosystem>`                                          Yes     No         Yes
- :doc:`Preprocessing acceleration <openvino_docs_OV_UG_Preprocessing_Overview>`     Yes     Yes        No
- :doc:`Stateful models <openvino_docs_OV_UG_stateful_models_intro>`                 Yes     No         Yes
- :doc:`Extensibility <openvino_docs_Extensibility_UG_Intro>`                        Yes     Yes        No
-================================================================================== ======= ========== ===========
+=============================================================================================================================== ======= ========== ===========
+ Supported Feature                                                                                                               CPU     GPU        NPU
+=============================================================================================================================== ======= ========== ===========
+ :doc:`Heterogeneous execution <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`         Yes     Yes        No
+ :doc:`Multi-device execution <../../openvino-workflow/running-inference/inference-devices-and-modes/multi-device>`              Yes     Yes        Partial
+ :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`            No      Yes        No
+ :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`              Yes     Yes        No
+ :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`  Yes     Partial    Yes
+ :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                Yes     Partial    No
+ :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                   Yes     No         Yes
+ :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`         Yes     Yes        No
+ :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                              Yes     No         Yes
+ :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                               Yes     Yes        No
+=============================================================================================================================== ======= ========== ===========
 
 
 +-------------------------+-----------+------------------+-------------------+
@@ -82,11 +82,11 @@ Devices similar to the ones used for benchmarking can be accessed using
 `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__,
 a remote development environment with access to Intel® hardware and the latest versions
 of the Intel® Distribution of OpenVINO™ Toolkit.
-`Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or
+`Learn more <https://devcloud.intel.com/edge/../../get-started/devcloud/>`__ or
 `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
 
 For setting up a relevant configuration, refer to the
-:doc:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>`
+:doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`
 topic (step 3 "Configure input and output").
 
 

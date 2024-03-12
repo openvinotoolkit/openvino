@@ -1,4 +1,4 @@
-.. {#openvino_docs_ops_movement_Pad_12}
+.. {#pad-12}
 
 Pad
 ===

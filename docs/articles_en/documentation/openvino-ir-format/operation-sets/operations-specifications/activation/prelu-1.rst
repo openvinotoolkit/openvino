@@ -42,7 +42,7 @@ Another mathematical representation that may be found in other references:
 
 * **1**: ``data``. A tensor of type *T* and arbitrary shape. **Required.**
 * **2**: ``slope``. A tensor of type *T* and rank greater or equal to 1. Tensor with negative slope values. **Required.**
-* **Note**: Channels dimension corresponds to the second dimension of ``data`` input tensor. If ``slope`` input rank is 1 and its dimension is equal to the second dimension of ``data`` input, then per channel broadcast is applied. Otherwise ``slope`` input is broadcasted with numpy rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`.
+* **Note**: Channels dimension corresponds to the second dimension of ``data`` input tensor. If ``slope`` input rank is 1 and its dimension is equal to the second dimension of ``data`` input, then per channel broadcast is applied. Otherwise ``slope`` input is broadcasted with numpy rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`.
 
 **Outputs**
 
