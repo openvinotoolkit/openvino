@@ -11,7 +11,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../openvino-extensibility/frontend-extensions>` article. 
 
 There are three APIs for a graph traversal and transformation used in the Model Optimizer:
 
@@ -61,9 +61,9 @@ Ports
 =====
 
 An operation semantic describes how many inputs and outputs the operation has. For example, 
-:doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` and :doc:`Const <openvino_docs_ops_infrastructure_Constant_1>` operations have no
-inputs and have one output, :doc:`ReLU <openvino_docs_ops_activation_ReLU_1>` operation has one input and one output, 
-:doc:`Split <openvino_docs_ops_movement_Split_1>` operation has 2 inputs and a variable number of outputs depending on the value of the
+:doc:`Parameter <../../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/parameter-1>` and :doc:`Const <../../../openvino-ir-format/operation-sets/operations-specifications/infrastructure/constant-1>` operations have no
+inputs and have one output, :doc:`ReLU <../../../openvino-ir-format/operation-sets/operations-specifications/activation/relu-1>` operation has one input and one output, 
+:doc:`Split <../../../openvino-ir-format/operation-sets/operations-specifications/movement/split-1>` operation has 2 inputs and a variable number of outputs depending on the value of the
 attribute ``num_splits``.
 
 Each operation node in the graph (an instance of the ``Node`` class) has 0 or more input and output ports (instances of
@@ -71,7 +71,7 @@ the ``mo.graph.port.Port`` class). The ``Port`` object has several attributes:
 
 * ``node`` - the instance of the ``Node`` object the port belongs to.
 * ``idx`` - the port number. Input and output ports are numbered independently, starting from ``0``. Thus, 
-:doc:`ReLU <openvino_docs_ops_activation_ReLU_1>` operation has one input port (with index ``0``) and one output port (with index ``0``).
+:doc:`ReLU <../../../openvino-ir-format/operation-sets/operations-specifications/activation/relu-1>` operation has one input port (with index ``0``) and one output port (with index ``0``).
 * ``type`` - the type of the port. Could be equal to either ``"in"`` or ``"out"``.
 * ``data`` - the object that should be used to get attributes of the corresponding data node. This object has methods ``get_shape()`` / ``set_shape()`` and ``get_value()`` / ``set_value()`` to get/set shape/value of the corresponding data node. For example, ``in_port.data.get_shape()`` returns an input shape of a tensor connected to input port ``in_port`` (``in_port.type == 'in'``), ``out_port.data.get_value()`` returns a value of a tensor produced from output port ``out_port`` (``out_port.type == 'out'``).
 
@@ -95,7 +95,7 @@ port with ``idx = 2`` corresponds to the incoming edge of a node with an attribu
 Consider the example of a graph part with 4 operation nodes "Op1", "Op2", "Op3", and "Op4" and a number of data nodes
 depicted with light green boxes.
 
-.. image:: _static/images/MO_ports_example_1.svg
+.. image:: ../../../../_static/images/MO_ports_example_1.svg
    :scale: 80 %
    :align: center
 
@@ -132,7 +132,7 @@ For example, applying the following two methods to the graph above will result i
    op4.in_port(1).disconnect()
    op3.out_port(0).connect(op4.in_port(1))
 
-.. image:: _static/images/MO_ports_example_2.svg
+.. image:: ../../../../_static/images/MO_ports_example_2.svg
    :scale: 80 %
    :align: center
 
@@ -165,7 +165,7 @@ example, the function call ``op3.out_port(0).get_connection().set_source(op1.out
 consuming data from port ``op3.out_port(0)`` to ``op1.out_port(0)``. The transformed graph from the sample above is depicted
 below:
 
-.. image:: _static/images/MO_connection_example_1.svg
+.. image:: ../../../../_static/images/MO_connection_example_1.svg
    :scale: 80 %
    :align: center
 
@@ -182,7 +182,7 @@ different.
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
+* :doc:`Model Optimizer Extensibility <../legacy-model-optimizer-extensibility>`
+* :doc:`Model Optimizer Extensions <[legacy]-model-optimizer-extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 
