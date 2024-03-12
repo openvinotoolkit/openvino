@@ -33,7 +33,7 @@ inline int64_t get_stride(size_t dim, const VectorDims& shape) {
 inline void init_is_incremented(LoopPort& port, size_t loop_id) {
     const auto& expr = port.expr_port->get_expr();
     const auto& expr_loops = expr->get_loop_ids();
-    if (!std::dynamic_pointer_cast<modifier::MemoryAccess>((expr->get_node()))) {
+    if (!std::dynamic_pointer_cast<modifier::MemoryAccess>(expr->get_node())) {
         port.is_incremented = false;
     } else if (expr_loops.back() != loop_id) {
         // Note: LoopPort connected to Buffer between two loops should not be incremented in the outermost loop

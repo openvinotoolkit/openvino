@@ -15,11 +15,18 @@
 
 ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
     MATCHER_SCOPE(MulAddToFMA);
+    auto is_not_memory_access = [](const Output<Node>& out) {
+        return !std::dynamic_pointer_cast<const snippets::modifier::MemoryAccess>(out.get_node_shared_ptr());
+    };
     auto mul_input_1 = ov::pass::pattern::any_input();
     auto mul_input_2 = ov::pass::pattern::any_input();
-    auto mul_m = ov::pass::pattern::wrap_type<opset1::Multiply>({ mul_input_1, mul_input_2 }, ov::pass::pattern::consumers_count(1));
+    auto mul_m = ov::pass::pattern::wrap_type<opset1::Multiply>({ mul_input_1, mul_input_2 },
+                                                                [=](const Output<Node>& out) {
+                                                                    return out.get_target_inputs().size() == 1 &&
+                                                                           is_not_memory_access(out);
+                                                                });
     auto add_input_2 = ov::pass::pattern::any_input();
-    auto add_m = ov::pass::pattern::wrap_type<opset1::Add>({ mul_m, add_input_2 });
+    auto add_m = ov::pass::pattern::wrap_type<opset1::Add>({ mul_m, add_input_2 }, is_not_memory_access);
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::MulAddToFMA_callback")
@@ -27,9 +34,7 @@ ov::intel_cpu::pass::MulAddToFMA::MulAddToFMA() {
         const auto multiply = pattern_map.at(mul_m).get_node_shared_ptr();
         const auto add = pattern_map.at(add_m).get_node_shared_ptr();
 
-        if (transformation_callback(add) ||
-            std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(add) ||
-            std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(multiply)) {
+        if (transformation_callback(add)) {
             return false;
         }
 

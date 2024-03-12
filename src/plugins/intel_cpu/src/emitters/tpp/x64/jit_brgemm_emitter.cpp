@@ -14,12 +14,8 @@ namespace ov {
 namespace intel_cpu {
 
 void BrgemmTppEmitter::validate_subtensors(const VectorDims& in_0, const VectorDims& in_1, const VectorDims& out_0) {
-    bool subtensors_compatible = in_0.size() == in_1.size() &&
-                                 in_0.size() == out_0.size();
-    subtensors_compatible &= in_0.size() == 2;
-    subtensors_compatible &= in_0[1] == in_1[0] &&
-                             in_0[0] == out_0[0] &&
-                             in_1[1] == out_0[1];
+    bool subtensors_compatible = in_0.size() == in_1.size() && in_0.size() == out_0.size() && in_0.size() == 2 &&
+                                 in_0[1] == in_1[0] && in_0[0] == out_0[0] && in_1[1] == out_0[1];
     OV_CPU_JIT_EMITTER_ASSERT(subtensors_compatible, "Incompatible subtensors");
 }
 

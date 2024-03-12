@@ -22,7 +22,7 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
     MATCHER_SCOPE(EltwiseToEltwiseTPP);
 
     auto is_supported_by_tpp = [](const Output<Node>& out) {
-        return op::TPPNodeFactory::is_supported(out.get_node_shared_ptr());
+        return op::NodeFactory::is_supported(out.get_node_shared_ptr());
     };
     auto supported_eltwise = ov::pass::pattern::wrap_type<ov::op::util::UnaryElementwiseArithmetic,
                                                           ov::op::util::BinaryElementwiseArithmetic,
@@ -36,14 +36,14 @@ EltwiseToEltwiseTPP::EltwiseToEltwiseTPP() {
             return false;
         }
 
-        const auto& tpp_eltwise = op::TPPNodeFactory::create(node);
+        const auto& tpp_eltwise = op::NodeFactory::create(node);
         OPENVINO_ASSERT(tpp_eltwise, "Failed to create TPP node");
 
         const size_t M_block = 32;
         const size_t N_block = ov::is_type<ov::snippets::op::ReduceBase>(node) ?
                                snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM :
                                64;
-        ov::replace_node(node, tpp_eltwise);
+        ov::replace_node_update_name(node, tpp_eltwise);
         for (size_t i = 0; i < node->get_input_size(); i++)
             snippets::lowered::set_port_desc(tpp_eltwise->input(i), {M_block, N_block});
 

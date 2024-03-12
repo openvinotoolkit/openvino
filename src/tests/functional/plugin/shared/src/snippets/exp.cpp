@@ -51,13 +51,8 @@ void ExpReciprocal::SetUp() {
     ov::element::Type type;
     std::tie(inputShape0, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes({inputShape0});
-
-    auto data0 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
-    auto factor = std::make_shared<op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{-1.f});
-    auto exp = std::make_shared<op::v0::Exp>(data0);
-    auto rec = std::make_shared<op::v1::Power>(exp, factor);
-    function = std::make_shared<ov::Model>(NodeVector{rec}, ParameterVector{data0});
-
+    auto f = ov::test::snippets::ExpReciprocalFunction(inputDynamicShapes);
+    function = f.getOriginal();
     setInferenceType(type);
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});

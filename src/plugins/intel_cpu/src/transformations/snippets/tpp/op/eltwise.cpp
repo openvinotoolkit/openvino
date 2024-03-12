@@ -13,7 +13,7 @@ namespace op {
  std::shared_ptr<Node> OP::clone_with_new_inputs(const OutputVector& new_args) const {\
     check_new_args_count(this, new_args);\
     const auto& new_op = std::make_shared<OP>(__VA_ARGS__);\
-    new_op->clone_memory_acess_ports(*this);\
+    new_op->clone_memory_access_ports(*this);\
     return new_op;\
 } \
  bool OP::visit_attributes(AttributeVisitor& visitor) {\
@@ -31,8 +31,7 @@ bool EltwiseTPP::is_supported(const std::shared_ptr<ov::Node>& node) {
 }
 
 bool EltwiseTPP::visit_attributes(AttributeVisitor& visitor) {
-    std::string modifier{"TPP"};
-    visitor.on_attribute("modifier", modifier);
+    TensorProcessingPrimitive::visit_attributes(visitor);
     return MemoryAccess::visit_attributes(visitor);
 }
 

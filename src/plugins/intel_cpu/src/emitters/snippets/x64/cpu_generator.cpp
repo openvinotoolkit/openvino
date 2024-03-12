@@ -104,9 +104,9 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter *emitter) 
     } \
 }
 #else
-#define CREATE_SNIPPETS_EMITTER(e_type) { \
+#define CREATE_SNIPPETS_EMITTER(e_type, ...) { \
     [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-        return std::make_shared<e_type>(h.get(), isa, expr); \
+        return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__); \
     }, \
     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
@@ -259,10 +259,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[intel_cpu::tpp::op::Divide::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(BinaryEltwiseTppEmitter);
 
     jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(UnaryEltwiseTppEmitter);
-    // Note: you can use can register Debug emitter for Unary/Binary operations as shown below:
+    // Note: you can register Debug emitter for Unary/Binary operations as shown below:
     // jitters[intel_cpu::tpp::op::Add::get_type_info_static()] = CREATE_DEBUG_TPP_EMITTER(UnaryEltwiseTppEmitter);
     //
-    // Note: ypu can register Reference emitter for Unary operations using std::function or lambda function as shown below:
+    // Note: you can register Reference emitter for Unary operations using std::function or lambda function as shown below:
     // jitters[intel_cpu::tpp::op::Exp::get_type_info_static()] =
     //        CREATE_SNIPPETS_EMITTER(ReferenceUnaryEltwiseTppEmitter, static_cast<float(*)(float)>(std::exp));
     // jitters[intel_cpu::tpp::op::Reciprocal::get_type_info_static()] =

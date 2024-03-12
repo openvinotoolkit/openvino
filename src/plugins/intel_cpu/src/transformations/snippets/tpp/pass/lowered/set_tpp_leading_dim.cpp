@@ -123,15 +123,17 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LinearIR::L
 
 } // namespace
 
-SetTPPLeadingDim::SetTPPLeadingDim() : Pass() {}
+SetTPPLeadingDim::SetTPPLeadingDim() : RangedPass() {}
 
-bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir) {
+bool SetTPPLeadingDim::run(snippets::lowered::LinearIR& linear_ir,
+                           snippets::lowered::LinearIR::constExprIt begin,
+                           snippets::lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetTPPLeadingDim")
     if (linear_ir.empty())
         return false;
 
     bool modified = false;
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto& expr = *expr_it;
         const auto& node = expr->get_node();
         auto tpp_expr = std::dynamic_pointer_cast<modifier::TensorProcessingPrimitive>(node);

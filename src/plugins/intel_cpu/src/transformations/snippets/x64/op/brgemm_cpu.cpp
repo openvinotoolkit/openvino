@@ -169,10 +169,6 @@ size_t BrgemmCPU::get_offset_scratch() const {
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
-    visitor.on_attribute("blk_M", m_M_blk);
-    visitor.on_attribute("blk_K", m_K_blk);
-    visitor.on_attribute("blk_N", m_N_blk);
-    visitor.on_attribute("beta", m_beta);
     return true;
 }
 

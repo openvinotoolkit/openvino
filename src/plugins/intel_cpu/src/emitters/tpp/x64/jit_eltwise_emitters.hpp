@@ -68,7 +68,6 @@ public:
     static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void *in0, void *out0) {
         assert(ref_emitter);
         // Note: we can instantiate template with different precision combinations here, if we need to
-        // Note: if switch(precision) is too expensive here, we can do it in the constructor and save the selected impl in function ptr
         ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
     }
     const uintptr_t get_execute_function_ptr() const override {

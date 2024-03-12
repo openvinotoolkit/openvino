@@ -38,7 +38,7 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
 
         const auto& tpp_scalar = std::make_shared<tpp::op::Scalar>(*node);
         tpp_scalar->set_friendly_name(node->get_friendly_name());
-        ov::replace_node(node, tpp_scalar);
+        ov::replace_node_update_name(node, tpp_scalar);
         const auto& out = tpp_scalar->output(0);
         snippets::lowered::set_port_desc(out, {1});
         for (const auto& in : out.get_target_inputs())

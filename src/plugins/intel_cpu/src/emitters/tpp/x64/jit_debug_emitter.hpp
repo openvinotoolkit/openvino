@@ -20,7 +20,7 @@ public:
             m_original(original),
             m_compiled_kernel(m_original->get_compiled_kernel_ptr()),
             m_execute_function(m_original->get_execute_function_ptr()),
-            m_source_node(expr->get_node()) {
+            m_source_expr(expr) {
     }
 
     void validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const override {
@@ -34,7 +34,7 @@ protected:
         OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
                                   "Unable to execute unary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
-        std::cout << emitter->m_source_node->get_friendly_name() << std::endl;
+        std::cout << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*)>(emitter->m_execute_function);
         f(emitter->m_compiled_kernel, in0, out0);
     }
@@ -43,7 +43,7 @@ protected:
         OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
                                   "Unable to execute binary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
-        std::cout << emitter->m_source_node->get_friendly_name() << std::endl;
+        std::cout << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*, void*)>(emitter->m_execute_function);
         f(emitter->m_compiled_kernel, in0, in1, out0);
     }
@@ -65,7 +65,7 @@ private:
     std::shared_ptr<TppEmitter> m_original {nullptr};
     uintptr_t m_compiled_kernel {0};
     uintptr_t m_execute_function {0};
-    std::shared_ptr<ov::Node> m_source_node {nullptr};
+    snippets::lowered::ExpressionPtr m_source_expr {nullptr};
 };
 
 }   // namespace intel_cpu

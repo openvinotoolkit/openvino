@@ -65,7 +65,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         if (!brgemm || blocking_loop_exists(brgemm_expr, brgemm))
             continue;
         OPENVINO_ASSERT(ov::is_type<intel_cpu::BrgemmCPU>(node) || ov::is_type<intel_cpu::tpp::op::BrgemmTPP>(node),
-                        "Detected invalid Brgemm operation: ops must be assigned to a backed when blocking is performed.");
+                        "Detected invalid Brgemm operation: ops must be assigned to a backend when blocking is performed.");
 
         const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
         const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);

@@ -43,6 +43,21 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
 };
 
+/// Two unary operations: Exp + Power(x, -1) (aka Reciprocal)
+/// Tokenized simply by starting subgraph.
+//    in1
+//    Exp
+//  Power(x, -1)
+//   Result
+class ExpReciprocalFunction : public SnippetsFunctionBase {
+public:
+    explicit ExpReciprocalFunction(const std::vector<PartialShape>& inputShapes) : SnippetsFunctionBase(inputShapes) {
+        OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes");
+    }
+protected:
+    std::shared_ptr<ov::Model> initOriginal() const override;
+};
+
 /// Like AddSinh but with a constant second input (and no sinh on in)
 //   in1       in2
 //        Add

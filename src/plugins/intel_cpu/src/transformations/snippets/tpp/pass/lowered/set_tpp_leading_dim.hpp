@@ -18,11 +18,13 @@ namespace pass {
  * This transformation should be performed before InsertTailLoop because it may change graph connectivity for 1st and last iterations.
  * @ingroup snippets
  */
-class SetTPPLeadingDim: public snippets::lowered::pass::Pass {
+class SetTPPLeadingDim: public snippets::lowered::pass::RangedPass {
 public:
     OPENVINO_RTTI("SetTPPLeadingDim", "Pass");
     SetTPPLeadingDim();
-    bool run(snippets::lowered::LinearIR& linear_ir) override;
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
 };
 
 }  // namespace pass

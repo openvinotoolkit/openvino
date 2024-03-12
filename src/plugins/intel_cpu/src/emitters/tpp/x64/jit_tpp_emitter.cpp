@@ -47,8 +47,8 @@ TppEmitter::TppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     io_offsets.resize(num_kernel_args);
     io_port_descriptors.resize(num_kernel_args);
     // Note: this is needed mostly for Reduce operations, since they allow the last subternsor dim to be FULL_DIM;
-    auto replace_full_dim = [](size_t dim, size_t replace_dim){
-        if (dim ==  snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM)
+    auto replace_full_dim = [](size_t dim, size_t replace_dim) {
+        if (dim == snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM)
             return replace_dim;
         return dim;
     };

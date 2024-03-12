@@ -12,25 +12,8 @@ namespace tpp {
 namespace pass {
 
 /**
- * @interface BrgemmToBrgemmCPU
- * @brief The pass decompose Snippets Brgemm to specific subgraph that depends on ISA and input precisions:
- *        - f32|f32:
- *                   BrgemmCPU
- *        - u8|i8 or bf16|bf16 (non-AMX system):
- *                 \       BrgemmCopyB (the operation for data repacking)
- *                  \        Buffer
- *                   BrgemmCPU
- *        - i8|i8 (non-AMX system) - needs compensations:
- *                \                              BrgemmCopyB
- *                 \                            /          \
- *                  \        Buffer (with repacked data)  Buffer (with compensations)
- *                   \                |                  /
- *                               BrgemmCPU
- *        - u8|i8, i8|i8 or bf16|bf16 on AMX system:
- *                 \              BrgemmCopyB
- *                  \        Buffer (with repacked data)  Buffer (with new memory)
- *                   \                |                  /
- *                               BrgemmCPU
+ * @interface BrgemmToBrgemmTPP
+ * @brief The converts Snippets Brgemm to BrgemmTPP operation, if possible. Only fp32 Brgemms are currently converted.
  * @ingroup snippets
  */
 class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {

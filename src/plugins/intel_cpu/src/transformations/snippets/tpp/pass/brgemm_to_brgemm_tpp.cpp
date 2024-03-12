@@ -8,14 +8,11 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/op/brgemm.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/tpp/op/brgemm.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-
-#include <cpu/x64/cpu_isa_traits.hpp>
 
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
@@ -78,7 +75,7 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
                                                               brgemm_in1_desc->get_layout(),
                                                               brgemm_out_desc->get_layout());
         }
-        OPENVINO_ASSERT(brgemm_tpp, "DEBUG ASSERT: FAILED TO CREATE BrgemmTPP in the BrgemmToBrgemmTPP pass");
+        OPENVINO_ASSERT(brgemm_tpp, "Failed to create BrgemmTPP node in the BrgemmToBrgemmTPP pass");
         // Set blocking params
         // Ticket: 113745
         // TODO: extend block size selection heuristics

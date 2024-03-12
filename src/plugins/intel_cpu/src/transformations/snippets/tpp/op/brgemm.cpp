@@ -52,14 +52,8 @@ std::shared_ptr<Node> BrgemmTPP::clone_with_new_inputs(const OutputVector& new_a
 }
 
 bool BrgemmTPP::visit_attributes(AttributeVisitor& visitor) {
-    Brgemm::visit_attributes(visitor);
-    visitor.on_attribute("blk_M", m_M_blk);
-    visitor.on_attribute("blk_K", m_K_blk);
-    visitor.on_attribute("blk_N", m_N_blk);
-    visitor.on_attribute("beta", m_beta);
-    std::string modifier{"TPP"};
-    visitor.on_attribute("modifier", modifier);
-    return true;
+    TensorProcessingPrimitive::visit_attributes(visitor);
+    return Brgemm::visit_attributes(visitor);
 }
 
 } // namespace op

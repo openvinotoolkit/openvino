@@ -16,7 +16,7 @@ ReduceMax::ReduceMax(const Output<Node>& arg, size_t axis)
 std::shared_ptr<Node> ReduceMax::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     const auto& new_op = std::make_shared<ReduceMax>(new_args.at(0), m_axis);
-    new_op->clone_memory_acess_ports(*this);
+    new_op->clone_memory_access_ports(*this);
     return new_op;
 }
 
@@ -32,7 +32,7 @@ ReduceSum::ReduceSum(const Output<Node>& arg, size_t axis)
 std::shared_ptr<Node> ReduceSum::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     const auto& new_op = std::make_shared<ReduceSum>(new_args.at(0), m_axis);
-    new_op->clone_memory_acess_ports(*this);
+    new_op->clone_memory_access_ports(*this);
     return new_op;
 }
 
