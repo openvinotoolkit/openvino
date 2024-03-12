@@ -102,7 +102,7 @@ MaxPool
 
 **Outputs**:
 
-  * **1**: Input shape can be either ``[N, C, H]``, ``[N, C, H, W]``, or ``[N, C, H, W, D]``. The corresponding output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output tensor has the same data type as the input tensor. Output shape calculation rules and examples can be found in :doc:`Pooling Operators shape inference rules <../openvino_docs_pooling_shape_rules>`.
+  * **1**: Input shape can be either ``[N, C, H]``, ``[N, C, H, W]``, or ``[N, C, H, W, D]``. The corresponding output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output tensor has the same data type as the input tensor. Output shape calculation rules and examples can be found in :doc:`Pooling Operators shape inference rules <../../openvino_docs_pooling_shape_rules>`.
 
   * **2**: Output tensor of type *T_IND* with indices of values selected by the pooling operation.
     Shape of this output matches the first output. The type of this output can be specified using the ``index_element_type`` attribute.
