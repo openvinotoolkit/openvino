@@ -9,22 +9,23 @@
 #include <memory>
 #include <string>
 
-#include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
+
 using namespace ov;
 using namespace testing;
 
 enum class BroadcastVersion { V1, V3 };
 
-std::ostream &operator<<(std::ostream& os, const BroadcastVersion& version) {
+std::ostream& operator<<(std::ostream& os, const BroadcastVersion& version) {
     switch (version) {
-        case BroadcastVersion::V1:
-            return os << "V1";
-        case BroadcastVersion::V3:
-            return os << "V3";
-        default:
-            OPENVINO_THROW("Unexpected BroadcastVersion.");
+    case BroadcastVersion::V1:
+        return os << "V1";
+    case BroadcastVersion::V3:
+        return os << "V3";
+    default:
+        OPENVINO_THROW("Unexpected BroadcastVersion.");
     }
 }
 
@@ -34,14 +35,14 @@ std::shared_ptr<ov::Node> getEltwise(
     const ov::test::utils::EltwiseTypes& eltwise_type,
     const ov::op::AutoBroadcastType& eltwise_bcast_type = ov::op::AutoBroadcastType::NUMPY) {
     switch (eltwise_type) {
-        case ov::test::utils::EltwiseTypes::ADD:
-            return std::make_shared<ov::opset10::Add>(in1, in2, eltwise_bcast_type);
-        case ov::test::utils::EltwiseTypes::MULTIPLY:
-            return std::make_shared<ov::opset10::Multiply>(in1, in2, eltwise_bcast_type);
-        case ov::test::utils::EltwiseTypes::SUBTRACT:
-            return std::make_shared<ov::opset10::Subtract>(in1, in2, eltwise_bcast_type);
-        default:
-            OPENVINO_THROW("Unexpected eltwise type");
+    case ov::test::utils::EltwiseTypes::ADD:
+        return std::make_shared<ov::opset10::Add>(in1, in2, eltwise_bcast_type);
+    case ov::test::utils::EltwiseTypes::MULTIPLY:
+        return std::make_shared<ov::opset10::Multiply>(in1, in2, eltwise_bcast_type);
+    case ov::test::utils::EltwiseTypes::SUBTRACT:
+        return std::make_shared<ov::opset10::Subtract>(in1, in2, eltwise_bcast_type);
+    default:
+        OPENVINO_THROW("Unexpected eltwise type");
     }
 }
 
@@ -60,22 +61,25 @@ std::shared_ptr<ov::Model> getOriginal(
 
     std::shared_ptr<ov::Node> bcast;
     switch (bcast_version) {
-        case BroadcastVersion::V1: {
-            OPENVINO_ASSERT(bcast_mode != ov::op::BroadcastType::BIDIRECTIONAL, "opset1::Broadcast can't be created with BIDIRECTIONAL mode.");
-            static const std::unordered_map<ov::op::BroadcastType, ov::op::AutoBroadcastType> bcast_mode_to_autobcast_type{
-                {ov::op::BroadcastType::EXPLICIT, ov::op::AutoBroadcastType::EXPLICIT},
-                {ov::op::BroadcastType::NONE, ov::op::AutoBroadcastType::NONE},
-                {ov::op::BroadcastType::NUMPY, ov::op::AutoBroadcastType::NUMPY},
-                {ov::op::BroadcastType::PDPD, ov::op::AutoBroadcastType::PDPD},
-            };
-            bcast = std::make_shared<ov::op::v1::Broadcast>(data_constant, target_shape_node, bcast_mode_to_autobcast_type.at(bcast_mode));
-            break;
-        }
-        case BroadcastVersion::V3:
-            bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape_node, bcast_mode);
-            break;
-        default:
-            OPENVINO_THROW("Unexpected BroadcastVersion.");
+    case BroadcastVersion::V1: {
+        OPENVINO_ASSERT(bcast_mode != ov::op::BroadcastType::BIDIRECTIONAL,
+                        "opset1::Broadcast can't be created with BIDIRECTIONAL mode.");
+        static const std::map<ov::op::BroadcastType, ov::op::AutoBroadcastType> bcast_mode_to_autobcast_type{
+            {ov::op::BroadcastType::EXPLICIT, ov::op::AutoBroadcastType::EXPLICIT},
+            {ov::op::BroadcastType::NONE, ov::op::AutoBroadcastType::NONE},
+            {ov::op::BroadcastType::NUMPY, ov::op::AutoBroadcastType::NUMPY},
+            {ov::op::BroadcastType::PDPD, ov::op::AutoBroadcastType::PDPD},
+        };
+        bcast = std::make_shared<ov::op::v1::Broadcast>(data_constant,
+                                                        target_shape_node,
+                                                        bcast_mode_to_autobcast_type.at(bcast_mode));
+        break;
+    }
+    case BroadcastVersion::V3:
+        bcast = std::make_shared<ov::op::v3::Broadcast>(data_constant, target_shape_node, bcast_mode);
+        break;
+    default:
+        OPENVINO_THROW("Unexpected BroadcastVersion.");
     }
 
     const auto fst_in = idx == 0 ? bcast->output(0) : input->output(0);
@@ -197,7 +201,8 @@ INSTANTIATE_TEST_SUITE_P(StaticBroadcastTransitionTests_v1_bcast,
                                             ::testing::ValuesIn(bcast_input_idx)),
                          StaticBroadcastTransitionTests::getTestCaseName);
 
-std::vector<ov::op::BroadcastType> all_bcast_modes = {ov::op::BroadcastType::NUMPY, ov::op::BroadcastType::BIDIRECTIONAL};
+std::vector<ov::op::BroadcastType> all_bcast_modes = {ov::op::BroadcastType::NUMPY,
+                                                      ov::op::BroadcastType::BIDIRECTIONAL};
 
 INSTANTIATE_TEST_SUITE_P(StaticBroadcastTransitionTests_v3_bcast,
                          StaticBroadcastTransitionTests,

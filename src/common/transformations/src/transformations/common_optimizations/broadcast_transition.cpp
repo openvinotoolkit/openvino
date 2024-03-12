@@ -35,7 +35,9 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
         }
 
         const auto bcast = ov::as_type_ptr<ov::op::util::BroadcastBase>(pattern_map.at(bcast_m).get_node_shared_ptr());
-        OPENVINO_ASSERT(bcast, "The matched node can't be casted to BroadcastBase: ", pattern_map.at(bcast_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(bcast,
+                        "The matched node can't be casted to BroadcastBase: ",
+                        pattern_map.at(bcast_m).get_node_shared_ptr());
         const auto& bcast_type = bcast->get_broadcast_spec().m_type;
         if (bcast_type != ov::op::BroadcastType::NUMPY && bcast_type != ov::op::BroadcastType::BIDIRECTIONAL) {
             return false;
