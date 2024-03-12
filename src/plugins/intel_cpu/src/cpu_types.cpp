@@ -217,6 +217,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+        //{"PagedAttentionExtension", Type::ScaledDotProductAttention},
         {"RoPE", Type::RoPE},
     };
     return type_to_name_tbl;
@@ -228,6 +229,12 @@ Type TypeFromName(const std::string& type) {
     if (type_to_name_tbl.end() != itType) {
         return itType->second;
     } else {
+        if (type == "PagedAttentionExtension") {
+            auto p = std::getenv("ENABLE_PG");
+            if (p && p[0] == '1') {
+                return Type::ScaledDotProductAttention;
+            }
+        }
         return Type::Unknown;
     }
 }
