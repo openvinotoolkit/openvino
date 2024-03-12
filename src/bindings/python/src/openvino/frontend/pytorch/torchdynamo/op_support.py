@@ -62,6 +62,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.amax.default": None,
             "torch.ops.aten.amin.default": None,
             "torch.ops.aten.any.default": None,
+            "torch.ops.aten.any.dim": None,
             "torch.ops.aten.arange.default": None,
             "torch.ops.aten.arange.start": None,
             "torch.ops.aten.arange.start_step": None,

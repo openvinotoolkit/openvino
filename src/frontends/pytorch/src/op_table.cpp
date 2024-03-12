@@ -726,6 +726,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.amax.default", op::translate_amax},
         {"aten.amin.default", op::translate_amin},
         {"aten.any.default", op::translate_any_fx},
+        {"aten.any.dim", op::translate_any_fx},
         {"aten.arange.default", op::translate_arange_fx},
         {"aten.arange.start", op::translate_arange_fx},
         {"aten.arange.start_step", op::translate_arange_fx},
