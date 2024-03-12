@@ -17,7 +17,7 @@ if (ENABLE_SANITIZER)
             "https://github.com/openvinotoolkit/openvino/wiki/AddressSanitizer-and-LeakSanitizer")
         endif()
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address -fsanitize-blacklist=${PROJECT_SOURCE_DIR}/tests/asan/ignore.txt")
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/asan/ignore.txt")
         if(BUILD_SHARED_LIBS)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libasan")
         endif()
@@ -27,7 +27,7 @@ if (ENABLE_SANITIZER)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
         endif()
 
-        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address -fsanitize-blacklist=${PROJECT_SOURCE_DIR}/tests/asan/ignore.txt")
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/asan/ignore.txt")
         if(BUILD_SHARED_LIBS)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libasan")
         endif()
@@ -101,7 +101,7 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
 
             # clang does not provide rpath if -shared-libasan is used
             # https://stackoverflow.com/questions/68571138/asan-dynamic-runtime-is-missing-on-ubuntu-18, https://bugs.llvm.org/show_bug.cgi?id=51271
-            if(BUILD_SHARED_LIBS AND ENABLE_SANITIZER)
+            if(BUILD_SHARED_LIBS AND ENABLE_SANITIZER AND OV_COMPILER_IS_CLANG)
                 set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.asan-x86_64.so))")
             endif()
 
