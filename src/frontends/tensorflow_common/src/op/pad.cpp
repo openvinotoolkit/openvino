@@ -99,7 +99,6 @@ OutputVector translate_padv2_op(const NodeContext& node) {
 
         auto constant_complex_type_mark = as_type_ptr<ComplexTypeMark>(constant_value.get_node_shared_ptr());
         auto constant_input = constant_complex_type_mark->input_value(0);
-
         auto constant_value_real = make_shared<v8::Gather>(constant_input, gather_index_real, minus_one)->output(0);
         auto constant_value_imag = make_shared<v8::Gather>(constant_input, gather_index_imag, minus_one)->output(0);
 
