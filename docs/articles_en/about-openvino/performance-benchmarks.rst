@@ -8,17 +8,6 @@ Performance Benchmarks
                  toolkit, that may help you decide what hardware to use or how
                  to plan the workload.
 
-.. raw:: html
-
-   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
-
-.. container:: benchmark-banner
-
-   Results may vary. For more information, see
-   :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>` and
-   `the methodology section <#platforms-configurations-methodology>`__.
-   See :doc:`Legal Information <./additional-resources/legal-information>`.
-
 .. toctree::
    :maxdepth: 1
    :hidden:
@@ -26,6 +15,7 @@ Performance Benchmarks
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
+
 
 This page presents benchmark results for `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
 and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative selection of public neural networks and Intel® devices.
@@ -118,8 +108,9 @@ Please visit the tabs below for more information on key performance indicators a
       * input token length: 1024 (the tokens for GenAI models are in English).
 
 
-Platforms, Configurations, Methodology
-###########################################################
+.. raw:: html
+
+   <h2>Platforms, Configurations, Methodology</h2>
 
 For a listing of all platforms and configurations used for testing, refer to the following:
 
@@ -186,8 +177,9 @@ only to measuring performance.
 
 
 
-Test performance yourself
-####################################
+.. raw:: html
+
+   <h2>Test performance yourself</h2>
 
 You can also test performance for your system yourself, following the guide on :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
@@ -197,9 +189,10 @@ To learn more about it, visit `the website <https://www.intel.com/content/www/us
 or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html>`__.
 
 
+.. raw:: html
 
-Disclaimers
-####################################
+   <h2>Disclaimers</h2>
+
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2024.0, as of March 06, 2024.
 
@@ -214,3 +207,18 @@ Your costs and results may vary.
 Intel optimizations, for Intel compilers or other products, may not optimize to the same degree for non-Intel products.
 
 
+
+
+
+
+
+
+.. raw:: html
+
+   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+
+.. container:: benchmark-banner
+
+   Results may vary. For more information, see
+   :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>`
+   See :doc:`Legal Information <./additional-resources/legal-information>`.
