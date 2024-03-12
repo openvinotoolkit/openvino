@@ -481,9 +481,9 @@ $(document).ready(function () {
     function showModal(version) {
         $('body').css('overflow', 'hidden');
 
-        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
+        let dataPath = '../_static/benchmarks_files/OV-benchmark-data.csv';
         if (version == 'ovms')
-            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
+            dataPath = '../_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
             complete: (result) => renderModal(result, version)
@@ -548,7 +548,7 @@ $(document).ready(function () {
         var networkModels = Graph.getNetworkModels(graph.data);
         var ieTypes = Graph.getIeTypes(graph.data);
 
-        fetch('_static/html/modal.html').then((response) => response.text()).then((text) => {
+        fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');

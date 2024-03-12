@@ -5,8 +5,8 @@ Converting TensorFlow Object Detection API Models
 
 
 .. meta::
-   :description: Learn how to convert Object Detection 
-                 API Models from TensorFlow to the OpenVINO Intermediate 
+   :description: Learn how to convert Object Detection
+                 API Models from TensorFlow to the OpenVINO Intermediate
                  Representation.
 
 
@@ -14,10 +14,10 @@ Converting TensorFlow Object Detection API Models
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
-* Starting with the 2022.1 release, model conversion API can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, model conversion adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the :doc:`Proposal <openvino_docs_ops_detection_Proposal_4>` operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model conversion API can generate IR for such models and insert operation :doc:`DetectionOutput <openvino_docs_ops_detection_DetectionOutput_1>` instead of ``Proposal``. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
-* Starting with the 2021.1 release, model conversion API converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
+* Starting with the 2022.1 release, model conversion API can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, model conversion adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the :doc:`Proposal <../../../../../openvino-ir-format/operation-sets/operations-specifications/detection/proposal-4>` operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model conversion API can generate IR for such models and insert operation :doc:`DetectionOutput <../../../../../openvino-ir-format/operation-sets/operations-specifications/detection/detectionoutput-1>` instead of ``Proposal``. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
+* Starting with the 2021.1 release, model conversion API converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the :doc:`Using Shape Inference <../../../../../../openvino-workflow/running-inference/changing-input-shape>` guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
 * To generate IRs for TF 1 SSD topologies, model conversion API creates a number of ``PriorBoxClustered`` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 Converting a Model
@@ -27,7 +27,7 @@ You can download TensorFlow Object Detection API models from the `TensorFlow 1 D
 
 .. note::
 
-   Before converting, make sure you have configured model conversion API. For configuration steps, refer to the :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+   Before converting, make sure you have configured model conversion API. For configuration steps, refer to the :doc:`Convert a Model <../../../legacy-conversion-api>`.
 
 To convert a TensorFlow Object Detection API model, run the ``mo`` command with the following required parameters:
 
@@ -67,9 +67,9 @@ To convert a TensorFlow Object Detection API model, run the ``mo`` command with 
 
 .. note::
 
-   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. If you convert a TensorFlow Object Detection API model to use with the OpenVINO sample applications, you must specify the ``reverse_input_channels`` parameter. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>` guide.
+   The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the ``RGB<->BGR`` conversion specifying the command-line parameter: ``reverse_input_channels``. Otherwise, inference results may be incorrect. If you convert a TensorFlow Object Detection API model to use with the OpenVINO sample applications, you must specify the ``reverse_input_channels`` parameter. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the :doc:`Converting a Model to Intermediate Representation (IR) <../../[legacy]-setting-input-shapes>` guide.
 
-Additionally to the mandatory parameters listed above you can use optional conversion parameters if needed. A full list of parameters is available in the :doc:`Converting a TensorFlow Model <openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_TensorFlow>` guide.
+Additionally to the mandatory parameters listed above you can use optional conversion parameters if needed. A full list of parameters is available in the :doc:`Converting a TensorFlow Model <../[legacy]-convert-tensorflow>` guide.
 
 For example, if you downloaded the pre-trained `SSD InceptionV2 topology <http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz>`__ and extracted archive to the directory ``/tmp/ssd_inception_v2_coco_2018_01_28``, the sample command line to convert the model looks as follows:
 
@@ -86,8 +86,8 @@ Open Model Zoo provides set of demo applications to show implementation of close
 based on deep learning in various tasks, including Image Classification, Visual Object Detection, Text Recognition,
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
-* :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Open Model Zoo Demos <model_zoo>`
+* :doc:`OpenVINO Samples <../../../../../../learn-openvino/openvino-samples>`
+* :doc:`Open Model Zoo Demos <../../../../model-zoo>`
 
 Feeding Input Images to the Samples
 ###################################
@@ -169,7 +169,7 @@ Models with ``keep_aspect_ratio_resizer`` were trained to recognize object in re
 Model Conversion Process in Detail
 ##################################
 
-This section is intended for users who want to understand how model conversion API performs Object Detection API models conversion in details. The information in this section is also useful for users having complex models that are not converted with model conversion API out of the box. It is highly recommended to read the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` documentation first to understand sub-graph replacement concepts which are used here.
+This section is intended for users who want to understand how model conversion API performs Object Detection API models conversion in details. The information in this section is also useful for users having complex models that are not converted with model conversion API out of the box. It is highly recommended to read the **Graph Transformation Extensions** section in the :doc:`[Legacy] Model Optimizer Extensibility <../../../legacy-model-optimizer-extensibility>` documentation first to understand sub-graph replacement concepts which are used here.
 
 It is also important to open the model in the `TensorBoard <https://www.tensorflow.org/guide/summaries_and_tensorboard>`__ to see the topology structure. Model conversion API can create an event file that can be then fed to the TensorBoard tool. Run model conversion, providing two command line parameters:
 

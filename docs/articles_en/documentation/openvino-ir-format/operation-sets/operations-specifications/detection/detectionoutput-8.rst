@@ -23,7 +23,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 .. note::
    
-   *num_classes*, a number of classes attribute, presents in :doc:`DetectionOutput_1 <openvino_docs_ops_detection_DetectionOutput_1>` has been removed. It can be computed as ``cls_pred_shape[-1] // num_prior_boxes`` where ``cls_pred_shape`` and ``num_prior_boxes`` are class predictions tensor shape and a number of prior boxes.
+   *num_classes*, a number of classes attribute, presents in :doc:`DetectionOutput_1 <detectionoutput-1>` has been removed. It can be computed as ``cls_pred_shape[-1] // num_prior_boxes`` where ``cls_pred_shape`` and ``num_prior_boxes`` are class predictions tensor shape and a number of prior boxes.
 
 * *background_label_id*
 

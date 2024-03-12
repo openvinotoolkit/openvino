@@ -26,17 +26,11 @@ convformer_s36.sail_in1k,None
 convit_base.fb_in1k,None,xfail,Trace failed
 convmixer_1024_20_ks9_p14.in1k,None
 convmixer_1536_20.in1k,None
-convnext_atto.d2_in1k,None
 convnext_atto_ols.a2_in1k,None
 convnext_base.clip_laion2b,None
-convnext_femto.d1_in1k,None
-convnext_femto_ols.d1_in1k,None
 convnext_large_mlp.clip_laion2b_augreg,None
-convnext_pico_ols.d1_in1k,None
 convnext_tiny_hnf.a2h_in1k,None
-convnextv2_atto.fcmae,None
 convnextv2_base.fcmae,None
-convnextv2_femto.fcmae,None
 crossvit_15_dagger_240.in1k,None
 crossvit_base_240.in1k,None
 cs3darknet_focus_m.c2ns_in1k,None
@@ -52,10 +46,10 @@ cspresnext50.ra_in1k,None
 darknet53.c2ns_in1k,None
 darknetaa53.c2ns_in1k,None
 davit_base.msft_in1k,None
-deit3_base_patch16_224.fb_in1k,None
-deit3_huge_patch14_224.fb_in1k,None
 deit_base_distilled_patch16_224.fb_in1k,None
 deit_base_patch16_224.fb_in1k,None
+deit3_base_patch16_224.fb_in1k,None
+deit3_huge_patch14_224.fb_in1k,None
 densenet121.ra_in1k,None
 densenet161.tv_in1k,None
 densenet169.tv_in1k,None
@@ -144,11 +138,11 @@ efficientvit_m4.r224_in1k,None
 efficientvit_m5.r224_in1k,None
 ese_vovnet19b_dw.ra_in1k,None
 ese_vovnet39b.ra_in1k,None
+eva_giant_patch14_clip_224.laion400m,None
+eva_large_patch14_196.in22k_ft_in1k,None
 eva02_base_patch14_224.mim_in22k,None
 eva02_base_patch16_clip_224.merged2b,None
 eva02_large_patch14_clip_224.merged2b,None
-eva_giant_patch14_clip_224.laion400m,None
-eva_large_patch14_196.in22k_ft_in1k,None
 fastvit_ma36.apple_dist_in1k,None
 fastvit_s12.apple_dist_in1k,None
 fastvit_sa12.apple_dist_in1k,None
@@ -186,6 +180,14 @@ hardcorenas_c.miil_green_in1k,None
 hardcorenas_d.miil_green_in1k,None
 hardcorenas_e.miil_green_in1k,None
 hardcorenas_f.miil_green_in1k,None
+hgnet_base.ssld_in1k,None
+hgnetv2_b0.ssld_stage1_in22k_in1k,None
+hgnetv2_b1.ssld_stage1_in22k_in1k,None
+hgnetv2_b2.ssld_stage1_in22k_in1k,None
+hgnetv2_b3.ssld_stage1_in22k_in1k,None
+hgnetv2_b4.ssld_stage1_in22k_in1k,None
+hgnetv2_b5.ssld_stage1_in22k_in1k,None
+hgnetv2_b6.ssld_stage1_in22k_in1k,None
 hrnet_w18_small.gluon_in1k,None
 hrnet_w18_small_v2.gluon_in1k,None
 hrnet_w18_ssld.paddle_in1k,None
@@ -245,6 +247,7 @@ mvitv2_base.fb_in1k,None
 mvitv2_base_cls.fb_inw21k,None
 nasnetalarge.tf_in1k,None
 nest_base_jx.goog_in1k,None
+nextvit_base.bd_in1k,None
 nf_regnet_b1.ra2_in1k,None
 nf_resnet50.ra2_in1k,None
 nfnet_l0.ra2_in1k,None
