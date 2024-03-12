@@ -289,10 +289,10 @@ void load_vector(const T1& data_lane,
         }
     } else {
         if (offset == 0) {
-            h->ld1(data_lanes, Xbyak_aarch64::ptr(ptr_reg));
+            h->ld1(data_lanes, ptr(ptr_reg));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, ptr_reg, offset, h->X_TMP_0);
-            h->ld1(data_lanes, Xbyak_aarch64::ptr(h->X_DEFAULT_ADDR));
+            h->ld1(data_lanes, ptr(h->X_DEFAULT_ADDR));
         }
     }
 }
@@ -319,9 +319,16 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             }
             break;
         }
-        case ov::element::i8:
+        case ov::element::i8: {
+            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            sshll(data.h8, data.b8, 0);
+            sshll(data.s4, data.h4, 0);
+            break;
+        }
         case ov::element::u8: {
             utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            ushll(data.h8, data.b8, 0);
+            ushll(data.s4, data.h4, 0);
             break;
         }
         default: {
@@ -342,14 +349,10 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                         break;
                     }
                     case ov::element::i8: {
-                        sshll(data.h8, data.b8, 0);
-                        sshll(data.s4, data.h4, 0);
                         scvtf(data.s, data.s);
                         break;
                     }
                     case ov::element::u8: {
-                        ushll(data.h8, data.b8, 0);
-                        ushll(data.s4, data.h4, 0);
                         ucvtf(data.s, data.s);
                         break;
                     }

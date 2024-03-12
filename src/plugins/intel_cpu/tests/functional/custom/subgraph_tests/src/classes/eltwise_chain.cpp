@@ -52,7 +52,7 @@ std::string EltwiseChainTest::getTestCaseName(const testing::TestParamInfo<Eltwi
     return results.str();
 }
 
-ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
+ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape) {
     struct gen_params {
         uint32_t range;
         int32_t start_from;
@@ -62,7 +62,7 @@ ov::Tensor EltwiseChainTest::generate_eltwise_input(const ov::element::Type& typ
                 : range(range), start_from(start_from), resolution(resolution) {}
     };
 
-    gen_params params = type.is_real() ? gen_params(10, 1) : gen_params(10, 5);
+    gen_params params = type.is_real() ? gen_params(10, 1) : gen_params(10, 10);
 
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = params.start_from;
@@ -79,9 +79,7 @@ void EltwiseChainTest::generate_inputs(const std::vector<ov::Shape>& targetInput
         const auto& funcInput = funcInputs[i];
         inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
                 funcInput.get_element_type(),
-                targetInputStaticShapes[i],
-                (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32) ||
-                (funcInput.get_element_type() == element::i8) || (funcInput.get_element_type() == element::u8))});
+                targetInputStaticShapes[i])});
     }
 }
 
@@ -217,7 +215,6 @@ std::vector<std::vector<ElementType>> inputPrecisionsConvert() {
             {ElementType::i16, ElementType::f32, ElementType::f32},
             {ElementType::u16, ElementType::f32, ElementType::f32},
             {ElementType::i32, ElementType::f32, ElementType::f32},
-            // { ElementType::u32, ElementType::f32, ElementType::f32 }, // plugin doesn't support
             {ElementType::f16, ElementType::f32, ElementType::f32},
             {ElementType::f32, ElementType::f32, ElementType::f32},
     };
