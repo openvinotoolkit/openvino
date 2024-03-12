@@ -13,7 +13,7 @@ namespace ov {
 namespace op {
 namespace range {
 
-#define RANGE_ET_LIST bf16, f16, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64
+#define RANGE_ET_LIST f32, f64, i8, i16, i32, i64, u8, u16, u32, u64
 
 struct Evaluate : element::NoAction<bool> {
     using element::NoAction<bool>::visit;
@@ -119,14 +119,17 @@ bool Range::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto step = get_tensor_data_as<double>(inputs[2])[0];
 
     using namespace ov::element;
-    return IF_TYPE_OF(v4_Range_evaluate,
-                      RANGE_ET_LIST,
-                      range::Evaluate,
-                      out.get_element_type(),
-                      start,
-                      step,
-                      shape_size(out_shape),
-                      out);
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_Range_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      RANGE_ET_LIST,
+                                      range::Evaluate,
+                                      out.get_element_type(),
+                                      start,
+                                      step,
+                                      shape_size(out_shape),
+                                      out);
 }
 
 bool Range::has_evaluate() const {

@@ -88,14 +88,17 @@ bool Swish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& arg1 = inputs.size() == 2 ? inputs[1] : Tensor();
 
     using namespace ov::element;
-    return IF_TYPE_OF(v4_Swish_evaluate,
-                      OV_PP_ET_LIST(f16, f32),
-                      swish::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      arg1,
-                      outputs[0],
-                      shape_size(inputs[0].get_shape()));
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_Swish_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      swish::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      arg1,
+                                      outputs[0],
+                                      shape_size(inputs[0].get_shape()));
 }
 
 bool Swish::has_evaluate() const {

@@ -61,7 +61,8 @@ public:
           m_postOps(postOps),
           m_context(context),
           m_suitableImplementations(filter(m_attrs, m_postOps, descriptors, implementationPriority)),
-          m_implementationRequiresFallback(m_suitableImplementations.size(), true) {}
+          m_implementationRequiresFallback(m_suitableImplementations.size(), true),
+          m_executors(m_suitableImplementations.size()) {}
 
     /**
      * @brief Retrieves the proper memory descriptors based on the provided memory descriptors.
@@ -106,14 +107,10 @@ public:
      */
     void preconfigure(const MemoryArgs& memory) {
         executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
-        std::transform(m_suitableImplementations.begin(),
-                       m_suitableImplementations.end(),
-                       m_implementationRequiresFallback.begin(),
-                       [&config](const std::reference_wrapper<const ExecutorImplementation<Attrs>>& impl) {
-                           return impl.get().requiresFallback(config);
-                       });
 
-        const size_t implId = select(memory);
+        cacheFallbackStatus(config);
+
+        const size_t implId = select(memory, 0);
         const auto& impl = m_suitableImplementations[implId].get();
         DEBUG_LOG("Preconfiguring executor: ", impl.name());
 
@@ -123,7 +120,7 @@ public:
             }
         }
 
-        (void)create(impl, memory, m_context);
+        (void)create(implId, memory, m_context);
     }
 
     /**
@@ -146,17 +143,27 @@ public:
      *
      */
     ExecutorPtr make(MemoryArgs& memory) {
-        const size_t implId = select(memory);
-        const auto& impl = m_suitableImplementations[implId].get();
-        if (m_implementationRequiresFallback[implId]) {
-            executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
-            if (auto fallbackConfig = impl.requiresFallback(config)) {
-                return fallback<Attrs, NodeT>(config, *fallbackConfig, memory, m_context, impl.name());
+        auto createExec = [this](MemoryArgs& memory, size_t implId) -> ExecutorPtr {
+            const auto& impl = m_suitableImplementations[implId].get();
+            if (m_implementationRequiresFallback[implId]) {
+                executor::Config<Attrs> config{memoryDescsFromMemory(memory), m_attrs, m_postOps};
+                if (auto fallbackConfig = impl.requiresFallback(config)) {
+                    return fallback<Attrs, NodeT>(config, *fallbackConfig, memory, m_context, impl.name());
+                }
             }
-        }
+            const auto executor = create(implId, memory, m_context);
+            if (!executor->update(memory)) {
+                return nullptr;
+            }
+            return executor;
+        };
 
-        const auto executor = create(impl, memory, m_context);
-        executor->update(memory);
+        auto implId = select(memory, 0);
+        auto executor = createExec(memory, implId);
+        while (!executor) {
+            implId = select(memory, ++implId);
+            executor = createExec(memory, implId);
+        }
         return executor;
     }
 
@@ -171,6 +178,19 @@ private:
 
         return memoryDescs;
     }
+
+    /**
+     * @brief Caches the fallback status for each suitable implementation.
+     */
+    void cacheFallbackStatus(const executor::Config<Attrs>& config) {
+        std::transform(m_suitableImplementations.begin(),
+                       m_suitableImplementations.end(),
+                       m_implementationRequiresFallback.begin(),
+                       [&config](const std::reference_wrapper<const ExecutorImplementation<Attrs>>& impl) {
+                           return impl.get().requiresFallback(config);
+                       });
+    }
+
     /**
      * @brief Filters and retrieves suitable implementations based on the provided executor configuration.
      *
@@ -222,9 +242,14 @@ private:
         return suitableImplementations;
     }
 
-    size_t select(const MemoryArgs& memory) const {
+    size_t select(const MemoryArgs& memory, const size_t startIdx) const {
+        OPENVINO_ASSERT(startIdx < m_suitableImplementations.size(),
+            "Failed to find an implementation since start indx: ", startIdx,
+            " is out of range of the suitable implementations array: ", m_suitableImplementations.size());
+        auto startIt = m_suitableImplementations.begin();
+        std::advance(startIt, startIdx);
         const auto selectedImplementation =
-            std::find_if(m_suitableImplementations.begin(),
+            std::find_if(startIt,
                          m_suitableImplementations.end(),
                          [&memory](const std::reference_wrapper<const ExecutorImplementation<Attrs>> implementation) {
                              return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(memory);
@@ -234,18 +259,19 @@ private:
         return std::distance(m_suitableImplementations.begin(), selectedImplementation);
     }
 
-    ExecutorPtr create(const ExecutorImplementation<Attrs>& impl,
+    ExecutorPtr create(const size_t implId,
                        const MemoryArgs& memory,
                        const ExecutorContext::CPtr context) {
-        DEBUG_LOG("Creating executor using implementation: ", impl.name());
-        const auto& executorId = std::make_pair(impl.type(), impl.operationType());
-        auto factoryIt = m_executors.find(executorId);
-        if (factoryIt == m_executors.end()) {
-            factoryIt =
-                m_executors.insert(std::make_pair(executorId, impl.create(m_attrs, m_postOps, memory, context))).first;
-        }
+        assert(implId < m_executors.size());
+        auto executor = m_executors[implId];
+        if (executor)
+            return executor;
 
-        return factoryIt->second;
+        assert(implId < m_suitableImplementations.size());
+        const auto& impl = m_suitableImplementations[implId].get();
+        DEBUG_LOG("Creating executor using implementation: ", impl.name());
+
+        return impl.create(m_attrs, m_postOps, memory, context);
     }
 
     const Attrs& m_attrs;
@@ -254,7 +280,8 @@ private:
     std::vector<std::reference_wrapper<const ExecutorImplementation<Attrs>>> m_suitableImplementations;
     // stores fallback status to avoid performing the check for every make() call
     std::vector<bool> m_implementationRequiresFallback;
-    std::map<std::pair<ExecutorType, OperationType>, ExecutorPtr> m_executors;
+    // executors cache
+    std::vector<ExecutorPtr> m_executors;
 };
 
 template <typename Attrs, typename NodeT>

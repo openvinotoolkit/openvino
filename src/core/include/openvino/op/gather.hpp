@@ -74,7 +74,6 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     int64_t get_batch_dims() const;
-    bool has_evaluate() const override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 };
 }  // namespace v8
