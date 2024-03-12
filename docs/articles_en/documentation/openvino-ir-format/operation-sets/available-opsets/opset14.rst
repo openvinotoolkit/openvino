@@ -168,8 +168,8 @@ Table of Contents
 * :doc:`RNNCell <../operations-specifications/sequence/rnn-cell-3>`
 * :doc:`RNNSequence <../operations-specifications/sequence/rnn-sequence-5>`
 * :doc:`ROIAlign <../operations-specifications/detection/roi-align-9>`
+* :doc:`ROIAlignRotated <../operations-specifications/detection/roi-align-rotated-14>`
 * :doc:`ROIPooling <../operations-specifications/detection/roi-pooling-1>`
-* :doc:`ROIAlignRotated <../operations-specifications/detection/roi-align-rotated-14>``
 * :doc:`Roll <../operations-specifications/movement/roll-7>`
 * :doc:`Round <../operations-specifications/arithmetic/round-5>`
 * :doc:`ScaledDotProductAttention <../operations-specifications/sequence/scaled-dot-product-attention>`
