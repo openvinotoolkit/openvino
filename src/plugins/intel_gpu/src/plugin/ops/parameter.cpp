@@ -34,8 +34,13 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     // look at the expected color format of this input
     auto input_name = layer_type_name_ID(op);
     cldnn::layout input_layout(input_pshape, element_type, input_format);
-    int64_t port_index = p.get_parameter_index(op);
-    OPENVINO_ASSERT(port_index != -1, "[GPU] Parameter port index for ", input_name, " not found");
+
+    bool query_mode = p.is_query_mode();
+    int64_t port_index = -1;
+    if (!query_mode) {
+        port_index = p.get_parameter_index(op);
+        OPENVINO_ASSERT(port_index != -1, "[GPU] Parameter port index for ", input_name, " not found");
+    }
 
     auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
         return ov::is_type<ov::op::v8::NV12toRGB>(node) ||
@@ -85,7 +90,10 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         size_t batch = input_pshape[0].get_length();
         input_layout.format = cldnn::format::nv12;
         input_layout.set_partial_shape({ 1, input_pshape[1], input_pshape[2], input_pshape[3] });
-        p.inputLayouts.insert({ port_index, input_layout });
+
+        if (!query_mode) {
+            p.inputLayouts.insert({ port_index, input_layout });
+        }
 
         std::string suffix = "";
         std::vector<cldnn::input_info> surfaces_inputs;
@@ -94,7 +102,10 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
                 suffix = "_" + std::to_string(i);
             std::string batched_name = input_name + suffix;
             p.add_primitive(*op, cldnn::input_layout(batched_name, input_layout));
-            p.inputPrimitiveIDs[port_index].emplace_back(batched_name);
+
+            if (!query_mode) {
+                p.inputPrimitiveIDs[port_index].emplace_back(batched_name);
+            }
 
             auto reorder_layout = input_layout;
             reorder_layout.format = cldnn::format::bfyx;
@@ -116,8 +127,11 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         auto reorder_name = "reorder:" + input_name + ProgramBuilder::m_preProcessTag;
 
         p.add_primitive(*op, cldnn::input_layout(input_name, input_layout));
-        p.inputPrimitiveIDs[port_index] = { input_name };
-        p.inputLayouts.insert({ port_index, input_layout });
+
+        if (!query_mode) {
+            p.inputPrimitiveIDs[port_index] = { input_name };
+            p.inputLayouts.insert({ port_index, input_layout });
+        }
 
         if (connected_to_quantize(op)) {
             // Techically this reorder is not needed, but for some reason it impacts layout propagation logic

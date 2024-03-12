@@ -38,9 +38,11 @@ static void CreateResultOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
                                             out_data_type);
     p.add_primitive(*op, reorder_primitive, { input_id, op->get_friendly_name() });
 
-    int64_t port_index = p.get_result_index(op);
-    OPENVINO_ASSERT(port_index != -1, "[GPU] Result port index for ", input_id, " not found");
-    p.prevPrimitiveIDs[port_index] = input_id;
+    if (!p.is_query_mode()) {
+        int64_t port_index = p.get_result_index(op);
+        OPENVINO_ASSERT(port_index != -1, "[GPU] Result port index for ", input_id, " not found");
+        p.prevPrimitiveIDs[port_index] = input_id;
+    }
 }
 
 REGISTER_FACTORY_IMPL(v0, Result);
