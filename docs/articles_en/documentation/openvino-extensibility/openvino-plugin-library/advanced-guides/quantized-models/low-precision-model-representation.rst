@@ -16,7 +16,7 @@ Representation of quantized models
 ###################################
 
 The OpenVINO Toolkit represents all the quantized models using the so-called FakeQuantize operation (see the description in 
-:doc:`this document <openvino_docs_ops_quantization_FakeQuantize_1>`). This operation is very expressive and allows mapping values from 
+:doc:`this document <../../../../openvino-ir-format/operation-sets/operations-specifications/quantization/fake-quantize-1>`). This operation is very expressive and allows mapping values from 
 arbitrary input and output ranges. The whole idea behind that is quite simple: we project (discretize) the input values to the low-precision 
 data type using affine transformation (with clamp and rounding) and then reproject discrete values back to the original range and data type. 
 It can be considered as an emulation of the quantization process which happens at runtime.
@@ -24,7 +24,7 @@ In order to be able to execute a particular DL operation in low-precision all it
 between operation and data blobs.  The figure below shows an example of quantized Convolution which contains two FakeQuantize nodes: one for 
 weights and one for activations (bias is quantized using the same parameters).
 
-.. image:: _static/images/IE_PLUGIN_DG/images/quantized_convolution.png 
+.. image:: ../../../../../_static/images/IE_PLUGIN_DG/images/quantized_convolution.png 
 
 
 Starting from OpenVINO 2020.2 release all the quantized models are represented in the compressed form. It means that the weights 
@@ -32,4 +32,4 @@ of low-precision operations are converted into the target precision (e.g. INT8).
 The rest of the parameters can be represented in FLOAT32 or FLOAT16 precision depending on the input full-precision model used in 
 the quantization process. Fig. 2 below shows an example of the part of the compressed IR.
 
-.. image:: _static/images/IE_PLUGIN_DG/images/quantized_model_example.png
+.. image:: ../../../../../_static/images/IE_PLUGIN_DG/images/quantized_model_example.png

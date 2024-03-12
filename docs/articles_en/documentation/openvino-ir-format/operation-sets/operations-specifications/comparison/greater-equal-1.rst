@@ -34,8 +34,8 @@ After broadcasting, *GreaterEqual* does the following with the input tensors *a*
   * **Range of values**:
   
     * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`
-    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <openvino_docs_ops_broadcast_rules>`
+    * *numpy* - numpy broadcasting rules, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
+    * *pdpd* - PaddlePaddle-style implicit broadcasting, description is available in :doc:`Broadcast Rules For Elementwise Operations <../../broadcast-rules>`
   
   * **Type**: string
   * **Default value**: "numpy"
