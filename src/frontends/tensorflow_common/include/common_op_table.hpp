@@ -176,7 +176,7 @@ OP_CONVERTER(translate_x_div_y_op);
 OP_CONVERTER(translate_xlog1py_op);
 OP_CONVERTER(translate_xlogy_op);
 OP_CONVERTER(translate_zeros_like_op);
-
+OP_CONVERTER(translate_sub_op);
 // Translators for internal operations
 OP_CONVERTER_NAMED(translate_unique_op);
 
