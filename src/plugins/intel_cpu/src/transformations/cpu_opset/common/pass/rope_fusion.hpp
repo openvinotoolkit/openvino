@@ -54,6 +54,12 @@ public:
     EliminateStridedSlice();
 };
 
+class RoPEShareCosSin : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("RoPEShareCosSin", "0");
+    RoPEShareCosSin();
+};
+
 class RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");

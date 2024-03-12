@@ -354,6 +354,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::KeepConstAndDecompression);
 
+    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::RoPEShareCosSin);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RPE_Fusion);

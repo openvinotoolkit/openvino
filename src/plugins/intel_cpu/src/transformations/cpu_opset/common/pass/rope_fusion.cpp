@@ -757,3 +757,98 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
+
+/*
+ in Llama RoPE, cos/sin tables can be shared among all layers but it didn't in the orginal model
+ here we try to share the preparation subgraphs results of these tables across layers.
+ This is not a generic solution due to difficulty of the algorithm
+*/
+ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
+    MATCHER_SCOPE(RoPEShareCosSin);
+
+    auto const_inv_freq = makePattern<opset1::Constant>({}, {});
+    std::vector<std::shared_ptr<Node>> inputs = {makePattern(), makePattern()};
+    auto to_Convert = makePattern<opset1::Convert>({const_inv_freq}, {{"destination_type", "f32"}});
+    auto expand_Broadcast =
+        makePattern<opset3::Broadcast>({to_Convert | const_inv_freq, inputs[0]}, {{"mode", "bidirectional"}});
+    auto matmul_MatMul =
+        makePattern<opset1::MatMul>({expand_Broadcast, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
+    auto transpose_Transpose = makePattern<opset1::Transpose>({matmul_MatMul, {0, 2, 1}});
+    auto cat_Concat = makePattern<opset1::Concat>({transpose_Transpose, transpose_Transpose}, {{"axis", -1}});
+    auto cos_Cos = makePattern<opset1::Cos>({cat_Concat});
+    auto sin_Sin = makePattern<opset1::Sin>({cat_Concat});
+    auto result = makePattern<opset1::Unsqueeze>({cos_Cos | sin_Sin, 1});
+
+    // these local variables are to be captured by value in callback lambda
+    // as so stateful lambda callback can record the first pattern match and
+    // share with following matches.
+    std::shared_ptr<opset1::Constant> inv_freq;
+    std::shared_ptr<Node> shared_cos0;
+    std::shared_ptr<Node> shared_sin0;
+    std::vector<std::shared_ptr<Node>> shared_inputs(2, nullptr);
+
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) mutable {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        PatternValidator validator(m);
+        if (!validator) {
+            return false;
+        }
+        auto it = pattern_map.find(const_inv_freq);
+        if (it == pattern_map.end())
+            return false;
+        auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
+
+        // the first match is the one to be shared, collect all inputs
+        // and constants into the state capture by lambda
+        if (!inv_freq) {
+            for (size_t i = 0; i < shared_inputs.size(); i++) {
+                auto it = pattern_map.find(inputs[i]);
+                if (it == pattern_map.end())
+                    return false;
+                auto input_node = it->second.get_node_shared_ptr();
+                shared_inputs[i] = input_node;
+            }
+            inv_freq = cur_inv_freq;
+        }
+
+        // check consts are the same as the one to be shared.
+        if (cur_inv_freq->get_element_type() != inv_freq->get_element_type())
+            return false;
+        if (cur_inv_freq->get_shape() != inv_freq->get_shape())
+            return false;
+        if (memcmp(cur_inv_freq->get_data_ptr(), inv_freq->get_data_ptr(), inv_freq->get_byte_size()) != 0)
+            return false;
+        // check all inputs are the same as the one to be shared.
+        for (size_t i = 0; i < inputs.size(); i++) {
+            auto it = pattern_map.find(inputs[i]);
+            if (it == pattern_map.end())
+                return false;
+            auto input_node = it->second.get_node_shared_ptr();
+            if (shared_inputs[i] != input_node)
+                return false;
+        }
+
+        // now the match share the same topology & inputs(consts) upto the sin/cos node
+        // we can intialize the unsqueezed sin/cos to be shared
+        if (pattern_map.find(sin_Sin) != pattern_map.end() && !shared_sin0) {
+            shared_sin0 = root;
+            return false;
+        }
+        if (pattern_map.find(cos_Cos) != pattern_map.end() && !shared_cos0) {
+            shared_cos0 = root;
+            return false;
+        }
+
+        // all inputs & consts are same, we can safely shared the subgraph
+        auto replacement = shared_cos0;
+        if (pattern_map.find(sin_Sin) != pattern_map.end()) {
+            replacement = shared_sin0;
+        }
+        ov::replace_node(root, replacement);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
