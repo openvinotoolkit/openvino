@@ -116,12 +116,6 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
 }
 }  // namespace
 
-namespace set_13 {
-ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
-}
-}  // namespace set_13
-
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
@@ -168,6 +162,12 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
 }
+
+namespace set_13 {
+ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
+}  // namespace set_13
 
 }  // namespace set_1
 }  // namespace op
