@@ -105,7 +105,7 @@ static bool evaluate_util(const ov::op::util::MaxPoolBase* op,
                           TensorVector& outputs,
                           const TensorVector& inputs,
                           const Strides& dilations,
-                          const size_t axis) {
+                          const int64_t axis) {
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(MaxPool_evaluate_util,
                                       op,
@@ -313,11 +313,9 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
-    const auto dilations = this->get_dilations();
-    const auto axis = this->get_axis();
 
     outputs[0].set_shape(output_shape.get_shape());
-    return ov::op::maxpool::evaluate_util(this, outputs, inputs, dilations, axis);
+    return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
 }
 
 bool MaxPool::has_evaluate() const {
@@ -426,10 +424,8 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
 
     outputs[0].set_shape(output_shape.get_shape());
-    const auto dilations = this->get_dilations();
-    const auto axis = this->get_axis();
 
-    return ov::op::maxpool::evaluate_util(this, outputs, inputs, dilations, axis);
+    return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
 }
 
 bool MaxPool::has_evaluate() const {
