@@ -256,6 +256,7 @@ OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
 OP_CONVERTER(translate_full_fx);
+OP_CONVERTER(translate_full_like_fx);
 OP_CONVERTER(translate_gelu_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
@@ -266,6 +267,12 @@ OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
+OP_CONVERTER(translate_new_full_fx);
+OP_CONVERTER(translate_new_ones_fx);
+OP_CONVERTER(translate_new_zeros_fx);
+OP_CONVERTER(translate_ones_fx);
+OP_CONVERTER(translate_ones_like_fx);
+OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
@@ -282,6 +289,8 @@ OP_CONVERTER(translate_transpose_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
+OP_CONVERTER(translate_zeros_fx);
+OP_CONVERTER(translate_zeros_like_fx);
 
 }  // namespace op
 
@@ -775,7 +784,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.fmod.Tensor", op::translate_fmod},
         {"aten.full.default", op::translate_full_fx},
         {"aten.full.names", op::translate_full_fx},
-        {"aten.full_like.default", op::translate_full_like},
+        {"aten.full_like.default", op::translate_full_like_fx},
         {"aten.gather.default", op::translate_gather},
         {"aten.ge.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten.ge.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
@@ -826,8 +835,12 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.ne.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten.ne.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten.neg.default", op::translate_neg},
-        {"aten.new_full.default", op::translate_new_full},
-        {"aten.new_ones.default", op::translate_new_ones},
+        {"aten.new_full.default", op::translate_new_full_fx},
+        {"aten.new_ones.default", op::translate_new_ones_fx},
+        {"aten.new_zeros.default", op::translate_new_zeros_fx},
+        {"aten.ones.default", op::translate_ones_fx},
+        {"aten.ones.names", op::translate_ones_fx},
+        {"aten.ones_like.default", op::translate_ones_like_fx},
         {"aten.permute.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten.pow.Scalar", op::translate_pow},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
@@ -874,7 +887,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.var_mean.correction", op::translate_var_mean_fx},
         {"aten.view.default", op::translate_reshape},
         {"aten.where.self", op::translate_where},
-        {"aten.zeros_like.default", op::translate_zeros_like},
+        {"aten.zeros.default", op::translate_zeros_fx},
+        {"aten.zeros.names", op::translate_zeros_fx},
+        {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
