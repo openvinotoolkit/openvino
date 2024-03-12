@@ -1,7 +1,7 @@
 Interface Core
 ==============
 
-.. code-block:: json
+.. code-block:: ts
 
    interface Core {
        compileModel(model, device, config?): Promise<CompiledModel>;
@@ -23,7 +23,7 @@ Methods
 .. rubric:: compileModel
 
 
-.. code-block:: json
+.. code-block:: ts
 
    compileModel(model, device, config?): Promise<CompiledModel>
 
@@ -35,7 +35,7 @@ Methods
 -  device: string
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      config: {
          [option: string]: string;
@@ -54,7 +54,7 @@ Methods
 .. rubric:: compileModelSync
 
 
-.. code-block:: json
+.. code-block:: ts
 
    compileModelSync(model, device, config?): CompiledModel
 
@@ -65,7 +65,7 @@ Methods
 - device: string
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      config: {
                [option: string]: string;
@@ -84,7 +84,7 @@ Methods
 .. rubric:: readModel
 
 
-.. code-block:: json
+.. code-block:: ts
 
    readModel(modelPath, weightsPath?): Promise<Model>
 
@@ -94,7 +94,7 @@ Methods
  - modelPath: string
  - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      weightsPath: string
 
@@ -104,7 +104,7 @@ Methods
 - Defined in
   `addon.ts:34 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L34>`__
 
-.. code-block:: json
+.. code-block:: ts
 
    readModel(modelBuffer, weightsBuffer?): Promise<Model>
 
@@ -113,7 +113,7 @@ Methods
 - modelBuffer: Uint8Array
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      weightsBuffer: Uint8Array
 
@@ -127,7 +127,7 @@ Methods
 .. rubric:: readModelSync
 
 
-.. code-block:: json
+.. code-block:: ts
 
    readModelSync(modelPath, weightsPath?): Model
 
@@ -137,7 +137,7 @@ Methods
 - modelPath: string
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      weightsPath: string
 
@@ -146,7 +146,7 @@ Methods
 - Defined in
   `addon.ts:37 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L37>`__
 
-.. code-block:: json
+.. code-block:: ts
 
    readModelSync(modelBuffer, weightsBuffer?): Model
 
@@ -156,7 +156,7 @@ Methods
 - modelBuffer: Uint8Array
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      weightsBuffer: Uint8Array
 

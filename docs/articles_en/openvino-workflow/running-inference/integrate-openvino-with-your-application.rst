@@ -394,6 +394,7 @@ Create Structure for project:
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part7]
+          :force:
 
     .. tab-item:: C
        :sync: c
@@ -401,6 +402,7 @@ Create Structure for project:
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part7]
+          :force:
 
 
 Create Cmake Script

@@ -1,7 +1,7 @@
 Type alias Dimension
 ====================
 
-.. code-block:: json
+.. code-block:: ts
 
    Dimension: number|[number,number]
 

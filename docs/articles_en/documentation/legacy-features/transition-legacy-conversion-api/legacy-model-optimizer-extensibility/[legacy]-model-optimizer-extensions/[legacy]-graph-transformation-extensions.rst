@@ -457,7 +457,7 @@ For other examples of transformations with points, refer to the
 Generic Front Phase Transformations Enabled with Transformations Configuration File
 ###################################################################################
 
-This type of transformation works similarly to the :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`
+This type of transformation works similarly to the :ref:`Generic Front Phase Transformations <generic_front_phase_transformations>`
 but require a JSON configuration file to enable it similarly to
 :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` and
 :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.

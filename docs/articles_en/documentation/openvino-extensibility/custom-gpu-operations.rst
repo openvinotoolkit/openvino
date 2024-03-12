@@ -350,7 +350,8 @@ Example Kernel
 Debugging Tips
 ##############
 
-**Using ``printf`` in the OpenCL™ Kernels**.
+**Using** ``printf`` **in the OpenCL™ Kernels**.
+
 To debug the specific values, use ``printf`` in your kernels.
 However, be careful not to output excessively, which
 could generate too much data. The ``printf`` output is typical, so

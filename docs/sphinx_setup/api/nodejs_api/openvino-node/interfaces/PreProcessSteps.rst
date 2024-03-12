@@ -2,7 +2,7 @@ Interface PreProcessSteps
 =========================
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface PreProcessSteps {
        resize(algorithm): PreProcessSteps;
@@ -17,7 +17,7 @@ Methods
 .. rubric:: resize
 
 
-.. code-block:: json
+.. code-block:: ts
 
    resize(algorithm): PreProcessSteps
 

@@ -4,7 +4,7 @@ Interface Tensor
 .. rubric:: Interface Tensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface Tensor {
        data: number[];
@@ -23,7 +23,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    data: number[]
 
@@ -38,7 +38,7 @@ Methods
 .. rubric:: getData
 
 
-.. code-block:: json
+.. code-block:: ts
 
    getData(): number[]
 
@@ -52,7 +52,7 @@ Methods
 .. rubric:: getElementType
 
 
-.. code-block:: json
+.. code-block:: ts
 
    getElementType(): element
 
@@ -64,7 +64,7 @@ Methods
 
 .. rubric:: getShape
 
-.. code-block:: json
+.. code-block:: ts
 
    getShape(): number[]
 

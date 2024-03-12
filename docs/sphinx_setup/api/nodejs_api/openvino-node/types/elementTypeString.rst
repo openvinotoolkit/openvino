@@ -1,7 +1,7 @@
 Type alias elementTypeString
 ============================
 
-.. code-block:: json
+.. code-block:: ts
 
    elementTypeString: "u8" | "u32" | "u16" | "u64" | "i8" | "i64" | "i32" | "i16" | "f64" | "f32"
 

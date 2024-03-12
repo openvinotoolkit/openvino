@@ -1,7 +1,7 @@
 Interface CoreConstructor
 =========================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface CoreConstructor {
        new Core(): Core;
@@ -12,7 +12,7 @@ Interface CoreConstructor
 
 .. rubric:: constructor
 
-.. code-block:: json
+.. code-block:: ts
 
    new Core(): Core
 

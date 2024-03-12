@@ -2,7 +2,7 @@ Interface PrePostProcessorConstructor
 =====================================
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface PrePostProcessorConstructor {
        new PrePostProcessor(model): PrePostProcessor;
@@ -14,7 +14,7 @@ Interface PrePostProcessorConstructor
 .. rubric:: constructor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    new PrePostProcessor(model): PrePostProcessor
 

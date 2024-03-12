@@ -2,7 +2,7 @@ Interface InputModelInfo
 ========================
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface InputModelInfo {
        setLayout(layout): InputModelInfo;
@@ -18,7 +18,7 @@ Methods
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    setLayout(layout): InputModelInfo
 

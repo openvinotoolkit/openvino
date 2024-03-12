@@ -1,7 +1,7 @@
 Interface PrePostProcessor
 ==========================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface PrePostProcessor {
        build(): PrePostProcessor;
@@ -18,7 +18,7 @@ Methods
 .. rubric:: build
 
 
-.. code-block:: json
+.. code-block:: ts
 
    build(): PrePostProcessor
 
@@ -31,7 +31,7 @@ Methods
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    input(idxOrTensorName?): InputInfo
 
@@ -40,7 +40,7 @@ Methods
 
 - ``Optional``
 
-.. code-block:: json
+.. code-block:: ts
 
    idxOrTensorName: string|number
 
@@ -53,7 +53,7 @@ Methods
 .. rubric:: output
 
 
-.. code-block:: json
+.. code-block:: ts
 
    output(idxOrTensorName?): OutputInfo
 
@@ -62,7 +62,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      idxOrTensorName: string|number
 

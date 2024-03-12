@@ -4,7 +4,7 @@ InferRequest
 .. rubric:: Interface InferRequest
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface InferRequest {
        getCompiledModel(): CompiledModel;
@@ -31,7 +31,7 @@ Methods
 
 .. rubric:: getCompiledModel
 
-.. code-block:: json
+.. code-block:: ts
 
    getCompiledModel(): CompiledModel
 
@@ -43,7 +43,7 @@ Methods
 
 .. rubric:: getInputTensor
 
-.. code-block:: json
+.. code-block:: ts
 
    getInputTensor(idx?): Tensor
 
@@ -52,7 +52,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      idx: number
 
@@ -64,7 +64,7 @@ Methods
 
 .. rubric:: getOutputTensor
 
-.. code-block:: json
+.. code-block:: ts
 
    getOutputTensor(idx?): Tensor
 
@@ -73,7 +73,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      idx: number
 
@@ -85,7 +85,7 @@ Methods
 
 .. rubric:: getTensor
 
-.. code-block:: json
+.. code-block:: ts
 
    getTensor(nameOrOutput): Tensor
 
@@ -101,7 +101,7 @@ Methods
 .. rubric:: infer
 
 
-.. code-block:: json
+.. code-block:: ts
 
    infer(inputData?): {
        [outputName: string]: Tensor;
@@ -112,7 +112,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      inputData: {
                 [inputName: string]: Tensor | SupportedTypedArray;
@@ -120,7 +120,7 @@ Methods
 
 **Returns**
 
-.. code-block:: json
+.. code-block:: ts
 
    {
    [outputName: string]: Tensor;
@@ -135,7 +135,7 @@ Methods
 .. rubric:: inferAsync
 
 
-.. code-block:: json
+.. code-block:: ts
 
    inferAsync(inputData): Promise<{
        [outputName: string]: Tensor;
@@ -145,7 +145,7 @@ Methods
 
 -
 
-  .. code-block:: json
+  .. code-block:: ts
 
      inputData: Tensor[] | {
          [inputName: string]: Tensor;
@@ -153,7 +153,7 @@ Methods
 
 **Returns**
 
-.. code-block:: json
+.. code-block:: ts
 
    Promise<{
     [outputName: string]: Tensor;
@@ -165,7 +165,7 @@ Methods
 
 .. rubric:: setInputTensor
 
-.. code-block:: json
+.. code-block:: ts
 
    setInputTensor(idxOrTensor, tensor?): void
 
@@ -176,7 +176,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      tensor: Tensor
 
@@ -189,7 +189,7 @@ Methods
 .. rubric:: setOutputTensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    setOutputTensor(idxOrTensor, tensor?): void
 
@@ -199,7 +199,7 @@ Methods
 - idxOrTensor: number| :doc:`Tensor <Tensor>`
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      tensor: Tensor
 
@@ -212,7 +212,7 @@ Methods
 .. rubric:: setTensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    setTensor(name, tensor): void
 
