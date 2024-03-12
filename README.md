@@ -42,7 +42,7 @@ Learn how to optimize and deploy popular models with the [OpenVINO Notebooks](ht
 -   [Neural Network Compression Framework (NNCF)](https://github.com/openvinotoolkit/nncf) - advanced model optimization techniques including quantization, filter pruning, binarization, and sparsity.
 -   [GenAI Repository](https://github.com/openvinotoolkit/openvino.genai) and [OpenVINO Tokenizers](https://github.com/openvinotoolkit/openvino_tokenizers) - resources and tools for developing and optimizing Generative AI applications.
 -   [OpenVINO™ Model Server (OVMS)](https://github.com/openvinotoolkit/model_server) - a scalable, high-performance solution for serving models optimized for Intel architectures.
--   [Intel® Geti™ SDK](https://github.com/openvinotoolkit/geti-sdk) - an interactive video and image annotation tool for computer vision use cases.
+-   [Intel® Geti™](https://geti.intel.com/) - an interactive video and image annotation tool for computer vision use cases.
 
 Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-openvino) repository to discover a collection of community-made AI projects based on OpenVINO!
 
@@ -73,8 +73,12 @@ You can ask questions and get support on:
 * [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
-* [Apache License Version 2.0](LICENSE)
 * [Telemetry](https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html)
+
+## License
+
+OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
+By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ---
 \* Other names and brands may be claimed as the property of others.
