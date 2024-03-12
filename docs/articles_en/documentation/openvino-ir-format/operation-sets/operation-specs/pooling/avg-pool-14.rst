@@ -84,7 +84,7 @@ AvgPool
 
 **Output**:
   
-* **1**: The output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output shape calculation rules and examples can be found in :doc:`Pooling Operators shape inference rules <openvino_docs_pooling_shape_rules>`.
+* **1**: The output shape is ``[N, C, H_out]``, ``[N, C, H_out, W_out]`` or ``[N, C, H_out, W_out, D_out]``. Output shape calculation rules and examples can be found in :doc:`Pooling Operators shape inference rules <pooling_shape_rules>`.
 
 **Types**
 
