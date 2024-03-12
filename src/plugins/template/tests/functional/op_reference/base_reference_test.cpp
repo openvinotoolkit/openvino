@@ -216,6 +216,13 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           threshold,
                                                           abs_threshold);
         break;
+    case ov::element::nf4:
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
+                                                          static_cast<const int8_t*>(outBlob.data()),
+                                                          actual_comparision_size / 2,
+                                                          threshold,
+                                                          abs_threshold);
+        break;
     case ov::element::string:
         ov::test::utils::compare_str(refBlob, outBlob);
         break;
