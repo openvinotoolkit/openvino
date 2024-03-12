@@ -119,21 +119,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2023.3-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.0-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2023.3-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.0-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2023.3-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.0-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -192,7 +192,7 @@ or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devc
 Disclaimers
 ####################################
 
-* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2023.3, as of February 13, 2024.
+* Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2024.0, as of March 06, 2024.
 
 * OpenVINO Model Server performance results are based on release 2023.3, as of February 13, 2024.
 
