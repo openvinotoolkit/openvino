@@ -43,6 +43,7 @@ body:
       value: |
           - [Contribution guide - start here!](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md)
           - [Intel DevHub Discord channel](https://discord.gg/7pVRxUwdWG) - engage in discussions, ask questions and talk to OpenVINO developers
+          - [How to link your Pull Request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar)
     validations:
       required: true
 
