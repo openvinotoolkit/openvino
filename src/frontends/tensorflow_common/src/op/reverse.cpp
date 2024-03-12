@@ -86,9 +86,8 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     // The second input of Reverse is a boolean vector.
     // True elements correspond the axes along which
     // elements of the input tensor are reversed
-    default_op_checks(node, 2, {"Reverse"});
+    default_op_checks(node, 2, {"Reverse"}, true);
     auto input = node.get_input(0);
-
     std::vector<bool> dims;
     get_const_input(node, 1, &dims);
 
@@ -97,6 +96,26 @@ OutputVector translate_reverse_op(const NodeContext& node) {
     for (int64_t ind = 0; ind < static_cast<int64_t>(dims.size()); ++ind) {
         if (dims[ind]) {
             axes.push_back(ind);
+        }
+    }
+
+    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex_type_mark_input) {
+        input = complex_type_mark_input->input_value(0);
+        // Split the complex tensor into real and imaginary parts
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto input_real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
+        auto input_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
+
+        // Reverse the real and imaginary part
+        auto reversed_real_part = translate_reverse_base_op(node, input_real, axes);
+        auto reversed_imag_part = translate_reverse_base_op(node, input_imag, axes);
+
+        auto reversed = make_shared<v0::Complex>(reversed_real_part[0], reversed_imag_part[0]);
+        return {
+            reversed
         }
     }
 
@@ -115,6 +134,26 @@ OutputVector translate_reverse_v2_op(const NodeContext& node) {
     // the current limitation is sufficient for parity with Legacy MO frontend.
     std::vector<int64_t> axes;
     get_const_input(node, 1, &axes);
+
+    auto complex_type_mark_input = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    if (complex_type_mark_input) {
+        input = complex_type_mark_input->input_value(0);
+        // Split the complex tensor into real and imaginary parts
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto input_real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
+        auto input_imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
+
+        // Reverse the real and imaginary part
+        auto reversed_real_part = translate_reverse_base_op(node, input_real, axes);
+        auto reversed_imag_part = translate_reverse_base_op(node, input_imag, axes);
+
+        auto reversed = make_shared<v0::Complex>(reversed_real_part[0], reversed_imag_part[0]);
+        return {
+            reversed
+        }
+    }
 
     return translate_reverse_base_op(node, input, axes);
 }
