@@ -109,6 +109,28 @@ void mark_runtime_skippable_nodes::run(program& p) {
                 // In this case, broadcast can not be optimized due to different input and output shapes.
                 if (node.have_user_with_type<reorder>() && node.get_users().size() == 1)
                     return;
+
+                // Check if the size of rank is different, or if one of static dimensions has different size
+                auto input_pshape = impl_params->get_input_layout(0).get_partial_shape();
+                auto output_pshape = impl_params->get_output_layout().get_partial_shape();
+
+                if (input_pshape.rank().is_static() && output_pshape.rank().is_static()) {
+                    if (input_pshape.size() != output_pshape.size())
+                        return;
+
+                    auto input_pdim = input_pshape.begin();
+                    auto output_pdim = output_pshape.begin();
+                    while (input_pdim != input_pshape.end()) {
+                        if (input_pdim->is_static() && output_pdim->is_static()) {
+                            if (input_pdim->get_max_length() != output_pdim->get_max_length())
+                                return;
+                        }
+
+                        input_pdim++;
+                        output_pdim++;
+                    }
+                }
+
                 node.can_be_optimized(true);
                 GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
             }
