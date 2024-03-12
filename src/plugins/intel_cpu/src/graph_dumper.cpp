@@ -191,7 +191,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
         node2layer[node] = nodes.back();
     }
 
-    auto holder = results[0];
+    auto holder = !results.empty() ? results[0] : std::make_shared<ov::op::v0::Result>();
     for (auto &node : to_hold) {
         holder->add_control_dependency(node);
     }

@@ -106,8 +106,8 @@ TSSqueezeForward::TSSqueezeForward() {
 
     create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>(true, {0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {
@@ -195,7 +195,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
