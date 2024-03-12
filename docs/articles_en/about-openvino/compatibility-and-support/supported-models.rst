@@ -15,7 +15,7 @@ Based on our research and user feedback, we prioritize the most common models an
 before every release. These models are considered officially supported.
 
 
-.. button-link:: _static/download/OV_2023_models_supported.pdf
+.. button-link:: ../../_static/download/OV_2023_models_supported.pdf
    :color: primary
    :outline:
 
@@ -29,7 +29,7 @@ The list is based on release 2023.0, as of June 01, 2023
 
 
 * You can create a GitHub request for the operation(s) that are missing. These requests are reviewed regularly. You will be informed if and how the request will be accommodated. Additionally, your request may trigger a reply from someone in the community who can help.  
-* As OpenVINO™ is open source you can enhance it with your own contribution to the GitHub repository. To learn more, see the articles on :doc:`OpenVINO Extensibility <openvino_docs_Extensibility_UG_Intro>`.
+* As OpenVINO™ is open source you can enhance it with your own contribution to the GitHub repository. To learn more, see the articles on :doc:`OpenVINO Extensibility <../../documentation/openvino-extensibility>`.
 
 
 
