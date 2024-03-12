@@ -10,61 +10,13 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
-#include "openvino/op/abs.hpp"
 #include "openvino/op/acosh.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/asinh.hpp"
-#include "openvino/op/atanh.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/ceiling.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/floor.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/greater_eq.hpp"
-#include "openvino/op/interpolate.hpp"
-#include "openvino/op/less.hpp"
-#include "openvino/op/less_eq.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/logical_or.hpp"
 #include "openvino/op/loop.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/negative.hpp"
-#include "openvino/op/non_zero.hpp"
-#include "openvino/op/not_equal.hpp"
-#include "openvino/op/one_hot.hpp"
-#include "openvino/op/power.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/relu.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/reverse.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/sqrt.hpp"
-#include "openvino/op/squared_difference.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/variadic_split.hpp"
-#include "openvino/op/xor.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -4046,6 +3998,34 @@ TEST_P(UnsupportedTypesTest, convert_like) {
     EXPECT_EQ(count_ops_of_type<op::v1::ConvertLike>(m), 1);
     EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 2);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, type_relaxed) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto cond = op::v0::Constant::create(element::boolean, shape_in, {1});
+    auto param = std::make_shared<op::v0::Parameter>(type, shape_in);
+    auto constant1 = op::v0::Constant::create(type, shape_in, {2});
+    auto then_value = std::make_shared<op::v0::Concat>(OutputVector{param, constant1}, 2);
+    auto constant2 = op::v0::Constant::create(type, shape_in, {3});
+    auto else_value = std::make_shared<op::v3::Broadcast>(
+        constant2,
+        op::v0::Constant::create(element::u64, Shape{shape_in.size()}, Shape{shape_in[0], shape_in[1], 2}));
+    auto select = make_shared<op::v1::Select>(cond, then_value, else_value);
+    auto type_relaxed = make_shared<op::TypeRelaxed<op::v1::Select>>(*select,
+                                                                     element::TypeVector{element::boolean},
+                                                                     element::TypeVector{});
+    auto m = make_shared<Model>(type_relaxed, ParameterVector{param});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 7);
+    EXPECT_EQ(count_ops_of_type<op::v1::Select>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
+    EXPECT_EQ(count_ops_of_type<op::v3::Broadcast>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Concat>(m), 1);
     ASSERT_EQ(m->get_results().size(), 1);
 }
 

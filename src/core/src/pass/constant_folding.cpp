@@ -49,42 +49,19 @@ const auto friendly_name_from = [](const ov::Node& node, const size_t output_cou
     }
 };
 
-static void save_original_input_precisions(const std::shared_ptr<ov::Node>& node) {
-    for (size_t i = 0; i < node->get_input_size(); i++) {
-        auto input = node->input(i);
-        input.get_rt_info()["original_precision"] = input.get_element_type();
-    }
-}
-
-static bool has_original_input_precision(const ov::Input<ov::Node>& input) {
-    return input.get_rt_info().count("original_precision") > 0;
-}
-
-static ov::element::Type get_original_input_precision(const ov::Input<ov::Node>& input) {
-    return input.get_rt_info().at("original_precision").as<ov::element::Type>();
-}
-
-static void remove_original_input_precision_attribute(ov::Input<ov::Node>& input) {
-    auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("original_precision");
-    if (it != rt_info.end()) {
-        rt_info.erase(it);
-    }
-}
-
 static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& node) {
     bool restored = false;
     if (ov::is_type<ov::op::v0::Convert>(node)) {
         auto input = node->input(0);
-        remove_original_input_precision_attribute(input);
+        ov::util::remove_original_input_precision_attribute(input);
         return restored;
     }
     for (size_t i = 0; i < node->get_input_size(); i++) {
         auto input = node->input(i);
-        if (!has_original_input_precision(input))
+        if (!ov::util::has_original_input_precision(input))
             continue;
-        const auto original_type = get_original_input_precision(input);
-        remove_original_input_precision_attribute(input);
+        const auto original_type = ov::util::get_original_input_precision(input);
+        ov::util::remove_original_input_precision_attribute(input);
         if (original_type != node->get_input_element_type(i)) {
             auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
             ov::OutputVector replacements(1);
@@ -206,7 +183,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         // we need to convert constants with those types to f32. And at some point - this f32 constant may
         // become an input to a node that's not constfoldable. Then we need to convert that constant back to
         // that input's original precision.
-        save_original_input_precisions(node);
+        util::save_original_input_precisions(node);
         if (!node_has_disabled_constant_folding && util::node_requires_precision_conversion(node.get())) {
             mark_node_requires_precision_conversion(node);
         }
