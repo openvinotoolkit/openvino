@@ -27,10 +27,24 @@ class TestSlice(CommonTFLayerTest):
         dict(input_shape=[10, 5, 1, 5], input_type=tf.float32, begin_value=[5, 1, 0, 3], size_value=[2, 4, -1, -1]),
     ]
 
+    test_data_complex = [
+    dict(input_shape=[6], input_type=tf.complex64, begin_value=[2], size_value=[2]),
+    dict(input_shape=[2, 5, 3], input_type=tf.complex64, begin_value=[0, 1, 0], size_value=[-1, 1, -1]),
+    dict(input_shape=[10, 5, 1, 5], input_type=tf.complex64, begin_value=[5, 1, 0, 3], size_value=[2, 4, -1, -1]),
+]
+
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_slice_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        self._test(*self.create_slice_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
+    
+    @pytest.mark.parametrize("params", test_data_complex)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_slice_complex(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_slice_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
