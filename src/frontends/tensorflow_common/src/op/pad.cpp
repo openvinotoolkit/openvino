@@ -99,10 +99,9 @@ OutputVector translate_padv2_op(const NodeContext& node) {
 
         auto constant_complex_type_mark = as_type_ptr<ComplexTypeMark>(constant_value.get_node_shared_ptr());
         auto constant_input = constant_complex_type_mark->input_value(0);
-        auto constant = ov::util::get_constant_from_source(constant_input);
-        std::vector<float> constant_vector = constant->cast_vector<float>();
-        auto constant_value_real = create_same_type_const_scalar<float>(input, constant_vector[0]);
-        auto constant_value_imag = create_same_type_const_scalar<float>(input, constant_vector[1]);
+
+        auto constant_value_real = make_shared<v8::Gather>(constant_input, gather_index_real, minus_one)->output(0);
+        auto constant_value_imag = make_shared<v8::Gather>(constant_input, gather_index_imag, minus_one)->output(0);
 
         auto y_real = translate_pad_base_op(node, x_real, paddings, constant_value_real)[0];
         auto y_imag = translate_pad_base_op(node, x_imag, paddings, constant_value_imag)[0];
