@@ -5,7 +5,7 @@ GRUCell
 
 
 .. meta::
-  :description: Learn about GRUCell-3 - a sequence processing operation, which 
+  :description: Learn about GRUCell-3 - a sequence processing operation, which
                 can be performed on four required and one optional input tensor.
 
 **Versioned name**: *GRUCell-3*
@@ -65,7 +65,7 @@ GRUCell
 
 * *linear_before_reset*
 
-  * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification 
+  * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification
     of *GRUCell* described in the formula in the `ONNX documentation <https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU>`__.
   * **Range of values**: true or false
   * **Type**: ``boolean``
@@ -78,8 +78,8 @@ GRUCell
 * **2**: ``initial_hidden_state`` - 2D tensor of type *T* ``[batch_size, hidden_size]``. **Required.**
 * **3**: ``W`` - 2D tensor of type *T* ``[3 * hidden_size, input_size]``, the weights for matrix multiplication, gate order: zrh. **Required.**
 * **4**: ``R`` - 2D tensor of type *T* ``[3 * hidden_size, hidden_size]``, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
-* **5**: ``B`` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is ``[4 * hidden_size]`` - 
-  the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. 
+* **5**: ``B`` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is ``[4 * hidden_size]`` -
+  the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately.
   Otherwise the shape is ``[3 * hidden_size]``, the sum of biases (weights and recurrence weights).  **Optional.**
 
 **Outputs**
