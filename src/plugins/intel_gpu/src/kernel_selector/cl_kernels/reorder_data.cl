@@ -195,32 +195,23 @@ KERNEL (reorder_data)(
     IMAGE_WRITE(output, (int2)(x, y), colorRGBA);
 #else
     #if INPUT0_IS_FP && !OUTPUT_IS_FP
-        #if CONVERT_TRUNCATE
-            #if HAS_FUSED_OPS
-                res = TO_OUTPUT_REORDER_TYPE(convert_long(res));
-                FUSED_OPS;
-                output[output_idx] = FUSED_OPS_RESULT;
-            #else
-                output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(convert_long(res)), ACTIVATION_PARAMS_TYPED);
-            #endif
-        #else
-            #if HAS_FUSED_OPS
-                res = TO_OUTPUT_REORDER_TYPE_SAT(res);
-                FUSED_OPS;
-                output[output_idx] = FUSED_OPS_RESULT;
-            #else
-                output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE_SAT(res), ACTIVATION_PARAMS_TYPED);
-            #endif
-        #endif
+    #if CONVERT_TRUNCATE
+        #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(convert_long(res))
     #else
-        #if HAS_FUSED_OPS
-            res = TO_OUTPUT_REORDER_TYPE(res);
-            FUSED_OPS;
-            output[output_idx] = FUSED_OPS_RESULT;
-        #else
-            output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
-        #endif
+        #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE_SAT(res)
     #endif
+    #else
+        #define __TO_OUTPUT_REORDER_TYPE(res) TO_OUTPUT_REORDER_TYPE(res)
+    #endif
+
+    #if HAS_FUSED_OPS
+        res = __TO_OUTPUT_REORDER_TYPE(res);
+        FUSED_OPS;
+        output[output_idx] = FUSED_OPS_RESULT;
+    #else
+        output[output_idx] = ACTIVATION_TYPED(OUTPUT_REORDER, __TO_OUTPUT_REORDER_TYPE(res), ACTIVATION_PARAMS_TYPED);
+    #endif
+#undef __TO_OUTPUT_REORDER_TYPE
 #endif
 }
 

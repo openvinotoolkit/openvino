@@ -595,7 +595,7 @@ TEST(reorder_gpu_f32, fusing_double_activations) {
     //       result                         result
     //
     // This test case is limited to the case of reorder_data using ReorderKernelRef.
-    // Because another kernels for reorder_data don't support fusing double activations e.g. reorder_data_fast_b1
+    // Because other kernels for reorder_data don't support fusing double activations e.g. reorder_data_fast_b1
     //
     auto& engine = get_test_engine();
 
