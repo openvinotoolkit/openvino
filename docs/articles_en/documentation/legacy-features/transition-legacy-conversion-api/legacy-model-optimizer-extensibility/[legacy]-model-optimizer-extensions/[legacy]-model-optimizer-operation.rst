@@ -12,7 +12,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <openvino_docs_Extensibility_UG_Frontend_Extensions>` article. 
+   This guide describes a deprecated TensorFlow conversion method. The guide on the new and recommended method, using a new frontend, can be found in the  :doc:`Frontend Extensions <../../../../openvino-extensibility/frontend-extensions>` article. 
 
 Model Optimizer defines a ``mo.ops.Op`` class (``Op`` will be used later in the document to be short), which is a base class
 for an operation used in the Model Optimizer. The instance of the ``Op`` class serves several purposes:
@@ -32,15 +32,15 @@ There are a number of common attributes used in the operations. Below is the lis
 
 * ``id`` — **(Mandatory)** — unique identifier of a node in a graph. Generated automatically, equal to the number of nodes in the graph plus 1 if not specified.
 * ``name`` — **(Mandatory)** — name of the operation. Generated automatically, equal to the ``id`` if not specified.
-* ``type`` — **(Mandatory)** —  type of the operation according to the :doc:`opset specification <openvino_docs_ops_opset>`. For the internal Model Optimizer operations, this attribute should be set to ``None``. The model conversion fails if an operation with ``type`` equal to ``None`` comes to the IR emitting phase.
-* ``version`` — **(Mandatory)** —  the operation set (opset) name the operation belongs to. If not specified,  Model Optimizer sets it equal to ``experimental``. For more information about operation sets, refer to  :doc:`OpenVINO Model Representation <openvino_docs_OV_UG_Model_Representation>` section. 
+* ``type`` — **(Mandatory)** —  type of the operation according to the :doc:`opset specification <../../../../openvino-ir-format/operation-sets/available-opsets>`. For the internal Model Optimizer operations, this attribute should be set to ``None``. The model conversion fails if an operation with ``type`` equal to ``None`` comes to the IR emitting phase.
+* ``version`` — **(Mandatory)** —  the operation set (opset) name the operation belongs to. If not specified,  Model Optimizer sets it equal to ``experimental``. For more information about operation sets, refer to  :doc:`OpenVINO Model Representation <../../../../../openvino-workflow/running-inference/integrate-openvino-with-your-application/model-representation>` section. 
 * ``op`` — Model Optimizer type of the operation. In many cases, the value of ``type`` is equal to the value of ``op``. However, when Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal operation. Thus, the attribute ``op`` is used as a type of this internal operation. Later in the pipeline, the node created from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
 * ``infer`` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute may be set to ``None`` for the internal Model Optimizer operations used during the front phase only. For more information  about the shape inference function, refer to the :ref:`Partial Inference <mo_partial_inference>`.
 * ``type_infer`` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not defined, the default function is used. The function checks if the ``data_type`` node attribute is set and then propagates this type to the output tensor from the **port 0**. Otherwise, it propagates the data type of the tensor coming into the input **port 0** to the output tensor from the **port 0**.
 * ``in_ports_count`` — default number of input ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated ``Node`` class API methods.
 * ``out_ports_count`` — default number of output ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated ``Node`` class API methods.
 
-Below is an example of the Model Optimizer class for the :doc:`SoftMax <openvino_docs_ops_activation_SoftMax_1>` operation from
+Below is an example of the Model Optimizer class for the :doc:`SoftMax <../../../../openvino-ir-format/operation-sets/operations-specifications/activation/softmax-1>` operation from
 the ``mo/ops/softmax.py`` file with the comments in code.
 
 .. code-block:: py
@@ -105,8 +105,8 @@ The ``backend_attrs()`` function returns a list of records. A record can be of o
 Additional Resources
 ====================
 
-* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
-* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
+* :doc:`Model Optimizer Extensibility <../../legacy-model-optimizer-extensibility>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <../../legacy-model-optimizer-extensibility/[legacy]-graph-traversal-and-modification>`
+* :doc:`Model Optimizer Extensions <../[legacy]-model-optimizer-extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <../[legacy]-extending-model-optimizer-with-caffe-python-layers>`
 

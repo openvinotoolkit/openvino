@@ -5,15 +5,15 @@ ExperimentalDetectronROIFeatureExtractor
 
 
 .. meta::
-  :description: Learn about ExperimentalDetectronROIFeatureExtractor-6 - 
-                an object detection operation, which can be performed on two 
+  :description: Learn about ExperimentalDetectronROIFeatureExtractor-6 -
+                an object detection operation, which can be performed on two
                 required input tensors.
 
 **Versioned name**: *ExperimentalDetectronROIFeatureExtractor-6*
 
 **Category**: *Object detection*
 
-**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the :doc:`ROIAlign <openvino_docs_ops_detection_ROIAlign_3>` operation applied over a feature pyramid.
+**Short description**: *ExperimentalDetectronROIFeatureExtractor* is the :doc:`ROIAlign <roi-align-3>` operation applied over a feature pyramid.
 
 **Detailed description**: *ExperimentalDetectronROIFeatureExtractor* maps input ROIs to the levels of the pyramid depending on the sizes of ROIs and parameters of the operation, and then extracts features via ROIAlign from corresponding pyramid levels.
 
@@ -61,7 +61,7 @@ For more details please see the following source: `Feature Pyramid Networks for 
 
   * **Description**: The *aligned* attribute specifies add offset (``-0.5``) to ROIs sizes or not.
   * **Range of values**:
-    
+
     * ``true`` - add offset to ROIs sizes
     * ``false`` - do not add offset to ROIs sizes
   * **Type**: boolean
@@ -70,7 +70,7 @@ For more details please see the following source: `Feature Pyramid Networks for 
 
 **Inputs**:
 
-* **1**: 2D input tensor of type *T* with shape ``[number_of_ROIs, 4]`` providing the ROIs as 4-tuples: [x 1, y 1, x<sub>2</sub>, y<sub>2</sub>]. Coordinates *x* and *y* are refer to the network's input *image_size*. **Required.**
+* **1**: 2D input tensor of type *T* with shape ``[number_of_ROIs, 4]`` providing the ROIs as 4-tuples: .. math:: [x_{1}, y_{1}, x_{2}, y_{2}]. Coordinates *x* and *y* are refer to the network's input *image_size*. **Required.**
 * **2**, ..., **L**: Pyramid of 4D input tensors with feature maps. Shape must be ``[1, number_of_channels, layer_size[l], layer_size[l]]``. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the ``layer_size[l] = image_size / pyramid_scales[l]``. **Required.**
 
 **Outputs**:
@@ -86,7 +86,7 @@ For more details please see the following source: `Feature Pyramid Networks for 
 
 .. code-block:: xml
    :force:
-   
+
    <layer ... type="ExperimentalDetectronROIFeatureExtractor" version="opset6">
        <data aligned="false" output_size="7" pyramid_scales="4,8,16,32,64" sampling_ratio="2"/>
        <input>

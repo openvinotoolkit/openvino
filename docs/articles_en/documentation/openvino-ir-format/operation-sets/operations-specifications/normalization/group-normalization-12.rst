@@ -5,7 +5,7 @@ GroupNormalization
 
 
 .. meta::
-  :description: Learn about GroupNormalization-12 - a normalization operation, 
+  :description: Learn about GroupNormalization-12 - a normalization operation,
                 which can be performed on three required input tensors.
 
 **Versioned name**: *GroupNormalization-12*
@@ -61,31 +61,31 @@ The operation is applied per batch, per group of channels. This means that the e
 .. code-block:: xml
    :force:
 
-<layer ... type="GroupNormalization">
-    <data epsilon="1e-5" num_groups="4"/>
-    <input>
-        <port id="0">
-            <dim>3</dim>
-            <dim>12</dim>
-            <dim>100</dim>
-            <dim>100</dim>
-        </port>
-        <port id="1">
-            <dim>12</dim> <!-- 12 scale values, 1 for each channel -->
-        </port>
-        <port id="2">
-            <dim>12</dim> <!-- 12 bias values, 1 for each channel -->
-        </port>
-    </input>
-    <output>
-        <port id="3">
-            <dim>3</dim>
-            <dim>12</dim>
-            <dim>100</dim>
-            <dim>100</dim>
-        </port>
-    </output>
-</layer>
+    <layer ... type="GroupNormalization">
+        <data epsilon="1e-5" num_groups="4"/>
+        <input>
+            <port id="0">
+                <dim>3</dim>
+                <dim>12</dim>
+                <dim>100</dim>
+                <dim>100</dim>
+            </port>
+            <port id="1">
+                <dim>12</dim> <!-- 12 scale values, 1 for each channel -->
+            </port>
+            <port id="2">
+                <dim>12</dim> <!-- 12 bias values, 1 for each channel -->
+            </port>
+        </input>
+        <output>
+            <port id="3">
+                <dim>3</dim>
+                <dim>12</dim>
+                <dim>100</dim>
+                <dim>100</dim>
+            </port>
+        </output>
+    </layer>
 
 
 

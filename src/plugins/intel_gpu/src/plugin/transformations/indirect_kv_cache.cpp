@@ -12,7 +12,6 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/gather.hpp"
