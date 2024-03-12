@@ -185,7 +185,7 @@ Operation Specifications
    RNNSequence-5 <operations-specifications/sequence/rnn-sequence-5>
    ROIAlign-3 <operations-specifications/detection/roi-align-3>
    ROIAlign-9 <operations-specifications/detection/roi-align-9>
-   ROIAlignRotated-14 <openvino_docs_ops_detection_ROIAlignRotated_14>
+   ROIAlignRotated-14 <operations-specifications/detection/roi-align-rotated-14>
    ROIPooling-1 <operations-specifications/detection/roi-pooling-1>
    Roll-7 <operations-specifications/movement/roll-7>
    Round-5 <operations-specifications/arithmetic/round-5>

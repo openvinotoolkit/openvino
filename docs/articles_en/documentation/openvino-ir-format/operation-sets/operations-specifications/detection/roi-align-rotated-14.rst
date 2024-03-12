@@ -96,6 +96,7 @@ ROIAlignRotated
 
 .. code-block:: xml
    :force:
+
    <layer ... type="ROIAlignRotated" ... >
        <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" aligned_mode="half_pixel" clockwise_mode="True"/>
        <input>
