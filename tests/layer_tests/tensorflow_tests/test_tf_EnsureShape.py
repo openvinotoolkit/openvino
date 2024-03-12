@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestEnsureShape(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'tensor' in inputs_info
-        tensor_shape = inputs_info['tensor']
+        assert 'tensor:0' in inputs_info
+        tensor_shape = inputs_info['tensor:0']
         inputs_data = {}
-        inputs_data['tensor'] = np.random.randint(-10, 10, tensor_shape).astype(self.input_type)
+        inputs_data['tensor:0'] = np.random.randint(-10, 10, tensor_shape).astype(self.input_type)
         return inputs_data
 
     def create_ensure_shape_net(self, input_shape, input_type, target_shape):

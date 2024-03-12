@@ -9,11 +9,11 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         input_type = self.input_type
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(input_type)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(input_type)
 
         return inputs_data
 

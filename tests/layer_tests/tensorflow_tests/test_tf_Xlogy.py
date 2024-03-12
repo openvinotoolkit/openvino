@@ -11,16 +11,16 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestXlogy(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        assert 'y' in inputs_info
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
         # x = [-3 ,3] y = [1, 2]
         # generate x in way to have zeros
-        inputs_data['x'] = (6 * np.random.random(size=x_shape).astype(np.float32) - 3) * \
+        inputs_data['x:0'] = (6 * np.random.random(size=x_shape).astype(np.float32) - 3) * \
                             np.random.randint(2, size=x_shape).astype(np.float32)
-        inputs_data['y'] = np.random.random(size=y_shape).astype(np.float32) + 1
+        inputs_data['y:0'] = np.random.random(size=y_shape).astype(np.float32) + 1
         return inputs_data
 
     def create_xlogy_net(self, input_shape, input_type):

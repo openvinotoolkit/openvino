@@ -9,14 +9,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestDynamicPartition(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info, "Test error: inputs_info must contain `data`"
-        assert 'partitions' in inputs_info, "Test error: inputs_info must contain `partitions`"
-        data_shape = inputs_info['data']
-        partitions_shape = inputs_info['partitions']
+        assert 'data:0' in inputs_info, "Test error: inputs_info must contain `data`"
+        assert 'partitions:0' in inputs_info, "Test error: inputs_info must contain `partitions`"
+        data_shape = inputs_info['data:0']
+        partitions_shape = inputs_info['partitions:0']
         inputs_data = {}
-        inputs_data['data'] = np.random.randint(-50, 50, data_shape)
+        inputs_data['data:0'] = np.random.randint(-50, 50, data_shape)
         # segment_ids data must be sorted according to TensorFlow SegmentSum specification
-        inputs_data['partitions'] = np.random.randint(0, 5, partitions_shape)
+        inputs_data['partitions:0'] = np.random.randint(0, 5, partitions_shape)
         return inputs_data
 
     def create_dynamic_partition_net(self, data_shape, partitions_shape, num_partitions, data_type):

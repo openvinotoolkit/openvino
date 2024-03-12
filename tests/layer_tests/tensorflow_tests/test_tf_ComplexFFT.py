@@ -27,13 +27,13 @@ OPS = {
 class TestComplexFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_fft_net(self, input_shape, shift_roll, axis_roll, fft_op):
@@ -71,10 +71,10 @@ class TestComplexFFT(CommonTFLayerTest):
     @pytest.mark.parametrize("input_shape, shift_roll, axis_roll", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() == 'Linux' and platform.machine() in ['arm', 'armv7l',
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                          'aarch64',
                                                                                          'arm64', 'ARM64'],
-                       reason='Ticket - 126314')
+                       reason='Ticket - 126314, 132699')
     def test_complex_fft_basic(self, input_shape, shift_roll, axis_roll, fft_op,
                                ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
@@ -88,13 +88,13 @@ class TestComplexFFT(CommonTFLayerTest):
 class TestComplexAbs(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_abs_net(self, input_shape):
@@ -131,10 +131,10 @@ class TestComplexAbs(CommonTFLayerTest):
 class TestComplexRFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param' in inputs_info
-        param_shape = inputs_info['param']
+        assert 'param:0' in inputs_info
+        param_shape = inputs_info['param:0']
         inputs_data = {}
-        inputs_data['param'] = 4 * rng.random(param_shape).astype(np.float32) - 2
+        inputs_data['param:0'] = 4 * rng.random(param_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_rfft_net(self, input_shape, fft_length, rfft_op):
@@ -175,13 +175,13 @@ class TestComplexRFFT(CommonTFLayerTest):
 class TestComplexIRFFT(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape = inputs_info['param_real']
-        param_imag_shape = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape = inputs_info['param_real:0']
+        param_imag_shape = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_irfft_net(self, input_shape, fft_length, irfft_op):

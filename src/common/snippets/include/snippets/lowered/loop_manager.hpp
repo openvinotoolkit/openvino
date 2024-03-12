@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include "linear_ir.hpp"
-
 #include <openvino/core/node.hpp>
 #include <openvino/opsets/opset1.hpp>
 
+#include "linear_ir.hpp"
+#include "pass/iter_handler.hpp"
+#include "pass/pass.hpp"
 #include "port_descriptor.hpp"
 
 namespace ov {
@@ -41,19 +42,61 @@ public:
     class LoopInfo {
     public:
         enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
+        class SpecificIterationHandlers {
+        public:
+            enum class HandlerType { FIRST_ITER, MAIN_BODY, LAST_ITER };
+            SpecificIterationHandlers() = default;
+            SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment);
+            SpecificIterationHandlers(lowered::pass::PassPipeline first_iter_handlers,
+                                      lowered::pass::PassPipeline main_body_handlers,
+                                      lowered::pass::PassPipeline last_iter_handlers);
+
+            const lowered::pass::PassPipeline& get_first_iter_handelrs() const;
+            const lowered::pass::PassPipeline& get_main_iter_handelrs() const;
+            const lowered::pass::PassPipeline& get_last_iter_handelrs() const;
+            static SpecificIterationHandlers merge_handlers(const SpecificIterationHandlers& lhs, const SpecificIterationHandlers& rhs);
+
+            template <HandlerType Type,
+                      typename T,
+                      class... Args,
+                      typename std::enable_if<Type == HandlerType::FIRST_ITER, bool>::type = true>
+            void register_handler(Args&&... args) {
+                m_first_iter_handlers.register_pass<T>(args...);
+            }
+
+            template <HandlerType Type,
+                      typename T,
+                      class... Args,
+                      typename std::enable_if<Type == HandlerType::MAIN_BODY, bool>::type = true>
+            void register_handler(Args&&... args) {
+                m_main_body_handlers.register_pass<T>(args...);
+            }
+
+            template <HandlerType Type,
+                      typename T,
+                      class... Args,
+                      typename std::enable_if<Type == HandlerType::LAST_ITER, bool>::type = true>
+            void register_handler(Args&&... args) {
+                m_last_iter_handlers.register_pass<T>(args...);
+            }
+
+        private:
+            lowered::pass::PassPipeline m_first_iter_handlers;
+            lowered::pass::PassPipeline m_main_body_handlers;
+            lowered::pass::PassPipeline m_last_iter_handlers;
+        };
+
         LoopInfo() = default;
         LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<LoopPort>& entries,
                  const std::vector<LoopPort>& exits,
-                 bool outer_splited_loop = false)
-            : m_work_amount(work_amount), m_increment(increment),
-              m_entry_points(entries), m_exit_points(exits), m_outer_splited_loop(outer_splited_loop) {}
+                 const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
         LoopInfo(size_t work_amount, size_t increment,
                  const std::vector<ExpressionPort>& entries,
                  const std::vector<ExpressionPort>& exits,
-                 bool outer_splited_loop = false);
+                 const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
 
-        std::shared_ptr<LoopInfo> clone_with_new_expr(const ExressionMap& expr_map) const;
+        std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const;
 
         // Returns dimension index if dimension indices for all entry and exit points are equal, and UNDEFINED_DIM_IDX otherwise
         size_t get_dim_idx() const;
@@ -61,20 +104,7 @@ public:
         size_t get_increment() const;
         const std::vector<LoopPort>& get_entry_points() const;
         const std::vector<LoopPort>& get_exit_points() const;
-        bool get_outer_splited_loop() const;
-
-        /**
-         * \brief Inserts a separate body for first loop iteration processing if needed.
-         * Can also modify both main and first iter loop bodies.
-         * TODO: replace this temporary solution when ticket 119851 is implemented
-         *
-         * \param linear_ir LIR which should be modified
-         * \param loop_end_it iterator on LoopEnd expression for which the handler is called
-         *
-         * \return bool value which indicates whether the linear_ir was changed or not.
-         */
-        using FirstIterHandler = std::function<bool(LinearIR&, LinearIR::constExprIt)>;
-        const FirstIterHandler& get_first_iter_handler() const;
+        const SpecificIterationHandlers& get_handlers() const;
 
         // Sets dim_idx to all entry and exit points
         void set_dim_idx(size_t dim_idx);
@@ -82,8 +112,12 @@ public:
         void set_increment(size_t increment);
         void set_entry_points(std::vector<LoopPort> entry_points);
         void set_exit_points(std::vector<LoopPort> exit_points);
-        void set_outer_splited_loop(bool outer_splited_loop);
-        void set_first_iter_handler(FirstIterHandler handler);
+        void set_handlers(SpecificIterationHandlers handlers);
+
+        template <SpecificIterationHandlers::HandlerType Type, typename T, class... Args>
+        void register_handler(Args&&... args) {
+            m_handlers.register_handler<Type, T>(args...);
+        }
 
         // Update the parameters of existing LoopPorts
         void update_entry_points(const std::function<void(LoopPort&)>& updater);
@@ -98,9 +132,7 @@ public:
         // Note: Scalars aren't entry expressions but can be before first entry expr in Linear IR
         std::vector<LoopPort> m_entry_points = {};
         std::vector<LoopPort> m_exit_points = {};
-        // True if this Loop is outer Loop for nested Loops that splits the same dimension
-        bool m_outer_splited_loop = false;
-        FirstIterHandler m_first_iter_handler = nullptr;
+        SpecificIterationHandlers m_handlers = {};
     };
     using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -109,7 +141,7 @@ public:
      * @param expr_map map of new and old expressions
      * @return the copy
      */
-    std::shared_ptr<LoopManager> clone_with_new_expr(const ExressionMap& expr_map) const;
+    std::shared_ptr<LoopManager> clone_with_new_expr(const ExpressionMap& expr_map) const;
 
     /**
      * @brief Get target Loop Info
@@ -167,6 +199,7 @@ public:
      * @param dim_idx loop iterates by this index of dimension
      * @param entries input loop ports
      * @param exits output loop ports
+     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or not
      * @return new loop ID
      */
     template <typename T>
@@ -176,8 +209,13 @@ public:
                      size_t increment,
                      size_t dim_idx,
                      const std::vector<T>& entries,
-                     const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
+                     const std::vector<T>& exits,
+                     bool set_default_handlers = true) {
+        const auto normalized_increment = std::min(increment, work_amount);
+        const auto handlers = set_default_handlers
+                                  ? LoopInfo::SpecificIterationHandlers(work_amount, normalized_increment)
+                                  : LoopInfo::SpecificIterationHandlers();
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
         loop_info->set_dim_idx(dim_idx);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
@@ -193,6 +231,7 @@ public:
      * @param increment the step of loop counter increment
      * @param entries input loop ports
      * @param exits output loop ports
+     * @param set_default_handlers flag defines whether it is needed to set default set of SpecificIterationHandlers or not
      * @return new loop ID
      */
     template <typename T>
@@ -201,8 +240,13 @@ public:
                      size_t work_amount,
                      size_t increment,
                      const std::vector<T>& entries,
-                     const std::vector<T>& exits) {
-        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, increment, entries, exits);
+                     const std::vector<T>& exits,
+                     bool set_default_handlers = true) {
+        const auto normalized_increment = std::min(increment, work_amount);
+        const auto handlers = set_default_handlers
+                                  ? LoopInfo::SpecificIterationHandlers(work_amount, normalized_increment)
+                                  : LoopInfo::SpecificIterationHandlers();
+        const auto loop_info = std::make_shared<LoopManager::LoopInfo>(work_amount, normalized_increment, entries, exits, handlers);
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
             insert_loop_id(*expr_it, loop_id);
@@ -301,8 +345,6 @@ public:
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`
-     *        Note: This method should be removed when Softmax decomposition will be moved on data flow pipeline since
-     *              all decompositions should be call on this pipeline
      * @param new_expr_begin the first expression iterator
      * @param new_expr_end the next iterator after the last expression
      * @param decomposed_expr the expression that is decomposed into several other exprs

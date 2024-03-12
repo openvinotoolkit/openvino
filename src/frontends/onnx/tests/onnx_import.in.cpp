@@ -6228,6 +6228,26 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_bitwise_not) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float) {
+    auto model = convert_model("celu_float.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2}, {-45.f, 22.98f});
+    test_case.add_expected_output<float>(Shape{2}, {-1.f, 22.98f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_celu_float_alpha) {
+    auto model = convert_model("celu_float_alpha.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{4}, {-5.f, -4.25f, -10.f, 7.3f});
+    test_case.add_expected_output<float>(Shape{4}, {-2.43337319f, -2.27243678f, -2.89297802f, 7.3f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gelu_float) {
     auto model = convert_model("gelu_float.onnx");
 

@@ -1,15 +1,18 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import unittest
-
 import numpy as np
 import openvino.runtime as ov
 import pytest
+import tempfile
+import unittest
 from openvino.runtime import PartialShape, Model, Dimension
+from pathlib import Path
 
-from common.mo_convert_test_class import CommonMOConvertTest
+from common import constants
 from common.layer_test_class import CommonLayerTest
+from common.mo_convert_test_class import CommonMOConvertTest
+from common.tf_layer_test_class import save_to_pb
 
 
 def create_tf_graph_def(tmp_dir):
@@ -985,3 +988,112 @@ class TestTFLoadByModel(unittest.TestCase):
         fe = fem.load_by_model(model)
         assert fe is not None
         assert fe.get_name() == "tf"
+
+
+class TestInputTensorName(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_file_single_input_name(self):
+        import tensorflow as tf
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        Path(constants.out_path).mkdir(parents=True, exist_ok=True)
+        tmp_dir = tempfile.TemporaryDirectory(dir=constants.out_path).name
+        from openvino.tools.mo import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+        path = save_to_pb(model, tmp_dir)
+
+        ov_model = convert_model(path)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(path, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ref_inputs = ["Input", "Input_1"]
+        ov_model = convert_model(path, input=["Input", "Input_1"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_from_memory_single_input_name(self):
+        import tensorflow as tf
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.mo import convert_model
+
+        model, _, _ = create_tf_graph_def(None)
+
+        ov_model = convert_model(model)
+
+        ref_inputs = ["Input:0", "Input_1:0"]
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ov_model = convert_model(model, input=["Input:0", "Input_1:0"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+        ref_inputs = ["Input", "Input_1"]
+        ov_model = convert_model(model, input=["Input", "Input_1"])
+        for idx, output in enumerate(ov_model.inputs):
+            tensors = output.get_names()
+
+            assert len(tensors) == 1
+            out_tensor = list(tensors)[0]
+            assert out_tensor == ref_inputs[idx]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_tf1_input_with_identity(self):
+        import tensorflow as tf
+        tf.keras.backend.clear_session()
+        tf.compat.v1.reset_default_graph()
+        from openvino.tools.mo import convert_model
+
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.float32, [2], 'x')
+            y = tf.compat.v1.placeholder(tf.float32, [2], 'y')
+            input1 = tf.identity(x, name="x_identity")
+            input2 = tf.identity(y, name="y_identity")
+            add = tf.add(input1, input2, name="add")
+
+            tf.compat.v1.global_variables_initializer()
+            model = sess.graph_def
+
+        ov_model = convert_model(model)
+
+        assert ov_model.inputs[0].get_names() == {"x:0"}
+        assert ov_model.inputs[1].get_names() == {"y:0"}
+
+
+        ov_model = convert_model(model, input=["x", "y"])
+
+        assert ov_model.inputs[0].get_names() == {"x"}
+        assert ov_model.inputs[1].get_names() == {"y"}

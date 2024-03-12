@@ -9,8 +9,8 @@ import numpy as np
 
 class TestMultinomial(CommonTFLayerTest):
     def _prepare_input(self, inputs_dict, kwargs):
-        inputs_dict["num_samples"] = np.array(kwargs["num_samples"], dtype=np.int32)
-        inputs_dict["probs"] = kwargs["input"]
+        inputs_dict["num_samples:0"] = np.array(kwargs["num_samples:0"], dtype=np.int32)
+        inputs_dict["probs:0"] = kwargs["input:0"]
         return inputs_dict
 
     def create_tf_multinomial_net_shape(
@@ -138,5 +138,5 @@ class TestMultinomial(CommonTFLayerTest):
             temp_dir=temp_dir,
             ir_version=ir_version,
             use_legacy_frontend=use_legacy_frontend,
-            kwargs_to_prepare_input={"input": input, "num_samples": num_samples},
+            kwargs_to_prepare_input={"input:0": input, "num_samples:0": num_samples},
         )

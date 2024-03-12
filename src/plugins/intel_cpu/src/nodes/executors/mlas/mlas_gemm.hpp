@@ -27,7 +27,7 @@ public:
     }
 
     // offloads execution data preparation from the exec call
-    void update(const MemoryArgs& memory) override;
+    bool update(const MemoryArgs& memory) override;
 
     static bool supports(const FCConfig& config);
 

@@ -1,5 +1,5 @@
 ============================
-OpenVINO 2023.2
+OpenVINO 2024
 ============================
 
 .. meta::
@@ -14,7 +14,7 @@ OpenVINO 2023.2
 .. container::
    :name: ov-homepage-banner
 
-   OpenVINO 2023.3
+   OpenVINO 2024.0
 
    .. raw:: html
 
@@ -25,19 +25,19 @@ OpenVINO 2023.2
          			<li class="splide__slide">An open-source toolkit for optimizing and deploying deep learning models.<br>Boost your AI deep-learning inference performance!</li>
 
                   <li class="splide__slide"Better OpenVINO integration with PyTorch!<br>Use PyTorch models directly, without converting them first.<br>
-                     <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html">Learn more...</a>
+                     <a href="https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html">Learn more...</a>
                   </li>
                   <li class="splide__slide">OpenVINO via PyTorch 2.0 torch.compile()<br>Use OpenVINO directly in PyTorch-native applications!<br>
-                     <a href="https://docs.openvino.ai/2023.3/pytorch_2_0_torch_compile.html">Learn more...</a>
+                     <a href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more...</a>
                   </li>
                   <li class="splide__slide">Do you like Generative AI? You will love how it performs with OpenVINO!<br>
-                     <a href="https://docs.openvino.ai/2023.3/tutorials.html">Check out our new notebooks...</a>
+                     <a href="https://docs.openvino.ai/2024/learn-openvino/interactive-tutorials-python.html">Check out our new notebooks...</a>
          		</ul>
            </div>
          </section>
       </div>
 
-   .. button-ref::  get_started
+   .. button-ref::  get-started
       :ref-type: doc
       :class: ov-homepage-banner-btn
       :color: primary
@@ -55,14 +55,14 @@ OpenVINO 2023.2
    :class-container: ov-homepage-higlight-grid
 
    .. grid-item-card:: Performance Benchmarks
-      :link: openvino_docs_performance_benchmarks
+      :link: about-openvino/performance-benchmarks
       :link-alt: performance benchmarks
       :link-type: doc
 
       See latest benchmark numbers for OpenVINO and OpenVINO Model Server
 
    .. grid-item-card:: Work with Multiple Model Formats
-      :link: openvino_docs_model_processing_introduction
+      :link: openvino-workflow/model-preparation
       :link-alt: Supported Model Formats
       :link-type: doc
 
@@ -76,21 +76,21 @@ OpenVINO 2023.2
       Cloud-ready deployments for microservice applications
 
    .. grid-item-card:: Optimize Models
-      :link: openvino_docs_model_optimization_guide
+      :link: openvino-workflow/model-optimization
       :link-alt: model optimization
       :link-type: doc
 
       Boost performance using quantization and compression with NNCF
 
    .. grid-item-card:: Use OpenVINO with PyTorch Apps with torch.compile()
-      :link: pytorch_2_0_torch_compile
+      :link: openvino-workflow/torch-compile
       :link-alt: torch.compile
       :link-type: doc
 
       Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
 
    .. grid-item-card:: Optimize and Deploy Generative AI
-      :link: gen_ai_guide
+      :link: learn-openvino/llm_inference_guide
       :link-alt: gen ai
       :link-type: doc
 
@@ -132,8 +132,8 @@ Feature Overview
    :maxdepth: 2
    :hidden:
 
-   GET STARTED <get_started>
-   LEARN OPENVINO <learn_openvino>
-   OPENVINO WORKFLOW <openvino_workflow>
+   GET STARTED <get-started>
+   LEARN OPENVINO <learn-openvino>
+   OPENVINO WORKFLOW <openvino-workflow>
    DOCUMENTATION <documentation>
-   ABOUT OPENVINO <about_openvino>
+   ABOUT OPENVINO <about-openvino>

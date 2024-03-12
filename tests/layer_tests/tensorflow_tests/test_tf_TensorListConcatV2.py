@@ -10,10 +10,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTensorListConcatV2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_tensor_list_resize(self, input_shape, input_type):

@@ -67,18 +67,18 @@ The OpenVINO™ Runtime can infer models on different hardware devices. This sec
     <tbody>
         <tr>
             <td rowspan=2>CPU</td>
-            <td> <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">Intel CPU</a></tb>
+            <td> <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">Intel CPU</a></tb>
             <td><b><i><a href="./src/plugins/intel_cpu">openvino_intel_cpu_plugin</a></i></b></td>
             <td>Intel Xeon with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel Core Processors with Intel AVX2, Intel Atom Processors with Intel® Streaming SIMD Extensions (Intel® SSE), Intel® Advanced Matrix Extensions (Intel® AMX)</td>
         </tr>
         <tr>
-            <td> <a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_CPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-c-p-u">ARM CPU</a></tb>
+            <td> <a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.html">ARM CPU</a></tb>
             <td><b><i><a href="./src/plugins/intel_cpu">openvino_arm_cpu_plugin</a></i></b></td>
             <td>Raspberry Pi™ 4 Model B, Apple® Mac mini with Apple silicon
         </tr>
         <tr>
             <td>GPU</td>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_GPU.html#doxid-openvino-docs-o-v-u-g-supported-plugins-g-p-u">Intel GPU</a></td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.html">Intel GPU</a></td>
             <td><b><i><a href="./src/plugins/intel_gpu">openvino_intel_gpu_plugin</a></i></b></td>
             <td>Intel Processor Graphics, including Intel HD Graphics and Intel Iris Graphics</td>
         </tr>
@@ -96,22 +96,22 @@ OpenVINO™ Toolkit also contains several plugins which simplify loading models 
     </thead>
     <tbody>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_supported_plugins_AUTO.html">Auto</a></td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection.html">Auto</a></td>
             <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Auto plugin enables selecting Intel device for inference automatically</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Automatic_Batching.html">Auto Batch</a></td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching.html">Auto Batch</a></td>
             <td><b><i><a href="./src/plugins/auto_batch">openvino_auto_batch_plugin</a></i></b></td>
             <td>Auto batch plugin performs on-the-fly automatic batching (i.e. grouping inference requests together) to improve device utilization, with no programming effort from the user</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Hetero_execution.html#doxid-openvino-docs-o-v-u-g-hetero-execution">Hetero</a></td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution.html">Hetero</a></td>
             <td><b><i><a href="./src/plugins/hetero">openvino_hetero_plugin</a></i></b></td>
             <td>Heterogeneous execution enables automatic inference splitting between several devices</td>
         </tr>
         <tr>
-            <td><a href="https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Running_on_multiple_devices.html#doxid-openvino-docs-o-v-u-g-running-on-multiple-devices">Multi</a></td>
+            <td><a href="https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/multi-device.html">Multi</a></td>
             <td><b><i><a href="./src/plugins/auto">openvino_auto_plugin</a></i></b></td>
             <td>Multi plugin enables simultaneous inference of the same model on several devices in parallel</td>
         </tr>
@@ -160,9 +160,9 @@ You can also check out [Awesome OpenVINO](https://github.com/openvinotoolkit/awe
 ## System requirements
 
 The system requirements vary depending on platform and are available on dedicated pages:
-- [Linux](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_linux_header.html)
-- [Windows](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_windows_header.html)
-- [macOS](https://docs.openvino.ai/2023.3/openvino_docs_install_guides_installing_openvino_macos_header.html)
+- [Linux](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-linux.html)
+- [Windows](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-windows.html)
+- [macOS](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-macos.html)
 
 ## How to build
 
@@ -177,7 +177,7 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for contribution details. Thank you!
 Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) if you need help or wish to talk to OpenVINO developers. You can go to the channel dedicated to Good First Issue support if you are working on a task.
 
 ## Take the issue
-If you wish to be assigned to an issue please add a comment with `.take` command.  
+If you wish to be assigned to an issue please add a comment with `.take` command.
 
 ## Get support
 
@@ -192,7 +192,7 @@ Report questions, issues and suggestions, using:
 
 * [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki)
 * [OpenVINO Storage](https://storage.openvinotoolkit.org/)
-* Additional OpenVINO™ toolkit modules: 
+* Additional OpenVINO™ toolkit modules:
     * [openvino_contrib](https://github.com/openvinotoolkit/openvino_contrib)
 * [Intel® Distribution of OpenVINO™ toolkit Product Page](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html)
 * [Intel® Distribution of OpenVINO™ toolkit Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
@@ -206,6 +206,6 @@ Report questions, issues and suggestions, using:
 \* Other names and brands may be claimed as the property of others.
 
 [Open Model Zoo]:https://github.com/openvinotoolkit/open_model_zoo
-[OpenVINO™ Runtime]:https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_OV_Runtime_User_Guide.html
-[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html#convert-a-model-in-cli-ovc
+[OpenVINO™ Runtime]:https://docs.openvino.ai/2024/openvino-workflow/running-inference.html
+[OpenVINO Model Converter (OVC)]:https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-in-cli-ovc
 [Samples]:https://github.com/openvinotoolkit/openvino/tree/master/samples

@@ -4,31 +4,18 @@
 import pytest
 
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestEltwise(CommonTFLayerTest):
     def create_eltwise_net(self, shape, operation, ir_version, use_legacy_frontend):
-        """
-            Tensorflow net                 IR net
-
-            Inputs->Eltwise       =>       Inputs->Eltwise
-
-        """
-
         import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-
-            tf_x_shape = shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_legacy_frontend)
-
-            x = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
-            y = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')  # Input_1 in graph_def
+            x = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
+            y = tf.compat.v1.placeholder(tf.float32, shape, 'Input')  # Input_1 in graph_def
 
             if operation == 'sum':
                 tf.add(x, y, name='Operation')
@@ -39,12 +26,6 @@ class TestEltwise(CommonTFLayerTest):
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
-
-        #
-        #   Create reference IR net
-        #   Please, specify 'type': 'Input' for input node
-        #   Moreover, do not forget to validate ALL layer attributes!!!
-        #
 
         ref_net = None
 

@@ -16,10 +16,10 @@ OPS = {
 
 class TestResize(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'images' in inputs_info, "Test error: inputs_info must contain `x`"
-        images_shape = inputs_info['images']
+        assert 'images:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        images_shape = inputs_info['images:0']
         inputs_data = {}
-        inputs_data['images'] = np.random.randint(0, 10, images_shape)
+        inputs_data['images:0'] = np.random.randint(0, 10, images_shape)
         return inputs_data
 
     def create_resize_net(self, images_shape, images_type, size_value, align_corners, half_pixel_centers,

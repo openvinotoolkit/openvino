@@ -11,14 +11,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSegmentSum(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'data' in inputs_info, "Test error: inputs_info must contain `data`"
-        assert 'segment_ids' in inputs_info, "Test error: inputs_info must contain `segment_ids`"
-        data_shape = inputs_info['data']
-        segment_ids_shape = inputs_info['segment_ids']
+        assert 'data:0' in inputs_info, "Test error: inputs_info must contain `data`"
+        assert 'segment_ids:0' in inputs_info, "Test error: inputs_info must contain `segment_ids`"
+        data_shape = inputs_info['data:0']
+        segment_ids_shape = inputs_info['segment_ids:0']
         inputs_data = {}
-        inputs_data['data'] = np.random.randint(-50, 50, data_shape)
+        inputs_data['data:0'] = np.random.randint(-50, 50, data_shape)
         # segment_ids data must be sorted according to TensorFlow SegmentSum specification
-        inputs_data['segment_ids'] = np.sort(np.random.randint(0, 20, segment_ids_shape))
+        inputs_data['segment_ids:0'] = np.sort(np.random.randint(0, 20, segment_ids_shape))
         return inputs_data
 
     def create_segment_sum_net(self, data_shape, segment_ids_shape, data_type, segment_ids_type):

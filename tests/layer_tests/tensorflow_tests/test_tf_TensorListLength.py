@@ -11,10 +11,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTensorListLength(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_tensor_list_length(self, input_shape, input_type):
@@ -51,7 +51,7 @@ class TestTensorListLength(CommonTFLayerTest):
 class TestTensorListLengthEmptyList(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         inputs_data = {}
-        inputs_data['tensor_list_size'] = np.array([self.tensor_list_size], dtype=np.int32)
+        inputs_data['tensor_list_size:0'] = np.array([self.tensor_list_size], dtype=np.int32)
         return inputs_data
 
     def create_tensor_list_length_empty_list(self, tensor_list_size, element_shape):
