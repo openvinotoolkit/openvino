@@ -11,6 +11,8 @@
 #include "transformations/convert_precision.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+
 namespace ov {
 namespace test {
 

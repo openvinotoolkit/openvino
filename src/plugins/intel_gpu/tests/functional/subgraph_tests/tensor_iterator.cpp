@@ -244,11 +244,11 @@ protected:
                     for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                         if (itTargetShape != targetInputStaticShapes.end()) {
                             if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                                inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
+                                inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape, nullptr)});
                                 break;
                             }
                         } else {
-                            inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), default_shape)});
+                            inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), default_shape, nullptr)});
                         }
                     }
                 }

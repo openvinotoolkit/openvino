@@ -73,6 +73,33 @@
 #include "openvino/op/tan.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/region_yolo.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lrn.hpp"
+#include "openvino/op/pad.hpp"
+#include "openvino/op/non_max_suppression.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/experimental_detectron_generate_proposals.hpp"
+#include "openvino/op/experimental_detectron_prior_grid_generator.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/roi_align.hpp"
 
 namespace ov {
 namespace test {
@@ -81,18 +108,18 @@ namespace utils {
 static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::InputGenerateData>>> inputRanges = {
         // NodeTypeInfo: {IntRanges{}, RealRanges{}} (Ranges are used by generate<ov::Node>)
         { ov::op::v0::Erf::get_type_info_static(), {{{-3, 6}}, {{-3, 6, 10}}} },
-        { ov::op::v1::Divide::get_type_info_static(), {{{101, 100}}, {{2, 2, 128}}} },
+        { ov::op::v1::Divide::get_type_info_static(), {{{101, 100}}, {{1, 2, 128}}} },
         { ov::op::v1::FloorMod::get_type_info_static(), {{{2, 4}}, {{2, 2, 128}}} },
         { ov::op::v1::Mod::get_type_info_static(), {{{2, 4}}, {{2, 2, 128}}} },
         { ov::op::v1::ReduceMax::get_type_info_static(), {{{0, 5}}, {{-5, 5, 1000}}} },
-        { ov::op::v1::ReduceMean::get_type_info_static(), {{{0, 5, 1000}}, {{0, 5, 1000}}} },
+        { ov::op::v1::ReduceMean::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceMin::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceProd::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceSum::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceSum::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::ReduceSum::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v1::Power::get_type_info_static(), {{{2, 4}}, {{2, 2, 128}}} },
-        { ov::op::v4::Proposal::get_type_info_static(), {{{0, 1, 1000, 8234231}}, {{0, 1, 1000, 8234231}}} },
+        { ov::op::v4::Proposal::get_type_info_static(), {{{0, 255, 1, 8234231}}, {{0, 1, 1000, 8234231}}} },
         { ov::op::v4::ReduceL1::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v4::ReduceL2::get_type_info_static(), {{{0, 5}}, {{0, 5, 1000}}} },
         { ov::op::v7::DFT::get_type_info_static(), {{{0, 1}}, {{0, 1, 1000000}}} },
@@ -148,7 +175,46 @@ static std::map<ov::NodeTypeInfo, std::vector<std::vector<ov::test::utils::Input
         { ov::op::v7::Gelu::get_type_info_static(), {{{0, 15}}, {{-1, 2, 32768}}} },
         { ov::op::v8::MaxPool::get_type_info_static(), {{{0, 10, 1, 1}}, {{0, 10, 1, 1}}} },
         { ov::op::v9::SoftSign::get_type_info_static(), {{{0, 15}}, {{-100, 200, 32768}}} },
+// new temp
+        { ov::op::v1::Convolution::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::ConvolutionBackpropData::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::GroupConvolution::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::GroupConvolutionBackpropData::get_type_info_static(), {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v12::ScatterElementsUpdate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v3::ScatterUpdate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::Unsqueeze::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::RegionYolo::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::MatMul::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v11::Interpolate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v0::LRN::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v1::Pad::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v3::Broadcast::get_type_info_static(),  {{{0, 2000}}, {{0, 2000, 32768}}} },
+        { ov::op::v9::NonMaxSuppression::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
+        { ov::op::v8::MatrixNms::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}, {0, 1, 1000, 1, true}}} },
+        { ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage::get_type_info_static(),  {{{1, 0, 1, 1}}, {{1, 0, 1, 1}}}},
+        { ov::op::v6::ExperimentalDetectronPriorGridGenerator::get_type_info_static(),  {{{0, 0, 1, 1}}, {{-100, 200, 2, 1}, {0, 0, 1, 1}, {0, 0, 1, 1}}}},
+        { ov::op::v5::RNNSequence::get_type_info_static(),  {{{0, 15}, {0, 15}, {0, 10, 1, 1, true}}, {{0, 8, 32}, {0, 8, 32}, {0, 10, 1, 1, true}}} },
+        { ov::op::v1::LogicalAnd::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::LogicalNot::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::LogicalOr::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::LogicalXor::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::ReduceLogicalAnd::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::ReduceLogicalOr::get_type_info_static(),  {{{0, 2}}, {{0, 2}}} },
+        { ov::op::v1::Reshape::get_type_info_static(),  {{{-1000, 2000}, {0, 256, 1, 1, true}}, {{-100, 200, 32768}} }},
+        { ov::op::v4::Interpolate::get_type_info_static(),  {{{0, 15}}, {{0, 8, 32}}} },
+        { ov::op::v11::TopK::get_type_info_static(),  {{{-1000, 2000}, {0, 1000, 1, 1, true}}, {{-1000, 2000, 32768}}} },
+        { ov::op::v4::Range::get_type_info_static(),  {{{0, 15}, {1, 1000, 1, 1, true}}, {{-1000, 2000, 32768}, {1, 1000, 1, 1, true}}} },
+        { ov::op::v11::Interpolate::get_type_info_static(),  {{{0, 15}}, {{-1000, 2000, 32768}, }} },
+        { ov::op::v9::ROIAlign::get_type_info_static(),  {{{0, 15}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}},
+                                                          {{-1000, 2000, 32768}, {0, 1000, 1, 1, true}, {0, 1000, 1, 1, true}}} },
+        { ov::op::v0::Convert::get_type_info_static(),  {{{0, 1000}}, {{-100, 200, 32768}}} },
 };
+
+ov::test::utils::InputGenerateData get_range_by_type(ov::element::Type temp_type, uint64_t kMaxRange);
+
+std::string get_range_id(const std::shared_ptr<ov::Node>& node, size_t port, bool spectial = false);
+
+std::map<std::string, std::shared_ptr<ov::test::utils::InputGenerateData>> collect_ranges(const std::shared_ptr<ov::Model>& function, uint64_t kMaxRange);
 
 } // namespace utils
 } // namespace test

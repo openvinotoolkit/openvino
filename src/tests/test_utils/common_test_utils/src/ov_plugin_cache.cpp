@@ -19,6 +19,7 @@ namespace utils {
 ov::AnyMap global_plugin_config = {};
 std::unordered_set<std::string> available_devices = {};
 std::string target_device = "";
+std::string target_ops = "";
 std::string target_plugin_name = "";
 
 void register_plugin(ov::Core& ov_core) noexcept {

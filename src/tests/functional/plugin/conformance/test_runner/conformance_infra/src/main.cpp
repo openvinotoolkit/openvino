@@ -112,6 +112,10 @@ int main(int argc, char* argv[]) {
         ov::test::utils::global_plugin_config = ov::test::conformance::read_plugin_config(FLAGS_config_path);
     }
 
+    if (!FLAGS_target_ops.empty()) {
+        ov::test::utils::target_ops = FLAGS_target_ops.c_str();
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
 

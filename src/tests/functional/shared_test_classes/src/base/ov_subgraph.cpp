@@ -311,6 +311,7 @@ void SubgraphBaseTest::compile_model() {
 
 void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
+    auto inputDataMap = ov::test::utils::collect_ranges(function, testing::internal::Random::kMaxRange);
     auto inputMap = utils::getInputMap();
     auto itTargetShape = targetInputStaticShapes.begin();
     for (const auto &param : function->get_parameters()) {
@@ -322,7 +323,16 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
+                        if (!inputDataMap.empty()) {
+                            std::string spetial_range_id = ov::test::utils::get_range_id(nodePtr, port, true);
+                            if (inputDataMap.find(spetial_range_id) == inputDataMap.end()) {
+                                spetial_range_id = ov::test::utils::get_range_id(nodePtr, port, false);
+                            }
+                            inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape,
+                                           inputDataMap[spetial_range_id])});
+                        } else {
+                            inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape, nullptr)});
+                        }
                         break;
                     }
                 }

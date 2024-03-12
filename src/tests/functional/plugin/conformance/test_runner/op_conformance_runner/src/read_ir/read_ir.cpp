@@ -146,7 +146,7 @@ void ReadIRTest::SetUp() {
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape(), nullptr);
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
@@ -259,6 +259,24 @@ void ReadIRTest::SetUp() {
     }
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
+    }
+    if (!ov::test::utils::target_ops.empty()) {
+        std::regex op_regexp = std::regex(ov::test::utils::target_ops);
+        bool op_exists = false;
+        for (const auto& node : function->get_ops()) {
+            if (ov::op::util::is_constant(node) ||
+                ov::op::util::is_parameter(node)) {
+                continue;
+            }
+            auto a = node->get_type_name();
+            if (std::regex_match(node->get_type_name(), op_regexp)) {
+                op_exists = true;
+                break;
+            }
+        }
+        if (!op_exists) {
+             GTEST_SKIP() << "The graph is not contains requeried ops: " << ov::test::utils::target_ops << std::endl;
+        }
     }
     std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
     init_input_shapes(inputShapes);
