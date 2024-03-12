@@ -736,7 +736,7 @@ How to Use the OpenVINO™ Security Add-on
 
 This section requires interactions between the Model Developer/Independent Software vendor and the User. All roles must complete all applicable :ref:`set up steps <setup-host>` and :ref:`installation steps <ovsa-install>` before beginning this section.
 
-This document uses the :ref:`face-detection-retail-0004 <../../omz_models_model_face_detection_retail_0044>` model as an example.
+This document uses the :doc:`face-detection-retail-0004 <../../omz_models_model_face_detection_retail_0004>` model as an example.
 
 The following figure describes the interactions between the Model Developer, Independent Software Vendor, and User.
 
