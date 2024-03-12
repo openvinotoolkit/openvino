@@ -57,12 +57,12 @@ message(STATUS "PaddlePaddle version: ${PADDLE_VERSION}")
 if(PADDLE_VERSION VERSION_GREATER_EQUAL "2.6.0" OR PADDLE_VERSION VERSION_EQUAL "0.0.0")
     set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.5/ppdet/modeling/ops.py")
     set(PADDLEDET_OPS_SHA256 "e3da816421698ee97bb272c4410a03c300ab92045b7c87cccb9e52a8c18bc088")
+    set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release25/ppdet/modeling/)
 else()
     set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.1/ppdet/modeling/ops.py")
     set(PADDLEDET_OPS_SHA256 "5cc079eda295ed78b58fba8223c51d85a931a7069ecad51c6af5c2fd26b7a8cb")
+    set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release21/ppdet/modeling/)
 endif()
-
-set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/ppdet/modeling/)
 
 DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
 
