@@ -15,7 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_rsqrt_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Rsqrt", "RSQRT"});
+    default_op_checks(node, 1, {"Rsqrt", "RSQRT"},true);
     auto input = node.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
