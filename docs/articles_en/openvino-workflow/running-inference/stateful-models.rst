@@ -72,11 +72,11 @@ There are three methods of turning an OpenVINO model into a stateful one:
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
-* :ref:`MakeStateful transformation.<ov_ug_make_stateful>` - enables the user to choose which
+* :ref:`MakeStateful transformation <ov_ug_make_stateful>` - enables the user to choose which
   pairs of Parameter and Result to replace, as long as the paired operations are of the same
   shape and element type.
 
-* :ref:`LowLatency2 transformation.<ov_ug_low_latency>` - automatically detects and replaces
+* :ref:`LowLatency2 transformation <ov_ug_low_latency>` - automatically detects and replaces
   Parameter and Result pairs connected to hidden and cell state inputs of LSTM/RNN/GRU operations
   or Loop/TensorIterator operations.
 
