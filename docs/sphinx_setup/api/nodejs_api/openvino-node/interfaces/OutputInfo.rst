@@ -1,7 +1,7 @@
 Interface OutputInfo
 ====================
 
-.. code-block:: json
+.. code-block:: ts
 
    interfaceOutputInfo {
        tensor(): OutputTensorInfo;
@@ -18,7 +18,7 @@ Methods
 .. rubric:: tensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    tensor(): OutputTensorInfo
 
