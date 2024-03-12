@@ -61,8 +61,7 @@ OutputVector translate_sort_fx(const NodeContext& context) {
     }
 
     auto topk_outputs = translate_sort_common(context, stable, dim, descending);
-    auto indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(topk_outputs[1], element::i64));
-    return {context.mark_node(make_list_construct(OutputVector({topk_outputs[0], indices})))};
+    return {context.mark_node(make_list_construct(OutputVector({topk_outputs[0], topk_outputs[1]})))};
 };
 
 OutputVector translate_argsort(const NodeContext& context) {
