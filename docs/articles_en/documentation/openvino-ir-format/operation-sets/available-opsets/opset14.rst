@@ -169,6 +169,7 @@ Table of Contents
 * :doc:`RNNSequence <../operations-specifications/sequence/rnn-sequence-5>`
 * :doc:`ROIAlign <../operations-specifications/detection/roi-align-9>`
 * :doc:`ROIPooling <../operations-specifications/detection/roi-pooling-1>`
+* :doc:`ROIAlignRotated <openvino_docs_ops_detection_ROIAlignRotated_14>`
 * :doc:`Roll <../operations-specifications/movement/roll-7>`
 * :doc:`Round <../operations-specifications/arithmetic/round-5>`
 * :doc:`ScaledDotProductAttention <../operations-specifications/sequence/scaled-dot-product-attention>`
