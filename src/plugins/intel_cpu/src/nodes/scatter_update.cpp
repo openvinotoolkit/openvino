@@ -209,34 +209,13 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
     dataSize = dataPrec.size();
 
-    bool canBeInplace = !isDynamicNode() && getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
-                        !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
+    bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
-    NodeConfig config;
-    if (axisRelaxed) {
-        config.inConfs.resize(4);
-    } else {
-        config.inConfs.resize(3);
-    }
-    config.outConfs.resize(1);
-    config.inConfs[DATA_ID].constant(false);
-    config.inConfs[INDICES_ID].constant(false);
-    config.inConfs[UPDATE_ID].constant(false);
-    config.outConfs[0].constant(false);
-    config.inConfs[DATA_ID].inPlace(canBeInplace ? 0 : -1);
-    config.inConfs[INDICES_ID].inPlace(-1);
-    config.inConfs[UPDATE_ID].inPlace(-1);
-    config.outConfs[0].inPlace(canBeInplace ? 0 : -1);
-    if (axisRelaxed) {
-        config.inConfs[AXIS_ID].constant(false);
-        config.inConfs[AXIS_ID].inPlace(-1);
-    }
-
-    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec}, {LayoutType::ncsp, indicesPrec}, {LayoutType::ncsp, dataPrec}};
+    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}, {LayoutType::ncsp, indicesPrec}, {LayoutType::ncsp, dataPrec}};
     if (axisRelaxed)
         inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
     addSupportedPrimDesc(inPortConfig,
-                         {{LayoutType::ncsp, dataPrec}},
+                         {{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}},
                           impl_desc_type::unknown);
 }
 
@@ -404,6 +383,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
     }
 
     if (srcPtr != dstPtr) {
+        std::cout << "===============" << __LINE__ << std::endl;
         std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
@@ -526,15 +506,23 @@ void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *
     });
 }
 
-static std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape) {
+static inline std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape) {
+     size_t shapeRank = shape.size();
+     std::vector<size_t> coordinate;
+     coordinate.resize(shapeRank);
+     for (int i = shapeRank - 1; i >= 0; i--) {
+         coordinate[i] = offset % shape[i];
+         offset /= shape[i];
+     }
+     return coordinate;
+ }
+
+static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
     size_t shapeRank = shape.size();
-    std::vector<size_t> coordinate;
-    coordinate.resize(shapeRank);
     for (int i = shapeRank - 1; i >= 0; i--) {
         coordinate[i] = offset % shape[i];
         offset /= shape[i];
     }
-    return coordinate;
 }
 
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
@@ -560,38 +548,48 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
 
-    if (!use_init_val) {
-        const auto value = reduction_neutral_value<DataType>(reduction_type);
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-
-            for (size_t worker = start; worker < end; worker++) {
-                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
-                std::vector<size_t> data_coord(indices_coord);
-
-                for (size_t i = 0; i < index_dim_size; i++) {
-                    indices_coord[axis] = i;
-                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
-                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
-                    if (normalized_idxValue < data_dim_size) {
-                        data_coord[axis] = normalized_idxValue;
-                        data_buf.at<DataType, size_t>(data_coord) = value;
-                    }
-                }
-            }
-        });
-    }
-
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     if (axis == static_cast<int>(indices_rank - 1)) {
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
             splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+            VectorDims start_coord(indices_rank, 0);
+            getCoordinate(start_coord, start, squashed_indices_shape);
 
+            VectorDims indices_coord(start_coord);
+            VectorDims data_coord(indices_coord);
+
+            if (!use_init_val) {
+                const auto value = reduction_neutral_value<DataType>(reduction_type);
+
+                for (size_t worker = start; worker < end; worker++) {
+                    VectorDims data_coord(indices_coord);
+
+                    for (size_t i = 0; i < index_dim_size; i++) {
+                        indices_coord[axis] = i;
+                        IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                        size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                        if (normalized_idxValue < data_dim_size) {
+                            data_coord[axis] = normalized_idxValue;
+                            data_buf.at<DataType, size_t>(data_coord) = value;
+                        }
+                    }
+
+                    // update indices_coord
+                    for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                        indices_coord[j]++;
+                        if (indices_coord[j] < squashed_indices_shape[j]) {
+                            break;
+                        } else {
+                            indices_coord[j] = 0;
+                        }
+                    }
+                }
+            }
+
+            indices_coord = start_coord;
             for (size_t worker = start; worker < end; worker++) {
-                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
-                std::vector<size_t> data_coord(indices_coord);
+                data_coord = indices_coord;
 
                 // inner axis loop for better performance
                 for (size_t i = 0; i < index_dim_size; i++) {
@@ -605,26 +603,79 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                         kernel_func(dst, src);
                     }
                 }
+
+                // update indices_coord
+                for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                    indices_coord[j]++;
+                    if (indices_coord[j] < squashed_indices_shape[j]) {
+                        break;
+                    } else {
+                        indices_coord[j] = 0;
+                    }
+                }
             }
         });
     } else {
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
             splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+            VectorDims start_coord(indices_rank, 0);
+            getCoordinate(start_coord, start, squashed_indices_shape);
+
+            VectorDims indices_coord(start_coord);
+            VectorDims data_coord(indices_coord);
+
+            if (!use_init_val) {
+                const auto value = reduction_neutral_value<DataType>(reduction_type);
+
+                for (size_t i = 0; i < index_dim_size; i++) {
+                    indices_coord = start_coord;
+                    indices_coord[axis] = i;
+                    for (size_t worker = start; worker < end; worker++) {
+                        data_coord = indices_coord;
+                        IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                        size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
+                        if (normalized_idxValue < data_dim_size) {
+                            data_coord[axis] = normalized_idxValue;
+                            data_buf.at<DataType, size_t>(data_coord) = value;
+                        }
+
+                        // update indices_coord
+                        for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                            indices_coord[j]++;
+                            if (indices_coord[j] < squashed_indices_shape[j]) {
+                                break;
+                            } else {
+                                indices_coord[j] = 0;
+                            }
+                        }
+                    }
+                }
+            }
 
             // external axis loop for better performance
             for (size_t i = 0; i < index_dim_size; i++) {
+                indices_coord = start_coord;
                 for (size_t worker = start; worker < end; worker++) {
-                    std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
-                    std::vector<size_t> data_coord(indices_coord);
                     indices_coord[axis] = i;
+                    data_coord = indices_coord;
                     IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
-                    size_t normalized_idxValue = static_cast<size_t>((idxValue < 0) ? idxValue + data_dim_size : idxValue);
-                    if (normalized_idxValue < data_dim_size) {
-                        data_coord[axis] = normalized_idxValue;
-                        DataType& dst = data_buf.at<DataType, size_t>(data_coord);
-                        DataType src = updates_buf.at<DataType, size_t>(indices_coord);
-                        kernel_func(dst, src);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    OPENVINO_ASSERT(idxValue < data_dim_size);
+                    data_coord[axis] = idxValue;
+                    DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                    DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+                    kernel_func(dst, src);
+
+
+                    // update indices_coord
+                    for (int32_t j = indices_rank - 1; j >= 0; j--) {
+                        indices_coord[j]++;
+                        if (indices_coord[j] < squashed_indices_shape[j]) {
+                            break;
+                        } else {
+                            indices_coord[j] = 0;
+                        }
                     }
                 }
             }
