@@ -9,7 +9,6 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-
 OutputVector translate_sort_common(const NodeContext& context, bool stable, int64_t dim, bool descending) {
     const auto input_tensor = context.get_input(0);
     auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
