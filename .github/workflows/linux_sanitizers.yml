@@ -46,7 +46,6 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
-      DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       LSAN_IGNORE: /__w/openvino/openvino/openvino/tests/lsan/suppressions.txt
       ASAN_IGNORE: /__w/openvino/openvino/openvino/tests/asan/suppressions.supp
@@ -144,6 +143,7 @@ jobs:
             -DENABLE_OV_PADDLE_FRONTEND=ON \
             -DENABLE_OV_PYTORCH_FRONTEND=ON \
             -DENABLE_OV_ONNX_FRONTEND=ON \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             ${{ matrix.SANITIZER_CMAKE_OPTION }} \
             -S ${OPENVINO_REPO} \
