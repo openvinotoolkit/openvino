@@ -90,7 +90,7 @@ OpenVINO 2024
       Optimize generation of the graph model with PyTorch 2.0 torch.compile() backend
 
    .. grid-item-card:: Optimize and Deploy Generative AI
-      :link: openvino-workflow/generative-ai-models-guide
+      :link: learn-openvino/llm_inference_guide
       :link-alt: gen ai
       :link-type: doc
 

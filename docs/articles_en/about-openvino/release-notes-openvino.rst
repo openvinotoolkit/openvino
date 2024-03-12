@@ -17,12 +17,12 @@ What's new
 
   * Improved out-of-the-box experience for TensorFlow sentence encoding models through the
     installation of OpenVINO™ toolkit Tokenizers.
-  * New and noteworthy models validated:
-    Mistral, StableLM-tuned-alpha-3b, and StableLM-Epoch-3B.
   * OpenVINO™ toolkit now supports Mixture of Experts (MoE), a new architecture that helps
     process more efficient generative models through the pipeline.
   * JavaScript developers now have seamless access to OpenVINO API. This new binding enables a
     smooth integration with JavaScript API.
+  * New and noteworthy models validated:
+    Mistral, StableLM-tuned-alpha-3b, and StableLM-Epoch-3B.
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
 
@@ -40,8 +40,7 @@ What's new
 * More portability and performance to run AI at the edge, in the cloud, or locally.
 
   * A preview plugin architecture of the integrated Neural Processor Unit (NPU) as part of
-    Intel® Core™ Ultra processor (codename Meteor Lake) is now included in the main OpenVINO™
-    package on PyPI.
+    Intel® Core™ Ultra processor is now included in the main OpenVINO™ package on PyPI.
   * Improved performance on ARM by enabling the ARM threading library. In addition, we now
     support multi-core ARM platforms and enabled FP16 precision by default on MacOS.
   * New and improved LLM serving samples from OpenVINO Model Server for multi-batch inputs and
@@ -130,12 +129,12 @@ TensorFlow Framework Support
 * String tensors are now natively supported, handled on input, output, and intermediate layers
   (`PR #22024 <https://github.com/openvinotoolkit/openvino/pull/22024>`__).
 
-  * TensorFlow Hub universal-sentence-encoder-multilingual inferred out of the box
-  * string tensors supported for ``Gather``, ``Concat``, and ``Reshape`` operations
-  * integration with openvino-tokenizers module - importing openvino-tokenizers automatically
-    patches TensorFlow FE with the required translators for models with tokenization
+  * TensorFlow Hub universal-sentence-encoder-multilingual inferred out of the box.
+  * String tensors supported for ``Gather``, ``Concat``, and ``Reshape`` operations.
+  * Integration with openvino-tokenizers module - importing openvino-tokenizers automatically
+    patches TensorFlow Frontend with the required translators for models with tokenization.
 
-* Fallback for Model Optimizer by operation to the legacy Frontend is no longer available.
+* Fallback for Model Optimizer by operation to the legacy frontend is no longer available.
   Fallback by .json config will remain until Model Optimizer is discontinued
   (`PR #21523 <https://github.com/openvinotoolkit/openvino/pull/21523>`__).
 * Support for the following has been added:
@@ -195,7 +194,7 @@ Neural Network Compression Framework (NNCF)
 
 * The `Activation-aware Weight Quantization (AWQ) <https://arxiv.org/abs/2306.00978>`__
   algorithm for data-aware 4-bit weights compression is now available. It facilitates better
-  accuracy for compressed LLMs with high ratio of 4-bit weights. To enable it, use the
+  accuracy for compressed LLMs with a high ratio of 4-bit weights. To enable it, use the
   dedicated ``awq`` optional parameter of ``the nncf.compress_weights()`` API.
 * ONNX models are now supported in Post-training Quantization with Accuracy Control, through
   the ``nncf.quantize_with_accuracy_control()``, method. It may be used for models in the
@@ -246,8 +245,8 @@ Known issues
 | **Component - CPU Plugin**
 | *ID* - N/A
 | *Description:*
-|   Starting with 24.0, model inputs and outputs will no longer have tensor names, unless
-    explicitly set to align with the PyTorch framework behavior.
+|   Starting with release 2024.0, model inputs and outputs will no longer have tensor names,
+    unless explicitly set to align with the PyTorch framework behavior.
 
 | **Component - GPU runtime**
 | *ID* - 132376
@@ -260,7 +259,7 @@ Known issues
 | *ID* - N/A
 | *Description:*
 |   Performance results (first token latency) may vary from those offered by the previous OpenVINO version, for
-    “latency” hint inference of LLMs with long prompts on Xeon platforms with 2 or more
+    “latency” hint inference of LLMs with long prompts on Intel® Xeon® platforms with 2 or more
     sockets. The reason is that all CPU cores of just the single socket running the application
     are employed, lowering the memory overhead for LLMs when numa control is not used.
 | *Workaround:*
@@ -276,7 +275,7 @@ features, you will have to revert to the last LTS OpenVINO version supporting th
 For more details, refer to the :doc:`OpenVINO Legacy Features and Components <../documentation/legacy-features>`
 page.
 
-Discontinued in 2024
+Discontinued in 2024.0
 -----------------------------
 
 * Runtime components:
@@ -304,17 +303,26 @@ Discontinued in 2024
   * Support for Apache MXNet, Caffe, and Kaldi model formats. Conversion to ONNX may be used
     as a solution.
 
+
 Deprecated and to be removed in the future
 --------------------------------------------
 
 * The OpenVINO™ Development Tools package (pip install openvino-dev) will be removed from
-  installation options and distribution channels beginning with OpenVINO 2025.
+  installation options and distribution channels beginning with OpenVINO 2025.0.
 * Model Optimizer will be discontinued with OpenVINO 2025.0. Consider using the
   :doc:`new conversion methods <../openvino-workflow/model-preparation/convert-model-to-ir>`
   instead. For more details, see the
   :doc:`model conversion transition guide <../documentation/legacy-features/transition-legacy-conversion-api>`.
 * OpenVINO property Affinity API will be discontinued with OpenVINO 2025.0.
   It will be replaced with CPU binding configurations (``ov::hint::enable_cpu_pinning``).
+* OpenVINO Model Server components:
+
+  * Reshaping a model in runtime based on the incoming requests (auto shape and auto batch size)
+    is deprecated and will be removed in the future. Using OpenVINO's dynamic shape models is
+    recommended instead.
+
+
+
 
 
 

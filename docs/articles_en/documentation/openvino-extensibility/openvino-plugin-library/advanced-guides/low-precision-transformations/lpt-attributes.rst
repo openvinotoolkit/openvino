@@ -1,4 +1,4 @@
-.. {#../low-precision-transformations_attributes}
+.. {#openvino_docs_OV_UG_lpt_attributes}
 
 Attributes
 ==========
@@ -14,7 +14,7 @@ Attributes
    :hidden:
 
    AvgPoolPrecisionPreserved <lpt-attributes/avg-pool-precision-preserved>
-   IntervalsAlignment <lpt-attributes/intervals-alignment>  
+   IntervalsAlignment <lpt-attributes/intervals-alignment>
    PrecisionPreserved <lpt-attributes/precision-preserved>
    Precisions <lpt-attributes/precisions>
    QuantizationAlignment <lpt-attributes/quantization-alignment>
@@ -53,8 +53,8 @@ Introduction
     * - :doc:`QuantizationGranularity <lpt-attributes/quantization-granularity>`
       - Quantization granularity
       - Yes
-      - No 
-      
+      - No
+
 
 ``Target`` attribute group defines attribute usage during model transformation for the best performance:
 
@@ -88,13 +88,13 @@ Attributes usage by transformations:
       - AlignQuantizationIntervals, AlignQuantizationParameters, FakeQuantizeDecompositionTransformation, MarkupAvgPoolPrecisionPreserved
     * - AvgPoolPrecisionPreserved
       - MarkupAvgPoolPrecisionPreserved
-      - 
+      -
     * - Precisions
       - MarkupCanBeQuantized, MarkupPrecisions
       - FakeQuantizeDecompositionTransformation
     * - PerTensorQuantization
       - MarkupPerTensorQuantization
-      - 
+      -
     * - IntervalsAlignment
       - AlignQuantizationIntervals
       - FakeQuantizeDecompositionTransformation
@@ -102,6 +102,6 @@ Attributes usage by transformations:
       - AlignQuantizationParameters
       - FakeQuantizeDecompositionTransformation
 
-.. note::                                                                     
+.. note::
    The same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, ``Precision`` attribute instances are created in ``MarkupCanBeQuantized`` and ``MarkupPrecisions`` transformations, but the reasons for their creation are different.
 

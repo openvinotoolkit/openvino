@@ -5,7 +5,7 @@ Enumeration resizeAlgorithm
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    RESIZE_CUBIC: number
 
@@ -17,7 +17,7 @@ Enumeration resizeAlgorithm
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    RESIZE_LINEAR: number
 
@@ -29,7 +29,7 @@ Enumeration resizeAlgorithm
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    RESIZE_NEAREST: number
 

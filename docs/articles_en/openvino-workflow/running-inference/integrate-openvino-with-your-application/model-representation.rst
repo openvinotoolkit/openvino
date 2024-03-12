@@ -77,7 +77,7 @@ the conversion will throw an exception. For example:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:partial_shape]
 
    .. tab-item:: C++
@@ -191,7 +191,7 @@ OpenVINO™ provides several debug capabilities:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:visualize]
 
    .. tab-item:: C++
@@ -227,7 +227,7 @@ OpenVINO™ provides several debug capabilities:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:serialize]
 
    .. tab-item:: C++
@@ -243,6 +243,6 @@ Additional Resources
 
 * :doc:`Available Operation Sets <../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
 * :doc:`OpenVINO™ Runtime Extensibility Developer Guide <../../../documentation/openvino-extensibility>`.
-* :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformations-api>`.
+* :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformation-api>`.
 
 

@@ -33,7 +33,7 @@ Property addon
 
 The **openvino-node** package exports ``addon`` which contains the following properties:
 
-.. code-block:: json
+.. code-block:: ts
 
    interface NodeAddon {
        Core: CoreConstructor;
@@ -55,7 +55,7 @@ Properties
 .. rubric:: Core
 
 
-.. code-block:: json
+.. code-block:: ts
 
    Core: CoreConstructor
 
@@ -70,7 +70,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    PartialShape: PartialShapeConstructor
 
@@ -83,7 +83,7 @@ Properties
 .. rubric:: Tensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
   Tensor: TensorConstructor
 
@@ -98,7 +98,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    element: typeof element
 
@@ -112,7 +112,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    preprocess: {
        PrePostProcessor: PrePostProcessorConstructor;

@@ -1,7 +1,7 @@
 Interface InputInfo
 ===================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface InputInfo {
        model(): InputModelInfo;
@@ -19,7 +19,7 @@ Methods
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    model(): InputModelInfo
 
@@ -32,7 +32,7 @@ Methods
 .. rubric:: preprocess
 
 
-.. code-block:: json
+.. code-block:: ts
 
    preprocess(): PreProcessSteps
 
@@ -45,7 +45,7 @@ Methods
 .. rubric:: tensor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    tensor(): InputTensorInfo
 

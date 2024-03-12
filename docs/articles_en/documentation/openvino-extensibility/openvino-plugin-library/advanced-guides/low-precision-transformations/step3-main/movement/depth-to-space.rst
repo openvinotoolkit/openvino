@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_DepthToSpaceTransformation}
+.. {#openvino_docs_OV_UG_lpt_DepthToSpaceTransformation}
 
 DepthToSpaceTransformation transformation
 =========================================

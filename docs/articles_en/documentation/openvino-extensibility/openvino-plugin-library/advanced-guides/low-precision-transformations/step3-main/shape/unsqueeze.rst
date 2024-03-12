@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_UnsqueezeTransformation}
+.. {#openvino_docs_OV_UG_lpt_UnsqueezeTransformation}
 
 UnsqueezeTransformation transformation
 ======================================

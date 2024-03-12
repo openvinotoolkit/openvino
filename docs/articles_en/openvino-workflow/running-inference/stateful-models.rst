@@ -68,15 +68,15 @@ from the application code to OpenVINO and all related internal work is hidden fr
 
 There are three methods of turning an OpenVINO model into a stateful one:
 
-* :doc:`Optimum-Intel<../generative-ai-models-guide>` - the most user-friendly option. All necessary optimizations
+* :doc:`Optimum-Intel <../../learn-openvino/llm_inference_guide/llm-inference-hf>` - the most user-friendly option. All necessary optimizations
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
-* :ref:`MakeStateful transformation.<ov_ug_make_stateful>` - enables the user to choose which
+* :ref:`MakeStateful transformation <ov_ug_make_stateful>` - enables the user to choose which
   pairs of Parameter and Result to replace, as long as the paired operations are of the same
   shape and element type.
 
-* :ref:`LowLatency2 transformation.<ov_ug_low_latency>` - automatically detects and replaces
+* :ref:`LowLatency2 transformation <ov_ug_low_latency>` - automatically detects and replaces
   Parameter and Result pairs connected to hidden and cell state inputs of LSTM/RNN/GRU operations
   or Loop/TensorIterator operations.
 

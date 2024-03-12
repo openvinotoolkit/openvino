@@ -160,5 +160,5 @@ This example shows how to use predicate to construct a pattern. Also it shows ho
 See Also
 ########
 
-* :doc:`OpenVINO™ Transformations <../transformations-api>`
+* :doc:`OpenVINO™ Transformations <../transformation-api>`
 

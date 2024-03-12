@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_PullTransposeThroughDequantization}
+.. {#openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization}
 
 PullTransposeThroughDequantization transformation
 =================================================

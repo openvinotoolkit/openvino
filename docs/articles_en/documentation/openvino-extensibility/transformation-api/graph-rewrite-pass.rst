@@ -38,6 +38,6 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 See Also
 ########
 
-* :doc:`OpenVINO™ Transformations <../transformations-api>`
+* :doc:`OpenVINO™ Transformations <../transformation-api>`
 
 

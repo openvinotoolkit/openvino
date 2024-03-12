@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_ReduceMinTransformation}
+.. {#openvino_docs_OV_UG_lpt_ReduceMinTransformation}
 
 ReduceMinTransformation transformation
 ======================================

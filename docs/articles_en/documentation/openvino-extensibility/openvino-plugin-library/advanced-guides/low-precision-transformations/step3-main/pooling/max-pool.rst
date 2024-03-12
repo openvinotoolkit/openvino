@@ -1,4 +1,4 @@
-.. {#../../../low-precision-transformations_MaxPoolTransformation}
+.. {#openvino_docs_OV_UG_lpt_MaxPoolTransformation}
 
 MaxPoolTransformation transformation
 ====================================

@@ -1,4 +1,4 @@
-.. {#../../low-precision-transformations_PropagateSharedValue}
+.. {#openvino_docs_OV_UG_lpt_PropagateSharedValue}
 
 PropagateSharedValue transformation
 ===================================

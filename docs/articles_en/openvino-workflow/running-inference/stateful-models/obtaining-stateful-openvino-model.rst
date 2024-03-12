@@ -12,7 +12,7 @@ and you have three ways to do it:
 
 * `Optimum-Intel <https://github.com/huggingface/optimum-intel>`__ - an automated solution
   applicable to a selection of models (not covered by this article, for a usage guide
-  refer to the :doc:`Optimize and Deploy Generative AI Models <../../generative-ai-models-guide>` article).
+  refer to the :doc:`LLM Inference with Hugging Face and Optimum Intel <../../../learn-openvino/llm_inference_guide>` article).
 * :ref:`MakeStateful transformation <ov_ug_make_stateful>` - to choose which pairs of
   Parameter and Result to replace.
 * :ref:`LowLatency2 transformation <ov_ug_low_latency>` - to detect and replace Parameter
@@ -39,7 +39,7 @@ without spaces 'tensor_name_1'.
 
 **State naming rule**: in most cases, the name of a state is a concatenation of the
 Parameter/Result tensor names. If there are no tensor names,
-:doc:`friendly names <../../../documentation/openvino-extensibility/transformations-api>` are used.
+:doc:`friendly names <../../../documentation/openvino-extensibility/transformation-api>` are used.
 
 
 **Examples:**
@@ -100,7 +100,7 @@ input, as shown in the picture above. These inputs should set the initial value 
 initialization of ReadValue operations. However, such initialization is not supported in
 the current State API implementation. Input values are ignored, and the initial values
 for the ReadValue operations are set to zeros unless the user specifies otherwise via
-:ref:`State API <ov_ug_state_api>`.
+:doc:`State API <../stateful-models>`.
 
 Applying LowLatency2 Transformation
 ++++++++++++++++++++++++++++++++++++
@@ -181,7 +181,7 @@ Applying LowLatency2 Transformation
             :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`,
+4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
    .. image:: ../../../_static/images/low_latency_limitation_2.svg
