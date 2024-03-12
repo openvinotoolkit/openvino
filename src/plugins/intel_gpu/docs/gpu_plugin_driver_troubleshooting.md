@@ -28,7 +28,7 @@ Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO 
 
 ## 2. Make sure that OpenCL® Runtime is installed
 
-OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/2024/get-started/install-openvino-overview/install-openvino-linux-header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
+OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/2024/get-started/install-openvino/install-openvino-linux.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
 To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
 
 ## 3. Make sure that user has all required permissions to work with GPU device

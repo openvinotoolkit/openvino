@@ -94,10 +94,10 @@ cards <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/ar
 and `Intel® Data Center GPU Flex
 Series <https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/flex-series.html>`__.
 To get started, first `install
-OpenVINO <https://docs.openvino.ai/2024/get-started/install-openvino-overview.html>`__
+OpenVINO <https://docs.openvino.ai/2024/get-started/install-openvino.html>`__
 on a system equipped with one or more Intel GPUs. Follow the `GPU
 configuration
-instructions <https://docs.openvino.ai/2024/get-started/configurations-header/configurations-intel-gpu.html>`__
+instructions <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 to configure OpenVINO to work with your GPU. Then, read on to learn how
 to accelerate inference with GPUs in OpenVINO!
 
@@ -172,7 +172,7 @@ section.
 
 If the GPUs are installed correctly on the system and still do not
 appear in the list, follow the steps described
-`here <https://docs.openvino.ai/2024/get-started/configurations-header/configurations-intel-gpu.html>`__
+`here <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 to configure your GPU drivers to work with OpenVINO. Once we have the
 GPUs working with OpenVINO, we can proceed with the next sections.
 
@@ -1400,7 +1400,7 @@ corresponding documentation:
 -  `Query Device
    Properties <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties.html>`__
 -  `Configurations for GPUs with
-   OpenVINO <https://docs.openvino.ai/2024/get-started/configurations-header/configurations-intel-gpu.html>`__
+   OpenVINO <https://docs.openvino.ai/2024/get-started/configurations/configurations-intel-gpu.html>`__
 -  `Benchmark Python
    Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 -  `Asynchronous

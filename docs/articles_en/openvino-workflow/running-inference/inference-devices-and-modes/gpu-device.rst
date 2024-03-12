@@ -8,7 +8,7 @@ GPU Device
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API
+   gpu-device/remote-tensor-api-gpu-plugin
 
 .. meta::
    :description: The GPU plugin in the Intel® Distribution of OpenVINO™ toolkit
@@ -19,11 +19,11 @@ GPU Device
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
 
-- `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
+- `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 - `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
 - `Accelerate Deep Learning Inference with Intel® Processor Graphics <https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics>`__
 
-The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <openvino_docs_install_guides_configurations_for_intel_gpu>`.
+The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For more information on how to configure a system to use it, see the :doc:`GPU configuration <../../../get-started/configurations/configurations-intel-gpu>`.
 
 Device Naming Convention
 #######################################
@@ -35,7 +35,7 @@ Device Naming Convention
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
 * For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
-For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
+For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
 .. code-block:: sh
 
@@ -124,16 +124,16 @@ The GPU plugin supports the following data types as inference precision of inter
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
 The ``u1``/``u8``/``i8`` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
-For more details on how to get a quantized model, refer to the :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>`.
+For more details on how to get a quantized model, refer to the :doc:`Model Optimization guide <../../model-optimization>`.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <openvino_docs_MO_DG_FP16_Compression>`, which is executed in the ``f16`` precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-compressing-model-to-fp16>`, which is executed in the ``f16`` precision.
 
 .. note::
 
    The newer generation Intel Iris Xe and Xe MAX GPUs provide accelerated performance for i8/u8 models. Hardware acceleration for ``i8``/``u8`` precision may be unavailable on older generation platforms. In such cases, a model is executed in the floating-point precision taken from IR.
    Hardware support of ``u8``/``i8`` acceleration can be queried via the ``ov::device::capabilities`` property.
 
-:doc:`Hello Query Device C++ Sample <openvino_sample_hello_query_device>` can be used to print out the supported data types for all detected devices.
+:doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>` can be used to print out the supported data types for all detected devices.
 
 
 Supported Features
@@ -164,7 +164,7 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
          :fragment: compile_model_multi
 
 
-For more details, see the :doc:`Multi-device execution <openvino_docs_OV_UG_Running_on_multiple_devices>`.
+For more details, see the :doc:`Multi-device execution <multi-device>`.
 
 Automatic Batching
 +++++++++++++++++++++++++++++++++++++++
@@ -213,7 +213,7 @@ Alternatively, it can be enabled explicitly via the device notion, for example `
                :fragment: compile_model_auto_batch
 
 
-For more details, see the :doc:`Automatic batching<openvino_docs_OV_UG_Automatic_Batching>`.
+For more details, see the :doc:`Automatic batching<automatic-batching>`.
 
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++
@@ -230,7 +230,7 @@ which means that the incoming infer requests can be processed simultaneously.
 When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
 The reason for this is that the implementation of streams in the GPU plugin supports weight memory sharing across streams, thus, memory consumption may be lower, compared to the other approaches.
 
-For more details, see the :doc:`optimization guide<openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+For more details, see the :doc:`optimization guide<../optimize-inference>`.
 
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
@@ -246,7 +246,7 @@ Dynamic Shapes
    - Dynamic rank is not supported.
 
 The general description of what dynamic shapes are and how they are used can be found in
-:doc:`dynamic shapes guide <openvino_docs_OV_UG_DynamicShapes>`.
+:doc:`dynamic shapes guide <../dynamic-shapes>`.
 To support dynamic shape execution, the following basic infrastructures are implemented:
 
 - Runtime shape inference: infers output shapes of each primitive for a new input shape at runtime.
@@ -322,7 +322,7 @@ Recommendations for performance improvement
   - GPU plugin deploys in-memory cache to store compiled kernels for previously used shapes,
     but the size of such an in-memory cache is limited. Therefore, it is recommended to use
     a permanent cache such as OpenVino model_cache. For more details, See
-    :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
+    :doc:`Model caching overview <../optimize-inference/optimizing-latency/model-caching-overview>`.
 
 - The longer the inference sequence, the better throughput can be obtained, because it can
   leverage more compilation time during inference.
@@ -365,9 +365,9 @@ The GPU plugin has the following additional preprocessing options:
 
 With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DTensor`` (or derived) to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
 
-For usage examples, refer to the :doc:`RemoteTensor API<openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+For usage examples, refer to the :doc:`RemoteTensor API<gpu-device/remote-tensor-api-gpu-plugin>`.
 
-For more details, see the :doc:`preprocessing API<openvino_docs_OV_UG_Preprocessing_Overview>`.
+For more details, see the :doc:`preprocessing API<../optimize-inference/optimize-preprocessing>`.
 
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
@@ -382,17 +382,17 @@ loading process, a significant load time reduction can be achieved.
 Currently, GPU plugin implementation fully supports static models only. For dynamic models,
 kernel caching is used instead and multiple ‘.cl_cache’ files are generated along with the ‘.blob’ file.
 
-For more details, see the :doc:`Model caching overview <openvino_docs_OV_UG_Model_caching_overview>`.
+For more details, see the :doc:`Model caching overview <../optimize-inference/optimizing-latency/model-caching-overview>`.
 
 Extensibility
 +++++++++++++++++++++++++++++++++++++++
 
-For information on this subject, see the :doc:`GPU Extensibility <openvino_docs_Extensibility_UG_GPU>`.
+For information on this subject, see the :doc:`GPU Extensibility <../../../documentation/openvino-extensibility/custom-gpu-operations>`.
 
 GPU Context and Memory Sharing via RemoteTensor API
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For information on this subject, see the :doc:`RemoteTensor API of GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+For information on this subject, see the :doc:`RemoteTensor API of GPU Plugin <gpu-device/remote-tensor-api-gpu-plugin>`.
 
 Supported Properties
 #######################################
@@ -465,19 +465,19 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
-- Try to group individual infer jobs by using :doc:`automatic batching <openvino_docs_OV_UG_Automatic_Batching>`.
--	Consider :doc:`caching <openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
--	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.
--	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated ``queue_throttle`` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints <openvino_docs_OV_UG_Performance_Hints>`.
-- When operating media inputs, consider :doc:`remote tensors API of the GPU Plugin <openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Conversion API can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<../../model-optimization>`.
+- Try to group individual infer jobs by using :doc:`automatic batching <automatic-batching>`.
+-	Consider :doc:`caching <../optimize-inference/optimizing-latency/model-caching-overview>` to minimize model load time.
+-	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options <cpu-device>` can be used to limit the number of inference threads for the CPU plugin.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated ``queue_throttle`` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints <../optimize-inference/high-level-performance-hints>`.
+- When operating media inputs, consider :doc:`remote tensors API of the GPU Plugin <gpu-device/remote-tensor-api-gpu-plugin>`.
 
 
 Additional Resources
 #######################################
 
-* :doc:`Inference Devices and Modes <openvino_docs_Runtime_Inference_Modes_Overview>`.
-* :doc:`Optimization guide <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
-* `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
+* :doc:`Optimization guide <../optimize-inference>`.
+* `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 
 

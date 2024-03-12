@@ -13,21 +13,21 @@ OpenVINO Extensibility Mechanism
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_Extensibility_UG_add_openvino_ops
-   openvino_docs_Extensibility_UG_Frontend_Extensions
-   openvino_docs_Extensibility_UG_GPU
+   openvino-extensibility/custom-openvino-operations
+   openvino-extensibility/frontend-extensions
+   openvino-extensibility/custom-gpu-operations
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_transformations
-   OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
+   openvino-extensibility/transformation-api
+   OpenVINO Plugin Developer Guide <openvino-extensibility/openvino-plugin-library>
 
 
 The Intel® Distribution of OpenVINO™ toolkit supports neural-network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, TensorFlow Lite, and PaddlePaddle. The list of supported operations is different for each of the supported frameworks.
-To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_resources_supported_operations_frontend>`.
+To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <../about-openvino/compatibility-and-support/supported-operations-framework-frontend>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -38,7 +38,7 @@ Importing models with such operations requires additional steps. This guide illu
 
 Defining a new custom operation basically consists of two parts:
 
-1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for :doc:`GPU <openvino_docs_Extensibility_UG_GPU>` is described in separate guides.
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for :doc:`GPU <openvino-extensibility/custom-gpu-operations>` is described in separate guides.
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 
@@ -49,7 +49,7 @@ Definition of Operation Semantics
 
 If the custom operation can be mathematically represented as a combination of exiting OpenVINO operations and such decomposition gives desired performance, then low-level operation implementation is not required. Refer to the latest OpenVINO operation set, when deciding feasibility of such decomposition. You can use any valid combination of exiting operations. The next section of this document describes the way to map a custom operation.
 
-If such decomposition is not possible or appears too bulky with a large number of constituent operations that do not perform well, then a new class for the custom operation should be implemented, as described in the :doc:`Custom Operation Guide <openvino_docs_Extensibility_UG_add_openvino_ops>`.
+If such decomposition is not possible or appears too bulky with a large number of constituent operations that do not perform well, then a new class for the custom operation should be implemented, as described in the :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`.
 
 You might prefer implementing a custom operation class if you already have a generic C++ implementation of operation kernel. Otherwise, try to decompose the operation first, as described above. Then, after verifying correctness of inference and resulting performance, you may move on to optional implementation of Bare Metal C++.
 
@@ -58,7 +58,7 @@ Mapping from Framework Operation
 
 Mapping of custom operation is implemented differently, depending on model format used for import.
 If a model is represented in the ONNX (including models exported from PyTorch in ONNX), TensorFlow Lite, PaddlePaddle or
-TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino_docs_Extensibility_UG_Frontend_Extensions>`
+TensorFlow formats, then one of the classes from :doc:`Frontend Extension API <openvino-extensibility/frontend-extensions>`
 should be used. It consists of several classes available in C++ which can be used with the ``--extensions`` option in Model Optimizer
 or when a model is imported directly to OpenVINO runtime using the ``read_model`` method.
 Python API is also available for runtime model import.
@@ -80,7 +80,7 @@ Registering Extensions
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
 .. note::
-   This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
+   This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
 Use the ``ov::Core::add_extension`` method to load the extensions to the ``ov::Core`` object. This method allows loading library with extensions or extensions from the code.
 
@@ -106,7 +106,7 @@ Extensions can be loaded from a code with the  ``ov::Core::add_extension`` metho
          :fragment: [add_extension]
 
 
-The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino_docs_Extensibility_UG_add_openvino_ops>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
+The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino-extensibility/custom-openvino-operations>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
 
 .. tab-set::
 
@@ -191,7 +191,7 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 See Also
 ########
 
-* :doc:`OpenVINO Transformations <openvino_docs_transformations>`
-* :doc:`Using OpenVINO Runtime Samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Hello Shape Infer SSD sample <openvino_sample_hello_reshape_ssd>`
+* :doc:`OpenVINO Transformations <openvino-extensibility/transformation-api>`
+* :doc:`Using OpenVINO Runtime Samples <../learn-openvino/openvino-samples>`
+* :doc:`Hello Shape Infer SSD sample <../learn-openvino/openvino-samples/hello-reshape-ssd>`
 
