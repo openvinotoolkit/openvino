@@ -16,7 +16,7 @@ ROIAlignRotated
 
 **Detailed description**: `Reference <https://arxiv.org/abs/1703.06870>`__.
 
-*ROIAlignROtated* performs the following for each Region of Interest (ROI) for each input feature map:
+*ROIAlignRotated* performs the following for each Region of Interest (ROI) for each input feature map:
 
 1. Multiply box coordinates with *spatial_scale* to produce box coordinates relative to the input feature map size based on *aligned_mode* attribute.
 2. Divide the box into bins according to the *sampling_ratio* attribute.
@@ -68,7 +68,7 @@ ROIAlignRotated
 * *clockwise_mode*
 
   * **Description**:  If True, the angle in each proposal follows a clockwise fashion in image space, otherwise, the angle is counterclockwise.
-  * **Type**: bool
+  * **Type**: ``bool``
   * **Default value**: False  
   * **Required**: *no*
 
