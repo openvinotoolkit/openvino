@@ -163,6 +163,15 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
 }
 
+/*
+    Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
+    Found difference is:
+    1. Operations (except ReduceMin and ReduceMax) are lost mention of zero-rank input behavior
+       from their description. We assume it shouldn't be worse than opset 1.
+    2. Opset 11 introduced requirement for axes values to be in a range [-r, r-1] where r = rank(data)
+       Same time Reduce* operations in OpenVINO has same requirement from first version
+*/
+
 namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
