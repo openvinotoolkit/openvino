@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "snippets/fake_quantize_decomposition_test.hpp"
+#include "ie_system_conf.h"
 
 using namespace LayerTestsDefinitions;
 using namespace ngraph;
@@ -80,7 +81,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 
 namespace legacyFuse {
-const std::vector<TestValues> testValuesLegacyFuse = {
+const std::vector<TestValues> testValuesLegacyFuse_binary_post = {
     {
         ov::element::f32,
         ngraph::Shape{1, 3, 16, 16},
@@ -100,14 +101,17 @@ const std::vector<TestValues> testValuesLegacyFuse = {
         ngraph::Shape{1, 3, 16, 16},
         ov::element::f32,
         1.f,
-        {{}, {}, {}, {}}
+        {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}}
     },
+};
+
+const std::vector<TestValues> testValuesLegacyFuse = {
     {
         ov::element::f32,
         ngraph::Shape{1, 3, 16, 16},
         ov::element::f32,
         1.f,
-        {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}}
+        {{}, {}, {}, {}}
     },
 };
 
@@ -121,8 +125,24 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::ValuesIn(testValuesLegacyFuse),
         ::testing::ValuesIn(operations),
-        // reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + reorder(ABcd16b16a) + Convolution + reorder(nchw)
-        ::testing::Values(std::pair<size_t, size_t>{6, 0}),
+        // if ISA has avx512, conv node will use brgconv, there will be a extra reorder(nhwc)
+        // for brg, reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + reorder(Acdb16a) + Convolution(nhwc) + reorder(nchw)
+        // for no brg, reorder (nChw[16|8]c) + MaxPool + reorder(ABcd8b8a) + Convolution(nchw8c) + reorder(nchw)
+        ::testing::Values(InferenceEngine::with_cpu_x86_avx512_core() ? std::pair<size_t, size_t>{6, 0} : std::pair<size_t, size_t>{5, 0}),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    FakeQuantizeDecompositionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_binary_post,
+    FakeQuantizeDecompositionTest,
+    ::testing::Combine(
+        ::testing::ValuesIn(testValuesLegacyFuse_binary_post),
+        ::testing::ValuesIn(operations),
+        // if ISA has avx512_amx, conv node will use brgconv, there will be a extra reorder(nhwc).
+        // if it's avx512 + binary_post ops, conv node will not use brgconv.
+        // for brg, reorder (nChw[16|8]c) + MaxPool + reorder(nhwc) + reorder(Acdb16a) + Convolution(nhwc) + reorder(nchw)
+        // for no brg, reorder (nChw[16|8]c) + MaxPool + reorder(ABcd8b8a) + Convolution(nChw8c) + reorder(nchw)
+        ::testing::Values(InferenceEngine::with_cpu_x86_avx512_core_amx() ? std::pair<size_t, size_t>{6, 0} : std::pair<size_t, size_t>{5, 0}),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     FakeQuantizeDecompositionTest::getTestCaseName);
 

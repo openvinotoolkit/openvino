@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/output_layers_handling_in_transformations_for_concat_multi_channel.hpp"
+#include "low_precision_transformations/output_layers_concat_multi_channel.hpp"
 
 #include <memory>
 #include <tuple>
