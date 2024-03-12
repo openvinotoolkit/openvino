@@ -103,10 +103,11 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsMarkedToKeepSrcP
     {
         auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 2, 4, 3});
         auto weights = opset8::Constant::create(element::i8, Shape{3, 2}, {1, 2, 3, 4, 5, 6});
-        auto mul_dequantized = std::make_shared<opset8::Multiply>(weights, weights);
-        mark_as_dequantization_node(mul_dequantized);
-        auto convert = std::make_shared<ov::op::v0::Convert>(mul_dequantized, ov::element::f32);
-        auto matmul = std::make_shared<opset8::MatMul>(data, convert);
+        auto dequantization_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        auto dequantization_scale = opset8::Constant::create(element::f32, Shape{}, {2});
+        auto dequantization_multiply = std::make_shared<opset8::Multiply>(dequantization_convert, dequantization_scale );
+        mark_as_dequantization_node(dequantization_multiply);
+        auto matmul = std::make_shared<opset8::MatMul>(data, dequantization_multiply);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 2}, {2, 3});
         auto mul = std::make_shared<opset8::Multiply>(matmul, mul_const);
         model = std::make_shared<Model>(NodeVector{mul}, ParameterVector{data});
