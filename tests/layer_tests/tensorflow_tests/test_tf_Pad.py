@@ -57,7 +57,7 @@ class TestComplexPad(CommonTFLayerTest):
         inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape).astype(np.float32) - 2
         return inputs_data
 
-    def create_pad_complex_net(self, input_shape, pads_values):
+    def create_pad_complex_net(self, input_shape, pads_values, const_value, pad_op):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
@@ -65,7 +65,12 @@ class TestComplexPad(CommonTFLayerTest):
             param_imag = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag')
             complex = tf.raw_ops.Complex(real=param_real, imag=param_imag)
             paddings = tf.constant(pads_values, dtype=tf.int32)
-            pad = tf.raw_ops.Pad(input=complex, paddings=paddings, name='pad')
+            if pad_op == 'Pad':
+                pad = tf.raw_ops.Pad(input=complex, paddings=paddings, name='pad');
+            elif pad_op == 'PadV2':
+                real_part, imag_part = const_value
+                constant_values = tf.complex(real_part, imag_part)
+                pad = tf.raw_ops.PadV2(input=complex, paddings=paddings, constant_values=constant_values, name='padv2')
             real = tf.raw_ops.Real(input=pad)
             imag = tf.raw_ops.Imag(input=pad)
             tf.raw_ops.Pack(values=[real, imag], axis=-1)
@@ -75,9 +80,12 @@ class TestComplexPad(CommonTFLayerTest):
         return tf_net, None
 
     test_data_basic = [
-        dict(input_shape=[1, 50], pads_values=[[0, 1], [2, 3]]),
-        dict(input_shape=[2, 20, 10], pads_values=[[0, 1], [2, 3], [4, 0]]),
-        dict(input_shape=[1, 5, 10, 3], pads_values=[[1, 1], [0, 0], [4, 0], [1, 1]]),
+        dict(input_shape=[1, 50], pads_values=[[0, 1], [2, 3]], const_value=None, pad_op='Pad'),
+        dict(input_shape=[2, 20, 10], pads_values=[[0, 1], [2, 3], [4, 0]], const_value=None, pad_op='Pad'),
+        dict(input_shape=[1, 5, 10, 3], pads_values=[[1, 1], [0, 0], [4, 0], [1, 1]], const_value=None, pad_op='Pad'),
+        dict(input_shape=[1, 50], pads_values=[[0, 1], [2, 3]], const_value=(1.0, 0.0), pad_op='PadV2'),
+        dict(input_shape=[2, 20, 10], pads_values=[[0, 1], [2, 3], [4, 0]], const_value=(0.0, 1.0), pad_op='PadV2'),
+        dict(input_shape=[1, 5, 10, 3], pads_values=[[1, 1], [0, 0], [4, 0], [1, 1]], const_value=(1.0, 2.0), pad_op='PadV2'),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
