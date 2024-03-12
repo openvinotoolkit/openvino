@@ -16,7 +16,8 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-
+#include <chrono>
+using namespace std::chrono;
 using namespace dnnl;
 
 namespace ov {
@@ -408,6 +409,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
+            auto start = high_resolution_clock::now();
             switch (reduction_type) {
             case Reduction::NONE :
                 scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, tensor_assign);
@@ -430,6 +432,9 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             default :
                 break;
             }
+            auto stop = high_resolution_clock::now();
+            auto duration = duration_cast<microseconds>(stop - start);
+            std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us" << std::endl;
             break;
         }
         default: {
@@ -531,8 +536,8 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
 template <typename DataType, typename IndexType, typename func_t>
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, func_t& kernel_func) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
-    uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
+    IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -573,7 +578,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
             for (size_t worker = start; worker < end; worker++) {
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_idx + idx * indicesBlockND[axis + 1]);
+                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // TODO check up idxValue
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
@@ -632,11 +638,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
             for (size_t worker = start; worker < end; worker++) {
                 // inner axis loop for better performance
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_idx + idx * indicesBlockND[axis + 1]);
+                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // TODO check up idxValue
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_idx + idx * indicesBlockND[axis + 1];
+                    auto src = updatePtr + indices_offset;
                     kernel_func(*dst, *src);
                 }
 
@@ -679,11 +686,12 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                     }
                 }
                 for (size_t worker = start; worker < end; worker++) {
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_idx + idx * indicesBlockND[axis + 1]);
+                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // TODO check up idxValue
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_idx + idx * indicesBlockND[axis + 1];
+                    auto src = updatePtr + indices_offset;
                     kernel_func(*dst, *src);
 
                     // increment
