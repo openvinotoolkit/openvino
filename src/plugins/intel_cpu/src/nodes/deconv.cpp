@@ -672,52 +672,52 @@ void Deconvolution::execute(dnnl::stream strm) {
 }
 
 namespace {
-DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
-                                                   const dnnl::memory::desc& wgh_candidate,
-                                                   const dnnl::memory::desc& out_candidate,
-                                                   const dnnl::algorithm alg,
-                                                   const std::vector<ptrdiff_t>& stride,
-                                                   const std::vector<ptrdiff_t>& dilation,
-                                                   const ov::CoordinateDiff& paddingL,
-                                                   const ov::CoordinateDiff& paddingR,
-                                                   const dnnl::primitive_attr& attr,
-                                                   const dnnl::engine& engine) {
-    auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
-        return memory::dims(orig_dims.begin(), orig_dims.end());
-    };
+// DefaultDeconvDescs createDescriptorInternalDefault(const dnnl::memory::desc& in_candidate,
+//                                                    const dnnl::memory::desc& wgh_candidate,
+//                                                    const dnnl::memory::desc& out_candidate,
+//                                                    const dnnl::algorithm alg,
+//                                                    const std::vector<ptrdiff_t>& stride,
+//                                                    const std::vector<ptrdiff_t>& dilation,
+//                                                    const ov::CoordinateDiff& paddingL,
+//                                                    const ov::CoordinateDiff& paddingR,
+//                                                    const dnnl::primitive_attr& attr,
+//                                                    const dnnl::engine& engine) {
+//     auto convertDims = [] (const std::vector<ptrdiff_t>& orig_dims) {
+//         return memory::dims(orig_dims.begin(), orig_dims.end());
+//     };
 
-    const dnnl::primitive_attr emptyAttr;
+//     const dnnl::primitive_attr emptyAttr;
 
-    auto conv_desc = convolution_forward::primitive_desc(
-        engine,
-        prop_kind::forward_inference,
-        alg,
-        out_candidate, wgh_candidate, in_candidate,
-        convertDims(stride),
-        convertDims(dilation),
-        convertDims(paddingL),
-        convertDims(paddingR),
-        emptyAttr,
-        true);
+//     auto conv_desc = convolution_forward::primitive_desc(
+//         engine,
+//         prop_kind::forward_inference,
+//         alg,
+//         out_candidate, wgh_candidate, in_candidate,
+//         convertDims(stride),
+//         convertDims(dilation),
+//         convertDims(paddingL),
+//         convertDims(paddingR),
+//         emptyAttr,
+//         true);
 
-    if (!conv_desc.get(true)) {
-        return {nullptr, nullptr};
-    }
+//     if (!conv_desc.get(true)) {
+//         return {nullptr, nullptr};
+//     }
 
-    auto deconv_desc = convolution_backward_data::primitive_desc(
-        engine,
-        alg,
-        out_candidate, wgh_candidate, in_candidate,
-        convertDims(stride),
-        convertDims(dilation),
-        convertDims(paddingL),
-        convertDims(paddingR),
-        conv_desc,
-        attr,
-        true);
+//     auto deconv_desc = convolution_backward_data::primitive_desc(
+//         engine,
+//         alg,
+//         out_candidate, wgh_candidate, in_candidate,
+//         convertDims(stride),
+//         convertDims(dilation),
+//         convertDims(paddingL),
+//         convertDims(paddingR),
+//         conv_desc,
+//         attr,
+//         true);
 
-    return {deconv_desc, conv_desc};
-}
+//     return {deconv_desc, conv_desc};
+// }
 
 dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_candidate,
                                                   const dnnl::memory::desc& wgh_candidate,
@@ -755,25 +755,25 @@ dnnl::primitive_desc createDescriptorInternalInt8(const dnnl::memory::desc& in_c
     }
 }
 
-DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
-                                                 const dnnl::memory::desc& wghDesc,
-                                                 const dnnl::memory::desc& dstDesc,
-                                                 const std::vector<ptrdiff_t>& stride,
-                                                 const std::vector<ptrdiff_t>& dilation,
-                                                 const ov::CoordinateDiff& paddingL,
-                                                 const ov::CoordinateDiff& paddingR,
-                                                 const dnnl::primitive_attr& attr,
-                                                 const dnnl::engine& engine) {
-    dnnl::algorithm alg = dnnl::algorithm::convolution_direct;
-    convolution_backward_data::primitive_desc deconv_desc;
-    convolution_forward::primitive_desc fwd_conv_pd;
-    std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, attr, engine);
-    if (fwd_conv_pd.get(true) == nullptr) {
-        OPENVINO_THROW("Forward convolution primitive descriptor is nullable");
-    }
+// DefaultDeconvDescs createDefaultMkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
+//                                                  const dnnl::memory::desc& wghDesc,
+//                                                  const dnnl::memory::desc& dstDesc,
+//                                                  const std::vector<ptrdiff_t>& stride,
+//                                                  const std::vector<ptrdiff_t>& dilation,
+//                                                  const ov::CoordinateDiff& paddingL,
+//                                                  const ov::CoordinateDiff& paddingR,
+//                                                  const dnnl::primitive_attr& attr,
+//                                                  const dnnl::engine& engine) {
+//     dnnl::algorithm alg = dnnl::algorithm::convolution_direct;
+//     convolution_backward_data::primitive_desc deconv_desc;
+//     convolution_forward::primitive_desc fwd_conv_pd;
+//     std::tie(deconv_desc, fwd_conv_pd) = createDescriptorInternalDefault(srcDesc, wghDesc, dstDesc, alg, stride, dilation, paddingL, paddingR, attr, engine);
+//     if (fwd_conv_pd.get(true) == nullptr) {
+//         OPENVINO_THROW("Forward convolution primitive descriptor is nullable");
+//     }
 
-    return {deconv_desc, fwd_conv_pd};
-}
+//     return {deconv_desc, fwd_conv_pd};
+// }
 
 dnnl::primitive_desc createInt8MkldnnDeconvDesc(const dnnl::memory::desc& srcDesc,
                                                 const dnnl::memory::desc& wghDesc,
