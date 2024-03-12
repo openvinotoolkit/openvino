@@ -197,12 +197,12 @@ TestCase::TestCase(const std::shared_ptr<ov::Model>& function, const std::string
             "TEMPLATE");
     } catch (...) {
     }
-    m_request = m_core.compile_model(function, dev).create_infer_request();
-
     ov::pass::Manager pass_manager;
     pass_manager.register_pass<ov::pass::Serialize>(std::string("/home/workspace/openvino/bin/intel64/Release/a.xml"),
                                                     std::string("/home/workspace/openvino/bin/intel64/Release/a.bin"));
     pass_manager.run_passes(function);
+
+    m_request = m_core.compile_model(function, dev).create_infer_request();
 }
 
 void TestCase::run(const size_t tolerance_bits) {

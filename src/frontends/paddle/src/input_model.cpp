@@ -206,6 +206,10 @@ std::basic_string<T> get_model_path(const std::basic_string<T>& path, std::ifstr
         std::ifstream file(model_path);
         if (file.good()) {
             model_file = model_path;
+            std::string params_ext = ".pdiparams";
+            std::string weights_file{model_path};
+            weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+            weights_stream->open(weights_file, std::ios::binary);
         } else {
             model_file += paddle::get_path_sep<T>() + "__model__";
         }
@@ -230,6 +234,10 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
         auto model_path = model_file + paddle::get_path_sep<T>() + model_name + L".pdmodel";
         if (std::ifstream file(model_path); !file.good()) {
             model_file = model_path;
+            std::wstring params_ext = L".pdiparams";
+            std::wstring weights_file{model_path};
+            weights_file.replace(weights_file.size() - ext.size(), ext.size(), params_ext);
+            weights_stream->open(weights_file.c_str(), std::ios::binary);
         } else {
             model_file += paddle::get_path_sep<T>() + L"__model__";
         }
