@@ -6,6 +6,7 @@
 
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/pass/softmax_reshape_elimination.hpp"
+#include "snippets/pass/gn_decomposition.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
@@ -50,6 +51,7 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::CommonFakeQuantizeDecomposition, is_quantized);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::SoftmaxReshapeElimination, is_domain_sensitive);
+        REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::GNDecomposition, is_domain_sensitive);
         manager.run_passes(body);
 
         ov::snippets::pass::CommonOptimizations::SubgraphManager subgraph_manager;

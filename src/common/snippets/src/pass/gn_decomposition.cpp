@@ -5,6 +5,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "openvino/op/group_normalization.hpp"
+#include "snippets/op/reduce.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -57,10 +58,8 @@ GNDecomposition::GNDecomposition() {
             reshaped_node1 = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
         }
 
-        // reduceSum on dimension [C / group * spatial]
-        std::vector<int64_t> axis(1, 3);
-        auto axis_node = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{axis.size()}, axis);
-        const auto reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(reshaped_node1, axis_node, true);
+        const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(reshaped_node1, group_rank - 1);
+        op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
 
         // reduceMean
         auto group_shape_static = group_shape.to_shape();
@@ -78,7 +77,8 @@ GNDecomposition::GNDecomposition() {
         auto sqr_const = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<int64_t>{2});
         auto sqr = std::make_shared<ov::op::v1::Power>(sub_mean, sqr_const);
         // reduceSum((x - mean) ^ 2)
-        auto sqr_reduce_sum = std::make_shared<ov::op::v1::ReduceSum>(sqr, axis_node, true);
+        auto sqr_reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(sqr, group_rank - 1);
+        op::ReduceBase::compute_and_set_reduce_subtensors(sqr_reduce_sum);
         // reduceMean((x - mean) ^ 2)
         const auto group_size_inv_node_aux = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
         auto sqr_mean = std::make_shared<ov::op::v1::Multiply>(sqr_reduce_sum, group_size_inv_node_aux);
@@ -90,6 +90,23 @@ GNDecomposition::GNDecomposition() {
 
         // divide variance
         const auto variance_inv = std::make_shared<ov::snippets::op::PowerStatic>(variance, -1.f);
+
+        // remove invariance in inner loop
+        std::vector<size_t> subtensor_invariance(group_rank, 1);
+        subtensor_invariance[3] = PortDescriptor::ServiceDimensions::FULL_DIM;
+        PortDescriptorUtils::set_port_descriptor_ptr(reduce_mean->input(0), std::make_shared<PortDescriptor>(reduce_mean->input(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(reduce_mean->output(0), std::make_shared<PortDescriptor>(reduce_mean->output(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->input(0), std::make_shared<PortDescriptor>(sqr_mean->input(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->input(1), std::make_shared<PortDescriptor>(sqr_mean->input(1), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->output(0), std::make_shared<PortDescriptor>(sqr_mean->output(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->input(0), std::make_shared<PortDescriptor>(eps_add->input(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->input(1), std::make_shared<PortDescriptor>(eps_add->input(1), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->output(0), std::make_shared<PortDescriptor>(eps_add->output(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(variance->input(0), std::make_shared<PortDescriptor>(variance->input(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(variance->output(0), std::make_shared<PortDescriptor>(variance->output(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(variance_inv->input(0), std::make_shared<PortDescriptor>(variance_inv->input(0), subtensor_invariance));
+        PortDescriptorUtils::set_port_descriptor_ptr(variance_inv->output(0), std::make_shared<PortDescriptor>(variance_inv->output(0), subtensor_invariance));
+
         auto mvn = std::make_shared<ov::op::v1::Multiply>(sub_mean, variance_inv);
 
         // reshape mvn from [N, group, 1, (C / group) * spatial] to [N, group, C / group, spatial]
@@ -122,18 +139,11 @@ GNDecomposition::GNDecomposition() {
         auto result_prec = group_norm_node->get_output_element_type(0);
         std::shared_ptr<ov::op::Op> biased_node_convert = biased_node;
         if (result_prec != element::f32) {
-            biased_node_convert = std::make_shared<ov::snippets::op::ConvertSaturation>(biased_node, data.get_element_type());
+            biased_node_convert = std::make_shared<ov::snippets::op::ConvertSaturation>(biased_node, result_prec);
         }
 
         // reshape_back [N, group, C / group, spatial] to [N, C, spatial]
         const auto reshape_back_node = std::make_shared<ov::snippets::op::Reshape>(biased_node_convert, orig_shape);
-
-        std::vector<size_t> subtensor(group_rank, 1);
-        subtensor[3] = PortDescriptor::ServiceDimensions::FULL_DIM;
-        PortDescriptorUtils::set_port_descriptor_ptr(reduce_sum->input(0), std::make_shared<PortDescriptor>(reduce_sum->input(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(reduce_sum->output(0), std::make_shared<PortDescriptor>(reduce_sum->output(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(sqr_reduce_sum->input(0), std::make_shared<PortDescriptor>(sqr_reduce_sum->input(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(sqr_reduce_sum->output(0), std::make_shared<PortDescriptor>(sqr_reduce_sum->output(0), subtensor));
 
         return ov::replace_node_update_name(group_norm_node, reshape_back_node);
     };

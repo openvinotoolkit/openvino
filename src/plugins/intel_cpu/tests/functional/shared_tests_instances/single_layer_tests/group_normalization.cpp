@@ -8,8 +8,6 @@ using ov::test::GroupNormalizationTest;
 
 const std::vector<ov::test::ElementType> netPrecisions = {
     ov::element::f32,
-    // ov::element::bf16,  // remove specific merge convert
-    // ov::element::i8     // ref impl does not support int8 precision
 };
 
 // static shapes
@@ -42,6 +40,11 @@ const std::vector<double> epsilon = {
     0.0001
 };
 
+std::vector<ov::AnyMap> additionalConfig = {
+    {{ov::hint::inference_precision(ov::element::f32)}},
+    {{ov::hint::inference_precision(ov::element::bf16)}}
+};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_GroupNormalizationStatic,
     GroupNormalizationTest,
@@ -52,7 +55,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(numGroups),
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_CPU),
-                     testing::Values(ov::AnyMap())),
+                     testing::ValuesIn(additionalConfig)),
                      GroupNormalizationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -65,7 +68,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::ValuesIn(numGroups),
                      testing::ValuesIn(epsilon),
                      testing::Values(ov::test::utils::DEVICE_CPU),
-                     testing::Values(ov::AnyMap())),
+                     testing::ValuesIn(additionalConfig)),
                      GroupNormalizationTest::getTestCaseName);
 
 } // anonymous namespace

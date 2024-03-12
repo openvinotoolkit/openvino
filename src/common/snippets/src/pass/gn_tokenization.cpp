@@ -20,8 +20,7 @@ ov::snippets::pass::TokenizeGNSnippets::TokenizeGNSnippets() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::pass::TokenizeGNSnippets")
         auto group_norm_node = ov::as_type_ptr<ov::op::v12::GroupNormalization>(m.get_match_root());
-        if (group_norm_node->is_dynamic() ||
-            TokenizeSnippets::get_supported_element_types().count(group_norm_node->get_element_type()) == 0)
+        if (group_norm_node->is_dynamic() || group_norm_node->get_element_type() != element::f32)
             return false;
 
         auto subgraph = op::Subgraph::wrap_node_as_subgraph(group_norm_node);
