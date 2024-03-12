@@ -67,7 +67,7 @@ Convert Hugging Face tokenizer and model to OpenVINO IR format
 
 **Convert Tokenizer**
 
-`OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+`OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 come equipped with a CLI tool that facilitates the conversion of tokenizers
 from either the Hugging Face Hub or those saved locally to the OpenVINO IR format:
 
@@ -176,7 +176,7 @@ Additional Resources
 
 * `Text generation C++ samples that support most popular models like LLaMA 2 <https://github.com/openvinotoolkit/openvino.genai/tree/master/text_generation/causal_lm/cpp>`__
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
-* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python#openvino-tokenizers>`__
+* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
 * :doc:`Stateful Models Low-Level Details <../../openvino-workflow/running-inference/stateful-models>`
 * :doc:`Working with Textual Data <../../openvino-workflow/running-inference/string-tensors>`

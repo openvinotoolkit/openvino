@@ -1,6 +1,6 @@
 .. {#llm_inference}
 
-LLM Inference with Hugging Face and Optimum Intel
+Inference with Hugging Face and Optimum Intel
 =====================================================
 
 The steps below show how to load and infer LLMs from Hugging Face using Optimum Intel.
@@ -286,4 +286,4 @@ Additional Resources
 * `Generation with LLMs <https://huggingface.co/docs/transformers/llm_tutorial>`__
 *	`Pipeline class <https://huggingface.co/docs/transformers/main_classes/pipelines>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__
-* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
+* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
