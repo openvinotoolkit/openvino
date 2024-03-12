@@ -4,7 +4,7 @@ Interface TensorConstructor
 .. rubric:: Interface TensorConstructor
 
 
-.. code-block:: json
+.. code-block:: ts
 
    interface TensorConstructor {
        new Tensor(type, shape, tensorData?): Tensor;
@@ -17,7 +17,7 @@ Interface TensorConstructor
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    new Tensor(type, shape, tensorData?): Tensor
 
@@ -27,7 +27,7 @@ Interface TensorConstructor
 - shape: number[]
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      tensorData: number[]|SupportedTypedArray
 

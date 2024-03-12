@@ -1,7 +1,7 @@
 Interface CompiledModel
 =======================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface CompiledModel {
        inputs: Output[];
@@ -22,7 +22,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    inputs: Output []
 
@@ -35,7 +35,7 @@ Properties
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    outputs: Output []
 
@@ -50,7 +50,7 @@ Methods
 .. rubric:: createInferRequest
 
 
-.. code-block:: json
+.. code-block:: ts
 
    createInferRequest(): InferRequest
 
@@ -65,7 +65,7 @@ Methods
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    input(nameOrId?): Output
 
@@ -74,7 +74,7 @@ Methods
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      nameOrId: string|number
 
@@ -88,13 +88,13 @@ Methods
 .. rubric:: output
 
 
-.. code-block:: json
+.. code-block:: ts
 
    output(nameOrId?): Output
 
 - ``Optional``
 
-  .. code-block:: json
+  .. code-block:: ts
 
      nameOrId: string|number
 
