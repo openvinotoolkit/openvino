@@ -149,6 +149,7 @@ PyTorch_FE:
 C_API:
   build:
     - CPU
+    - GPU
     - HETERO
     - AUTO_BATCH
     - AUTO
