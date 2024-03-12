@@ -15,7 +15,7 @@ OpenVINO IR format
 
    openvino-ir-format/operation-sets
    openvino-ir-format/operation-sets/available-opsets
-   openvino-ir-format/operation-sets/operations-specifications
+   openvino-ir-format/operation-sets/operation-specs
    openvino-ir-format/operation-sets/broadcast-rules
    openvino-ir-format/intermediate-representation-int8-inference
 
