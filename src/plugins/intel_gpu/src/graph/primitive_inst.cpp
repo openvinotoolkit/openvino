@@ -152,7 +152,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 const layout& layout,
                                 allocation_type type,
                                 bool reusable_across_network,
-                                const std::set<std::string>& memory_dependencies,
+                                const std::set<size_t>& memory_dependencies,
                                 bool reset = true,
                                 memory* curr_memory = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
@@ -160,8 +160,8 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     // Use layout with max tensor for dynamic shape with upper bound
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
-            pool.release_memory(curr_memory, _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+            pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
+        return pool.get_memory(layout, _node.id(), _node.get_unique_id(), net_id, memory_dependencies, type, reusable_across_network, reset);
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -962,7 +962,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                     for (auto& user : users) {
                         GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                        user->_runtime_memory_dependencies.insert(id());
+                        user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
                         if (user->can_be_optimized())
                             update_memory_dependencies(user->get_user_insts());
                     }
@@ -1374,7 +1374,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }
@@ -1465,7 +1465,7 @@ primitive_inst::primitive_inst(network& network)
     , _mem_allocated(false)
     , _type(nullptr) {}
 
-primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
+primitive_inst::primitive_inst(network & network, program_node const& node, bool allocate_memory)
     : _network(network)
     , _node(&node)
     , _node_output_layout(node.get_output_layout())
@@ -1696,12 +1696,15 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
-                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+                auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
-                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
-                reorder_impl->set_kernels(kernels);
+                if (impl_type == impl_types::ocl) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
+                    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                    reorder_impl->set_kernels(kernels);
+                }
 
                 reorder_inst->set_impl(reorder_impl->clone());
 
@@ -1772,7 +1775,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& _node,
                                             const kernel_impl_params& impl_params,
-                                            const std::set<primitive_id>& memory_dependencies,
+                                            const std::set<size_t>& memory_dependencies,
                                             uint32_t net_id,
                                             bool is_internal,
                                             size_t idx,
@@ -2017,7 +2020,10 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            if (fd.is_type<reorder>())
+                continue;
+
+            OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
     }
 
@@ -2118,5 +2124,4 @@ std::string primitive_inst::get_implementation_name() const {
 
     return "undef";
 }
-
 }  // namespace cldnn

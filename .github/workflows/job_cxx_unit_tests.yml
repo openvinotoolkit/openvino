@@ -37,13 +37,13 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -253,7 +253,7 @@ jobs:
           ${INSTALL_TEST_DIR}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVHeteroFuncTests.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
