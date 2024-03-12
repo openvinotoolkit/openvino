@@ -70,5 +70,4 @@ mode_name = "2in_2out_dynbatch"
 feed_vars = [x1, x2]
 fetch_list = [relu3a, relu3b]
 inputs = [inp_blob1, inp_blob2]
-outputs = res_paddle
-saveModel(mode_name, exe, feed_vars, fetch_list, inputs, outputs, target_dir=sys.argv[1])
+saveModel(mode_name, exe, feed_vars, fetch_list, inputs, [res_paddle[0], res_paddle[1]], target_dir=sys.argv[1])

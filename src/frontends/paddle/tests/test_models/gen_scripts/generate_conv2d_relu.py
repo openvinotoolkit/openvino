@@ -3,7 +3,6 @@
 
 import paddle
 import numpy as np
-import os
 import sys
 
 from save_model import saveModel 
@@ -38,4 +37,4 @@ var = [relu]
 res_paddle = exe.run(fluid.default_main_program(),
                      fetch_list=var, feed=inp_dict)
 
-paddle.static.io.save_inference_model(os.path.join(sys.argv[1], "conv2d_relu", "conv2d_relu"), [x], var, exe)
+saveModel("conv2d_relu", exe, [x], var, [inp_blob], [res_paddle[0]], target_dir=sys.argv[1])
