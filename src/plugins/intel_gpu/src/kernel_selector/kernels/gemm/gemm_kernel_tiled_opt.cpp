@@ -125,8 +125,10 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto m_size = dims0.dims_sizes[input0_dims[6]];
         auto n_size = dims1.dims_sizes[input1_dims[7]];
         auto n_padded_size = "(" + dims1_padded.dims_sizes[input1_dims[7]] + ")";
+        auto n_odd = "(" + n_size + "%2) != 0";
         auto k_size = dims0.dims_sizes[input0_dims[7]];
         auto k_padded_size_in0 = "(" + dims0_padded.dims_sizes[input0_dims[7]] + ")";
+        auto k_odd = "(" + n_size + "%2) != 0";
         const std::string leftover_m = "(" + m_size + "%" + std::to_string(tuning_data.tile_m_size) + ")";
         const std::string leftover_n = "(" + n_size + "%" + std::to_string(tuning_data.tile_n_size) + ")";
         const std::string leftover_k = "(" + k_size + "%" + std::to_string(tuning_data.tile_k_size) + ")";
@@ -141,6 +143,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N", n_size),
             MakeJitConstant("K_PADDED_IN0", k_padded_size_in0),
             MakeJitConstant("N_PADDED", n_padded_size),
+            MakeJitConstant("K_IS_ODD", k_odd),
+            MakeJitConstant("N_IS_ODD", n_odd),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
@@ -219,6 +223,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N", n_size),
             MakeJitConstant("K_PADDED_IN0", k_size),
             MakeJitConstant("N_PADDED", n_size),
+            MakeJitConstant("K_IS_ODD", k_size % 2 != 0),
+            MakeJitConstant("N_IS_ODD", n_size % 2 != 0),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
