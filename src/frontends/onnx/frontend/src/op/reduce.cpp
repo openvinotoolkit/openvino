@@ -162,6 +162,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     const auto square_node = std::make_shared<v1::Multiply>(input, input);
     return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
 }
+}  // namespace set_1
 
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
@@ -178,7 +179,9 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace set_13
 
-}  // namespace set_1
+namespace set_18 {
+// Placeholder
+}  // namespace set_18
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
