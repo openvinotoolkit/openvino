@@ -200,13 +200,10 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                // Note that here we consider only the first child (which is usually load),
-                // but often there is another child - LoopEnd
-                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
-                const auto& first_consumer = consumer_inputs.begin()->get_expr();
-                // If there is a RankNormalization op after a parameter - we should skip it
-                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
-                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                // input->shape changing ops->load
+                auto shape_infer_consumers = snippets::lowered::LinearIR::propagate_expr_through_shape_infer_ops(expr, true);
+                auto mem_desc_expr = shape_infer_consumers.empty() ? expr : shape_infer_consumers.back();
+                auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
                     if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
@@ -214,19 +211,16 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
                         break;
                     }
                 }
-                etype = expr->get_node()->get_output_element_type(0);
+                etype = mem_desc_expr->get_node()->get_output_element_type(0);
+                        break;
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                // store->reshape->result
-                const auto& source = expr->get_input_port_connector(0)->get_source();
-                auto p_exp = source.get_expr();
-                if (ov::is_type<snippets::op::Reshape>(p_exp->get_node())) {
-                    desc = p_exp->get_input_port_connector(0)->get_source().get_descriptor_ptr();
-                } else {
-                    desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
-                }
-                etype = expr->get_node()->get_input_element_type(0);
+                // store->shape changing ops->result
+                auto shape_infer_sources = snippets::lowered::LinearIR::propagate_expr_through_shape_infer_ops(expr, false);
+                auto mem_desc_expr = shape_infer_sources.empty() ? expr : shape_infer_sources.back();
+                desc = mem_desc_expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
+                etype = mem_desc_expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
                 OPENVINO_THROW("Kernel detected unsupported io_type");

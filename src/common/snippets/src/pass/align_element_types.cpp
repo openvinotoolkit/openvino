@@ -79,14 +79,14 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             auto parent_output = parameter->output(0);
             auto consumer_inputs = parent_output.get_target_inputs();
 
-            const auto& first_child = consumer_inputs.begin()->get_node()->shared_from_this();
-            // Note: RankNormalization of is designed for shape-inference purposes only.
+            auto first_child = consumer_inputs.begin()->get_node()->shared_from_this();
+            // Note: shape infer ops is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            if (is_type<op::RankNormalization>(first_child) ||
-                is_type<op::Reshape>(first_child)) {
-                OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization is supposed to be the only consumer");
+            while (op::Subgraph::is_shape_infer_op(first_child)) {
+                OPENVINO_ASSERT(consumer_inputs.size() == 1, "Shape infer ops are supposed to be the only consumer");
                 parent_output = first_child->output(0);
                 consumer_inputs = parent_output.get_target_inputs();
+                first_child = consumer_inputs.begin()->get_node()->shared_from_this();
             }
 
             // Snippets supports Transpose only after Parameter or before Result nodes

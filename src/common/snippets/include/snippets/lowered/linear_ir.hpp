@@ -223,6 +223,14 @@ public:
      */
     exprIt replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr);
 
+    /**
+     * @brief Propagate start_expr through zero to several consecutive shape infer exprs(such as reshape, rankNormalization).
+     * @param start_expr Propagate from start_expr.
+     * @param downstream Propagate downstream if it's true, otherwise propagate upstream.
+     * @return shape infer op consumers as a sequence if downstream, or shape infer op sources as a sequence if upstream.
+     */
+    static std::vector<ExpressionPtr> propagate_expr_through_shape_infer_ops(const ExpressionPtr& start_expr, bool downstream);
+
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 

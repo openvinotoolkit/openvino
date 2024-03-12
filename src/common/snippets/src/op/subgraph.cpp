@@ -18,7 +18,6 @@
 #include "snippets/pass/canonicalization.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/reduce_to_snippets_reduce.hpp"
-#include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/utils.hpp"
 
@@ -57,8 +56,6 @@
 #include <memory>
 #include <array>
 
-#include "snippets/lowered/pass/serialize_control_flow.hpp"
-
 using namespace std;
 using namespace ov::op::util;
 
@@ -81,7 +78,13 @@ auto Subgraph::is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bo
            ov::is_type<ov::op::v0::MatMul>(op) ||
            ov::is_type<ov::op::v1::Broadcast>(op) || // Broadcast is domain sensetive op because the output shape depends on
            ov::is_type<ov::op::v3::Broadcast>(op) ||   // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
-           ov::is_type<ov::op::v12::GroupNormalization>(op);
+           ov::is_type<ov::op::v12::GroupNormalization>(op) ||
+           ov::is_type<op::Reshape>(op);
+}
+
+auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
+    return ov::is_type<snippets::op::Reshape>(op) ||
+           ov::is_type<snippets::op::RankNormalization>(op);
 }
 
 void Subgraph::init_config() {
@@ -271,7 +274,8 @@ auto Subgraph::constant_input_should_be_inside_body(const std::shared_ptr<ov::No
     return ov::is_type<ov::op::v1::Transpose>(node) ||
            ov::is_type<ov::op::v1::Broadcast>(node) ||
            ov::is_type<ov::op::v3::Broadcast>(node) ||
-           ov::is_type<ov::op::v1::Reshape>(node);
+           ov::is_type<ov::op::v1::Reshape>(node) ||
+           ov::is_type<op::ReduceBase>(node);
 }
 
 bool Subgraph::check_broadcast(const std::shared_ptr<const ov::Node>& node) noexcept {
@@ -382,10 +386,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::data_flow_transformations")
 
     ov::snippets::pass::Manager manager;
-    // GNDecomposition should be before canonicalization(rankNorm) as scale/bias shape is C and need special process.
-    if (config.m_has_domain_sensitive_ops)
-        manager.register_pass<snippets::pass::GNDecomposition>();
-
     if (!blocked_input_shapes.empty())
         manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
     if (!input_precisions.empty() && !output_precisions.empty())
@@ -408,12 +408,6 @@ void Subgraph::data_flow_transformations(const BlockedShapeVector& blocked_input
 
     manager.register_positioned_passes(backend_passes);
     manager.run_passes(body_ptr());
-
-    // ov::pass::Manager magr;
-    // std::string xmlo = "data_flow.xml";
-    // std::string bino = "data_flow.bin";
-    // magr.register_pass<ov::pass::Serialize>(xmlo, bino);
-    // magr.run_passes(body_ptr());
 }
 
 void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
@@ -487,9 +481,6 @@ snippets::Schedule Subgraph::generate_from_linear_ir(const std::shared_ptr<lower
         perf_count_pass.run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
 #endif
-    // std::string xmlo = "LIR.xml";
-    // lowered::pass::SerializeControlFlow SerializeLIR(xmlo);
-    // SerializeLIR.run(linear_ir);
     m_generator->generate(linear_ir, lowering_result, compile_params);
 
     VectorDims parallel_exec_domain = linear_ir.get_master_shape();

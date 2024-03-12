@@ -154,6 +154,9 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port);
  * @return preordered shape: `shape[i]` = `planar_shape[order[i]]` where `shape` is shape before applying the order.
  */
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port);
+inline auto get_shape_size(const VectorDims& shape) -> size_t {
+    return std::accumulate(shape.begin(), shape.end(), static_cast<int64_t>(1), std::multiplies<size_t>());
+}
 /* --------------------------- */
 
 } // namespace utils

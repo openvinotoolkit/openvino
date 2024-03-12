@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/utils.hpp"
+#include "snippets/op/subgraph.hpp"
 
 namespace ov {
 namespace snippets {
@@ -494,6 +495,43 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
                     "Failed to replace node: cannot replace node to nodes with inconsistent loop ids");
     const auto insertion_place = std::next(find(old_exprs.back()));
     return replace_with_expr(old_exprs, new_expr, insertion_place);
+}
+
+std::vector<ExpressionPtr> LinearIR::propagate_expr_through_shape_infer_ops(const ExpressionPtr& start_expr, bool downstream) {
+    std::vector<ExpressionPtr> shape_infer_exprs;
+    auto current_exp = start_expr;
+    if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
+        shape_infer_exprs.push_back(current_exp);
+    }
+    if (downstream) {
+        if (current_exp->get_output_count() == 0)
+            return shape_infer_exprs;
+        auto consumers = current_exp->get_output_port_connector(0)->get_consumers();
+        auto first_child = consumers.begin()->get_expr();
+        while (op::Subgraph::is_shape_infer_op(first_child->get_node())) {
+            OPENVINO_ASSERT(consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+            shape_infer_exprs.push_back(first_child);
+            current_exp = first_child;
+            if (current_exp->get_output_count() == 0)
+                break;
+            auto consumers = current_exp->get_output_port_connector(0)->get_consumers();
+            first_child = consumers.begin()->get_expr();
+        }
+        return shape_infer_exprs;
+    } else {
+        // upstream
+        if (current_exp->get_input_count() == 0)
+            return shape_infer_exprs;
+        auto first_source = current_exp->get_input_port_connector(0)->get_source().get_expr();
+        while (op::Subgraph::is_shape_infer_op(first_source->get_node())) {
+            shape_infer_exprs.push_back(first_source);
+            current_exp = first_source;
+            if (current_exp->get_input_count() == 0)
+                break;
+            first_source = current_exp->get_input_port_connector(0)->get_source().get_expr();
+        }
+        return shape_infer_exprs;
+    }
 }
 
 LinearIR::LIRShapeInfer::LIRShapeInfer(container& body_exprs, io_container& io_exprs)

@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/assign_registers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
 
@@ -79,23 +80,22 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             if (io_expr->get_type() == IOExpression::io_type::INPUT) {
                 const auto& out_connector = expr->get_output_port_connector(0);
                 manually_assigned_gprs[out_connector] = io_expr->get_index();
-                // TODO [96434]: Support RankNormalization/Reshape in arbitrary place in pipeline, not just after inputs
-                // reshape rankNormalization sequence
-                auto consumer_inputs = out_connector->get_consumers();
-                auto child_exp = consumer_inputs.begin()->get_expr();
-                while (ov::is_type<op::RankNormalization>(child_exp->get_node()) ||
-                       ov::is_type<op::Reshape>(child_exp->get_node())) {
-                    OPENVINO_ASSERT(consumer_inputs.size() == 1, "RankNormalization or Reshape is supposed to be the only consumer");
-                    manually_assigned_gprs[child_exp->get_output_port_connector(0)] = io_expr->get_index();
-                    consumer_inputs = child_exp->get_output_port_connector(0)->get_consumers();
-                    child_exp = consumer_inputs.begin()->get_expr();
+                // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
+                // shape infer ops sequence after input
+                auto shape_infer_consumers = LinearIR::propagate_expr_through_shape_infer_ops(io_expr, true);
+                if (!shape_infer_consumers.empty()) {
+                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_expr->get_index();
+                    }
                 }
             } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                // reshape before result
-                const auto &parent = expr->get_input_port_connector(0)->get_source().get_expr();
-                if (ov::is_type<op::Reshape>(parent->get_node())) {
-                    manually_assigned_gprs[parent->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                // shape infer ops sequence before result
+                auto shape_infer_sources = LinearIR::propagate_expr_through_shape_infer_ops(io_expr, false);
+                if (!shape_infer_sources.empty()) {
+                    for (const auto& parent_shape_infer_expr : shape_infer_sources) {
+                        manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
+                    }
                 }
             } else {
                 OPENVINO_THROW("Unsupported io_type detected");
@@ -106,13 +106,15 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] =
                         static_cast<Reg>(num_results + num_parameters + buffer_id);
-                // reshape in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
-                const auto& first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (ov::is_type<op::Reshape>(first_consumer->get_node())) {
-                    manually_assigned_gprs[first_consumer->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
-                    manually_assigned_gprs[first_consumer->get_output_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
+                // child shape info ops share the same memory as IntermediateMemoryBuffer.
+                auto shape_infer_consumers = LinearIR::propagate_expr_through_shape_infer_ops(expr, true);
+                if (!shape_infer_consumers.empty()) {
+                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                        manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
+                            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
+                            static_cast<Reg>(num_results + num_parameters + buffer_id);
+                    }
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =

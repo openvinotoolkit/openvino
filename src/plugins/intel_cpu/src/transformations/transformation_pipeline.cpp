@@ -488,8 +488,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // todo: only support f32 in first version
     CPU_SET_CALLBACK_X64(manager,
         [](const_node_ptr &node) -> bool {
-            return !node->is_dynamic() &&
-                ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(node->get_element_type()) != 0;
+            return !node->is_dynamic() && node->get_element_type() == element::f32;
         },
         ov::pass::GroupNormalizationDecomposition);
 
