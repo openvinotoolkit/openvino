@@ -586,20 +586,19 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         });
     }
 
-    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
-    if (axis == static_cast<int>(indices_rank - 1)) {
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-            VectorDims start_coord(indices_rank, 0);
-            getCoordinate(start_coord, start, squashed_indices_shape);
+    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices    
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+        VectorDims start_coord(indices_rank, 0);
+        getCoordinate(start_coord, start, squashed_indices_shape);
 
-            VectorDims indices_coord(start_coord);
-            VectorDims data_coord(indices_coord);
+        VectorDims indices_coord(start_coord);
+        VectorDims data_coord(indices_coord);
 
+        if (axis == static_cast<int>(indices_rank - 1)) {
             for (size_t worker = start; worker < end; worker++) {
                 data_coord = indices_coord;
-
                 // inner axis loop for better performance
                 for (size_t i = 0; i < index_dim_size; i++) {
                     indices_coord[axis] = i;
@@ -623,17 +622,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                     }
                 }
             }
-        });
-    } else {
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-            VectorDims start_coord(indices_rank, 0);
-            getCoordinate(start_coord, start, squashed_indices_shape);
-
-            VectorDims indices_coord(start_coord);
-            VectorDims data_coord(indices_coord);
-
+        } else {
             // external axis loop for better performance
             for (size_t i = 0; i < index_dim_size; i++) {
                 indices_coord = start_coord;
@@ -660,8 +649,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                     }
                 }
             }
-        });
-    }
+        }
+    });
 }
 
 template <typename DataType, typename IndexType>
