@@ -34,6 +34,10 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     return result.str();
 }
 
+// If adopt_intervals is true then:
+// 1) the generated tensor value range is limited by operation result value (especially for multiply)
+// which has to be in signed/unsigned int8 type range,
+// 2) start value is defined by type sign: for signed int8 it's zero to have symmetric interval.
 ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
     struct gen_params {
         uint32_t range;
