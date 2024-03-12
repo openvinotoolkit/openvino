@@ -112,8 +112,10 @@ OutputVector translate_reverse_op(const NodeContext& node) {
         // Reverse the real and imaginary part
         auto reversed_real_part = translate_reverse_base_op(node, input_real, axes);
         auto reversed_imag_part = translate_reverse_base_op(node, input_imag, axes);
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(reversed_real_part, minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(reversed_imag_part, minus_one);
 
-        auto reversed = make_shared<v0::Complex>(reversed_real_part[0], reversed_imag_part[0]);
+        auto reversed = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
         return {
             reversed
         }
@@ -148,8 +150,10 @@ OutputVector translate_reverse_v2_op(const NodeContext& node) {
         // Reverse the real and imaginary part
         auto reversed_real_part = translate_reverse_base_op(node, input_real, axes);
         auto reversed_imag_part = translate_reverse_base_op(node, input_imag, axes);
+        auto real_unsqueeze = make_shared<v0::Unsqueeze>(reversed_real_part, minus_one);
+        auto imag_unsqueeze = make_shared<v0::Unsqueeze>(reversed_imag_part, minus_one);
 
-        auto reversed = make_shared<v0::Complex>(reversed_real_part[0], reversed_imag_part[0]);
+        auto reversed = make_shared<v0::Concat>(OutputVector{real_unsqueeze, imag_unsqueeze}, -1);
         return {
             reversed
         }
