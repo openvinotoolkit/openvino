@@ -5,7 +5,7 @@ GRUSequence
 
 
 .. meta::
-  :description: Learn about GRUSequence-5 - a sequence processing operation, which 
+  :description: Learn about GRUSequence-5 - a sequence processing operation, which
                 can be performed on six required input tensors.
 
 **Versioned name**: *GRUSequence-5*
@@ -16,11 +16,11 @@ GRUSequence
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in *GRUCell* operation. *GRUSequence* 
-represents a sequence of GRU cells. The sequence can be connected differently depending on 
-``direction`` attribute that specifies the direction of traversing of input data along sequence 
-dimension or specifies whether it should be a bidirectional sequence. The most of the attributes 
-are in sync with the specification of ONNX GRU operator defined 
+A single cell in the sequence is implemented in the same way as in *GRUCell* operation. *GRUSequence*
+represents a sequence of GRU cells. The sequence can be connected differently depending on
+``direction`` attribute that specifies the direction of traversing of input data along sequence
+dimension or specifies whether it should be a bidirectional sequence. The most of the attributes
+are in sync with the specification of ONNX GRU operator defined
 `GRUCell <https://github.com/onnx/onnx/blob/master/docs/Operators.md#gru>`__
 
 
@@ -35,7 +35,7 @@ are in sync with the specification of ONNX GRU operator defined
 
 * *activations*
 
-  * **Description**: *activations* specifies activation functions for gates, there are two gates, 
+  * **Description**: *activations* specifies activation functions for gates, there are two gates,
     so two activation functions should be specified as a value for this attributes
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
@@ -44,7 +44,7 @@ are in sync with the specification of ONNX GRU operator defined
 
 * *activations_alpha, activations_beta*
 
-  * **Description**: *activations_alpha, activations_beta* attributes of functions; 
+  * **Description**: *activations_alpha, activations_beta* attributes of functions;
     applicability and meaning of these attributes depends on chosen activation functions
   * **Range of values**: a list of floating-point numbers
   * **Type**: ``float[]``
@@ -61,8 +61,8 @@ are in sync with the specification of ONNX GRU operator defined
 
 * *direction*
 
-  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse* 
-    then ``num_directions = 1``, if it is *bidirectional*, then ``num_directions = 2``. This ``num_directions`` 
+  * **Description**: Specify if the RNN is forward, reverse, or bidirectional. If it is one of *forward* or *reverse*
+    then ``num_directions = 1``, if it is *bidirectional*, then ``num_directions = 2``. This ``num_directions``
     value specifies input/output shape requirements.
   * **Range of values**: *forward*, *reverse*, *bidirectional*
   * **Type**: ``string``
@@ -70,7 +70,7 @@ are in sync with the specification of ONNX GRU operator defined
 
 * *linear_before_reset*
 
-  * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification 
+  * **Description**: *linear_before_reset* flag denotes if the layer behaves according to the modification
     of *GRUCell* described in the formula in the `ONNX documentation <https://github.com/onnx/onnx/blob/master/docs/Operators.md#GRU>`__.
   * **Range of values**: True or False
   * **Type**: ``boolean``
@@ -79,19 +79,19 @@ are in sync with the specification of ONNX GRU operator defined
 
 **Inputs**
 
-* **1**: ``X`` - 3D tensor of type *T1* ``[batch_size, seq_length, input_size]``, input data. 
+* **1**: ``X`` - 3D tensor of type *T1* ``[batch_size, seq_length, input_size]``, input data.
   It differs from GRUCell 1st input only by additional axis with size ``seq_length``. **Required.**
-* **2**: ``initial_hidden_state`` - 3D tensor of type *T1* ``[batch_size, num_directions, hidden_size]``, 
+* **2**: ``initial_hidden_state`` - 3D tensor of type *T1* ``[batch_size, num_directions, hidden_size]``,
   input hidden state data. **Required.**
-* **3**: ``sequence_lengths`` - 1D tensor of type *T2* ``[batch_size]``, specifies real sequence lengths 
+* **3**: ``sequence_lengths`` - 1D tensor of type *T2* ``[batch_size]``, specifies real sequence lengths
   for each batch element. In case of negative values in this input, the operation behavior is undefined. **Required.**
-* **4**: ``W`` - 3D tensor of type *T1* ``[num_directions, 3 * hidden_size, input_size]``, 
+* **4**: ``W`` - 3D tensor of type *T1* ``[num_directions, 3 * hidden_size, input_size]``,
   the weights for matrix multiplication, gate order: zrh. **Required.**
-* **5**: ``R`` - 3D tensor of type *T1* ``[num_directions, 3 * hidden_size, hidden_size]``, 
+* **5**: ``R`` - 3D tensor of type *T1* ``[num_directions, 3 * hidden_size, hidden_size]``,
   the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
-* **6**: ``B`` - 2D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape 
-  is ``[num_directions, 4 * hidden_size]`` - the sum of biases for z and r gates (weights and recurrence weights), 
-  the biases for h gate are placed separately. Otherwise the shape is ``[num_directions, 3 * hidden_size]``, 
+* **6**: ``B`` - 2D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape
+  is ``[num_directions, 4 * hidden_size]`` - the sum of biases for z and r gates (weights and recurrence weights),
+  the biases for h gate are placed separately. Otherwise the shape is ``[num_directions, 3 * hidden_size]``,
   the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**

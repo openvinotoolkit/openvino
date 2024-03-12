@@ -12,11 +12,11 @@ OpenVINO™ Low Precision Transformations
    :caption: Low Precision Transformations
    :hidden:
 
-   Attributes <openvino_docs_OV_UG_lpt_attributes>
-   Step 1. Prerequisites transformations <openvino_docs_OV_UG_lpt_step1_prerequisites>
-   Step 2. Markup transformations <openvino_docs_OV_UG_lpt_step2_markup>
-   Step 3. Main transformations <openvino_docs_OV_UG_lpt_step3_main>
-   Step 4. Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>
+   Attributes <low-precision-transformations/lpt-attributes>
+   Step 1. Prerequisites transformations <low-precision-transformations/step1-prerequisites>
+   Step 2. Markup transformations <low-precision-transformations/step2-markup>
+   Step 3. Main transformations <low-precision-transformations/step3-main>
+   Step 4. Cleanup transformations <low-precision-transformations/step4-cleanup>
 
 
 Introduction
@@ -43,43 +43,43 @@ Input model requirements
 
 LPT transformations propagate dequantization operations through the following operations:
 
-* :doc:`Add-1 <openvino_docs_ops_arithmetic_Add_1>`
-* :doc:`AvgPool-1 <openvino_docs_ops_pooling_AvgPool_1>`
-* :doc:`Clamp-1 <openvino_docs_ops_activation_Clamp_1>`
-* :doc:`Concat-1 <openvino_docs_ops_movement_Concat_1>`
-* :doc:`Convolution-1 <openvino_docs_ops_convolution_Convolution_1>`
-* :doc:`ConvolutionBackpropData-1 <openvino_docs_ops_convolution_ConvolutionBackpropData_1>`
-* :doc:`DepthToSpace-1 <openvino_docs_ops_movement_DepthToSpace_1>`
-* :doc:`FakeQuantize-1 <openvino_docs_ops_quantization_FakeQuantize_1>`
-* :doc:`GroupConvolution-1 <openvino_docs_ops_convolution_GroupConvolution_1>`
-* :doc:`Interpolate-1 <openvino_docs_ops_image_Interpolate_1>`
-* :doc:`Interpolate-4 <openvino_docs_ops_image_Interpolate_4>`
-* :doc:`MatMul-1 <openvino_docs_ops_matrix_MatMul_1>`
-* :doc:`MaxPool-1 <openvino_docs_ops_pooling_MaxPool_1>`
-* :doc:`Multiply-1 <openvino_docs_ops_arithmetic_Multiply_1>`
-* :doc:`MVN-1 <openvino_docs_ops_normalization_MVN_1>`
-* :doc:`NormalizeL2-1 <openvino_docs_ops_normalization_NormalizeL2_1>`
-* :doc:`PRelu-1 <openvino_docs_ops_activation_PReLU_1>`
-* :doc:`ReduceMax-1 <openvino_docs_ops_reduction_ReduceMax_1>`
-* :doc:`ReduceMean-1 <openvino_docs_ops_reduction_ReduceMean_1>`
-* :doc:`ReduceMin-1 <openvino_docs_ops_reduction_ReduceMin_1>`
-* :doc:`ReduceSum-1 <openvino_docs_ops_reduction_ReduceSum_1>`
-* :doc:`Relu-1 <openvino_docs_ops_activation_ReLU_1>`
-* :doc:`Reshape-1 <openvino_docs_ops_shape_Reshape_1>`
-* :doc:`Split-1 <openvino_docs_ops_movement_Split_1>`
-* :doc:`Squeeze-1 <openvino_docs_ops_shape_Reshape_1>`
-* :doc:`StridedSlice-1 <openvino_docs_ops_movement_StridedSlice_1>`
-* :doc:`Transpose-1 <openvino_docs_ops_movement_Transpose_1>`
-* :doc:`Gather-7 <openvino_docs_ops_movement_Gather_7>`
-* :doc:`Gather-8 <openvino_docs_ops_movement_Gather_8>`
-* :doc:`Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>`
-* :doc:`VariadicSplit-1 <openvino_docs_ops_movement_VariadicSplit_1>`
+* :doc:`Add-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/add-1>`
+* :doc:`AvgPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/avg-pool-1>`
+* :doc:`Clamp-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/clamp-1>`
+* :doc:`Concat-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/concat-1>`
+* :doc:`Convolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-1>`
+* :doc:`ConvolutionBackpropData-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/convolution-backprop-data-1>`
+* :doc:`DepthToSpace-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/depth-to-space-1>`
+* :doc:`FakeQuantize-1 <../../../openvino-ir-format/operation-sets/operations-specifications/quantization/fake-quantize-1>`
+* :doc:`GroupConvolution-1 <../../../openvino-ir-format/operation-sets/operations-specifications/convolution/group-convolution-1>`
+* :doc:`Interpolate-1 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-1>`
+* :doc:`Interpolate-4 <../../../openvino-ir-format/operation-sets/operations-specifications/image/interpolate-4>`
+* :doc:`MatMul-1 <../../../openvino-ir-format/operation-sets/operations-specifications/matrix/matmul-1>`
+* :doc:`MaxPool-1 <../../../openvino-ir-format/operation-sets/operations-specifications/pooling/max-pool-1>`
+* :doc:`Multiply-1 <../../../openvino-ir-format/operation-sets/operations-specifications/arithmetic/multiply-1>`
+* :doc:`MVN-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/mvn-1>`
+* :doc:`NormalizeL2-1 <../../../openvino-ir-format/operation-sets/operations-specifications/normalization/normalize-l2-1>`
+* :doc:`PRelu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/prelu-1>`
+* :doc:`ReduceMax-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-max-1>`
+* :doc:`ReduceMean-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-mean-1>`
+* :doc:`ReduceMin-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-min-1>`
+* :doc:`ReduceSum-1 <../../../openvino-ir-format/operation-sets/operations-specifications/reduction/reduce-sum-1>`
+* :doc:`Relu-1 <../../../openvino-ir-format/operation-sets/operations-specifications/activation/relu-1>`
+* :doc:`Reshape-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
+* :doc:`Split-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/split-1>`
+* :doc:`Squeeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/reshape-1>`
+* :doc:`StridedSlice-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/strided-slice-1>`
+* :doc:`Transpose-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/transpose-1>`
+* :doc:`Gather-7 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-7>`
+* :doc:`Gather-8 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/gather-8>`
+* :doc:`Unsqueeze-1 <../../../openvino-ir-format/operation-sets/operations-specifications/shape/unsqueeze-1>`
+* :doc:`VariadicSplit-1 <../../../openvino-ir-format/operation-sets/operations-specifications/movement/variadic-split-1>`
 
 If operation is not supported by LPT then dequantization operation will not be propagated, input tensor precisions will not be changed to low precision and operation will be executed in original precision.
 
 For example, if you would like to infer a model with ``Convolution`` operation in low precision then the model can look as on picture below:
 
-.. image:: _static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
    :alt: Quantized Convolution
 
 There are several supported quantization approaches on activations and on weights. All supported approaches are described in `Quantization approaches <#quantization-approaches>`__ section below. In demonstrated model `FakeQuantize operation quantization <#fakequantize-operation>`__ approach is used.
@@ -87,7 +87,7 @@ There are several supported quantization approaches on activations and on weight
 Low precision tools
 +++++++++++++++++++
 
-For more details on how to get a quantized model, refer to :doc:`Model Optimization <openvino_docs_model_optimization_guide>` document.
+For more details on how to get a quantized model, refer to :doc:`Model Optimization <../../../../openvino-workflow/model-optimization>` document.
 
 Quantization approaches
 #######################
@@ -104,7 +104,7 @@ FakeQuantize operation
 
 In this case ``FakeQuantize`` operation is used on activations and quantized constant on weights. Original input model:
 
-.. image:: _static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
    :alt: Original model with FakeQuantize
 
 
@@ -113,7 +113,7 @@ Quantize and dequantization operations
 
 In this case ``FakeQuantize`` operation and ``Convert`` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are ``Convert`` and dequantization operations to compensate decomposition. Original input model:
 
-.. image:: _static/images/model_qdq_and_convolution.common.svg
+.. image:: ../../../../_static/images/model_qdq_and_convolution.common.svg
    :alt: Original model with Q/DQ
 
 In both cases result is the same. In LPT result model you can see that:
@@ -129,7 +129,7 @@ In both cases result is the same. In LPT result model you can see that:
 
 LPT result model:
 
-.. image:: _static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
    :alt: Result model
 
 Low precision transformations pipeline
@@ -137,7 +137,7 @@ Low precision transformations pipeline
 
 LPT transformation pipeline has several steps. For each transformation inside one step pattern matcher is unique per transformation, but each operation can be assigned to several transformations.
 
-.. image:: _static/images/low_precision_transformation_pipeline.svg
+.. image:: ../../../../_static/images/low_precision_transformation_pipeline.svg
    :alt: Low precision transformations pipeline
 
 Inside each step LPT transformations handle input model operation by operation, applying transformation matching pattern for each transformation from the step to an operation, and execute transformation if pattern is matched. Decomposition transformation decomposes ``FakeQuantize`` to quantize and dequantization operations. Dequantization operations from previous transformation result is used for the current one and so on, until the end of the model is achieved.
@@ -146,78 +146,78 @@ As result, usually all operations are inferred by plugin in low precision. If pl
 
 Low precision transformations pipeline includes four steps:
 
-* :doc:`Step 1: Prerequisites <openvino_docs_OV_UG_lpt_step1_prerequisites>`
-* :doc:`Step 2: Markup transformations <openvino_docs_OV_UG_lpt_step2_markup>`
-* :doc:`Step 3: Main transformations <openvino_docs_OV_UG_lpt_step3_main>`
-* :doc:`Step 4: Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>`
+* :doc:`Step 1: Prerequisites <low-precision-transformations/step1-prerequisites>`
+* :doc:`Step 2: Markup transformations <low-precision-transformations/step2-markup>`
+* :doc:`Step 3: Main transformations <low-precision-transformations/step3-main>`
+* :doc:`Step 4: Cleanup transformations <low-precision-transformations/step4-cleanup>`
 
 Step 1. Prerequisites
 ---------------------
 
 This step fuses and propagates some operations in the model to prepare for the next step. It is required for OpenVINO plugins. Transformations:
 
-* :doc:`PullReshapeThroughDequantization <openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization>`
-* :doc:`PullTransposeThroughDequantization <openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization>`
-* :doc:`LinOpSequenceFusion <openvino_docs_OV_UG_lpt_LinOpSequenceFusion>`
+* :doc:`PullReshapeThroughDequantization <low-precision-transformations/step1-prerequisites/pull-reshape-through-dequantization>`
+* :doc:`PullTransposeThroughDequantization <low-precision-transformations/step1-prerequisites/pull-transpose-through-dequantization>`
+* :doc:`LinOpSequenceFusion <low-precision-transformations/step1-prerequisites/lin-op-sequence-fusion>`
 
-The model on this step is changed. There are more details in developer guide :doc:`Prerequisites transformations <openvino_docs_OV_UG_lpt_step1_prerequisites>`.
+The model on this step is changed. There are more details in developer guide :doc:`Prerequisites transformations <low-precision-transformations/step1-prerequisites>`.
 
 Step 2. Markup
 --------------
 
 This step creates runtime attributes for operations. These attributes will be used in next step. Transformations:
 
-* :doc:`MarkupBias <openvino_docs_OV_UG_lpt_MarkupBias>`
-* :doc:`MarkupCanBeQuantized <openvino_docs_OV_UG_lpt_MarkupCanBeQuantized>`
-* :doc:`MarkupPrecisions <openvino_docs_OV_UG_lpt_MarkupPrecisions>`
-* :doc:`MarkupPerTensorQuantization <openvino_docs_OV_UG_lpt_MarkupPerTensorQuantization>`
-* :doc:`MarkupAvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_MarkupAvgPoolPrecisionPreserved>`
-* :doc:`PropagatePrecisions <openvino_docs_OV_UG_lpt_PropagatePrecisions>`
-* :doc:`AlignQuantizationIntervals <openvino_docs_OV_UG_lpt_AlignQuantizationIntervals>`
-* :doc:`AlignQuantizationParameters <openvino_docs_OV_UG_lpt_AlignQuantizationParameters>`
+* :doc:`MarkupBias <low-precision-transformations/step2-markup/markup-bias>`
+* :doc:`MarkupCanBeQuantized <low-precision-transformations/step2-markup/markup-can-be-quantized>`
+* :doc:`MarkupPrecisions <low-precision-transformations/step2-markup/markup-precisions>`
+* :doc:`MarkupPerTensorQuantization <low-precision-transformations/step2-markup/markup-per-tensor-quantization>`
+* :doc:`MarkupAvgPoolPrecisionPreserved <low-precision-transformations/step2-markup/markup-avg-pool-precision-preserved>`
+* :doc:`PropagatePrecisions <low-precision-transformations/step2-markup/propagate-precisions>`
+* :doc:`AlignQuantizationIntervals <low-precision-transformations/step2-markup/align-quantization-intervals>`
+* :doc:`AlignQuantizationParameters <low-precision-transformations/step2-markup/align-quantization-parameters>`
 
-The model on this step is changed: only new attributes are added to some operations. There are more details in developer guide :doc:`Markup transformations <openvino_docs_OV_UG_lpt_step2_markup>`.
+The model on this step is changed: only new attributes are added to some operations. There are more details in developer guide :doc:`Markup transformations <low-precision-transformations/step2-markup>`.
 
 Step 3. Main transformations, FakeQuantize decomposition and dequantization operations handling
 -----------------------------------------------------------------------------------------------
 
-This step has the most transformations. These transformations can be separated in two groups: decomposition transformation and dequantization operations handling. There are more details in developer guide :doc:`Main transformations <openvino_docs_OV_UG_lpt_step3_main>`.
+This step has the most transformations. These transformations can be separated in two groups: decomposition transformation and dequantization operations handling. There are more details in developer guide :doc:`Main transformations <low-precision-transformations/step3-main>`.
 
 Transformations:
 
-* :doc:`AddTransformation <openvino_docs_OV_UG_lpt_AddTransformation>`
-* :doc:`AvgPoolTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>`
-* :doc:`ClampTransformation <openvino_docs_OV_UG_lpt_AvgPoolTransformation>`
-* :doc:`BatchToSpaceTransformation <openvino_docs_OV_UG_lpt_BatchToSpaceTransformation>`
-* :doc:`ConcatTransformation <openvino_docs_OV_UG_lpt_ConcatTransformation>`
-* :doc:`ConvolutionTransformation <openvino_docs_OV_UG_lpt_ConvolutionTransformation>`
-* :doc:`ConvolutionBackpropDataTransformation <openvino_docs_OV_UG_lpt_ConvolutionBackpropDataTransformation>`
-* :doc:`DepthToSpaceTransformation <openvino_docs_OV_UG_lpt_DepthToSpaceTransformation>`
-* :doc:`FakeQuantizeDecompositionTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeDecompositionTransformation>`
-* :doc:`FakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FakeQuantizeTransformation>`
-* :doc:`InterpolateTransformation <openvino_docs_OV_UG_lpt_InterpolateTransformation>`
-* :doc:`GroupConvolutionTransformation <openvino_docs_OV_UG_lpt_GroupConvolutionTransformation>`
-* :doc:`GatherTransformation <openvino_docs_OV_UG_lpt_GatherTransformation>`
-* :doc:`MatMulTransformation <openvino_docs_OV_UG_lpt_MatMulTransformation>`
-* :doc:`MaxPoolTransformation <openvino_docs_OV_UG_lpt_MaxPoolTransformation>`
-* :doc:`MultiplyPartialTransformation <openvino_docs_OV_UG_lpt_MultiplyPartialTransformation>`
-* :doc:`MVNTransformation <openvino_docs_OV_UG_lpt_MVNTransformation>`
-* :doc:`NormalizeL2Transformation <openvino_docs_OV_UG_lpt_NormalizeL2Transformation>`
-* :doc:`PReluTransformation <openvino_docs_OV_UG_lpt_PReluTransformation>`
-* :doc:`ReduceMaxTransformation <openvino_docs_OV_UG_lpt_ReduceMaxTransformation>`
-* :doc:`ReduceMeanTransformation <openvino_docs_OV_UG_lpt_ReduceMeanTransformation>`
-* :doc:`ReduceMinTransformation <openvino_docs_OV_UG_lpt_ReduceMinTransformation>`
-* :doc:`ReduceSumTransformation <openvino_docs_OV_UG_lpt_ReduceSumTransformation>`
-* :doc:`ReluTransformation <openvino_docs_OV_UG_lpt_ReluTransformation>`
-* :doc:`ReshapeTransformation <openvino_docs_OV_UG_lpt_ReshapeTransformation>`
-* :doc:`SqueezeTransformation <openvino_docs_OV_UG_lpt_SqueezeTransformation>`
-* :doc:`ShuffleChannelsTransformation <openvino_docs_OV_UG_lpt_ShuffleChannelsTransformation>`
-* :doc:`SpaceToBatchTransformation <openvino_docs_OV_UG_lpt_SpaceToBatchTransformation>`
-* :doc:`SplitTransformation <openvino_docs_OV_UG_lpt_SplitTransformation>`
-* :doc:`StridedSliceTransformation <openvino_docs_OV_UG_lpt_StridedSliceTransformation>`
-* :doc:`TransposeTransformation <openvino_docs_OV_UG_lpt_TransposeTransformation>`
-* :doc:`UnsqueezeTransformation <openvino_docs_OV_UG_lpt_UnsqueezeTransformation>`
-* :doc:`VariadicSplitTransformation <openvino_docs_OV_UG_lpt_VariadicSplitTransformation>`
+* :doc:`AddTransformation <low-precision-transformations/step3-main/arithmetic/add>`
+* :doc:`AvgPoolTransformation <low-precision-transformations/step3-main/pooling/avg-pool>`
+* :doc:`ClampTransformation <low-precision-transformations/step3-main/pooling/avg-pool>`
+* :doc:`BatchToSpaceTransformation <low-precision-transformations/step3-main/shape/batch-to-space>`
+* :doc:`ConcatTransformation <low-precision-transformations/step3-main/movement/concat>`
+* :doc:`ConvolutionTransformation <low-precision-transformations/step3-main/convolution/convolution>`
+* :doc:`ConvolutionBackpropDataTransformation <low-precision-transformations/step3-main/convolution/convolution-backprop-data>`
+* :doc:`DepthToSpaceTransformation <low-precision-transformations/step3-main/movement/depth-to-space>`
+* :doc:`FakeQuantizeDecompositionTransformation <low-precision-transformations/step4-cleanup/fake-quantize-decomposition>`
+* :doc:`FakeQuantizeTransformation <low-precision-transformations/step3-main/quantization/fake-quantize>`
+* :doc:`InterpolateTransformation <low-precision-transformations/step3-main/image/interpolate>`
+* :doc:`GroupConvolutionTransformation <low-precision-transformations/step3-main/convolution/group-convolution>`
+* :doc:`GatherTransformation <low-precision-transformations/step3-main/movement/gather>`
+* :doc:`MatMulTransformation <low-precision-transformations/step3-main/matrix/mat-mul>`
+* :doc:`MaxPoolTransformation <low-precision-transformations/step3-main/pooling/max-pool>`
+* :doc:`MultiplyPartialTransformation <low-precision-transformations/step3-main/arithmetic/multiply-partial>`
+* :doc:`MVNTransformation <low-precision-transformations/step3-main/normalization/mvn>`
+* :doc:`NormalizeL2Transformation <low-precision-transformations/step3-main/normalization/normalize-l2>`
+* :doc:`PReluTransformation <low-precision-transformations/step3-main/activation/prelu>`
+* :doc:`ReduceMaxTransformation <low-precision-transformations/step3-main/reduction/reduce-max>`
+* :doc:`ReduceMeanTransformation <low-precision-transformations/step3-main/reduction/reduce-mean>`
+* :doc:`ReduceMinTransformation <low-precision-transformations/step3-main/reduction/reduce-min>`
+* :doc:`ReduceSumTransformation <low-precision-transformations/step3-main/reduction/reduce-sum>`
+* :doc:`ReluTransformation <low-precision-transformations/step3-main/activation/relu>`
+* :doc:`ReshapeTransformation <low-precision-transformations/step3-main/shape/reshape>`
+* :doc:`SqueezeTransformation <low-precision-transformations/step3-main/shape/squeeze>`
+* :doc:`ShuffleChannelsTransformation <low-precision-transformations/step3-main/movement/shuffle-channels>`
+* :doc:`SpaceToBatchTransformation <low-precision-transformations/step3-main/shape/space-to-batch>`
+* :doc:`SplitTransformation <low-precision-transformations/step3-main/movement/split>`
+* :doc:`StridedSliceTransformation <low-precision-transformations/step3-main/movement/strided-slice>`
+* :doc:`TransposeTransformation <low-precision-transformations/step3-main/movement/transpose>`
+* :doc:`UnsqueezeTransformation <low-precision-transformations/step3-main/shape/unsqueeze>`
+* :doc:`VariadicSplitTransformation <low-precision-transformations/step3-main/movement/variadic-split>`
 
 Decomposition transformations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -227,12 +227,12 @@ Decomposition transformations decompose the ``FakeQuantize`` operation to: quant
 
 Original ``FakeQuantize``:
 
-.. image:: _static/images/fq.common.svg
+.. image:: ../../../../_static/images/fq.common.svg
    :alt: FakeQuantize operation before LPT
 
 ``FakeQuantize`` after decomposition to quantization and dequantization operations:
 
-.. image:: _static/images/fq.transformed.svg
+.. image:: ../../../../_static/images/fq.transformed.svg
    :alt: FakeQuantize operation after LPT
 
 Dequantization operations handling transformations
@@ -242,12 +242,12 @@ In this step, LPT transformations fuse dequantization operations or move them th
 
 Original ``Convolution`` operation in FP32 with dequantization operations before:
 
-.. image:: _static/images/model_fq_and_convolution.common.svg
+.. image:: ../../../../_static/images/model_fq_and_convolution.common.svg
    :alt: Convolution operation before LPT
 
 ``Convolution`` operation in INT8 after decomposition and dequantization operations handling:
 
-.. image:: _static/images/model_fq_and_convolution.transformed.svg
+.. image:: ../../../../_static/images/model_fq_and_convolution.transformed.svg
    :alt: Convolution operation after LPT
 
 
@@ -258,24 +258,24 @@ LPT cleanup transformations is final stage in LPT pipeline. In this step LPT tra
 
 Transformations:
 
-* :doc:`EliminateFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_EliminateFakeQuantizeTransformation>`
-* :doc:`FoldConvertTransformation <openvino_docs_OV_UG_lpt_FoldConvertTransformation>`
-* :doc:`FoldFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FoldFakeQuantizeTransformation>`
-* :doc:`FuseConvertTransformation <openvino_docs_OV_UG_lpt_FuseConvertTransformation>`
-* :doc:`FuseMultiplyToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseMultiplyToFakeQuantizeTransformation>`
-* :doc:`FuseSubtractToFakeQuantizeTransformation <openvino_docs_OV_UG_lpt_FuseSubtractToFakeQuantizeTransformation>`
-* :doc:`MultiplyToGroupConvolutionTransformation <openvino_docs_OV_UG_lpt_MultiplyToGroupConvolutionTransformation>`
+* :doc:`EliminateFakeQuantizeTransformation <low-precision-transformations/step4-cleanup/eliminate-fake-quantize>`
+* :doc:`FoldConvertTransformation <low-precision-transformations/step4-cleanup/fold-convert>`
+* :doc:`FoldFakeQuantizeTransformation <low-precision-transformations/step3-main/quantization/fold-fake-quantize>`
+* :doc:`FuseConvertTransformation <low-precision-transformations/step4-cleanup/fuse-convert>`
+* :doc:`FuseMultiplyToFakeQuantizeTransformation <low-precision-transformations/step4-cleanup/fuse-multiply-to-fake-quantize>`
+* :doc:`FuseSubtractToFakeQuantizeTransformation <low-precision-transformations/step4-cleanup/fuse-subtract-to-fake-quantize>`
+* :doc:`MultiplyToGroupConvolutionTransformation <low-precision-transformations/step4-cleanup/multiply-to-group-convolution>`
 
-There are more details in developer guide :doc:`Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>`.
+There are more details in developer guide :doc:`Cleanup transformations <low-precision-transformations/step4-cleanup>`.
 
 ``FakeQuantize`` operation with not handled dequantization operations:
 
-.. image:: _static/images/fq.transformed.svg
+.. image:: ../../../../_static/images/fq.transformed.svg
    :alt: TODO: FakeQuantize operation with dequantization operations before LPT
 
 ``FakeQuantize`` operation with fused dequantization operations:
 
-.. image:: _static/images/fq.common.svg
+.. image:: ../../../../_static/images/fq.common.svg
    :alt: TODO: FakeQuantize operation with fused operations after LPT
 
 
@@ -313,13 +313,13 @@ This step is optional. It modifies the transformation function to a device-speci
 Result model overview
 #####################
 
-Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
+Let's explore quantized `TensorFlow implementation of ResNet-50 <https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/resnet-50-tf>`__ model. Use :doc:`Model Downloader <../../../../omz_tools_downloader>` tool to download the ``fp16`` model from `OpenVINO™ Toolkit - Open Model Zoo repository <https://github.com/openvinotoolkit/open_model_zoo>`__:
 
 .. code-block:: sh
 
    omz_downloader --name resnet-50-tf --precisions FP16-INT8
 
-After that you should quantize model by the :doc:`Model Quantizer <omz_tools_downloader>` tool.
+After that you should quantize model by the :doc:`Model Quantizer <../../../../omz_tools_downloader>` tool.
 
 .. code-block:: sh
 
@@ -329,7 +329,7 @@ After that you should quantize model by the :doc:`Model Quantizer <omz_tools_dow
 Inference
 +++++++++
 
-The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <openvino_sample_benchmark_tool>`.
+The simplest way to infer the model and collect performance counters is :doc:`Benchmark Application <../../../../learn-openvino/openvino-samples/benchmark-tool>`.
 
 .. code-block:: sh
 
