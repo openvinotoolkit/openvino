@@ -197,5 +197,3 @@ AvgPool
            </port>
        </output>
    </layer>
-
-
