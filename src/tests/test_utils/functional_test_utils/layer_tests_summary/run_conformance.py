@@ -60,7 +60,7 @@ def parse_arguments():
     cache_path_help = "Path to the cache file with test_name list sorted by execution time as `.lst` file!"
     expected_failures_update_help = "Overwrite expected failures list in case same failures were fixed"
     disable_rerun_help = "Disable re-run of interapted/lost tests. Default value is `False`"
-    timeout_help = "Set a custom time per worker in s"
+    timeout_help = "Set a custom timeout per worker in s"
 
     parser.add_argument("-d", "--device", help=device_help, type=str, required=False, default="CPU")
     parser.add_argument("-t", "--type", help=type_help, type=str, required=False, default=constants.OP_CONFORMANCE)
