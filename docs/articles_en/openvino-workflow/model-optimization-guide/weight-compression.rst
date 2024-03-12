@@ -7,6 +7,10 @@ Weight compression is a technique for enhancing the efficiency of models,
 especially those with large memory requirements. This method reduces the model's
 memory footprint, a crucial factor for Large Language Models (LLMs).
 
+Weight compression is a technique for enhancing the efficiency of models,
+especially those with large memory requirements. This method reduces the model's
+memory footprint, a crucial factor for Large Language Models (LLMs).
+
 Unlike full model quantization, where weights and activations are quantized,
 weight compression in `Neural Network Compression Framework (NNCF) <https://github.com/openvinotoolkit/nncf>`__
 only targets the model's weights. This approach
@@ -36,6 +40,7 @@ provides weight quantization to 8 and 4-bit integer data types as a compression
 method primarily designed to optimize LLMs.
 
 
+
 Compress Model Weights
 ######################
 
@@ -56,6 +61,7 @@ The code snippet below shows how to do 8-bit quantization of the model weights r
          :language: python
          :fragment: [compression_8bit]
 
+
 Now, the model is ready for compilation and inference.
 It can be also saved into a compressed format, resulting in a smaller binary file.
 
@@ -66,6 +72,8 @@ degradation could be higher, depending on the model.
 
 The table below summarizes the benefits and trade-offs for each compression type in terms of
 memory reduction, speed gain, and accuracy loss.
+
+  .. code-block:: python
 
 .. list-table::
    :widths: 25 20 20 20
@@ -87,6 +95,8 @@ memory reduction, speed gain, and accuracy loss.
      - High
      - Medium
      - Medium
+
+
 
 The INT4 method has several parameters that can provide different performance-accuracy trade-offs after optimization:
 
@@ -403,7 +413,5 @@ Additional Resources
 - `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__: Repository containing example pipelines that implement image and text generation tasks. It also provides a tool to benchmark LLMs.
 - `WhoWhatBench <https://github.com/openvinotoolkit/openvino.genai/tree/master/llm_bench/python/who_what_benchmark>`__
 - `NNCF GitHub <https://github.com/openvinotoolkit/nncf>`__
-- :doc:`Post-training Quantization <ptq_introduction>`
-- :doc:`Training-time Optimization <tmo_introduction>`
-
-
+- :doc:`Post-training Quantization <quantizing-models-post-training>`
+- :doc:`Training-time Optimization <compressing-models-during-training>`
