@@ -25,6 +25,29 @@ bool ov::util::is_type_unsupported(const ov::element::Type& type) {
     return std::find(unsupported_types.begin(), unsupported_types.end(), type) != unsupported_types.end();
 }
 
+void ov::util::save_original_input_precisions(const std::shared_ptr<ov::Node>& node) {
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        auto input = node->input(i);
+        input.get_rt_info()["original_precision"] = input.get_element_type();
+    }
+}
+
+bool ov::util::has_original_input_precision(const ov::Input<ov::Node>& input) {
+    return input.get_rt_info().count("original_precision") > 0;
+}
+
+ov::element::Type ov::util::get_original_input_precision(const ov::Input<ov::Node>& input) {
+    return input.get_rt_info().at("original_precision").as<ov::element::Type>();
+}
+
+void ov::util::remove_original_input_precision_attribute(ov::Input<ov::Node>& input) {
+    auto& rt_info = input.get_rt_info();
+    auto it = rt_info.find("original_precision");
+    if (it != rt_info.end()) {
+        rt_info.erase(it);
+    }
+}
+
 namespace {
 
 template <typename... Args>
@@ -105,11 +128,11 @@ static const std::unordered_map<ov::NodeTypeInfo, std::function<bool(const std::
         {ov::op::v4::Range::get_type_info_static(), convert_range_precision},
 };
 
-std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const Node* const node) {
+std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(Node* const node) {
     return ov::util::convert_to_supported_precision(node, node->input_values());
 }
 
-std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const Node* const node, const OutputVector& inputs) {
+std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(Node* const node, const OutputVector& inputs) {
     size_t num_inputs = node->get_input_size();
     OutputVector converted_inputs;
     converted_inputs.reserve(num_inputs);
@@ -128,23 +151,49 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(const Node* c
         }
     }
 
-    // Create a new node with new (converted) inputs.
-    auto cloned_node = node->clone_with_new_inputs(converted_inputs);
+    std::shared_ptr<Node> cloned_node;
 
-    // Override TypeRelaxed types
-    auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
-    if (type_relaxed) {
+    auto type_relaxed = dynamic_cast<op::TypeRelaxedBase*>(node);
+    if (type_relaxed != nullptr) {
+        // Save TypeRelaxed's origin input types
+        // If origin input type is undefined let's temporarily override it with original input precision attribute
+        // value. During ConstantFolding, some nodes can have temporarily mismatched input types (e.g. Add(f16, f32)).
+        // If the node is TypeRelaxed - we're unable to clone it since TypeRelaxed::clone_with_new_inputs creates a
+        // clone with 'fake' inputs based on current inputs and that can trigger an exception for certain nodes if the
+        // inputs have mismatched types.
+        element::TypeVector origin_input_types;
+        origin_input_types.reserve(num_inputs);
         for (size_t i = 0; i < num_inputs; i++) {
-            if (ov::util::is_type_unsupported(type_relaxed->get_origin_input_type(i))) {
-                type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
+            const auto& origin_type = type_relaxed->get_origin_input_type(i);
+            origin_input_types.push_back(origin_type);
+            if (origin_type == element::undefined && has_original_input_precision(node->input(i))) {
+                type_relaxed->set_origin_input_type(get_original_input_precision(node->input(i)), i);
+            }
+        }
+
+        cloned_node = node->clone_with_new_inputs(converted_inputs);
+
+        // Restore TypeRelaxed's origin input types
+        for (size_t i = 0; i < num_inputs; i++) {
+            type_relaxed->set_origin_input_type(origin_input_types[i], i);
+        }
+
+        auto cloned_type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
+        // Override TypeRelaxed types
+        for (size_t i = 0; i < num_inputs; i++) {
+            if (ov::util::is_type_unsupported(cloned_type_relaxed->get_origin_input_type(i))) {
+                cloned_type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
             }
         }
         for (size_t i = 0; i < cloned_node->get_output_size(); i++) {
             if (ov::util::is_type_unsupported(cloned_node->get_output_element_type(i))) {
-                type_relaxed->set_overridden_output_type(element::f32, i);
+                cloned_type_relaxed->set_overridden_output_type(element::f32, i);
             }
         }
         cloned_node->validate_and_infer_types();
+    } else {
+        // Create a new node with new (converted) inputs.
+        cloned_node = node->clone_with_new_inputs(converted_inputs);
     }
 
     // Handle nodes which outputs precisions don't depend on input precisions
@@ -221,9 +270,19 @@ bool ov::util::evaluate_node_with_unsupported_precision(const ov::Node* node,
         }
     }
 
-    // evaluate converted node
-    if (!node->evaluate(converted_output_tensors, converted_input_tensors)) {
-        return false;
+    auto type_relaxed = dynamic_cast<const op::TypeRelaxedBase*>(node);
+    if (type_relaxed == nullptr) {
+        // evaluate node with converted tensors
+        if (!node->evaluate(converted_output_tensors, converted_input_tensors)) {
+            return false;
+        }
+    } else {
+        // node is const so let's clone it
+        auto cloned = node->clone_with_new_inputs(node->input_values());
+        cloned = convert_to_supported_precision(cloned.get());
+        if (!cloned->evaluate(converted_output_tensors, converted_input_tensors)) {
+            return false;
+        }
     }
 
     // convert outputs tensors from f32 to original type if necessary
