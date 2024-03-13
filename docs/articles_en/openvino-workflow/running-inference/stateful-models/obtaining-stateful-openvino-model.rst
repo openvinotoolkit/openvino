@@ -100,7 +100,7 @@ input, as shown in the picture above. These inputs should set the initial value 
 initialization of ReadValue operations. However, such initialization is not supported in
 the current State API implementation. Input values are ignored, and the initial values
 for the ReadValue operations are set to zeros unless the user specifies otherwise via
-:ref:`State API <ov_ug_state_api>`.
+:doc:`State API <../stateful-models>`.
 
 Applying LowLatency2 Transformation
 ++++++++++++++++++++++++++++++++++++
@@ -181,7 +181,7 @@ Applying LowLatency2 Transformation
             :fragment: [ov:low_latency_2]
 
 
-4. Use state API. See sections :ref:`OpenVINO State API <ov_ug_state_api>`,
+4. Use state API. See sections :doc:`OpenVINO State API <../stateful-models>`,
    :ref:`Stateful Model Inference <ov_ug_stateful_model_inference>`.
 
    .. image:: ../../../_static/images/low_latency_limitation_2.svg
