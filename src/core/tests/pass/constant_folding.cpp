@@ -4029,6 +4029,24 @@ TEST_P(UnsupportedTypesTest, type_relaxed) {
     ASSERT_EQ(m->get_results().size(), 1);
 }
 
+TEST_P(UnsupportedTypesTest, random_uniform) {
+    // Make sure that ConstantFolding with RandomUniform doesn't throw
+    const auto& type = GetParam();
+    auto shape = op::v0::Constant::create(element::i32, Shape{2}, {2, 3});
+    auto min_val = op::v0::Constant::create(type, Shape{}, {-1});
+    auto max_val = op::v0::Constant::create(type, Shape{}, {3});
+    auto random = std::make_shared<op::v8::RandomUniform>(shape, min_val, max_val, type);
+    auto m = make_shared<Model>(random, ParameterVector{});
+
+    EXPECT_NO_THROW(run_constant_folding(m));
+
+    EXPECT_EQ(m->get_ops().size(), 5);
+    // RandomUniform is not constantfolded
+    EXPECT_EQ(count_ops_of_type<op::v8::RandomUniform>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
 static std::string unsupported_types_test_case_name(const testing::TestParamInfo<element::Type>& info) {
     return info.param.get_type_name();
 }

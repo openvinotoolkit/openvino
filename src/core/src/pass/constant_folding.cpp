@@ -74,17 +74,26 @@ static bool restore_original_input_precision(const std::shared_ptr<ov::Node>& no
     return restored;
 }
 
+class RequiresPrecisionConversion : public ov::RuntimeAttribute {
+public:
+    OPENVINO_RTTI("requires_precision_conversion", "0");
+
+    bool is_copyable() const override {
+        return false;
+    }
+};
+
 static void mark_node_requires_precision_conversion(const std::shared_ptr<ov::Node>& node) {
-    node->get_rt_info()["requires_precision_conversion"] = true;
+    node->get_rt_info()[RequiresPrecisionConversion::get_type_info_static()] = RequiresPrecisionConversion{};
 }
 
 static bool node_has_requires_precision_conversion_attribute(const std::shared_ptr<const ov::Node>& node) {
-    return node->get_rt_info().count("requires_precision_conversion") > 0;
+    return node->get_rt_info().count(RequiresPrecisionConversion::get_type_info_static()) > 0;
 }
 
 static void remove_requires_precision_conversion_attribute(const std::shared_ptr<ov::Node>& node) {
     auto& rt_info = node->get_rt_info();
-    auto it = rt_info.find("requires_precision_conversion");
+    auto it = rt_info.find(RequiresPrecisionConversion::get_type_info_static());
     if (it != rt_info.end()) {
         rt_info.erase(it);
     }
