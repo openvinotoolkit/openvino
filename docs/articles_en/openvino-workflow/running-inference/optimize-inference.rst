@@ -51,7 +51,7 @@ Although inference performed in OpenVINO Runtime can be configured with a multit
 
 Secondly, such optimization may not translate well to other device-model combinations. In other words, one set of execution parameters is likely to result in different performance when used under different conditions. For example:
 
-* both the CPU and GPU support the notion of :ref:`streams <optimize-inference/optimizing-throughput_advanced>`, yet they deduce their optimal number very differently.
+* both the CPU and GPU support the notion of :doc:`streams <./optimize-inference/optimizing-throughput/advanced_throughput_options>`, yet they deduce their optimal number very differently.
 * Even among devices of the same type, different execution configurations can be considered optimal, as in the case of instruction sets or the number of cores for the CPU and the batch size for the GPU.
 * Different models have different optimal parameter configurations, considering factors such as compute vs memory-bandwidth, inference precision, and possible model quantization.
 * Execution "scheduling" impacts performance strongly and is highly device-specific, for example, GPU-oriented optimizations like batching, combining multiple inputs to achieve the optimal throughput, :doc:`do not always map well to the CPU <optimize-inference/optimizing-low-level-implementation>`.
