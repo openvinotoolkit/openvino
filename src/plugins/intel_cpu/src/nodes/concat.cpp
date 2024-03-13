@@ -164,6 +164,22 @@ void Concat::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+        } else if (canBeInPlace) {
+            // canBeInPlace means all dims before axis are 1, so for nspc layout we only need check sp dimensions in
+            // axis=1 cases here
+            bool InPlaceCondOk = true;
+            if (axis == 1) {
+                const auto& childDims = outputShapes[0].getDims();
+                for (auto it = childDims.rbegin(); it != childDims.rend() - axis - 1; ++it) {
+                    if (*it != 1) {
+                        InPlaceCondOk = false;
+                        break;
+                    }
+                }
+            }
+            if (InPlaceCondOk) {
+                pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
