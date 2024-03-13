@@ -30,7 +30,7 @@ OpenVINO repositories make use of the following runners:
   `macos-12/13`, etc.
 
 * [larger runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-larger-runners/about-larger-runners#machine-sizes-for-larger-runners),
-  used for memory and CPU heavy tasks, listed in [the runners page](https://github.com/openvinotoolkit/openvino/actions/runners).
+  used for memory and CPU-intensive tasks, listed in [the runners page](https://github.com/openvinotoolkit/openvino/actions/runners).
 
 
 ## Available Self-hosted Runners
