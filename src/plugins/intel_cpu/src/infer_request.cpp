@@ -191,10 +191,7 @@ void SyncInferRequest::change_default_ptr() {
 
     for (auto& it : m_input_external_ptr) {
         auto input = inputNodesMap.find(it.first);
-        if (inputNodesMap.end() == input) {
-            OPENVINO_ASSERT(outputNodesMap.count(it.first), "Cannot find input/output blob with index: ", it.first);
-            continue;
-        }
+        OPENVINO_ASSERT(inputNodesMap.end() != input, "Cannot find input tensor with index: ", it.first);
         NodePtr inputNodePtr = input->second;
         if (inputNodePtr->getChildEdgeAt(0)->getMemory().getData() == static_cast<void*>(it.second->data()))
             continue;
@@ -242,9 +239,7 @@ void SyncInferRequest::change_default_ptr() {
 
     for (auto& it : m_output_external_ptr) {
         auto output = outputNodesMap.find(it.first);
-        if (outputNodesMap.end() == output) {
-            continue;
-        }
+        OPENVINO_ASSERT(outputNodesMap.end() != output, "Cannot find output tensor with index: ", it.first);
         auto parentEdge = output->second->getParentEdgeAt(0);
         if (parentEdge->getMemory().getData() == static_cast<void*>(it.second->data()))
             continue;
@@ -469,7 +464,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
         OPENVINO_ASSERT(m_graph->inputNodesMap.find(port_index) != m_graph->inputNodesMap.end(),
                         "Tensor with index: ",
                         port_index,
-                        " exists in CPU plugin graph, but absents in network inputs");
+                        " exists in CPU plugin graph, but absents in model inputs");
         const auto& port = m_input_ports_map[port_index];
         tensor = ov::ISyncInferRequest::get_tensor(port);
 
@@ -504,7 +499,7 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
         OPENVINO_ASSERT(output != outMap.end(),
                         "Tensor with index: ",
                         port_index,
-                        " exists in CPU plugin graph, but absents in network outputs");
+                        " exists in CPU plugin graph, but absents in model outputs");
         if (m_outputs.find(port_index) == m_outputs.end()) {
             const auto& port = m_output_ports_map[port_index];
             const auto& port_shape = port.get_partial_shape();
@@ -558,28 +553,28 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
                 }
                 ov::ISyncInferRequest::set_tensor(port, tensor);
             } else {
-                const auto& blobDims = tensor->get_shape();
+                const auto& tensor_shape = tensor->get_shape();
                 const bool isDynamic = port_shape.is_dynamic();
                 // Static shape case is enough information that shapes are incompatible to throw exception
                 // but in dynamic shape case we also need to handle following corner case:
                 // on tensor initialization stage we create empty tensor with dimensions equal 0
                 // so if we have tensor with all zero dimension we mustn't throw exception
-                if (!port_shape.compatible(ov::PartialShape(blobDims)) &&
-                    (!isDynamic || static_cast<int64_t>(blobDims.size()) != port_shape.rank().get_length() ||
-                     std::any_of(blobDims.begin(), blobDims.end(), [](const size_t& dims) {
+                if (!port_shape.compatible(ov::PartialShape(tensor_shape)) &&
+                    (!isDynamic || static_cast<int64_t>(tensor_shape.size()) != port_shape.rank().get_length() ||
+                     std::any_of(tensor_shape.begin(), tensor_shape.end(), [](const size_t& dims) {
                          return dims != 0;
                      }))) {
-                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same index: ",
+                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
                                    port_index,
                                    ", but expect tensors with different shapes. Input shape: ",
-                                   ov::PartialShape(blobDims),
+                                   ov::PartialShape(tensor_shape),
                                    ", output shape: ",
                                    port_shape);
                 }
 
                 const auto netOutPrc = port.get_element_type();
                 if (netOutPrc != tensor->get_element_type()) {
-                    OPENVINO_THROW("ParameterMismatch: Network input and output use the same index: ",
+                    OPENVINO_THROW("ParameterMismatch: model input and output use the same index: ",
                                    port_index,
                                    " but expect tensor with different precision: ",
                                    tensor->get_element_type(),

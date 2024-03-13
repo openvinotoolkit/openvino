@@ -139,8 +139,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
-            if (input_index == -1)
-                OPENVINO_THROW("Can not find op: ", op->get_friendly_name(), " in model parameter list!");
+            OPENVINO_ASSERT(input_index >= 0,
+                            "Can not find op: ",
+                            op->get_friendly_name(),
+                            " in model parameter list!");
             inputNodesMap[input_index] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
@@ -149,8 +151,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
-            if (output_index == -1)
-                OPENVINO_THROW("Can not find op: ", op->get_friendly_name(), " in model result list!");
+            OPENVINO_ASSERT(output_index >= 0, "Can not find op: ", op->get_friendly_name(), " in model result list!");
             outputNodesMap[output_index] = node;
         }
 
@@ -973,7 +974,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
             }
         }
     } else {
-        OPENVINO_THROW("Input blob for infer '", index, "' doesn't correspond to input in network");
+        OPENVINO_THROW("Input tensor with index '", index, "' is not available in the model");
     }
 }
 
@@ -990,9 +991,9 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         const auto ext_blob_map = output.find(output_index);
         const auto ext_blob = ext_blob_map->second;
-        if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with output_index: ", output_index);
-        }
+        OPENVINO_ASSERT(ext_blob_map != output.end(),
+                        "The CPU plugin graph doesn't contain output node with output_index: ",
+                        output_index);
 
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
