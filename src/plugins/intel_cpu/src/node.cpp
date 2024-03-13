@@ -1844,7 +1844,10 @@ void Node::resolveInPlaceDirection() {
 
                     // the parent node does not use inPlace memory, but it is an Input.
                     if (Type::Input == pParent->getType() || Type::MemoryInput == pParent->getType()) {
-                        numConflicts = 2;  // early stop
+                        auto config = getSelectedPrimitiveDescriptor()->getConfig();
+                        config.inConfs[inpPort].inPlace(-1);
+                        initDescriptor(config);
+                        continue;
                     }
 
                     // search descendants
@@ -1890,12 +1893,10 @@ void Node::resolveInPlaceDirection() {
                         auto config = getSelectedPrimitiveDescriptor()->getConfig();
                         config.outConfs[inPlaceInpPort].inPlace(-1);
                         initDescriptor(config);
-                        std::cout << "=============" << getName() << " resolve DOWN" << " with numConflicts=" << numConflicts << std::endl;
                     } else { // the default direction of upstream
                         auto config = getSelectedPrimitiveDescriptor()->getConfig();
                         config.inConfs[inpPort].inPlace(-1);
                         initDescriptor(config);
-                        std::cout << "=============" << getName() << " resolve UP" << " with numConflicts=" << numConflicts << std::endl;
                     }
                 } else {
                     OPENVINO_THROW("A node without an inPlace memory cyclic dependency has not been found");
