@@ -3,8 +3,6 @@
 //
 
 #include "openvino/op/slice.hpp"
-#include "helper_ops/flatten_tensor.hpp"
-#include "helper_ops/complex_tensor_reshape.hpp"
 #include "common_op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -12,8 +10,10 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/concat.hpp"
 #include "utils.hpp"
-#include<complex>
+#include "helper_ops/complex_type_mark.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -31,19 +31,11 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto size = node.get_input(2);
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
-    // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
-    // compute stop values in case negative sizes
-    // since TensorFlow supports only -1 among negative sizes
-    // assign stop values to the data shape
     Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
     stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
-    // select the correct stop value based on a sign of size value
     auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
-    // TODO: investigate if we can simplify and replace Select with FloorMod operation
-    // like FloorMod(size, input_shape)
     auto stop = make_shared<v1::Select>(negative_sizes_mask, stop_neg, stop_pos);
-    // broadcast step value
     auto start_shape = make_shared<v3::ShapeOf>(start);
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
     OutputVector slice;
@@ -51,24 +43,15 @@ OutputVector translate_slice_op(const NodeContext& node) {
     if(complex_type_mark){
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_part_type->input_value(0);
-        auto flatten_in = flatten(input);
-        auto tensor_shape = get_shape(input); 
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+        auto real = make_shared<v8::Gather>(input, gather_index_real, minus_one)->output(0);
+        auto imag = make_shared<v8::Gather>(input, gather_index_imag, minus_one)->output(0);
 
-        // Extract the real and imaginary parts of the tensor
-        std::vector<float> real(flatten_in.size());
-        std::vector<float> imag(flatten_in.size());
-        for (int i = 0; i < flatten_in.size(); ++i) {
-            real[i] = flatten_in[i].real();
-            imag[i] = flatten_in[i].imag();
-        }
-
-        auto real_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{real.size()}, real);
-        auto imag_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{imag.size()}, imag);
-        auto real_tensor = make_shared<v1::Reshape>(real_node, tensor_shape, false);
-        auto imag_tensor = make_shared<v1::Reshape>(imag_node, tensor_shape, false);
-        auto real_part = make_shared<v8::Slice>(real_tensor,start,stop,step);
+        auto real_part = make_shared<v8::Slice>(real,start,stop,step);
         set_node_name(node.get_name(), real_part);
-        auto imag_part = make_shared<v8::Slice>(imag_tensor, start, stop, step);
+        auto imag_part = make_shared<v8::Slice>(imag, start, stop, step);
         set_node_name(node.get_name(), imag_part);
 
         OutputVector concat_inputs;
