@@ -63,13 +63,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         fusingPReluPerTensor,
 };
 
-std::vector<fusingSpecificParams> fusingParamsSet2DFP16 {
-        emptyFusingSpec,
-        fusingBias,
-        fusingRelu,
-        fusingPReluPerTensor,
-};
-
+std::vector<fusingSpecificParams> fusingParamsSet2DFP16 = fusingParamsSet2DBF16;
 const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS_x64),
                                              ::testing::ValuesIn(netPRCs()),
                                              ::testing::Values(ElementType::undefined),

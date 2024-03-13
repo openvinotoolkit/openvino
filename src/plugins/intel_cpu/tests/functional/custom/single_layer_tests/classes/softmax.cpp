@@ -56,6 +56,8 @@ void SoftMaxLayerCPUTest::SetUp() {
 
     if (inType == ElementType::bf16) {
         rel_threshold = 2e-2f;
+    } else if (inType == ElementType::f16) {
+        rel_threshold = 0.0025f;
     }
     selectedType = makeSelectedTypeStr(selectedType, get_default_imp_precision_type(inType, configuration));
     init_input_shapes({config.inputShape});

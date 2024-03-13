@@ -57,18 +57,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingAddPerChannel
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSetFP16{
-        emptyFusingSpec,
-        // eltwise
-        fusingRelu,
-        // depthwise
-        fusingPRelu1DScaleShift,
-        // sum
-        fusingSum,
-        // bias
-        fusingAddPerChannel
-};
-
+const std::vector<fusingSpecificParams> fusingParamsSetFP16 = fusingParamsSetBF16;
 /* ============= Convolution (Gemm 1D) ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32, ConvolutionLayerCPUTest,
                          ::testing::Combine(
