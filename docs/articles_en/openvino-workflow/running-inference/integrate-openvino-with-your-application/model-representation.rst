@@ -77,7 +77,7 @@ the conversion will throw an exception. For example:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:partial_shape]
 
    .. tab-item:: C++
@@ -94,7 +94,7 @@ Representation of Operations
 ################################
 
 The ``ov::Op`` class represents any abstract operation in the model representation. Use this class to create
-:doc:`custom operations <openvino_docs_Extensibility_UG_add_openvino_ops>`.
+:doc:`custom operations <../../../documentation/openvino-extensibility/custom-openvino-operations>`.
 
 Representation of Operation Sets
 ######################################
@@ -105,8 +105,8 @@ For each operation set, OpenVINO™ Runtime provides a separate namespace, for e
 
 Each OpenVINO™ Release introduces new operations and adds them to new operation sets, within which the new operations would change
 the behavior of previous operations. Using operation sets helps you avoid changing your application when new operations are introduced.
-For a complete list of operation sets supported in OpenVINO™ toolkit, see the :doc:`Available Operations Sets <openvino_docs_ops_opset>`.
-To add the support for custom operations, see :doc:`OpenVINO Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`.
+For a complete list of operation sets supported in OpenVINO™ toolkit, see the :doc:`Available Operations Sets <../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
+To add the support for custom operations, see :doc:`OpenVINO Extensibility Mechanism <../../../documentation/openvino-extensibility>`.
 
 .. _ov_ug_build_model:
 
@@ -191,7 +191,7 @@ OpenVINO™ provides several debug capabilities:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:visualize]
 
    .. tab-item:: C++
@@ -227,7 +227,7 @@ OpenVINO™ provides several debug capabilities:
       :sync: py
 
       .. doxygensnippet:: docs/snippets/ov_model_snippets.py
-         :language: cpp
+         :language: python
          :fragment: [ov:serialize]
 
    .. tab-item:: C++
@@ -241,8 +241,8 @@ OpenVINO™ provides several debug capabilities:
 Additional Resources
 ########################
 
-* :doc:`Available Operation Sets <openvino_docs_ops_opset>`.
-* :doc:`OpenVINO™ Runtime Extensibility Developer Guide <openvino_docs_Extensibility_UG_Intro>`.
-* :doc:`Transformations Developer Guide <openvino_docs_transformations>`.
+* :doc:`Available Operation Sets <../../../documentation/openvino-ir-format/operation-sets/available-opsets>`.
+* :doc:`OpenVINO™ Runtime Extensibility Developer Guide <../../../documentation/openvino-extensibility>`.
+* :doc:`Transformations Developer Guide <../../../documentation/openvino-extensibility/transformation-api>`.
 
 

@@ -18,12 +18,14 @@ public:
 
     FullyConnectedCompressed(const ov::Output<Node> &A,
                              const ov::Output<Node> &B,
+                             const ov::Output<Node> &bias,
                              const ov::Output<Node> &decompression_scale,
                              const ov::Output<Node> &decompression_zero_point,
                              const ov::element::Type output_type = ov::element::undefined);
 
     FullyConnectedCompressed(const ov::Output<Node> &A,
                              const ov::Output<Node> &B,
+                             const ov::Output<Node> &bias,
                              const ov::Output<Node> &decompression_scale,
                              const ov::element::Type output_type = ov::element::undefined);
 
