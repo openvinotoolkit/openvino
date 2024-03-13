@@ -122,18 +122,19 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             }
         } else if (key == ov::cpu_core_ids) {
             std::string ids_str = value.as<std::string>();
-            std::vector<int> ids;
-            std::stringstream ss(ids_str);
-            std::string item;
-            while (getline(ss, item, ',')) {
-                ids.push_back(std::stoi(item));
+            if(_executor_id==-1) {
+                std::vector<int> ids;
+                std::stringstream ss(ids_str);
+                std::string item;
+                while (getline(ss, item, ',')) {
+                    ids.push_back(std::stoi(item));
+                }
+                _executor_id = config_available_cpus(_executor_id, ids);
+            } else {
+                OPENVINO_WARN << "Key " << ov::cpu_core_ids.name() 
+                              << " already been set!!! New value \""
+                              << ids_str << "\" will be ignore!!!";
             }
-            _executor_id = config_available_cpus(_executor_id, ids);
-            printf("### update excutor id=%d, name=%s ids=%s, streams=%d\n",
-                   _executor_id,
-                   _name.c_str(),
-                   ids_str.c_str(),
-                   _streams);
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
             int val_i;
             try {

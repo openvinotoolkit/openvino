@@ -172,6 +172,15 @@ bool check_open_mp_env_vars(bool include_omp_num_threads) {
     return false;
 }
 
+/*** 
+ * Store the corresponding CPU information for each executor in the map. 
+ * We can set up a special streams_info_table for each executor 
+ * so that each stream can be bound with a specific cores.
+ * When we set CPU_CORE_IDS, there will be a new executor_id be generated
+ * and the corresponding cpu info will be save in the map.
+ * As we doesn't set the CPU_CORE_IDS, we will use -1 for each executor id
+ * Key==-1 will store the default CPU information
+***/
 static std::map<int, std::shared_ptr<ov::CPU>> cpu_map{{-1, std::make_shared<CPU>()}};
 static std::mutex cpu_map_mutex;
 static int executor_count = 0;
@@ -367,6 +376,11 @@ inline int update_cpuinfo(std::vector<int>& infos, std::vector<int>& cpu_mapping
     return maxid;
 }
 
+/***
+ * When we set ov::cpu_core_ids from config in compile_model function,
+ * we will call config_available_cpu to set the specific core used by this model
+ * and store the cpu info in the map for further using
+*/
 int config_available_cpus(int executor_id, std::vector<int>& cpuids) {
     if (cpuids.size() == 0)
         return executor_id;
@@ -515,7 +529,7 @@ void reserve_available_cpus(int executor_id,
                        << " " << streams_info_table[i][STREAM_SOCKET_ID];
     }
     OPENVINO_DEBUG << "[ threading ] stream_processors:";
-    printf("[ threading executor_id=%d] stream_processors (%ld):\n", executor_id, stream_processors.size());
+    printf("[ threading executor_id=%d] stream_processors (%ld):", executor_id, stream_processors.size());
     for (size_t i = 0; i < stream_processors.size(); i++) {
         OPENVINO_DEBUG << "{";
         printf("{ ");
@@ -524,8 +538,9 @@ void reserve_available_cpus(int executor_id,
             printf("%d ", stream_processors[i][j]);
         }
         OPENVINO_DEBUG << "},";
-        printf("}\n");
+        printf("}");
     }
+    printf("\n");
 }
 
 void set_cpu_used(int executor_id, const std::vector<int>& cpu_ids, const int used) {
