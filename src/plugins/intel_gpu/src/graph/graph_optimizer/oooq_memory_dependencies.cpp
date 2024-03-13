@@ -189,7 +189,7 @@ void oooq_memory_dependencies::run(program& p) {
     while (itr_A != processing_order_except_const.end()) {
         for (const auto& dep : (*itr_A)->get_dependencies()) {
             if (dep.first->is_type<cldnn::shape_of>()) {
-                std::function<void(const program_node*, size_t)> add_to_runtime_mem_deps = [&, this](const program_node* pnode, size_t curr_dist) {
+                std::function<void(const program_node*, size_t)> add_to_runtime_mem_deps = [&](const program_node* pnode, size_t curr_dist) {
                     const size_t max_distance = 2;
                     if (curr_dist == max_distance)
                         return;
