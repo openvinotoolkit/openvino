@@ -128,6 +128,12 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value);
 
+template <>
+Napi::Array cpp_to_js<const std::vector<ov::PropertyName>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<ov::PropertyName> properties_array);
+
+template <>
+Napi::Array cpp_to_js<const std::vector<std::string>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<std::string> string_array);
+
 /** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to ov::TensorVector. */
 ov::TensorVector parse_input_data(const Napi::Value& input);
 

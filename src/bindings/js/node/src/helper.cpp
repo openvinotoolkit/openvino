@@ -266,6 +266,28 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
     return Napi::Boolean::New(info.Env(), value);
 }
 
+template <>
+Napi::Array cpp_to_js<const std::vector<ov::PropertyName>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<ov::PropertyName> string_array) {
+    Napi::Array array = Napi::Array::New(info.Env(), string_array.size());
+
+    uint32_t i = 0;
+    for (auto& property : string_array)
+        array[i++] = Napi::String::New(info.Env(), property);
+
+    return array;
+}
+
+template <>
+Napi::Array cpp_to_js<const std::vector<std::string>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<std::string> properties_array) {
+    Napi::Array array = Napi::Array::New(info.Env(), properties_array.size());
+
+    uint32_t i = 0;
+    for (auto& property : properties_array)
+        array[i++] = Napi::String::New(info.Env(), property);
+
+    return array;
+}
+
 ov::TensorVector parse_input_data(const Napi::Value& input) {
     ov::TensorVector parsed_input;
     if (input.IsArray()) {
