@@ -58,3 +58,21 @@ TEST(onnx_importer, exception_msg_std_err_wrapped) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }
 }
+
+
+TEST(onnx_importer, exception_msg_onnx_reduce_wrong_type_v1) {
+    try {
+        convert_model("reduce_wrong_type_v1.onnx");
+        // Should have thrown, so fail if it didn't
+        FAIL() << "ONNX Importer did not detected incorrect model!";
+    } catch (const ::ov::Exception& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(ReduceProd)"));
+    }
+    // On MacOS after we re-throw ov::Exception exception, we couldn't catch it as is,
+    // thus below workaround.
+    catch (const std::exception& e) {
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(ReduceProd)"));
+    } catch (...) {
+        FAIL() << "The ONNX model importer failed for unexpected reason";
+    }
+}
