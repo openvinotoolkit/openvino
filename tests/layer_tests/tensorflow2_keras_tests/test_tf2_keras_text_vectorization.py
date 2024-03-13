@@ -1,11 +1,11 @@
 # Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
+import platform
 
+import numpy as np
 import pytest
 import tensorflow as tf
-
 from common.tf2_layer_test_class import CommonTF2LayerTest
 from tensorflow.keras.layers import TextVectorization
 
