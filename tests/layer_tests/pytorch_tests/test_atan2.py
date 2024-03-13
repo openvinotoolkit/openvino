@@ -9,14 +9,10 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAtan2(PytorchLayerTest):
-    def _prepare_input(self, inputs_info):
-        assert 'y' in inputs_info
-        assert 'x' in inputs_info
-        y_shape = inputs_info['y']
-        x_shape = inputs_info['x']
+    def _prepare_input(self, x, y, dtype=None):
         inputs_data = {}
-        inputs_data['y'] = np.random.rand(*y_shape).astype(self.input_type) - np.random.rand(*y_shape).astype(self.input_type)
-        inputs_data['x'] = np.random.rand(*x_shape).astype(self.input_type) - np.random.rand(*x_shape).astype(self.input_type)
+        inputs_data['y'] = np.array(y).astype(dtype) - np.array(y).astype(dtype)
+        inputs_data['x'] = np.array(x).astype(dtype) - np.array(x).astype(dtype)
         return inputs_data
 
     def create_model(self, input_type):
