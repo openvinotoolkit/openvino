@@ -77,7 +77,7 @@ TEST(ElementIteratorTest, read_u1_data_iterator_with_offset) {
     EXPECT_EQ(*std::next(iter, 2), 1);  // 2nd byte bit5
 }
 
-TEST(ElementIteratorTest, u1_value_to_output_stream) {
+TEST(ElementIteratorTest, read_u1_from_tensor) {
     auto input = std::array<int8_t, 4>{0x32, static_cast<int8_t>(0xa3), 0x41, 0x11};
     auto t = ov::Tensor(element::u1, Shape{2, 16}, input.data());
     auto iter = element::iterator<element::u1>(static_cast<int8_t*>(t.data(element::u1)));
@@ -87,7 +87,7 @@ TEST(ElementIteratorTest, u1_value_to_output_stream) {
         ElementsAre(0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1));
 }
 
-TEST(ElementIteratorTest, read_u1_from_tensor) {
+TEST(ElementIteratorTest, u1_value_to_output_stream) {
     constexpr auto value = static_cast<int8_t>(0x80);
     auto iter = element::iterator<element::u1>(&value);
 
