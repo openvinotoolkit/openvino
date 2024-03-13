@@ -1,7 +1,7 @@
 # Smart CI Overview
 
 Smart CI is a feature designed to optimize pre-commit CI workflow by running only the necessary
-builds and tests required to validate changes in a given Pull Request (PR).
+builds and tests required to validate changes in a given pull request (PR).
 
 For example, if a PR changes only the CPU plugin, GPU plugin tests are skipped in the pre-commit stage
 for this PR, as they are unrelated. This approach reduces execution time for isolated changes

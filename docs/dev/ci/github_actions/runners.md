@@ -7,6 +7,9 @@ Two types of runners are available in this repository:
 * [GitHub Actions Runners](https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners) - runners provided and managed by GitHub
 * [Self-hosted Runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners) - runners created and managed by the OpenVINO CI team and linked to the OpenVINO repositories
 
+Generally, it is advised to use the GitHub Actions runners for light jobs, like labelers, code style checks, etc, whereas
+longer workflows (such as builds or functional tests) should use the self-hosted runners.
+
 The runners are specified for each job using the `runs-on` key.
 
 An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml)
