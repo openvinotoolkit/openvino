@@ -5,7 +5,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    f32: number
 
@@ -16,7 +16,7 @@ Enumeration element
 .. rubric:: f64
 
 
-.. code-block:: json
+.. code-block:: ts
 
    f64: number
 
@@ -27,7 +27,7 @@ Enumeration element
 .. rubric:: i16
 
 
-.. code-block:: json
+.. code-block:: ts
 
    i16: number
 
@@ -39,7 +39,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    i32: number
 
@@ -51,7 +51,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    i64: number
 
@@ -63,7 +63,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    i8: number
 
@@ -75,7 +75,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    u16: number
 
@@ -87,7 +87,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    u32: number
 
@@ -99,7 +99,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    u64: number
 
@@ -111,7 +111,7 @@ Enumeration element
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    u8: number
 

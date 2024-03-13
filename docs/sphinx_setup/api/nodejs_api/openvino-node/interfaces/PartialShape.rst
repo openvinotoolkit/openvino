@@ -1,7 +1,7 @@
 Interface PartialShape
 ======================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface PartialShape {
        getDimensions(): Dimension[];
@@ -19,7 +19,7 @@ Methods
 .. rubric:: getDimensions
 
 
-.. code-block:: json
+.. code-block:: ts
 
    getDimensions(): Dimension
 
@@ -32,7 +32,7 @@ Methods
 .. rubric:: isDynamic
 
 
-.. code-block:: json
+.. code-block:: ts
 
    isDynamic(): boolean
 
@@ -46,7 +46,7 @@ Methods
 
 
 
-.. code-block:: json
+.. code-block:: ts
 
    isStatic(): boolean
 
@@ -60,7 +60,7 @@ Methods
 .. rubric:: toString
 
 
-.. code-block:: json
+.. code-block:: ts
 
    toString(): string
 
