@@ -454,7 +454,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
-        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 12) {
+        if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + buffer_count > 11) {
             return false;
         }
 
