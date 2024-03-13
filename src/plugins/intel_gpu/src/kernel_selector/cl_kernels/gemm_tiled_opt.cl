@@ -242,7 +242,7 @@ KERNEL(gemm_tiled_opt)(
         #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
         #else
-                b_tile[b_load_id] = N_IS_ODD ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+                b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
         #endif
                 b_ptr += input1_offset;
             }
@@ -334,7 +334,7 @@ KERNEL(gemm_tiled_opt)(
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
             A_FLOATN a_read = input0[a_idx];
 #else
-            A_FLOATN a_read = K_IS_ODD ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
 #endif
 #else // IS_DYNAMIC
 #if INDIRECT_INPUT0
@@ -414,7 +414,7 @@ KERNEL(gemm_tiled_opt)(
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                    b_tile[b_load_id] = N_IS_ODD ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
+                    b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
             #endif
                     b_ptr += input1_offset;
                 }
