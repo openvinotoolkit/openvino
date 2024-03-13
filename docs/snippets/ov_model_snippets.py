@@ -76,8 +76,8 @@ def visualize_example(m : ov.Model):
 
 def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
-    inputs = model.inputs
-    outputs = model.outputs
+    ov_model_input = ov_model.input
+    ov_model_output = ov_model.output
     #! [all_inputs_ouputs]
 
 
