@@ -66,7 +66,7 @@ OutputVector translate_atan2(const NodeContext& context) {
 
     auto result_conv = context.mark_node(std::make_shared<v0::Convert>(result, context.get_input(2));
 
-    return {result};
+    return {result_conv};
 }
 }  // namespace op
 }  // namespace pytorch
