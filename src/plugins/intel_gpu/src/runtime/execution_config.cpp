@@ -67,7 +67,7 @@ void ExecutionConfig::set_default() {
 
     register_property<PropertyVisibility::INTERNAL>(
         std::make_tuple(ov::intel_gpu::max_dynamic_batch, 1),
-        std::make_tuple(ov::intel_gpu::queue_type, QueueTypes::out_of_order),
+        std::make_tuple(ov::intel_gpu::queue_type, QueueTypes::in_order), // with OOOQ clFlush may crash for some reason with sycl kernel
         std::make_tuple(ov::intel_gpu::optimize_data, false),
         std::make_tuple(ov::intel_gpu::enable_memory_pool, true),
         std::make_tuple(ov::intel_gpu::allow_static_input_reorder, false),
