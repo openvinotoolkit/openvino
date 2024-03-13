@@ -543,7 +543,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     const auto& indices_shape = mem_indices->getStaticDims();
     size_t updates_rank = indices_shape.size();
 
-    const auto data_dim_size = data_shape[axis];
+    const IndexType data_dim_size = static_cast<IndexType>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
 
     if (axis < 0)
@@ -621,10 +621,9 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
         size_t i, dst_idx = 0, indices_idx = 0;
         int32_t j;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        VectorDims start_coord(updates_rank, 0);
-        getCoordinate(start_coord, start, squashed_indices_shape);
 
-        VectorDims tensorItr(start_coord);
+        VectorDims tensorItr(updates_rank, 0);
+        getCoordinate(tensorItr, start, squashed_indices_shape);
         for (i = 0; i < static_cast<size_t>(axis); ++i) {
             dst_idx += tensorItr[i] * dataBlockND[i + 1];
             indices_idx += tensorItr[i] * indicesBlockND[i + 1];
@@ -670,51 +669,56 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 }
             }
         } else {
+            std::vector<size_t> dst_offsets(end-start+1, dst_idx);  // one extra to protect
+            std::vector<size_t> indices_offsets(end-start+1, indices_idx);
             // external axis loop for better performance
-            for (size_t idx = 0; idx < index_dim_size; idx++) {
-                if (idx > 0) {
-                    tensorItr = start_coord;
-                    dst_idx = 0;
-                    indices_idx = 0;
-                    for (i = 0; i < static_cast<size_t>(axis); ++i) {
-                        dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                        indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                    }
-                    for (i++; i < updates_rank; ++i) {
-                        dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                        indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                    }
-                }
-                for (size_t worker = start; worker < end; worker++) {
-                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
-                    IndexType idxValue = *(indicesPtr + indices_offset);
-                    if (idxValue < 0) idxValue += data_dim_size;
-                    // TODO check up idxValue
-                    auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_offset;
-                    kernel_func(*dst, *src);
+            size_t *ptr_indices_offset = &indices_offsets[0];
+            size_t *ptr_dst_offset = &dst_offsets[0];
+            for (size_t worker = start; worker < end; worker++) { // idx = 0
+                IndexType idxValue = *(indicesPtr + *ptr_indices_offset);
+                if (idxValue < 0) idxValue += data_dim_size;
+                OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
+                auto src = updatePtr + *ptr_indices_offset;
+                kernel_func(*dst, *src);
 
-                    // increment
-                    for (j = updates_rank - 1; j >= 0; j--) {
-                        tensorItr[j]++;
-                        if (tensorItr[j] < squashed_indices_shape[j]) {
-                            if (j != axis) {
-                                dst_idx += dataBlockND[j + 1];
-                                indices_idx += indicesBlockND[j + 1];
-                            }
-                            break;
-                        } else {
-                            tensorItr[j] = 0;
-                            for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
-                                dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                                indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                            }
-                            for (i++; i < updates_rank; ++i) {
-                                dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                                indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                            }
+                // increment once for all
+                for (j = updates_rank - 1; j >= 0; j--) {
+                    tensorItr[j]++;
+                    if (tensorItr[j] < squashed_indices_shape[j]) {
+                        if (j != axis) {
+                            dst_idx += dataBlockND[j + 1];
+                            indices_idx += indicesBlockND[j + 1];
+                        }
+                        break;
+                    } else {
+                        tensorItr[j] = 0;
+                        for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
+                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
+                        }
+                        for (i++; i < updates_rank; ++i) {
+                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
+                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
                         }
                     }
+                }
+                *++ptr_dst_offset = dst_idx;
+                *++ptr_indices_offset = indices_idx;
+            }
+            for (size_t idx = 1; idx < index_dim_size; idx++) {
+                ptr_indices_offset = &indices_offsets[0];
+                ptr_dst_offset = &dst_offsets[0];
+                for (size_t worker = start; worker < end; worker++) {
+                    auto indices_offset = *ptr_indices_offset + idx * indicesBlockND[axis + 1];
+                    IndexType idxValue = *(indicesPtr + indices_offset);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
+                    auto src = updatePtr + indices_offset;
+                    kernel_func(*dst, *src);
+                    ptr_indices_offset++;
+                    ptr_dst_offset++;
                 }
             }
         }
