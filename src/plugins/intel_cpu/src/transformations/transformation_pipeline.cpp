@@ -770,13 +770,6 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-        // Big shapes may lead to perf degradation
-        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-        if ((K.is_static() && K.get_length() > 512) || // heuristic values
-            (N.is_static() && N.get_length() > 256))
-            return false;
         if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
@@ -785,6 +778,8 @@ void Transformations::MainSnippets(void) {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+                const auto N = *(matmul->get_input_partial_shape(1).rbegin());
                 return K.is_static() && (K.get_length() % bf16Factor == 0) &&
                        N.is_static() && (N.get_length() % bf16Factor == 0);
             }
