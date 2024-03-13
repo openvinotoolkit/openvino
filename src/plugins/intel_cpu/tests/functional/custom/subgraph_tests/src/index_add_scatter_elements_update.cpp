@@ -72,6 +72,9 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
+        abs_threshold = 0.01f;
+        rel_threshold = 0.01f;
+
         constexpr size_t DATA_INPUT_IDX = 0;
         constexpr size_t UPDATES_INPUT_IDX = 1;
 
@@ -196,7 +199,8 @@ protected:
             } else if (i == 1) {  // "indices"
                 // All index values are expected to be within bounds [-d, d - 1] along dimension d pointed by axis.
                 auto d = dataShape[normalized_axis];
-                std::cout << "=============== " << i << ": normalized_axis=" << normalized_axis << ", d=" << d << ", dataShape=" << dataShape<< std::endl;
+                std::cout << "=============== " << i << ": normalized_axis=" << normalized_axis << ", d=" << d
+                        << ", dataShape=" << dataShape << ", indicesShape=" << indicesShape << std::endl;
                 in_data.start_from = -1.0 * static_cast<int64_t>(d);
                 in_data.range = d-1;
                 in_data.resolution = 1;
@@ -205,22 +209,25 @@ protected:
             } else if (i == 2) {  // "updates"
                 in_data.start_from = 1;
                 in_data.range = shape_size(updateShape);
-                in_data.resolution = 1000;
+                in_data.resolution = 100;
                 tensor = shape_size(updateShape) == 0 ? ov::Tensor(funcInput.get_element_type(), updateShape) :
                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
             } else {
                 OPENVINO_THROW("Unknown input");
             }
-            // std::cout << "=============== " << i << ": shape=" << tensor.get_shape() << std::endl;
-            // auto data = tensor.data(funcInput.get_element_type());  // for debug
-            // if (i == 1) {
-            //     for (size_t k = 0; k < tensor.get_size(); k++)
-            //         std::cout << *((int*)data+k) << ", ";
-            // } else {
-            //     for (size_t k = 0; k < tensor.get_size(); k++)
-            //         std::cout << *((float*)data+k) << ", ";
-            // }
-            // std::cout << std::endl;
+            const char* p = std::getenv("DUMP_INPUTS");
+            if (p) {
+                std::cout << "=============== " << i << ": shape=" << tensor.get_shape() << std::endl;
+                auto data = tensor.data(funcInput.get_element_type());  // for debug
+                if (i == 1) {
+                    for (size_t k = 0; k < tensor.get_size(); k++)
+                        std::cout << *((int*)data+k) << ", ";
+                } else {
+                    for (size_t k = 0; k < tensor.get_size(); k++)
+                        std::cout << *((float*)data+k) << ", ";
+                }
+                std::cout << std::endl;
+            }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
@@ -259,6 +266,10 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{3}, {{{2}, {0, -1}}, {{3}, {0, -1}}/*, {{0}, {0, -1}}*/}}, // TODO: empty tensor failing in template plugin
     {{4, 6}, {{{3, 6}, {0, -2}}, {{4, 6}, {0, 1, -1}}/*, {{0, 2}, {0, -2}}*/}},  // axis 0
     {{2, 4}, {{{2, 3}, {1, -1}}, {{2, 4}, {0, 1, -1}}/*, {{4, 0}, {1, -1}}*/}},  // axis 1
+    {{1, 4096}, {{{1, 4096}, {0}}}},
+    {{32, 4096}, {{{16, 4096}, {0}}, {{32, 4096}, {0}}}},
+    {{1024, 4096}, {{{512, 4096}, {0}}, {{1024, 4096}, {0}}}},
+    {{8192, 4096}, {{{4096, 4096}, {0}}}},
 };
 
 inline std::vector<InputShape> static_shapes_to_test_representation(const std::vector<ov::Shape>& shapes) {

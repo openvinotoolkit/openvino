@@ -409,32 +409,64 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
+            OPENVINO_ASSERT(one_of(dstMemPtr->getPrecision(), ov::element::f32, ov::element::bf16) &&
+                            indicesMemPtr->getPrecision() == ov::element::i32 &&
+                            dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
+                "unsupported data element type!");
             auto start = high_resolution_clock::now();
-            switch (reduction_type) {
-            case Reduction::NONE :
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, tensor_assign);
-                break;
-            case Reduction::SUM:
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
-                break;
-            case Reduction::MAX :
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
-                break;
-            case Reduction::MIN :
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
-                break;
-            case Reduction::PROD :
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
-                break;
-            case Reduction::MEAN :
-                scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
-                break;
-            default :
-                break;
+            if (dstMemPtr->getPrecision() == ov::element::f32) {
+                switch (reduction_type) {
+                case Reduction::NONE :
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, tensor_assign);
+                    break;
+                case Reduction::SUM:
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
+                    break;
+                case Reduction::MAX :
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
+                    break;
+                case Reduction::MIN :
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
+                    break;
+                case Reduction::PROD :
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
+                    break;
+                case Reduction::MEAN :
+                    scatterElementsUpdate<float, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
+                    break;
+                default :
+                    break;
+                }
+            } else if (dstMemPtr->getPrecision() == ov::element::bf16) {
+                switch (reduction_type) {
+                case Reduction::NONE :
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, tensor_assign);
+                    break;
+                case Reduction::SUM:
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
+                    break;
+                case Reduction::MAX :
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
+                    break;
+                case Reduction::MIN :
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
+                    break;
+                case Reduction::PROD :
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
+                    break;
+                case Reduction::MEAN :
+                    scatterElementsUpdate<ov::bfloat16, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
+                    break;
+                default :
+                    break;
+                }
             }
             auto stop = high_resolution_clock::now();
             auto duration = duration_cast<microseconds>(stop - start);
-            std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us" << std::endl;
+            if (duration.count() > 900) {
+                std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us, size="
+                << ov::PartialShape(indicesMemPtr->getStaticDims())  << std::endl;
+            }
             break;
         }
         default: {
