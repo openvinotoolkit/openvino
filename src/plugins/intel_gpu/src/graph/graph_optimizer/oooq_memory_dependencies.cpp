@@ -8,7 +8,6 @@
 #include "intel_gpu/graph/program.hpp"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/primitives/shape_of.hpp"
 #include <vector>
 #include <memory>
 #include <list>
@@ -181,32 +180,5 @@ void oooq_memory_dependencies::run(program& p) {
             itr_B++;
             B++;
         }
-    }
-
-    // Shape-of layers do not propagate parents' events for better performance.
-    // The below logic add more mem deps to prevent RAW hazard without additional synchronization.
-    itr_A = processing_order_except_const.begin();
-    while (itr_A != processing_order_except_const.end()) {
-        for (const auto& dep : (*itr_A)->get_dependencies()) {
-            if (dep.first->is_type<cldnn::shape_of>()) {
-                std::function<void(const program_node*, size_t)> add_to_runtime_mem_deps = [&](const program_node* pnode, size_t curr_dist) {
-                    const size_t max_distance = 2;
-                    if (curr_dist == max_distance)
-                        return;
-                    if (!pnode->can_be_optimized())
-                        curr_dist += 1;
-                    (*itr_A)->add_memory_dependency(pnode->get_unique_id());
-
-                    for (auto& ddep : pnode->get_dependencies()) {
-                        add_to_runtime_mem_deps(ddep.first, curr_dist);
-                    }
-                };
-
-                for (const auto& ddep : dep.first->get_dependencies()) {
-                    add_to_runtime_mem_deps(ddep.first, 0);
-                }
-            }
-        }
-        ++itr_A;
     }
 }
