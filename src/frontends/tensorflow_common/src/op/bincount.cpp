@@ -31,15 +31,6 @@ OutputVector translate_bincount_op(const NodeContext& node) {
     auto size = node.get_input(1);
     auto weights = node.get_input(2);
 
-    // arr: A Tensor of type int32. int32 Tensor.
-    auto arr_type = arr.get_element_type();
-    TENSORFLOW_OP_VALIDATION(node, arr_type == element::i32, "arr type is not supported: ", arr_type);
-
-    // size: A Tensor of type int32. non-negative int32 scalar Tensor.
-    auto size_type = size.get_element_type();
-    TENSORFLOW_OP_VALIDATION(node, size_type == element::i32, "size type is not supported: ", arr_type);
-    TENSORFLOW_OP_VALIDATION(node, is_scalar(size.get_shape()), "size must be a scalar");
-
     std::vector<int32_t> size_scalar;
     get_const_input(node, 1, &size_scalar);
     TENSORFLOW_OP_VALIDATION(node, size_scalar.size() == 1, "size must be a scalar");
