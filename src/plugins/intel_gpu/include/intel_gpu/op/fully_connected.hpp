@@ -19,6 +19,7 @@ public:
 
     FullyConnected(const ov::Output<Node>& A,
                    const ov::Output<Node>& B,
+                   const ov::Output<Node>& bias,
                    const ov::element::Type output_type = ov::element::undefined);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;

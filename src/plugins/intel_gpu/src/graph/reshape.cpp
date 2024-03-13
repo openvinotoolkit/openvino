@@ -24,7 +24,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         if (desc->output_partial_shape.size() != 0) {
             return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
         } else {
-            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+            OPENVINO_THROW("[GPU] Output shape is not provided");
         }
     }
 
@@ -110,7 +110,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
                 break;
             }
             default:
-                OPENVINO_ASSERT("Unsupported reshape mode");
+                OPENVINO_THROW("Unsupported reshape mode");
         }
     };
 
@@ -207,6 +207,9 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
+    if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        input_memory_ptr() == nullptr)
+        return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }

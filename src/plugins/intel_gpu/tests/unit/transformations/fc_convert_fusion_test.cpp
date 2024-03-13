@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -27,9 +28,10 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest1) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
+	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
-        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, scale_const, zp_const);
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, no_bias, scale_const, zp_const);
         auto convert = std::make_shared<ov::op::v0::Convert>(fc_compressed, ov::element::f32);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
@@ -38,9 +40,10 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest1) {
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{ -1, 16 });
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 32, 16 }, { 1 });
+	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
         auto zp_const = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 32, 1 }, { 1 });
-        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, scale_const, zp_const, ov::element::f32);
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input, weights_const, no_bias, scale_const, zp_const, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ fc_compressed }, ov::ParameterVector{ input });
     }
@@ -50,7 +53,8 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest2) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{3, 2, 2});
         auto input2 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<op::FullyConnected>(input1, input2);
+	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias);
         auto convert = std::make_shared<ov::op::v0::Convert>(matmul, ov::element::f32);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input1});
@@ -59,7 +63,8 @@ TEST_F(TransformationTestsF, FullyConnectedConvertFusionTest2) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{3, 2, 2});
         auto input2 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 2}, {1});
-        auto matmul = std::make_shared<op::FullyConnected>(input1, input2, ov::element::f32);
+	auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto matmul = std::make_shared<op::FullyConnected>(input1, input2, no_bias, ov::element::f32);
 
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ matmul }, ov::ParameterVector{ input1 });
     }

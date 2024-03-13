@@ -318,7 +318,7 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 30 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
     defaults:
       run:
         shell: bash
@@ -511,18 +511,23 @@ jobs:
       runner: 'ubuntu-20.04-8-cores'
       model_scope: 'precommit'
 
-  TensorFlow_Models_Tests_Nightly:
-    name: TensorFlow Models tests
+  TensorFlow_Models_Tests_Nightly_TF_HUB:
+    name: TensorFlow TF Hub Models tests
     if: ${{ github.event_name == 'schedule' }}
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
-    strategy:
-      max-parallel: 2
-      matrix:
-        MODEL_SCOPE: ['nightly_hf', 'nightly_tf_hub']
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'ubuntu-20.04-16-cores'
-      model_scope: ${{ matrix.MODEL_SCOPE }}
+      model_scope: 'nightly_tf_hub'
+
+  TensorFlow_Models_Tests_Nightly_HF:
+    name: TensorFlow Hugging Face Models tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: 'nightly_hf'
 
   # TODO: Switch back to self-hosted runners
   # container:
