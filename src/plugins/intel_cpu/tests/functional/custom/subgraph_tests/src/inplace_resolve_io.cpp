@@ -109,20 +109,15 @@ public:
             if (i == 2) {  // sequence_lengths
                 tensor = ov::Tensor{ov::element::i32, targetInputStaticShapes[i]};
                 auto data = tensor.data<ov::element_type_traits<ov::element::i32>::value_type>();
-                for (size_t i = 0lu; i < ov::shape_size(targetInputStaticShapes[i]); i++) {
-                    data[i] = 10;
+                for (size_t j = 0lu; j < ov::shape_size(targetInputStaticShapes[i]); j++) {
+                    data[j] = targetInputStaticShapes[0].at(1);
                 }
             } else {
-                if (funcInput.get_element_type().is_real()) {
-                    ov::test::utils::InputGenerateData in_data;
-                    in_data.start_from = 0;
-                    in_data.range = 10;
-                    in_data.resolution = 1000;
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
-                } else {
-                    tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                                     targetInputStaticShapes[i]);
-                }
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = 0;
+                in_data.range = 10;
+                in_data.resolution = 1000;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i], in_data);
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
@@ -143,10 +138,16 @@ const std::vector<std::vector<InputShape>> inputShapes2 = {
         {{2}, {{2}}}                // [batch_size]
     },
     {
-        // dynamic
-        {{-1, 10, 8}, {{2, 10, 8}}}, // param0
-        {{-1, 1, 3}, {{2, 1, 3}}}, // param1
-        {{-1}, {{2}}},  // param2
+        // dynamic batch_size
+        {{-1, 10, 8}, {{1, 10, 8}, {2, 10, 8}}}, // param0 [batch_size, seq_length, input_size]
+        {{-1, 1, 3}, {{1, 1, 3}, {2, 1, 3}}}, // param1 [batch_size, num_directions, hidden_size]
+        {{-1}, {{1}, {2}}},  // param2 [batch_size]
+    },
+    {
+        // dynamic seq_length
+        {{-1, -1, 8}, {{2, 10, 8}, {1, 5, 8}}}, // param0 [batch_size, seq_length, input_size]
+        {{-1, 1, 3}, {{2, 1, 3}, {1, 1, 3}}}, // param1 [batch_size, num_directions, hidden_size]
+        {{-1}, {{2}, {1}}},  // param2 [batch_size]
     },
 };
 
@@ -300,7 +301,7 @@ const std::vector<std::vector<InputShape>> inputShapes = {
     },
     {
         // dynamic
-        {{2, -1}, {{2, 64}}}
+        {{2, -1}, {{2, 1}, {2, 64}}}
     },
 };
 
