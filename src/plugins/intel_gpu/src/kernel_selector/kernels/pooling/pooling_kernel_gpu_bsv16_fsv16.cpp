@@ -38,8 +38,8 @@ ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey PoolingKernel_bsv16_fsv16::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    return get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey PoolingKernel_bsv16_fsv16::get_required_device_features_key(const Params& params) const {
+    return get_common_subgroups_device_features_key(params);
 }
 
 PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pooling_params& params) const {
@@ -64,12 +64,12 @@ PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pool
     return dispatchData;
 }
 
-KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
-bool PoolingKernel_bsv16_fsv16::Validate(const Params& p, const optional_params& o) const {
-    if (!PoolingKernelBase::Validate(p, o)) {
+bool PoolingKernel_bsv16_fsv16::Validate(const Params& p) const {
+    if (!PoolingKernelBase::Validate(p)) {
         return false;
     }
 
@@ -130,7 +130,7 @@ JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& pa
     return jit;
 }
 
-KernelsData PoolingKernel_bsv16_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernel_bsv16_fsv16::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 }  // namespace kernel_selector

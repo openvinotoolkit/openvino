@@ -9,12 +9,12 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestGatherNd(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'params' in inputs_info
-        assert 'indices' in inputs_info
-        params_shape = inputs_info['params']
-        indices_shape = list(inputs_info['indices'])
+        assert 'params:0' in inputs_info
+        assert 'indices:0' in inputs_info
+        params_shape = inputs_info['params:0']
+        indices_shape = list(inputs_info['indices:0'])
         inputs_data = {}
-        inputs_data['params'] = np.random.randint(-50, 50, params_shape).astype(self.params_type)
+        inputs_data['params:0'] = np.random.randint(-50, 50, params_shape).astype(self.params_type)
         # generate indices for each slice and concatenate
         indices_slices = []
         for idx in range(self.index_length):
@@ -22,7 +22,7 @@ class TestGatherNd(CommonTFLayerTest):
                 self.indices_type)
             indices_slices.append(indices_slice)
         indices_slice_rank = len(indices_slices[0].shape)
-        inputs_data['indices'] = np.concatenate(indices_slices, axis=indices_slice_rank - 1)
+        inputs_data['indices:0'] = np.concatenate(indices_slices, axis=indices_slice_rank - 1)
         return inputs_data
 
     def create_gather_nd_net(self, params_shape, params_type, indices_shape, indices_type):
@@ -58,7 +58,7 @@ class TestGatherNd(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_gather_nd_basic(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_gather_nd_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_gather_nd_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

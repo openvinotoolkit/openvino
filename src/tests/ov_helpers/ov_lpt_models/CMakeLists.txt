@@ -17,8 +17,8 @@ ov_add_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
-                ov_models
                 openvino::runtime::dev
+                common_test_utils
         ADD_CPPLINT
 )
 

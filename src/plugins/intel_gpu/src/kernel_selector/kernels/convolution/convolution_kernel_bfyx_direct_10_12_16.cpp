@@ -24,8 +24,8 @@ ParamsKey ConvolutionKernel_bfyx_Direct_10_10_12::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_Direct_10_10_12::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_bfyx_Direct_10_10_12::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_broadcast();
 
     return k;
@@ -72,12 +72,12 @@ ConvolutionKernel_bfyx_Direct_10_10_12::DispatchData ConvolutionKernel_bfyx_Dire
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 
-bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p) const {
+    if (!Parent::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -95,8 +95,7 @@ bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p, const opt
     return true;
 }
 
-KernelsData ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsData(const Params& params,
-                                                                   const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

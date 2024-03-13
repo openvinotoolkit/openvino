@@ -10,15 +10,15 @@
 #include <cmath>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "low_precision/network_helper.hpp"
 
-#include "openvino/opsets/opset6.hpp"
-#include "itt.hpp"
+#include "low_precision/network_helper.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -172,6 +172,8 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
     NetworkHelper::insertDequantizationAfter(mvn, newMultiply, newMVN);
 
     updateOutput(context, newMultiply, newMVN);
+
+    OPENVINO_DEBUG << "LPT: done: " << newMVN;
     return true;
 }
 

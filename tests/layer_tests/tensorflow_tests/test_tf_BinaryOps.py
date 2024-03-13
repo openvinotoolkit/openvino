@@ -5,9 +5,7 @@ import platform
 
 import numpy as np
 import pytest
-
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 def generate_input(op_type, size):
@@ -43,16 +41,8 @@ class TestBinaryOps(CommonTFLayerTest):
         return inputs_dict
 
     def create_add_placeholder_const_net(self, x_shape, y_shape, ir_version, op_type,
-                                         use_new_frontend):
-        """
-            Tensorflow net                       IR net
-
-            Placeholder->BinaryOp       =>       Placeholder->BinaryOp
-                         /                                     /
-            Const-------/                         Const-------/
-
-        """
-        if not use_new_frontend and op_type == "Xdivy":
+                                         use_legacy_frontend):
+        if not use_legacy_frontend and op_type == "Xdivy":
             pytest.xfail(reason="95499")
 
         self.current_op_type = op_type
@@ -98,14 +88,8 @@ class TestBinaryOps(CommonTFLayerTest):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = x_shape.copy()
-            tf_y_shape = y_shape.copy()
-
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-            tf_y_shape = permute_nchw_to_nhwc(tf_y_shape, use_new_frontend)
-
-            x = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
-            constant_value = generate_input(op_type, tf_y_shape)
+            x = tf.compat.v1.placeholder(type, x_shape, 'Input')
+            constant_value = generate_input(op_type, y_shape)
             if (constant_value == 0).all():
                 # Avoid elimination of the layer from IR
                 constant_value = constant_value + 1
@@ -114,7 +98,7 @@ class TestBinaryOps(CommonTFLayerTest):
             if not op_type in op_type_kw_args:
                 op = op_type_to_tf[op_type](x, y, name="Operation")
             else:
-                op = op_type_to_tf[op_type](x = x, y = y, name="Operation")
+                op = op_type_to_tf[op_type](x=x, y=y, name="Operation")
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -134,20 +118,20 @@ class TestBinaryOps(CommonTFLayerTest):
                               'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
                               'LessEqual',
                               'LogicalAnd', 'LogicalOr', 'LogicalXor', 'FloorMod', 'FloorDiv',
-                              'Xdivy', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor',])
+                              'Xdivy', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor', ])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_binary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                       use_new_frontend):
-        if not use_new_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
+                       use_legacy_frontend):
+        if not use_legacy_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if precision == "FP16":
             pytest.skip("BinaryOps tests are skipped with FP16 precision."
                         "They don't pass accuracy checks because chaotic output.")
         self._test(
             *self.create_add_placeholder_const_net(**params, ir_version=ir_version, op_type=op_type,
-                                                   use_new_frontend=use_new_frontend), ie_device,
+                                                   use_legacy_frontend=use_legacy_frontend), ie_device,
             precision,
-            ir_version, temp_dir=temp_dir, use_new_frontend=use_new_frontend)
+            ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

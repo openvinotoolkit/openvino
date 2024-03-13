@@ -7,10 +7,11 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -339,7 +340,7 @@ void MemoryLSTMCellTest::apply_low_latency() {
         pass::Manager manager;
         manager.register_pass<pass::LowLatency2>();
         manager.run_passes(function);
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
         compile_model();
     }

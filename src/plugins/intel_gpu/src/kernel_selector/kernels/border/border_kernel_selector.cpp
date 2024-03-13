@@ -8,7 +8,7 @@
 namespace kernel_selector {
 border_kernel_selector::border_kernel_selector() { Attach<BorderKernelRef>(); }
 
-KernelsData border_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::BORDER);
+KernelsData border_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::BORDER);
 }
 }  // namespace kernel_selector

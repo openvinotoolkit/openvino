@@ -19,6 +19,7 @@ namespace pass {
  * @brief The pass optimally calculates the common buffer scratchpad size and
  *        set the offsets relative to the common data pointer to all Buffers. The pass uses MemorySolver API.
  *        Note: The pass requires expression enumeration. It should be executed separately before this pass!
+ *        Note: this transformation works only with m_clusters, no lir or iterators are really needed
  * @ingroup snippets
  */
 class SolveBufferMemory : public Pass {

@@ -37,7 +37,7 @@ inline void test_runner(int numthreads, const std::function<TestResult()> &test_
 TEST_P(MemLeaksTestSuiteNoModel, load_unload_plugin) {
     auto test_params = GetParam();
 
-    std::vector<std::function<void()>> pipeline = {load_unload_plugin(test_params.device, test_params.api_version)};
+    std::vector<std::function<void()>> pipeline = {load_unload_plugin(test_params.device)};
     auto test = [&] {
         log_info("Load/unload plugin for \"" << test_params.device << "\" device"
                                              << " for " << test_params.numiters << " times");
@@ -52,7 +52,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, read_network) {
 
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(read_cnnnetwork(test_params.models[i]["full_path"], test_params.api_version));
+        pipeline.push_back(read_cnnnetwork(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
         log_info("Read networks: " << test_params.model_name << " for " << test_params.numiters << " times");
@@ -67,7 +67,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
 
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["full_path"], i, test_params.api_version));
+        pipeline.push_back(cnnnetwork_reshape_batch_x2(test_params.models[i]["full_path"], i));
     }
     auto test = [&] {
         log_info("Reshape to batch*=2 of CNNNetworks created from networks: " << test_params.model_name << " for "
@@ -83,7 +83,7 @@ TEST_P(MemLeaksTestSuiteNoDevice, set_input_params) {
 
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(set_input_params(test_params.models[i]["full_path"], test_params.api_version));
+        pipeline.push_back(set_input_params(test_params.models[i]["full_path"]));
     }
     auto test = [&] {
         log_info("Apply preprocessing for CNNNetworks from networks: " << test_params.model_name << " for "
@@ -99,10 +99,9 @@ TEST_P(MemLeaksTestSuite, recreate_compiled_model) {
 
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
-        pipeline.push_back(recreate_compiled_model(ie_wrapper, test_params.device,
-                                                   test_params.api_version));
+        pipeline.push_back(recreate_compiled_model(ie_wrapper, test_params.device));
     }
     auto test = [&] {
         log_info("Recreate CompiledModels within existing ov::Core from networks: "
@@ -119,7 +118,7 @@ TEST_P(MemLeaksTestSuite, recreate_infer_request) {
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
-        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         pipeline.push_back(recreate_infer_request(ie_wrapper));
@@ -139,7 +138,7 @@ TEST_P(MemLeaksTestSuite, reinfer_request_inference) {
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
-        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         ie_wrapper->create_infer_request();
@@ -161,8 +160,7 @@ TEST_P(MemLeaksTestSuite, infer_request_inference) {
     std::vector<std::function<void()>> pipeline;
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(infer_request_inference(test_params.models[i]["full_path"], test_params.device,
-                                                   test_params.api_version));
+        pipeline.push_back(infer_request_inference(test_params.models[i]["full_path"], test_params.device));
     }
     auto test = [&] {
         log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
@@ -179,8 +177,7 @@ TEST_P(MemLeaksTestSuite, inference_with_streams) {
     std::vector<std::function<void()>> pipeline;
     pipeline.reserve(test_params.models.size());
     for (int i = 0; i < test_params.models.size(); i++) {
-        pipeline.push_back(inference_with_streams(test_params.models[i]["full_path"], test_params.device, nstreams,
-                                                  test_params.api_version));
+        pipeline.push_back(inference_with_streams(test_params.models[i]["full_path"], test_params.device, nstreams));
     }
     auto test = [&] {
         log_info("Inference of InferRequests from networks: " << test_params.model_name << " for \""
@@ -197,7 +194,7 @@ TEST_P(MemLeaksTestSuite, recreate_and_infer_in_thread) {
     size_t n_models = test_params.models.size();
 
     for (int i = 0; i < n_models; i++) {
-        auto ie_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_wrapper = create_infer_api_wrapper();
         ie_wrapper->read_network(test_params.models[i]["full_path"]);
         ie_wrapper->load_network(test_params.device);
         pipeline.push_back(recreate_and_infer_in_thread(ie_wrapper));

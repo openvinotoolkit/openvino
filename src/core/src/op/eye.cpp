@@ -122,13 +122,16 @@ bool Eye::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     outputs[0].set_shape(output_shape);
     using namespace ov::element;
-    return IF_TYPE_OF(v9_Eye_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i32, i64, u8),
-                      eye::Evaluate,
-                      outputs[0].get_element_type(),
-                      outputs[0],
-                      output_shape,
-                      diagonal_index);
+    return IF_TYPE_OF_CONVERT_TENSORS(v9_Eye_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32, f64, i8, i32, i64, u8),
+                                      eye::Evaluate,
+                                      outputs[0].get_element_type(),
+                                      outputs[0],
+                                      output_shape,
+                                      diagonal_index);
 }
 }  // namespace v9
 }  // namespace op

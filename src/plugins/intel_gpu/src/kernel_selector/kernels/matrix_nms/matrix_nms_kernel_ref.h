@@ -45,22 +45,18 @@ struct matrix_nms_params : public base_params {
     bool normalized = true;
 };
 
-struct matrix_nms_optional_params : optional_params {
-    matrix_nms_optional_params() : optional_params(KernelType::MATRIX_NMS) {}
-};
-
 class MatrixNmsKernelRef : public KernelBaseOpenCL {
 public:
     MatrixNmsKernelRef() : KernelBaseOpenCL("matrix_nms_ref") {}
 
     using DispatchData = CommonDispatchData;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     JitConstants GetJitConstants(const matrix_nms_params& params) const;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void SetKernelArguments(const matrix_nms_params& params, clKernelData& kernel, size_t idx) const;
 };
 

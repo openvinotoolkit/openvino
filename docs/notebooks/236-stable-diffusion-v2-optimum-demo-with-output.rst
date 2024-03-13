@@ -53,7 +53,7 @@ in this notebook is
 `helenai/stabilityai-stable-diffusion-2-1-base-ov <https://huggingface.co/helenai/stabilityai-stable-diffusion-2-1-base-ov>`__.
 Let’s download the pre-converted model Stable Diffusion 2.1
 `Intermediate Representation Format
-(IR) <https://docs.openvino.ai/2022.3/openvino_docs_MO_DG_IR_and_opsets.html>`__
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets.html>`__
 
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -77,10 +77,10 @@ this
 .. code:: ipython3
 
     from openvino.runtime import Core
-    
+
     ie = Core()
     devices = ie.available_devices
-    
+
     for device in devices:
         device_name = ie.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -103,7 +103,7 @@ Download Pre-Converted Stable Diffusion 2.1 IR
     from optimum.intel.openvino import OVStableDiffusionPipeline
     # download the pre-converted SD v2.1 model from Hugging Face Hub
     name = "helenai/stabilityai-stable-diffusion-2-1-base-ov"
-    
+
     pipe = OVStableDiffusionPipeline.from_pretrained(name, compile=False)
     pipe.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
 
@@ -216,8 +216,8 @@ Be creative, add the prompt and enjoy the result
 .. code:: ipython3
 
     import gc
-    
-    # Generate an image. 
+
+    # Generate an image.
     prompt = "red car in snowy forest, epic vista, beautiful landscape, 4k, 8k"
     output = pipe(prompt, num_inference_steps=17, output_type="pil").images[0]
     output.save("image.png")

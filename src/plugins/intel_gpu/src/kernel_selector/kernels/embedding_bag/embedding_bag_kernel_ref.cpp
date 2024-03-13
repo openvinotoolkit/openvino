@@ -46,16 +46,16 @@ CommonDispatchData EmbeddingBagKernelRef::SetDefault(const embedding_bag_params&
     return dispatchData;
 }
 
-KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<embedding_bag_params>(params);
     embedding_bag_params& newParams = *static_cast<embedding_bag_params*>(kd.params.get());
 
-    if (!Validate(params, options)) {
+    if (!Validate(params)) {
         return {};
     }
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -75,7 +75,7 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const op
     return { kd };
 }
 
-KernelsPriority EmbeddingBagKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EmbeddingBagKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -98,9 +98,8 @@ ParamsKey EmbeddingBagKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool EmbeddingBagKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EMBEDDING_BAG ||
-        o.GetType() != KernelType::EMBEDDING_BAG) {
+bool EmbeddingBagKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::EMBEDDING_BAG) {
         return false;
     }
     const embedding_bag_params& params = static_cast<const embedding_bag_params&>(p);

@@ -38,22 +38,19 @@ public:
     explicit KernelBase(const std::string name) : kernelName(name) {}
     virtual ~KernelBase() {}
 
-    virtual KernelsData GetKernelsData(const Params& params, const optional_params& options) const = 0;
-    virtual KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {
-        return GetKernelsData(params, options);
+    virtual KernelsData GetKernelsData(const Params& params) const = 0;
+    virtual KernelsData GetKernelsDataForAutoTune(const Params& params) const {
+        return GetKernelsData(params);
     }
-    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                                   const optional_params& options,
-                                                   int /*autoTuneIndex*/) const {
-        return GetKernelsData(params, options);
+    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params, int /*autoTuneIndex*/) const {
+        return GetKernelsData(params);
     }
-    virtual KernelsPriority GetKernelsPriority(const Params& /*params*/,
-                                               const optional_params& /*options*/) const {
+    virtual KernelsPriority GetKernelsPriority(const Params& /*params*/) const {
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
     }
 
     virtual ParamsKey GetSupportedKey() const = 0;
-    virtual DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const {
+    virtual DeviceFeaturesKey get_required_device_features_key(const Params& params) const {
         return DeviceFeaturesKey();
     }
     virtual const std::string GetName() const { return kernelName; }
@@ -80,6 +77,6 @@ protected:
     // If params has at least 1 tensor of fp32/fp16/(u)int8 type, then it sets corresponding subgroup extension as required
     // Should be used carefully, as in some cases tensor types may not correspond to actually used extension
     // e.g. int8 kernel may use intel_sub_group_block_read to load packed int8 data
-    DeviceFeaturesKey get_common_subgroups_device_features_key(const Params& params, const optional_params& /*options*/) const;
+    DeviceFeaturesKey get_common_subgroups_device_features_key(const Params& params) const;
 };
 }  // namespace kernel_selector

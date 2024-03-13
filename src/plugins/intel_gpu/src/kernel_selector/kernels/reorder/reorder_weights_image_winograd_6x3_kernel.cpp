@@ -39,13 +39,12 @@ ReorderWeightsImageWinograd6x3Kernel::DispatchData ReorderWeightsImageWinograd6x
     return dispatchData;
 }
 
-KernelsData ReorderWeightsImageWinograd6x3Kernel::GetKernelsData(const Params& params,
-                                                                 const optional_params& options) const {
+KernelsData ReorderWeightsImageWinograd6x3Kernel::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderWeightsImageWinograd6x3Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsImageWinograd6x3Kernel::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

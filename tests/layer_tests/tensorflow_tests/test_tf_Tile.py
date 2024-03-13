@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestTile(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        assert 'multiples' in inputs_info
-        input_shape = inputs_info['input']
-        multiples_shape = inputs_info['multiples']
+        assert 'input:0' in inputs_info
+        assert 'multiples:0' in inputs_info
+        input_shape = inputs_info['input:0']
+        multiples_shape = inputs_info['multiples:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
-        inputs_data['multiples'] = np.random.randint(1, 4, multiples_shape).astype(np.int32)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(np.float32)
+        inputs_data['multiples:0'] = np.random.randint(1, 4, multiples_shape).astype(np.int32)
 
         return inputs_data
 
@@ -40,7 +40,7 @@ class TestTile(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_tile_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                        use_new_frontend):
+                        use_legacy_frontend):
         self._test(*self.create_tile_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

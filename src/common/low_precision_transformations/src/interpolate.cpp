@@ -9,12 +9,14 @@
 #include <string>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 using namespace ov;
 using namespace ov::pass;
@@ -60,7 +62,9 @@ bool InterpolateTransformation::transform(TransformationContext &context, ov::pa
         return false;
     }
     interpolate = NetworkHelper::separateInStandaloneBranch(interpolate, defaultPrecisions);
-    moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
+    const auto newOperation = moveDequantizationAfter(context, interpolate, NetworkHelper::getDequantization(interpolate, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

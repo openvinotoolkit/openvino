@@ -6,12 +6,13 @@
 
 #include <memory>
 
-
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset12.hpp"
-#include "itt.hpp"
+
+#include "low_precision/network_helper.hpp"
 
 namespace ov {
 namespace pass {
@@ -163,8 +164,9 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
     const auto convertedZero = ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, { padConstantValue });
     pad->set_argument(3, convertedZero);
 
-    moveDequantizationAfter(context, pad, dequantization);
+    const auto newOperation = moveDequantizationAfter(context, pad, dequantization);
 
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

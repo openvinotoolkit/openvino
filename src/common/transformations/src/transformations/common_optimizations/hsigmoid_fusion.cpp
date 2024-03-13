@@ -32,7 +32,7 @@ ov::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({min, div_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -82,7 +82,7 @@ ov::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_second = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({min, mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -131,7 +131,7 @@ ov::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({min, div_constant});
     auto mul = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input, div});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -179,7 +179,7 @@ ov::pass::HSigmoidFusionWithClampMul::HSigmoidFusionWithClampMul() {
     auto mul_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto mul_first = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({clamp, mul_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -225,7 +225,7 @@ ov::pass::HSigmoidFusionWithClampDiv::HSigmoidFusionWithClampDiv() {
     auto div_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto div = ov::pass::pattern::wrap_type<ov::op::v1::Divide>({clamp, div_constant});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 

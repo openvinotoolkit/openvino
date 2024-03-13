@@ -153,6 +153,25 @@
             }
         }
     },
+    "BmFirstFixed": {
+        "repoName": "BmFirstFixed",
+        "patchedFile": "tests_res/fbv_bm_first_fixed_main.cpp",
+        "testCfg": {
+            "appCmd" : "{appCmd}",
+            "appPath": "{appPath}",
+            "gitPath" : "{gitPath}",
+            "buildPath" : "{buildPath}",
+            "verboseOutput": false,
+            "runConfig" : {
+                "commitList" : {
+                    "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
+                },
+                "mode" : "bmPerf",
+                "traversal" : "firstFixedVersion",
+                "perfAppropriateDeviation" : 0.05
+            }
+        }
+    },
     "FirstValidVersion": {
         "repoName": "firstValidVersion",
         "patchedFile": "tests_res/fvv_main.cpp",

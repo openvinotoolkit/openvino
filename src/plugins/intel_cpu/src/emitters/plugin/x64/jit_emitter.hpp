@@ -151,6 +151,8 @@ protected:
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;
 
+    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;
     friend class jit_debug_emitter;
@@ -173,7 +175,6 @@ private:
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;
     }
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
 };
 
 }   // namespace intel_cpu

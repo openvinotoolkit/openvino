@@ -132,6 +132,8 @@ public:
                                                                                  get_unique_id(), in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
         params->_can_be_optimized = this->optimized;
+        params->in_port_to_shape_info_offset = get_input_port_to_shape_info_offset_map();
+        params->out_port_to_shape_info_offset = get_output_port_to_shape_info_offset_map();
         auto deps = get_dependencies();
         for (size_t i = 0; i < deps.size(); i++) {
             if (!deps[i].first->is_constant()) {
@@ -176,6 +178,13 @@ public:
     ov::PartialShape get_input_pshape(size_t idx = 0) const;
     ov::PartialShape get_output_pshape(size_t idx = 0) const;
 
+    virtual std::vector<layout> get_shape_info_input_layouts() const;
+    std::map<size_t, size_t> get_input_port_to_shape_info_offset_map() const;
+    std::map<size_t, size_t> get_output_port_to_shape_info_offset_map() const;
+    size_t get_total_shape_info_input_size() const;
+    size_t get_total_shape_info_output_size() const;
+    size_t get_total_shape_info_size() const;
+
     // replaces idx-th dependency of 'this' with 'new_dep', calls program::remove_if_dangling(old_dep)
     void replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling = true);
     void replace_dependency(size_t idx, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling = true);
@@ -193,9 +202,9 @@ public:
     size_t get_dependency_index(const program_node& node) const;
     size_t get_user_index(const program_node& node) const;
 
-    std::set<primitive_id> get_memory_dependencies() const;
-    void add_memory_dependency(primitive_id);
-    void add_memory_dependency(std::vector<primitive_id>);
+    std::set<size_t> get_memory_dependencies() const;
+    void add_memory_dependency(size_t);
+    void add_memory_dependency(std::vector<size_t>);
 
     template <class PType>
     bool have_user_with_type() const {
@@ -416,6 +425,11 @@ public:
         unique_id = cur_id++;
     }
 
+    void set_unique_id(size_t _id) {
+        unique_id = _id;
+    }
+
+
     static void reset_unique_id() {
         cur_id = 0;
     }
@@ -464,7 +478,7 @@ protected:
     std::list<program_node*> users;
 
     // list of primitives that can reuse same memory buffers due to execution order conflicts
-    std::set<primitive_id> memory_dependencies;
+    std::set<size_t> memory_dependencies;
 
     impl_types impl_type = impl_types::any;
     bool constant = false;

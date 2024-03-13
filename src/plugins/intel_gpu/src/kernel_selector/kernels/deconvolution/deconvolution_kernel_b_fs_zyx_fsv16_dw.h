@@ -16,7 +16,7 @@ public:
     DeconvolutionKernel_b_fs_zyx_fsv16_dw() : DeconvolutionKernelBase("deconvolution_gpu_b_fs_zyx_fsv16_dw") {}
     virtual ~DeconvolutionKernel_b_fs_zyx_fsv16_dw() {}
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
@@ -25,9 +25,9 @@ protected:
         else
             return WeightsLayout::gs_oizyx_gsv16;
     }
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     enum class weights_preload {

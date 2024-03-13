@@ -18,10 +18,10 @@ OPS = {
 class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         # generate elements so that the input tensor may contain repeating elements
-        assert 'inputs' in inputs_info, "Test error: inputs_info must contain `input`"
-        inputs_shape = inputs_info['inputs']
+        assert 'inputs:0' in inputs_info, "Test error: inputs_info must contain `input`"
+        inputs_shape = inputs_info['inputs:0']
         inputs_data = {}
-        inputs_data['inputs'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
+        inputs_data['inputs:0'] = np.random.randint(-10, 10, inputs_shape).astype(np.float32)
         return inputs_data
 
     def create_fake_quant_with_min_max_vars_net(self, inputs_shape, min_value, max_value, num_bits, narrow_range,
@@ -52,11 +52,11 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
-    def test_fake_quant_with_min_max_vars_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_fake_quant_with_min_max_vars_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         params = dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range)
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params, fake_quant_op=OPS[fake_quant_op]),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_per_channel_basic = [
         [[2, 6, 4], [-4, -3, -5, -8], [4, 7, 9, 5], None, None, 'tf.raw_ops.FakeQuantWithMinMaxVarsPerChannel'],
@@ -66,8 +66,8 @@ class TestFakeQuantWithMinMaxVars(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     @pytest.mark.xfail("104822")
-    def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_fake_quant_with_min_max_vars_per_channel_basic(self, inputs_shape, min_value, max_value, num_bits, narrow_range, fake_quant_op, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         params=dict(inputs_shape=inputs_shape, min_value=min_value, max_value=max_value, num_bits=num_bits, narrow_range=narrow_range, fake_quant_op=OPS[fake_quant_op])
         self._test(*self.create_fake_quant_with_min_max_vars_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

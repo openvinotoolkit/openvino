@@ -31,7 +31,7 @@ OP_T_CONVERTER(translate_unary_op);
 OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
-
+OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_adjust_contrast_op);
 OP_CONVERTER(translate_arg_max_op);
@@ -102,6 +102,7 @@ OP_CONVERTER(translate_log_1p_op);
 OP_CONVERTER(translate_lrn_op);
 OP_CONVERTER(translate_mat_mul_op);
 OP_CONVERTER(translate_matrix_diag_op);
+OP_CONVERTER(translate_matrix_band_part_op);
 OP_CONVERTER(translate_max_pool_op);
 OP_CONVERTER_NAMED(translate_max_pool_with_argmax);
 OP_CONVERTER(translate_mirror_pad_op);

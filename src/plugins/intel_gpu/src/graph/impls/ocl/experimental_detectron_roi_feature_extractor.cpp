@@ -14,8 +14,7 @@ struct experimental_detectron_roi_feature_extractor_impl : public typed_primitiv
     using parent = typed_primitive_impl_ocl<experimental_detectron_roi_feature_extractor>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::experimental_detectron_roi_feature_extractor_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_roi_feature_extractor_params,
-                                      kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>;
+    using kernel_params_t = kernel_selector::experimental_detectron_roi_feature_extractor_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_roi_feature_extractor_impl)
 
@@ -45,8 +44,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
         auto params = get_default_params<kernel_selector::experimental_detectron_roi_feature_extractor_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::experimental_detectron_roi_feature_extractor_optional_params>(
-            impl_param.get_program());
 
         size_t number_of_inputs = primitive->input_size() - 1;
         for (std::size_t i = 1; i < number_of_inputs; i++) {
@@ -61,7 +58,7 @@ public:
         params.aligned = primitive->aligned;
         params.number_of_inputs = number_of_inputs;
 
-        return {params, optional_params};
+        return params;
     }
 };
 

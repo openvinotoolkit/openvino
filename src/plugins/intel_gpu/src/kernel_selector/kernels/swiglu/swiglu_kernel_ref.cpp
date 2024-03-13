@@ -56,10 +56,10 @@ void SwiGLUKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::SWIGLU);
 
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     const swiglu_params& orgParams = static_cast<const swiglu_params&>(params);
@@ -68,7 +68,7 @@ KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params, const optional
     KernelData kd = KernelData::Default<swiglu_params>(params);
 
     auto cldnn_jit = GetJitConstants(orgParams);
-    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
@@ -86,12 +86,12 @@ KernelsData SwiGLUKernelRef::GetKernelsData(const Params& params, const optional
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.has_dynamic_tensors());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority SwiGLUKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority SwiGLUKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -106,8 +106,8 @@ Datatype SwiGLUKernelRef::GetAccumulatorType(const swiglu_params& params) const 
     return Datatype::F32;
 }
 
-bool SwiGLUKernelRef::Validate(const Params& params, const optional_params& options) const {
-    if (!KernelBaseOpenCL::Validate(params, options))
+bool SwiGLUKernelRef::Validate(const Params& params) const {
+    if (!KernelBaseOpenCL::Validate(params))
         return false;
 
     return true;

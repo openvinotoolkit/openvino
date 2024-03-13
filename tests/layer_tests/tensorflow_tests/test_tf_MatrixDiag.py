@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestMatrixDiag(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'diagonal' in inputs_info
-        diagonal_shape = inputs_info['diagonal']
+        assert 'diagonal:0' in inputs_info
+        diagonal_shape = inputs_info['diagonal:0']
         inputs_data = {}
-        inputs_data['diagonal'] = np.random.randint(-50, 50, diagonal_shape).astype(self.diagonal_type)
+        inputs_data['diagonal:0'] = np.random.randint(-50, 50, diagonal_shape).astype(self.diagonal_type)
 
         return inputs_data
 
@@ -38,7 +38,7 @@ class TestMatrixDiag(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_matrix_diag_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(*self.create_matrix_diag_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

@@ -33,19 +33,19 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool EltwiseKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (!EltwiseKernelBase::Validate(p, o)) {
+bool EltwiseKernelRef::Validate(const Params& p) const {
+    if (!EltwiseKernelBase::Validate(p)) {
         return false;
     }
 
     return true;
 }
 
-KernelsData EltwiseKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData EltwiseKernelRef::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 

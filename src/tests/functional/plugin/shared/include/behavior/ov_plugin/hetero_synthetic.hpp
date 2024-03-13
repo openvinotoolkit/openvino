@@ -10,7 +10,6 @@
 #include <unordered_set>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 
 namespace ov {
 namespace test {
