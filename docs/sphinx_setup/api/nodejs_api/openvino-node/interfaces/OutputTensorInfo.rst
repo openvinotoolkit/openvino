@@ -1,7 +1,7 @@
 Interface OutputTensorInfo
 ==========================
 
-.. code-block:: json
+.. code-block:: ts
 
    interface OutputTensorInfo {
        setElementType(elementType): InputTensorInfo;
@@ -17,7 +17,7 @@ Methods
 .. rubric:: setElementType
 
 
-.. code-block:: json
+.. code-block:: ts
 
    setElementType(elementType): InputTensorInfo
 
@@ -33,7 +33,7 @@ Methods
 .. rubric:: setLayout
 
 
-.. code-block:: json
+.. code-block:: ts
 
    setLayout(layout): InputTensorInfo
 
