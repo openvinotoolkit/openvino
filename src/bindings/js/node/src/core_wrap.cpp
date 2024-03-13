@@ -245,7 +245,7 @@ Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
             _core.set_property(args->device_name, args->parameters);
         }
 
-        // delete args;
+        delete args;
 
         return info.Env().Undefined();
     } catch (std::runtime_error& err) {
@@ -278,6 +278,14 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
         return Napi::String::New(info.Env(), value.as<std::string>());
     } else if (value.is<bool>()) {
         return Napi::Boolean::New(info.Env(), value.as<bool>());
+    } else if (value.is<const std::vector<ov::PropertyName>>()) {
+        auto p = value.as<const std::vector<ov::PropertyName>>();
+
+        return cpp_to_js<const std::vector<ov::PropertyName>, Napi::Array>(info, p);
+    } else if (value.is<const std::vector<std::string>>()) {
+        auto p = value.as<const std::vector<std::string>>();
+
+        return cpp_to_js<const std::vector<std::string>, Napi::Array>(info, p);
     }
 
     return info.Env().Undefined();
