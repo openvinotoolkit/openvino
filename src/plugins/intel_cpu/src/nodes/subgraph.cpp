@@ -675,8 +675,8 @@ void Subgraph::SnippetJitStaticExecutor::schedule_6d(const std::vector<MemoryPtr
 #endif
 
     parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-        [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
-            int64_t indexes[] = {d0, d1, d2, d3, d4};
+        [&](size_t d0, size_t d1, size_t d2, size_t d3, size_t d4) {
+            size_t indexes[] = {d0, d1, d2, d3, d4};
             jit_snippets_call_args call_args;
             update_ptrs(call_args, inMemPtrs, outMemPtrs);
             callable(&call_args, indexes);
@@ -698,11 +698,11 @@ void Subgraph::SnippetJitStaticExecutor::schedule_nt(const std::vector<MemoryPtr
         size_t start = 0, end = 0;
         splitter(harness_work_amount, nthr, ithr, start, end);
 
-        std::vector<int64_t> indexes(work_size.size() - 1, 0);
+        std::vector<size_t> indexes(work_size.size() - 1, 0);
         for (size_t iwork = start; iwork < end; ++iwork) {
             size_t tmp = iwork;
             for (ptrdiff_t j = static_cast<ptrdiff_t>(work_size.size()) - 2; j >= 0; j--) {
-                indexes[j] = static_cast<int64_t>(tmp % work_size[j]);
+                indexes[j] = tmp % work_size[j];
                 tmp /= work_size[j];
             }
 
@@ -752,64 +752,110 @@ Subgraph::SnippetJitDynamicSpecializedExecutor::SnippetJitDynamicSpecializedExec
     init_runtime_params(snippet_attrs);
 }
 
-inline void Subgraph::SnippetJitDynamicSpecializedExecutor::update_ptrs(jit_snippets_call_args& call_args,
-                                                                        const std::vector<MemoryPtr>& srcMemPtrs,
-                                                                        const std::vector<MemoryPtr>& dstMemPtrs,
-                                                                        const int64_t* indexes) {
-    OPENVINO_ASSERT(data_offsets.size() == srcMemPtrs.size() + dstMemPtrs.size(), "Incorrect data offset count!");
-    OPENVINO_ASSERT(data_offsets.front().size() == tensor_rank, "Data offsets with invalid ranks detected");
+inline void Subgraph::SnippetJitDynamicSpecializedExecutor::init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs,
+                                                                               const std::vector<MemoryPtr>& dstMemPtrs,
+                                                                               std::vector<const uint8_t*>& src_ptrs,
+                                                                               std::vector<uint8_t*>& dst_ptrs) {
+    const auto in_num = srcMemPtrs.size();
+    const auto out_num = dstMemPtrs.size();
 
-    for (size_t i = 0; i < srcMemPtrs.size(); i++) {
-        auto i_ptr = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+    src_ptrs.resize(in_num, nullptr);
+    dst_ptrs.resize(out_num, nullptr);
+
+    for (size_t i = 0; i < in_num; i++)
+        src_ptrs[i] = srcMemPtrs[i]->getDataAs<const uint8_t>() + start_offset_in[i];
+    for (size_t i = 0; i < out_num; i++)
+        dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+}
+
+inline void Subgraph::SnippetJitDynamicSpecializedExecutor::init_call_args(jit_snippets_call_args& call_args) {
+    call_args.register_loops(loop_args);
+
+    if (buffer_scratchpad_size > 0) {
+        call_args.buffer_scratchpad_ptr = reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
+    }
+}
+
+inline void Subgraph::SnippetJitDynamicSpecializedExecutor::update_ptrs(jit_snippets_call_args& call_args,
+                                                                        const std::vector<const uint8_t*>& src_ptrs,
+                                                                        const std::vector<uint8_t*>& dst_ptrs,
+                                                                        const size_t* indexes) const {
+    for (size_t i = 0; i < src_ptrs.size(); i++) {
+        auto i_ptr = src_ptrs[i];
         for (size_t j = 0; j < tensor_rank - 1; j++) {
-            i_ptr += (static_cast<int64_t>(data_offsets[i][j]) * indexes[j]);
+            i_ptr += data_offsets[i][j] * indexes[j];
         }
         call_args.src_ptrs[i] = i_ptr;
     }
-    for (size_t i = 0; i < dstMemPtrs.size(); i++) {
-        auto i_ptr = dstMemPtrs[i]->getDataAs<uint8_t>() + start_offset_out[i];
+    for (size_t i = 0; i < dst_ptrs.size(); i++) {
+        auto i_ptr = dst_ptrs[i];
         for (size_t j = 0; j < tensor_rank - 1; j++) {
-            i_ptr += (static_cast<int64_t>(data_offsets[i + srcMemPtrs.size()][j]) * indexes[j]);
+            i_ptr += data_offsets[i + src_ptrs.size()][j] * indexes[j];
         }
         call_args.dst_ptrs[i] = i_ptr;
-    }
-    if (buffer_scratchpad_size > 0) {
-        call_args.buffer_scratchpad_ptr =
-                reinterpret_cast<uint8_t*>(buffer_scratchpad.data()) + parallel_get_thread_num() * buffer_scratchpad_size;
     }
 }
 
 void Subgraph::SnippetJitDynamicSpecializedExecutor::schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& callable = schedule->get_callable<dynamic_kernel>();
     const auto& dom = parallel_exec_domain;
+
     OPENVINO_ASSERT(dom.size() == tensor_rank, "Incorrect parallel execution domain rank!");
+    OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
+    OPENVINO_ASSERT(data_offsets.front().size() == tensor_rank, "Data offsets with invalid ranks detected");
+
+    std::vector<const uint8_t*> src_ptrs;
+    std::vector<uint8_t*> dst_ptrs;
+    init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs);
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
 
-    parallel_for5d(dom[0], dom[1], dom[2], dom[3], dom[4],
-        [&](int64_t d0, int64_t d1, int64_t d2, int64_t d3, int64_t d4) {
-            int64_t indexes[] = {d0, d1, d2, d3, d4};
-            // todo: jit_snippets_call_args are destructed at the end of this lambda.
-            //  It means that rather expensive memory allocation-deallocation is performed inside this loop.
-            //  A possible solution is to create thread-local jit_snippets_call_args that would be reused here.
-            jit_snippets_call_args call_args;
-            call_args.register_loops(loop_args);
-            update_ptrs(call_args, inMemPtrs, outMemPtrs, indexes);
+    // Use parallel_nt instead of parallel_for5d to create thread-local `jit_snippets_call_args` entity
+    // with inited buffer scratchpad ptr and loop args only once.
+    const auto& callable = schedule->get_callable<dynamic_kernel>();
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        jit_snippets_call_args call_args;
+        init_call_args(call_args);
+
+        auto func = [&](size_t d0, size_t d1, size_t d2, size_t d3, size_t d4) {
+            size_t indexes[] = {d0, d1, d2, d3, d4};
+            update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
             callable(&call_args);
+        };
+
+        const size_t work_amount = harness_work_amount;
+        if (work_amount == 0)
+            return;
+
+        size_t start{0}, end{0};
+        splitter(work_amount, nthr, ithr, start, end);
+
+        size_t d0{0}, d1{0}, d2{0}, d3{0}, d4{0};
+        parallel_it_init(start, d0, dom[0], d1, dom[1], d2, dom[2], d3, dom[3], d4, dom[4]);
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            ov::helpers::call_with_args(func, ithr, iwork, d0, d1, d2, d3, d4);
+            parallel_it_step(d0, dom[0], d1, dom[1], d2, dom[2], d3, dom[3], d4, dom[4]);
+        }
     });
 }
 
 void Subgraph::SnippetJitDynamicSpecializedExecutor::schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) {
-    const auto& callable = schedule->get_callable<dynamic_kernel>();
-    const auto& work_size = parallel_exec_domain;
-    OPENVINO_ASSERT(work_size.size() == tensor_rank, "Incorrect parallel execution domain rank!");
+    const auto& dom = parallel_exec_domain;
+
+    OPENVINO_ASSERT(dom.size() == tensor_rank, "Incorrect parallel execution domain rank!");
+    OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
+    OPENVINO_ASSERT(data_offsets.front().size() == tensor_rank, "Data offsets with invalid ranks detected");
+
+    std::vector<const uint8_t*> src_ptrs;
+    std::vector<uint8_t*> dst_ptrs;
+    init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs);
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
     segfault_detector();
 #endif
 
+    const auto& callable = schedule->get_callable<dynamic_kernel>();
     parallel_nt(0, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         call_args.register_loops(loop_args);
@@ -817,15 +863,15 @@ void Subgraph::SnippetJitDynamicSpecializedExecutor::schedule_nt(const std::vect
         size_t start = 0, end = 0;
         splitter(harness_work_amount, nthr, ithr, start, end);
 
-        std::vector<int64_t> indexes(work_size.size() - 1, 0);
+        std::vector<size_t> indexes(dom.size() - 1, 0);
         for (size_t iwork = start; iwork < end; ++iwork) {
             size_t tmp = iwork;
-            for (ptrdiff_t j = static_cast<ptrdiff_t>(work_size.size()) - 2; j >= 0; j--) {
-                indexes[j] = static_cast<int64_t>(tmp % work_size[j]);
-                tmp /= work_size[j];
+            for (ptrdiff_t j = static_cast<ptrdiff_t>(dom.size()) - 2; j >= 0; j--) {
+                indexes[j] = tmp % dom[j];
+                tmp /= dom[j];
             }
 
-            update_ptrs(call_args, inMemPtrs, outMemPtrs, indexes.data());
+            update_ptrs(call_args, src_ptrs, dst_ptrs, indexes.data());
             callable(&call_args);
         }
     });

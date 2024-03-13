@@ -175,8 +175,11 @@ public:
 protected:
     typedef void (*dynamic_kernel)(const void *);
 
-    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
-                            const int64_t* indexes);
+    inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
+                                   std::vector<const uint8_t*>& src_ptrs, std::vector<uint8_t*>& dst_ptrs);
+    inline void init_call_args(jit_snippets_call_args& call_args);
+    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
+                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const;
     // Evaluates generated snippet using parallel backend
     void schedule_6d(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
     void schedule_nt(const std::vector<MemoryPtr>& inMemPtrs, const std::vector<MemoryPtr>& outMemPtrs) override;
