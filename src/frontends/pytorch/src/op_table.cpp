@@ -343,7 +343,6 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::atan", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atan>, 1>},
         {"aten::atan_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atan>>},
         {"aten::atan2", op::translate_atan2_op},
-        {"aten::atanh", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>},
         {"aten::atanh",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Atanh>, 1>},
         {"aten::atanh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Atanh>>},
