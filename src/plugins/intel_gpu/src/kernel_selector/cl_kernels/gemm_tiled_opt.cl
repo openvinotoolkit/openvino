@@ -529,7 +529,7 @@ KERNEL(gemm_tiled_opt)(
             }
     #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
-#if !INDIRECT_INPUT0 && !K_IS_ODD
+#if !INDIRECT_INPUT0 && !K_IS_ODD && (TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST)
     a_ptr = input0 + FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, y, (K_FULL_ITERATIONS * TILE_K));
 #endif
     // Loading leftovers of the matrix A and tile C calculation
@@ -538,12 +538,12 @@ KERNEL(gemm_tiled_opt)(
         uint a_idx = FUNC_CALL(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid), beam_table);
         INPUT0_TYPE a_read = input0[a_idx];
 #else  // INDIRECT_INPUT0
-#if K_IS_ODD
-        uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid));
-        INPUT0_TYPE a_read = input0[a_idx];
-#else  // K_IS_ODD
+#if !K_IS_ODD && (TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST)
         INPUT0_TYPE a_read = BLOCK_READ_A(a_ptr, 0);
         a_ptr += input0_offset;
+#else  // K_IS_ODD
+        uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (K_FULL_ITERATIONS * TILE_K + sglid));
+        INPUT0_TYPE a_read = input0[a_idx];
 #endif // K_IS_ODD
 #endif // INDIRECT_INPUT0
         unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
