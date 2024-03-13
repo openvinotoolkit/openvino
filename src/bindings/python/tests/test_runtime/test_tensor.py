@@ -203,7 +203,6 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
 )
 def test_init_with_numpy_new_constructor(ov_type, numpy_dtype, shared_flag):
     arr = generate_image().astype(numpy_dtype)
-    # arr = np.array([[0.1793, 0.9707, 0.1133, 0.5, 0.51], [1.1, 1.0, 2.0, 2.3, 0.0]]).astype(numpy_dtype)
     shape = arr.shape
     ov_tensor = ov.Tensor(array=arr, dtype=ov_type, share=shared_flag)
 
