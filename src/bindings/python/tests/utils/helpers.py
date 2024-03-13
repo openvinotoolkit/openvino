@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Tuple, Union, List
@@ -202,16 +202,31 @@ def generate_model_and_image(device, input_shape: List[int] = None):
     return (generate_relu_compiled_model(device, input_shape), generate_image(input_shape))
 
 
-def generate_add_model() -> openvino._pyopenvino.Model:
-    param1 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data1")
-    param2 = ops.parameter(Shape([2, 1]), dtype=np.float32, name="data2")
+def generate_add_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.Model:
+    if input_shape is None:
+        input_shape = [2, 1]
+    param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
+    param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
     add = ops.add(param1, param2)
     return Model(add, [param1, param2], "TestModel")
 
 
+def generate_add_compiled_model(
+    device,
+    input_shape: List[int] = None,
+    input_dtype=np.float32,
+) -> openvino.CompiledModel:
+    if input_shape is None:
+        input_shape = [1, 3, 32, 32]
+    model = generate_add_model(input_shape, input_dtype)
+    core = Core()
+    return core.compile_model(model, device, {})
+
+
 def generate_model_with_memory(input_shape, data_type) -> openvino._pyopenvino.Model:
     input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    rv = ops.read_value(input_data, "var_id_667", data_type, input_shape)
+    init_val = ops.constant(np.zeros(input_shape), data_type)
+    rv = ops.read_value(init_val, "var_id_667", data_type, input_shape)
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")

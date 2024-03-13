@@ -7,7 +7,7 @@
 #include <memory>
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -17,7 +17,7 @@ public:
         const ov::PartialShape& inputShape,
         const std::vector<float>& axes,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization);
+        const ov::builder::subgraph::DequantizationOperations& dequantization);
 
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type originalFunctionPrecision,
@@ -29,11 +29,11 @@ public:
         const ov::PartialShape& inputShape,
         const std::vector<float>& axes,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

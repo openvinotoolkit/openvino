@@ -10,7 +10,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,7 +20,7 @@ public:
         const ov::element::Type& precision,
         const Shape& shape,
         const FakeQuantizeOnData& fakeQuantize,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore);
 
     static std::shared_ptr<ov::Model> get(
         const ov::element::Type& precision,
@@ -36,4 +36,4 @@ public:
 };
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

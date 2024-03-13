@@ -90,7 +90,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
+        output_shapes[0] = desc->output_pshape.rank().is_static() ? desc->output_pshape : ShapeType::dynamic(std::max(static_cast<int>(output_rank), 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
@@ -126,8 +126,27 @@ std::string broadcast_inst::to_string(broadcast_node const& node) {
     return primitive_description.str();
 }
 
+void broadcast_inst::on_execute() {
+    update_output_memory();
+}
+
+void broadcast_inst::update_output_memory() {
+    if (!can_be_optimized())
+        return;
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        return;
+
+    if (_node != nullptr)
+        build_deps();
+
+    GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
+                           << " : " << input_memory_ptr()->buffer_ptr() << std::endl;
+    _outputs[0] = input_memory_ptr();
+    _mem_allocated = false;
+}
+
 broadcast_inst::typed_primitive_inst(network& network, broadcast_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     if (input_layout.is_dynamic())
         return;
     const auto& output_sizes = argument->broadcast_sizes;

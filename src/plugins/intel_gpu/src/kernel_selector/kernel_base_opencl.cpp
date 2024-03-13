@@ -66,19 +66,14 @@ public:
 std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
                                             const std::string& layerID,
                                             const Params& params,
-                                            const optional_params& options,
                                             const size_t partID) const {
-    std::string kernelID = layerID;
-
-    if (kernelID.empty() || !options.meaningfulKernelsNames) {
-        kernelID = templateName;
-    }
+    std::string kernelID = templateName;
 
     std::replace(kernelID.begin(), kernelID.end(), '.', '_');
     std::replace(kernelID.begin(), kernelID.end(), '/', '_');
 
     // UniqueID = program_id + processing_index + additional weight/reorder tag
-    kernelID += "_" + params.uniqueID + "_" + std::to_string(partID);
+    kernelID += "_" + params.uniqueID + "_" + std::to_string(partID) + "_" + std::to_string(params.stage_id);
 
     // Add "__sa" suffix for shape agnostic kernels
     if (params.is_shape_agnostic)
@@ -96,12 +91,14 @@ std::pair<std::string, std::string> KernelBaseOpenCL::CreateJit(const std::strin
         .add_line("// Kernel template: " + template_name + " ")
         .add_line("// Kernel name: " + kernel_id)
         .value_macro("KERNEL(name)", "__kernel void " + kernel_id)
+        .value_macro("KERNEL_ID", kernel_id)
         .decoration_macro("FUNC", "", kernel_id)
         .decoration_macro("FUNC_CALL", "", kernel_id)
         .decoration_macro("CONST_ARRAY_DECL", "__constant size_t ", kernel_id + " []")
         .decoration_macro("CONST_ARRAY_REF", "", kernel_id);
 
     undefs += "#undef KERNEL\n";
+    undefs += "#undef KERNEL_ID\n";
     undefs += "#undef FUNC\n";
     undefs += "#undef FUNC_CALL\n";
     undefs += "#undef CONST_ARRAY_DECL\n";

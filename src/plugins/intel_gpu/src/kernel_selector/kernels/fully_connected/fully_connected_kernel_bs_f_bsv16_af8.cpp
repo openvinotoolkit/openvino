@@ -20,8 +20,8 @@ ParamsKey FullyConnected_bs_f_bsv16_af8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bs_f_bsv16_af8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey FullyConnected_bs_f_bsv16_af8::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -40,8 +40,8 @@ FullyConnected_bs_f_bsv16_af8::DispatchData FullyConnected_bs_f_bsv16_af8::SetDe
     return dispatchData;
 }
 
-bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_params& o) const {
-    if (!FullyConnectedBlockKernelBase::Validate(p, o)) {
+bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p) const {
+    if (!FullyConnectedBlockKernelBase::Validate(p)) {
         return false;
     }
 
@@ -62,12 +62,10 @@ bool FullyConnected_bs_f_bsv16_af8::Validate(const Params& p, const optional_par
     return bProperBatch;
 }
 
-KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
-                                                          const optional_params& optParams) const {
+KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(params,
-                                                    optParams,
                                                     DataLayout::bs_f_bsv16__af8,
                                                     WeightsLayout::os_i_osv16__ai8,
                                                     static_cast<int>(i));
@@ -79,7 +77,7 @@ KernelsData FullyConnected_bs_f_bsv16_af8::GetKernelsData(const Params& params,
     return res;
 }
 
-KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority FullyConnected_bs_f_bsv16_af8::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

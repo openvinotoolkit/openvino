@@ -29,7 +29,7 @@ const std::vector<ov::element::Type> netPrecisions2D = {
 const std::vector<std::vector<ov::Shape>> inputShapes2D = {{{1, 3, 30, 30}},
                                                            {{1, 16, 10, 10}},
                                                            {{1, 32, 10, 10}}};
-const std::vector<std::vector<size_t >> kernels2D = {/*{1, 1},*/ {3, 3}, {3, 5}};
+const std::vector<std::vector<size_t >> kernels2D = {{1, 1}, {3, 3}, {3, 5}};
 const std::vector<std::vector<size_t >> strides2D = {{1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 1}};
@@ -137,7 +137,7 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds3D),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
         ::testing::ValuesIn(emptyOutputPadding)
 );
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
@@ -147,7 +147,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3D),
         ::testing::ValuesIn(numOutChannels),
-        ::testing::Values(ngraph::op::PadType::VALID),
+        ::testing::Values(ov::op::PadType::VALID),
         ::testing::ValuesIn(emptyOutputPadding)
 );
 

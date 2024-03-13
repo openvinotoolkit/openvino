@@ -82,7 +82,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         pattern::wrap_type<ov::op::v1::Transpose>({eltwise_p, pattern::wrap_type<ov::op::v0::Constant>()},
                                                   pattern::consumers_count(1));
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto eltwise = pattern_to_output.at(eltwise_p).get_node_shared_ptr();
         auto eltwise_const_input = pattern_to_output.at(eltwise_const_input_p);
@@ -99,9 +99,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         if (ov::shape_size(shape) != 1) {
             eltwise_const_input =
                 std::make_shared<ov::op::v1::Transpose>(eltwise_const_input, transpose->input_value(1));
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            if (auto const_node = ov::get_constant_from_source(eltwise_const_input)) {
-                OPENVINO_SUPPRESS_DEPRECATED_END
+            if (auto const_node = ov::util::get_constant_from_source(eltwise_const_input)) {
                 eltwise_const_input = const_node;
             }
         }
@@ -128,7 +126,7 @@ ov::pass::TransposeConvert::TransposeConvert() {
                                                   pattern::consumers_count(1));
     auto convert_label = pattern::wrap_type<ov::op::v0::Convert>({transpose_label});
 
-    matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto convert = pattern_to_output.at(convert_label).get_node_shared_ptr();
@@ -158,7 +156,7 @@ ov::pass::TransposeReduction::TransposeReduction() {
                            op::util::LogicalReductionKeepDims,
                            ov::op::v0::Squeeze>({transpose_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
@@ -180,11 +178,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
-                                                       reduction_axes->cast_vector<int64_t>(),
-                                                       reduction->get_input_partial_shape(0).rank());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto& non_negative_axes = ov::util::normalize_axes(reduction->get_friendly_name(),
+                                                                 reduction_axes->cast_vector<int64_t>(),
+                                                                 reduction->get_input_partial_shape(0).rank());
         reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;
@@ -234,7 +230,7 @@ ov::pass::TransposeFQReduction::TransposeFQReduction() {
                            op::util::LogicalReductionKeepDims,
                            ov::op::v0::Squeeze>({fq_label, pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
@@ -298,7 +294,7 @@ ov::pass::TransposeFuse::TransposeFuse() {
     auto transpose_2 =
         pattern::wrap_type<ov::op::v1::Transpose>({transpose_1, pattern::wrap_type<ov::op::v0::Constant>()});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto transpose1 = pattern_to_output.at(transpose_1).get_node_shared_ptr();

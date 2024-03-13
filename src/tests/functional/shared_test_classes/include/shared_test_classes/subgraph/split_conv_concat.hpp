@@ -9,7 +9,6 @@
 #include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -30,16 +29,3 @@ protected:
 
 }  // namespace test
 }  // namespace ov
-
-namespace SubgraphTestsDefinitions {
-
-class SplitConvConcat : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                        virtual public ov::test::SplitConvConcatBase {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::basicParams>& obj);
-
-protected:
-    void SetUp() override;
-};
-
-}  // namespace SubgraphTestsDefinitions

@@ -2243,3 +2243,151 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
 TEST(export_import_broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 }, true);
 }
+
+static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> in_static_shape,
+                                    std::vector<ov::Dimension::value_type> in_dynamic_shape,
+                                    std::vector<ov::Dimension::value_type> output_shape,
+                                    std::vector<int32_t> target_shape) {
+
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto input_static_layout = cldnn::layout{ov::PartialShape{in_static_shape}, data_types::f16, format::bfzyx};
+    auto input_dynamic_layout = cldnn::layout{ov::PartialShape{in_dynamic_shape}, data_types::f16, format::bfzyx};
+    auto target_shape_layout = cldnn::layout{ov::PartialShape{static_cast<ov::Dimension::value_type>(target_shape.size())},
+                                                                data_types::i32, format::bfyx};
+
+    primitive_id input_id = "input";
+    primitive_id target_shape_id = "target_shape";
+
+    topology topology;
+    topology.add(input_layout(input_id, input_dynamic_layout));
+    topology.add(input_layout(target_shape_id, target_shape_layout));
+    auto broadcast_prim = broadcast("broadcast", input_info(input_id), input_info(target_shape_id), ov::AxisSet({}), ov::op::BroadcastType::BIDIRECTIONAL);
+    if (output_shape.size() == 6) {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3], output_shape[4], output_shape[5]});
+    } else if (output_shape.size() == 5) {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3], output_shape[4]});
+    } else {
+        broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3]});
+    }
+    topology.add(broadcast_prim);
+    topology.add(reorder("output", input_info("broadcast"), format::bfzyx, data_types::f16));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    size_t input_data_size = accumulate(in_static_shape.rbegin(), in_static_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    ASSERT_GE(input_data_size, (size_t)1);
+    std::vector<ov::float16> input_data = {};
+    for (size_t i = 1; i <= input_data_size; ++i) {
+        input_data.push_back((ov::float16)i);
+    }
+    auto input_mem = engine.allocate_memory(input_static_layout);
+    set_values(input_mem, input_data);
+    network->set_input_data(input_id, input_mem);
+
+    auto target_shape_mem = engine.allocate_memory(target_shape_layout);
+    set_values(target_shape_mem, target_shape);
+    network->set_input_data(target_shape_id, target_shape_mem);
+
+    auto outputs = network->execute();
+    auto output = outputs.at("output").get_memory();
+
+    ASSERT_NE(output, nullptr);
+    cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
+
+    size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
+    ASSERT_GE(output_data_size, (size_t)1);
+    std::vector<ov::float16> output_ref(output_data_size);
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(output_ref.data()),
+                             ov::Shape(in_static_shape.begin(), in_static_shape.end()),
+                             ov::Shape(output_shape.begin(), output_shape.end()),
+                             ov::AxisSet({}),
+                             sizeof(ov::float16));
+
+    ASSERT_EQ(output_ref.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+
+    if (output_shape.size() == 6) {
+        for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
+            for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
+                for (tensor::value_type w = 0; w < output_shape.at(2); ++w) {
+                    for (tensor::value_type z = 0; z < output_shape.at(3); ++z) {
+                        for (tensor::value_type y = 0; y < output_shape.at(4); ++y) {
+                            for (tensor::value_type x = 0; x < output_shape.at(5); ++x) {
+                                auto output_off = ((((b * output_shape.at(1) + f) * output_shape.at(2) + w) * output_shape.at(3) + z) * output_shape.at(4) + y) * output_shape.at(5) + x;
+                                ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (output_shape.size() == 5) {
+        for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
+            for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
+                for (tensor::value_type z = 0; z < output_shape.at(2); ++z) {
+                    for (tensor::value_type y = 0; y < output_shape.at(3); ++y) {
+                        for (tensor::value_type x = 0; x < output_shape.at(4); ++x) {
+                            auto output_off = (((b * output_shape.at(1) + f) * output_shape.at(2) + z) * output_shape.at(3) + y) * output_shape.at(4) + x;
+                            ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        for (tensor::value_type b = 0; b < output_shape.at(0); ++b) {
+            for (tensor::value_type f = 0; f < output_shape.at(1); ++f) {
+                for (tensor::value_type y = 0; y < output_shape.at(2); ++y) {
+                    for (tensor::value_type x = 0; x < output_shape.at(3); ++x) {
+                        auto output_off = ((b * output_shape.at(1) + f) * output_shape.at(2) + y) * output_shape.at(3) + x;
+                        ASSERT_EQ(output_ptr[output_off], output_ref[output_off]);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x128_to_21x1x2x16x128_axis_Y_16) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,16,128},{1,1,1,16,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x128_to_21x1x2x17x128_axis_Y_17) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,17,128},{1,1,1,17,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x129_to_21x1x2x19x129_axis_Y_19) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,129},{-1,-1,2,1,129},{21,1,2,19,129},{1,1,1,19,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x19x1_axis_Y_19) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,19,1},{1,1,1,19,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x3x1_axis_Y_3) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,3,1},{1,1,1,3,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfwzyx_21x1x2x1x1_to_21x1x2x19x1_axis_F_14_Z_12) {
+    run_broadcast_gpu_opt_y_axis({21,14,12,1,1},{-1,14,12,1,1},{21,14,12,1,1},{1,14,12,1,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfyx_21x2x1x1_to_21x2x3x1_axis_Y_13) {
+    run_broadcast_gpu_opt_y_axis({21,2,1,5},{-1,2,1,5},{21,2,13,5},{1,1,13,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x5_to_21x1x2x15x5_axis_Y_15) {
+    run_broadcast_gpu_opt_y_axis({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
+    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,6,1},{1,1,6,1});
+}
+
+TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
+    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+}

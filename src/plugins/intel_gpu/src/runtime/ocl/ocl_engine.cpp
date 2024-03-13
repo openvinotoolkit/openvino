@@ -127,15 +127,28 @@ allocation_type ocl_engine::detect_usm_allocation_type(const void* memory) const
 
 bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
     OPENVINO_ASSERT(supports_allocation(type) || type == allocation_type::cl_mem, "[GPU] Unsupported allocation type: ", type);
-    auto alloc_mem_size = layout.bytes_count();
-    auto max_mem_size = get_device_info().max_alloc_mem_size;
-    if (alloc_mem_size > max_mem_size) {
-        auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
-        GPU_DEBUG_LOG << "[GPU] Mem size info: " << "Required " << alloc_mem_size << " bytes, already occupied : "
-                      << used_mem << " bytes, available memory size is " << get_max_memory_size() << " bytes, but max allocable memory size is "
-                      << max_mem_size << " bytes." << std::endl;
+
+    OPENVINO_ASSERT(layout.bytes_count() <= get_device_info().max_alloc_mem_size,
+                    "[GPU] Exceeded max size of memory object allocation: ",
+                    "requested ", layout.bytes_count(), " bytes, "
+                    "but max alloc size supported by device is ", get_device_info().max_alloc_mem_size, " bytes.",
+                    "Please try to reduce batch size or use lower precision.");
+
+    auto used_mem = get_used_device_memory(allocation_type::usm_device) + get_used_device_memory(allocation_type::usm_host);
+#ifdef __unix__
+    // Prevent from being killed by Ooo Killer of Linux
+    OPENVINO_ASSERT(layout.bytes_count() + used_mem <= get_max_memory_size(),
+                    "[GPU] Exceeded max size of memory allocation: ",
+                    "Required ", layout.bytes_count(), " bytes, already occupied : ", used_mem, " bytes, ",
+                    "but available memory size is ", get_max_memory_size(), " bytes");
+#else
+    if (layout.bytes_count() + used_mem > get_max_memory_size()) {
+        GPU_DEBUG_COUT << "[Warning] [GPU] Exceeded max size of memory allocation: " << "Required " << layout.bytes_count() << " bytes, already occupied : "
+                       << used_mem << " bytes, but available memory size is " << get_max_memory_size() << " bytes" << std::endl;
+        GPU_DEBUG_COUT << "Please note that performance might drop due to memory swap." << std::endl;
         return false;
     }
+#endif
 
     return true;
 }
@@ -143,14 +156,7 @@ bool ocl_engine::check_allocatable(const layout& layout, allocation_type type) {
 memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type type, bool reset) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
-    bool allocatable = check_allocatable(layout, type);
-    if (!allocatable) {
-#ifdef __unix__
-        OPENVINO_ASSERT(allocatable, "[GPU] Exceeded max size of memory allocation, check debug message for size info");
-#else
-        GPU_DEBUG_COUT << "[Warning][GPU] Please note that performance might drop due to memory swap caused by exceeded mem size alloc." << std::endl;
-#endif
-    }
+    check_allocatable(layout, type);
 
     try {
         memory::ptr res = nullptr;
@@ -193,19 +199,22 @@ memory::ptr ocl_engine::reinterpret_buffer(const memory& memory, const layout& n
         if (new_layout.format.is_image_2d()) {
            return std::make_shared<ocl::gpu_image2d>(this,
                                      new_layout,
-                                     reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer());
+                                     reinterpret_cast<const ocl::gpu_image2d&>(memory).get_buffer(),
+                                     memory.get_mem_tracker());
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
             return std::make_shared<ocl::gpu_usm>(this,
                                      new_layout,
                                      reinterpret_cast<const ocl::gpu_usm&>(memory).get_buffer(),
-                                     memory.get_allocation_type());
+                                     memory.get_allocation_type(),
+                                     memory.get_mem_tracker());
         } else {
            return std::make_shared<ocl::gpu_buffer>(this,
                                     new_layout,
-                                    reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer());
+                                    reinterpret_cast<const ocl::gpu_buffer&>(memory).get_buffer(),
+                                    memory.get_mem_tracker());
         }
     } catch (cl::Error const& err) {
-        throw ocl::ocl_error(err);
+        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }
 
@@ -213,7 +222,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
    try {
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
             cl::Image2D img(static_cast<cl_mem>(params.mem), true);
-            return std::make_shared<ocl::gpu_image2d>(this, new_layout, img);
+            return std::make_shared<ocl::gpu_image2d>(this, new_layout, img, nullptr);
         } else if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_vasurface) {
             return std::make_shared<ocl::gpu_media_buffer>(this, new_layout, params);
 #ifdef _WIN32
@@ -227,7 +236,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
-            return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf);
+            return std::make_shared<ocl::gpu_buffer>(this, new_layout, buf, nullptr);
         } else if (params.mem_type == shared_mem_type::shared_mem_usm) {
             cl::UsmMemory usm_buffer(get_usm_helper(), params.mem);
             auto actual_mem_size = get_usm_helper().get_usm_allocation_size(usm_buffer.get());
@@ -235,7 +244,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
             OPENVINO_ASSERT(actual_mem_size >= requested_mem_size,
                             "[GPU] shared USM buffer has smaller size (", actual_mem_size,
                             ") than specified layout (", requested_mem_size, ")");
-            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer);
+            return std::make_shared<ocl::gpu_usm>(this, new_layout, usm_buffer, nullptr);
         } else {
             OPENVINO_THROW("[GPU] unknown shared object fromat or type");
         }

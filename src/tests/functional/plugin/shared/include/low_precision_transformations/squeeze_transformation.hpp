@@ -14,15 +14,15 @@ namespace LayerTestsDefinitions {
 
 class SqueezeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::vector<float> squeezeAxes;
-    ngraph::PartialShape shape;
+    ov::PartialShape shape;
 };
 
 std::string stringifySqueezeArgs(const std::vector<float>& axes);
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     SqueezeTransformationParam
@@ -32,7 +32,6 @@ class SqueezeTransformation :
     public testing::WithParamInterface<SqueezeTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override;
     static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTransformationParams>& obj);
 
 protected:

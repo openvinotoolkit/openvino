@@ -5,9 +5,9 @@
 #include "openvino/op/read_value.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/variable_context.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -153,14 +153,9 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
 
     auto& output = outputs[0];
-    if (use_context) {
-        const auto& ctx_tensor = var_value->second->get_state();
-        output.set_shape(ctx_tensor.get_shape());
-        std::memcpy(output.data(), ctx_tensor.data(), output.get_byte_size());
-    } else {
-        output.set_shape(inputs[0].get_shape());
-        std::memset(output.data(), 0, output.get_byte_size());
-    }
+    const auto& input = use_context ? var_value->second->get_state() : inputs[0];
+    output.set_shape(input.get_shape());
+    std::memcpy(output.data(), input.data(), output.get_byte_size());
     return true;
 }
 

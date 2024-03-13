@@ -21,7 +21,6 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/descriptor/input.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
@@ -53,9 +52,6 @@ namespace pattern {
 class Matcher;
 }  // namespace pattern
 }  // namespace pass
-OPENVINO_SUPPRESS_DEPRECATED_START
-using HostTensorVector = std::vector<ngraph::HostTensorPtr>;
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <typename NodeType>
 class Input;
@@ -192,26 +188,6 @@ public:
     /// operation
     // \returns true if evaluate is available
     virtual bool has_evaluate() const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values, const ov::HostTensorVector& input_values) const;
-    /// \deprecated Use evaluate with ov::Tensor instead
-    /// \brief Evaluates the op on input_values putting results in output_values
-    /// \param output_values Tensors for the outputs to compute. One for each result
-    /// \param input_values Tensors for the inputs. One for each inputs.
-    /// \param evaluation_context Storage of additional settings and attributes that can be used
-    /// when evaluating the op.
-    /// \returns true if successful
-    OPENVINO_DEPRECATED(
-        "This method is deprecated and will be removed soon. Please use evaluate with ov::Tensor instead.")
-    virtual bool evaluate(const ov::HostTensorVector& output_values,
-                          const ov::HostTensorVector& input_values,
-                          const EvaluationContext& evaluationContext) const;
 
     /// \brief Evaluates the op on input_values putting results in output_values
     /// \param output_values Tensors for the outputs to compute. One for each result

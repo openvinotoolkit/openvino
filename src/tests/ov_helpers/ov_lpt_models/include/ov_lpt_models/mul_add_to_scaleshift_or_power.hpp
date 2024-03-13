@@ -10,7 +10,7 @@
 #include "common/dequantization_operations.hpp"
 #include "common/add.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -20,18 +20,18 @@ public:
         const ov::element::Type precision,
         const ov::Shape& inputShape,
         bool isDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations::Multiply& mulValues,
-        const ngraph::builder::subgraph::Add& addValues);
+        const ov::builder::subgraph::DequantizationOperations::Multiply& mulValues,
+        const ov::builder::subgraph::Add& addValues);
 
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,
         const ov::Shape& inputShape,
         bool isDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations::Multiply& weightsValues,
-        const ngraph::builder::subgraph::Add& biasesValues,
+        const ov::builder::subgraph::DequantizationOperations::Multiply& weightsValues,
+        const ov::builder::subgraph::Add& biasesValues,
         const ov::element::Type precisionAfterOperation);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

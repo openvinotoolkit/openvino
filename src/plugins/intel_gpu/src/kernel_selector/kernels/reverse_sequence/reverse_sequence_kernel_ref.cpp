@@ -29,8 +29,7 @@ ParamsKey ReverseSequenceKernelRef::GetSupportedKey() const {
     return k;
 }
 
-CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_params& params,
-                                                        const optional_params&) const {
+CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -56,14 +55,14 @@ JitConstants ReverseSequenceKernelRef::GetJitConstants(const reverse_sequence_pa
     return jit;
 }
 
-KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<reverse_sequence_params>(params);
     reverse_sequence_params& newParams = *static_cast<reverse_sequence_params*>(kd.params.get());
 
     assert(params.GetType() == KernelType::REVERSE_SEQUENCE);
 
-    auto dispatchData = SetDefault(newParams, options);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto dispatchData = SetDefault(newParams);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -74,7 +73,7 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
     return {kd};
 }
 
-KernelsPriority ReverseSequenceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReverseSequenceKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

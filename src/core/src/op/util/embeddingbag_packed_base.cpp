@@ -6,7 +6,6 @@
 
 #include "embeddingbag_packed_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 

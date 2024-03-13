@@ -35,10 +35,10 @@ Transformer <https://en.wikipedia.org/wiki/Transformer_(machine_learning_model)>
 and
 `ResNet34 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet34.html>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-- `Imports <#imports>`__
-
+-  `Imports <#imports>`__
 -  `The models <#the-models>`__
 
    -  `Download the models <#download-the-models>`__
@@ -53,10 +53,7 @@ and
    -  `Helper functions <#helper-functions>`__
    -  `AI Functions <#ai-functions>`__
    -  `Main Processing Function <#main-processing-function>`__
-   -  `Run Action Recognition on a Video
-      File <#run-action-recognition-on-a-video-file>`__
-   -  `Run Action Recognition Using a
-      Webcam <#run-action-recognition-using-a-webcam>`__
+   -  `Run Action Recognition <#run-action-recognition>`__
 
 .. code:: ipython3
 
@@ -65,12 +62,18 @@ and
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
     Note: you may need to restart the kernel to use updated packages.
 
 
-Imports 
--------------------------------------------------
+Imports
+-------
+
+
 
 .. code:: ipython3
 
@@ -78,6 +81,8 @@ Imports
     import os
     import time
     from typing import Tuple, List
+    
+    from pathlib import Path
     
     import cv2
     import numpy as np
@@ -93,15 +98,19 @@ Imports
     )
     import notebook_utils as utils
 
-The models 
-----------------------------------------------------
+The models
+----------
 
-Download the models 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use ``omz_downloader``, which is a command-line tool from the
-``openvino-dev`` package. It automatically creates a directory structure
-and downloads the selected model.
+
+Download the models
+~~~~~~~~~~~~~~~~~~~
+
+
+
+Use the ``download_ir_model``, a function from the ``notebook_utils``
+file. It automatically creates a directory structure and downloads the
+selected model.
 
 In this case you can use ``"action-recognition-0001"`` as a model name,
 and the system automatically downloads the two models
@@ -129,36 +138,31 @@ and the system automatically downloads the two models
     model_path_encoder = (
         f"model/intel/{model_name}/{model_name}-encoder/{precision}/{model_name}-encoder.xml"
     )
-    if not os.path.exists(model_path_decoder) or not os.path.exists(model_path_encoder):
-        download_command = f"omz_downloader " \
-                           f"--name {model_name} " \
-                           f"--precision {precision} " \
-                           f"--output_dir {base_model_dir}"
-        ! $download_command
+    encoder_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/temp/{model_name}/{model_name}-encoder/{precision}/{model_name}-encoder.xml"
+    decoder_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/temp/{model_name}/{model_name}-decoder/{precision}/{model_name}-decoder.xml"
+    
+    if not os.path.exists(model_path_decoder):
+        utils.download_ir_model(decoder_url, Path(model_path_decoder).parent)
+    if not os.path.exists(model_path_encoder):
+        utils.download_ir_model(encoder_url, Path(model_path_encoder).parent)
+
 
 
 .. parsed-literal::
 
-    ################|| Downloading action-recognition-0001-encoder ||################
-    
-    ========== Downloading model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.xml
-    
-    
-    ========== Downloading model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin
-    
-    
-    ################|| Downloading action-recognition-0001-decoder ||################
-    
-    ========== Downloading model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.xml
-    
-    
-    ========== Downloading model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin
-    
-    
+    model/intel/action-recognition-0001/action-recognition-0001-decoder/FP16/action-recognition-0001-decoder.bin: …
 
 
-Load your labels 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. parsed-literal::
+
+    model/intel/action-recognition-0001/action-recognition-0001-encoder/FP16/action-recognition-0001-encoder.bin: …
+
+
+Load your labels
+~~~~~~~~~~~~~~~~
+
+
 
 This tutorial uses `Kinetics-400
 dataset <https://deepmind.com/research/open-source/kinetics>`__, and
@@ -193,8 +197,10 @@ also provides the text file embedded into this notebook.
     ['abseiling', 'air drumming', 'answering questions', 'applauding', 'applying cream', 'archery', 'arm wrestling', 'arranging flowers', 'assembling computer'] (400,)
 
 
-Load the models 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Load the models
+~~~~~~~~~~~~~~~
+
+
 
 Load the two models for this particular architecture, Encoder and
 Decoder. Downloaded models are located in a fixed structure, indicating
@@ -233,8 +239,10 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-Model Initialization function 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Model Initialization function
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -265,8 +273,10 @@ Model Initialization function
         output_keys = compiled_model.output(0)
         return input_keys, output_keys, compiled_model
 
-Initialization for Encoder and Decoder 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Initialization for Encoder and Decoder
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
 
 .. code:: ipython3
 
@@ -280,8 +290,10 @@ Initialization for Encoder and Decoder
     # Get input size - Decoder.
     frames2decode = list(input_key_de.shape)[0:][1]
 
-Helper functions 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Helper functions
+~~~~~~~~~~~~~~~~
+
+
 
 Use the following helper functions for preprocessing and postprocessing
 frames:
@@ -401,8 +413,10 @@ frames:
         cv2.putText(frame, display_text, text_loc2, FONT_STYLE, FONT_SIZE, FONT_COLOR2)
         cv2.putText(frame, display_text, text_loc, FONT_STYLE, FONT_SIZE, FONT_COLOR)
 
-AI Functions 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+AI Functions
+~~~~~~~~~~~~
+
+
 
 Following the pipeline above, you will use the next functions to:
 
@@ -491,8 +505,10 @@ Following the pipeline above, you will use the next functions to:
         exp = np.exp(x)
         return exp / np.sum(exp, axis=None)
 
-Main Processing Function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Main Processing Function
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Running action recognition function will run in different operations,
 either a webcam or a video file. See the list of procedures below:
@@ -642,8 +658,10 @@ either a webcam or a video file. See the list of procedures below:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Action Recognition on a Video File 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Action Recognition
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Find out how the model works in a video file. `Any format
 supported <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
@@ -656,10 +674,21 @@ step.
    problems with your video, use the
    `HandBrake <https://handbrake.fr/>`__ and select the MPEG format.
 
+if you want to use a web camera as an input source for the demo, please
+change the value of ``USE_WEBCAM`` variable to True and specify
+``cam_id`` (the default value is 0, which can be different in
+multi-camera systems).
+
 .. code:: ipython3
 
+    USE_WEBCAM = False
+    
+    cam_id = 0
     video_file = "https://archive.org/serve/ISSVideoResourceLifeOnStation720p/ISS%20Video%20Resource_LifeOnStation_720p.mp4"
-    run_action_recognition(source=video_file, flip=False, use_popup=False, skip_first_frames=600)
+    
+    source = cam_id if USE_WEBCAM else video_file
+    additional_options = {"skip_first_frames": 600, "flip": False} if not USE_WEBCAM else {"flip": True}
+    run_action_recognition(source=source, use_popup=False, **additional_options)
 
 
 
@@ -670,29 +699,4 @@ step.
 
     Source ended
 
-
-Run Action Recognition Using a Webcam 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Now, try to see yourself in your webcam.
-
-   **NOTE**: To use a webcam, you must run this Jupyter notebook on a
-   computer with a webcam. If you run on a server, the webcam will not
-   work. However, you can still do inference on a video file in the
-   final step.
-
-.. code:: ipython3
-
-    run_action_recognition(source=0, flip=False, use_popup=False, skip_first_frames=0)
-
-
-.. parsed-literal::
-
-    Cannot open camera 0
-
-
-.. parsed-literal::
-
-    [ WARN:0@320.581] global cap_v4l.cpp:982 open VIDEOIO(V4L2:/dev/video0): can't open camera by index
-    [ERROR:0@320.581] global obsensor_uvc_stream_channel.cpp:156 getStreamChannelGroup Camera index out of range
 

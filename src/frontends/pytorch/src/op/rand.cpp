@@ -3,6 +3,7 @@
 //
 #include <random>
 
+#include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "pt_framework_node.hpp"
+#include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -32,40 +34,13 @@ OutputVector make_random_normal(const NodeContext& context,
                                 const Output<Node>& mean_const) {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint64_t> distrib(0, 9999);
+    std::uniform_real_distribution<float> distrib(0.0f, 9999.0f);
+    float seed = distrib(gen);
 
-    const uint64_t global_seed = 0;
-
-    const uint64_t seed_1 = distrib(gen);
-    const uint64_t seed_2 = distrib(gen);
-
-    auto min_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {std::numeric_limits<float>::min()}));
-    auto max_val = context.mark_node(v0::Constant::create(target_type, Shape{1}, {1}));
-
-    auto uniform_1 = context.mark_node(
-        std::make_shared<v8::RandomUniform>(sizes, min_val, max_val, target_type, global_seed, seed_1));
-    auto uniform_2 = context.mark_node(
-        std::make_shared<v8::RandomUniform>(sizes, min_val, max_val, target_type, global_seed, seed_2));
-
-    // Compute Box–Muller transform
-    // random_normal = scale * ng.sqrt(-2.0 * ng.log(uniform_1)) * ng.cos(2.0 * np.pi * uniform_2) + mean
-    auto pi = context.mark_node(v0::Constant::create(target_type, Shape{1}, {3.141592653589793}));
-    auto minus_two = context.mark_node(v0::Constant::create(target_type, Shape{1}, {-2.0}));
-    auto two = context.mark_node(v0::Constant::create(target_type, Shape{1}, {2.0}));
-
-    auto log = context.mark_node(std::make_shared<v0::Log>(uniform_1));
-    auto multiply_minus_two_log = context.mark_node(std::make_shared<v1::Multiply>(log, minus_two));
-    auto sqrt = context.mark_node(std::make_shared<v0::Sqrt>(multiply_minus_two_log));
-
-    auto multiply_two_pi = context.mark_node(std::make_shared<v1::Multiply>(uniform_2, pi));
-    auto multiply_two_pi_uniform_2 = context.mark_node(std::make_shared<v1::Multiply>(multiply_two_pi, uniform_2));
-    auto cos = context.mark_node(std::make_shared<v0::Cos>(multiply_two_pi_uniform_2));
-
-    auto sqrt_x_cos = context.mark_node(std::make_shared<v1::Multiply>(sqrt, cos));
-    auto product = context.mark_node(std::make_shared<v1::Multiply>(scale_const, sqrt_x_cos));
-    auto sum = context.mark_node(std::make_shared<v1::Add>(product, mean_const));
-
-    return {sum};
+    pass::NodeRegistry registry;
+    auto res = ov::frontend::make_random_normal(registry, sizes, target_type, mean_const, scale_const, seed);
+    context.mark_nodes(registry.get());
+    return res;
 }
 };  // namespace
 
@@ -81,8 +56,8 @@ OutputVector translate_rand(const NodeContext& context) {
     auto dtype = element::f32;
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         out_id = 2;
     }
     // aten::rand.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
@@ -100,8 +75,8 @@ OutputVector translate_rand(const NodeContext& context) {
     Output<Node> convert_like_out;
     size_t dtype_id = 1;
     if (context.get_input_size() == 6) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::rand conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::rand conversion with generator does not supported");
         dtype_id = 2;
     }
     if (!context.input_is_none(dtype_id)) {
@@ -117,7 +92,7 @@ OutputVector translate_rand(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
@@ -155,7 +130,7 @@ OutputVector translate_rand_like(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto res = context.mark_node(std::make_shared<v8::RandomUniform>(sizes, low, high, dtype));
@@ -175,8 +150,8 @@ OutputVector translate_randn(const NodeContext& context) {
     auto dtype = element::f32;
     size_t out_id = 1;
     if (context.get_input_size() == 3) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         out_id = 2;
     }
     // aten::randn.out(SymInt[] size, *, Tensor(a!) out) -> Tensor(a!)
@@ -190,8 +165,8 @@ OutputVector translate_randn(const NodeContext& context) {
     }
     size_t dtype_id = 1;
     if (context.get_input_size() == 6) {
-        FRONT_END_OP_CONVERSION_CHECK(context.input_is_none(1),
-                                      "aten::randn conversion with generator does not supported");
+        PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(1),
+                                    "aten::randn conversion with generator does not supported");
         dtype_id = 2;
     }
     // aten::randn(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
@@ -211,7 +186,7 @@ OutputVector translate_randn(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
@@ -251,7 +226,7 @@ OutputVector translate_randn_like(const NodeContext& context) {
             dtype_applied = false;
 
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     auto scale = context.mark_node(v0::Constant::create(dtype, Shape{1}, {1}));
@@ -281,7 +256,7 @@ OutputVector translate_randint(const NodeContext& context) {
             convert_like_out = fw_node->input_value(0);
             dtype_applied = false;
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+            PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }
     }
     low = context.mark_node(std::make_shared<v0::Convert>(low, dtype));
@@ -356,7 +331,7 @@ OutputVector translate_normal(const NodeContext& context) {
                 convert_like_out = fw_node->input_value(0);
                 dtype_applied = false;
             } else {
-                FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+                PYTORCH_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
             }
         }
         auto res = make_random_normal(context, sizes, dtype, std, mean);
@@ -365,9 +340,9 @@ OutputVector translate_normal(const NodeContext& context) {
         }
         return res;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      "Unsupported number of inputs to aten::normal operation: ",
-                                      context.get_input_size());
+        PYTORCH_OP_CONVERSION_CHECK(false,
+                                    "Unsupported number of inputs to aten::normal operation: ",
+                                    context.get_input_size());
     }
 }
 

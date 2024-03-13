@@ -58,9 +58,9 @@ const v12::ScatterElementsUpdate::Reduction get_reduction_mode(const std::string
         {"amax", v12::ScatterElementsUpdate::Reduction::MAX},
         {"amin", v12::ScatterElementsUpdate::Reduction::MIN}};
 
-    FRONT_END_OP_CONVERSION_CHECK(TORCH_REDUCTION_TO_OV.count(pt_reduce_mode),
-                                  "Unknown reduction mode: ",
-                                  pt_reduce_mode);
+    PYTORCH_OP_CONVERSION_CHECK(TORCH_REDUCTION_TO_OV.count(pt_reduce_mode),
+                                "Unknown reduction mode: ",
+                                pt_reduce_mode);
     auto reduction = TORCH_REDUCTION_TO_OV.at(pt_reduce_mode);
     return reduction;
 }
@@ -90,7 +90,7 @@ OutputVector translate_scatter(const NodeContext& context) {
 
     auto reduction = v12::ScatterElementsUpdate::Reduction::NONE;
     auto input_num = context.get_input_size();
-    // 5 argument can be reduction represened as string or out represented as Tensor
+    // 5 argument can be reduction represented as string or out represented as Tensor
     if (input_num > 4 && !context.input_is_none(4) && context.get_input_type(4).is<type::Str>()) {
         auto reduce_mode = context.const_input<std::string>(4);
         reduction = get_reduction_mode(reduce_mode);
@@ -128,6 +128,23 @@ OutputVector translate_scatter_reduce(const NodeContext& context) {
     if (!context.input_is_none(6)) {
         context.mutate_input(6, scatter_result);
     }
+    return {scatter_result};
+};
+
+OutputVector translate_scatter_add(const NodeContext& context) {
+    // aten::scatter_add(Tensor self, int dim, Tensor index, Tensor src) -> Tensor
+    num_inputs_check(context, 4, 4);
+    auto input = context.get_input(0);
+    auto dim = context.get_input(1);
+    auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
+    auto src = context.get_input(3);
+    auto src_input_dtype = prepare_source(context, src, index, input);
+    auto scatter_result =
+        context.mark_node(std::make_shared<v12::ScatterElementsUpdate>(input,
+                                                                       index,
+                                                                       src_input_dtype,
+                                                                       dim,
+                                                                       v12::ScatterElementsUpdate::Reduction::SUM));
     return {scatter_result};
 };
 

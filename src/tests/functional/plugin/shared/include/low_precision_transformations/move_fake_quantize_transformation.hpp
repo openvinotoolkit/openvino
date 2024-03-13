@@ -21,17 +21,17 @@ class MoveFakeQuantizeTransformationParam {
 public:
     size_t concatInputsCount;
     std::string operation;
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
-    ngraph::builder::subgraph::DequantizationOperations::Convert convertAfter;
-    ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantizeAfter;
+    ov::builder::subgraph::DequantizationOperations::Convert convertAfter;
+    ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     std::string layerName;
     std::string expectedKernelType;
     std::int64_t axis;
 };
 
 typedef std::tuple <
-    ngraph::element::Type,
-    std::vector<ngraph::PartialShape>,
+    ov::element::Type,
+    std::vector<ov::PartialShape>,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     bool,
@@ -47,7 +47,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

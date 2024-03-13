@@ -11,7 +11,7 @@ convert_color_kernel_selector::convert_color_kernel_selector() {
     Attach<ConvertColorKernelRef>();
 }
 
-KernelsData convert_color_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::CONVERT_COLOR);
+KernelsData convert_color_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::CONVERT_COLOR);
 }
 }  // namespace kernel_selector

@@ -18,21 +18,14 @@ struct reverse_sequence_params : public base_params {
     int32_t batch_axis;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reverse_sequence_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reverse_sequence_optional_params : optional_params {
-    reverse_sequence_optional_params() : optional_params(KernelType::REVERSE_SEQUENCE) {}
-};
-
 class ReverseSequenceKernelRef : public KernelBaseOpenCL {
 public:
     ReverseSequenceKernelRef() : KernelBaseOpenCL("reverse_sequence_ref") {}
     virtual ~ReverseSequenceKernelRef() {}
     virtual JitConstants GetJitConstants(const reverse_sequence_params& params) const;
-    virtual CommonDispatchData SetDefault(const reverse_sequence_params& params, const optional_params&) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    virtual CommonDispatchData SetDefault(const reverse_sequence_params& params) const;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 };
 }  // namespace kernel_selector

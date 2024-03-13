@@ -28,10 +28,9 @@ namespace op_conformance {
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj) {
     using namespace ov::test::utils;
     std::pair<std::string, std::string> model_pair;
-    std::string path_to_model, path_to_ref_tensor, deviceName;
-    ov::AnyMap config;
-    std::tie(model_pair, deviceName, config) = obj.param;
-    std::tie(path_to_model, path_to_ref_tensor) = model_pair;
+    std::string path_to_model, path_to_ref_tensor, deviceName = ov::test::utils::target_device;
+    ov::AnyMap config = ov::test::utils::global_plugin_config;
+    std::tie(path_to_model, path_to_ref_tensor) = obj.param;
 
     std::ostringstream result;
 
@@ -74,9 +73,9 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<ReadIRParam
                         op_version = op_name.substr(pos + 1);
                         op_name = op_name.substr(0, pos);
                     }
-                    if (std::find(unique_ops[op_name].begin(),
-                                unique_ops[op_name].end(), op_version) != unique_ops[op_name].end() &&
-                        unique_ops.find(op_name) != unique_ops.end()) {
+                    if (unique_ops.find(op_name) != unique_ops.end() &&
+                        std::find(unique_ops[op_name].begin(), unique_ops[op_name].end(), op_version) !=
+                            unique_ops[op_name].end()) {
                         filled_info["op_name"] = op_name + "." + op_version;
                         continue;
                     }
@@ -123,8 +122,9 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
 
 void ReadIRTest::SetUp() {
     std::pair<std::string, std::string> model_pair;
-    std::tie(model_pair, targetDevice, configuration) = this->GetParam();
-    std::tie(path_to_model, path_to_ref_tensor) = model_pair;
+    targetDevice = ov::test::utils::target_device;
+    configuration = ov::test::utils::global_plugin_config;
+    std::tie(path_to_model, path_to_ref_tensor) = this->GetParam();
     function = core->read_model(path_to_model);
     const auto metaFile = ov::util::replace_extension(path_to_model, "meta");
     if (ov::util::file_exists(metaFile)) {
@@ -139,7 +139,7 @@ void ReadIRTest::SetUp() {
             if (!in_info.is_const) {
                 continue;
             }
-            utils::ConstRanges::set(in_info.ranges.min, in_info.ranges.max);
+            ov::test::utils::set_const_ranges(in_info.ranges.min, in_info.ranges.max);
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
@@ -148,7 +148,7 @@ void ReadIRTest::SetUp() {
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
             parameter_to_remove.push_back(param);
-            utils::ConstRanges::reset();
+            ov::test::utils::reset_const_ranges();
         }
         for (const auto& param : parameter_to_remove) {
             function->remove_parameter(param);
@@ -192,20 +192,23 @@ void ReadIRTest::SetUp() {
         // Try to resolve missing info
         if (splittedFilename.size() > 2) {
             auto pos = splittedFilename[2].find('-');
-            std::string op_name = "", op_version = "opset";
+            std::string op_name = "", op_version = "";
             if (pos != std::string::npos) {
                 op_name = splittedFilename[2].substr(0, pos);
-                op_version += splittedFilename[2].substr(pos + 1);
-                if (ov::test::op_conformance::unique_ops.find(op_name) != ov::test::op_conformance::unique_ops.end() &&
-                    std::find(ov::test::op_conformance::unique_ops[op_name].begin(),
-                              ov::test::op_conformance::unique_ops[op_name].end(),
-                              op_version) != ov::test::op_conformance::unique_ops[op_name].end()) {
+                op_version = splittedFilename[2].substr(pos + 1);
+                if (unique_ops.find(op_name) != unique_ops.end() &&
+                    std::find(unique_ops[op_name].begin(),
+                              unique_ops[op_name].end(),
+                              op_version) != unique_ops[op_name].end()) {
                     pgLink->set_custom_field("opName", op_name, true);
                     pgLink->set_custom_field("opSet", op_version, true);
                 }
+            } else if (splittedFilename.size() > 3 && splittedFilename[3] == "subgraph") {
+                pgLink->set_custom_field("opName", splittedFilename[1], true);
+                pgLink->set_custom_field("opSet", "subgraph", true);
             } else {
                 for (const auto& path_part : splittedFilename) {
-                    if (ov::test::op_conformance::unique_ops.find(path_part) != ov::test::op_conformance::unique_ops.end()) {
+                    if (unique_ops.find(path_part) != unique_ops.end()) {
                         op_name = path_part;
                         break;
                     }
@@ -298,7 +301,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
         std::ifstream ref_data_ifstream(path_to_ref_tensor, std::ifstream::binary);
         ref_data_ifstream.open(path_to_ref_tensor, std::ios::binary);
         if (!ref_data_ifstream.is_open())
-            IE_THROW() << "Weights file " << path_to_ref_tensor << " cannot be opened!";
+            OPENVINO_THROW("Weights file ", path_to_ref_tensor, " cannot be opened!");
 
         size_t buf_size = 0;
         for (const auto& output : functionRefs->outputs()) {
@@ -309,7 +312,7 @@ std::vector<ov::Tensor> ReadIRTest::calculate_refs() {
 
         size_t pos = 0;
         for (const auto& output : functionRefs->outputs()) {
-            auto out_tensor = ov::runtime::Tensor(output.get_element_type(), output.get_shape(), &ref_buffer[pos]);
+            auto out_tensor = ov::Tensor(output.get_element_type(), output.get_shape(), &ref_buffer[pos]);
             pos += out_tensor.get_byte_size();
         }
     }
@@ -338,20 +341,16 @@ namespace {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE)                                                                  \
     INSTANTIATE_TEST_SUITE_P(conformance_##NAME,                                                           \
                              ReadIRTest,                                                                   \
-                             ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),  \
-                                                ::testing::Values(conformance::targetDevice),                           \
-                                                ::testing::Values(conformance::pluginConfig)),                          \
+                             ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths, #NAME)),      \
                              ReadIRTest::getTestCaseName); \
 
 // It should point on latest opset which contains biggest list of operations
-#include "openvino/opsets/opset13_tbl.hpp"
+#include "openvino/opsets/opset14_tbl.hpp"
 #undef _OPENVINO_OP_REG
 
 INSTANTIATE_TEST_SUITE_P(conformance_subgraph,
                         ReadIRTest,
-                        ::testing::Combine(::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
-                                           ::testing::Values(conformance::targetDevice),
-                                           ::testing::Values(conformance::pluginConfig)),
+                        ::testing::ValuesIn(get_model_paths(conformance::IRFolderPaths)),
                         ReadIRTest::getTestCaseName);
 
 }  // namespace

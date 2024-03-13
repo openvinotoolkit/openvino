@@ -4,9 +4,6 @@
 
 #include "openvino/runtime/allocator.hpp"
 
-#include "blob_allocator.hpp"
-#include "ie_allocator.hpp"
-#include "ie_common.h"
 #include "openvino/core/except.hpp"
 
 namespace ov {
@@ -49,24 +46,6 @@ struct DefaultAllocator {
 };
 
 Allocator::Allocator() : Allocator{DefaultAllocator{}} {}
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-struct AllocatorImplWrapper {
-    AllocatorImplWrapper(const AllocatorImpl::Ptr& impl_) : impl{impl_} {}
-    void* allocate(const size_t bytes, const size_t alignment) {
-        return impl->allocate(bytes, alignment);
-    }
-    void deallocate(void* handle, const size_t bytes, const size_t alignment) {
-        impl->deallocate(handle, bytes, alignment);
-    }
-    bool is_equal(const AllocatorImplWrapper& other) const {
-        return impl->is_equal(*other.impl);
-    }
-    AllocatorImpl::Ptr impl;
-};
-
-Allocator::Allocator(const AllocatorImpl::Ptr& allocator_impl) : Allocator{AllocatorImplWrapper{allocator_impl}} {}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 Allocator::~Allocator() {
     _impl = {};

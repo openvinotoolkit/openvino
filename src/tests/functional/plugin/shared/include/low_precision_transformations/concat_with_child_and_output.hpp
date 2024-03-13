@@ -13,13 +13,13 @@
 namespace LayerTestsDefinitions {
 class ConcatWithChildAndOutputTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData1;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string, // target device: CPU, GPU
     ConcatWithChildAndOutputTransformationParam,
     ov::pass::low_precision::LayerTransformation::Params // transformation parameters

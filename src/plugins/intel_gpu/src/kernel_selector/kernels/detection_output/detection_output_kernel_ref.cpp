@@ -136,7 +136,7 @@ JitConstants DetectionOutputKernelRef::GetJitConstants(const detection_output_pa
     return jit;
 }
 
-bool DetectionOutputKernelRef::Validate(const Params& p, const optional_params& o) const {
+bool DetectionOutputKernelRef::Validate(const Params& p) const {
     const detection_output_params& params = static_cast<const detection_output_params&>(p);
 
     const auto input = params.inputs[0];
@@ -197,10 +197,10 @@ void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params&
     }
 }
 
-KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    assert(params.GetType() == KernelType::DETECTION_OUTPUT && options.GetType() == KernelType::DETECTION_OUTPUT);
+KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const {
+    assert(params.GetType() == KernelType::DETECTION_OUTPUT);
 
-    if (!Validate(params, options))
+    if (!Validate(params))
         return {};
 
     constexpr size_t kKernelsNum = 4;
@@ -231,7 +231,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     for (size_t i = 0; i < kKernelsNum; i++) {
         DispatchData dispatchData = SetDefault(detectOutParams, static_cast<int>(i));
         auto cldnnJit = GetJitConstants(detectOutParams);
-        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
+        auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
         cldnnJit.AddConstant(MakeJitConstant("QUICK_SORT_STACK_SIZE", stack_size));
         if (i == 0) {
@@ -341,7 +341,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     return {kd};
 }
 
-KernelsPriority DetectionOutputKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DetectionOutputKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

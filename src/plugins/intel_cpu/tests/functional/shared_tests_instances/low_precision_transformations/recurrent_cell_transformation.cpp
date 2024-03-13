@@ -9,9 +9,8 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    //ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -25,17 +24,17 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
@@ -47,7 +46,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "u8"
     },
@@ -55,17 +54,17 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
@@ -77,14 +76,14 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::LSTMSequence,
         "RNNSeq",
         "f32"
     }
 };
 
-const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 2, 16}, {1, 1, 128}, {1, 1, 128}}};
-const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 2, 16}, {1, 1, 128}, {1, 1, 128}}};
+const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 512, 16}, {1, 512, 128}, {1, 512}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(
@@ -104,17 +103,17 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
@@ -126,7 +125,7 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {255ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "u8"
     },
@@ -134,17 +133,17 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
     {
         // X
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
         // H
         {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
-        {ngraph::element::u8},
+        {ov::element::u8},
         {
-             {ngraph::element::f32},
+             {ov::element::f32},
              {},
              {0.01f},
         },
@@ -156,14 +155,14 @@ const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> param
         {256ul, {}, {-1.27f}, {1.27f}, {-1.27f}, {1.27f}},
         {},
         {{}, {}, {}},
-        ngraph::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
+        ov::builder::subgraph::RecurrentCellFunction::RNNType::GRUSequence,
         "RNNSeq",
         "f32"
     }
 };
 
-const std::vector<std::vector<ngraph::PartialShape>> activations_shapes = {{{1, 1, 3}, {1, 1, 3}, {}}};
-const std::vector<std::vector<ngraph::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
+const std::vector<std::vector<ov::PartialShape>> activations_shapes = {{{1, 1, 3}, {1, 1, 3}, {}}};
+const std::vector<std::vector<ov::Shape>> weights_shapes = {{{1, 9, 3}, {1, 9, 3}, {1, 9}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
     ::testing::Combine(

@@ -6,6 +6,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
 #include "slice_shape_inference.hpp"
 
@@ -146,9 +147,7 @@ bool Slice::evaluate_upper(ov::TensorVector& output_values) const {
 }
 
 bool Slice::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return slice_bound_check(this) && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return slice_bound_check(this) && ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v8
 }  // namespace op

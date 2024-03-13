@@ -4,11 +4,12 @@
 
 #include "if.h"
 
-#include <dnnl_extension_utils.h>
-#include "ie_ngraph_utils.hpp"
-#include "transformations/utils/utils.hpp"
+#include "openvino/op/if.hpp"
+
 #include "common/cpu_memcpy.h"
-#include <shape_inference/shape_inference_internal_dyn.hpp>
+#include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "nodes/common/cpu_convert.h"
+#include "transformations/utils/utils.hpp"
 
 #include <string>
 #include <vector>
@@ -21,7 +22,12 @@ If::PortMapHelper::PortMapHelper(const MemoryPtr &from, const std::deque<MemoryP
                                            const dnnl::engine& eng) : srcMemPtr(from), dstMemPtrs(to) {
     size = 0;
     if (srcMemPtr->getDesc().isDefined())
-        size = srcMemPtr->getSize();
+        size = srcMemPtr->getShape().getElementsCount();
+
+    // Backup dstMemPtrs
+    for (auto& ptr : dstMemPtrs) {
+        originalDstMemDescs.push_back(ptr->getDescPtr()->clone());
+    }
 }
 
 void If::PortMapHelper::execute(dnnl::stream& strm) {
@@ -29,19 +35,24 @@ void If::PortMapHelper::execute(dnnl::stream& strm) {
     // after subgraph inference we should redefine out memory of 'If'
     redefineTo();
 
-    cpu_memcpy(dstMemPtrs.front()->getData(), srcMemPtr->getData(), size);
+    cpu_convert(srcMemPtr->getData(),
+                dstMemPtrs.front()->getData(),
+                srcMemPtr->getDesc().getPrecision(),
+                dstMemPtrs.front()->getDesc().getPrecision(),
+                size);
 }
 
 void If::PortMapHelper::redefineTo() {
     const auto &currDesc = dstMemPtrs.front()->getDesc();
     if (currDesc.getShape().isDynamic() || currDesc.getShape().getStaticDims() != srcMemPtr->getStaticDims()) {
         // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
-        auto memDesc = srcMemPtr->getDescPtr();
+        auto newShape = srcMemPtr->getStaticDims();
         for (size_t j = 0; j < dstMemPtrs.size(); j++) {
-            dstMemPtrs[j]->redefineDesc(memDesc);
+            // Only the shape is updated, the memory type remains unchanged
+            dstMemPtrs[j]->redefineDesc(originalDstMemDescs[j]->cloneWithNewDims(newShape));
         }
 
-        size = srcMemPtr->getSize();
+        size = srcMemPtr->getShape().getElementsCount();
     }
 }
 
@@ -106,7 +117,7 @@ void If::getSupportedDescriptors() {
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapThen.find(inputID);
         if (outNode != outMapThen.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemThen.push_back(outMem);
         } else {
             OPENVINO_THROW("Then body of node If with name ", getName(), " does not have output with name: ", inputID);
@@ -119,7 +130,7 @@ void If::getSupportedDescriptors() {
         const std::string inputID = ov::op::util::get_ie_output_name(prev);
         auto outNode = outMapElse.find(inputID);
         if (outNode != outMapElse.end()) {
-            auto outMem = outNode->second->getParentEdgeAt(0)->getMemoryPtr();
+            auto outMem = outNode->second->getSrcMemoryAtPort(0);
             outputMemElse.push_back(outMem);
         } else {
             OPENVINO_THROW("Else body of node If with name ", getName(), " does not have output with name: ", inputID);
@@ -192,8 +203,17 @@ void If::prepareBeforeMappers(const bool isThen, const dnnl::engine& eng) {
     auto &inputMems = isThen ? inputMemThen : inputMemElse;
     auto &beforeMappers = isThen ? beforeThenMappers : beforeElseMappers;
     for (auto& map_rule : inputPortMap) {
-        auto fromMem = getParentEdgesAtPort(map_rule.from)[0]->getMemoryPtr();
-        auto &toMems = inputMems[map_rule.to];
+        auto fromMem = getSrcMemoryAtPort(map_rule.from);
+        auto& toMems = inputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
+            }
+        }
 
         beforeMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
@@ -206,6 +226,15 @@ void If::prepareAfterMappers(const bool isThen, const dnnl::engine& eng) {
     for (auto& map_rule : outputPortMap) {
         auto toMems = getToMemories(this, map_rule.from);
         auto &fromMem = outputMems[map_rule.to];
+        // Check precision between If node input/output and it's subgrapsh input/output.
+        for (const auto& toMem : toMems) {
+            if (fromMem->getDesc().getPrecision() != toMem->getDesc().getPrecision()) {
+                DEBUG_LOG("If node fromMem and toMem precision mismatch: from ",
+                          fromMem->getDesc().getPrecision().to_string(),
+                          " to ",
+                          toMem->getDesc().getPrecision().to_string());
+            }
+        }
 
         afterMappers.emplace_back(std::make_shared<PortMapHelper>(fromMem, toMems, eng));
     }
@@ -219,7 +248,7 @@ std::deque<MemoryPtr> If::getToMemories(const Node* node, const size_t port) con
 }
 
 void If::execute(dnnl::stream strm) {
-    const bool condition = static_cast<const bool>((reinterpret_cast<const uint8_t*>(getParentEdgeAt(0)->getMemoryPtr()->getData()))[0]);
+    const bool condition = static_cast<const bool>((getSrcDataAtPortAs<const uint8_t>(0))[0]);
 
     auto& beforeMappers = condition ? beforeThenMappers : beforeElseMappers;
     auto& afterMappers = condition ? afterThenMappers : afterElseMappers;

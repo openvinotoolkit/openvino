@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -11,15 +11,17 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-from openvino.runtime import Node, Shape, Type
-from openvino.runtime.op import Constant
+from openvino.runtime import Node, Shape, Type, Output
+from openvino.runtime.op import Constant, Result
+from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
+from openvino.runtime.utils.decorators import apply_affix_on, binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
     NumericData,
     NodeInput,
     NumericType,
     as_nodes,
+    as_node,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -255,8 +257,13 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value, scale)
+    inputs = as_nodes(query, key, value)
+    if attention_mask is not None:
+        inputs.append(as_node(attention_mask))
+    elif scale is not None:
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0])))
+    if scale is not None:
+        inputs.append(as_node(scale))
 
     attributes = {
         "causal": causal,
@@ -292,43 +299,107 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+    def display_shared_memory_warning(warning_message: str) -> None:
+        if shared_memory:
+            log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
+
     if isinstance(value, np.ndarray):
         _value, _shared_memory = value, shared_memory
     else:
         _value, _shared_memory = np.array(value), False
-        log.warning(f"Converting scalar to corresponding type of {_value.dtype}. Memory sharing is disabled by default.")
+        display_shared_memory_warning(f"Converting scalar to corresponding type of {_value.dtype}")
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
         if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
-            log.warning(f"Constant initialized with packed type of {dtype}. Memory sharing is disabled by default.")
+            display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
-            log.warning(f"Constant initialized with OpenVINO custom {dtype}. Memory sharing is disabled by default.")
+            display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
         else:
             _dtype = dtype.to_dtype() if isinstance(dtype, Type) else dtype
             if _dtype is int:
-                log.warning("Converting scalar type of undefined bitwidth to 32-bit integer. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit integer")
                 _value, _shared_memory = _value.astype(np.int32), False
             elif _dtype is float:
-                log.warning("Converting scalar type of undefined bitwidth to 32-bit float. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting scalar type of undefined bitwidth to 32-bit float")
                 _value, _shared_memory = _value.astype(np.float32), False
             elif _dtype is bool:
-                log.warning("Converting bool type to numpy bool. Memory sharing is disabled by default.")
+                display_shared_memory_warning("Converting bool type to numpy bool")
                 _value, _shared_memory = _value.astype(np.bool_), False
             else:
                 if _dtype != _value.dtype:
-                    log.warning(f"Converting value of {_value.dtype} to {_dtype}. Memory sharing is disabled by default.")
+                    display_shared_memory_warning(f"Converting value of {_value.dtype} to {_dtype}")
                     _value, _shared_memory = _value.astype(_dtype), False
     # Create Constant itself:
     return Constant(_value, shared_memory=_shared_memory)
+
+
+@unary_op
+def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -> Node:
+    """Return a node which represents an output of a graph (Model).
+
+    :param data: The tensor containing the input data
+    :return: Result node
+    """
+    if isinstance(data, Node):
+        return Result(data.output(0))
+    return Result(data)
+
+
+@nameable_op
+@apply_affix_on("data", "input_low", "input_high", "output_low", "output_high")
+def fake_quantize(
+    data: NodeInput,
+    input_low: NodeInput,
+    input_high: NodeInput,
+    output_low: NodeInput,
+    output_high: NodeInput,
+    levels: int,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+    *,
+    prefix: Optional[str] = None,
+    suffix: Optional[str] = None,
+) -> Node:
+    r"""Perform an element-wise linear quantization on input data.
+
+    :param data:           The node with data tensor.
+    :param input_low:      The node with the minimum for input values.
+    :param input_high:     The node with the maximum for input values.
+    :param output_low:     The node with the minimum quantized value.
+    :param output_high:    The node with the maximum quantized value.
+    :param levels:         The number of quantization levels. Integer value.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors.
+    :param name:           Optional name of the new node.
+    :param prefix:         Optional keyword-only string to apply before original names of
+                           all generated input nodes (for example: passed as numpy arrays).
+    :param suffix:         Optional keyword-only string to apply after original names of
+                           all generated input nodes (for example: passed as numpy arrays).
+    :return: New node with quantized value.
+
+    Input floating point values are quantized into a discrete set of floating point values.
+
+    .. code-block:: python
+
+        if x <= input_low:
+            output = output_low
+        if x > input_high:
+            output = output_high
+        else:
+            output = fake_quantize(output)
+
+    Fake quantize uses the following logic:
+
+    \f[ output =
+            \dfrac{round( \dfrac{data - input\_low}{(input\_high - input\_low)\cdot (levels-1)})}
+            {(levels-1)\cdot (output\_high - output\_low)} + output\_low \f]
+    """
+    return _get_node_factory_opset13().create(
+        "FakeQuantize",
+        as_nodes(data, input_low, input_high, output_low, output_high),
+        {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
+    )

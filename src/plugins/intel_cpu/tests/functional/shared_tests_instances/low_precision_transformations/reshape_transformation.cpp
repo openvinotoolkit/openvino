@@ -10,9 +10,8 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<ngraph::element::Type> netPrecisions = {
-    ngraph::element::f32,
-    // ngraph::element::f16
+const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::f32
 };
 
 const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -24,7 +23,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 32 },
         { 1, 3, 4, 8 },
-        { 256ul, ngraph::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "u8"
     },
@@ -32,7 +31,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 32 },
         { -1 },
-        { 256ul, ngraph::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape{}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "u8"
     },
@@ -40,7 +39,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 16, 16 },
         { 1, 3, 256 },
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "u8"
     },
@@ -48,7 +47,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 16, 16 },
         { 0, 3, -1 },
-        { 256ul, ngraph::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
+        { 256ul, ov::Shape{ 1, 3, 1, 1 }, { 0.f }, { 255.f }, { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
         "u8"
     },
@@ -56,7 +55,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 4, 8 },
         { 1, -1 },
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "u8"
     },
@@ -64,7 +63,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 4, 8 },
         { 1, 3, 4, 8, 1, 1 },
-        { 256ul, ngraph::Shape{ 1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        { 256ul, ov::Shape{ 1, 1, 1, 1}, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
         "Reshape",
         "u8"
     },
@@ -74,7 +73,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, -1 },
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f/2.f, 255.f/3.f },
             { 0.f, 0.f, 0.f },
@@ -89,7 +88,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, 3, -1 },
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f/2.f, 255.f/3.f },
             { 0.f, 0.f, 0.f },
@@ -105,7 +104,7 @@ const std::vector<ReshapeTransformationParam> params = {
         { 1, -1, 8 },
         {
             256ul,
-            ngraph::Shape{ 1, 3, 1, 1 },
+            ov::Shape{ 1, 3, 1, 1 },
             { 0.f, 0.f, 0.f },
             { 255.f, 255.f/2.f, 255.f/3.f },
             { 0.f, 0.f, 0.f },
@@ -118,7 +117,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 16, 16 },
         { 1, 1, 48, 16 },
-        { 256ul, ngraph::Shape{ 1, 3, 1, 1 },
+        { 256ul, ov::Shape{ 1, 3, 1, 1 },
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
@@ -128,7 +127,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3,  16 },
         { 1, 1, 6, 8 },
-        { 256ul, ngraph::Shape{ 1, 3, 1 },
+        { 256ul, ov::Shape{ 1, 3, 1 },
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
@@ -138,7 +137,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 2, 4 },
         { 1, 1, 24 },
-        { 256ul, ngraph::Shape{ 1, 3, 1, 1 },
+        { 256ul, ov::Shape{ 1, 3, 1, 1 },
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
@@ -148,7 +147,7 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 2, 4, 2 },
         { 1, 1, 48 },
-        { 256ul, ngraph::Shape{ 1, 3, 1, 1, 1 },
+        { 256ul, ov::Shape{ 1, 3, 1, 1, 1 },
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
@@ -158,11 +157,21 @@ const std::vector<ReshapeTransformationParam> params = {
     {
         { 1, 3, 2, 4, 2 },
         { 1, 1, 3, 16 },
-        { 256ul, ngraph::Shape{ 1, 3, 1, 1, 1 },
+        { 256ul, ov::Shape{ 1, 3, 1, 1, 1 },
                 { 0.f, 0.f, 0.f }, { 255.f, 255.f, 255.f },
                 { 0.f, 0.f, 0.f }, { 255.f, 25.5f, 2.55f } },
         "Reshape",
         "f32"
+    },
+
+    // int16 is not supported: no dequantization after Reshape: Reshape => Output
+    {
+        { 1, 3, 32 },
+        { 1, 3, 4, 8 },
+        { 65536ul, ov::Shape{ 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+        "Reshape",
+        "f32",
+        { "Reshape", "Output" }
     },
 };
 

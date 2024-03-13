@@ -32,8 +32,8 @@ ParamsKey GemmKernelMMADslmInt8::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey GemmKernelMMADslmInt8::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey GemmKernelMMADslmInt8::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
@@ -103,8 +103,8 @@ GemmKernelMMADslmInt8::GemmTuningData GemmKernelMMADslmInt8::SetTuningParams(con
     return tuning_data;
 }
 
-KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return KernelsData();
     }
 
@@ -114,7 +114,7 @@ KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const op
     KernelData k_data = KernelData::Default<gemm_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
-    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
@@ -133,7 +133,7 @@ KernelsData GemmKernelMMADslmInt8::GetKernelsData(const Params& params, const op
     return {k_data};
 }
 
-KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params) const {
     const auto& prim_params = static_cast<const gemm_params&>(params);
     GemmTuningData tuning_data = InitGemmTuningData(prim_params);
     auto mmad_operations_number = GetMmadOperationsNumber(tuning_data);
@@ -146,8 +146,8 @@ KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params, 
         return FORCE_PRIORITY_5;
 }
 
-bool GemmKernelMMADslmInt8::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options))
+bool GemmKernelMMADslmInt8::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
         return false;
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);

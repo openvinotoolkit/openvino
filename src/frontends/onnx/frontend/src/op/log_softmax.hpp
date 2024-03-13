@@ -4,28 +4,22 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
 
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector log_softmax(const Node& node);
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_1
 
 namespace set_13 {
-OutputVector log_softmax(const Node& node);
+ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node);
 
 }  // namespace set_13
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

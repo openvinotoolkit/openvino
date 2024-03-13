@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Iterable, Union, Optional, Dict
@@ -21,19 +21,6 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
-
-
-def _deprecated_memory_arg(shared_memory: bool, share_inputs: bool) -> bool:
-    if shared_memory is not None:
-        warnings.warn(
-            "`shared_memory` is deprecated and will be removed in 2024.0. "
-            "Value of `shared_memory` is going to override `share_inputs` value. "
-            "Please use only `share_inputs` explicitly.",
-            FutureWarning,
-            stacklevel=3,
-        )
-        return shared_memory
-    return share_inputs
 
 
 class Model(ModelBase):
@@ -71,7 +58,7 @@ class InferRequest(_InferRequestWrapper):
         share_inputs: bool = False,
         share_outputs: bool = False,
         *,
-        shared_memory: Any = None,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -108,7 +95,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -125,34 +113,33 @@ class InferRequest(_InferRequestWrapper):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
+        :param decode_strings: Controls decoding outputs of textual based data.
 
-                              If not specified, function uses `share_inputs` value.
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
 
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
 
-                              Default value: None
-        :type shared_memory: bool, optional
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
+
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
         return OVDict(super().infer(_data_dispatch(
             self,
             inputs,
-            is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
-        ), share_outputs=share_outputs))
+            is_shared=share_inputs,
+        ), share_outputs=share_outputs, decode_strings=decode_strings))
 
     def start_async(
         self,
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -192,7 +179,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -200,21 +188,12 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self,
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )
@@ -262,7 +241,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> OVDict:
+    def infer_new_request(self, inputs: Any = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -287,7 +266,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
@@ -297,11 +276,11 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(
         self,
-        inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
+        inputs: Any = None,
         share_inputs: bool = True,
         share_outputs: bool = False,
         *,
-        shared_memory: Any = None,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -332,7 +311,7 @@ class CompiledModel(CompiledModelBase):
         function throws error.
 
         :param inputs: Data to be set on input tensors.
-        :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
+        :type inputs: Any, optional
         :param share_inputs: Enables `share_inputs` mode. Controls memory usage on inference's inputs.
 
                               If set to `False` inputs the data dispatcher will safely copy data
@@ -346,7 +325,8 @@ class CompiledModel(CompiledModelBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -363,18 +343,19 @@ class CompiledModel(CompiledModelBase):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
+        :param decode_strings: Controls decoding outputs of textual based data.
 
-                              If not specified, function uses `share_inputs` value.
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
 
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
 
-                              Default value: None
-        :type shared_memory: bool, optional
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
+
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
         """
@@ -383,8 +364,9 @@ class CompiledModel(CompiledModelBase):
 
         return self._infer_request.infer(
             inputs,
-            share_inputs=_deprecated_memory_arg(shared_memory, share_inputs),
+            share_inputs=share_inputs,
             share_outputs=share_outputs,
+            decode_strings=decode_strings,
         )
 
 
@@ -427,8 +409,6 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -464,7 +444,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -472,21 +453,12 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self[self.get_idle_request_id()],
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )

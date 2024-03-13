@@ -5,7 +5,7 @@
 #include "openvino/op/gather.hpp"
 
 #include "itt.hpp"
-#include "validation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -108,6 +108,7 @@ std::shared_ptr<Node> Gather::clone_with_new_inputs(const OutputVector& new_args
     check_new_args_count(this, new_args);
     return std::make_shared<Gather>(new_args.at(0), new_args.at(1), new_args.at(2), m_batch_dims);
 }
+
 }  // namespace v8
 }  // namespace op
 }  // namespace ov

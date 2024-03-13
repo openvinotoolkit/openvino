@@ -9,7 +9,7 @@ import openvino as ov
 
 
 def param_to_string(parameters) -> str:
-    """Convert a list / tuple of parameters returned from IE to a string."""
+    """Convert a list / tuple of parameters returned from OV to a string."""
     if isinstance(parameters, (list, tuple)):
         return ', '.join([str(x) for x in parameters])
     else:
@@ -28,7 +28,7 @@ def main():
         log.info(f'{device} :')
         log.info('\tSUPPORTED_PROPERTIES:')
         for property_key in core.get_property(device, 'SUPPORTED_PROPERTIES'):
-            if property_key not in ('SUPPORTED_METRICS', 'SUPPORTED_CONFIG_KEYS', 'SUPPORTED_PROPERTIES'):
+            if property_key not in ('SUPPORTED_PROPERTIES'):
                 try:
                     property_val = core.get_property(device, property_key)
                 except TypeError:

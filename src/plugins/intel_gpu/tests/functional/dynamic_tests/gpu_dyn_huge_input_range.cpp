@@ -1,18 +1,13 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "shared_test_classes/single_layer/strided_slice.hpp"
-#include "shared_test_classes/single_layer/shape_of.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
-using namespace InferenceEngine;
-using namespace ov::test;
-
-namespace GPULayerTestsDefinitions {
+namespace {
+using ov::test::InputShape;
 
 struct StridedSliceParams {
     std::vector<int64_t> begin;
@@ -28,22 +23,21 @@ struct StridedSliceParams {
 typedef std::tuple<
         InputShape,                                     // Input shapes
         StridedSliceParams,
-        ElementType,                                    // Element type
-        std::vector<ngraph::helpers::InputLayerType>,   // begin/end/stride input type
+        ov::element::Type,                              // Element type
+        std::vector<ov::test::utils::InputLayerType>,   // begin/end/stride input type
         std::map<std::string, std::string>              // Additional network configuration
 > StridedSliceLayerParamSet;
 
 class DynamicShapeHugeRangeGPUTest : public testing::WithParamInterface<StridedSliceLayerParamSet>,
-                                 virtual public SubgraphBaseTest {
+                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerParamSet>& obj) {
         InputShape shapes;
         StridedSliceParams params;
-        ElementType elementType;
-        std::vector<ngraph::helpers::InputLayerType> restInputType;
-        TargetDevice targetDevice;
+        ov::element::Type model_type;
+        std::vector<ov::test::utils::InputLayerType> restInputType;
         std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, params, elementType, restInputType, additionalConfig) = obj.param;
+        std::tie(shapes, params, model_type, restInputType, additionalConfig) = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -51,7 +45,7 @@ public:
         for (const auto& item : shapes.second) {
             results << ov::test::utils::vec2str(item) << "_";
         }
-        results << "netPRC=" << elementType << "_";
+        results << "modelType=" << model_type << "_";
         results << "begin=" << ov::test::utils::vec2str(params.begin) << "_";
         results << "end=" << ov::test::utils::vec2str(params.end) << "_";
         results << "stride=" << ov::test::utils::vec2str(params.stride) << "_";
@@ -72,7 +66,7 @@ public:
         return results.str();
     }
 
-    void generate_inputs(const std::vector<ngraph::Shape>& targetInputStaticShapes) override {
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
         ov::Tensor tensor;
@@ -83,7 +77,7 @@ public:
         inputs.insert({funcInputs[idx].get_node_shared_ptr(), tensor});
 
         // input1: begin
-        if (restInputType[0] == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType[0] == ov::test::utils::InputLayerType::PARAMETER) {
             idx += 1;
             tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
             auto *dataPtr = tensor.data<float>();
@@ -94,7 +88,7 @@ public:
         }
 
         // input2: end
-        if (restInputType[1] == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType[1] == ov::test::utils::InputLayerType::PARAMETER) {
             idx += 1;
             tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
             auto *dataPtr = tensor.data<float>();
@@ -105,7 +99,7 @@ public:
         }
 
         // input3: stride
-        if (restInputType[2] == ngraph::helpers::InputLayerType::PARAMETER) {
+        if (restInputType[2] == ov::test::utils::InputLayerType::PARAMETER) {
             idx += 1;
             tensor = ov::Tensor(funcInputs[idx].get_element_type(), targetInputStaticShapes[idx]);
             auto *dataPtr = tensor.data<float>();
@@ -122,8 +116,9 @@ protected:
     std::vector<int64_t> begin;
     std::vector<int64_t> end;
     std::vector<int64_t> stride;
-    std::vector<ngraph::helpers::InputLayerType> restInputType;
+    std::vector<ov::test::utils::InputLayerType> restInputType;
     size_t inferRequestNum = 0;
+    bool exception;
 
     void SetUp() override {
         InputShape shapes;
@@ -139,11 +134,11 @@ protected:
 
         std::vector<InputShape> inputShapes;
         inputShapes.push_back(shapes);
-        if (restInputType[0] == ngraph::helpers::InputLayerType::PARAMETER)
+        if (restInputType[0] == ov::test::utils::InputLayerType::PARAMETER)
             inputShapes.push_back(InputShape({static_cast<int64_t>(begin.size())}, std::vector<ov::Shape>(shapes.second.size(), {begin.size()})));
-        if (restInputType[1] == ngraph::helpers::InputLayerType::PARAMETER)
+        if (restInputType[1] == ov::test::utils::InputLayerType::PARAMETER)
             inputShapes.push_back(InputShape({static_cast<int64_t>(end.size())}, std::vector<ov::Shape>(shapes.second.size(), {end.size()})));
-        if (restInputType[2] == ngraph::helpers::InputLayerType::PARAMETER)
+        if (restInputType[2] == ov::test::utils::InputLayerType::PARAMETER)
             inputShapes.push_back(InputShape({static_cast<int64_t>(stride.size())}, std::vector<ov::Shape>(shapes.second.size(), {stride.size()})));
 
         init_input_shapes(inputShapes);
@@ -151,67 +146,69 @@ protected:
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes.front())};
 
         std::shared_ptr<ov::Node> beginInput, endInput, strideInput;
-        if (restInputType[0] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto beginNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{begin.size()});
+        if (restInputType[0] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto beginNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{begin.size()});
             params.push_back(beginNode);
             beginInput = beginNode;
         } else {
-            beginInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{begin.size()}, begin);
+            beginInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{begin.size()}, begin);
         }
 
-        if (restInputType[1] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto endNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{end.size()});
+        if (restInputType[1] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto endNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{end.size()});
             params.push_back(endNode);
             endInput = endNode;
         } else {
-            endInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{end.size()}, end);
+            endInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{end.size()}, end);
         }
 
-        if (restInputType[2] == ngraph::helpers::InputLayerType::PARAMETER) {
-            auto strideNode = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::i64, ov::Shape{stride.size()});
+        if (restInputType[2] == ov::test::utils::InputLayerType::PARAMETER) {
+            auto strideNode = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{stride.size()});
             params.push_back(strideNode);
             strideInput = strideNode;
         } else {
-            strideInput = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ov::Shape{stride.size()}, stride);
+            strideInput = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{stride.size()}, stride);
         }
 
-        auto stridedSliceOp = std::make_shared<ngraph::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
+        auto stridedSliceOp = std::make_shared<ov::op::v1::StridedSlice>(params[0], beginInput, endInput, strideInput, ssParams.beginMask, ssParams.endMask,
                                                                  ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
 
-        auto shapeOfOp = std::make_shared<ngraph::opset3::ShapeOf>(stridedSliceOp, ov::element::Type_t::i32);
+        auto shapeOfOp = std::make_shared<ov::op::v3::ShapeOf>(stridedSliceOp, ov::element::i32);
 
-        ngraph::ResultVector results;
+        ov::ResultVector results;
         for (size_t i = 0; i < shapeOfOp->get_output_size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset1::Result>(shapeOfOp->output(i)));
+            results.push_back(std::make_shared<ov::op::v0::Result>(shapeOfOp->output(i)));
         }
 
-        function = std::make_shared<ngraph::Function>(results, params, "result");
+        function = std::make_shared<ov::Model>(results, params, "result");
+
+        set_callback_exception([this](const std::exception& exp) {
+            exception = true;
+        });
     }
 };
 
-TEST_P(DynamicShapeHugeRangeGPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+TEST_P(DynamicShapeHugeRangeGPUTest, Inference) {
     run();
+    if (!exception)
+        FAIL() << "This test case is checking the exception that the object allocation is larger than the max_alloc_mem_size.";
 }
-
-namespace {
 
 std::map<std::string, std::string> emptyAdditionalConfig;
 
-const std::vector<ElementType> inputPrecisions = {
-        ElementType::f32
+const std::vector<ov::element::Type> model_types = {
+        ov::element::f32
 };
 
-const std::vector<std::vector<ngraph::helpers::InputLayerType>> restInputTypes = {
-    {ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::CONSTANT},
-    {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::PARAMETER},
-    {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::CONSTANT},
-    {ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT},
-    {ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::PARAMETER},
-    {ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::PARAMETER},
-    {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT, ngraph::helpers::InputLayerType::PARAMETER},
-    {ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::PARAMETER, ngraph::helpers::InputLayerType::CONSTANT},
+const std::vector<std::vector<ov::test::utils::InputLayerType>> restInputTypes = {
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT, ov::test::utils::InputLayerType::PARAMETER},
+    {ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::PARAMETER, ov::test::utils::InputLayerType::CONSTANT},
 };
 
 const std::vector<InputShape> inputShapesDynamic2D_excessive_uppper_boundary = {
@@ -227,9 +224,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Dynamic_2D_excessive_uppper_bound
                          ::testing::Combine(
                              ::testing::ValuesIn(inputShapesDynamic2D_excessive_uppper_boundary),
                              ::testing::ValuesIn(paramsPlain2D_excessive_uppper_boundary),
-                             ::testing::ValuesIn(inputPrecisions),
+                             ::testing::ValuesIn(model_types),
                              ::testing::Values(restInputTypes[0]),
                              ::testing::Values(emptyAdditionalConfig)),
                          DynamicShapeHugeRangeGPUTest::getTestCaseName);
 } // namespace
-} // namespace GPULayerTestsDefinitions

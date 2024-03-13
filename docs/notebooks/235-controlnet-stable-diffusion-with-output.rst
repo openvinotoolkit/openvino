@@ -139,7 +139,8 @@ of the target in the image:
 This tutorial focuses mainly on conditioning by pose. However, the
 discussed steps are also applicable to other annotation modes.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -175,7 +176,7 @@ Prerequisites
 .. code:: ipython3
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch" "torchvision"
-    %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36"
+    %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
 
 Instantiating Generation Pipeline

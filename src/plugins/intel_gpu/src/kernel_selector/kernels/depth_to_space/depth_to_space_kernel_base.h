@@ -20,13 +20,6 @@ struct depth_to_space_params : public base_params {
     DepthToSpaceMode mode;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// depth_to_space_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct depth_to_space_optional_params : optional_params {
-    depth_to_space_optional_params() : optional_params(KernelType::DEPTH_TO_SPACE) {}
-};
-
 struct depth_to_space_fuse_params : fuse_params {
     depth_to_space_fuse_params() : fuse_params(KernelType::DEPTH_TO_SPACE) {}
 };
@@ -43,9 +36,9 @@ public:
     };
 
 protected:
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const depth_to_space_params& params) const;
     virtual CommonDispatchData SetDefault(const depth_to_space_params& params) const = 0;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
+    KernelsData GetCommonKernelsData(const Params& params) const;
 };
 }  // namespace kernel_selector

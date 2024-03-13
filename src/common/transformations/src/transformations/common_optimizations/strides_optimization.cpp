@@ -57,9 +57,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         const auto ones = rg.make<ov::op::v0::Constant>(element::i64, Shape{diff}, vector<int64_t>(diff, 1));
         const auto current_shape = rg.make<ov::op::v3::ShapeOf>(first);
         shared_ptr<Node> new_shape = rg.make<ov::op::v0::Concat>(OutputVector{ones, current_shape}, 0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto constant_new_shape = get_constant_from_source(new_shape)) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto constant_new_shape = ov::util::get_constant_from_source(new_shape)) {
             rg.add(constant_new_shape);
             new_shape = constant_new_shape;
         }
@@ -75,9 +73,7 @@ static void insert_pooling(const Output<Node>& first, Input<Node>& second, const
         new_node =
             rg.make<ov::op::v0::Squeeze>(new_node, rg.make<ov::op::v0::Constant>(element::u64, Shape{diff}, axes));
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto constant_new_node = get_constant_from_source(new_node)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto constant_new_node = ov::util::get_constant_from_source(new_node)) {
         rg.add(constant_new_node);
         new_node = constant_new_node;
     }

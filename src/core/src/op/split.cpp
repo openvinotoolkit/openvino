@@ -120,9 +120,7 @@ bool Split::evaluate_upper(ov::TensorVector& output_values) const {
 bool Split::evaluate_label(TensorLabelVector& output_labels) const {
     OPENVINO_ASSERT(output_labels.size() == get_num_splits());
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_input_tensor(1).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
 }
 }  // namespace v1
 }  // namespace op

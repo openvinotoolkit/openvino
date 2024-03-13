@@ -13,8 +13,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const ov::AnyMap& config,
                              const DeviceInformation& device_info,
-                             const std::set<std::string>& batched_inputs,
-                             const std::set<std::string>& batched_outputs,
+                             const std::set<std::size_t>& batched_inputs,
+                             const std::set<std::size_t>& batched_outputs,
                              const ov::SoPtr<ov::ICompiledModel>& compiled_model_with_batch,
                              const ov::SoPtr<ov::ICompiledModel>& compiled_model_without_batch,
                              const ov::SoPtr<ov::IRemoteContext>& context)
@@ -154,8 +154,10 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    return m_compiled_model_with_batch ? m_compiled_model_with_batch->get_runtime_model()
-                                       : m_compiled_model_without_batch->get_runtime_model();
+    auto& compiled_model = m_compiled_model_with_batch ? m_compiled_model_with_batch : m_compiled_model_without_batch;
+    auto model = compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), compiled_model._so);
+    return model;
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
@@ -195,27 +197,17 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             return num_request;
         } else if (name == ov::model_name.name()) {
             return m_compiled_model_without_batch->get_property(name);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-            return std::vector<std::string>{ov::optimal_number_of_infer_requests.name(),
-                                            METRIC_KEY(SUPPORTED_METRICS),
-                                            ov::model_name.name(),
-                                            METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                            ov::execution_devices.name()};
-        } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-            return std::vector<std::string>{ov::auto_batch_timeout.name()};
         } else if (name == ov::execution_devices) {
             return m_compiled_model_without_batch->get_property(name);
         } else if (name == ov::loaded_from_cache) {
             return m_compiled_model_without_batch->get_property(ov::loaded_from_cache.name());
         } else if (name == ov::supported_properties) {
             return std::vector<ov::PropertyName>{
+                ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_METRICS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{METRIC_KEY(SUPPORTED_CONFIG_KEYS), ov::PropertyMutability::RO},
                 ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
-                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RO}};
+                ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW}};
         } else if (name == ov::auto_batch_timeout) {
             uint32_t time_out = m_time_out;
             return time_out;
@@ -239,7 +231,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             OPENVINO_THROW("Unsupported Compiled Model Property: ", name);
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::outputs() const {

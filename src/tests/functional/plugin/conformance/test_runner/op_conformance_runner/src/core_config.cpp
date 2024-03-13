@@ -2,15 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "openvino/util/file_util.hpp"
-
-#include "conformance.hpp"
-
-// todo: remove as LayerTestClass will be removed
-void CoreConfiguration(LayerTestsUtils::LayerTestsCommon* test) {}
 
 namespace ov {
 namespace test {

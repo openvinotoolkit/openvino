@@ -68,7 +68,7 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_ref::SetDefault(c
     return dispatchData;
 }
 
-KernelsPriority DeconvolutionKernel_imad_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority DeconvolutionKernel_imad_ref::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 

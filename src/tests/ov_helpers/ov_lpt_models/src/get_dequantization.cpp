@@ -11,10 +11,9 @@
 #include <low_precision/common/fake_quantize_dequantization.hpp>
 #include <low_precision/network_helper.hpp>
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,14 +21,14 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::get(
     const ov::element::Type& precision,
     const Shape& shape,
     const FakeQuantizeOnData& fakeQuantize,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const std::shared_ptr<ov::Node> input = std::make_shared<ov::opset1::Parameter>(
         ov::element::f32,
         shape);
 
     std::shared_ptr<ov::Node> parent = input;
     if (!fakeQuantize.empty()) {
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
+        parent = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
     }
 
     if (!dequantization.empty()) {
@@ -54,7 +53,7 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::get(
 
     std::shared_ptr<ov::Node> parent = input;
     if (!fakeQuantize.empty()) {
-        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
+        parent = ov::builder::subgraph::makeFakeQuantizeTypeRelaxed(parent, precision, fakeQuantize);
     }
 
     if (dequantization.convert != nullptr) {
@@ -126,4 +125,4 @@ std::shared_ptr<ov::Model> GetDequantizationFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

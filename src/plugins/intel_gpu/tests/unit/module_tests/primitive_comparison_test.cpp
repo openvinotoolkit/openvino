@@ -11,6 +11,13 @@
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 
+namespace cldnn {
+// For gtest NE compare, class defines only `==` operator. Required when building using C++20
+inline bool operator!=(const range& lhs, const fully_connected& rhs) {
+    return !(lhs.operator==(rhs));
+}
+}  // namespace cldnn
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -69,7 +76,7 @@ TEST(primitive_comparison, gemm) {
     auto gemm_prim_eq = gemm("gemm_eq", {input_info("input0_eq"), input_info("input1_eq")}, data_types::f32);
     auto gemm_prim_rank = gemm("gemm", def_inputs, data_types::f32, false, false, 1.0f, 0.0f, 2, 2);
     auto gemm_prim_alpha = gemm("gemm", def_inputs, data_types::f32, false, false, 1.5f);
-    auto gemm_prim_transpose = gemm("gemm", def_inputs, data_types::f32, true);
+    auto gemm_prim_transpose = gemm("gemm", def_inputs, data_types::f32, true, false);
 
     ASSERT_EQ(gemm_prim, gemm_prim_eq);
     ASSERT_NE(gemm_prim, gemm_prim_rank);

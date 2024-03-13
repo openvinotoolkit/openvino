@@ -55,9 +55,9 @@ public:
     /// \brief  Not applicable for ONNX model. Throws immediately
     void free_name_for_tensor(const std::string& name) override;
 
-    void set_partial_shape(const ov::frontend::Place::Ptr& place, const ngraph::PartialShape& shape) override;
-    ngraph::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
-    void set_element_type(const ov::frontend::Place::Ptr& place, const ngraph::element::Type& type) override;
+    void set_partial_shape(const ov::frontend::Place::Ptr& place, const ov::PartialShape& shape) override;
+    ov::PartialShape get_partial_shape(const ov::frontend::Place::Ptr& place) const override;
+    void set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type& type) override;
     ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr& place) override;
     void remove_output(const ov::frontend::Place::Ptr& place) override;
@@ -78,13 +78,11 @@ public:
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
 
     // internal usage
-    std::vector<onnx_editor::InputEdge> convert_place_to_input_edge(
-        const std::vector<ov::frontend::Place::Ptr>& inputs);
-    std::vector<onnx_editor::OutputEdge> convert_place_to_output_edge(
-        const std::vector<ov::frontend::Place::Ptr>& outputs);
+    std::vector<InputEdge> convert_place_to_input_edge(const std::vector<ov::frontend::Place::Ptr>& inputs);
+    std::vector<OutputEdge> convert_place_to_output_edge(const std::vector<ov::frontend::Place::Ptr>& outputs);
 
 private:
-    std::shared_ptr<ov::onnx_editor::ONNXModelEditor> m_editor;
+    std::shared_ptr<ONNXModelEditor> m_editor;
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;

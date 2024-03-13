@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "interaction.h"
+
+#include "transformations/cpu_opset/x64/op/interaction.hpp"
+#include "common/bfloat16.hpp"
+#include "common/cpu_memcpy.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "dnnl_extension_utils.h"
+#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "nodes/common/cpu_convert.h"
+#include "onednn/dnnl.h"
+
 #include <chrono>
 #include <string>
 #include <vector>
 
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "interaction.h"
-#include <onednn/dnnl.h>
-#include <dnnl_extension_utils.h>
-#include "nodes/common/cpu_convert.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include <ie_ngraph_utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_dnnl_emitters.hpp"
-#include "emitters/x64/jit_load_store_emitters.hpp"
-
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
@@ -238,10 +237,10 @@ static inline void flat_triangle(const uint8_t* in, uint8_t* out, size_t size, s
 
 void Interaction::execRef(dnnl::stream strm) {
     using namespace dnnl;
-    uint8_t* outFeaturesPtr = reinterpret_cast<uint8_t*>(getChildEdgesAtPort(0)[0]->getMemoryPtr()->getData());
+    uint8_t* outFeaturesPtr = getDstDataAtPortAs<uint8_t>(0);
     std::vector<const uint8_t*> inputPtrs(inputSizes);
     for (uint32_t n = 0; n < inputSizes; n++) {
-        auto inPtr = reinterpret_cast<const uint8_t*>(getParentEdgeAt(n)->getMemoryPtr()->getData());
+        auto inPtr = getSrcDataAtPortAs<const uint8_t>(n);
         inputPtrs[n] = inPtr;
     }
     std::unordered_map<int, memory> mem_ags{{DNNL_ARG_SRC, inputMemPtr->getPrimitive()},
@@ -249,10 +248,10 @@ void Interaction::execRef(dnnl::stream strm) {
                                             {DNNL_ARG_DST, outputMemPtr->getPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
     for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
-        cat(reinterpret_cast<uint8_t*>(inputMemPtr->getData()), inputPtrs, featureSizes, start, dataPrecision.size());
+        cat(inputMemPtr->getDataAs<uint8_t>(), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
-        flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->getData()),
-                      reinterpret_cast<uint8_t*>(flatMemPtr->getData()),
+        flat_triangle(outputMemPtr->getDataAs<const uint8_t>(),
+                      flatMemPtr->getDataAs<uint8_t>(),
                       inputSizes,
                       dataPrecision.size());
         // in1 dense feature

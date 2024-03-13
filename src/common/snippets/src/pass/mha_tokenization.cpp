@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/mha_tokenization.hpp"
-
-
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/op/brgemm.hpp"
+#include "snippets/pass/mha_tokenization.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/validation_util.hpp"
-
 
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
@@ -288,9 +284,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         int64_t axis = 0;
         const auto rank = interm_op->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(interm_op)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ov::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axis = ov::util::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
         } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(interm_op)) {
             axis = softmax_v1->get_axis();
         } else {

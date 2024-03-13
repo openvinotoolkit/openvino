@@ -33,7 +33,7 @@ pass::GroupedGatherElimination::GroupedGatherElimination() {
     MATCHER_SCOPE(GroupedGatherElimination);
     auto concat_label = wrap_type<v0::Concat>(rank_equals(1));
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto concat = m.get_match_root();
         OutputVector inputs = concat->input_values();
         NodeRegistry new_ops;
@@ -128,9 +128,7 @@ pass::GatherNopElimination::GatherNopElimination() {
             return false;
         std::vector<int64_t> expected_vector(number_of_indices);
         std::iota(expected_vector.begin(), expected_vector.end(), 0);
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        if (const auto& indices = get_constant_from_source(gather->input_value(1))) {
-            OPENVINO_SUPPRESS_DEPRECATED_END
+        if (const auto& indices = ov::util::get_constant_from_source(gather->input_value(1))) {
             const auto& indices_values = indices->cast_vector<int64_t>();
             if (indices_values != expected_vector)
                 return false;

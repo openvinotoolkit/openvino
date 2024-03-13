@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
-#include "sliding_window_utils.hpp"
-
-#include "ngraph/validation_util.hpp"
+#include <string>
 
 #include "intel_gpu/runtime/error_handler.hpp"
-#include "primitive_type_base.h"
 #include "json_object.h"
-
-#include <string>
+#include "max_pool_shape_inference.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "pooling_inst.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 
@@ -28,7 +27,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     auto window_size = desc->size;
 
     // auto output_type = node.get_primitive()->output_data_type ? *node.get_primitive()->output_data_type : input_layout.data_type;
-    // FIXME: dirty hack. Replace it with optional output data type (above) once IE returns correct precision on edges
+    // FIXME: dirty hack. Replace it with optional output data type (above) once OV returns correct precision on edges
     auto output_type = input_layout.data_type;
 
     if (output_type == data_types::u8 || output_type == data_types::i8) {
@@ -221,23 +220,12 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     ov::CoordinateDiff pads_end(desc->pads_end.begin(), desc->pads_end.end());
     auto auto_pad = desc->auto_pad;
 
-    if (auto_pad == ov::op::PadType::SAME_UPPER || auto_pad == ov::op::PadType::SAME_LOWER) {
-        pads_begin.clear();
-        pads_end.clear();
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        ngraph::try_apply_auto_padding(input_shape,
-                                       kernel_size,
-                                       stride,
-                                       dilation,
-                                       auto_pad,
-                                       pads_end,
-                                       pads_begin);
-        OPENVINO_SUPPRESS_DEPRECATED_END
-    }
-    if (auto_pad == ov::op::PadType::VALID) {
-        pads_begin = ov::CoordinateDiff(pads_begin.size(), 0);
-        pads_end = ov::CoordinateDiff(pads_end.size(), 0);
-    }
+    ov::op::v8::MaxPool op;
+    op.set_strides(stride);
+    op.set_kernel(kernel_size);
+    op.set_auto_pad(auto_pad);
+
+    ov::op::pooling::apply_padding(&op, input_layout.get_partial_shape(), dilation, pads_begin, pads_end);
 
     size_t spatial_size = input_shape.size() - 2;
     for (size_t i = 0; i < spatial_size; ++i) {

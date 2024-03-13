@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/strided_slice.hpp"
-
 #include <memory>
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+
+#include "low_precision/network_helper.hpp"
+#include "low_precision/strided_slice.hpp"
 
 namespace ov {
 namespace pass {
@@ -46,9 +47,7 @@ std::shared_ptr<ov::opset1::Constant> stridedSliceDeqConstant(
 
     // step #2: update original begin & end & strides
     auto cast_vector = [](const std::shared_ptr<ov::opset1::StridedSlice>& strided_slice, const size_t i) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto constant = ov::get_constant_from_source(strided_slice->get_input_source_output(i));
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto constant = ov::util::get_constant_from_source(strided_slice->get_input_source_output(i));
         assert(constant != nullptr);
         return constant->cast_vector<int64_t>();
     };
@@ -133,7 +132,9 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ov::p
     replace_node(dequantization.multiplyConstant, new_mul_const);
     dequantization.multiplyConstant = new_mul_const;
 
-    moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions), false);
+    const auto newOperation = moveDequantizationAfter(context, strided_slice, NetworkHelper::getDequantization(strided_slice, defaultPrecisions));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 
@@ -155,13 +156,9 @@ bool StridedSliceTransformation::canBeTransformed(const TransformationContext& c
         return false;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return
-        is_dequantization_scalar ||
-        (ov::get_constant_from_source(operation->get_input_source_output(1)) &&
-        ov::get_constant_from_source(operation->get_input_source_output(2)) &&
-        ov::get_constant_from_source(operation->get_input_source_output(3)));
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return is_dequantization_scalar || (ov::util::get_constant_from_source(operation->get_input_source_output(1)) &&
+                                        ov::util::get_constant_from_source(operation->get_input_source_output(2)) &&
+                                        ov::util::get_constant_from_source(operation->get_input_source_output(3)));
 }
 
 bool StridedSliceTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

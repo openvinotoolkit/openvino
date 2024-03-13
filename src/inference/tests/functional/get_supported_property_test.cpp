@@ -14,7 +14,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
-using TestParam = std::tuple<ov::AnyMap, ov::AnyMap>;
+using TestParam = std::tuple<ov::AnyMap, ov::AnyMap, bool>;
 class GetPropertyTest : public ::testing::TestWithParam<TestParam> {
 public:
     ov::Core core;
@@ -22,6 +22,7 @@ public:
     void SetUp() override {
         m_properties = std::get<0>(GetParam());
         m_expected_properties = std::get<1>(GetParam());
+        m_keep_core_property = std::get<2>(GetParam());
     }
 
     void reg_plugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin) {
@@ -47,6 +48,7 @@ protected:
     std::shared_ptr<ov::IPlugin> m_mock_plugin;
     ov::AnyMap m_properties;
     ov::AnyMap m_expected_properties;
+    bool m_keep_core_property;
     std::string m_plugin_name{"MOCK_HARDWARE"};
 };
 
@@ -73,7 +75,8 @@ TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
     reg_plugin(core, base_plugin);
     core.get_property(m_plugin_name, ov::supported_properties);
     std::map<std::string, std::string> config;
-    auto actual_output = m_mock_plugin->get_core()->get_supported_property(m_plugin_name, m_properties);
+    auto actual_output =
+        m_mock_plugin->get_core()->get_supported_property(m_plugin_name, m_properties, m_keep_core_property);
     for (auto& iter : m_expected_properties) {
         ASSERT_TRUE(actual_output.find(iter.first) != actual_output.end());
         ASSERT_EQ(actual_output.find(iter.first)->second, iter.second);
@@ -87,14 +90,23 @@ TEST_P(GetPropertyTest, canGenerateCorrectPropertyList) {
 
 static const std::vector<TestParam> test_variants = {
     TestParam{ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)}),
-              ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)})},
+              ov::AnyMap({ov::hint::allow_auto_batching(false), ov::num_streams(2)}),
+              true},
     TestParam{ov::AnyMap({ov::auto_batch_timeout(0), ov::enable_profiling(false)}),
-              ov::AnyMap({ov::auto_batch_timeout(0)})},
+              ov::AnyMap({ov::auto_batch_timeout(0)}),
+              true},
     TestParam{ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)}),
-              ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)})},
+              ov::AnyMap({ov::cache_dir("test"), ov::force_tbb_terminate(false)}),
+              true},
     TestParam{ov::AnyMap({ov::cache_dir("test"),
                           ov::device::properties("MOCK_HARDWARE", ov::num_streams(2), ov::enable_profiling(true))}),
-              ov::AnyMap({ov::cache_dir("test"), ov::num_streams(2)})},
+              ov::AnyMap({ov::cache_dir("test"), ov::num_streams(2)}),
+              true},
+    TestParam{ov::AnyMap({ov::num_streams(2)}), ov::AnyMap({ov::num_streams(2)}), false},
+    TestParam{ov::AnyMap({ov::cache_dir("test")}), ov::AnyMap({}), false},
+    TestParam{ov::AnyMap({ov::hint::allow_auto_batching(false)}), ov::AnyMap({}), false},
+    TestParam{ov::AnyMap({ov::auto_batch_timeout(0)}), ov::AnyMap({}), false},
+    TestParam{ov::AnyMap({ov::force_tbb_terminate(false)}), ov::AnyMap({}), false},
 };
 
 INSTANTIATE_TEST_SUITE_P(GetSupportedPropertyTest,

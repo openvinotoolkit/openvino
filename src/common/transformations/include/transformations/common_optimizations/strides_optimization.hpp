@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API StridesOptimization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvStridesPropagation either propagates stride (greater than 1) from Convolution up through the graph
  * or inserts pooling between current node and its consumers if the consumers have different StridesProp attributes.
  * Strides can be propagated if Convolution kernel is {1, 1, ...}
@@ -33,7 +33,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SupportedNodesStridesPropagation either propagates stride (greater than 1) from current node up through the
  * graph or inserts pooling between current node and its consumers if the consumers have different StridesProp
  * attributes.
@@ -45,7 +45,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief UnsupportedNodesStridesPropagation inserts pooling between current node and its consumers
  * if the consumers have different StridesProp attributes.
  */
@@ -56,7 +56,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief StridesOptimization transformation works backward on function and propagates strides up through the graph if
  * possible
  */

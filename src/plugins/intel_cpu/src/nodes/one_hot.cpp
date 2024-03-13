@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <string>
-#include <dnnl_types.h>
-#include "openvino/core/parallel.hpp"
-#include <selective_build.h>
 #include "one_hot.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
+
 #include "common/cpu_memcpy.h"
+#include "dnnl_types.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "selective_build.h"
 #include "shape_inference/custom/one_hot.hpp"
 
-using namespace InferenceEngine;
+#include <string>
+#include <vector>
 
 namespace ov {
 namespace intel_cpu {
@@ -58,11 +57,11 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {
-        srcDims = SizeVector{1};
+        srcDims = VectorDims{1};
     }
     VectorDims dstDims = getOutputShapeAtPort(0).getDims();
     if (ov::is_scalar(dstDims)) {
-        dstDims = SizeVector{1};
+        dstDims = VectorDims{1};
     }
 
     int output_dims_size = dstDims.size();
@@ -79,7 +78,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
 }
 
 bool OneHot::needShapeInfer() const {
-    const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->getData());
+    const auto depthNodePtr = getSrcDataAtPortAs<int32_t>(1);
     if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
@@ -109,11 +108,11 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
 template<typename out_type>
 void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
-    const auto *src_data = reinterpret_cast<const in_type *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto *dst_data = reinterpret_cast<out_type *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *src_data = getSrcDataAtPortAs<const in_type>(0);
+    auto *dst_data = getDstDataAtPortAs<out_type>(0);
 
-    const out_type on_value = reinterpret_cast<const out_type *>(getParentEdgeAt(2)->getMemoryPtr()->getData())[0];
-    const out_type off_value = reinterpret_cast<const out_type *>(getParentEdgeAt(3)->getMemoryPtr()->getData())[0];
+    const out_type on_value = getSrcDataAtPortAs<const out_type>(2)[0];
+    const out_type off_value = getSrcDataAtPortAs<const out_type>(3)[0];
 
     // fill the output with off_value
     std::size_t dst_size = prefix_size * depth * suffix_size;

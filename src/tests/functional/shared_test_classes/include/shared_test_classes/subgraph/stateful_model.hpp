@@ -5,8 +5,6 @@
 #include "openvino/runtime/properties.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
-#include "ov_models/builders.hpp"
 
 using namespace ov::test;
 
@@ -27,9 +25,7 @@ public:
     }
 
     void reset_state() {
-        for (auto&& state : inferRequest.query_state()) {
-            state.reset();
-        }
+        inferRequest.reset_state();
     }
 
     static void float_compare(const float* expected_res, const float* actual_res, size_t size) {
@@ -116,7 +112,7 @@ public:
             inputs.clear();
             const auto& funcInputs = function->inputs();
             const auto& funcInput = funcInputs.front();
-            auto tensor = ov::runtime::Tensor{ov::element::f32, funcInput.get_shape()};
+            auto tensor = ov::Tensor{ov::element::f32, funcInput.get_shape()};
             auto inputData = tensor.data<ov::element_type_traits<ov::element::f32>::value_type>();
             inputData[0] = input_vals[i];
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -225,7 +221,7 @@ public:
             inputs.clear();
             const auto& funcInputs = function->inputs();
             const auto& funcInput = funcInputs.front();
-            auto tensor = ov::runtime::Tensor{testPrc, funcInput.get_shape()};
+            auto tensor = ov::Tensor{testPrc, funcInput.get_shape()};
             auto inputData = tensor.data<ov::element_type_traits<testPrc>::value_type>();
             inputData[0] = input_vals[i];
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -339,7 +335,7 @@ public:
 
         auto states = inferRequest.query_state();
         ASSERT_FALSE(states.empty());
-        auto init_tensor = ov::runtime::Tensor{testPrc, ov::Shape{1, 1}};
+        auto init_tensor = ov::Tensor{testPrc, ov::Shape{1, 1}};
         auto init_data = init_tensor.data<ov::element_type_traits<testPrc>::value_type>();
         init_data[0] = vec_state[0];
         states.front().set_state(init_tensor);
@@ -351,7 +347,7 @@ public:
             auto &input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             const auto& funcInput = funcInputs.front();
-            auto tensor = ov::runtime::Tensor{testPrc, input_shape};
+            auto tensor = ov::Tensor{testPrc, input_shape};
             auto input_data = tensor.data<ov::element_type_traits<testPrc>::value_type>();
             for (size_t i = 0; i < input_shape.front(); ++i) {
                 input_data[i] = input_vals[i];
@@ -510,7 +506,7 @@ public:
 
         auto states = inferRequest.query_state();
         ASSERT_FALSE(states.empty());
-        auto init_tensor = ov::runtime::Tensor{testPrc, ov::Shape{1, 1}};
+        auto init_tensor = ov::Tensor{testPrc, ov::Shape{1, 1}};
         auto init_data = init_tensor.data<ov::element_type_traits<testPrc>::value_type>();
         init_data[0] = vec_state[0];
         states.front().set_state(init_tensor);
@@ -522,7 +518,7 @@ public:
             auto &input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             for (auto&& funcInput : funcInputs) {
-                auto tensor = ov::runtime::Tensor{testPrc, input_shape};
+                auto tensor = ov::Tensor{testPrc, input_shape};
                 auto input_data = tensor.data<ov::element_type_traits<testPrc>::value_type>();
                 for (size_t i = 0; i < input_shape[1]; ++i) {
                     input_data[i] = input_vals[i];

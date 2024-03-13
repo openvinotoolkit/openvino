@@ -1,9 +1,10 @@
-// Copyright (C) 2022-2023 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "subgraph_simple.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include <snippets/op/subgraph.hpp>
 
 namespace ov {
@@ -209,7 +210,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto relu = std::make_shared<op::v0::Relu>(hswish);
     relu->set_friendly_name("relu");
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = add->get_output_tensor(0);
     ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
@@ -217,7 +218,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initOriginal() const {
     auto& out_tensor1 = relu->get_output_tensor(0);
     ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(add);
     res0->set_friendly_name("res0");
@@ -248,7 +249,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
                                         std::make_shared<ov::Model>(NodeVector{relu},
                                                                     ParameterVector{indata2}));
     subgraph1->set_friendly_name("relu");
-    NGRAPH_SUPPRESS_DEPRECATED_START
+    OPENVINO_SUPPRESS_DEPRECATED_START
     auto& out_tensor0 = subgraph0->get_output_tensor(0);
     ov::descriptor::set_ov_tensor_legacy_name(out_tensor0, "add_out");
     out_tensor0.set_names({"add_out", "y0"});
@@ -256,7 +257,7 @@ std::shared_ptr<ov::Model> EltwiseTwoResultsFunction::initReference() const {
     auto& out_tensor1 = subgraph1->get_output_tensor(0);
     ov::descriptor::set_ov_tensor_legacy_name(out_tensor1, "relu_out");
     out_tensor1.set_names({"relu_out", "y1"});
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     auto res0 = std::make_shared<op::v0::Result>(subgraph0->output(0));
     res0->set_friendly_name("res0");

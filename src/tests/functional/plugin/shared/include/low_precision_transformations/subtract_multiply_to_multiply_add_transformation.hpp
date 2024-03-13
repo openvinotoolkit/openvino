@@ -14,9 +14,9 @@ namespace LayerTestsDefinitions {
 
 class SubtractMultiplyToMultiplyAddTransformationTestValues {
 public:
-    ngraph::PartialShape inputShape;
-    ngraph::element::Type precision;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::PartialShape inputShape;
+    ov::element::Type precision;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
 typedef std::tuple<

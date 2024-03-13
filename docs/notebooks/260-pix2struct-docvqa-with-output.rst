@@ -42,9 +42,10 @@ library. To simplify the user experience, the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum>`__ library is used to
 convert the model to OpenVINO™ IR format.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
--  `About Pix2Struct <#about-pixstruct>`__
+-  `About Pix2Struct <#about-pix2struct>`__
 -  `Prerequisites <#prerequisites>`__
 -  `Download and Convert Model <#download-and-convert-model>`__
 -  `Select inference device <#select-inference-device>`__
@@ -99,7 +100,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     %pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" onnx gradio
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
 
 Download and Convert Model
 --------------------------
@@ -135,10 +136,10 @@ applicable for other models from pix2struct family.
     import gc
     from pathlib import Path
     from optimum.intel.openvino import OVModelForPix2Struct
-    
+
     model_id = "google/pix2struct-docvqa-base"
     model_dir = Path(model_id.split('/')[-1])
-    
+
     if not model_dir.exists():
         ov_model = OVModelForPix2Struct.from_pretrained(model_id, export=True, compile=False)
         ov_model.half()
@@ -174,16 +175,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=[d for d in core.available_devices if "GPU" not in d] + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -216,7 +217,7 @@ by ``Pix2StructProcessor.decode``
 .. code:: ipython3
 
     from transformers import Pix2StructProcessor
-    
+
     processor = Pix2StructProcessor.from_pretrained(model_id)
     ov_model = OVModelForPix2Struct.from_pretrained(model_dir, device=device.value)
 
@@ -230,25 +231,25 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2023.2/get_started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 
     import requests
     from PIL import Image
     from io import BytesIO
-    
-    
+
+
     def load_image(image_file):
         response = requests.get(image_file)
         image = Image.open(BytesIO(response.content)).convert("RGB")
         return image
-    
+
     test_image_url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/aa46ef0c-c14d-4bab-8bb7-3b22fe73f6bc"
-    
+
     image = load_image(test_image_url)
     text = "What performance hints do?"
-    
+
     inputs = processor(images=image, text=text, return_tensors="pt")
     display(image)
 
@@ -289,27 +290,27 @@ Interactive demo
 .. code:: ipython3
 
     import gradio as gr
-    
+
     example_images_urls = [
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/94ef687c-aebb-452b-93fe-c7f29ce19503",
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/70b2271c-9295-493b-8a5c-2f2027dcb653",
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1e2be134-0d45-4878-8e6c-08cfc9c8ea3d"
     ]
-    
+
     file_names = ["eiffel_tower.png", "exsibition.jpeg", "population_table.jpeg"]
-    
+
     for img_url, image_file in zip(example_images_urls, file_names):
         load_image(img_url).save(image_file)
-    
-    questions = ["What is Eiffel tower tall?", "When is the coffee break?", "What the population of Stoddard?"] 
-    
+
+    questions = ["What is Eiffel tower tall?", "When is the coffee break?", "What the population of Stoddard?"]
+
     examples = [list(pair) for pair in zip(file_names, questions)]
-    
+
     def generate(img, question):
         inputs = processor(images=img, text=question, return_tensors="pt")
         predictions = ov_model.generate(**inputs, max_new_tokens=256)
         return processor.decode(predictions[0], skip_special_tokens=True)
-    
+
     demo = gr.Interface(
         fn=generate,
         inputs=["image", "text"],
@@ -319,7 +320,7 @@ Interactive demo
         cache_examples=False,
         allow_flagging="never",
     )
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

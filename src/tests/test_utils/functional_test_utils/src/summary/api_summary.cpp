@@ -20,9 +20,6 @@ const std::map<ov_entity, std::string> ApiSummary::apiInfo({
     {ov_entity::ov_infer_request, "ov_infer_request"},
     {ov_entity::ov_plugin, "ov_plugin"},
     {ov_entity::ov_compiled_model, "ov_compiled_model"},
-    {ov_entity::ie_infer_request, "ie_infer_request"},
-    {ov_entity::ie_plugin, "ie_plugin"},
-    {ov_entity::ie_executable_network, "ie_executable_network"},
     {ov_entity::undefined, "undefined"},
 });
 
@@ -154,8 +151,8 @@ void ApiSummary::saveReport() {
     }
     filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!ov::test::utils::directoryExists(outputFolder)) {
-        ov::test::utils::createDirectoryRecursive(outputFolder);
+    if (!ov::util::directory_exists(outputFolder)) {
+        ov::util::create_directory_recursive(outputFolder);
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;

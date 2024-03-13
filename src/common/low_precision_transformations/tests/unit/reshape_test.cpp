@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_blob.h>
 #include <gtest/gtest.h>
 #include "low_precision/reshape.hpp"
 

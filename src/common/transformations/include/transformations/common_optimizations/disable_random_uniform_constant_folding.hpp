@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API DisableRandomUniformConstantFolding;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Disables ConstantFolding for RandomUniform operation. It is required as RandomUniform
  * should generate new sequence each run.
  */

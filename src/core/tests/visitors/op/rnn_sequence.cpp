@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, rnn_sequence_op) {
-    NodeBuilder::get_ops().register_factory<ov::op::v5::RNNSequence>();
+    NodeBuilder::opset().insert<ov::op::v5::RNNSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;

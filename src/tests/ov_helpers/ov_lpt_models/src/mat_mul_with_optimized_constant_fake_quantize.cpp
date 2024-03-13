@@ -4,10 +4,9 @@
 
 #include "ov_lpt_models/mat_mul_with_optimized_constant_fake_quantize.hpp"
 
-#include <openvino/opsets/opset1.hpp>
-#include "ov_models/builders.hpp"
+#include "openvino/opsets/opset1.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -55,4 +54,4 @@ std::shared_ptr<ov::Model> MatMulWithOptimizedConstantFakeQuantizeFunction::getO
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

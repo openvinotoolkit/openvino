@@ -4,21 +4,23 @@
 
 #include "op/is_nan.hpp"
 
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/is_nan.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
 
-OutputVector is_nan(const Node& node) {
-    const auto data = node.get_ng_inputs().at(0);
-    return {std::make_shared<ov::opset10::IsNaN>(data)};
+ov::OutputVector is_nan(const ov::frontend::onnx::Node& node) {
+    const auto data = node.get_ov_inputs().at(0);
+    return {std::make_shared<v10::IsNaN>(data)};
 }
 
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

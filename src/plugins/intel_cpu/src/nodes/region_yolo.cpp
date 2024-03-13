@@ -5,18 +5,17 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "region_yolo.h"
-#include <nodes/common/blocked_desc_creator.h>
-#include <openvino/opsets/opset1.hpp>
+#include "nodes/common/blocked_desc_creator.h"
+#include "openvino/opsets/opset1.hpp"
 #include "common/cpu_convert.h"
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_bf16_emitters.hpp"
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "utils/bfloat16.hpp"
 
-using namespace InferenceEngine;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
@@ -403,17 +402,17 @@ void RegionYolo::execute(dnnl::stream strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount())
+    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount())
         OPENVINO_THROW("Incorrect layer configuration or output dimensions. ",
                        output_size,
                        " != ",
-                       getChildEdgeAt(0)->getMemoryPtr()->getShape().getElementsCount());
+                       getDstMemoryAtPort(0)->getShape().getElementsCount());
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(getParentEdgeAt(0)->getMemoryPtr()->getData());
-    auto *dst_data = reinterpret_cast<uint8_t *>(getChildEdgeAt(0)->getMemoryPtr()->getData());
+    const auto *src_data = getSrcDataAtPortAs<const uint8_t>(0);
+    auto *dst_data = getDstDataAtPortAs<uint8_t>(0);
 
     cpu_convert(src_data, dst_data, getParentEdgeAt(0)->getMemory().getDesc().getPrecision(),
                 getChildEdgeAt(0)->getMemory().getDesc().getPrecision(), output_size);

@@ -34,7 +34,7 @@ class InterpOp(Op):
             'width',
             'zoom_factor',
             'shrink_factor',
-            'factor',  # float factor required by IE shape inference
+            'factor',  # float factor required by OV shape inference
             'pad_beg',
             'pad_end',
             'align_corners'
@@ -59,7 +59,7 @@ class InterpOp(Op):
                 log.error(
                     'Node {} with op {} cannot be converted to Resample layer because there is no enough info about '
                     'src/dst shapes: src_shape = {}, dst_shape = {}'.format(node.name, node.op, src_shape, dst_shape))
-                node.type = None  # prevent translation to a valid IE layer
+                node.type = None  # prevent translation to a valid OV layer
                 return
             in_height = src_shape[get_height_dim(layout, 4)]
             in_width = src_shape[get_width_dim(layout, 4)]

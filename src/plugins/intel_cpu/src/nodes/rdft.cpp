@@ -5,11 +5,11 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
-#include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
-#include <common/primitive_hashing_utils.hpp>
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "common/primitive_hashing_utils.hpp"
 
 #include "rdft.h"
 #include "openvino/core/parallel.hpp"
@@ -21,12 +21,10 @@
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
 
 static constexpr size_t DATA_INDEX = 0;
 static constexpr size_t AXES_INDEX = 1;
@@ -157,8 +155,8 @@ void RDFT::execute(dnnl::stream strm) {
     const auto& inputShape = inputMem.getStaticDims();
     const auto& outputShape = outputMem.getStaticDims();
 
-    auto inputPtr = reinterpret_cast<float*>(inputMem.getData());
-    auto outputPtr = reinterpret_cast<float*>(outputMem.getData());
+    auto inputPtr = inputMem.getDataAs<float>();
+    auto outputPtr = outputMem.getDataAs<float>();
 
     auto rank = inputShape.size() - inverse;
 
@@ -182,12 +180,12 @@ bool RDFT::created() const {
 
 void RDFT::prepareParams() {
     if (axesChanged()) {
-        const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
+        const auto& axesMem = getSrcMemoryAtPort(AXES_INDEX);
         auto newAxesSize = axesMem->getStaticDims()[0];
         if (axes.size() != newAxesSize) {
             axes.resize(newAxesSize);
         }
-        auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
+        auto axesPtr = axesMem->getDataAs<const int>();
         auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
         for (size_t i = 0; i < axes.size(); i++) {
             axes[i] = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -208,12 +206,12 @@ void RDFT::prepareParams() {
                 signalSizes.back() = inputShape[axes.back()];
             }
         } else {
-            const auto& signalSizesMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
+            const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
             auto newSize = signalSizesMem->getStaticDims()[0];
             if (signalSizes.size() != newSize) {
                 signalSizes.resize(newSize);
             }
-            const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
+            const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
             for (size_t i = 0; i < newSize; i++) {
                 signalSizes[i] = signalSizesPtr[i];
             }
@@ -228,11 +226,11 @@ bool RDFT::axesChanged() const {
     if (isAxesConstant) {
         return false;
     }
-    const auto& axesMem = getParentEdgeAt(AXES_INDEX)->getMemoryPtr();
+    const auto& axesMem = getSrcMemoryAtPort(AXES_INDEX);
     if (axes.size() != axesMem->getStaticDims()[0]) {
         return true;
     }
-    auto axesPtr = reinterpret_cast<const int*>(axesMem->getData());
+    auto axesPtr = axesMem->getDataAs<const int>();
     auto inputRank = inputShapes[DATA_INDEX].getRank() - inverse;
     for (size_t i = 0; i < axes.size(); i++) {
         auto newAxis = axesPtr[i] < 0 ? axesPtr[i] + inputRank : axesPtr[i];
@@ -262,12 +260,12 @@ bool RDFT::signalSizesChanged() const {
         return inverse ? static_cast<size_t>(signalSizes.back()) != 2 * (inputShape[axes.back()] - 1)
                        : static_cast<size_t>(signalSizes.back()) != inputShape[axes.back()];
     } else {
-        const auto& signalSizesMem = getParentEdgeAt(SIGNAL_SIZE_INDEX)->getMemoryPtr();
+        const auto& signalSizesMem = getSrcMemoryAtPort(SIGNAL_SIZE_INDEX);
         auto newSize = signalSizesMem->getStaticDims()[0];
         if (signalSizes.size() != newSize || signalSizes.size() != axes.size()) {
             return true;
         }
-        const auto& signalSizesPtr = reinterpret_cast<const int*>(signalSizesMem->getData());
+        const auto& signalSizesPtr = signalSizesMem->getDataAs<const int>();
         for (size_t i = 0; i < newSize; i++) {
             if (signalSizesPtr[i] != signalSizes[i]) {
                 return true;

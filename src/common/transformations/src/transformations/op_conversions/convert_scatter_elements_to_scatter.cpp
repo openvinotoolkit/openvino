@@ -61,10 +61,9 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const size_t axis =
-            ov::normalize_axes(scatter->get_friendly_name(), axis_const->cast_vector<int64_t>(), data_pshape.rank())[0];
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto axis = ov::util::normalize_axes(scatter->get_friendly_name(),
+                                                   axis_const->cast_vector<int64_t>(),
+                                                   data_pshape.rank())[0];
 
         struct Range {
             uint64_t l, r;

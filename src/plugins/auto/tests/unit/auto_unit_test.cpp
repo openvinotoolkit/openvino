@@ -123,15 +123,12 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
     core = std::make_shared<NiceMock<MockICore>>();
     // replace core with mock Icore
     plugin->set_core(core);
-    std::vector<std::string> supportConfigs = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
-    ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
-        .WillByDefault(Return(ov::Any(supportConfigs)));
     std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
     ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
     ON_CALL(*core, get_property(_, StrEq(ov::compilation_num_threads.name()), _)).WillByDefault(Return(12));
     std::vector<std::string> cpuCability = {"FP32", "FP16", "INT8", "BIN"};
-    std::vector<std::string> gpuCability = {"FP32", "FP16", "BATCHED_BLOB", "BIN", "INT8"};
+    std::vector<std::string> gpuCability = {"FP32", "FP16", "BIN", "INT8"};
     std::vector<std::string> othersCability = {"FP32", "FP16"};
     std::string igpuArchitecture = "GPU: vendor=0x8086 arch=0";
     std::string dgpuArchitecture = "GPU: vendor=0x8086 arch=1";
@@ -155,12 +152,8 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         .WillByDefault(RETURN_MOCK_VALUE(iGpuType));
     ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::type.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(dGpuType));
-    const std::vector<std::string> metrics = {METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                              ov::device::full_name.name(),
-                                              ov::device::id.name()};
     const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
     const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-    ON_CALL(*core, get_property(_, StrEq(METRIC_KEY(SUPPORTED_METRICS)), _)).WillByDefault(RETURN_MOCK_VALUE(metrics));
     ON_CALL(*core, get_property(_, ov::supported_properties.name(), _)).WillByDefault(Return(ov::Any(supportedProps)));
     ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::device::full_name.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(igpuFullDeviceName));
@@ -171,7 +164,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest() {
         .WillByDefault(RETURN_MOCK_VALUE(dgpuFullDeviceName));
     const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1"};
     ON_CALL(*core, get_available_devices()).WillByDefault(Return(availableDevs));
-    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs) {
+    ON_CALL(*core, get_supported_property).WillByDefault([](const std::string& device, const ov::AnyMap& fullConfigs, const bool keep_core_property = true) {
         auto item = fullConfigs.find(ov::device::properties.name());
         ov::AnyMap deviceConfigs;
         if (item != fullConfigs.end()) {

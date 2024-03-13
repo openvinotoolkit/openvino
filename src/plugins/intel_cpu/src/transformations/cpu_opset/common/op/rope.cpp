@@ -11,8 +11,8 @@ ov::intel_cpu::RoPENode::RoPENode(const OutputVector& args, const Config& cfg) :
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<ngraph::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
-    const ngraph::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::RoPENode::clone_with_new_inputs(
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(RoPENode_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ov::intel_cpu::RoPENode>(new_args, m_config);
@@ -22,6 +22,17 @@ void ov::intel_cpu::RoPENode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(RoPENode_validate_and_infer_types);
     auto input_pshape = get_input_partial_shape(0);
     auto input_slice_size = m_config.slice_stop - m_config.slice_start;
+
+    if (m_config.is_qwen) {
+        // Qwen specific RoPE
+        // input  [batch_size, cur_length, (hidden_states_q + hidden_states_k + hidden_states_v)]
+        // output [batch_size, cur_length, head_cnt, head_size]
+        set_output_type(
+            0,
+            get_input_element_type(0),
+            {input_pshape[0], input_pshape[1], ov::Dimension(m_config.head_cnt), ov::Dimension(m_config.head_size)});
+        return;
+    }
 
     if (m_config.is_chatglm) {
         // chatGLM specific RoPE
@@ -48,7 +59,7 @@ void ov::intel_cpu::RoPENode::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), input_pshape);
 }
 
-bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor) {
+bool ov::intel_cpu::RoPENode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(RoPENode_visit_attributes);
     visitor.start_structure("config");
     visitor.on_attribute("slice_start", m_config.slice_start);
@@ -57,6 +68,7 @@ bool ov::intel_cpu::RoPENode::visit_attributes(ngraph::AttributeVisitor& visitor
     visitor.on_attribute("is_interleaved", m_config.is_interleaved);
     visitor.on_attribute("rotary_ndims", m_config.rotary_ndims);
     visitor.on_attribute("is_chatglm", m_config.is_chatglm);
+    visitor.on_attribute("is_qwen", m_config.is_qwen);
     visitor.on_attribute("head_cnt", m_config.head_cnt);
     visitor.on_attribute("head_size", m_config.head_size);
     visitor.on_attribute("gather_position_arg_id", m_config.gather_position_arg_id);

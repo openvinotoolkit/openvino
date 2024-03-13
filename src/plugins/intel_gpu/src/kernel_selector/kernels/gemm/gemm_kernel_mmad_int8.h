@@ -24,8 +24,8 @@ public:
 
     GemmKernelMMADint8() : GemmKernelBase("gemm_mmad_int8") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -34,13 +34,13 @@ protected:
                  FusedOpType::ACTIVATION,
                  FusedOpType::ELTWISE };
     }
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const gemm_params& params) const override;
     DispatchData SetDefault(const gemm_params& params) const override;
     GemmTuningData InitGemmTuningData(const gemm_params& params) const;
     GemmTuningData SetTuningParams(const gemm_params& params) const;
     size_t GetMmadOperationsNumber(const GemmTuningData& tuning_data) const;
     bool HasLeftovers(const GemmTuningData& tuning_data, int tile_size) const;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 };
 }  // namespace kernel_selector

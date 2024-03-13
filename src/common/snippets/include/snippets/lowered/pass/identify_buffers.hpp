@@ -27,9 +27,9 @@ namespace pass {
  *        Note: should be called before ResetBuffer() pass to have correct offsets
  * @ingroup snippets
  */
-class IdentifyBuffers: public Pass {
+class IdentifyBuffers: public RangedPass {
 public:
-    OPENVINO_RTTI("IdentifyBuffers", "Pass")
+    OPENVINO_RTTI("IdentifyBuffers", "RangedPass")
     IdentifyBuffers() = default;
 
     /**
@@ -37,7 +37,7 @@ public:
      * @param linear_ir the target Linear IR
      * @return status of the pass
      */
-    bool run(LinearIR& linear_ir) override;
+    bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
     struct ShiftPtrParams {
         ShiftPtrParams() = default;
@@ -60,6 +60,7 @@ public:
 
 private:
     using BufferPool = std::vector<ExpressionPtr>;
+    using BufferMap = std::map<ExpressionPtr, ShiftPtrParams>;
 
     /**
      * @brief Get Buffer Index in Buffer set
@@ -74,7 +75,7 @@ private:
      * @param pool set of Buffers from the Linear IR
      * @return adjacency matrix where True value means that Buffers are adjacent and cannot have the same ID
      */
-    static std::vector<bool> create_adjacency_matrix(const LinearIR& linear_ir, const BufferPool& pool);
+    static std::vector<bool> create_adjacency_matrix(lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end, const BufferPool& pool);
     /**
      * @brief Algorithm of Graph coloring where vertices are Buffers
      * @param buffers set of Buffers from the Linear IR
@@ -105,6 +106,19 @@ private:
      */
     static bool are_adjacent(const std::pair<ExpressionPtr, ShiftPtrParams>& lhs,
                              const std::pair<ExpressionPtr, ShiftPtrParams>& rhs);
+
+    /**
+     * @brief Find all buffers that are connected to the current LoopEnd
+     * @param loop_end_expr expression of the target LoopEnd
+     * @return buffer map [buffer expr -> ShiftDataPtrs]
+     */
+    static BufferMap get_buffer_loop_neighbours(const ExpressionPtr& loop_end_expr);
+    /**
+     * @brief Find all buffers that are inside the current Loop.
+     * @param loop_end_it expression iterator in LinearIR of the target LoopEnd
+     * @return set of inner buffers
+     */
+    static BufferMap get_buffer_loop_inside(const LinearIR::constExprIt& loop_end_it);
 };
 
 } // namespace pass

@@ -62,6 +62,13 @@ OutputVector translate_partitioned_call_op(const NodeContext& node) {
         set_out_name({node_name + ":" + to_string(idx)}, ov_outputs[idx]);
     }
 
+    // pass Sink operations to outer graph
+    for (auto node : body_model->get_sinks()) {
+        if (node->outputs().size()) {
+            ov_outputs.push_back(node->outputs()[0]);
+        }
+    }
+
     return ov_outputs;
 }
 

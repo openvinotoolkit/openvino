@@ -87,8 +87,8 @@ JitConstants ScatterNDUpdateKernelRef::GetJitConstants(const scatter_nd_update_p
     return jit;
 }
 
-bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: SCATTER_ND_UPDATE || o.GetType() != KernelType::SCATTER_ND_UPDATE) {
+bool ScatterNDUpdateKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: SCATTER_ND_UPDATE) {
         return false;
     }
 
@@ -170,8 +170,8 @@ void ScatterNDUpdateKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -185,7 +185,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
     // Second iter - update values specified by updates at specific index position specified by indices
     for (int i = 0; i < 2; i++) {
         auto dispatchData = SetDefault(newParams, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         auto inputs_number = i == 0 ? 1 : 3;
 
         if (i == 1) {
@@ -222,7 +222,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         clKernelData& kernel = kd.kernels[i];
 
         FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                         "", false, false, inputs_number, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     }
 
     return {kd};

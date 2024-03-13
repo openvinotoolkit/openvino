@@ -75,13 +75,6 @@ struct non_max_suppression_params : public base_params {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// non_max_suppression_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct non_max_suppression_optional_params : optional_params {
-    non_max_suppression_optional_params() : optional_params(KernelType::NON_MAX_SUPPRESSION) {}
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NonMaxSuppressionKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class NonMaxSuppressionKernelRef : public KernelBaseOpenCL {
@@ -89,14 +82,14 @@ public:
     NonMaxSuppressionKernelRef() : KernelBaseOpenCL("non_max_suppression_gpu_ref") {}
 
     using DispatchData = CommonDispatchData;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     Datatype GetAccumulatorType(const non_max_suppression_params& params) const;
     virtual JitConstants GetJitConstants(const non_max_suppression_params& params) const;
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     void SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) const;
 };
 

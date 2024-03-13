@@ -23,11 +23,11 @@
 using namespace testing;
 using namespace ov::pass;
 using namespace ov;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class interpAttributes {
 public:
-    ngraph::AxisSet axes;
+    ov::AxisSet axes;
     std::string mode;
     bool align_corners;
     bool antialias;
@@ -36,7 +36,7 @@ public:
 
     interpAttributes() = default;
 
-    interpAttributes(const ngraph::AxisSet& axes,
+    interpAttributes(const ov::AxisSet& axes,
         const std::string& mode,
         const bool& align_corners,
         const bool& antialias,
@@ -68,15 +68,15 @@ public:
     class Actual {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type precisionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
     ov::PartialShape inputShape;
@@ -104,7 +104,7 @@ public:
             interpAttrs.pads_begin = testValues.interpAttrs.pads_begin;
             interpAttrs.pads_end = testValues.interpAttrs.pads_end;
 
-            actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
+            actualFunction = ov::builder::subgraph::InterpolateFunction::getOriginal(
                 testValues.inputShape,
                 testValues.outputShape,
                 interpAttrs,
@@ -115,7 +115,7 @@ public:
             transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::op::v0::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
-            referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
+            referenceFunction = ov::builder::subgraph::InterpolateFunction::getReference(
                 testValues.inputShape,
                 testValues.outputShape,
                 interpAttrs,
@@ -130,7 +130,7 @@ public:
             interp4Attrs.pads_begin = testValues.interp4Attrs.pads_begin;
             interp4Attrs.pads_end = testValues.interp4Attrs.pads_end;
 
-            actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
+            actualFunction = ov::builder::subgraph::InterpolateFunction::getOriginal(
                 testValues.inputShape,
                 testValues.outputShape,
                 testValues.scalesShape,
@@ -142,7 +142,7 @@ public:
             transformer.add<ov::pass::low_precision::InterpolateTransformation, ov::opset4::Interpolate>(testValues.params);
             transformer.transform(actualFunction);
 
-            referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
+            referenceFunction = ov::builder::subgraph::InterpolateFunction::getReference(
                 testValues.inputShape,
                 testValues.outputShape,
                 testValues.scalesShape,
@@ -206,7 +206,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -233,7 +233,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -260,7 +260,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -287,7 +287,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,
@@ -314,7 +314,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "linear",
             false,
             false,
@@ -341,7 +341,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{1, 2, 3},
+            ov::AxisSet{1, 2, 3},
             "nearest",
             false,
             false,
@@ -368,7 +368,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             true,
             false,
@@ -395,7 +395,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ov::Shape{},
         LayerTransformation::createParamsU8I8(),
         interpAttributes(
-            ngraph::AxisSet{2, 3},
+            ov::AxisSet{2, 3},
             "nearest",
             false,
             false,

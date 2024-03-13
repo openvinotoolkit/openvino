@@ -13,20 +13,15 @@ This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch YOLOv8 with OpenVINO. We consider the steps required
 for instance segmentation scenario.
 
-The tutorial consists of the following steps:
+The tutorial consists of the following steps: - Prepare the PyTorch
+model. - Download and prepare a dataset. - Validate the original model.
+- Convert the PyTorch model to OpenVINO IR. - Validate the converted
+model. - Prepare and run optimization pipeline. - Compare performance of
+the FP32 and quantized models. - Compare accuracy of the FP32 and
+quantized models. - Live demo
 
-- Prepare the PyTorch model.
-- Download and prepare a dataset.
-- Validate the original model.
-- Convert the PyTorch model to OpenVINO IR.
-- Validate the converted model.
-- Prepare and run optimization pipeline.
-- Compare performance of the FP32 and quantized models.
-- Compare accuracy of the FP32 and quantized models.
-- Live demo
-
-**Table of contents:**
-
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get PyTorch model <#get-pytorch-model>`__
 
@@ -34,8 +29,7 @@ The tutorial consists of the following steps:
 
 -  `Instantiate model <#instantiate-model>`__
 
-   -  `Convert model to OpenVINO
-      IR <#convert-model-to-openvino-ir>`__
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
    -  `Verify model inference <#verify-model-inference>`__
    -  `Preprocessing <#preprocessing>`__
    -  `Postprocessing <#postprocessing>`__
@@ -47,8 +41,7 @@ The tutorial consists of the following steps:
 
    -  `Download the validation
       dataset <#download-the-validation-dataset>`__
-   -  `Define validation
-      function <#define-validation-function>`__
+   -  `Define validation function <#define-validation-function>`__
    -  `Configure Validator helper and create
       DataLoader <#configure-validator-helper-and-create-dataloader>`__
 
@@ -66,15 +59,16 @@ The tutorial consists of the following steps:
    -  `Validate quantized model
       accuracy <#validate-quantized-model-accuracy>`__
 
--  `Other ways to optimize
-   model <#other-ways-to-optimize-model>`__
+-  `Other ways to optimize model <#other-ways-to-optimize-model>`__
 -  `Live demo <#live-demo>`__
 
    -  `Run Live Object Detection and
       Segmentation <#run-live-object-detection-and-segmentation>`__
 
-Get PyTorch model 
------------------------------------------------------------
+Get PyTorch model
+-----------------
+
+
 
 Generally, PyTorch models represent an instance of the
 `torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
@@ -92,15 +86,17 @@ In this case, the creators of the model provide an API that enables
 converting the YOLOv8 model to ONNX and then to OpenVINO IR. Therefore,
 we do not need to do these steps manually.
 
-Prerequisites 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prerequisites
+^^^^^^^^^^^^^
+
+
 
 Install necessary packages.
 
 .. code:: ipython3
 
     %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0"
-    %pip install "ultralytics==8.0.43" onnx
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.0.43" onnx --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -108,14 +104,14 @@ Import required utility functions. The lower cell will download the
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Fetch the notebook utils script from the openvino_notebooks repo
     import urllib.request
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
-    
+
     from notebook_utils import download_file, VideoPlayer
 
 Define utility functions for drawing results
@@ -127,8 +123,8 @@ Define utility functions for drawing results
     import numpy as np
     from PIL import Image
     from ultralytics.yolo.utils.plotting import colors
-    
-    
+
+
     def plot_one_box(box:np.ndarray, img:np.ndarray, color:Tuple[int, int, int] = None, mask:np.ndarray = None, label:str = None, line_thickness:int = 5):
         """
         Helper function for drawing single bounding box on image
@@ -157,8 +153,8 @@ Define utility functions for drawing results
             cv2.fillPoly(image_with_mask, pts=[mask.astype(int)], color=color)
             img = cv2.addWeighted(img, 0.5, image_with_mask, 0.5, 1)
         return img
-    
-    
+
+
     def draw_results(results:Dict, source_image:np.ndarray, label_map:Dict):
         """
         Helper function for drawing bounding boxes on image
@@ -167,7 +163,7 @@ Define utility functions for drawing results
             source_image (np.ndarray): input image for drawing
             label_map; (Dict[int, str]): label_id to class name mapping
         Returns:
-            
+
         """
         boxes = results["det"]
         masks = results.get("segment")
@@ -185,7 +181,7 @@ Define utility functions for drawing results
         url='https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg',
         filename=IMAGE_PATH.name,
         directory=IMAGE_PATH.parent
-    ) 
+    )
 
 
 .. parsed-literal::
@@ -201,8 +197,10 @@ Define utility functions for drawing results
 
 
 
-Instantiate model 
------------------------------------------------------------
+Instantiate model
+-----------------
+
+
 
 For loading the model, required to specify a path to the model
 checkpoint. It can be some local path or name available on models hub
@@ -224,12 +222,12 @@ Let us consider the examples:
 .. code:: ipython3
 
     from ultralytics import YOLO
-    
+
     SEG_MODEL_NAME = "yolov8n-seg"
-    
+
     seg_model = YOLO(models_dir / f'{SEG_MODEL_NAME}.pt')
     label_map = seg_model.model.names
-    
+
     res = seg_model(IMAGE_PATH)
     Image.fromarray(res[0].plot()[:, :, ::-1])
 
@@ -242,7 +240,7 @@ Let us consider the examples:
     2023-10-05 19:10:03.377715: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Ultralytics YOLOv8.0.43 🚀 Python-3.8.10 torch-2.0.1+cpu CPU
     YOLOv8n-seg summary (fused): 195 layers, 3404320 parameters, 0 gradients, 12.6 GFLOPs
-    
+
     image 1/1 /home/ea/work/openvino_notebooks/notebooks/230-yolov8-optimization/data/coco_bike.jpg: 480x640 1 bicycle, 2 cars, 1 dog, 55.0ms
     Speed: 2.6ms preprocess, 55.0ms inference, 3.4ms postprocess per image at shape (1, 3, 640, 640)
     /home/ea/work/ov_venv/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
@@ -255,8 +253,10 @@ Let us consider the examples:
 
 
 
-Convert model to OpenVINO IR 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Convert model to OpenVINO IR
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -270,15 +270,19 @@ preserve dynamic shapes in the model.
     if not seg_model_path.exists():
         seg_model.export(format="openvino", dynamic=True, half=False)
 
-Verify model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Verify model inference
+~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 To test model work, we create inference pipeline similar to
 ``model.predict`` method. The pipeline consists of preprocessing step,
 inference of OpenVINO model and results post-processing to get results.
 
-Preprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Preprocessing
+~~~~~~~~~~~~~
+
+
 
 Model input is a tensor with the ``[-1, 3, -1, -1]`` shape in the
 ``N, C, H, W`` format, where \* ``N`` - number of images in batch (batch
@@ -300,13 +304,13 @@ To keep a specific shape, preprocessing automatically enables padding.
     from ultralytics.yolo.utils import ops
     import torch
     import numpy as np
-    
-    
+
+
     def letterbox(img: np.ndarray, new_shape:Tuple[int, int] = (640, 640), color:Tuple[int, int, int] = (114, 114, 114), auto:bool = False, scale_fill:bool = False, scaleup:bool = False, stride:int = 32):
         """
-        Resize image and padding for detection. Takes image as input, 
+        Resize image and padding for detection. Takes image as input,
         resizes image to fit into new shape with saving original aspect ratio and pads it to meet stride-multiple constraints
-        
+
         Parameters:
           img (np.ndarray): image for preprocessing
           new_shape (Tuple(int, int)): image size after preprocessing in format [height, width]
@@ -319,19 +323,19 @@ To keep a specific shape, preprocessing automatically enables padding.
           img (np.ndarray): image after preprocessing
           ratio (Tuple(float, float)): hight and width scaling ratio
           padding_size (Tuple(int, int)): height and width padding size
-        
-        
+
+
         """
         # Resize and pad image while meeting stride-multiple constraints
         shape = img.shape[:2]  # current shape [height, width]
         if isinstance(new_shape, int):
             new_shape = (new_shape, new_shape)
-    
+
         # Scale ratio (new / old)
         r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
         if not scaleup:  # only scale down, do not scale up (for better test mAP)
             r = min(r, 1.0)
-    
+
         # Compute padding
         ratio = r, r  # width, height ratios
         new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
@@ -342,23 +346,23 @@ To keep a specific shape, preprocessing automatically enables padding.
             dw, dh = 0.0, 0.0
             new_unpad = (new_shape[1], new_shape[0])
             ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
-    
+
         dw /= 2  # divide padding into 2 sides
         dh /= 2
-    
+
         if shape[::-1] != new_unpad:  # resize
             img = cv2.resize(img, new_unpad, interpolation=cv2.INTER_LINEAR)
         top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
         left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
         img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
         return img, ratio, (dw, dh)
-    
-    
+
+
     def preprocess_image(img0: np.ndarray):
         """
-        Preprocess image according to YOLOv8 input requirements. 
+        Preprocess image according to YOLOv8 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize and changes data layout from HWC to CHW.
-        
+
         Parameters:
           img0 (np.ndarray): image for preprocessing
         Returns:
@@ -366,33 +370,35 @@ To keep a specific shape, preprocessing automatically enables padding.
         """
         # resize
         img = letterbox(img0)[0]
-        
+
         # Convert HWC to CHW
         img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         return img
-    
-    
+
+
     def image_to_tensor(image:np.ndarray):
         """
-        Preprocess image according to YOLOv8 input requirements. 
+        Preprocess image according to YOLOv8 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize and changes data layout from HWC to CHW.
-        
+
         Parameters:
           img (np.ndarray): image for preprocessing
         Returns:
-          input_tensor (np.ndarray): input tensor in NCHW format with float32 values in [0, 1] range 
+          input_tensor (np.ndarray): input tensor in NCHW format with float32 values in [0, 1] range
         """
         input_tensor = image.astype(np.float32)  # uint8 to fp32
         input_tensor /= 255.0  # 0 - 255 to 0.0 - 1.0
-        
+
         # add batch dimension
         if input_tensor.ndim == 3:
             input_tensor = np.expand_dims(input_tensor, 0)
         return input_tensor
 
-Postprocessing 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Postprocessing
+~~~~~~~~~~~~~~
+
+
 
 The model output contains: - detection boxes candidates - proto mask
 candidates
@@ -427,14 +433,14 @@ batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
         scale_segments = ops.scale_segments
     except AttributeError:
         scale_segments = ops.scale_coords
-    
+
     def postprocess(
-        pred_boxes:np.ndarray, 
-        input_hw:Tuple[int, int], 
-        orig_img:np.ndarray, 
-        min_conf_threshold:float = 0.25, 
-        nms_iou_threshold:float = 0.7, 
-        agnosting_nms:bool = False, 
+        pred_boxes:np.ndarray,
+        input_hw:Tuple[int, int],
+        orig_img:np.ndarray,
+        min_conf_threshold:float = 0.25,
+        nms_iou_threshold:float = 0.7,
+        agnosting_nms:bool = False,
         max_detections:int = 300,
         pred_masks:np.ndarray = None,
         retina_mask:bool = False
@@ -467,7 +473,7 @@ batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
         )
         results = []
         proto = torch.from_numpy(pred_masks) if pred_masks is not None else None
-    
+
         for i, pred in enumerate(preds):
             shape = orig_img[i].shape if isinstance(orig_img, list) else orig_img.shape
             if not len(pred):
@@ -488,25 +494,27 @@ batch size - ``C`` - number of candidates - ``H`` - mask height - ``W``
             results.append({"det": pred[:, :6].numpy(), "segment": segments})
         return results
 
-Select inference device 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Select inference device
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    import openvino as ov 
-    
+    import openvino as ov
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-    
+
     device
 
 
@@ -518,8 +526,10 @@ Select device from dropdown list for running inference using OpenVINO
 
 
 
-Test on single image 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Test on single image
+~~~~~~~~~~~~~~~~~~~~
+
+
 
 Now, once we have defined preprocessing and postprocessing steps, we are
 ready to check model prediction.
@@ -531,8 +541,8 @@ ready to check model prediction.
     if device.value != "CPU":
         seg_ov_model.reshape({0: [1, 3, 640, 640]})
     seg_compiled_model = core.compile_model(seg_ov_model, device.value)
-    
-    
+
+
     def detect(image:np.ndarray, model:ov.Model):
         """
         OpenVINO YOLOv8 model inference function. Preprocess image, runs model inference and postprocess results using NMS.
@@ -553,11 +563,11 @@ ready to check model prediction.
         input_hw = input_tensor.shape[2:]
         detections = postprocess(pred_boxes=boxes, input_hw=input_hw, orig_img=image, pred_masks=masks)
         return detections
-    
+
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect(input_image, seg_compiled_model)[0]
     image_with_masks = draw_results(detections, input_image, label_map)
-    
+
     Image.fromarray(image_with_masks)
 
 
@@ -569,15 +579,19 @@ ready to check model prediction.
 
 Great! The result is the same, as produced by original models.
 
-Check model accuracy on the dataset 
------------------------------------------------------------------------------
+Check model accuracy on the dataset
+-----------------------------------
+
+
 
 For comparing the optimized model result with the original, it is good
 to know some measurable results in terms of model accuracy on the
 validation dataset.
 
-Download the validation dataset 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Download the validation dataset
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 YOLOv8 is pre-trained on the COCO dataset, so to evaluate the model
 accuracy we need to download it. According to the instructions provided
@@ -585,30 +599,30 @@ in the YOLOv8 repo, we also need to download annotations in the format
 used by the author of the model, for use with the original model
 evaluation function.
 
-   **Note**: The initial dataset download may take a few minutes to
+   **NOTE**: The initial dataset download may take a few minutes to
    complete. The download speed will vary depending on the quality of
    your internet connection.
 
 .. code:: ipython3
 
     from zipfile import ZipFile
-    
+
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/8ebe94d1e928687feaa1fee6d5668987df5e43be/ultralytics/datasets/coco.yaml"  # last compatible format with ultralytics 8.0.43
-    
+
     from ultralytics.yolo.utils import DATASETS_DIR
-    
+
     OUT_DIR = DATASETS_DIR
-    
+
     DATA_PATH = OUT_DIR / "val2017.zip"
     LABELS_PATH = OUT_DIR / "coco2017labels-segments.zip"
     CFG_PATH = OUT_DIR / "coco.yaml"
-    
+
     download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
     download_file(LABELS_URL, LABELS_PATH.name, LABELS_PATH.parent)
     download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
     if not (OUT_DIR / "coco/labels").exists():
         with ZipFile(LABELS_PATH , "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -628,15 +642,17 @@ evaluation function.
     /home/ea/work/openvino_notebooks/notebooks/230-yolov8-optimization/datasets/coco.yaml:   0%|          | 0.00/1…
 
 
-Define validation function 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Define validation function
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 .. code:: ipython3
 
     from tqdm.notebook import tqdm
     from ultralytics.yolo.utils.metrics import ConfusionMatrix
-    
-    
+
+
     def test(model:ov.Model, core:ov.Core, data_loader:torch.utils.data.DataLoader, validator, num_samples:int = None):
         """
         OpenVINO YOLOv8 model accuracy validation function. Runs model validation on dataset and returns metrics
@@ -669,8 +685,8 @@ Define validation function
             validator.update_metrics(preds, batch)
         stats = validator.get_stats()
         return stats
-    
-    
+
+
     def print_stats(stats:np.ndarray, total_images:int, total_objects:int):
         """
         Helper function for printing accuracy statistic
@@ -696,8 +712,10 @@ Define validation function
             pf = '%20s' + '%12i' * 2 + '%12.3g' * 4  # print format
             print(pf % ('all', total_images, total_objects, s_mp, s_mr, s_map50, s_mean_ap))
 
-Configure Validator helper and create DataLoader 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Configure Validator helper and create DataLoader
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -714,7 +732,7 @@ validator class instance.
     from ultralytics.yolo.utils import DEFAULT_CFG
     from ultralytics.yolo.cfg import get_cfg
     from ultralytics.yolo.data.utils import check_det_dataset
-    
+
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = str(CFG_PATH)
 
@@ -723,7 +741,7 @@ validator class instance.
     seg_validator = seg_model.ValidatorClass(args=args)
     seg_validator.data = check_det_dataset(args.data)
     seg_data_loader = seg_validator.get_dataloader("datasets/coco/", 1)
-    
+
     seg_validator.is_coco = True
     seg_validator.class_map = ops.coco80_to_coco91_class()
     seg_validator.names = seg_model.model.names
@@ -740,13 +758,15 @@ validator class instance.
 
 
 After definition test function and validator creation, we are ready for
-getting accuracy metrics >\ **Note**: Model evaluation is time consuming
-process and can take several minutes, depending on the hardware. For
-reducing calculation time, we define ``num_samples`` parameter with
-evaluation subset size, but in this case, accuracy can be noncomparable
-with originally reported by the authors of the model, due to validation
-subset difference. *To validate the models on the full dataset set
-``NUM_TEST_SAMPLES = None``.*
+getting accuracy metrics.
+
+   **NOTE**: Model evaluation is time consuming
+   process and can take several minutes, depending on the hardware. For
+   reducing calculation time, we define ``num_samples`` parameter with
+   evaluation subset size, but in this case, accuracy can be noncomparable
+   with originally reported by the authors of the model, due to validation
+   subset difference. *To validate the models on the full dataset set
+   ``NUM_TEST_SAMPLES = None``.*
 
 .. code:: ipython3
 
@@ -791,8 +811,10 @@ subset difference. *To validate the models on the full dataset set
    IOU threshold, ``mAP@.5:.95`` - is calculated on range IOU thresholds
    from 0.5 to 0.95 with step 0.05.
 
-Optimize model using NNCF Post-training Quantization API 
---------------------------------------------------------------------------------------------------
+Optimize model using NNCF Post-training Quantization API
+--------------------------------------------------------
+
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -815,8 +837,8 @@ transformation function for getting only input tensors.
 
     import nncf  # noqa: F811
     from typing import Dict
-    
-    
+
+
     def transform_fn(data_item:Dict):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -827,8 +849,8 @@ transformation function for getting only input tensors.
         """
         input_tensor = seg_validator.preprocess(data_item)['img'].numpy()
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(seg_data_loader, transform_fn)
 
 
@@ -849,7 +871,7 @@ asymmetric quantization of activations. For more accurate results, we
 should keep the operation in the postprocessing subgraph in floating
 point precision, using the ``ignored_scope`` parameter.
 
-   **Note**: Model post-training quantization is time-consuming process.
+   **NOTE**: Model post-training quantization is time-consuming process.
    Be patient, it can take several minutes depending on your hardware.
 
 .. code:: ipython3
@@ -862,7 +884,7 @@ point precision, using the ``ignored_scope`` parameter.
             "/model.22/Add_1",
             "/model.22/Add_2",
             "/model.22/Add_3",
-            "/model.22/Add_4",   
+            "/model.22/Add_4",
             "/model.22/Add_5",
             "/model.22/Add_6",
             "/model.22/Add_7",
@@ -871,8 +893,8 @@ point precision, using the ``ignored_scope`` parameter.
             "/model.22/Add_10"
         ]
     )
-    
-    
+
+
     # Detection model
     quantized_seg_model = nncf.quantize(
         seg_ov_model,
@@ -903,7 +925,7 @@ point precision, using the ``ignored_scope`` parameter.
 .. code:: ipython3
 
     from openvino.runtime import serialize
-    
+
     int8_model_seg_path = models_dir / f'{SEG_MODEL_NAME}_openvino_int8_model/{SEG_MODEL_NAME}.xml'
     print(f"Quantized segmentation model will be saved to {int8_model_seg_path}")
     serialize(quantized_seg_model, str(int8_model_seg_path))
@@ -914,8 +936,10 @@ point precision, using the ``ignored_scope`` parameter.
     Quantized segmentation model will be saved to models/yolov8n-seg_openvino_int8_model/yolov8n-seg.xml
 
 
-Validate Quantized model inference 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Validate Quantized model inference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 ``nncf.quantize`` returns the OpenVINO Model class instance, which is
 suitable for loading on a device for making predictions. ``INT8`` model
@@ -945,7 +969,7 @@ on the image.
     input_image = np.array(Image.open(IMAGE_PATH))
     detections = detect(input_image, quantized_seg_compiled_model)[0]
     image_with_masks = draw_results(detections, input_image, label_map)
-    
+
     Image.fromarray(image_with_masks)
 
 
@@ -955,18 +979,21 @@ on the image.
 
 
 
-Compare the Original and Quantized Models 
------------------------------------------------------------------------------------
+Compare the Original and Quantized Models
+-----------------------------------------
 
-Compare performance of the Original and Quantized Models 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Finally, use the OpenVINO `Benchmark
-Tool <https://docs.openvino.ai/2023.0/openvino_inference_engine_tools_benchmark_tool_README.html>`__
+
+Compare performance of the Original and Quantized Models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Finally, use the OpenVINO
+`Benchmark
+Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``
 models.
 
-   **Note**: For more accurate performance, it is recommended to run
+   **NOTE**: For more accurate performance, it is recommended to run
    ``benchmark_app`` in a terminal/command prompt after closing other
    applications. Run
    ``benchmark_app -m <model_path> -d CPU -shape "<input_shape>"`` to
@@ -1000,12 +1027,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1057,7 +1084,7 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 42.16 ms
@@ -1085,12 +1112,12 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2023.2.0-12690-0ee0b4d9561
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1142,7 +1169,7 @@ models.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 24.87 ms
@@ -1158,8 +1185,10 @@ models.
     [ INFO ] Throughput:   293.15 FPS
 
 
-Validate quantized model accuracy 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Validate quantized model accuracy
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 As we can see, there is no significant difference between ``INT8`` and
 float model result in a single image test. To understand how
@@ -1181,7 +1210,7 @@ accuracy on a dataset.
 
     print("FP32 model accuracy")
     print_stats(fp_seg_stats, seg_validator.seen, seg_validator.nt_per_class.sum())
-    
+
     print("INT8 model accuracy")
     print_stats(int8_seg_stats, seg_validator.seen, seg_validator.nt_per_class.sum())
 
@@ -1205,8 +1234,10 @@ accuracy on a dataset.
 Great! Looks like accuracy was changed, but not significantly and it
 meets passing criteria.
 
-Other ways to optimize model 
-----------------------------------------------------------------------
+Other ways to optimize model
+----------------------------
+
+
 
 The performance could be also improved by another OpenVINO method such
 as async inference pipeline or preprocessing API.
@@ -1232,8 +1263,10 @@ To see, how it could be used with YOLOV8 object detection model ,
 please, see `Convert and Optimize YOLOv8 real-time object detection with
 OpenVINO tutorial <230-yolov8-object-detection-with-output.html>`__
 
-Live demo 
----------------------------------------------------
+Live demo
+---------
+
+
 
 The following code runs model inference on a video:
 
@@ -1242,8 +1275,8 @@ The following code runs model inference on a video:
     import collections
     import time
     from IPython import display
-    
-    
+
+
     def run_instance_segmentation(source=0, flip=False, use_popup=False, skip_first_frames=0, model=seg_model, device=device.value):
         player = None
         if device != "CPU":
@@ -1261,7 +1294,7 @@ The following code runs model inference on a video:
                 cv2.namedWindow(
                     winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE
                 )
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -1281,20 +1314,20 @@ The following code runs model inference on a video:
                     )
                 # Get the results.
                 input_image = np.array(frame)
-               
+
                 start_time = time.time()
                 # model expects RGB image, while video capturing in BGR
                 detections = detect(input_image[:, :, ::-1], compiled_model)[0]
                 stop_time = time.time()
-                
+
                 image_with_boxes = draw_results(detections, input_image, label_map)
                 frame = image_with_boxes
-               
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -1339,8 +1372,10 @@ The following code runs model inference on a video:
             if use_popup:
                 cv2.destroyAllWindows()
 
-Run Live Object Detection and Segmentation 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Run Live Object Detection and Segmentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be
@@ -1359,7 +1394,7 @@ set \ ``use_popup=True``.
 .. code:: ipython3
 
     WEBCAM_INFERENCE = False
-    
+
     if WEBCAM_INFERENCE:
         VIDEO_SOURCE = 0  # Webcam
     else:

@@ -28,7 +28,7 @@ std::vector<std::vector<ov::test::InputShape>> input_shapes_static = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic = {
-        {{{ngraph::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}}
+        {{{ov::Dimension(1, 10), 200}, {{2, 200}, {1, 200}}}}
 };
 
 std::vector<ov::element::Type> model_types = {
@@ -43,7 +43,7 @@ std::vector<bool> detect_positive = {
     true, false
 };
 
-std::map<std::string, std::string> additional_config = {};
+ov::AnyMap additional_config = {};
 
 const auto is_inf_params = ::testing::Combine(
         ::testing::ValuesIn(input_shapes_static),

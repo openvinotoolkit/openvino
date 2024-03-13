@@ -17,17 +17,11 @@ struct shape_of_params: public base_params {
     std::vector<int32_t> input_dims = {};
 };
 
-struct shape_of_optional_params: optional_params {
-    shape_of_optional_params() :
-        optional_params { KernelType::SHAPE_OF } {
-    }
-};
-
 class ShapeOfKernelRef: public KernelBaseOpenCL {
-    KernelsData GetKernelsData(const Params &params, const optional_params &options) const override;
-    KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
+    KernelsPriority GetKernelsPriority(const Params &params) const override;
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params &p, const optional_params &o) const override;
+    bool Validate(const Params &p) const override;
     virtual JitConstants GetJitConstants(const shape_of_params& params) const;
     bool SkipKernelExecution(const shape_of_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

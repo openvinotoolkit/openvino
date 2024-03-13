@@ -14,17 +14,17 @@
 namespace LayerTestsDefinitions {
 class BatchToSpaceTransformationParam {
 public:
-    ngraph::PartialShape input_shape;
+    ov::PartialShape input_shape;
     std::vector<size_t> block_shape;
     std::vector<size_t> crops_begin;
     std::vector<size_t> crops_end;
-    ngraph::builder::subgraph::FakeQuantizeOnData fake_quantize;
+    ov::builder::subgraph::FakeQuantizeOnData fake_quantize;
     std::string layer_type;
     std::string expected_kernel_type;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     BatchToSpaceTransformationParam
 > BatchToSpaceTransformationParams;
@@ -37,7 +37,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

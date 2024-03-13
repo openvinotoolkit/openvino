@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dnnl_extension_utils.h>
 #include "convert.h"
+
 #include "common/blocked_desc_creator.h"
-#include <openvino/opsets/opset1.hpp>
-#include <ie_ngraph_utils.hpp>
-#include <utils/ngraph_utils.hpp>
-#include <shape_inference/shape_inference_pass_through.hpp>
+#include "dnnl_extension_utils.h"
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -45,12 +43,8 @@ Convert::Convert(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
 
 Convert::Convert(const Shape &shape, const ov::element::Type &inPrc, const ov::element::Type &outPrc,
                  const std::string &nodeName, const GraphContext::CPtr context)
-        : Node("Convert", nodeName, context) {
+    : Node("Convert", {shape}, {shape}, {inPrc}, {outPrc}, nodeName, context) {
     convertParams.origPrc = outPrc;
-    inputShapes.push_back(shape);
-    addOriginalInputPrecision(inPrc);
-    outputShapes.push_back(shape);
-    addOriginalOutputPrecision(outPrc);
 
     isDynamic = shape.isDynamic();
     if (isDynamicNode()) {
@@ -156,13 +150,13 @@ void Convert::prepareParams() {
     convertParams.size = parentMem.getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
-    MemoryDescPtr srcDesc = getParentEdgeAt(0)->getMemoryPtr()->getDescPtr();
-    MemoryDescPtr dstDesc = getChildEdgeAt(0)->getMemoryPtr()->getDescPtr();
+    MemoryDescPtr srcDesc = getSrcMemoryAtPort(0)->getDescPtr();
+    MemoryDescPtr dstDesc = getDstMemoryAtPort(0)->getDescPtr();
     execPtr = selectedPD->getExecutorFactoryAs<ConvertExecutorFactory>()->makeExecutor(convertParams,
                                                                                        srcDesc,
                                                                                        dstDesc,
                                                                                        {});
-    selectedPD->setImplementationType(execPtr->getImplType());
+    selectedPD->setImplementationType(execPtr->implType());
 }
 
 void Convert::executeDynamicImpl(dnnl::stream strm) {
@@ -179,9 +173,9 @@ void Convert::execute(dnnl::stream strm) {
     if (parentPaddElemCount != childPaddElemCount)
         OPENVINO_THROW(errorPrefix, " has different elements number in input and output buffers");
 
-    MemoryCPtr srcMemory = getParentEdgeAt(0)->getMemoryPtr();
-    MemoryPtr dstMemory = getChildEdgeAt(0)->getMemoryPtr();
-    execPtr->exec(srcMemory, dstMemory);
+    MemoryCPtr srcMemory = getSrcMemoryAtPort(0);
+    MemoryPtr dstMemory = getDstMemoryAtPort(0);
+    execPtr->exec({srcMemory}, {dstMemory});
 }
 
 bool Convert::created() const {

@@ -141,9 +141,6 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
 }
 
 void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model>& model, const PassRate::Statuses& status, double k) {
-    if (model->get_parameters().empty()) {
-        return;
-    }
     bool isFunctionalGraph = false;
     for (const auto& op : model->get_ordered_ops()) {
         if (!std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) &&
@@ -239,8 +236,8 @@ void OpSummary::saveReport() {
     }
     filename += ov::test::utils::REPORT_EXTENSION;
 
-    if (!ov::test::utils::directoryExists(outputFolder)) {
-        ov::test::utils::createDirectoryRecursive(outputFolder);
+    if (!ov::util::directory_exists(outputFolder)) {
+        ov::util::create_directory_recursive(outputFolder);
     }
 
     std::string outputFilePath = outputFolder + std::string(ov::test::utils::FileSeparator) + filename;

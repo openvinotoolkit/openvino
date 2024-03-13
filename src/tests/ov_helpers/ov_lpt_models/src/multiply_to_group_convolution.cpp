@@ -4,18 +4,17 @@
 
 #include "ov_lpt_models/multiply_to_group_convolution.hpp"
 
-#include "ov_models/subgraph_builders.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getOriginal(
     const ov::PartialShape& inputShape,
     const ov::element::Type& precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const ov::builder::subgraph::DequantizationOperations& dequantization,
     const bool haveMultiplyWithNoConstBeforeDequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ov::op::Op> parent = input;
@@ -70,7 +69,7 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
     const ov::element::Type& inputPrecision,
     const std::shared_ptr<ov::opset1::Constant>& weights,
     const std::shared_ptr<ov::opset1::Constant>& biases,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantization) {
     const auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
 
     const size_t spatialDimsSize = inputShape.rank().get_length() - 2;
@@ -79,10 +78,10 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
     ov::Strides dilations(spatialDimsSize, 1ul);
 
     const auto gconv = std::make_shared<ov::op::TypeRelaxed<ov::opset1::GroupConvolution>>(
-        std::vector<element::Type>{ element::f32, element::f32 },
-        std::vector<element::Type>{ element::f32 },
-        ov::op::TemporaryReplaceOutputType(input, element::f32).get(),
-        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        std::vector<ov::element::Type>{ov::element::f32, ov::element::f32},
+        std::vector<ov::element::Type>{ov::element::f32},
+        ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, ov::element::f32).get(),
         strides,
         pads,
         pads,
@@ -100,4 +99,4 @@ std::shared_ptr<ov::Model> MultiplyToGroupConvolutionFunction::getReference(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

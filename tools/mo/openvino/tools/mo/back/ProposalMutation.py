@@ -38,7 +38,7 @@ class ProposalMutation(BackReplacementPattern):
         assert im_info_shape is not None
 
         if np.array_equal(im_info_shape, [1, 6]):
-            log.error('The model contains Proposal layer "{}" with input of shape [1, 6]. Inference Engine '
+            log.error('The model contains Proposal layer "{}" with input of shape [1, 6]. OpenVINO '
                       'implementation of the Proposal layer uses only 4 first values (indices 0, 1, 2 and 3). '
                       'Elements with indices 4 and 5 will be ignored.'.format(node.soft_get('name', node.id)),
                       extra={'is_warning': True})

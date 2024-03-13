@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 
@@ -426,9 +427,7 @@ float cast_eps_to_float(double eps_d) {
 }
 
 bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (const auto& constant = ov::get_constant_from_source(output)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (const auto& constant = ov::util::get_constant_from_source(output)) {
         const auto& values = constant->cast_vector<int64_t>();
         return std::all_of(values.begin(), values.end(), [&](const int64_t& i) {
             return i == v;
@@ -456,6 +455,20 @@ bool is_on_constant_path(const ov::Output<ov::Node>& output) {
         }
     }
     return status;
+}
+
+bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node) {
+    bool changed = false;
+
+    if (const auto& multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
+        for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+            if (sub_graph) {
+                changed = model_pass.run_on_model(sub_graph) || changed;
+            }
+        }
+    }
+
+    return changed;
 }
 
 }  // namespace util

@@ -24,7 +24,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
         if (desc->output_partial_shape.size() != 0) {
             return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
         } else {
-            OPENVINO_ASSERT("[GPU] Output shape is not provided");
+            OPENVINO_THROW("[GPU] Output shape is not provided");
         }
     }
 
@@ -53,7 +53,7 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
 }
 
 template<typename ShapeType>
-std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, const kernel_impl_params& impl_param) {
     assert(static_cast<bool>(impl_param.typed_desc<reshape>()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for reshape_node!");
     auto prim = impl_param.typed_desc<reshape>();
@@ -110,7 +110,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
                 break;
             }
             default:
-                OPENVINO_ASSERT("Unsupported reshape mode");
+                OPENVINO_THROW("Unsupported reshape mode");
         }
     };
 
@@ -132,7 +132,12 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& /*node
         run_shape_infer(prim->mode);
     }
 
-    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_format = input_layout.format;
+    if (node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
+
+    return { layout {output_shapes[0], input_layout.data_type, format::adjust_to_rank(output_format, output_shapes[0].size())} };
 }
 
 template std::vector<layout> reshape_inst::calc_output_layouts<ov::PartialShape>(reshape_node const& node, const kernel_impl_params& impl_param);
@@ -159,7 +164,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
 
 reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
         parent(network, node, (!node.can_be_optimized() && node.get_output_layout().is_static()) ? true : false) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
     CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
                                     "Input layout data typr",
@@ -202,6 +207,9 @@ void reshape_inst::update_output_memory() {
         return;
 
     build_deps();  // reshape need deps
+    if (node->get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        input_memory_ptr() == nullptr)
+        return;
     OPENVINO_ASSERT(input_memory_ptr() != nullptr, "[GPU] Failed to reuse input in ", id(), " primitive: input memory was not allocated");
     _outputs = {_network.get_engine().reinterpret_buffer(input_memory(), _impl_params->get_output_layout())};
 }

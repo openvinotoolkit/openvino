@@ -160,7 +160,7 @@ struct activation : public primitive_base<activation> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
+    std::vector<input_info> get_dependencies() const override {
         if (additional_params_input.empty())
             return {};
         return {additional_params_input};

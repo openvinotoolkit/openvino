@@ -31,9 +31,7 @@ static bool can_be_fused(const std::shared_ptr<op::util::PadBase>& pad,
     if (!node)
         return false;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto pad_value_const = ov::get_constant_from_source(pad_value_node);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto pad_value_const = ov::util::get_constant_from_source(pad_value_node);
     if (!pad_value_const)
         return false;
     auto pad_value = pad_value_const->cast_vector<float>()[0];

@@ -8,9 +8,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/shuffle_channels.hpp"
 #include "shuffle_channels_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -32,9 +32,7 @@ bool ShuffleChannels::visit_attributes(AttributeVisitor& visitor) {
 size_t ShuffleChannels::get_zero_based_axis() const {
     const auto input_rank = get_input_partial_shape(0).rank();
     if (input_rank.is_static()) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        return ov::normalize_axis(this, m_axis, input_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        return ov::util::normalize_axis(this, m_axis, input_rank);
     } else {
         OPENVINO_THROW("Cannot request zero-based axis with a input of unknown rank");
     }

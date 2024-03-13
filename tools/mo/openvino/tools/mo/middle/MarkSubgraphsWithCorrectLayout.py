@@ -25,7 +25,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
     3. Marks nodes along the weight path of convolutions as in correct layout to not permute them from NHWC to NCHW.
     The latest is needed for TF NCHW graphs as well. In Conv/Deconv infer functions "set_permutation()"
     ads "permutation" attr to weights data node even for NCHW, it is needed to permute Conv weights from the
-    original TF layout into IE even for NCHW graphs. Therefore for TF models
+    original TF layout into OV even for NCHW graphs. Therefore for TF models
     to prevent unwarranted permutations need to mark weights path as having correct layout even for NCHW graphs.
     """
     enabled = True

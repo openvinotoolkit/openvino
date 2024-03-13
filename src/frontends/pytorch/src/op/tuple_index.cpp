@@ -22,8 +22,8 @@ OutputVector translate_tuple_index(const NodeContext& context) {
     if (cast_fw_node(tuple, "prim::TupleConstruct")) {
         // this case require index to be constant
         auto index = context.const_input<int64_t>(1);
-        FRONT_END_OP_CONVERSION_CHECK(static_cast<size_t>(index) < tuple->get_input_size(),
-                                      "Index of TupleIndex operation is higher then number of tuple elements.");
+        PYTORCH_OP_CONVERSION_CHECK(static_cast<size_t>(index) < tuple->get_input_size(),
+                                    "Index of TupleIndex operation is higher then number of tuple elements.");
         return {tuple->get_input_source_output(index)};
     } else {
         // Assume this case is when tuple is represented as tensor

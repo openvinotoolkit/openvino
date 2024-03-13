@@ -14,12 +14,12 @@ namespace LayerTestsDefinitions {
 
 class MultiplyWithOneParentTransformationValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     MultiplyWithOneParentTransformationValues
 > MultiplyWithOneParentTransformationParams;

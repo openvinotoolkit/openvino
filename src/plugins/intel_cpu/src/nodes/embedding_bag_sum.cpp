@@ -5,13 +5,11 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <dnnl_types.h>
+#include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
 #include "embedding_bag_sum.h"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "common/cpu_memcpy.h"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -54,7 +52,7 @@ void EmbeddingBagSum::processData(const T* srcData, const T* weightsData,
     initFromInputs();
 
     const size_t outputBagsNum = outMemory->getShape().getStaticDims()[0];
-    auto *dstData = reinterpret_cast<T *>(outMemory->getData());
+    auto *dstData = outMemory->getDataAs<T>();
 
     auto threadBody = [&](const int ithr, const int nthr) {
         size_t start(0lu), end(0lu);

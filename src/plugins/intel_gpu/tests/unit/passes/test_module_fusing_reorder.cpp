@@ -77,7 +77,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(false, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(false, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -114,7 +114,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(true, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(true, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -187,7 +187,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -243,7 +243,7 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }
@@ -290,7 +290,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
         auto& node = node_ptr->as<reorder>();
         auto& input = node.input();
         for (auto usr : node_ptr->get_users()) {
-            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.input().get_output_layout().format, usr->get_output_layout().format));
+            ASSERT_EQ(p.expected_result, lo.can_fuse_reorder(input, *usr, node.get_input_layout().format, usr->get_output_layout().format));
         }
     }
 }

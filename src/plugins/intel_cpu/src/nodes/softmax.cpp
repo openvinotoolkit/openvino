@@ -5,16 +5,15 @@
 #include "softmax.h"
 
 #include <string>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
+#include "dnnl_types.h"
+#include "dnnl_extension_utils.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <common/primitive_hashing_utils.hpp>
+#include "common/primitive_hashing_utils.hpp"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -218,8 +217,8 @@ void SoftMax::prepareParams() {
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-    primArgs[DNNL_ARG_SRC] = getParentEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
-    primArgs[DNNL_ARG_DST] = getChildEdgesAtPort(0)[0]->getMemoryPtr()->getPrimitive();
+    primArgs[DNNL_ARG_SRC] = getSrcMemoryAtPort(0)->getPrimitive();
+    primArgs[DNNL_ARG_DST] = getDstMemoryAtPort(0)->getPrimitive();
 #ifdef CPU_DEBUG_CAPS
     if (result.second == CacheEntryBase::LookUpStatus::Miss) {
         auto pd = execPtr->getPrimitiveDesc();

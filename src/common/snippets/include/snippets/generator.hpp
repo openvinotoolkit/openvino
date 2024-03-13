@@ -98,20 +98,11 @@ public:
     std::shared_ptr<const TargetMachine> get_target_machine() const;
 
     /**
-    * @interface opRegType
-    * @brief Register type of operations
-    *        Note that currently there are 4 types of ops:
-    *        gpr->gpr: (Parameter, Result, LoopBegin, LoopEnd etc)
-    *        gpr->vec: or vec->gpr Load/LoadConvert, Store/StoreConvert, BroadcastLoad etc.
-    *        vec->vec: all other "normal" operations that perform calculations on vector registers: Add, BroadcastMove, Power, etc.
-    */
-    enum opRegType {gpr2gpr, gpr2vec, vec2gpr, vec2vec};
-    /**
      * @brief gets register type by op type
      *        TODO: Should be static attribute of emitters
      * @return register type
      */
-    opRegType get_op_reg_type(const std::shared_ptr<Node>& op) const;
+    virtual RegType get_op_out_reg_type(const ov::Output<ov::Node>& out) const;
 
     virtual std::shared_ptr<Generator> clone() const = 0;
 
@@ -120,7 +111,7 @@ protected:
     * @brief gets register type by specific plugin op type
     * @return register type
     */
-    virtual opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const;
+    virtual RegType get_specific_op_out_reg_type(const ov::Output<Node>& out) const;
     /**
     * @brief returns true if an emitter can use precompiled kernel.
     * @return bool

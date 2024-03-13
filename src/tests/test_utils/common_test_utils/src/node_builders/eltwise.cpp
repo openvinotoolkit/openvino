@@ -9,6 +9,7 @@
 #include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -21,9 +22,9 @@
 namespace ov {
 namespace test {
 namespace utils {
-std::shared_ptr<ov::Node> makeEltwise(const ov::Output<Node>& in0,
-                                      const ov::Output<Node>& in1,
-                                      ov::test::utils::EltwiseTypes eltwiseType) {
+std::shared_ptr<ov::Node> make_eltwise(const ov::Output<Node>& in0,
+                                       const ov::Output<Node>& in1,
+                                       ov::test::utils::EltwiseTypes eltwiseType) {
     switch (eltwiseType) {
     case ov::test::utils::EltwiseTypes::ADD:
         return std::make_shared<ov::op::v1::Add>(in0, in1);

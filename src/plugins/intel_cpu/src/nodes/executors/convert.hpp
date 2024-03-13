@@ -18,15 +18,13 @@ struct ConvertParams {
     size_t size;
 };
 
-class ConvertExecutor {
+class ConvertExecutor : public Executor {
 public:
     explicit ConvertExecutor(const ExecutorContext::CPtr context);
     virtual bool init(const ConvertParams& convertParams,
                       const MemoryDescPtr& srcDesc,
                       const MemoryDescPtr& dstDesc,
                       const dnnl::primitive_attr &attr) = 0;
-    virtual void exec(const MemoryCPtr& src, const MemoryPtr& dst) = 0;
-    virtual impl_desc_type getImplType() const = 0;
     virtual ~ConvertExecutor() = default;
 protected:
     ConvertParams convertParams;

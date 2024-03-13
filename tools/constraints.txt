@@ -4,7 +4,7 @@
 # tensorflow, numpy
 mxnet~=1.2.0; sys_platform == 'win32'
 mxnet>=1.7.0.post2,<=1.9.1; sys_platform != 'win32'
-onnx>=1.8.1,<=1.14.1
+onnx>=1.8.1,<=1.15.0
 networkx<=3.1.0
 pytest>=5.0,<7.3
 protobuf>=3.18.1,<4.0.0

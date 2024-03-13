@@ -4,34 +4,27 @@
 
 #pragma once
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/op/minimum.hpp"
 
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
-#include "onnx_import/core/node.hpp"
-#include "utils/variadic.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline OutputVector min(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Minimum>(node, ngraph::op::AutoBroadcastType::NONE);
+inline ov::OutputVector min(const ov::frontend::onnx::Node& node) {
+    return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node, ov::op::AutoBroadcastType::NONE);
 }
 
 }  // namespace set_1
 
 namespace set_8 {
-inline OutputVector min(const Node& node) {
-    return variadic::make_ng_variadic_op<default_opset::Minimum>(node);
+inline ov::OutputVector min(const ov::frontend::onnx::Node& node) {
+    return variadic::make_ng_variadic_op<ov::op::v1::Minimum>(node);
 }
 
 }  // namespace set_8
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

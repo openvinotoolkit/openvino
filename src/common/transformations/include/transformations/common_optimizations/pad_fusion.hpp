@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API PadFusionGroupConvolutionBackpropData;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> AvgPool to AvgPool, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -35,7 +35,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> Convolution to Convolution, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -48,7 +48,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> ConvolutionBackpropData to ConvolutionBackpropData, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -62,7 +62,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> GroupConvolution to GroupConvolution, under following conditions
  * - pad mode is op::PadMode::CONSTANT
@@ -75,7 +75,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PadFusion transformation replaces following graph:
  * Pad -> GroupConvolutionBackpropData to GroupConvolutionBackpropData, under following conditions
  * - pad mode is op::PadMode::CONSTANT

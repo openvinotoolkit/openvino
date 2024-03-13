@@ -10,34 +10,35 @@ add_library(cpuSpecificRtInfo STATIC
 target_link_libraries(cpuSpecificRtInfo PRIVATE openvino::runtime)
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
-set(DEPENDENCIES openvino_intel_cpu_plugin template_extension)
+set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuSpecificRtInfo openvino::snippets ov_snippets_models)
 
 if(ENABLE_OV_ONNX_FRONTEND)
     list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
 else()
-    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
+    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/custom/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
 endif()
 
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/arm
-         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/arm
-         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/arm)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
 else()
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/test_utils/x64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
     # temporary disable all custom tests for ARM
     list(APPEND EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests
-        ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests)
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests)
     # except ones which already enabled
-    file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/classes/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_COMMON_TEST_INSTANCES ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/common/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_TEST_INSTANCES    ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/arm/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_COMMON_TEST_INSTANCES ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/common/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_ARM_TEST_INSTANCES    ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/arm/*.cpp)
+    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common/*.cpp)
     list(APPEND TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS
         ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS})
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
@@ -45,8 +46,8 @@ endif()
 
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_tests/src/x64)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64)
 endif()
 
 ov_add_test_target(
@@ -64,8 +65,8 @@ ov_add_test_target(
 
 ov_set_threading_interface_for(${TARGET_NAME})
 
-include(specific_tests.cmake)
-include(target_per_test.cmake)
+include(cmake/specific_tests.cmake)
+include(cmake/target_per_test.cmake)
 
 # exclude 'ov_cpu_func_tests' from target 'all' if specific tests path was specified
 if(DEFINED ENABLE_CPU_SPECIFIC_TESTS_PATH)

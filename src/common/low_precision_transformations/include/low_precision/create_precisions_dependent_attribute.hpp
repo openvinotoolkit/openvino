@@ -29,13 +29,13 @@ class CreatePrecisionsDependentAttribute;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief CreatePrecisionsDependentAttribute transformation marks OperationType operations by
  * PrecisionPreservedAttribute and AttributeType attributes with the same shared part.
  *
  * For more details about the transformation, refer to
  * [CreatePrecisionsDependentAttribute](@ref openvino_docs_OV_UG_lpt_CreatePrecisionsDependentAttribute) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <typename AttributeType, typename OperationType>
 class ov::pass::low_precision::CreatePrecisionsDependentAttribute : public ov::pass::MatcherPass {

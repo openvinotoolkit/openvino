@@ -24,7 +24,8 @@ OutputVector translate_as_tensor(const NodeContext& context) {
     // Input with index 2 is device, we skip this input
     // Input with index 3 is flag requires_grad, we skip this input
     auto dtype = element::f32;
-    auto list_elems = get_list_as_outputs(context.get_input(0));
+    auto data = context.get_input(0);
+    auto list_elems = get_list_as_outputs(data);
     bool is_converted = false;
     if (!context.input_is_none(1)) {
         auto dtype_ext_node = context.get_input_from_visible_context(1).get_node_shared_ptr();
@@ -46,11 +47,17 @@ OutputVector translate_as_tensor(const NodeContext& context) {
             n = context.mark_node(std::make_shared<v0::Convert>(n, dtype));
         });
     }
-    auto zero = v0::Constant::create(element::i32, Shape{}, {0});
-    std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
-        n = context.mark_node(std::make_shared<v0::Unsqueeze>(n, zero));
-    });
-    return {context.mark_node(std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0))};
+    if (list_elems.size() > 1 || cast_fw_node(data.get_node_shared_ptr(), "prim::ListConstruct")) {
+        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+        std::for_each(list_elems.begin(), list_elems.end(), [&](Output<Node>& n) {
+            n = context.mark_node(std::make_shared<v0::Unsqueeze>(n, zero));
+        });
+        return {context.mark_node(std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0))};
+    } else {
+        // Input is already a tensor
+        PYTORCH_OP_CONVERSION_CHECK(list_elems.size() == 1, "Input must be single tensor.");
+        return {list_elems[0]};
+    }
 };
 
 }  // namespace op

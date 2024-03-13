@@ -14,7 +14,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, ctc_loss) {
-    NodeBuilder::get_ops().register_factory<ov::op::v4::CTCLoss>();
+    NodeBuilder::opset().insert<ov::op::v4::CTCLoss>();
 
     auto logits = make_shared<ov::op::v0::Parameter>(element::f32, Shape{10, 120, 28});
     auto logit_length = make_shared<ov::op::v0::Parameter>(element::i32, Shape{10});

@@ -3,9 +3,9 @@
 //
 
 #include "ov_lpt_models/common/dequantization_operations.hpp"
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -191,4 +191,4 @@ bool DequantizationOperations::empty() const noexcept {
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

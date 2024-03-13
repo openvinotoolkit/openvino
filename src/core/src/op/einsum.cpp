@@ -11,7 +11,6 @@
 
 #include "einsum_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 namespace {

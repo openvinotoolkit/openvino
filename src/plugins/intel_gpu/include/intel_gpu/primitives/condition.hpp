@@ -114,7 +114,7 @@ struct condition : public primitive_base<condition> {
     }
 
 protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {}; }
+    std::vector<input_info> get_dependencies() const override { return {}; }
 };
 
 static inline std::ostream& operator<< (std::ostream& os, condition::branch& info) {

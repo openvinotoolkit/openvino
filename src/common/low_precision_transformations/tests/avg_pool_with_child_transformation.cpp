@@ -25,16 +25,16 @@ public:
     class Actual {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ov::builder::subgraph::DequantizationOperations dequantization;
     };
 
     class Expected {
     public:
         ov::element::Type inputPrecision;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ov::builder::subgraph::DequantizationOperations dequantizationBefore;
         ov::element::Type preicsionAfterOperation;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
-        ngraph::builder::subgraph::DequantizationOperations dequantizationEnd;
+        ov::builder::subgraph::DequantizationOperations dequantizationAfter;
+        ov::builder::subgraph::DequantizationOperations dequantizationEnd;
     };
 
     TestTransformationParams params;
@@ -55,7 +55,7 @@ public:
         std::string additionalLayer;
         AvgPoolWithChildTransformationTestValues testValues;
         std::tie(precision, shape, testValues) = GetParam();
-        actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(precision,
+        actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
                                                                                  testValues.actual.inputPrecision,
                                                                                  shape,
                                                                                  false,
@@ -69,7 +69,7 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction =
-            ngraph::builder::subgraph::AvgPoolFunction::getReference(precision,
+            ov::builder::subgraph::AvgPoolFunction::getReference(precision,
                                                                      testValues.expected.inputPrecision,
                                                                      shape,
                                                                      false,

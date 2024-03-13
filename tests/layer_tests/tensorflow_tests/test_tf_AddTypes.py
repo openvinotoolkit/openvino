@@ -11,13 +11,15 @@ rng = np.random.default_rng()
 
 class TestAddTypes(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info, "Test error: inputs_info must contain `x`"
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        if np.issubdtype(self.input_type, np.signedinteger):
-            inputs_data['x'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
+        if np.issubdtype(self.input_type, np.floating):
+            inputs_data['x:0'] = rng.uniform(-5.0, 5.0, x_shape).astype(self.input_type)
+        elif np.issubdtype(self.input_type, np.signedinteger):
+            inputs_data['x:0'] = rng.integers(-8, 8, x_shape).astype(self.input_type)
         else:
-            inputs_data['x'] = rng.integers(0, 8, x_shape).astype(self.input_type)
+            inputs_data['x:0'] = rng.integers(0, 8, x_shape).astype(self.input_type)
         return inputs_data
 
     def create_add_types_net(self, const_shape, input_type):
@@ -26,10 +28,13 @@ class TestAddTypes(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.compat.v1.placeholder(input_type, [], 'x')
-            if np.issubdtype(self.input_type, np.signedinteger):
+            if np.issubdtype(self.input_type, np.floating):
+                const_value = rng.uniform(-5.0, 5.0, const_shape).astype(self.input_type)
+            elif np.issubdtype(self.input_type, np.signedinteger):
                 const_value = rng.integers(-8, 8, const_shape).astype(self.input_type)
             else:
-                const_value = rng.integers(0, 8, const_shape).astype(self.input_type)
+                # test bigger unsigned integer constants and avoid overflow by using smaller input values 0..8
+                const_value = rng.integers(128, 240, const_shape).astype(self.input_type)
             const_input = tf.constant(const_value, dtype=input_type)
             tf.raw_ops.Add(x=x, y=const_input)
             tf.compat.v1.global_variables_initializer()
@@ -45,7 +50,7 @@ class TestAddTypes(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_add_types(self, const_shape, input_type, ie_device, precision, ir_version, temp_dir,
-                       use_new_frontend, use_old_api):
+                       use_legacy_frontend):
         self._test(*self.create_add_types_net(const_shape, input_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

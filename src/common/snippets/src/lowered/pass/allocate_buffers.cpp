@@ -31,20 +31,18 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
     buffer->set_offset(static_cast<int64_t>(offset));
 
     // Propagate to up: in Store. Buffer can have only one Store
-    {
-        if (buffer->is_intermediate_memory()) {
-            OPENVINO_ASSERT(buffer_expr->get_input_port_connectors().size() == 1, "Buffer with intermediate memory must have one parent");
-            const auto& parent_output = buffer_expr->get_input_port_connector(0)->get_source();
-            const auto& parent_expr = parent_output.get_expr();
-            const auto port = parent_output.get_index();
-            const auto& parent_node = parent_expr->get_node();
-            auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(parent_node);
-            if (memory_access && memory_access->is_memory_access_output_port(port)) {
-                memory_access->set_output_offset(offset, port);
-            } else {
-                OPENVINO_THROW(
-                        "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
-            }
+    if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
+        OPENVINO_ASSERT(buffer_expr->get_input_port_connectors().size() == 1, "Buffer with intermediate memory must have one parent");
+        const auto& parent_output = buffer_expr->get_input_port_connector(0)->get_source();
+        const auto& parent_expr = parent_output.get_expr();
+        const auto port = parent_output.get_index();
+        const auto& parent_node = parent_expr->get_node();
+        auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(parent_node);
+        if (memory_access && memory_access->is_memory_access_output_port(port)) {
+            memory_access->set_output_offset(offset, port);
+        } else {
+            OPENVINO_THROW(
+                    "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
@@ -66,21 +64,22 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
     }
 }
 
-bool AllocateBuffers::run(lowered::LinearIR& linear_ir) {
+bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AllocateBuffers");
     m_buffer_scratchpad_size = 0;
-    PassPipeline pipeline;
+
     if (m_is_optimized_mode) {
         BufferClusters buffer_clusters;
+        PassPipeline pipeline;
         pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<IdentifyBuffers>();
         pipeline.register_pass<DefineBufferClusters>(buffer_clusters);
         pipeline.register_pass<SolveBufferMemory>(m_buffer_scratchpad_size, buffer_clusters);
         pipeline.register_pass<NormalizeBufferIDs>();
+        pipeline.run(linear_ir);
     } else {
-        pipeline.register_pass<InitBuffersDefault>(m_buffer_scratchpad_size);
+        InitBuffersDefault(m_buffer_scratchpad_size).run(linear_ir, linear_ir.cbegin(), linear_ir.cend());
     }
-    pipeline.run(linear_ir);
 
     return m_buffer_scratchpad_size > 0;
 }

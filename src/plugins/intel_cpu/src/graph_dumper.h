@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "cpp/ie_cnn_network.h"
 #include "graph.h"
-#include "utils/debug_capabilities.h"
 
 #include <memory>
 

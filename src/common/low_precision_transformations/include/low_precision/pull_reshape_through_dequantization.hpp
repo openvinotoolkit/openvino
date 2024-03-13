@@ -20,13 +20,13 @@ class LP_TRANSFORMATIONS_API PullReshapeThroughDequantization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PullReshapeThroughDequantization propagates dequantization operations through Reshape operations.
  * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  *
  * For more details about the transformation, refer to
  * [PullReshapeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullReshapeThroughDequantization) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::PullReshapeThroughDequantization : public ov::pass::MatcherPass {
 public:

@@ -13,7 +13,7 @@ using namespace ov;
 using ov::test::NodeBuilder;
 
 TEST(attributes, divide) {
-    NodeBuilder::get_ops().register_factory<ov::op::v1::Divide>();
+    NodeBuilder::opset().insert<ov::op::v1::Divide>();
 
     const auto in1 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     const auto in2 = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});

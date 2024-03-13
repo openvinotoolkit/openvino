@@ -5,6 +5,9 @@
 #include "input_model.hpp"
 
 #include <fstream>
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#    include <filesystem>
+#endif
 #include <queue>
 
 #include "decoder_proto.hpp"
@@ -45,8 +48,8 @@ public:
     void set_partial_shape(Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape get_partial_shape(Place::Ptr place) const;
     void set_element_type(Place::Ptr place, const ov::element::Type&);
+    ov::element::Type get_element_type(const Place::Ptr& place) const;
     void set_tensor_value(Place::Ptr place, const void* value);
-
     std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t blck_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const {
         return m_var_places;
@@ -291,7 +294,12 @@ void InputModel::InputModelImpl::load_consts(const std::basic_string<T>& folder_
 
         bool read_succeed = false;
         if (!folder_with_weights.empty()) {
+#if defined(__MINGW32__) || defined(__MINGW64__)
+            std::ifstream is(std::filesystem::path(get_const_path(folder_with_weights, name)),
+                             std::ios::in | std::ifstream::binary);
+#else
             std::ifstream is(get_const_path(folder_with_weights, name), std::ios::in | std::ifstream::binary);
+#endif
             FRONT_END_GENERAL_CHECK(is && is.is_open(), "Cannot open file for constant value.");
             const size_t header_size = 16;
             std::vector<char> header(header_size);
@@ -550,6 +558,10 @@ void InputModel::InputModelImpl::set_element_type(Place::Ptr place, const ov::el
     castToTensorPlace(place)->set_element_type(type);
 }
 
+ov::element::Type InputModel::InputModelImpl::get_element_type(const Place::Ptr& place) const {
+    return castToTensorPlace(place)->get_element_type();
+}
+
 void InputModel::InputModelImpl::set_tensor_value(Place::Ptr place, const void* value) {
     m_graph_changed = true;
     auto tensor_place = castToTensorPlace(place);
@@ -622,6 +634,10 @@ ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
 
 void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Type& type) {
     _impl->set_element_type(place, type);
+}
+
+ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
+    return castToTensorPlace(place)->get_element_type();
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {

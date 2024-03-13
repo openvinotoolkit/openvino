@@ -10,7 +10,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -19,7 +19,7 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type inputPrecision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const ov::builder::subgraph::DequantizationOperations& dequantization,
         const std::vector<int64_t>& begin,
         const std::vector<int64_t>& end,
         const std::vector<int64_t>& strides,
@@ -32,7 +32,7 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type inputPrecision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
+        const ov::builder::subgraph::FakeQuantizeOnData& fakeQuantize,
         const std::vector<int64_t>& begin,
         const std::vector<int64_t>& end,
         const std::vector<int64_t>& strides,
@@ -53,11 +53,11 @@ public:
         const std::vector<int64_t>& newAxisMask,
         const std::vector<int64_t>& shrinkAxisMask,
         const std::vector<int64_t>& elipsisMask,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

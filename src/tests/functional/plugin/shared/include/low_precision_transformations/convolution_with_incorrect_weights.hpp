@@ -15,14 +15,14 @@ namespace LayerTestsDefinitions {
 
 class ConvolutionWIthIncorrectWeightsParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool isCorrect;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionWIthIncorrectWeightsParam

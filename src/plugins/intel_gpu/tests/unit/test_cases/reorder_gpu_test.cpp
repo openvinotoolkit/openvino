@@ -583,6 +583,55 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     }
 }
 
+TEST(reorder_gpu_f32, fusing_double_activations) {
+    // reorder_data                      reorder_data
+    //      |                                 |
+    //     sqrt                               |
+    //       |               fuse             |
+    //     power data        ---->            | data
+    //       \   /                            |  /
+    //       divide                         divide
+    //         |                              |
+    //       result                         result
+    //
+    // This test case is limited to the case of reorder_data using ReorderKernelRef.
+    // Because other kernels for reorder_data don't support fusing double activations e.g. reorder_data_fast_b1
+    //
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({{1}, data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory({{1, 1, 1, 2, 2}, data_types::f32, format::bfzyx});
+
+    topology topology {
+        input_layout("input1", input1->get_layout()),
+        reorder("reorder", input_info("input1"), format::bfyx, data_types::f32),
+        activation("sqrt", input_info("reorder"), activation_func::sqrt),
+        activation("power", input_info("sqrt"), activation_func::pow),
+        input_layout("input2", input2->get_layout()),
+        eltwise("divide", {input_info("power"), input_info("input2")}, eltwise_mode::div),
+        reorder("result", input_info("divide"), format::bfyx, data_types::f32)
+    };
+
+    set_values(input1, {25000});
+    set_values(input2, {0.1f, 0.2f, 0.5f, 1.0f});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc reorder_impl = {format::bfyx, "reorder_data"};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reorder", reorder_impl}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto output = network.execute();
+
+    mem_lock<float> output_mem(output.at("result").get_memory(), network.get_stream());
+    std::vector<int32_t> output_ref = {10, 5, 2, 1};
+    for (size_t i = 0; i < output_mem.size(); ++i) {
+        ASSERT_EQ(output_mem[i], output_ref[i]);
+    }
+}
+
 TEST(reorder_gpu_f16, basic_subtract_f32_output_f32) {
     //  Input               : 2x2x2x2 (FP16)
     //  Output              : 2x2x2x2 (FP32)
@@ -1643,6 +1692,45 @@ TEST(reorder_gpu_opt, basic_remove_redundant)
     ASSERT_TRUE(outputs.at("r2").get_memory()->get_layout().format == format::yxfb);
 }
 
+TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
+{
+    auto& engine = get_test_engine();
+
+    memory::ptr in = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 1, 4, 4, 1 } });
+    layout r2_output(data_types::f32, format::b_fs_yx_fsv16, { 1, 4, 4, 1 });
+    memory::ptr scale_mem = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } });
+    set_values(scale_mem, { 2.0f });
+
+    topology tpl{
+        input_layout("in", in->get_layout()),
+        data("scale_data", scale_mem),
+        eltwise("eltwise", { input_info("in"), input_info("scale_data") }, eltwise_mode::prod),
+        reorder("r1", input_info("eltwise"), format::bfyx, data_types::f32, std::vector<float>{0, 0, 0, 1}),
+        reorder("r2", input_info("r1"), r2_output.with_padding(padding({ 0, 0, 1, 1 }, 0.f))),
+        eltwise("output", { input_info("r2"), input_info("scale_data") }, eltwise_mode::prod)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, tpl, config);
+    net.set_input_data("in", in);
+    auto outputs = net.execute();
+    auto executed_primitives = net.get_executed_primitives();
+
+    ASSERT_EQ(executed_primitives.count("r1"), 1);
+
+    // r2 would be removed, but the padding value should be remained at the input primitive of r2.
+    std::vector<int32_t> gt = {0, 0, 1, 1};
+    auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
+    auto upper_padding = r1_output_data_padding.upper_size().sizes();
+    auto lower_padding = r1_output_data_padding.lower_size().sizes();
+    for (int32_t i = 0 ; i < 4; i++) {
+        ASSERT_EQ(upper_padding[i], gt[i]);
+        ASSERT_EQ(lower_padding[i], gt[i]);
+    }
+}
+
 TEST(reorder_gpu_opt, remove_redundant_activation_fuse)
 {
     auto& engine = get_test_engine();
@@ -1680,7 +1768,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_output_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32) //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
     };
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -1708,7 +1796,7 @@ TEST(reorder_gpu_opt, basic_remove_redundant_due_to_implicit_reorders)
         input_layout("in", in->get_layout()),
         convolution("conv", input_info("in"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
         data("weights", weights),
-        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (IE case)
+        reorder("r1", input_info("conv"), format::bfyx, data_types::f32), //optimize data should add conversion from yxfb to bfyx and 'conv' should output data in bfyx as well (OV case)
         softmax("output", input_info("r1"))
     };
 

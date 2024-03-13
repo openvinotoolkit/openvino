@@ -33,13 +33,12 @@ ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel:
     return dispatchData;
 }
 
-KernelsData ReorderWeightsImage_fyx_b_Kernel::GetKernelsData(const Params& params,
-                                                             const optional_params& options) const {
+KernelsData ReorderWeightsImage_fyx_b_Kernel::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderWeightsImage_fyx_b_Kernel::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsImage_fyx_b_Kernel::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

@@ -22,7 +22,7 @@ from sphinx.ext.autodoc import ClassDocumenter
 # -- Project information -----------------------------------------------------
 
 project = 'OpenVINO™'
-copyright = '2023, Intel®'
+copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -56,7 +56,7 @@ source_suffix = {
     '.md': 'markdown',
 }
 
-html_baseurl = 'https://docs.openvino.ai/canonical/'
+html_baseurl = ''
 
 # -- Sitemap configuration ---------------------------
 

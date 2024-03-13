@@ -13,7 +13,7 @@ add_definitions(-DSERIALIZED_ZOO=\"${TEST_MODEL_ZOO}/core/models\")
 
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
-        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+        PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 if(SUGGEST_OVERRIDE_SUPPORTED)
     set_source_files_properties(ov_tensor_test.cpp
@@ -22,7 +22,6 @@ if(SUGGEST_OVERRIDE_SUPPORTED)
 endif()
 
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
-list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
 list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 
@@ -38,7 +37,6 @@ ov_add_test_target(
         LINK_LIBRARIES
             common_test_utils
             openvino::reference
-            openvino::builders
             openvino::util
             openvino::shape_inference
             ${CMAKE_DL_LIBS}
@@ -50,8 +48,7 @@ ov_add_test_target(
             OV UNIT CORE
 )
 
-get_target_property(OV_CORE_SRC_DIR ngraph_obj SOURCE_DIR)
-target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME}

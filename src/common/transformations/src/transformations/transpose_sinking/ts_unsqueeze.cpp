@@ -106,8 +106,8 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
 
     create_pattern<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>(true, {0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto unsqueeze_axes = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(1));
         if (!unsqueeze_axes) {
             return false;
@@ -121,10 +121,8 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
             }
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
-            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
         }
         auto ts_order_values = transpose_info.transpose_const->cast_vector<size_t>();
 
@@ -171,7 +169,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);
@@ -193,10 +191,8 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
             }
         } else {
             auto rank = main_node->get_output_partial_shape(0).rank();
-            OPENVINO_SUPPRESS_DEPRECATED_START
             non_negative_axes =
-                normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+                ov::util::normalize_axes(main_node->get_friendly_name(), unsqueeze_axes->cast_vector<int64_t>(), rank);
         }
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();

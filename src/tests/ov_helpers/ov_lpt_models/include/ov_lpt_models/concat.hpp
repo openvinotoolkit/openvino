@@ -10,7 +10,7 @@
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -292,9 +292,9 @@ public:
             const DequantizationOperations& dequantizationAfter);
 
 private:
-    static std::shared_ptr<Node> makeMaxPool(const Output<Node>& parent, const std::vector<size_t>& kernel);
+    static std::shared_ptr<Node> makeMaxPool(const ov::Output<Node>& parent, const std::vector<size_t>& kernel);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

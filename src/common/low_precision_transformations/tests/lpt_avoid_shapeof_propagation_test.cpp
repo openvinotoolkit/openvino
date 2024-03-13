@@ -20,6 +20,7 @@
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/interpolate.hpp"
+#include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_partial.hpp"
@@ -86,6 +87,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationAvgPoolTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::AvgPoolTransformation>();
     m.run_passes(f);
 
@@ -106,6 +108,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationClampTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ClampTransformation>();
     m.run_passes(f);
 
@@ -150,10 +153,10 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionTransformation) {
 
     auto convolution = std::make_shared<ov::op::v1::Convolution>(mul,
                                                                  mulOnWeights,
-                                                                 ngraph::Strides{1, 1},
-                                                                 ngraph::CoordinateDiff{0, 0},
-                                                                 ngraph::CoordinateDiff{0, 0},
-                                                                 ngraph::Strides{1, 1});
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
 
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convolution);
 
@@ -180,10 +183,10 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationConvolutionBackpropDataTransfor
 
     auto convolutionBackpropData = std::make_shared<ov::op::v1::ConvolutionBackpropData>(mul,
                                                                                          mulOnWeights,
-                                                                                         ngraph::Strides{1, 1},
-                                                                                         ngraph::CoordinateDiff{0, 0},
-                                                                                         ngraph::CoordinateDiff{0, 0},
-                                                                                         ngraph::Strides{1, 1});
+                                                                                         ov::Strides{1, 1},
+                                                                                         ov::CoordinateDiff{0, 0},
+                                                                                         ov::CoordinateDiff{0, 0},
+                                                                                         ov::Strides{1, 1});
 
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(convolutionBackpropData);
 
@@ -221,8 +224,8 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationDepthToSpaceTransformation) {
 TEST(LPT, AvoidDequantizationToShapeOfPropagationFakeQuantizeDecompositionTransformation) {
     auto input = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 3, 16, 16});
 
-    ngraph::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
-    auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
+    ov::builder::subgraph::FakeQuantizeOnData fqValues{256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}};
+    auto fakeQuantize = ov::builder::subgraph::makeFakeQuantize(input, element::f32, fqValues);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(fakeQuantize);
 
     auto& outInfo = fakeQuantize->output(0).get_rt_info();
@@ -255,10 +258,10 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationGroupConvolutionTransformation)
 
     auto groupConvolution = std::make_shared<ov::op::v1::GroupConvolution>(mul,
                                                                            reshapeOnWeights,
-                                                                           ngraph::Strides{1, 1},
-                                                                           ngraph::CoordinateDiff{0, 0},
-                                                                           ngraph::CoordinateDiff{0, 0},
-                                                                           ngraph::Strides{1, 1});
+                                                                           ov::Strides{1, 1},
+                                                                           ov::CoordinateDiff{0, 0},
+                                                                           ov::CoordinateDiff{0, 0},
+                                                                           ov::Strides{1, 1});
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(groupConvolution);
 
     auto result1 = std::make_shared<ov::op::v0::Result>(groupConvolution);
@@ -445,6 +448,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationPReluTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::PReluTransformation>();
     m.run_passes(f);
 
@@ -487,6 +491,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceMeanTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ReduceMeanTransformation>();
     m.run_passes(f);
 
@@ -529,6 +534,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationReduceSumTransformation) {
 
     auto f = std::make_shared<Model>(ResultVector{result1, result2}, ParameterVector{input});
     pass::Manager m;
+    m.register_pass<ov::pass::low_precision::TypeRelaxedReplacer>();
     m.register_pass<ov::pass::low_precision::ReduceSumTransformation>();
     m.run_passes(f);
 
@@ -646,9 +652,9 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationStridedSliceTransformation) {
     auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
-    auto beginParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
-    auto endParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 2, 1, 1});
-    auto stridesParam = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
+    auto beginParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 0, 0, 0});
+    auto endParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 2, 1, 1});
+    auto stridesParam = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 1});
     auto stridedSlice = std::make_shared<ov::op::v1::StridedSlice>(mul,
                                                                    beginParam,
                                                                    endParam,
@@ -674,7 +680,7 @@ TEST(LPT, AvoidDequantizationToShapeOfPropagationTransposeTransformation) {
     auto convert = std::make_shared<ov::op::v0::Convert>(input, element::f32);
     auto mul = std::make_shared<ov::op::v1::Multiply>(convert, ov::op::v0::Constant::create(element::f32, {}, {2.f}));
 
-    auto constant = ngraph::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+    auto constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
     auto transpose = std::make_shared<ov::op::v1::Transpose>(mul, constant);
     auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(transpose);
 

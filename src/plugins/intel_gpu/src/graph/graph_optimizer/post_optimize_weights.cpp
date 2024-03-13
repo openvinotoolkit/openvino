@@ -10,7 +10,6 @@
 #include "deconvolution_inst.h"
 #include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
-#include "lstm_dynamic_input_inst.h"
 
 namespace cldnn {
 
@@ -19,11 +18,6 @@ post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
 
 template<typename T> post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset(const T& node) {
     return weights_bias_offset(node.get_primitive()->input.size(), program_helpers::wrap_if_single(node.get_primitive()->weights).size());
-}
-
-template <>
-post_optimize_weights::weights_bias_offset post_optimize_weights::get_weights_bias_offset<lstm_dynamic_input_node>(const lstm_dynamic_input_node& node) {
-    return weights_bias_offset(node.get_primitive()->input.size() + 1, program_helpers::wrap_if_single(node.get_primitive()->weights).size());
 }
 
 // function which prepares given primitive for weights optimization
@@ -58,8 +52,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     // in main program and internal program for constant propagation
     auto set_implementation = [&p, &impl](program_node& weights_reorder_node) {
         if (!weights_reorder_node.is_constant()) {
-            auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
             auto reorder_kernel_params = impl->get_weights_reorder_kernel_params();
+            auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+            auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
             reorder_kernel_params->prog = &p;
             auto reorder_impl = factory(*reorder_kernel_params);
 
@@ -129,8 +124,6 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
-        } else if (node->is_type<lstm_dynamic_input>()) {
-            optimize_weights(node->as<lstm_dynamic_input>(), p);
         }
     }
 }

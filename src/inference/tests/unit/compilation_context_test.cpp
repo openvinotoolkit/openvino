@@ -13,7 +13,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
-#include "cpp/ie_cnn_network.h"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -356,4 +356,31 @@ TEST(NetworkContext_ModelName, HashOfExistingFile) {
     ASSERT_NE(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {}));
 
     ASSERT_EQ(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {{"key", "value"}}));
+}
+
+TEST(NetworkContext, HashOfSameModelWithClone) {
+    auto model1 = create_simple_model();
+    // test model with friendly name
+    model1->set_friendly_name("test model");
+    auto model1_clone = model1->clone();
+    ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model1_clone, {}));
+    auto model2 = create_simple_model();  // model without friendly name
+    auto preproc = ov::preprocess::PrePostProcessor(model2);
+    const auto output_precision = ov::element::f16;
+    // SET INPUT PRECISION
+    const auto& inputs = model2->inputs();
+    for (size_t i = 0; i < inputs.size(); i++) {
+        const auto& item = inputs[i];
+        auto& in = preproc.input(item.get_any_name());
+        in.tensor().set_element_type(output_precision);
+    }
+    // SET OUTPUT PRECISION
+    const auto& outs = model2->outputs();
+    for (size_t i = 0; i < outs.size(); i++) {
+        preproc.output(i).tensor().set_element_type(output_precision);
+    }
+    model2 = preproc.build();
+
+    auto model2_clone = model2->clone();
+    ASSERT_EQ(ModelCache::compute_hash(model2, {}), ModelCache::compute_hash(model2_clone, {}));
 }

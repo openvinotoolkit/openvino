@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API SplitConcatPairToInterpolateFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SplitConcatPairToInterpolateFusion transformation replaces group of
  * operations: Split -> Concat to Interpolate op.
  */

@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API TSUnaryBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSUnaryForward transformation sinks Transpose through UnaryElementwiseArithmetic, Clamp, Elu,
  * SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite operations in the forward direction.
  */
@@ -31,7 +31,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSUnaryBackward transformation sinks Transpose through UnaryElementwiseArithmetic, Clamp, Elu,
  * SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite in the backward direction.
  */

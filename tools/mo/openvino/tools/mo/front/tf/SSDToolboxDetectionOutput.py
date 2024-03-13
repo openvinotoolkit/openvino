@@ -19,7 +19,7 @@ class SSDToolboxDetectionOutputReplacement(FrontReplacementFromConfigFileSubGrap
         return []
 
     def generate_sub_graph(self, graph: Graph, match: SubgraphMatch):
-        # IE DetectionOutput layer consumes flattened confidences and locations tensors.
+        # OV DetectionOutput layer consumes flattened confidences and locations tensors.
         # That is why we add reshapes before them.
         locs_node = match.single_input_node(0)
         conf_node = match.single_input_node(1)

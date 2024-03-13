@@ -157,14 +157,15 @@ void remove_redundant_reorders::run(program& p) {
         // fp32 -> reorder -> u8 -> reorder -> fp32
         // we can't fuse two reorder primitives as first one must do cast to u8 data type which changes the values
         if (!data_type_traits::is_floating_point(r_dep_node.get_output_layout().data_type) &&
-            data_type_traits::is_floating_point(r_dep_node.input().get_output_layout().data_type)) {
+            data_type_traits::is_floating_point(r_dep_node.get_input_layout().data_type)) {
             continue;
         }
 
         bool remove_current = r_node.is_simple_reorder() &&
                               r_dep_node.get_users().size() == 1 &&
                               !r_dep_node.is_output() &&
-                              !r_node.get_primitive()->has_surface_input();
+                              !r_node.get_primitive()->has_surface_input() &&
+                              r_node.get_input_layout().data_padding == r_node.get_output_layout().data_padding;
 
         if (remove_dep) {
             // for chains like
@@ -469,7 +470,7 @@ void remove_redundant_reorders::run(program& p) {
         if (!quantize_opt && !convert_color_opt)
             continue;
 
-        auto same_data_type = node.input().get_output_layout().data_type == node.get_output_layout().data_type;
+        auto same_data_type = node.get_input_layout().data_type == node.get_output_layout().data_type;
         if (!same_data_type && !convert_color_opt)
             continue;
 

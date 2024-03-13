@@ -53,17 +53,17 @@ Output<Node> norm_vector(const NodeContext& context,
         res = context.mark_node(std::make_shared<v1::ReduceMin>(abs, dim, keep_dim));
     } else if (p == 0) {
         auto input_rank = input_tensor.get_partial_shape().rank();
-        FRONT_END_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() == 1,
-                                      "ord=0 supported only for vector norm");
+        PYTORCH_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() == 1,
+                                    "ord=0 supported only for vector norm");
         auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
         zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input_tensor));
         auto cond = context.mark_node(std::make_shared<v1::NotEqual>(input_tensor, zero));
         cond = context.mark_node(std::make_shared<v1::ConvertLike>(cond, input_tensor));
         res = context.mark_node(std::make_shared<v1::ReduceSum>(cond, dim, keep_dim));
     } else {
-        auto const_p = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {p}));
+        auto const_p = context.mark_node(v0::Constant::create(element::f32, Shape{}, {p}));
         const_p = context.mark_node(std::make_shared<v1::ConvertLike>(const_p, input_tensor));
-        auto const_p_inv = context.mark_node(v0::Constant::create(element::f32, Shape{1}, {1.0 / p}));
+        auto const_p_inv = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1.0 / p}));
         const_p_inv = context.mark_node(std::make_shared<v1::ConvertLike>(const_p_inv, input_tensor));
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto pow = context.mark_node(std::make_shared<v1::Power>(abs, const_p));
@@ -86,21 +86,24 @@ Output<Node> norm_matrix(const NodeContext& context,
     if (p == 1) {
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, first_dim, true));
-        res = context.mark_node(std::make_shared<v1::ReduceMax>(sum, second_dim, keep_dim));
+        res = context.mark_node(std::make_shared<v1::ReduceMax>(sum, second_dim, true));
     } else if (p == std::numeric_limits<float>::infinity()) {
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, second_dim, true));
-        res = context.mark_node(std::make_shared<v1::ReduceMax>(sum, first_dim, keep_dim));
+        res = context.mark_node(std::make_shared<v1::ReduceMax>(sum, first_dim, true));
     } else if (p == -std::numeric_limits<float>::infinity()) {
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, second_dim, true));
-        res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, first_dim, keep_dim));
+        res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, first_dim, true));
     } else if (p == -1) {
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         auto sum = context.mark_node(std::make_shared<v1::ReduceSum>(abs, first_dim, true));
-        res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, second_dim, keep_dim));
+        res = context.mark_node(std::make_shared<v1::ReduceMin>(sum, second_dim, true));
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported ord ", p, " for matrix norm");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p, " for matrix norm");
+    }
+    if (!keep_dim) {
+        res = context.mark_node(std::make_shared<v0::Squeeze>(res, dim));
     }
 
     return res;
@@ -120,12 +123,7 @@ OutputVector translate_norm(const NodeContext& context) {
     bool keep_dim = false;
     Output<Node> dim;
     if (context.input_is_none(2)) {
-        auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-        auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input_tensor, element::i32));
-        auto rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
-        rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
-        dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
+        dim = get_node_axes_range(context, input_tensor);
     } else {
         dim = context.get_input(2);
     }
@@ -141,7 +139,7 @@ OutputVector translate_norm(const NodeContext& context) {
         if (p_str == "fro") {
             res = frobenius_norm(context, input_tensor, dim, keep_dim);
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Umsupported ord ", p_str);
+            PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
         }
     } else {
         auto p = context.const_input<float>(1);
@@ -162,9 +160,7 @@ OutputVector translate_weight_norm(const NodeContext& context) {
     Output<Node> dim;
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
-    auto rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
-    rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
+    auto rank = std::get<1>(get_shape_rank(context, x, true));
     if (context.input_is_none(2)) {
         dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
     } else {
@@ -194,10 +190,7 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     Output<Node> result;
     // If dim= None, x will be flattened before the norm is computed.
     if (context.input_is_none(2)) {
-        keep_dim = false;
-        auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        x = context.mark_node(std::make_shared<v1::Reshape>(x, minus_one, false));
-        dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        dim = get_node_axes_range(context, x);
     } else {
         dim = context.get_input(2);
     }
@@ -237,7 +230,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
         if (p_str == "fro") {
             result = frobenius_norm(context, x, dim, keep_dim);
         } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Umsupported ord ", p_str);
+            PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
         }
     } else {
         auto p = context.const_input<float>(1);
@@ -265,57 +258,43 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
-    // If dim= None and ord= None, A will be flattened to 1D and the 2-norm of the resulting vector will be computed.
-    if (context.input_is_none(2) && context.input_is_none(1)) {
-        auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
-        x = context.mark_node(std::make_shared<v1::Reshape>(x, minus_one, false));
-        dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
-        result = norm_vector(context, x, dim, 2, false);
+    // If dim=None apply for all dimensions
+    if (context.input_is_none(2)) {
+        dim = get_node_axes_range(context, x);
     } else {
-        // If dim=None apply for all dimesions
-        if (context.input_is_none(2)) {
-            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-            auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
-            auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i32));
-            auto rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i32));
-            rank = context.mark_node(std::make_shared<v0::Squeeze>(rank, zero));
-            dim = context.mark_node(std::make_shared<v0::Range>(zero, rank, one));
+        dim = context.get_input(2);
+    }
+    // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not determined
+    if (context.input_is_none(1)) {
+        auto input_rank = x.get_partial_shape().rank();
+        if (input_rank.is_static() && input_rank.get_length() == 2) {
+            result = frobenius_norm(context, x, dim, keep_dim);
+        } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
+            result = norm_vector(context, x, dim, 2, keep_dim);
         } else {
-            dim = context.get_input(2);
+            PYTORCH_OP_CONVERSION_CHECK(false, "linalg norm for tensor rank > 2 without ord specification unsupported");
         }
-        // default norm for matrix is frobenius norm, for vector - L2, for other ranks are not detrmined
-        if (context.input_is_none(1)) {
-            auto input_rank = x.get_partial_shape().rank();
-            if (input_rank.is_static() && input_rank.get_length() == 2) {
+    } else {
+        // ord defines the  norm that is computed can be string or number
+        auto ord_type = context.get_input_type(1);
+        if (ord_type.is<type::Str>()) {
+            auto p_str = context.const_input<std::string>(1);
+            if (p_str == "fro") {
                 result = frobenius_norm(context, x, dim, keep_dim);
-            } else if (input_rank.is_dynamic() || input_rank.get_length() == 1) {
-                result = norm_vector(context, x, dim, 2, keep_dim);
             } else {
-                FRONT_END_OP_CONVERSION_CHECK(false,
-                                              "linalg norm for tensor rank > 2 without ord specification unsupported");
+                PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported ord ", p_str);
             }
         } else {
-            // ord defines the  norm that is computed can be string or number
-            auto ord_type = context.get_input_type(1);
-            if (ord_type.is<type::Str>()) {
-                auto p_str = context.const_input<std::string>(1);
-                if (p_str == "fro") {
-                    result = frobenius_norm(context, x, dim, keep_dim);
-                } else {
-                    FRONT_END_OP_CONVERSION_CHECK(false, "Umsupported ord ", p_str);
-                }
-            } else {
-                auto p = context.const_input<float>(1);
-                if (!context.input_is_none(2)) {
-                    auto const_dim = context.const_input<std::vector<int64_t>>(2);
-                    if (const_dim.size() == 2) {
-                        result = norm_matrix(context, x, dim, p, keep_dim);
-                    } else {
-                        result = norm_vector(context, x, dim, p, keep_dim);
-                    }
+            auto p = context.const_input<float>(1);
+            if (!context.input_is_none(2)) {
+                auto const_dim = context.const_input<std::vector<int64_t>>(2);
+                if (const_dim.size() == 2) {
+                    result = norm_matrix(context, x, dim, p, keep_dim);
                 } else {
                     result = norm_vector(context, x, dim, p, keep_dim);
                 }
+            } else {
+                result = norm_vector(context, x, dim, p, keep_dim);
             }
         }
     }

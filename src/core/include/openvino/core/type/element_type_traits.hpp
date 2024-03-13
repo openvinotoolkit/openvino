@@ -99,6 +99,16 @@ struct element_type_traits<element::Type_t::nf4> {
 };
 
 template <>
+struct element_type_traits<element::Type_t::f8e4m3> {
+    using value_type = ov::float8_e4m3;
+};
+
+template <>
+struct element_type_traits<element::Type_t::f8e5m2> {
+    using value_type = ov::float8_e5m2;
+};
+
+template <>
 struct element_type_traits<element::Type_t::string> {
     using value_type = std::string;
 };

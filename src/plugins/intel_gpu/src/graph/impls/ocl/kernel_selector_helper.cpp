@@ -502,8 +502,16 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv8_isv4;
         case format::os_is_yx_osv4_isv16:
             return kernel_selector::weights_layout::os_is_yx_osv4_isv16;
+        case format::os_is_yx_osv8_isv16:
+            return kernel_selector::weights_layout::os_is_yx_osv8_isv16;
+        case format::os_is_yx_osv4_isv2:
+            return kernel_selector::weights_layout::os_is_yx_osv4_isv2;
+        case format::os_is_yx_osv2_isv4:
+            return kernel_selector::weights_layout::os_is_yx_osv2_isv4;
         case format::os_is_yx_osv2_isv16:
             return kernel_selector::weights_layout::os_is_yx_osv2_isv16;
+        case format::os_is_yx_osv2_isv32:
+            return kernel_selector::weights_layout::os_is_yx_osv2_isv32;
         case format::os_is_zyx_osv8_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osv8_isv4;
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -574,6 +582,10 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32;
         case format::os_is_osv32_isv32_swizzled_by_4:
             return kernel_selector::weights_layout::os_is_osv32_isv32_swizzled_by_4;
+        case format::os_is_zyx_isa8_osv16_isv2:
+            return kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv2;
+        case format::os_is_yx_isa8_osv16_isv2:
+            return kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv2;
         case format::os_is_zyx_isv8_osv16_isv2:
             return kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2;
         case format::os_is_yx_isv8_osv16_isv2:
@@ -722,8 +734,6 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::g_os_y_is_x_osv8_isv4;
         case format::g_os_is_yx_isv16_osv16:
             return kernel_selector::weights_layout::g_os_is_yx_isv16_osv16;
-        case format::lstm_weights_dio:
-            return kernel_selector::weights_layout::dlstm_dir_io;
         case format::os_i_yxs_osv4_yxsv4:
             return kernel_selector::weights_layout::os_i_yxs_osv4_yxsv4;
         default:
@@ -902,10 +912,22 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_yx_osv8_isv4;
         case kernel_selector::weights_layout::os_is_yx_osv4_isv16:
             return cldnn::format::os_is_yx_osv4_isv16;
+        case kernel_selector::weights_layout::os_is_yx_osv8_isv16:
+            return cldnn::format::os_is_yx_osv8_isv16;
+        case kernel_selector::weights_layout::os_is_yx_osv4_isv2:
+            return cldnn::format::os_is_yx_osv4_isv2;
+        case kernel_selector::weights_layout::os_is_yx_osv2_isv4:
+            return cldnn::format::os_is_yx_osv2_isv4;
         case kernel_selector::weights_layout::os_is_yx_osv2_isv16:
             return cldnn::format::os_is_yx_osv2_isv16;
+        case kernel_selector::weights_layout::os_is_yx_osv2_isv32:
+            return cldnn::format::os_is_yx_osv2_isv32;
         case kernel_selector::weights_layout::os_is_zyx_osv8_isv4:
             return cldnn::format::os_is_zyx_osv8_isv4;
+        case kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv2:
+            return cldnn::format::os_is_zyx_isa8_osv16_isv2;
+        case kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv2:
+            return cldnn::format::os_is_yx_isa8_osv16_isv2;
         case kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2:
             return cldnn::format::os_is_zyx_isv8_osv16_isv2;
         case kernel_selector::weights_layout::os_zyxi_osv16:
@@ -1002,8 +1024,6 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::os_is_zyx_osv64_isv16;
         case kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2:
             return cldnn::format::os_is_yx_isv8_osv16_isv2;
-        case kernel_selector::weights_layout::dlstm_dir_io:
-            return cldnn::format::lstm_weights_dio;
         case kernel_selector::weights_layout::os_iyx_osv16_rotate_180:
             return cldnn::format::os_iyx_osv16;
         case kernel_selector::weights_layout::os_i_yxs_osv4_yxsv4:
@@ -1060,7 +1080,7 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, const tensor v
 
     // legacy get_tensor().sizes() impl return dims in external order, so we need to transpose dims
     ov::PartialShape vals_ordered;
-    auto axis_order = format::traits(l.format)._order;
+    auto axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
         if (axis_order[i] >= vals_original.size())
             vals_ordered.push_back(ov::Dimension(1));
@@ -1378,6 +1398,9 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;
     }
+
+    params.allowStaticInputReordering = config.get_property(ov::intel_gpu::optimize_data) || config.get_property(ov::intel_gpu::allow_static_input_reorder);
+    params.allowInputReordering = false;
 }
 
 void set_dynamic_shape_offsets(kernel_selector::params& params) {
@@ -1391,6 +1414,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
     const auto& output_layout = param_info.get_output_layout(0);
 
     params.is_shape_agnostic = is_shape_agnostic;
+    params.stage_id = 0;
     params.inputs[0] = convert_data_tensor(input_layout);
     params.outputs[0] = convert_data_tensor(output_layout);
     params.layerID = param_info.desc->id;
@@ -1486,14 +1510,6 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
         params.compensation.push_back(
             convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
     }
-}
-
-void set_optional_params(const program& program, kernel_selector::optional_params& params) {
-    params.meaningfulKernelsNames = false;
-    params.allowStaticInputReordering = program.get_config().get_property(ov::intel_gpu::optimize_data) ||
-                                        program.get_config().get_property(ov::intel_gpu::allow_static_input_reorder);
-    params.allowInputReordering = false;
-    params.allowOutputReordering = false;
 }
 
 }  // namespace cldnn

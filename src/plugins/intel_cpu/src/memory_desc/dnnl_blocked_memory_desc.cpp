@@ -6,17 +6,13 @@
 
 #include <common/memory_desc_wrapper.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <dnnl_types.h>
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "ie_common.h"
-#include "memory_desc/dnnl_memory_desc.h"
-#include "nodes/common/dnnl_executor.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "utils/general_utils.h"
 
 #include <algorithm>
 #include <cstdint>
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -58,7 +54,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc, const Shape&
 /**
  * Construct from blocked parameters
  *
- * IE  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
+ * OV  IOhw_4i16o4i   dims(N) = {32, 64, 128, 128}
  *   blockedDims  {4, 2, 128, 128, 4, 16, 4}                      // total dims(inner, outermost, auto blocked/padded). Generally sorted by strides.
  *   strides      {8388608, 4194304,  32768, 256, 64,  4, 1}      // strides for blockedDims, growing sequence
  *   order        {1, 0,   2,   3, 1,  0, 1}                      // matching to original dims
@@ -331,7 +327,7 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
 
     // blocked order
     // [new_outer_order] U [inner_idxs]
-    SizeVector blk_order(total_ndims, 0);
+    VectorDims blk_order(total_ndims, 0);
     std::copy(outer_order.begin(), outer_order.end(), blk_order.begin());
     std::copy(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, blk_order.begin() + dims.size());
     return blk_order;

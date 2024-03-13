@@ -8,8 +8,8 @@ import sys
 
 
 def log_ie_not_found():
-    log.error("Could not find the Inference Engine or nGraph Python API.\n"
-              "Consider building the Inference Engine and nGraph Python APIs"
+    log.error("Could not find the OpenVINO or Python API.\n"
+              "Consider building the OpenVINO and Python APIs"
               " from sources or try to install OpenVINO (TM) Toolkit using pip \npip install openvino")
 
 
@@ -63,9 +63,9 @@ def subprocess_main(framework=None):
     """
         Please keep this file compatible with python2 in order to check user python version.
 
-        This function checks that Inference Engine Python API available and working as expected
+        This function checks that OpenVINO Python API available and working as expected
         and then in sub-process it executes main_<fw>.py files. Due to some OSs specifics we can't
-        just add paths to Python modules and libraries into current env. So to make Inference Engine
+        just add paths to Python modules and libraries into current env. So to make OpenVINO
         Python API to be available inside MO we need to use subprocess with new env.
     """
     setup_env()

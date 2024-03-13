@@ -9,9 +9,7 @@
 ov::Exception::Exception(const std::string& what_arg) : std::runtime_error(what_arg) {}
 
 void ov::Exception::create(const char* file, int line, const std::string& explanation) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     throw ov::Exception(make_what(file, line, nullptr, default_msg, explanation));
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 std::string ov::Exception::make_what(const char* file,
@@ -49,14 +47,6 @@ void ov::AssertFailure::create(const char* file,
 
 void ov::NotImplemented::create(const char* file, int line, const std::string& explanation) {
     throw ov::NotImplemented(make_what(file, line, nullptr, default_msg, explanation));
-}
-
-void ov::NotImplemented::create(const char* file,
-                                int line,
-                                const char*,
-                                const std::string&,
-                                const std::string& explanation) {
-    create(file, line, explanation);
 }
 
 const std::string ov::NotImplemented::default_msg{"Not Implemented"};

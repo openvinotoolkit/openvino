@@ -11,7 +11,7 @@
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/constant.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -21,7 +21,7 @@ public:
     static std::shared_ptr<ov::Model> getOriginal(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
@@ -34,8 +34,8 @@ public:
 
         const auto reducePrecision = dequantization->get_output_element_type(0);
         const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
-            std::vector<element::Type>{ reducePrecision, constant->get_element_type() },
-            std::vector<element::Type>{ reducePrecision },
+            std::vector<ov::element::Type>{reducePrecision, constant->get_element_type()},
+            std::vector<ov::element::Type>{reducePrecision},
             ov::op::TemporaryReplaceOutputType(dequantization, reducePrecision).get(),
             ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);
@@ -54,12 +54,12 @@ public:
     static std::shared_ptr<ov::Model> get(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
-        const ngraph::builder::subgraph::DequantizationOperations::Convert& convert,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const ov::builder::subgraph::DequantizationOperations::Convert& convert,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims,
-        ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+        ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         std::shared_ptr<ov::Node> parent = input;
 
@@ -100,11 +100,11 @@ public:
     static std::shared_ptr<ov::Model> getReference(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const std::vector<int64_t>& constantValues,
         const bool keepDims,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
         const auto input = std::make_shared<ov::op::v0::Parameter>(precision, inputShape);
         const auto dequantization = makeDequantization(input, dequantizationBefore);
 
@@ -114,8 +114,8 @@ public:
             constantValues);
 
         const std::shared_ptr<Node> reduce = std::make_shared<ov::op::TypeRelaxed<ReduceType>>(
-            std::vector<element::Type>{ precisionAfterOperation, constant->get_element_type() },
-            std::vector<element::Type>{ precisionAfterOperation },
+            std::vector<ov::element::Type>{precisionAfterOperation, constant->get_element_type()},
+            std::vector<ov::element::Type>{precisionAfterOperation},
             ov::op::TemporaryReplaceOutputType(dequantization, precisionAfterOperation).get(),
             ov::op::TemporaryReplaceOutputType(constant, constant->get_element_type()).get(),
             keepDims);
@@ -134,4 +134,4 @@ public:
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <ngraph/node.hpp>
-#include <ngraph/op/op.hpp>
+#include "openvino/op/op.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -58,7 +57,7 @@ namespace intel_cpu {
  *     T2 - FP32
  *     T3 - I32
  */
-class RoPENode : public ngraph::op::Op {
+class RoPENode : public ov::op::Op {
 public:
     OPENVINO_OP("RoPE", "cpu_plugin_opset");
 
@@ -71,6 +70,7 @@ public:
         bool is_interleaved = false;   // interleaved mode, implies trans0213 happens after RoPE
         size_t rotary_ndims = 0;       // dimensions to be embedded (d in the description)
         bool is_chatglm = false;       // chatglm is special which overrides other setting
+        bool is_qwen = false;          // Qwen is special which overrides other setting
         size_t head_cnt = 0;
         size_t head_size = 0;
         int gather_position_arg_id =
@@ -79,11 +79,11 @@ public:
 
     RoPENode(const OutputVector& args, const Config& cfg);
 
-    bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
+    bool visit_attributes(ov::AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
     const Config& get_config() const {
         return m_config;

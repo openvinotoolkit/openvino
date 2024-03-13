@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/range.hpp>
-
+#include "openvino/op/range.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {

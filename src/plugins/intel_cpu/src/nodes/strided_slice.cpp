@@ -7,16 +7,14 @@
 #include "openvino/core/parallel.hpp"
 #include "common/cpu_memcpy.h"
 #include "input.h"
-#include <openvino/opsets/opset1.hpp>
-#include <shape_inference/shape_inference_ngraph.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include "shape_inference/shape_inference_ngraph.hpp"
 #include "slice_shape_inference_utils.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 
 #include <string>
 
 using namespace dnnl;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_cpu {
@@ -95,16 +93,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.endMask = createMask(ss->get_end_mask(), 1, true);
         attrs.newAxisMask = createMask(ss->get_new_axis_mask());
         attrs.shrinkAxisMask = createMask(ss->get_shrink_axis_mask());
-
-        auto origEllipsisMask = ss->get_ellipsis_mask();
-        bool isEllipsis = false;
-        for (const auto &o : origEllipsisMask) {
-            isEllipsis = isEllipsis || o != 0;
-            attrs.ellipsisMask.push_back(o);
-        }
-        if (attrs.ellipsisMask.size() == 0 || !isEllipsis) {
-            for (size_t i = attrs.ellipsisMask.size(); i < nDims; ++i) attrs.ellipsisMask.push_back(0);
-        }
+        attrs.ellipsisMask = createMask(ss->get_ellipsis_mask());
     } else {
         const size_t length = outputShapes[0].getRank();
         if (inputShapes.size() > AXES_ID) {
@@ -299,12 +288,12 @@ void StridedSlice::prepareParams() {
 
     if (srcMemory.empty()) {
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
-            srcMemory.push_back(getParentEdgeAt(i)->getMemoryPtr());
+            srcMemory.push_back(getSrcMemoryAtPort(i));
         }
     }
     if (dstMemory.empty()) {
         for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
-            dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
+            dstMemory.push_back(getDstMemoryAtPort(i));
         }
     }
     execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
@@ -401,7 +390,7 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     const size_t nDims = std::max(inputRank, outputRank);
 
     auto fillingInParameters = [&](std::vector<int> &parameter, const size_t type, const size_t size, const int value) {
-        const int *ptr = reinterpret_cast<const int32_t *>(srcMemory[type]->getData());
+        const int *ptr = srcMemory[type]->getDataAs<const int32_t>();
         parameter.assign(ptr, ptr + size);
 
         if (type != AXES_ID && params.attrs.ellipsisMaskCounter == 0 && size < nDims) {
@@ -736,8 +725,8 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
 }
 
 void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
-    const uint8_t* srcData = reinterpret_cast<const uint8_t*>(srcMemory[0]->getData());
-    uint8_t* dstData = reinterpret_cast<uint8_t*>(dstMemory[0]->getData());
+    const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
+    uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
     const uint8_t* srcShiftedData = srcData + srcShift;
     parallel_nt(nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
