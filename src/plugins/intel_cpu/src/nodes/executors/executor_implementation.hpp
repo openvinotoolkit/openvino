@@ -67,7 +67,8 @@ public:
                        const PostOps& postOps,
                        const MemoryArgs& memory,
                        const ExecutorContext::CPtr context) const {
-        // @todo require configure to be defined
+        DEBUG_LOG("Creating executor using implementation: ", m_name);
+
         if (m_create)
             return m_create(attrs, postOps, memory, context);
         return nullptr;
