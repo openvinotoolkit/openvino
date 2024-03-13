@@ -3,8 +3,8 @@
 //
 
 #include "cpu_blocked_memory_desc.h"
-#include "cpu_memory.h"
 #include "dnnl_blocked_memory_desc.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
