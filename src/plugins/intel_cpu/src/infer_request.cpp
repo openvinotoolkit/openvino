@@ -329,12 +329,12 @@ std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Outp
 }
 
 const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
-    auto index = find_port(port).idx;
-    bool is_input = ov::op::util::is_parameter(port.get_node());
-    if (is_input) {
-        return m_input_ports_map.at(index);
+    auto port_find = find_port(port);
+    OPENVINO_ASSERT(port_find.found(), "Can not find port: ", port.get_any_name());
+    if (port_find.is_input()) {
+        return m_input_ports_map.at(port_find.idx);
     } else {
-        return m_output_ports_map.at(index);
+        return m_output_ports_map.at(port_find.idx);
     }
 }
 

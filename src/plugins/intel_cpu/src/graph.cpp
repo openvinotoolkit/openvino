@@ -140,7 +140,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
             auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
             OPENVINO_ASSERT(input_index >= 0,
-                            "Can not find op: ",
+                            "CPU plugin cannot find op: ",
                             op->get_friendly_name(),
                             " in model parameter list!");
             inputNodesMap[input_index] = node;
@@ -151,7 +151,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
             auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
-            OPENVINO_ASSERT(output_index >= 0, "Can not find op: ", op->get_friendly_name(), " in model result list!");
+            OPENVINO_ASSERT(output_index >= 0,
+                            "CPU plugin cannot find op: ",
+                            op->get_friendly_name(),
+                            " in model result list!");
             outputNodesMap[output_index] = node;
         }
 
@@ -787,7 +790,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
+                    OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
                 }
             }
         }
@@ -990,11 +993,10 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
         const auto& intr_blob = parentEdge->getMemory();
 
         const auto ext_blob_map = output.find(output_index);
-        const auto ext_blob = ext_blob_map->second;
         OPENVINO_ASSERT(ext_blob_map != output.end(),
                         "The CPU plugin graph doesn't contain output node with output_index: ",
                         output_index);
-
+        const auto ext_blob = ext_blob_map->second;
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
