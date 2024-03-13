@@ -156,8 +156,10 @@ static void CreateGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto shape_b = op->get_input_partial_shape(1);
     auto out_shape = op->get_output_partial_shape(0);
 
-    size_t rank_a = shape_a.rank().get_length();
-    size_t rank_b = shape_b.rank().get_length();
+    size_t rank_a = op->get_input0_output_pattern().size() > 0 ? op->get_input0_output_pattern().size()
+                                                               : shape_a.rank().get_length();
+    size_t rank_b = op->get_input1_output_pattern().size() > 0 ? op->get_input1_output_pattern().size()
+                                                               :shape_b.rank().get_length();
     size_t output_rank = out_shape.rank().get_length();
 
     OPENVINO_ASSERT(rank_a == op->get_input0_order().size(), "[GPU] Length of input0_order is not same as rank of input0");

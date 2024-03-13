@@ -22,6 +22,35 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
     : ov::op::v0::MatMul()
+    , m_target_shape_a({})
+    , m_target_shape_b({})
+    , m_output_pattern_a({})
+    , m_output_pattern_b({})
+    , m_order_a(order_a)
+    , m_order_b(order_b)
+    , m_order_c(order_c)
+    , m_output_type(output_type) {
+    set_arguments({A, B});
+    set_transpose_a(false);
+    set_transpose_b(false);
+    validate_and_infer_types();
+}
+
+Gemm::Gemm(const ov::Output<Node>& A,
+           const ov::Output<Node>& B,
+           const std::vector<int32_t>& target_shape_a,
+           const std::vector<int32_t>& target_shape_b,
+           const std::vector<int64_t>& output_pattern_a,
+           const std::vector<int64_t>& output_pattern_b,
+           const std::vector<int64_t>& order_a,
+           const std::vector<int64_t>& order_b,
+           const std::vector<int64_t>& order_c,
+           const ov::element::Type output_type)
+    : ov::op::v0::MatMul()
+    , m_target_shape_a(target_shape_a)
+    , m_target_shape_b(target_shape_b)
+    , m_output_pattern_a(output_pattern_a)
+    , m_output_pattern_b(output_pattern_b)
     , m_order_a(order_a)
     , m_order_b(order_b)
     , m_order_c(order_c)
@@ -35,7 +64,16 @@ Gemm::Gemm(const ov::Output<Node>& A,
 std::shared_ptr<ov::Node> Gemm::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
 
-    return std::make_shared<Gemm>(new_args.at(0), new_args.at(1), m_order_a, m_order_b, m_order_c, m_output_type);
+    return std::make_shared<Gemm>(new_args.at(0),
+                                  new_args.at(1),
+                                  m_target_shape_a,
+                                  m_target_shape_b,
+                                  m_output_pattern_a,
+                                  m_output_pattern_b,
+                                  m_order_a,
+                                  m_order_b,
+                                  m_order_c,
+                                  m_output_type);
 }
 
 void Gemm::validate_and_infer_types() {

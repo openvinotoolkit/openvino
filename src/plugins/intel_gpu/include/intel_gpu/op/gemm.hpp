@@ -26,6 +26,17 @@ public:
          const std::vector<int64_t>& order_c,
          const ov::element::Type output_type = ov::element::undefined);
 
+    Gemm(const ov::Output<Node>& A,
+         const ov::Output<Node>& B,
+         const std::vector<int32_t>& target_shape_a,
+         const std::vector<int32_t>& target_shape_b,
+         const std::vector<int64_t>& output_pattern_a,
+         const std::vector<int64_t>& output_pattern_b,
+         const std::vector<int64_t>& order_a,
+         const std::vector<int64_t>& order_b,
+         const std::vector<int64_t>& order_c,
+         const ov::element::Type output_type = ov::element::undefined);
+
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
     void validate_and_infer_types() override;
