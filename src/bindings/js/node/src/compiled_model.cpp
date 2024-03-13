@@ -115,6 +115,6 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
 Napi::Value CompiledModelWrap::export_model(const Napi::CallbackInfo& info) {
     std::stringstream _stream;
     _compiled_model.export_model(_stream);
-    auto exported = _stream.str(); // a copy of stream content 
-    return Napi::Buffer<const char>::Copy(info.Env(), exported.data(), exported.size()); //extra copy
+    const auto& exported = _stream.str();
+    return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
 }
