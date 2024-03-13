@@ -57,9 +57,9 @@ OpenVINO Stateful Model Representation
 To make a model stateful, OpenVINO replaces looped pairs of `Parameter` and `Result` with its
 own two operations:
 
-* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/read-value-6>`)
+* ``ReadValue`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/read-value-6>`)
   reads the data from the state and returns it as output.
-* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operations-specifications/infrastructure/assign-6>`)
+* ``Assign`` (:doc:`see specs <../../documentation/openvino-ir-format/operation-sets/operation-specs/infrastructure/assign-6>`)
   accepts the data as input and saves it in the state for the next inference call.
 
 Each pair of these operations works with **state**, which is automatically saved between
@@ -72,11 +72,11 @@ There are three methods of turning an OpenVINO model into a stateful one:
   are recognized and applied automatically. The drawback is, the tool does not work with all
   models.
 
-* :ref:`MakeStateful transformation.<ov_ug_make_stateful>` - enables the user to choose which
+* :ref:`MakeStateful transformation <ov_ug_make_stateful>` - enables the user to choose which
   pairs of Parameter and Result to replace, as long as the paired operations are of the same
   shape and element type.
 
-* :ref:`LowLatency2 transformation.<ov_ug_low_latency>` - automatically detects and replaces
+* :ref:`LowLatency2 transformation <ov_ug_low_latency>` - automatically detects and replaces
   Parameter and Result pairs connected to hidden and cell state inputs of LSTM/RNN/GRU operations
   or Loop/TensorIterator operations.
 
