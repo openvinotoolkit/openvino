@@ -267,6 +267,7 @@ OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
+OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
 OP_CONVERTER(translate_scaled_dot_product_attention_fx);
@@ -845,6 +846,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
         {"aten.reciprocal.default", op::translate_reciprocal},
+        {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
+        {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd_fx},
+        {"aten.reflection_pad3d.default", op::translate_reflection_pad_nd_fx},
         {"aten.relu.default", op::translate_1to1_match_1_inputs<opset10::Relu>},
         {"aten.relu_.default", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Relu>>},
         {"aten.repeat.default", op::translate_1to1_match_2_inputs<opset10::Tile>},
