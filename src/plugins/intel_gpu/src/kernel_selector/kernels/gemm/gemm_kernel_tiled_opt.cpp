@@ -60,6 +60,10 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
         dispatchData.lws[0] = td.simd_size;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
+
+        GPU_DEBUG_LOG << "[" << global[0] << ", " << global[1] << ", " << global[2] << "], " << std::endl;
+        GPU_DEBUG_LOG << "[" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "], "
+                        <<"[" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "], " << std::endl;
     }
     return dispatchData;
 }
@@ -94,6 +98,10 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
+        GPU_DEBUG_LOG << "tile_m_size " << tuning_data.tile_m_size
+                        << ", tile_n_size " << tuning_data.tile_n_size
+                        << ", tile_k_size " << tuning_data.tile_k_size
+                        << ", simd_size" << tuning_data.simd_size << std::endl;
     } else {
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
