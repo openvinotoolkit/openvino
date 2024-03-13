@@ -20,8 +20,9 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
 
     auto data = any_input();
     auto weights = any_input();
-    auto fully_connected = wrap_type<op::FullyConnected>({data, weights}, consumers_count(1));
-    auto fully_connected_compressed = wrap_type<op::FullyConnectedCompressed>({data, weights, any_input(), any_input()}, consumers_count(1));
+    auto bias = any_input();
+    auto fully_connected = wrap_type<op::FullyConnected>({data, weights, bias}, consumers_count(1));
+    auto fully_connected_compressed = wrap_type<op::FullyConnectedCompressed>({data, weights, bias, any_input(), any_input()}, consumers_count(1));
     auto fc = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected, fully_connected_compressed});
     auto convert = wrap_type<ov::op::v0::Convert>({fc}, type_matches(element::f32));
 
@@ -30,6 +31,7 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
 
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
         const auto& m_weights = pattern_map.at(weights).get_node_shared_ptr();
+        const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
         const auto& m_convert = pattern_map.at(convert).get_node_shared_ptr();
         auto output_type = m_convert->get_output_element_type(0);
 
@@ -38,13 +40,14 @@ FullyConnectedConvertFusion::FullyConnectedConvertFusion() {
         auto it = pattern_map.find(fully_connected);
         if (it != pattern_map.end()) {
             m_fc = it->second.get_node_shared_ptr();
-            new_fc = std::make_shared<op::FullyConnected>(m_data, m_weights, output_type);
+            new_fc = std::make_shared<op::FullyConnected>(m_data, m_weights, m_bias, output_type);
         } else {
             m_fc = pattern_map.at(fully_connected_compressed).get_node_shared_ptr();
             new_fc = std::make_shared<op::FullyConnectedCompressed>(m_data,
                                                                     m_weights,
-                                                                    m_fc->input_value(2),
+                                                                    m_bias,
                                                                     m_fc->input_value(3),
+                                                                    m_fc->input_value(4),
                                                                     output_type);
         }
         new_fc->set_friendly_name(m_convert->get_friendly_name());
