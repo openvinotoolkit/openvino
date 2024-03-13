@@ -345,7 +345,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!in_tensor)
         OPENVINO_THROW("Failed to set empty tensor for port!");
-    auto port = get_internal_port(in_port);
+    auto port = in_port;
     auto tensor = in_tensor;
 
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()
