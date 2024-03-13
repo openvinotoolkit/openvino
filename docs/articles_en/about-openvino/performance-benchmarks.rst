@@ -3,7 +3,6 @@
 Performance Benchmarks
 ======================
 
-
 .. meta::
    :description: Use the benchmark results for Intel® Distribution of OpenVINO™
                  toolkit, that may help you decide what hardware to use or how
@@ -109,8 +108,9 @@ Please visit the tabs below for more information on key performance indicators a
       * input token length: 1024 (the tokens for GenAI models are in English).
 
 
-Platforms, Configurations, Methodology
-###########################################################
+.. raw:: html
+
+   <h2>Platforms, Configurations, Methodology</h2>
 
 For a listing of all platforms and configurations used for testing, refer to the following:
 
@@ -177,8 +177,9 @@ only to measuring performance.
 
 
 
-Test performance yourself
-####################################
+.. raw:: html
+
+   <h2>Test performance yourself</h2>
 
 You can also test performance for your system yourself, following the guide on :doc:`getting performance numbers <performance-benchmarks/getting-performance-numbers>`.
 
@@ -188,15 +189,16 @@ To learn more about it, visit `the website <https://www.intel.com/content/www/us
 or `create an account <https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html>`__.
 
 
+.. raw:: html
 
-Disclaimers
-####################################
+   <h2>Disclaimers</h2>
+
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release 2024.0, as of March 06, 2024.
 
 * OpenVINO Model Server performance results are based on release 2023.3, as of February 13, 2024.
 
-The results may not reflect all publicly available updates. Intel technologies’ features and benefits depend on system configuration
+The results may not reflect all publicly available updates. Intel technologies' features and benefits depend on system configuration
 and may require enabled hardware, software, or service activation. Learn more at intel.com, or from the OEM or retailer.
 
 See configuration disclosure for details. No product can be absolutely secure.
@@ -205,3 +207,18 @@ Your costs and results may vary.
 Intel optimizations, for Intel compilers or other products, may not optimize to the same degree for non-Intel products.
 
 
+
+
+
+
+
+
+.. raw:: html
+
+   <link rel="stylesheet" type="text/css" href="../_static/css/benchmark-banner.css">
+
+.. container:: benchmark-banner
+
+   Results may vary. For more information, see
+   :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>`
+   See :doc:`Legal Information <./additional-resources/legal-information>`.

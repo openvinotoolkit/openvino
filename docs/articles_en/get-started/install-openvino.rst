@@ -56,7 +56,8 @@ Install OpenVINO™ 2024.0
        NPU              V\*         V\*      V\*       n/a        n/a         n/a        n/a        V\*
       ===============  ==========  ======  =========  ========  ============ ========== ========== ==========
 
-      \* **Of the Linux systems, only Ubuntu 22.04 includes drivers for NPU device.**
+      | \* **Of the Linux systems, only Ubuntu 22.04 includes drivers for NPU device.**
+      |  **For Windows, CPU inference on ARM64 is not supported.**
 
 | **Build OpenVINO from source**
 |    OpenVINO Toolkit source files are available on GitHub as open source. If you want to build your own version of OpenVINO for your platform,
