@@ -20,6 +20,12 @@ namespace intel_cpu {
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
 
+struct amx_tile_config_t {
+    size_t M = 0;
+    size_t K = 0;
+    size_t N = 0;
+};
+
 struct jit_snippets_call_args {
     struct loop_args_t;
 
@@ -31,12 +37,12 @@ struct jit_snippets_call_args {
     const void *src_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *dst_ptrs[SNIPPETS_MAX_SNIPPETS_DIMS] = {};
     void *buffer_scratchpad_ptr = nullptr;
-
     // Note: Ideally loop_args must be private, since we manage this pointer manually.
     // However, standard-layout class definition (to use offset_of) requires the same access specifier
     // for all non-static data members. So we can keep them public or friend all control-flow emitters
     int32_t num_loops = 0;
     loop_args_t* loop_args = nullptr;
+    amx_tile_config_t amx_tile_config;
 };
 
 struct jit_snippets_call_args::loop_args_t {
