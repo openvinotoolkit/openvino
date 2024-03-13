@@ -180,7 +180,7 @@ constexpr Type u3(Type_t::u3);
 /// \brief u4 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u4(Type_t::u4);
-/// \brief u4 element type
+/// \brief u6 element type
 /// \ingroup ov_element_cpp_api
 constexpr Type u6(Type_t::u6);
 /// \brief u8 element type

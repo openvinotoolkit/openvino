@@ -250,11 +250,11 @@ public:
     using value_type = typename std::decay<T>::type;  //!< Fundamental type of sub-byte.
 
     /**
-     * @brief Compare proxy value is less than rhs.
+     * @brief Compare proxy value is equal than rhs.
      *
      * @tparam U   Type of value to compare.
      * @param rhs  Value to compare.
-     * @return True if less otherwise false.
+     * @return True if equal, false otherwise.
      */
     template <class U>
     constexpr bool operator==(const U& rhs) const {
