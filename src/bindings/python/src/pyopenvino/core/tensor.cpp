@@ -18,8 +18,11 @@ void regclass_Tensor(py::module m) {
 
     // dtype for py::dtype and py::object
     cls.def(py::init([](py::array& array, ov::element::Type& dtype, bool share) {
-                // If dtypes does not match, create a copy:
                 if (dtype != ov::element::undefined) {
+                    if (dtype == Common::type_helpers::get_ov_type(array)) {
+                        return Common::object_from_data<ov::Tensor>(array, share);
+                    }
+                    // If dtypes does not match, create a copy:
                     return Common::object_from_data<ov::Tensor>(array, dtype, false);
                 }
                 // Otherwise deduce dtype from an array:

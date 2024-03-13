@@ -109,7 +109,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
     arr = np.ascontiguousarray(arr)
-    ov_tensor = ov.Tensor(array=arr, shared_memory=True)
+    ov_tensor = ov.Tensor(array=arr, share=True)
     assert tuple(ov_tensor.shape) == shape
     assert ov_tensor.element_type == ov_type
     assert isinstance(ov_tensor.data, np.ndarray)
@@ -148,7 +148,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
     shape = arr.shape
-    ov_tensor = ov.Tensor(array=arr, shared_memory=False)
+    ov_tensor = ov.Tensor(array=arr, share=False)
     assert tuple(ov_tensor.shape) == shape
     assert ov_tensor.element_type == ov_type
     assert isinstance(ov_tensor.data, np.ndarray)
@@ -158,6 +158,74 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
+
+
+@pytest.mark.parametrize(
+    ("ov_type"),
+    [
+        ov.Type.f32,
+        ov.Type.f64,
+        ov.Type.f16,
+        ov.Type.i8,
+        ov.Type.u8,
+        ov.Type.i32,
+        ov.Type.u32,
+        ov.Type.i16,
+        ov.Type.u16,
+        ov.Type.i64,
+        ov.Type.u64,
+        ov.Type.boolean,
+    ],
+)
+@pytest.mark.parametrize(
+    ("numpy_dtype"),
+    [
+        np.float32,
+        np.float64,
+        np.float16,
+        np.int8,
+        np.uint8,
+        np.int32,
+        np.uint32,
+        np.int16,
+        np.uint16,
+        np.int64,
+        np.uint64,
+        bool,
+    ],
+)
+@pytest.mark.parametrize(
+    "shared_flag",
+    [
+        True,
+        False,
+    ],
+)
+def test_init_with_numpy_new_constructor(ov_type, numpy_dtype, shared_flag):
+    arr = generate_image().astype(numpy_dtype)
+    # arr = np.array([[0.1793, 0.9707, 0.1133, 0.5, 0.51], [1.1, 1.0, 2.0, 2.3, 0.0]]).astype(numpy_dtype)
+    shape = arr.shape
+    ov_tensor = ov.Tensor(array=arr, dtype=ov_type, share=shared_flag)
+
+    assert tuple(ov_tensor.shape) == shape
+    assert ov_tensor.element_type == ov_type
+    assert isinstance(ov_tensor.data, np.ndarray)
+    assert ov_tensor.data.dtype == ov_type.to_dtype()
+    assert ov_tensor.data.shape == shape
+
+    # Can share memory if dtype is matching and flag was set:
+    if ov_type.to_dtype() == numpy_dtype and shared_flag:
+        assert np.shares_memory(arr, ov_tensor.data)
+        assert np.array_equal(ov_tensor.data, arr)
+        assert ov_tensor.size == arr.size
+        assert ov_tensor.byte_size == arr.nbytes
+    # Otherwise data copy/casting was done:
+    else:
+        arr_copy = np.copy(arr).astype(ov_type.to_dtype())  # copy the array to compare with
+        assert not (np.shares_memory(arr, ov_tensor.data))
+        assert np.array_equal(ov_tensor.data, arr_copy)
+        assert ov_tensor.size == arr_copy.size
+        assert ov_tensor.byte_size == arr_copy.nbytes
 
 
 def test_init_with_node_output_port():
@@ -554,7 +622,7 @@ def test_is_continuous(element_type):
     ],
 )
 def test_init_from_empty_array(shared_flag, init_value):
-    tensor = ov.Tensor(init_value, shared_memory=shared_flag)
+    tensor = ov.Tensor(init_value, share=shared_flag)
     assert tensor.is_continuous()
     assert tuple(tensor.shape) == init_value.shape
     assert tensor.element_type.to_dtype() == init_value.dtype

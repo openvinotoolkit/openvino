@@ -98,15 +98,35 @@ std::vector<T> array_as_vector(py::array& array){
     T *ptr = static_cast<T*>(const_cast<void*>(array.data()));
     return std::vector<T>(ptr, ptr + array.size());
 }
+
+template <typename T>
+std::vector<char> array_as_vector_bool(py::array& array) {
+    std::vector<char> result;
+    result.reserve(array.size());
+
+    for(ssize_t i = 0; i < array.size(); i++) {
+        result.emplace_back(*(static_cast<T*>(const_cast<void*>(array.data())) + i) != 0 ? 1 : 0);
+    }
+
+    return result;
+}
 }; // namespace array_helpers
 
 namespace tensor_helpers {
+
 template <typename T>
 void fill_tensor_t(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dtype) {
-    auto tmp = ov::op::v0::Constant(dst_dtype,
-                                    array_helpers::get_shape(array),
-                                    array_helpers::array_as_vector<T>(array));
-    std::memcpy(tensor.data(), tmp.get_data_ptr(), tmp.get_byte_size());
+    if (dst_dtype == ov::element::boolean) {
+        auto tmp = ov::op::v0::Constant(dst_dtype,
+                                        array_helpers::get_shape(array),
+                                        array_helpers::array_as_vector_bool<T>(array));
+        std::memcpy(tensor.data(), tmp.get_data_ptr(), tmp.get_byte_size());
+    } else {
+        auto tmp = ov::op::v0::Constant(dst_dtype,
+                                        array_helpers::get_shape(array),
+                                        array_helpers::array_as_vector<T>(array));
+        std::memcpy(tensor.data(), tmp.get_data_ptr(), tmp.get_byte_size());
+    }
 }
 
 void fill_tensor(ov::Tensor& tensor, py::array& array);

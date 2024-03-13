@@ -253,6 +253,11 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     }
 }
 
+template <>
+py::array array_from_tensor_t<bool>(ov::Tensor&& t, py::dtype&& dtype) {
+    return array_from_tensor_t<char>(std::move(t), std::move(dtype));
+}
+
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared) {
     // Special case for string data type.
     if (t.get_element_type() == ov::element::string) {
@@ -285,8 +290,7 @@ py::array array_from_tensor(ov::Tensor&& t, const ov::element::Type& dst_dtype) 
         return array_from_tensor_t<double>(std::move(t), py::dtype("float64"));
     } else if (dst_dtype == ov::element::f32) {
         return array_from_tensor_t<float>(std::move(t), py::dtype("float32"));
-    }
-    if (dst_dtype == ov::element::f16) {
+    } else if (dst_dtype == ov::element::f16) {
         return array_from_tensor_t<ov::float16>(std::move(t), py::dtype("float16"));
     } else if (dst_dtype == ov::element::i64) {
         return array_from_tensor_t<int64_t>(std::move(t), py::dtype("int64"));
@@ -304,6 +308,8 @@ py::array array_from_tensor(ov::Tensor&& t, const ov::element::Type& dst_dtype) 
         return array_from_tensor_t<uint16_t>(std::move(t), py::dtype("uint16"));
     } else if (dst_dtype == ov::element::u8) {
         return array_from_tensor_t<uint8_t>(std::move(t), py::dtype("uint8"));
+    } else if (dst_dtype == ov::element::boolean) {
+        return array_from_tensor_t<bool>(std::move(t), py::dtype("bool"));
     } else {
         OPENVINO_THROW("Unsupported dtype passed!");
     }
@@ -360,6 +366,8 @@ void fill_tensor(ov::Tensor& tensor, py::array& array, ov::element::Type& dst_dt
         fill_tensor_t<uint16_t>(tensor, array, dst_dtype);
     } else if (array.dtype().is(py::dtype("uint8"))) {
         fill_tensor_t<uint8_t>(tensor, array, dst_dtype);
+    } else if (array.dtype().is(py::dtype("bool"))) {
+        fill_tensor_t<bool>(tensor, array, dst_dtype);
     } else {
         OPENVINO_THROW("Unsupported dtype passed!");
     }
