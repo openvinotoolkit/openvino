@@ -6,6 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/less.hpp"
@@ -31,35 +32,30 @@ OutputVector translate_bincount_op(const NodeContext& node) {
     auto size = node.get_input(1);
     auto weights = node.get_input(2);
 
-    std::vector<int32_t> size_scalar;
-    get_const_input(node, 1, &size_scalar);
-    TENSORFLOW_OP_VALIDATION(node, size_scalar.size() == 1, "size must be a scalar");
-    int32_t size_scalar_val = size_scalar[0];
+    std::vector<int32_t> size_scalar_vec;
+    get_const_input(node, 1, &size_scalar_vec);
+    TENSORFLOW_OP_VALIDATION(node, size_scalar_vec.size() == 1, "size must be a scalar");
+    int32_t size_scalar_val = size_scalar_vec[0];
     TENSORFLOW_OP_VALIDATION(node, size_scalar_val > 0, "size must be non-negative.");
 
-    // weights: A Tensor. Must be one of the following types: int32, int64, float32, float64. is an int32, int64,
-    // float32, or float64 Tensor with the same shape as arr, or a length-0 Tensor, in which case it acts as all weights
-    // equal to 1.
+    auto scalar_shape = make_shared<v0::Constant>(element::i32, ov::Shape{0}, std::vector<int32_t>{});
+    size = make_shared<v1::Reshape>(size, scalar_shape, false);
+
     auto weights_type = weights.get_element_type();
-    TENSORFLOW_OP_VALIDATION(node,
-                             weights_type == element::f32 || weights_type == element::f64 ||
-                                 weights_type == element::i32 || weights_type == element::i64,
-                             "Weights type is not supported: ",
-                             weights_type);
     TENSORFLOW_OP_VALIDATION(node,
                              arr.get_shape() == weights.get_shape() || shape_size(weights.get_shape()) == 0,
                              "The shape of the weights must either match the first input or 0.");
 
-    if (shape_size(weights.get_shape()) == 0) {
-        // fill weighs with 1, the same shape with arr
-        weights = make_shared<v0::Constant>(weights_type, arr.get_shape(), std::vector<int>{1});
+    if (weights.get_partial_shape() == ov::Shape{0}) {
+        auto arr_shape = make_shared<v3::ShapeOf>(arr, element::i32);
+        weights = make_shared<v0::Constant>(weights_type, Shape{}, std::vector<int>{1});
+        weights = make_shared<v3::Broadcast>(weights, arr_shape);
     }
 
     // implementation
-    auto start = make_shared<v0::Constant>(weights_type, Shape{}, std::vector<int>{0});
-    auto range_size = make_shared<v0::Constant>(weights_type, Shape{}, std::vector<int>{size_scalar_val});
-    auto step = make_shared<v0::Constant>(weights_type, Shape{}, std::vector<int>{1});
-    auto range = make_shared<v4::Range>(start, range_size, step, element::i32);
+    auto start = make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int>{0});
+    auto step = make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int>{1});
+    auto range = make_shared<v4::Range>(start, size, step, element::i32);
 
     auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
     auto const_zero = make_shared<v0::Constant>(element::i32, Shape{}, 0);

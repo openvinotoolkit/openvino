@@ -42,7 +42,7 @@ class TestBincount(CommonTFLayerTest):
 
     def gen_data(weights, weights_type):
       input_shape = tuple(np.random.randint(1, 10, size=np.random.randint(1, 5)))
-      size = np.random.randint(1, np.max(input_shape))
+      size = np.random.randint(1, np.max(input_shape) + 1)
       return dict(input_shape=input_shape, size=size, weights=weights, weights_type=weights_type)
   
     test_data = [
