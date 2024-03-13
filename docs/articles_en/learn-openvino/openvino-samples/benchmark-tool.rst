@@ -29,13 +29,13 @@ Basic Usage
       :sync: python
 
       The Python ``benchmark_app`` is automatically installed when you install OpenVINO
-      using :doc:`PyPI <openvino_docs_install_guides_installing_openvino_pip>`.
+      using :doc:`PyPI <../../get-started/install-openvino/install-openvino-pip>`.
       Before running ``benchmark_app``, make sure the ``openvino_env`` virtual
       environment is activated, and navigate to the directory where your model is located.
 
       The benchmarking application works with models in the OpenVINO IR
       (``model.xml`` and ``model.bin``) and ONNX (``model.onnx``) formats.
-      Make sure to :doc:`convert your models <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+      Make sure to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
       if necessary.
 
       To run benchmarking with default options on a model, use the following command:
@@ -50,18 +50,18 @@ Basic Usage
       To use the C++ ``benchmark_app``, you must first build it following the
       :ref:`Build the Sample Applications <build-samples>` instructions and
       then set up paths and environment variables by following the
-      :doc:`Get Ready for Running the Sample Applications <openvino_docs_OV_UG_Samples_Overview>`
+      :doc:`Get Ready for Running the Sample Applications <../openvino-samples>`
       instructions. Navigate to the directory where the ``benchmark_app`` C++ sample binary was built.
 
       .. note::
 
          If you installed OpenVINO Runtime using PyPI or Anaconda Cloud, only the
-         :doc:`Benchmark Python Tool <openvino_sample_benchmark_tool>` is available,
+         :doc:`Benchmark Python Tool <benchmark-tool>` is available,
          and you should follow the usage instructions on that page instead.
 
       The benchmarking application works with models in the OpenVINO IR, TensorFlow,
       TensorFlow Lite, PaddlePaddle, PyTorch and ONNX formats. If you need it,
-      OpenVINO also allows you to :doc:`convert your models <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+      OpenVINO also allows you to :doc:`convert your models <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
 
       To run benchmarking with default options on a model, use the following command:
 
@@ -184,10 +184,10 @@ parallel inference requests to utilize all the threads available on the device.
 On GPU, it automatically sets the inference batch size to fill up the GPU memory available.
 
 For more information on performance hints, see the
-:doc:`High-level Performance Hints <openvino_docs_OV_UG_Performance_Hints>` page.
+:doc:`High-level Performance Hints <../../openvino-workflow/running-inference/optimize-inference/high-level-performance-hints>` page.
 For more details on optimal runtime configurations and how they are automatically
 determined using performance hints, see
-:doc:`Runtime Inference Optimizations <openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
+:doc:`Runtime Inference Optimizations <../../openvino-workflow/running-inference/optimize-inference>`.
 
 
 Device
@@ -222,7 +222,7 @@ You may also specify ``AUTO`` as the device, in which case the ``benchmark_app``
 automatically select the best device for benchmarking and support it with the
 CPU at the model loading stage. This may result in increased performance, thus,
 should be used purposefully. For more information, see the
-:doc:`Automatic device selection <openvino_docs_OV_UG_supported_plugins_AUTO>` page.
+:doc:`Automatic device selection <../../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>` page.
 
 .. note::
 
@@ -926,6 +926,6 @@ using ``benchmark_app`` with dynamic networks and a portion of the resulting out
 Additional Resources
 ####################
 
-- :doc:`Get Started with Samples <openvino_docs_get_started_get_started_demos>`
-- :doc:`Using OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>`
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
+- :doc:`Get Started with Samples <get-started-demos>`
+- :doc:`Using OpenVINO Samples <../openvino-samples>`
+- :doc:`Convert a Model <../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`
