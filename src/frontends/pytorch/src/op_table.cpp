@@ -134,6 +134,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
+OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
@@ -428,6 +429,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floor", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Floor>, 1>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
+        {"aten::floor_divide_", op::inplace_op<op::translate_floor_divide>},
         {"aten::floordiv", op::translate_floor_divide},
         {"aten::fmod", op::translate_fmod},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
@@ -513,6 +515,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::min", op::translate_min},
         {"aten::minimum", op::translate_minimum},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten::movedim", op::translate_movedim},
         {"aten::mul", op::translate_mul},
         {"aten::mul_", op::translate_mul_},
         {"aten::multiply", op::translate_mul},
