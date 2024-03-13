@@ -10,6 +10,7 @@
 #include "openvino/frontend/input_model.hpp"
 #include "place.hpp"
 #include "translate_session.hpp"
+#include "variables_index.hpp"
 
 namespace ov {
 namespace frontend {
@@ -34,6 +35,8 @@ public:
                         const std::shared_ptr<VariablesIndex>& variables_index = {},
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names = nullptr,
                         const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names = nullptr,
+                        const HashTableKeysValuesMap hash_table_keys_map = {},
+                        const HashTableKeysValuesMap hash_table_values_map = {},
                         const std::shared_ptr<CheckpointV1Reader> checkpoint_v1_reader = nullptr,
                         const bool native_format = false);
 
@@ -52,6 +55,8 @@ public:
     std::shared_ptr<VariablesIndex> get_variables_index();
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
+    HashTableKeysValuesMap get_hash_table_keys_map() const;
+    HashTableKeysValuesMap get_hash_table_values_map() const;
 
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 

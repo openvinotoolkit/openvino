@@ -40,8 +40,11 @@ class TestTextVectorization(CommonTF2LayerTest):
     @pytest.mark.parametrize('output_mode', ['int'])
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(reason='132692 - Add support of TextVectorization')
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
     def test_text_vectorization(self, input_shape, vocabulary, output_mode, output_sequence_length, ie_device,
                                 precision, ir_version, temp_dir, use_legacy_frontend):
         params = {}
