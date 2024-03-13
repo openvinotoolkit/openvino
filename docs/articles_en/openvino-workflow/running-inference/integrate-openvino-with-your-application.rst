@@ -8,10 +8,10 @@ Integrate OpenVINO™ with Your Application
    :maxdepth: 1
    :hidden:
 
-   openvino_docs_OV_UG_Model_Representation
-   openvino_docs_OV_UG_Infer_request
-   openvino_docs_OV_UG_Python_API_inference
-   openvino_docs_OV_UG_Python_API_exclusives
+   integrate-openvino-with-your-application/model-representation
+   integrate-openvino-with-your-application/inference-request
+   integrate-openvino-with-your-application/python-api-advanced-inference
+   integrate-openvino-with-your-application/python-api-exclusives
 
 
 .. meta::
@@ -21,10 +21,10 @@ Integrate OpenVINO™ with Your Application
 
 Following these steps, you can implement a typical OpenVINO™ Runtime inference
 pipeline in your application. Before proceeding, make sure you have
-:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_overview>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1`` for Windows PowerShell, or ``setupvars.bat`` for Windows CMD), otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
+:doc:`installed OpenVINO Runtime <../../get-started/install-openvino>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux, ``setupvars.ps1`` for Windows PowerShell, or ``setupvars.bat`` for Windows CMD), otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
 
 
-.. image:: _static/images/IMPLEMENT_PIPELINE_with_API_C.svg
+.. image:: ../../_static/images/IMPLEMENT_PIPELINE_with_API_C.svg
 
 
 Step 1. Create OpenVINO Runtime Core
@@ -234,18 +234,18 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
 
 
 The ``ov::Model`` object represents any models inside the OpenVINO™ Runtime.
-For more details please read article about :doc:`OpenVINO™ Model representation <openvino_docs_OV_UG_Model_Representation>`.
+For more details please read article about :doc:`OpenVINO™ Model representation <integrate-openvino-with-your-application/model-representation>`.
 
 The code above creates a compiled model associated with a single hardware device from the model object.
-It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
-To learn how to change the device configuration, read the :doc:`Query device properties <openvino_docs_OV_UG_query_api>` article.
+It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware).
+To learn how to change the device configuration, read the :doc:`Query device properties <inference-devices-and-modes/query-device-properties>` article.
 
 Step 3. Create an Inference Request
 ###################################
 
 ``ov::InferRequest`` class provides methods for model inference in OpenVINO™ Runtime.
 Create an infer request using the following code (see
-:doc:`InferRequest detailed documentation <openvino_docs_OV_UG_Infer_request>` for more details):
+:doc:`InferRequest documentation <integrate-openvino-with-your-application/inference-request>` for more details):
 
 .. tab-set::
 
@@ -299,7 +299,7 @@ You can use external memory to create ``ov::Tensor`` and use the ``ov::InferRequ
           :language: cpp
           :fragment: [part4]
 
-See :doc:`additional materials <openvino_docs_OV_UG_string_tensors>` to learn how to handle textual data as a model input.
+See :doc:`additional materials <string-tensors>` to learn how to handle textual data as a model input.
 
 Step 5. Start Inference
 #######################
@@ -331,7 +331,7 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 
 
 This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated
-:doc:`"Run inference" section <openvino_docs_OV_UG_Infer_request>`.
+:doc:`"Run inference" section <integrate-openvino-with-your-application/inference-request>`.
 
 Step 6. Process the Inference Results
 #####################################
@@ -361,7 +361,7 @@ Go over the output tensors and process the inference results.
           :language: cpp
           :fragment: [part6]
 
-See :doc:`additional materials <openvino_docs_OV_UG_string_tensors>` to learn how to handle textual data as a model output.
+See :doc:`additional materials <string-tensors>` to learn how to handle textual data as a model output.
 
 Step 7. Release the allocated objects (only for C)
 ##################################################
@@ -394,6 +394,7 @@ Create Structure for project:
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part7]
+          :force:
 
     .. tab-item:: C
        :sync: c
@@ -401,6 +402,7 @@ Create Structure for project:
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
           :fragment: [part7]
+          :force:
 
 
 Create Cmake Script
@@ -440,8 +442,8 @@ To build your project using CMake with the default build tools currently availab
 Additional Resources
 ####################
 
-* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2024/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
-* :doc:`OpenVINO™ Runtime Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`
-* :doc:`String Tensors <openvino_docs_OV_UG_string_tensors>`
-* :doc:`Using Encrypted Models with OpenVINO <openvino_docs_OV_UG_protecting_model_guide>`
+* See the :doc:`OpenVINO Samples <../../learn-openvino/openvino-samples>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/2024/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* :doc:`OpenVINO™ Runtime Preprocessing <optimize-inference/optimize-preprocessing>`
+* :doc:`String Tensors <string-tensors>`
+* :doc:`Using Encrypted Models with OpenVINO <../../documentation/openvino-security/openvino-encrypted-models>`
 
