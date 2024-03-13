@@ -1,6 +1,6 @@
 .. {#llm_inference}
 
-LLM Inference with Hugging Face and Optimum Intel
+Inference with Hugging Face and Optimum Intel
 =====================================================
 
 The steps below show how to load and infer LLMs from Hugging Face using Optimum Intel.
@@ -97,10 +97,10 @@ using NNCF which substantially reduces the model footprint and inference latency
 
          model = OVModelForCausalLM.from_pretrained(model_id, export=True, load_in_8bit=True)
 
-         # or if model was already converted
+         # or if the model has been already converted
          model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
 
-         # save model after optimization
+         # save the model after optimization
          model.save_pretrained(optimized_model_path)
 
 
@@ -138,19 +138,19 @@ parameters.
              quantization_config=OVWeightQuantizationConfig(bits=4),
          )
 
-         # or if model was already converted
+         # or if the model has been already converted
          model = OVModelForCausalLM.from_pretrained(
              model_path,
              quantization_config=OVWeightQuantizationConfig(bits=4),
          )
 
          # use custom parameters for weight quantization
-         mmodel = OVModelForCausalLM.from_pretrained(
+         model = OVModelForCausalLM.from_pretrained(
              model_path,
              quantization_config=OVWeightQuantizationConfig(bits=4, asym=True, ratio=0.8, dataset="ptb"),
          )
 
-         # save model after optimization
+         # save the model after optimization
          model.save_pretrained(optimized_model_path)
 
 
@@ -227,7 +227,7 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
 
 * **Dynamic quantization** enables quantization of activations of MatMul operations that have 4 or 8-bit quantized weights (see :doc:`LLM Weight Compression <../../openvino-workflow/model-optimization-guide/weight-compression>`).
   It improves inference latency and throughput of LLMs, though it may cause insignificant deviation in generation accuracy.  Quantization is performed in a
-  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are: ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding
+  group-wise manner, with configurable group size. It means that values in a group share quantization parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use the corresponding
   inference property as follows:
 
 
@@ -286,4 +286,4 @@ Additional Resources
 * `Generation with LLMs <https://huggingface.co/docs/transformers/llm_tutorial>`__
 *	`Pipeline class <https://huggingface.co/docs/transformers/main_classes/pipelines>`__
 * `GenAI Pipeline Repository <https://github.com/openvinotoolkit/openvino.genai>`__
-* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/custom_operations/user_ie_extensions/tokenizer/python>`__
+* `OpenVINO Tokenizers <https://github.com/openvinotoolkit/openvino_tokenizers>`__
