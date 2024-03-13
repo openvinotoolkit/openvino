@@ -36,8 +36,6 @@ class TestHardtanh(PytorchLayerTest):
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
     @pytest.mark.parametrize("input_shape", [(1, 3, 10, 10), (100,), (24, 24)])
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_hardtanh(self, min_val, max_val, inplace, input_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(min_val, max_val, inplace), ie_device, precision, ir_version,

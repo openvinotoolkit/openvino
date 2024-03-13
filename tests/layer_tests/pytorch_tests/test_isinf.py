@@ -25,8 +25,6 @@ class TestIsInf(PytorchLayerTest):
 
         return aten_isinf(), ref_net, "aten::isinf"
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_isinf(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor

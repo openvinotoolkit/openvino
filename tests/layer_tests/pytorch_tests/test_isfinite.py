@@ -25,8 +25,6 @@ class TestIsFinite(PytorchLayerTest):
 
         return aten_isfinite(), ref_net, "aten::isfinite"
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
     def test_isfinite(self, ie_device, precision, ir_version, input_tensor):
         self.input_tensor = input_tensor

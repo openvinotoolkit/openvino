@@ -28,9 +28,6 @@ class TestElu(PytorchLayerTest):
 
         return aten_elu(alpha, inplace), ref_net, "aten::elu"
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("alpha", [1.0, 0.5])
     @pytest.mark.parametrize("inplace", [True, False])
