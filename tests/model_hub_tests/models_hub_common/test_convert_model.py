@@ -100,10 +100,10 @@ class TestConvertModel:
         ov_model = self.convert_model(fw_model)
         print("Infer ov::Model")
         ov_outputs = self.infer_ov_model(ov_model, inputs, ie_device)
-        print("Infer the original model")
-
+        
         # Run original FW inference after OV inference, as original FW inference may change original FW model,
         # which results in corruption of shared memory.
+        print("Infer the original model")
         fw_outputs = self.infer_fw_model(fw_model, inputs)
         print("Compare framework and OpenVINO results")
         self.compare_results(fw_outputs, ov_outputs)
