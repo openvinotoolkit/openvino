@@ -14,21 +14,13 @@ namespace test {
 namespace MatMul {
 namespace {
 
-std::vector<CPUSpecificParams> filterSpecificParams_FP16_Brgemm() {
-    std::vector<CPUSpecificParams> specificParams;
-    if (ov::with_cpu_x86_avx512_core_fp16()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"});
-    }
-    return specificParams;
-}
+const std::vector<CPUSpecificParams> specificParams_FP16 {
+    CPUSpecificParams{{}, {}, {"brgemm_avx512"}, "brgemm_avx512"}
+};
 
-std::vector<CPUSpecificParams> filterSpecificParams_FP16_BrgemmAmx() {
-    std::vector<CPUSpecificParams> specificParams;
-    if (ov::with_cpu_x86_avx512_core_amx_fp16()) {
-        specificParams.push_back(CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"});
-    }
-    return specificParams;
-}
+const std::vector<CPUSpecificParams> specificParams_FP16_AMX {
+    CPUSpecificParams{{}, {}, {"brgemm_avx512_amx"}, "brgemm_avx512_amx"}
+};
 
 const std::vector<ShapeRelatedParams> IS_x64 = {
     {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, false}},
@@ -85,330 +77,14 @@ const auto matMulParams_x64_FP16 = ::testing::Combine(::testing::ValuesIn(IS_x64
                                              ::testing::Values(ElementType::undefined),
                                              ::testing::Values(utils::InputLayerType::PARAMETER),
                                              ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::ValuesIn(additionalConfig()));
+                                             ::testing::Values(cpu_f16_plugin_config));
 
 const auto testParams_Static_IS_x64_FP16 = ::testing::Combine(matMulParams_x64_FP16,
                                            ::testing::Values(MatMulNodeType::MatMul),
                                            ::testing::ValuesIn(matmulFusingParams()),
-                                           ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                           ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_IS_x64_FP16, MatMulLayerCPUTest, testParams_Static_IS_x64_FP16, MatMulLayerCPUTest::getTestCaseName);
-
-//========== test case in common, but use runtime f16 precision =============
-const std::vector<ShapeRelatedParams> IS = {
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, false}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, true}},
-    {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {true, true}},
-
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, true}},
-    {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, true}},
-
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, false}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-    {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
-};
-
-const auto matMulParams_FP16 = ::testing::Combine(::testing::ValuesIn(IS),
-                                             ::testing::Values(ov::element::f32),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::Values(cpu_f16_plugin_config));
-
-const auto testParams_FP16 = ::testing::Combine(matMulParams_FP16,
-                                           ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::ValuesIn(matmulFusingParams()),
-                                           ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Static_FP16, MatMulLayerCPUTest, testParams_FP16, MatMulLayerCPUTest::getTestCaseName);
-
-const std::vector<ShapeRelatedParams> IS_Dynamic = {
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
-            {{-1, -1}, {{12, 55}, {7, 33}}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
-            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
-        },
-        {true, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
-            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
-        },
-        {false, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1}, {{55, 12}, {33, 7}}}, // input 0
-            {{-1, -1}, {{12, 55}, {7, 33}}} // input 1
-        },
-        {true, true}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
-            {{-1, -1}, {{60, 5}, {30, 5}}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
-            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
-        },
-        {true, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
-            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
-        },
-        {false, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1, -1}, {{1, 2, 32, 60}, {1, 2, 32, 30}}}, // input 0
-            {{-1, -1}, {{60, 5}, {30, 5}}} // input 1
-        },
-        {true, true}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
-            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
-            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
-        },
-        {true, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
-            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
-        },
-        {false, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{7, 32, 60}, {7, 32, 30}}}, // input 0
-            {{-1, -1, -1, -1}, {{3, 7, 60, 25}, {3, 7, 30, 25}}} // input 1
-        },
-        {true, true}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {true, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {false, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{-1, -1, -1}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {true, true}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {true, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{{1, 15}, {1, 15}, {1, 15}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {false, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {false, false}
-    }
-};
-const auto matMulParamsDynamic_FP16 = ::testing::Combine(::testing::ValuesIn(IS_Dynamic),
-                                             ::testing::Values(ov::element::f32),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::Values(cpu_f16_plugin_config));
-
-const auto testParamsDynamic_FP16 = ::testing::Combine(matMulParamsDynamic_FP16,
-                                           ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::Values(emptyFusingSpec),
-                                           ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_FP16, MatMulLayerCPUTest, testParamsDynamic_FP16, MatMulLayerCPUTest::getTestCaseName);
-
-const std::vector<ShapeRelatedParams> IS_Dynamic_nightly = {
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{{5, 15}, {1, 12}, {4, 15}}, {{10, 10, 10}, {5, 5, 5}}}, // input 0
-            {{{1, 13}, {3, 15}, {1, 10}}, {{10, 10, 10}, {5, 5, 5}}} // input 1
-        },
-        {true, true}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ {2, 10}, {3, 15}, -1, 16 }, {{ 2, 12, 4, 16 }, { 3, 12, 2, 16 }}}, // input 0
-            {{ 1, 1, -1, 4 }, {{ 1, 1, 16, 4 }, { 1, 1, 16, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ 1, 1, -1, 16 }, {{ 1, 1, 4, 16 }, { 1, 1, 2, 16 }}}, // input 0
-            {{ {2, 5}, {3, 15}, -1, 4 }, {{ 2, 12, 16, 4 }, { 2, 12, 16, 4 }}}  // input 1
-        },
-        {false, false}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 16 }, {{ 4, 16 }, { 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, {2, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, {1, 15}, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ -1, 4 }, {{ 16, 4 }, { 16, 4 }}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
-            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ {1, 3}, {1, 9}, {1, 5}, {1, 10} }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
-            {{ {1, 5}, {1, 7}, {1, 8}, {1, 5} }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
-        },
-        {false, false}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
-            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ 1, 7, 4, -1 }, {{ 1, 7, 4, 5 }, { 1, 7, 4, 4 }}}, // input 0
-            {{ 1, 7, -1, 4 }, {{ 1, 7, 5, 4 }, { 1, 7, 4, 4 }}}  // input 1
-        },
-        {false, false}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {true, true}
-    },
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {true, false}
-    },
-
-    {
-        { //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
-            {{ -1, 12, -1, 16 }, {{ 1, 12, 4, 16 }, { 2, 12, 2, 16 }}}, // input 0
-            {{ {1, 5}, 12, -1, 4 }, {{ 1, 12, 16, 4 }, { 1, 12, 16, 4 }}}  // input 1
-        },
-        {false, true}
-    },
-};
-
-const auto matMulParamsDynamic_FP16_nightly = ::testing::Combine(::testing::ValuesIn(IS_Dynamic_nightly),
-                                             ::testing::Values(ov::element::f32),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(ElementType::undefined),
-                                             ::testing::Values(utils::InputLayerType::PARAMETER),
-                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                             ::testing::Values(cpu_f16_plugin_config));
-
-const auto testParamsDynamic_FP16_nightly = ::testing::Combine(matMulParamsDynamic_FP16_nightly,
-                                           ::testing::Values(MatMulNodeType::MatMul),
-                                           ::testing::Values(emptyFusingSpec),
-                                           ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
-
-INSTANTIATE_TEST_SUITE_P(nightly_MM_Dynamic_FP16, MatMulLayerCPUTest, testParamsDynamic_FP16_nightly, MatMulLayerCPUTest::getTestCaseName);
-
-//========== test case in common, but use runtime f16 precision =============
 
 const auto testParams2D_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_smoke()),
                                                                 ::testing::Values(ElementType::f32),
@@ -441,7 +117,7 @@ const auto testParams2DFP16_smoke = ::testing::Combine(::testing::Combine(::test
                                                                     ::testing::Values(cpu_f16_plugin_config)),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DFP16),
-                                                 ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
@@ -578,7 +254,7 @@ const auto testParams2D_Brgemm_smoke = ::testing::Combine(fullyConnectedParams2D
 const auto testParams2D_Brgemm_FP16_smoke = ::testing::Combine(fullyConnectedParams2D_Brgemm_FP16_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm, MatMulLayerCPUTest, testParams2D_Brgemm_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_FP16, MatMulLayerCPUTest, testParams2D_Brgemm_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
@@ -623,7 +299,7 @@ const auto matMulBrgemmParams_FP16_smoke = ::testing::Combine(::testing::ValuesI
 const auto testBrgemmParams_FP16_smoke = ::testing::Combine(matMulBrgemmParams_FP16_smoke,
                                                        ::testing::Values(MatMulNodeType::MatMul),
                                                        ::testing::ValuesIn(matmulFusingParams()),
-                                                       ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                       ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Static_FP16, MatMulLayerCPUTest, testBrgemmParams_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
@@ -667,7 +343,7 @@ const auto matMulBrgemmParams_FP16_nightly = ::testing::Combine(::testing::Value
 const auto testBrgemmParams_FP16_nightly = ::testing::Combine(matMulBrgemmParams_FP16_nightly,
                                                        ::testing::Values(MatMulNodeType::MatMul),
                                                        ::testing::ValuesIn(matmulFusingParams()),
-                                                       ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                       ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static_FP16, MatMulLayerCPUTest, testBrgemmParams_FP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
@@ -756,7 +432,7 @@ const auto matMulBrgemmParamsDynamic_FP16 = ::testing::Combine(::testing::Values
 const auto testBrgemmParamsDynamic_FP16 = ::testing::Combine(matMulBrgemmParamsDynamic_FP16,
                                                         ::testing::Values(MatMulNodeType::MatMul),
                                                         ::testing::Values(emptyFusingSpec),
-                                                        ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic_FP16, MatMulLayerCPUTest, testBrgemmParamsDynamic_FP16, MatMulLayerCPUTest::getTestCaseName);
 
@@ -835,7 +511,7 @@ const auto matMulParamsDynamicFusing_FP16 = ::testing::Combine(::testing::Values
 const auto testParamsDynamicFusing_FP16 = ::testing::Combine(matMulParamsDynamicFusing_FP16,
                                                   ::testing::Values(MatMulNodeType::MatMul),
                                                   ::testing::ValuesIn(matmulFusingParams()),
-                                                  ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Dynamic_Fusing_FP16, MatMulLayerCPUTest, testParamsDynamicFusing_FP16, MatMulLayerCPUTest::getTestCaseName);
 
@@ -865,7 +541,7 @@ const auto matMulParamsBrgemmDynamicFusing_FP16 = ::testing::Combine(::testing::
 const auto testParamsBrgemmDynamicFusing_FP16 = ::testing::Combine(matMulParamsBrgemmDynamicFusing_FP16,
                                                               ::testing::Values(MatMulNodeType::MatMul),
                                                               ::testing::ValuesIn(matmulFusingParams()),
-                                                              ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                              ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Dynamic_Fusing_FP16, MatMulLayerCPUTest, testParamsBrgemmDynamicFusing_FP16, MatMulLayerCPUTest::getTestCaseName);
 
@@ -934,7 +610,7 @@ const auto matMulBrgemmAmxParams_FP16_smoke = ::testing::Combine(::testing::Valu
 const auto testBrgemmAmxParams_FP16_smoke = ::testing::Combine(matMulBrgemmAmxParams_FP16_smoke,
                                                        ::testing::Values(MatMulNodeType::MatMul),
                                                        ::testing::ValuesIn(matmulBrgemmAmxFusingParams),
-                                                       ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
+                                                       ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16_AMX)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Static_FP16, MatMulLayerCPUTest, testBrgemmAmxParams_FP16_smoke, MatMulLayerCPUTest::getTestCaseName);
 
@@ -964,7 +640,7 @@ const auto matMulBrgemmAmxParams_FP16_nightly = ::testing::Combine(::testing::Va
 const auto testBrgemmAmxParams_FP16_nightly = ::testing::Combine(matMulBrgemmAmxParams_FP16_nightly,
                                                        ::testing::Values(MatMulNodeType::MatMul),
                                                        ::testing::ValuesIn(matmulBrgemmAmxFusingParams),
-                                                       ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
+                                                       ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16_AMX)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static_FP16, MatMulLayerCPUTest, testBrgemmAmxParams_FP16_nightly, MatMulLayerCPUTest::getTestCaseName);
 
@@ -994,7 +670,7 @@ const auto matMulBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(::testing::Val
 const auto testBrgemmAmxParamsDynamic_FP16 = ::testing::Combine(matMulBrgemmAmxParamsDynamic_FP16,
                                                         ::testing::Values(MatMulNodeType::MatMul),
                                                         ::testing::Values(emptyFusingSpec),
-                                                        ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
+                                                        ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16_AMX)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Dynamic_FP16, MatMulLayerCPUTest, testBrgemmAmxParamsDynamic_FP16, MatMulLayerCPUTest::getTestCaseName);
 
@@ -1124,7 +800,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(::t
 const auto testParams2D_FP16_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_Amx_smoke,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
-                                             ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
+                                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16_AMX)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_Amx_FP16, MatMulLayerCPUTest, testParams2D_FP16_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
 
@@ -1177,7 +853,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_nightly = ::testing::Combine(::tes
 const auto testParams2D_FP16_Brgemm_nightly = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_nightly,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_nightly),
-                                             ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm_FP16, MatMulLayerCPUTest, testParams2D_FP16_Brgemm_nightly, MatMulLayerCPUTest::getTestCaseName);
 
@@ -1207,7 +883,7 @@ const auto fullyConnectedParams2D_FP16_Brgemm_Amx_nightly = ::testing::Combine(:
 const auto testParams2D_FP16_Brgemm_Amx_nightly = ::testing::Combine(fullyConnectedParams2D_FP16_Brgemm_Amx_nightly,
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_nightly),
-                                             ::testing::ValuesIn(filterSpecificParams_FP16_BrgemmAmx()));
+                                             ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16_AMX)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_Brgemm_Amx_FP16, MatMulLayerCPUTest, testParams2D_FP16_Brgemm_Amx_nightly, MatMulLayerCPUTest::getTestCaseName);
 
@@ -1231,7 +907,7 @@ const auto testParams2DFP16_nightly = ::testing::Combine(::testing::Combine(::te
                                                                     ::testing::Values(cpu_f16_plugin_config)),
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet2DFP16),
-                                                 ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D, MatMulLayerCPUTest, testParams2D_nightly, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(nightly_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
@@ -1284,7 +960,7 @@ const auto testParams3DBF16_smoke = ::testing::Combine(fullyConnectedParams3DBF1
 const auto testParams3DFP16_smoke = ::testing::Combine(fullyConnectedParams3DFP16_smoke,
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet3DFP16),
-                                                 ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_FP16, MatMulLayerCPUTest, testParams3DFP16_smoke, MatMulLayerCPUTest::getTestCaseName);
@@ -1375,7 +1051,7 @@ const auto testParams3DBF16_nightly = ::testing::Combine(fullyConnectedParams3DB
 const auto testParams3DFP16_nightly = ::testing::Combine(fullyConnectedParams3DFP16_nightly,
                                                  ::testing::Values(MatMulNodeType::FullyConnected),
                                                  ::testing::ValuesIn(fusingParamsSet3DFP16),
-                                                 ::testing::ValuesIn(filterSpecificParams_FP16_Brgemm()));
+                                                 ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(specificParams_FP16)));
 
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D, MatMulLayerCPUTest, testParams3D_nightly, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(nightly_FC_3D_BF16, MatMulLayerCPUTest, testParams3DBF16_nightly, MatMulLayerCPUTest::getTestCaseName);
