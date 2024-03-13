@@ -321,11 +321,31 @@ void SyncInferRequest::throw_if_canceled() const {
     }
 }
 
+ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_port) const {
+    auto port = get_internal_port(in_port);
+    return ov::ISyncInferRequest::get_tensor(port);
+}
+
+std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& in_port) const {
+    auto port = get_internal_port(in_port);
+    return ov::ISyncInferRequest::get_tensors(port);
+}
+
+const ov::Output<const ov::Node>& SyncInferRequest::get_internal_port(const ov::Output<const ov::Node>& port) const {
+    auto index = find_port(port).idx;
+    bool is_input = ov::op::util::is_parameter(port.get_node());
+    if (is_input) {
+        return m_input_ports_map.at(index);
+    } else {
+        return m_output_ports_map.at(index);
+    }
+}
+
 void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, const ov::SoPtr<ov::ITensor>& in_tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "set_tensor");
     if (!in_tensor)
         OPENVINO_THROW("Failed to set empty tensor for port!");
-    auto port = in_port;
+    auto port = get_internal_port(in_port);
     auto tensor = in_tensor;
 
     // WA: legacy api create blob with ANY layout will not set BlockingDesc, which will lead to tensor.get_shape()

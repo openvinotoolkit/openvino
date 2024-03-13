@@ -31,6 +31,9 @@ public:
 
     void set_tensors_impl(const ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
+
     /**
      * @brief      Sets the pointer to asynchronous inference request that holds this request
      * @param[in]  asyncRequest Pointer to asynchronous inference request
@@ -99,6 +102,8 @@ private:
     void commit_states();
     void update_external_tensor_ptrs();
     void change_default_ptr();
+
+    const ov::Output<const ov::Node>& get_internal_port(const ov::Output<const ov::Node>& port) const;
 
 private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
