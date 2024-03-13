@@ -40,7 +40,7 @@ Here are some pros and cons of having your own container registry:
   * No pull limits for images: Docker Hub imposes [limits](https://docs.docker.com/docker-hub/download-rate-limit/) on image pulls
   * Fast pulling speeds
 * Cons:
-  * The registry needs to be populated with required images before usage
+  * The registry needs to be populated with the required images before usage
     * The registry does not automatically mirror images available on Docker Hub
     * The necessary images must be manually added to the registry
 
@@ -55,7 +55,7 @@ Examples:
 
 ## How to Choose an Image
 
-The Docker image required for a job depends on the nature of the job and the configuration being tested.
+The Docker image choice depends on the nature of the job and the configuration being tested.
 
 An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow:
 ```yaml
@@ -76,7 +76,7 @@ If the tests do not require any specific OS or distribution, it is recommended t
 the available images, for example, `openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04`.
 
 If testing requires a specific OS or distribution (for example, `fedora`),
-the Docker image for this flavor should be first uploaded to the OpenVINO ACR and
+the Docker image for this flavor should be uploaded to the OpenVINO ACR first and
 then used in a workflow.
 
 Contact a member of the CI team for assistance with the image uploading.

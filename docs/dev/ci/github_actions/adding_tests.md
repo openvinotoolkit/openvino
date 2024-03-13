@@ -1,15 +1,15 @@
 # How to add Tests to GitHub Actions CI
 
-The OpenVINO repository has [many workflows](./../../../../.github/workflows), which contain
+The OpenVINO repository has [multiple workflows](./../../../../.github/workflows) that contain
 jobs for building and testing OpenVINO. Their general and structural overview is
-available in the [OpenVINO GitHub Actions CI page](./overview.md).
+available on the [OpenVINO GitHub Actions CI page](./overview.md).
 
-This document explains how to add tests to existing workflows and create new workflows.
+This document explains how to create new workflows and add tests.
 
 ## Table of Contents
 
-* [Adding Tests to Existing Workflow](#adding-tests-to-existing-workflow)
-  * [Adding Tests to Existing Test Suite](#adding-tests-to-existing-test-suite)
+* [Adding Tests to an Existing Workflow](#adding-tests-to-existing-workflow)
+  * [Adding Tests to an Existing Test Suite](#adding-tests-to-existing-test-suite)
   * [Creating a Step in a Job](#creating-a-step-in-a-job)
   * [Creating a New Job](#creating-a-new-job)
   * [Creating a Workflow](#creating-a-workflow)
@@ -18,9 +18,9 @@ This document explains how to add tests to existing workflows and create new wor
   * [Adding a Job](#adding-a-job)
   * [Adding a Workflow](#adding-a-workflow)
 
-## Adding Tests to Existing Workflow
+## Adding Tests to an Existing Workflow
 
-### Adding Tests to Existing Test Suite
+### Adding Tests to an Existing Test Suite
 
 If the new tests can be executed as part of the existing test suite, for example,
 new OVC Python API tests, there is no need to change the workflows.
@@ -58,7 +58,7 @@ more about workflows and job organization.
 
 ### Creating a New Job
 
-If the new tests do not align with any existing job across all workflows, it is possible to
+If new tests do not align with any existing job across all workflows, it is possible to
 create a dedicated job for them.
 
 An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
@@ -104,16 +104,16 @@ A job:
 * might use Docker to execute `steps` in, configured by the `container` key
   * Learn more about [available Docker images](./docker_images.md)
 * might use caches to speed up build and/or tests
-  * Different types of caches are available. Learn more about about [available caches](./caches.md)
+  * Different types of caches are available. Learn more about [available caches](./caches.md)
 * might use the Smart CI system for conditional execution with the `if` key
   * Refer to the [Smart CI Overview](./smart_ci.md) for more information
 * requires a series of commands to execute, provided by the `steps` key
-  * Refer to the [creating steps in a job section](#create-a-step-in-a-job) to learn more about `steps`
+  * Refer to the [creating steps in a job section](#creating-a-step-in-a-job) to learn more about `steps`
 * might use build artifacts from the `Build` job
-  * The artifacts can be downloaded using the `actions/download-artifact`, read more about the workflows' structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#structure-of-the-workflows)
+  * The artifacts can be downloaded using `actions/download-artifact`, read more about the workflow structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#structure-of-the-workflows)
 
 If the job can be used in several workflows, it can be transformed into a reusable workflow.
-Learn more in the [Reusable Workflows page](./reusable_workflows.md).
+Learn more from the [Reusable Workflows page](./reusable_workflows.md).
 
 ## Creating a Workflow
 
@@ -123,10 +123,10 @@ Refer to the [official GitHub Actions documentation](https://docs.github.com/en/
 You can refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows) as a template for a new workflow.
 
 The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example includes:
-* `Smart_CI`, `Build`, `RPM_Packages`, `Overall_Status` jobs:
+* The following jobs:
   * `Smart_CI` - the [Smart CI system](./smart_ci.md).
-  * `Build` - prerequisites installation, building OpenVINO with specified CMake configuration, packaging and uploading artifacts.
-  * `RPM_Packages` - prerequisites installation, downloading artifacts and tests.
+  * `Build` - installing prerequisites, building OpenVINO with the specified CMake configuration, packaging and uploading artifacts.
+  * `RPM_Packages` - installing prerequisites, downloading artifacts and tests.
   * `Overall_Status` - the job for collecting statuses of other jobs
 * uploading and downloading the build artifacts between jobs using `actions/upload-artifact` and `actions/download-artifact`
 * usage of the [Smart CI system](./smart_ci.md)

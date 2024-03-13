@@ -3,7 +3,7 @@
 Smart CI is a feature designed to optimize pre-commit CI workflow by running only the necessary
 builds and tests required to validate changes in a given Pull Request (PR).
 
-For example, if a PR changes only CPU plugin, GPU plugin tests are skipped in the pre-commit stage
+For example, if a PR changes only the CPU plugin, GPU plugin tests are skipped in the pre-commit stage
 for this PR, as they are unrelated. This approach reduces execution time for isolated changes
 in product components and minimizes the load on limited hardware resources.
 
@@ -108,7 +108,7 @@ Smart CI feature consider the component named "CPU" as changed (the "category:" 
 
 [.github/components.yml](../../../../.github/components.yml)
 
-Some components are not entirely independent, and changes to them may impact other components as well. In this case,
+Some components are not entirely independent, and changing them may impact other components as well. In this case,
 validation for the changed component itself (including both build and tests) is required,
 along with validation for dependent components (either only build or both build and tests).
 This file describes the relationships between components, for example:

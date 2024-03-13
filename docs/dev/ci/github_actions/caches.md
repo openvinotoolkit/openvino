@@ -84,7 +84,7 @@ that will be used by different workflow jobs.
 
 >**NOTE**: This cache is enabled for Linux [self-hosted runners](./runners.md) only.
 
-The drive is available on self-hosted machines. To make it available inside [the Docker containers](./docker_images.md),
+The drive is available on self-hosted machines. To make it available inside [Docker containers](./docker_images.md),
 add the mounting point under the `container`'s `volumes` key in a job configuration:
 ```yaml
 Build:
