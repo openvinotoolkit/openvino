@@ -53,21 +53,9 @@ ROIAlignRotated
   * **Type**: ``float``
   * **Required**: *yes*
 
-* *aligned_mode*
-
-  * **Description**: *aligned_mode* specifies how to transform the coordinate in original tensor to the resized tensor.
-  * **Range of values**: name of the transformation mode in string format (here spatial_scale is resized_shape[x] / original_shape[x], resized_shape[x] is the shape of resized tensor in axis x, original_shape[x] is the shape of original tensor in axis x and x_original is a coordinate in axis x, for any axis x from the input axes):
-
-    * *asymmetric* - the coordinate in the resized tensor axis x is calculated according to the formula x_original * spatial_scale
-    * *half_pixel_for_nn* - the coordinate in the resized tensor axis x is x_original * spatial_scale - 0.5
-    * *half_pixel* - the coordinate in the resized tensor axis x is calculated as ((x_original + 0.5) * spatial_scale) - 0.5
-  * **Type**: string
-  * **Default value**: asymmetric  
-  * **Required**: *no*
-
 * *clockwise_mode*
 
-  * **Description**:  If True, the angle in each proposal follows a clockwise fashion in image space, otherwise, the angle is counterclockwise.
+  * **Description**:  If True, the angle in each proposal represents a clockwise rotation, otherwise - counterclockwise rotation.
   * **Type**: ``bool``
   * **Default value**: False  
   * **Required**: *no*
@@ -98,7 +86,7 @@ ROIAlignRotated
    :force:
 
    <layer ... type="ROIAlignRotated" ... >
-       <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" aligned_mode="half_pixel" clockwise_mode="True"/>
+       <data pooled_h="6" pooled_w="6" spatial_scale="16.0" sampling_ratio="2" clockwise_mode="True"/>
        <input>
            <port id="0">
                <dim>7</dim>
