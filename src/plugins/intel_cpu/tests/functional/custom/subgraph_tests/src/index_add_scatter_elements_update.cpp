@@ -223,8 +223,15 @@ protected:
                     for (size_t k = 0; k < tensor.get_size(); k++)
                         std::cout << *((int*)data+k) << ", ";
                 } else {
-                    for (size_t k = 0; k < tensor.get_size(); k++)
-                        std::cout << *((float*)data+k) << ", ";
+                    if (funcInput.get_element_type() == ov::element::bf16)
+                        for (size_t k = 0; k < tensor.get_size(); k++) {
+                            std::cout << *((ov::bfloat16*)data+k) << ", ";
+                        }
+                    else {
+                        for (size_t k = 0; k < tensor.get_size(); k++) {
+                            std::cout << *((float*)data+k) << ", ";
+                        }
+                    }
                 }
                 std::cout << std::endl;
             }
@@ -308,8 +315,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
                          IndexAddTest,
                          ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
                                             ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32), // data precision
-                                            ::testing::Values(ElementType::i32), // indices precision
+                                            ::testing::Values(ElementType::f32, ElementType::bf16), // data precision
+                                            ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
                                             ::testing::Values(1.0),              // alpha
                                             ::testing::Values(true, false)),     // dynamic shape test
                          IndexAddTest::getTestCaseName);

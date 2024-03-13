@@ -13,13 +13,13 @@ using ov::test::ScatterElementsUpdate12LayerTest;
 namespace {
 // map<input_shape, map<indices_shape, axis>>
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> axesShapeInShape {
-    {{2, 2, 4}, {{{1, 2, 4}, {0, 1, 2}}, {{2, 2, 2}, {-1, -2, -3}}}},
-    {{2, 2, 2, 4}, {{{1, 2, 2, 2}, {0, 1, 2, 3}}, {{1, 2, 1, 4}, {-1, -2, -3, -4}}}},
-    {{2, 2, 1, 2, 1, 2}, {{{1, 2, 1, 2, 1, 2}, {5, -3}}}},
+    {{10, 12, 15}, {{{1, 2, 4}, {0, 1, 2}}, {{2, 2, 2}, {-1, -2, -3}}}},
+    {{15, 9, 8, 12}, {{{1, 2, 2, 2}, {0, 1, 2, 3}}, {{1, 2, 1, 4}, {-1, -2, -3, -4}}}},
+    {{9, 9, 8, 8, 11, 10}, {{{1, 2, 1, 2, 1, 2}, {5, -3}}}},
 };
 // index value should not be random data
 const std::vector<std::vector<size_t>> idx_value = {
-        {1, 0, 0, 1, 0, 1, 1, 0}
+        {1, 0, 4, 6, 2, 3, 7, 5}
 };
 
 const std::vector<ov::element::Type> model_types = {
@@ -30,7 +30,7 @@ const std::vector<ov::element::Type> model_types = {
 
 const std::vector<ov::element::Type> idx_types = {
         ov::element::i32,
-        // ov::element::i64,
+        ov::element::i64,
 };
 
 std::vector<ov::test::axisShapeInShape> combine_shapes(
@@ -70,7 +70,7 @@ const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduceModes{
 
 const std::vector<std::vector<int64_t>> idxWithNegativeValues = {
     {1, 0, 0, 1},
-    // {-1, -2, -2, -1},
+    {-1, -2, -2, -1},
 };
 
 // map<input_shape, map<indices_shape, axis>>

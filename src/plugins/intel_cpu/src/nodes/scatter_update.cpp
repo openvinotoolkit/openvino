@@ -412,7 +412,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             OPENVINO_ASSERT(one_of(dstMemPtr->getPrecision(), ov::element::f32, ov::element::bf16) &&
                             indicesMemPtr->getPrecision() == ov::element::i32 &&
                             dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
-                "unsupported data element type!");
+                "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
             auto start = high_resolution_clock::now();
             if (dstMemPtr->getPrecision() == ov::element::f32) {
                 switch (reduction_type) {
