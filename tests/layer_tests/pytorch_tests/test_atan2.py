@@ -9,7 +9,6 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAtan2(PytorchLayerTest):
-    class TestAtan2(PytorchLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'y' in inputs_info
         assert 'x' in inputs_info
