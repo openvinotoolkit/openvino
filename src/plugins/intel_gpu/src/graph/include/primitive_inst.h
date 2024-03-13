@@ -235,6 +235,7 @@ public:
     void do_runtime_skip_gather();
     void do_runtime_skip_permute();
     void do_runtime_skip_strided_slice();
+    void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
     void configure_shape_of_dependencies();
