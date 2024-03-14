@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/constant.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/multiply.hpp"
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
@@ -22,7 +24,15 @@ OutputVector translate_elu(const NodeContext& context) {
                                 "Unexpected value of scale input for elu operation");
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(3) || context.const_input<int64_t>(3) == 1,
                                 "Unexpected value of input_scale input for elu operation");
-    return {context.mark_node(std::make_shared<ov::op::v0::Elu>(x, alpha))};
+    auto out = context.mark_node(std::make_shared<ov::op::v0::Elu>(x, alpha));
+    if (!context.input_is_none(2)) {
+        // TODO: Check if "alpha" and "scale" should be actual inputs instead of
+        // constant inputs
+        auto scale = context.const_input<float>(2);
+        auto const_scale = ov::op::v0::Constant::create(x.get_element_type(), Shape{}, {scale});
+        out = std::make_shared<ov::op::v1::Multiply>(out, const_scale);
+    }
+    return {out};
 };
 
 }  // namespace op
