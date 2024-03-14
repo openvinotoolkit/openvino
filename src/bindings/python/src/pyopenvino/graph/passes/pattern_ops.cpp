@@ -16,6 +16,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "pyopenvino/core/common.hpp"
 
 static ov::NodeTypeInfo get_type(const std::string& type_name) {
@@ -482,6 +483,42 @@ static void reg_pattern_any_input(py::module m) {
     });
 }
 
+static void reg_pattern_optional(py::module m) {
+    py::class_<ov::pass::pattern::op::Optional, std::shared_ptr<ov::pass::pattern::op::Optional>, ov::Node> optional_type(
+        m,
+        "Optional");
+    optional_type.doc() = "openvino.runtime.passes.Optional wraps ov::pass::pattern::op::Optional";
+
+    optional_type.def(py::init([](const std::vector<std::string>& type_names) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names));
+                  }),
+                  py::arg("type_name"),
+                  R"(
+                  Create Optional with the given node type.
+
+                  :param type_name node type. For example: "opset8.Abs"
+                  :type type_name: str
+    )");
+
+    //optional_type.def(py::init([](const std::string& type_name, const Predicate& pred) {
+    //                  return std::make_shared<ov::pass::pattern::op::Optional>(get_type(type_name), pred);
+    //              }),
+    //              py::arg("type_name"),
+    //              R"(
+    //              Create Optional with the given node type.
+
+    //              :param type_name: node type. For example: "opset8.Abs"
+    //              :type type_name: str
+
+    //              :param pred: Function to check the conditions for matching.
+    //              :type pred: function
+    //)");
+
+    optional_type.def("__repr__", [](const ov::pass::pattern::op::Optional& self) {
+        return Common::get_simple_repr(self);
+    });
+}
+
 inline void reg_predicates(py::module m) {
     m.def("consumers_count", &ov::pass::pattern::consumers_count);
     m.def("has_static_dim", &ov::pass::pattern::has_static_dim);
@@ -497,5 +534,6 @@ void reg_passes_pattern_ops(py::module m) {
     reg_pattern_any_input(m);
     reg_pattern_wrap_type(m);
     reg_pattern_or(m);
+    reg_pattern_optional(m);
     reg_predicates(m);
 }
