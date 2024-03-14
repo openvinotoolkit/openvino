@@ -29,6 +29,7 @@ class TestPixelShuffle(PytorchLayerTest):
                                                         (2, [1, 2, 3, 8, 4, 4]),])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_pixel_shuffle(self, upscale_factor, shape, ie_device, precision, ir_version):
         self.shape = shape
         self._test(*self.create_model(upscale_factor),
@@ -57,6 +58,7 @@ class TestPixelUnshuffle(PytorchLayerTest):
                                                         (2, [1, 2, 3, 2, 8, 8]),])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_pixel_unshuffle(self, upscale_factor, shape, ie_device, precision, ir_version):
         self.shape = shape
         self._test(*self.create_model(upscale_factor),
@@ -90,6 +92,7 @@ class TestChannelShuffle(PytorchLayerTest):
         ])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_channel_shuffle(self, groups, shape, ie_device, precision, ir_version):
         self.shape = shape
         self._test(*self.create_model(groups),
