@@ -4,8 +4,12 @@
 
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/negative.hpp"
 #include "openvino/op/power.hpp"
-#include "utils.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -51,6 +55,9 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
         return {reciprocal};
     }
 }
+template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Divide>(const NodeContext& node);
+template OutputVector translate_binary_op<v1::Power>(const NodeContext& node);
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
