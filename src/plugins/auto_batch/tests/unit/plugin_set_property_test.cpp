@@ -61,6 +61,7 @@ const std::vector<set_property_params> plugin_set_property_params_test = {
     set_property_params{{{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(4)")}}, false},
     set_property_params{{{"XYZ", "200"}}, true},
     set_property_params{{{"XYZ", "200"}, {ov::device::priorities("CPU(4)")}}, true},
+    set_property_params{{{ov::enable_profiling(true)}}, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,
