@@ -82,7 +82,7 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         auto rsqrt = make_shared<v1::Power>(input, exponent);
         set_node_name(node.get_name(), rsqrt);
         return {rsqrt};
-    }  // else 
+    }
 }
 }  // namespace op
 }  // namespace tensorflow
