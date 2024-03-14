@@ -28,7 +28,7 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
     auto input = node.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
-     if (complex_type_mark) { 
+    if (complex_type_mark) { 
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_type_mark->input_value(0); 
         // input is complex tensor representation in a form [N1, N2, ..., Nk, 2]
@@ -50,17 +50,23 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         auto const_two = create_same_type_const_scalar<float>(real_part, 2.0f); 
         
         // get square of absolute value 
-        auto mod_sqr = make_shared<v1::Power>(make_shared<v1::Add>(make_shared<v1::Power>(real_part, const_two), make_shared<v1::Power>(imag_part, const_two)),const_half) ; // a2 + b2
+        auto mod_sqr = make_shared<v1::Power>(make_shared<v1::Add>(make_shared<v1::Power>(real_part, const_two), \
+            make_shared<v1::Power>(imag_part, const_two)),const_half) ; // a2 + b2
 
         // sqrt_real = sqrt( a + sqrt( a^2 + b^2) / 2 ) 
         // sqrt_imag = b/|b| sqrt( -a + sqrt(a^2 + b^2) / 2 )
-        auto sqrt_real = make_shared<v1::Power>( make_shared<v1::Divide>( make_shared<v1::Add>(mod_sqr,real_part), 2.0 ) ,const_half);
-        auto sign = make_shared<v1::Divide>( imag_part, make_shared<v1::Power>( make_shared<v1::Power>( imag_part, const_two), const_half) ); 
-        auto sqrt_imag = make_shared<v1::Power>( make_shared<v1::Divide>( make_shared<v1::Add>(mod_sqr,make_shared<v0::Negative>(real_part)), 2.0 ) ,const_half); 
+        auto sqrt_real = make_shared<v1::Power>( make_shared<v1::Divide>( \
+            make_shared<v1::Add>(mod_sqr,real_part), 2.0 ) ,const_half);
+        auto sign = make_shared<v1::Divide>( imag_part, make_shared<v1::Power>( \
+            make_shared<v1::Power>( imag_part, const_two), const_half) ); 
+        auto sqrt_imag = make_shared<v1::Power>( make_shared<v1::Divide>( \
+            make_shared<v1::Add>(mod_sqr,make_shared<v0::Negative>(real_part)), 2.0 ) ,const_half); 
         // rsqrt_real = sqrt_real/(sqrt_real^2 + sqrt_imag^2)
         // rsqrt_imag = - sqrt_imag/(sqrt_real^2 + sqrt_imag^2) 
-        auto rsqrt_real = make_shared<v1::Divide>(sqrt_real ,  make_shared<v1::Add>(make_shared<v1::Power>( sqrt_real,const_two) , make_shared<v1::Power>(sqrt_imag,const_two) )) ; 
-        auto rsqrt_imag = make_shared<v1::Negative>( make_shared<v1::Divide>(sqrt_imag ,  make_shared<v1::Add>( make_shared<v1::Power>(sqrt_real,const_two) + make_shared<v1::Power>(sqrt_imag,const_two) ) )) ; 
+        auto rsqrt_real = make_shared<v1::Divide>(sqrt_real , make_shared<v1::Add>( \
+            make_shared<v1::Power>( sqrt_real,const_two) , make_shared<v1::Power>(sqrt_imag,const_two) )) ; 
+        auto rsqrt_imag = make_shared<v1::Negative>( make_shared<v1::Divide>(sqrt_imag ,  \
+            make_shared<v1::Add>( make_shared<v1::Power>(sqrt_real,const_two) + make_shared<v1::Power>(sqrt_imag,const_two) ) )) ; 
          
         auto real_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_real, minus_one);
         auto imag_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_imag, minus_one);
@@ -73,11 +79,11 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
 
     }
     else{
-    auto exponent = create_same_type_const_scalar<float>(input, -0.5f);
-    auto rsqrt = make_shared<v1::Power>(input, exponent);
-    set_node_name(node.get_name(), rsqrt);
-    return {rsqrt};
-}  // else 
+        auto exponent = create_same_type_const_scalar<float>(input, -0.5f);
+        auto rsqrt = make_shared<v1::Power>(input, exponent);
+        set_node_name(node.get_name(), rsqrt);
+        return {rsqrt};
+    }  // else 
 }
 }  // namespace op
 }  // namespace tensorflow
