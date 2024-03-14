@@ -50,14 +50,6 @@ class TestTorchConvertModel(TestConvertModel):
         torch.set_grad_enabled(False)
 
     def load_model(self, model_name, model_link):
-        if self.cached_model is not None and self.cached_model[0] == model_name and self.cached_model[1] == model_link:
-            return self.cached_model[2]
-        else:
-            res = self.load_model_impl(model_name, model_link)
-            self.cached_model = (model_name, model_link, res)
-            return res
-
-    def load_model_impl(self, model_name, model_link):
         raise "load_model is not implemented"
 
     def get_inputs_info(self, model_obj):
@@ -76,11 +68,15 @@ class TestTorchConvertModel(TestConvertModel):
             from torch.export import export
             from packaging import version
             from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-            import inspect
-            from openvino.frontend.pytorch.utils import prepare_example_inputs_and_model
 
             input_shapes = []
             input_types = []
+            model_obj.eval()
+            # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
+            if isinstance(self.example, dict):
+                pt_res = model_obj(**self.example)
+            else:
+                pt_res = model_obj(*self.example)
             if isinstance(self.example, dict):
                 graph = export(model_obj, tuple(), self.example)
                 for input_data in self.example.values():
@@ -112,10 +108,6 @@ class TestTorchConvertModel(TestConvertModel):
             if isinstance(self.example, dict):
                 decoder._input_signature = list(self.example.keys())  
             ov_model = convert_model(decoder, example_input=self.example) 
-            if isinstance(self.example, dict):         
-                pt_res = model_obj(**self.example)
-            else:
-                pt_res = model_obj(*self.example)
             if isinstance(pt_res, dict):
                 for i, k in enumerate(pt_res.keys()):
                     ov_model.outputs[i].get_tensor().set_names({k})
