@@ -168,13 +168,16 @@ else()
     set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
 endif()
 
+# don't use system OpenCL during static build to avoid extra shared libs dependencies
+set(ENABLE_SYSTEM_OPENCL_DEFAULT ${BUILD_SHARED_LIBS})
+
 ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
     "THREADING MATCHES TBB" OFF)
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
     "ENABLE_OV_TF_LITE_FRONTEND" OFF)
-ov_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_LIBS_DEFAULT}
+ov_dependent_option (ENABLE_SYSTEM_OPENCL "Enables use of system OpenCL" ${ENABLE_SYSTEM_OPENCL_DEFAULT}
     "ENABLE_INTEL_GPU" OFF)
 # the option is turned off by default, because we compile our own static version of protobuf
 # with LTO and -fPIC options, while system one does not have such flags

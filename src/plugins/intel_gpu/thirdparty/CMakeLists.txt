@@ -136,6 +136,8 @@ function(ov_build_onednn_gpu)
             "-DDNNL_LIBRARY_TYPE=STATIC"
             "-DDNNL_EXPERIMENTAL_PROFILING=ON"
             "-DONEDNN_BUILD_GRAPH=OFF"
+            # avoid searching of PythonInterp in oneDNN docs
+            "-DCMAKE_DISABLE_FIND_PACKAGE_PythonInterp=ON"
             # override OpenCL version default set by oneDNN (1.2)
             "-DOPENCL_VERSION_${ONEDNN_CL_VERSION}=ON"
             # specifically for Conan, because it overrides CMAKE_PREFIX_PATH and oneDNN's FindOpenCL.cmake is ignored

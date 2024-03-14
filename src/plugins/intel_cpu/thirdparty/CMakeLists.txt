@@ -20,13 +20,23 @@ function(ov_add_onednn_common)
     # Common oneDNN options
     #
 
-    set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
-    set(DNNL_ENABLE_JIT_PROFILING ${BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
-    if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
-        set(DNNL_ENABLE_ITT_TASKS ON CACHE BOOL "" FORCE)
+    if(ENABLE_GPU_USE_CPUS_ONEDNN AND ENABLE_LTO)
+        # TODO: for some reason, when CPU's oneDNN is compiled with GPU support, we have 
+        # issues because of LTO; so, let's turn off
+        set(DNNL_ENABLE_JIT_PROFILING_DEFAULT OFF)
+        set(DNNL_ENABLE_ITT_TASKS_DEFAULT OFF)
     else()
-        set(DNNL_ENABLE_ITT_TASKS OFF CACHE BOOL "" FORCE)
+        set(DNNL_ENABLE_JIT_PROFILING_DEFAULT ${BUILD_SHARED_LIBS})
+        if(BUILD_SHARED_LIBS AND ENABLE_PROFILING_ITT)
+            set(DNNL_ENABLE_ITT_TASKS_DEFAULT ON)
+        else()
+            set(DNNL_ENABLE_ITT_TASKS_DEFAULT OFF)
+        endif()
     endif()
+
+    set(CMAKE_DISABLE_FIND_PACKAGE_PythonInterp ON)
+    set(DNNL_ENABLE_JIT_PROFILING ${DNNL_ENABLE_JIT_PROFILING_DEFAULT} CACHE BOOL "" FORCE)
+    set(DNNL_ENABLE_ITT_TASKS ${DNNL_ENABLE_ITT_TASKS_DEFAULT} CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
     set(DNNL_ENABLE_PRIMITIVE_CACHE ON CACHE BOOL "" FORCE) # Enable primitive cache for global sharing
     set(DNNL_ENABLE_MAX_CPU_ISA ON CACHE BOOL "" FORCE)
