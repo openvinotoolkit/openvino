@@ -35,6 +35,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, bo
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     if (subStreamsMode) {
         CPU_REGISTER_PASS_COMMON(manager, SplitFC);
+        // ov::element::TypeVector decompression_precisions{ov::element::u8,
+        //                                                  ov::element::u4,
+        //                                                  ov::element::i4,
+        //                                                  ov::element::nf4};
+        // CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false);
     }
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);
