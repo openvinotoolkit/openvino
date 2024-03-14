@@ -619,13 +619,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     if (d_scale == 0.0f)
         d_scale = 1.0f / sqrt(S);
     auto nthr = parallel_get_max_threads();
-    size_t kv_len;
-    if (is_pagedattn) {
-        kv_len = present_key.size(2);
-    } else {
-        // max kv len
-        kv_len = beams.size(1);
-    }
+    // max kv len
+    auto kv_len = beams.size(1);
 
     // use per-token kernel, for each k,v token
     //  attn mask is a matrix of q_len(kv_len)
@@ -712,10 +707,12 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto cur_kv_len = kv_len;
-        if (is_pagedattn)
-            cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
-        // apply attention mask & sofmax
         auto ncausal = auto_causal ? (cur_kv_len - q_len + pq + 1) : cur_kv_len;
+        if (is_pagedattn) {
+            cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
+            ncausal = cur_kv_len;
+        }
+        // apply attention mask & sofmax
         float* alibi_ptr = alibi_mask ? &alibi_mask.at<float>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
         auto attn_mask_prec = attention_mask.get_precision();

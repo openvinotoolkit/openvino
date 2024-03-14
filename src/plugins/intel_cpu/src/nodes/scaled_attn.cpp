@@ -125,7 +125,8 @@ struct MHAKernel {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    float d_scale = 0.0f) {
+                    float d_scale = 0.0f,
+                    size_t sliding_window = 0) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -177,7 +178,18 @@ struct MHAKernel {
                 }
 
                 // softmax
-                softmax(&attn_score[0], ncausal);
+                if (sliding_window) {
+                    size_t start_idx = 0;
+                    auto new_causal = ncausal;
+                    if (ncausal > sliding_window) {
+                        start_idx = ncausal - static_cast<size_t>(sliding_window);
+                        new_causal = sliding_window;
+                    }
+                    softmax(&attn_score[start_idx], new_causal);
+                    memset(&attn_score[0], 0, sizeof(float) * start_idx);
+                } else {
+                    softmax(&attn_score[0], ncausal);
+                }
 
                 // linearly combine value
                 word_vec.assign(head_size, 0.0f);
@@ -350,7 +362,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                         PlainTensor& output_emb,
                         bool has_out_transpose,
                         bool auto_causal,
-                        float d_scale = 0.0f) {
+                        float d_scale = 0.0f,
+                        size_t sliding_window = 0) {
         const auto B = query.size(0);
         const auto H = query.size(1);
         const auto q_len = query.size(2);
@@ -413,17 +426,39 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(&score.at<float>({b, h, m, 0}),
-                             &weight.at<T>({b, h, m, 0}),
-                             d_scale,
-                             alibi_ptr + m * alibi_stride,
-                             attn_mask_ptr + m * attn_mask_stride,
-                             cmask_ptr + m * cmask_stride,
-                             select_nfltmax_at_0,
-                             ncausal,
-                             kv_len,
-                             precision_of<T>::value,
-                             precision_of<T>::value);
+                if (sliding_window) {
+                    size_t start_idx = 0;
+                    auto new_causal = ncausal;
+                    if (ncausal > sliding_window) {
+                        start_idx = ncausal - static_cast<size_t>(sliding_window);
+                        new_causal = sliding_window;
+                    }
+                    attn_softmax(&score.at<float>({b, h, m, start_idx}),
+                                &weight.at<T>({b, h, m, start_idx}),
+                                d_scale,
+                                alibi_ptr + m * alibi_stride,
+                                attn_mask_ptr + m * attn_mask_stride,
+                                cmask_ptr + m * cmask_stride,
+                                select_nfltmax_at_0,
+                                new_causal,
+                                kv_len - start_idx,
+                                precision_of<T>::value,
+                                precision_of<T>::value);
+
+                    memset(&weight.at<T>({b, h, m, 0}), 0, sizeof(T) * start_idx);
+                } else {
+                    attn_softmax(&score.at<float>({b, h, m, 0}),
+                                &weight.at<T>({b, h, m, 0}),
+                                d_scale,
+                                alibi_ptr + m * alibi_stride,
+                                attn_mask_ptr + m * attn_mask_stride,
+                                cmask_ptr + m * cmask_stride,
+                                select_nfltmax_at_0,
+                                ncausal,
+                                kv_len,
+                                precision_of<T>::value,
+                                precision_of<T>::value);
+                }
             }
             T* w_ptr = &weight.at<T>({b, h, m_start, 0});
             float* fp32_out_ptr;
@@ -483,7 +518,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    float d_scale = 0.0f) {
+                    float d_scale = 0.0f,
+                    size_t sliding_window = 0) {
         auto head_size = query.size(3);
         if (d_scale == 0.0f)
             d_scale = 1.0f / sqrt(head_size);
@@ -497,7 +533,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                        output_emb,
                        has_out_transpose,
                        auto_causal,
-                       d_scale);
+                       d_scale,
+                       sliding_window);
     }
 };
 
@@ -539,7 +576,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    float d_scale = 0.0f) {
+                    float d_scale = 0.0f,
+                    size_t sliding_window = 0) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -629,17 +667,39 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
             for (size_t m = m_start; m < m_end; m++) {
                 // apply attention mask & sofmax
                 auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
-                attn_softmax(qk + (m - m_start) * qk_m_stride,
-                             qk + (m - m_start) * qk_m_stride,
-                             d_scale,
-                             alibi_ptr + m * alibi_stride,
-                             attn_mask_ptr + m * attn_mask_stride,
-                             cmask_ptr + m * cmask_stride,
-                             select_nfltmax_at_0,
-                             ncausal,
-                             kv_len,
-                             ov::element::f32,
-                             ov::element::f32);
+                if (sliding_window) {
+                    size_t start_idx = 0;
+                    auto new_causal = ncausal;
+                    if (ncausal > sliding_window) {
+                        start_idx = ncausal - static_cast<size_t>(sliding_window);
+                        new_causal = sliding_window;
+                    }
+                    attn_softmax(qk + (m - m_start) * qk_m_stride + start_idx,
+                                qk + (m - m_start) * qk_m_stride + start_idx,
+                                d_scale,
+                                alibi_ptr + m * alibi_stride,
+                                attn_mask_ptr + m * attn_mask_stride,
+                                cmask_ptr + m * cmask_stride,
+                                select_nfltmax_at_0,
+                                new_causal,
+                                kv_len - start_idx,
+                                ov::element::f32,
+                                ov::element::f32);
+
+                    memset(qk + (m - m_start) * qk_m_stride, 0, sizeof(float) * start_idx);
+                } else {
+                    attn_softmax(qk + (m - m_start) * qk_m_stride,
+                                qk + (m - m_start) * qk_m_stride,
+                                d_scale,
+                                alibi_ptr + m * alibi_stride,
+                                attn_mask_ptr + m * attn_mask_stride,
+                                cmask_ptr + m * cmask_stride,
+                                select_nfltmax_at_0,
+                                ncausal,
+                                kv_len,
+                                ov::element::f32,
+                                ov::element::f32);
+                }
             }
             mlas_sgemm("N",
                        "N",
@@ -730,6 +790,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         PlainTensor output_emb(output);
         float scale_input = 0.0f;
         size_t B, L1, L0, S;
+        size_t sliding_window = 0;
 
         q_input.reset(inputs[0]);
         k_input.reset(inputs[1]);
@@ -764,6 +825,8 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
             if (!is_prompt) {
                 context_lens.assert_dims({B});
                 beam_table.assert_dims({B, 0}, true);
+            } else {
+                sliding_window = static_cast<size_t>(*inputs[ID_SLIDING_WINDOW]->getDataAs<int32_t>());
             }
             output_emb.assert_dims({B, L1, H * S});
             q_input = q_input.reshape({B, L1, H, S}).permute({0, 2, 1, 3});
@@ -855,7 +918,7 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
         if (!use_one_token) {
             // multi-token version
             kernel(strm, q_input, k_input, v_input, {}, use_attn_mask ? attn_mask : PlainTensor(),
-                   output_emb, has_out_transpose, auto_causal, scale_input);
+                   output_emb, has_out_transpose, auto_causal, scale_input, sliding_window);
         } else {
             // 1-token version
             // for second token, using a special AVX2/AVX512 float path:
