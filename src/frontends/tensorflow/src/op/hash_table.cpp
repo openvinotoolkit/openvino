@@ -46,14 +46,6 @@ OutputVector translate_hash_table_op(const ov::frontend::tensorflow::NodeContext
 
         // initialize HashTable since it was found in the map
         auto new_table = make_shared<HashTable>(*hash_table, keys, values);
-
-        // since this operation produces new state of the variable
-        // it needs to update variables map
-        auto variables_state_map = node.get_variable_state_map();
-        TENSORFLOW_OP_VALIDATION(node,
-                                 variables_state_map,
-                                 "[TensorFlow Frontend] internal error: variable state map is nullptr");
-        variables_state_map->update_variable_state_map_for_node(node.get_name(), new_table);
         return {new_table};
     }
     return {hash_table};

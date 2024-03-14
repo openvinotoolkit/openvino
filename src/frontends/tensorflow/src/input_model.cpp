@@ -94,6 +94,8 @@ public:
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
     HashTableKeysValuesMap get_hash_table_keys_map() const;
     HashTableKeysValuesMap get_hash_table_values_map() const;
+    void set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable);
+    Variable::Ptr get_variable(const ov::frontend::Place::Ptr& place) const;
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
 private:
@@ -121,6 +123,7 @@ private:
     std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
     HashTableKeysValuesMap m_hash_table_keys_map;
     HashTableKeysValuesMap m_hash_table_values_map;
+    std::map<ov::frontend::Place::Ptr, Variable::Ptr> m_variables_map;
     std::shared_ptr<CheckpointV1Reader> m_checkpoint_v1_reader;
 
     bool m_native_format;
@@ -329,6 +332,14 @@ HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_keys_map() c
 
 HashTableKeysValuesMap InputModel::InputModelTFImpl::get_hash_table_values_map() const {
     return m_hash_table_values_map;
+}
+
+void InputModel::InputModelTFImpl::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    m_variables_map[place] = variable;
+}
+
+Variable::Ptr InputModel::InputModelTFImpl::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return m_variables_map.count(place) > 0 ? m_variables_map.at(place) : nullptr;
 }
 
 std::shared_ptr<CheckpointV1Reader> InputModel::InputModelTFImpl::get_checkpoint_v1_reader() const {
@@ -753,6 +764,14 @@ HashTableKeysValuesMap InputModel::get_hash_table_keys_map() const {
 
 HashTableKeysValuesMap InputModel::get_hash_table_values_map() const {
     return _impl->get_hash_table_values_map();
+}
+
+void InputModel::set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable) {
+    _impl->set_variable(place, variable);
+}
+
+Variable::Ptr InputModel::get_variable(const ov::frontend::Place::Ptr& place) const {
+    return _impl->get_variable(place);
 }
 
 std::shared_ptr<CheckpointV1Reader> InputModel::get_checkpoint_v1_reader() const {

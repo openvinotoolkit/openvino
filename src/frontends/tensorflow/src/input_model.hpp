@@ -8,6 +8,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "place.hpp"
 #include "translate_session.hpp"
 #include "variables_index.hpp"
@@ -57,6 +58,8 @@ public:
     std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
     HashTableKeysValuesMap get_hash_table_keys_map() const;
     HashTableKeysValuesMap get_hash_table_values_map() const;
+    void set_variable(const ov::frontend::Place::Ptr& place, const Variable::Ptr& variable);
+    Variable::Ptr get_variable(const ov::frontend::Place::Ptr& place) const;
 
     std::shared_ptr<CheckpointV1Reader> get_checkpoint_v1_reader() const;
 
