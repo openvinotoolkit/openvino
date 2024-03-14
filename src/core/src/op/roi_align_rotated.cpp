@@ -4,21 +4,22 @@
 
 //#include "openvino/reference/roi_align_rotated.hpp"
 
-#include "itt.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
+
+#include "itt.hpp"
 #include "roi_align_rotated_shape_inference.hpp"
 
 using namespace std;
 
 namespace ov {
 op::v14::ROIAlignRotated::ROIAlignRotated(const Output<Node>& input,
-                           const Output<Node>& rois,
-                           const Output<Node>& batch_indices,
-                           const int pooled_h,
-                           const int pooled_w,
-                           const int sampling_ratio,
-                           const float spatial_scale,
-                           const bool clockwise_mode)
+                                          const Output<Node>& rois,
+                                          const Output<Node>& batch_indices,
+                                          const int pooled_h,
+                                          const int pooled_w,
+                                          const int sampling_ratio,
+                                          const float spatial_scale,
+                                          const bool clockwise_mode)
     : Op{{input, rois, batch_indices}},
       m_pooled_h{pooled_h},
       m_pooled_w{pooled_w},
@@ -69,12 +70,12 @@ shared_ptr<Node> op::v14::ROIAlignRotated::clone_with_new_inputs(const OutputVec
     OV_OP_SCOPE(v14_ROIAlignRotated_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ROIAlignRotated>(new_args.at(0),
-                                 new_args.at(1),
-                                 new_args.at(2),
-                                 m_pooled_h,
-                                 m_pooled_w,
-                                 m_sampling_ratio,
-                                 m_spatial_scale,
-                                 m_clockwise_mode);
+                                        new_args.at(1),
+                                        new_args.at(2),
+                                        m_pooled_h,
+                                        m_pooled_w,
+                                        m_sampling_ratio,
+                                        m_spatial_scale,
+                                        m_clockwise_mode);
 }
-}
+}  // namespace ov

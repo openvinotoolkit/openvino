@@ -30,13 +30,13 @@ public:
     /// \param spatial_scale   Spatial scale factor used to translate ROI coordinates
     /// \param clockwise_mode  If true, rotation angle is interpreted as clockwise, otherwise as counterclockwise
     ROIAlignRotated(const Output<Node>& input,
-             const Output<Node>& rois,
-             const Output<Node>& batch_indices,
-             const int pooled_h,
-             const int pooled_w,
-             const int sampling_ratio,
-             const float spatial_scale,
-             const bool clockwise_mode);
+                    const Output<Node>& rois,
+                    const Output<Node>& batch_indices,
+                    const int pooled_h,
+                    const int pooled_w,
+                    const int sampling_ratio,
+                    const float spatial_scale,
+                    const bool clockwise_mode);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
