@@ -18,7 +18,7 @@
 std::shared_ptr<ov::Model> make_split_concat(std::vector<size_t> inputShape = {1, 4, 24, 24},
                                            ov::element::Type_t type = ov::element::Type_t::f32);
 
-void core_get_property_test(std::string target_device)
+void core_get_property_test(const std::string& target_device)
 {
     std::promise<void> call_finish_promise;
     auto call_finish_future = call_finish_promise.get_future();
@@ -62,7 +62,7 @@ std::shared_ptr<ov::Model> make_split_concat(std::vector<size_t> inputShape, ov:
     return model_ptr;
 }
 
-void core_infer_test(std::string target_device)
+void core_infer_test(const std::string& target_device)
 {
     std::promise<void> call_finish_promise;
     std::future<void> call_finish_future = call_finish_promise.get_future();

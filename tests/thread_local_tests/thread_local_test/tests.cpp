@@ -8,7 +8,7 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
-typedef void (*TestFunc)(std::string);
+typedef void (*TestFunc)(const std::string&);
 
 class ThreadLocalTest : public ::testing::Test, public ::testing::WithParamInterface<std::string>
 {
@@ -65,7 +65,7 @@ TEST_P(ThreadLocalTest, infer_test)
     FreeLibrary(shared_object);
 }
 
-void process_sub_thread(std::string func_name, std::string target_device)
+void process_sub_thread(const std::string& func_name, const std::string& target_device)
 {
     auto shared_object = LoadLibraryA("ov_thread_local.dll");
     auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, func_name.c_str()));

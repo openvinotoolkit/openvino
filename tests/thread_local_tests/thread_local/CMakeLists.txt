@@ -21,10 +21,7 @@ file (GLOB_RECURSE SRC *.cpp)
 file (GLOB_RECURSE HDR *.h)
 
 add_library(${TARGET_NAME} SHARED ${SRC} ${HDR})
-set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}/test")
-set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../")
 
-include(${OpenVINO_SOURCE_DIR}cmake/developer_package/compile_flags/os_flags.cmake)
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
