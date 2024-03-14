@@ -2913,8 +2913,7 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
     };
 
     auto isSuitableReorder = [](NodePtr node) {
-        return node->getType() == Type::Reorder
-                && !node->isDynamicNode();
+        return node->getType() == Type::Reorder && node->getChildEdges().size() == 1 && !node->isDynamicNode();
     };
 
     auto updateOrder = [](const VectorDims& originalOrder, NodePtr reshape) {
