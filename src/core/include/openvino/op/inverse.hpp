@@ -34,7 +34,7 @@ public:
     void set_adjoint(const bool adjoint);
 
 private:
-    bool m_adjoint;
+    bool m_adjoint = false;
 };
 }  // namespace v14
 }  // namespace op
