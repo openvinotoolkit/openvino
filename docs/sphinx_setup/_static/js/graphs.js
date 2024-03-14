@@ -450,14 +450,14 @@ $(document).ready(function () {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
-        $('.edit-settings-btn').on('click', (event) => {
+        $('.edit-settings-btn').off('click').on('click', (event) => {
             $('#modal-configure-graphs').show();
             $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
             $('.chart-placeholder').empty();
         });
 
-        $('.graph-chart-title-header').on('click', (event) => {
+        $('.graph-chart-title-header').off('click').on('click', (event) => {
             var parent = event.target.parentElement;
 
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
