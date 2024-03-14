@@ -4,11 +4,9 @@
 
 #include "common_op_table.hpp"
 #include "openvino/frontend/tensorflow/node_context.hpp"
-#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -24,7 +22,8 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ApproximateEqual"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
-    auto tolerance = make_shared<v0::Constant>(element::i32, Shape{}, node.get_attribute<float>("tolerance"));
+    auto tolerance_value = node.get_attribute<float>("tolerance", 1e-5);
+    auto tolerance = create_same_type_const_scalar<float>(x, tolerance_value);
     // Implement the logic for ApproximateEqual
     auto difference = make_shared<v1::Subtract>(x, y);
     auto absolute = make_shared<v0::Abs>(difference);
