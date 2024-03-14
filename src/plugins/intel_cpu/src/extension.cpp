@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,7 +166,9 @@ private:
     OP_EXTENSION(ov::snippets::op::Store)                    \
     OP_EXTENSION(ov::snippets::op::Subgraph)                 \
     OP_EXTENSION(ov::snippets::op::VectorBuffer)             \
-    OP_EXTENSION(ov::snippets::op::RankNormalization)
+    OP_EXTENSION(ov::snippets::op::RankNormalization)        \
+    OP_EXTENSION(ov::snippets::op::ReduceMax)                \
+    OP_EXTENSION(ov::snippets::op::ReduceSum)
 
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>(
     {CPU_EXTENSIONS TYPE_RELAXED_EXTENSIONS SNIPPETS_EXTENSIONS SNIPPETS_DEBUG_CAPS_EXTENSIONS}));
