@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,7 @@
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
 #include "gather_inst.h"
+#include "broadcast_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
@@ -152,7 +153,7 @@ static memory::ptr get_memory_from_pool(engine& _engine,
                                 const layout& layout,
                                 allocation_type type,
                                 bool reusable_across_network,
-                                const std::set<std::string>& memory_dependencies,
+                                const std::set<size_t>& memory_dependencies,
                                 bool reset = true,
                                 memory* curr_memory = nullptr) {
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(),
@@ -160,8 +161,8 @@ static memory::ptr get_memory_from_pool(engine& _engine,
     // Use layout with max tensor for dynamic shape with upper bound
     if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool)) {
         if (curr_memory != nullptr)
-            pool.release_memory(curr_memory, _node.id(), net_id);
-        return pool.get_memory(layout, _node.id(), net_id, memory_dependencies, type, reusable_across_network, reset);
+            pool.release_memory(curr_memory, _node.get_unique_id(), _node.id(), net_id);
+        return pool.get_memory(layout, _node.id(), _node.get_unique_id(), net_id, memory_dependencies, type, reusable_across_network, reset);
     }
     return pool.get_memory(layout, type, reset);
 }
@@ -538,7 +539,8 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() || _node->is_type<strided_slice>()) {
+    if (_node->is_type<gather>() || _node->is_type<permute>() || _node->is_type<reshape>() || _node->is_type<reorder>() ||
+        _node->is_type<strided_slice>() || _node->is_type<broadcast>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
@@ -962,7 +964,7 @@ void primitive_inst::do_runtime_skip_reorder() {
                 update_memory_dependencies = [&](std::vector<primitive_inst*> users) {
                     for (auto& user : users) {
                         GPU_DEBUG_TRACE_DETAIL << "[do runtime skip reorder] add " << id() << " to restriction list of " << user->id() << std::endl;
-                        user->_runtime_memory_dependencies.insert(id());
+                        user->_runtime_memory_dependencies.insert(get_node().get_unique_id());
                         if (user->can_be_optimized())
                             update_memory_dependencies(user->get_user_insts());
                     }
@@ -1156,6 +1158,30 @@ void primitive_inst::do_runtime_skip_strided_slice() {
     set_can_be_optimized(true);
 }
 
+void primitive_inst::do_runtime_skip_broadcast() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_skip_broadcast: " + id()));
+    // Check pattern
+    if (!get_node().is_type<broadcast>() || !get_node().can_be_optimized())
+        return;
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : check optimizability" << std::endl;
+    auto input_layout = _impl_params->get_input_layout(0);
+    auto output_layout = _impl_params->get_output_layout();
+
+    // Check runtime shape (need to reset can_be_optimized)
+    if (input_layout != output_layout) {
+        set_can_be_optimized(false);
+        GPU_DEBUG_TRACE_DETAIL << "--- Cannot optimize because input layout(" << input_layout.to_short_string()
+                               << ") != output layout(" << output_layout.to_short_string() << ")" << std::endl;
+        return;
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "[do_runtime_skip_broadcast] " << id() << " : can_be_optimized" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Input layout : " << _impl_params->get_input_layout(0).to_short_string() << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "            - Output layout : " << _impl_params->get_output_layout().to_short_string() << std::endl;
+    set_can_be_optimized(true);
+}
+
 void primitive_inst::do_runtime_in_place_concat() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -1280,6 +1306,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_in_place_kv_cache();
         do_runtime_skip_permute();
         do_runtime_skip_strided_slice();
+        do_runtime_skip_broadcast();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));
@@ -1374,7 +1401,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                     auto ev = get_network().get_primitive_event(id);
                     dependencies.emplace_back(ev);
                 } catch (const std::out_of_range& oor) {
-                    OPENVINO_ASSERT(false, "[GPU] execution order corrupted: ", oor.what());
+                    OPENVINO_THROW("[GPU] execution order corrupted: ", oor.what());
                 }
             }
         }
@@ -1465,7 +1492,7 @@ primitive_inst::primitive_inst(network& network)
     , _mem_allocated(false)
     , _type(nullptr) {}
 
-primitive_inst::primitive_inst(network& network, program_node const& node, bool allocate_memory)
+primitive_inst::primitive_inst(network & network, program_node const& node, bool allocate_memory)
     : _network(network)
     , _node(&node)
     , _node_output_layout(node.get_output_layout())
@@ -1696,12 +1723,15 @@ event::ptr primitive_inst::update_weights() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                        << " to " << expected_layout.to_short_string() << std::endl;
 
-                auto factory = WeightsReordersFactory::get(impl_types::ocl, shape_types::static_shape);
+                auto impl_type = (reorder_kernel_params->get_output_layout(0).format == format::custom) ? impl_types::onednn : impl_types::ocl;
+                auto factory = WeightsReordersFactory::get(impl_type, shape_types::static_shape);
                 auto reorder_impl = factory(*reorder_kernel_params);
-                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
-                auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
-                OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
-                reorder_impl->set_kernels(kernels);
+                if (impl_type == impl_types::ocl) {
+                    auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                    auto kernels = kernels_cache.compile(*reorder_kernel_params, reorder_impl->get_kernels_source());
+                    OPENVINO_ASSERT(kernels.size() == 1, "[GPU] Expected number of compiled kernels is 1, but got ", kernels.size());
+                    reorder_impl->set_kernels(kernels);
+                }
 
                 reorder_inst->set_impl(reorder_impl->clone());
 
@@ -1772,7 +1802,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
                                             memory_pool& pool,
                                             const program_node& _node,
                                             const kernel_impl_params& impl_params,
-                                            const std::set<primitive_id>& memory_dependencies,
+                                            const std::set<size_t>& memory_dependencies,
                                             uint32_t net_id,
                                             bool is_internal,
                                             size_t idx,
@@ -2017,7 +2047,10 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            OPENVINO_ASSERT("[GPU] Unsupported fused operation in dynamic shape : ", fd.desc->id);
+            if (fd.is_type<reorder>())
+                continue;
+
+            OPENVINO_THROW("[GPU] Unsupported fused operation in dynamic shape: type=", fd.desc->type_string(), ", id=", fd.desc->id);
         }
     }
 
@@ -2072,31 +2105,42 @@ bool primitive_inst::is_valid_fusion() const {
 }
 
 void primitive_inst::add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, std::string memalloc_info, int64_t time, bool per_iter_mode) {
-    instrumentation::perf_counter_key key {
-            _network.get_input_layouts(),
-            _impl_params->input_layouts,
-            _impl_params->output_layouts,
-            get_implementation_name(),
-            stage,
+    GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-            per_iter_mode ? get_network().get_current_iteration_num() : 0,
-#else
-            0,
-#endif
-            cache_hit,
-            memalloc_info
-    };
-
-    auto hash = instrumentation::perf_counter_hash()(key);
-    auto& d = _profiling_data[hash];
-    if (_profiling_info.find(hash) == _profiling_info.end()) {
-        _profiling_info.emplace(hash, key);
+    int64_t curr_iter = -1;
+    GPU_DEBUG_IF(debug_config->dump_prof_data_iter_params.is_enabled) {
+        curr_iter = get_network().get_current_iteration_num();
     }
+    GPU_DEBUG_IF(curr_iter < 0 || debug_config->is_target_dump_prof_data_iteration(curr_iter)) {
+#else
+    {
+#endif
+        instrumentation::perf_counter_key key {
+                _network.get_input_layouts(),
+                _impl_params->input_layouts,
+                _impl_params->output_layouts,
+                get_implementation_name(),
+                stage,
+#ifdef GPU_DEBUG_CONFIG
+                per_iter_mode ? get_network().get_current_iteration_num() : 0,
+#else
+                0,
+#endif
+                cache_hit,
+                memalloc_info
+        };
 
-    auto& total_time = std::get<0>(d);
-    auto& total_iter = std::get<1>(d);
-    total_time += time;
-    total_iter++;
+        auto hash = instrumentation::perf_counter_hash()(key);
+        auto& d = _profiling_data[hash];
+        if (_profiling_info.find(hash) == _profiling_info.end()) {
+            _profiling_info.emplace(hash, key);
+        }
+
+        auto& total_time = std::get<0>(d);
+        auto& total_iter = std::get<1>(d);
+        total_time += time;
+        total_iter++;
+    }
 }
 
 std::string primitive_inst::get_implementation_name() const {
@@ -2107,5 +2151,4 @@ std::string primitive_inst::get_implementation_name() const {
 
     return "undef";
 }
-
 }  // namespace cldnn

@@ -41,16 +41,16 @@ Table of contents:
 .. code:: ipython3
 
     # Required imports. Please execute this cell first.
-    %pip install -q "openvino>=2023.1.0" 
+    %pip install -q "openvino>=2023.1.0"
     %pip install requests tqdm ipywidgets
-    
+
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
         url='https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/main/notebooks/utils/notebook_utils.py',
         filename='notebook_utils.py'
     )
-    
+
     from notebook_utils import download_file
 
 
@@ -115,7 +115,7 @@ Initialize OpenVINO Runtime with ``ov.Core()``
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
 
 OpenVINO Runtime can load a network on a device. A device in this
@@ -132,7 +132,7 @@ be faster.
 .. code:: ipython3
 
     devices = core.available_devices
-    
+
     for device in devices:
         device_name = core.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -153,7 +153,7 @@ After initializing OpenVINO Runtime, first read the model file with
 ``compile_model()`` method.
 
 `OpenVINO™ supports several model
-formats <https://docs.openvino.ai/2023.3/Supported_Model_Formats.html>`__
+formats <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/%5Blegacy%5D-supported-model-formats.html>`__
 and enables developers to convert them to its own OpenVINO IR format
 using a tool dedicated to this task.
 
@@ -174,7 +174,7 @@ file has a different filename, it can be specified using the ``weights``
 parameter in ``read_model()``.
 
 The OpenVINO `Model Conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 tool is used to convert models to OpenVINO IR format. Model conversion
 API reads the original model and creates an OpenVINO IR model (``.xml``
 and ``.bin`` files) so inference can be performed without delays due to
@@ -193,7 +193,7 @@ notebooks.
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     ir_model_name_xml = 'classification.xml'
     ir_model_name_bin = 'classification.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory='model')
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory='model')
 
@@ -221,10 +221,10 @@ notebooks.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     classification_model_xml = "model/classification.xml"
-    
+
     model = core.read_model(model=classification_model_xml)
     compiled_model = core.compile_model(model=model, device_name="CPU")
 
@@ -249,7 +249,7 @@ points to the filename of an ONNX model.
 
     onnx_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/segmentation.onnx'
     onnx_model_name = 'segmentation.onnx'
-    
+
     download_file(onnx_model_url, filename=onnx_model_name, directory='model')
 
 
@@ -270,10 +270,10 @@ points to the filename of an ONNX model.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     onnx_model_path = "model/segmentation.onnx"
-    
+
     model_onnx = core.read_model(model=onnx_model_path)
     compiled_model_onnx = core.compile_model(model=model_onnx, device_name="CPU")
 
@@ -298,7 +298,7 @@ without any conversion step. Pass the filename with extension to
     paddle_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     paddle_model_name = 'inference.pdmodel'
     paddle_params_name = 'inference.pdiparams'
-    
+
     download_file(paddle_model_url + paddle_model_name, filename=paddle_model_name, directory='model')
     download_file(paddle_model_url + paddle_params_name, filename=paddle_params_name, directory='model')
 
@@ -326,10 +326,10 @@ without any conversion step. Pass the filename with extension to
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     paddle_model_path = 'model/inference.pdmodel'
-    
+
     model_paddle = core.read_model(model=paddle_model_path)
     compiled_model_paddle = core.compile_model(model=model_paddle, device_name="CPU")
 
@@ -349,7 +349,7 @@ TensorFlow models saved in frozen graph format can also be passed to
 
     pb_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/classification.pb'
     pb_model_name = 'classification.pb'
-    
+
     download_file(pb_model_url, filename=pb_model_name, directory='model')
 
 
@@ -370,10 +370,10 @@ TensorFlow models saved in frozen graph format can also be passed to
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     tf_model_path = "model/classification.pb"
-    
+
     model_tf = core.read_model(model=tf_model_path)
     compiled_model_tf = core.compile_model(model=model_tf, device_name="CPU")
 
@@ -398,10 +398,10 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     tflite_model_url = 'https://www.kaggle.com/models/tensorflow/inception/frameworks/tfLite/variations/v4-quant/versions/1?lite-format=tflite'
     tflite_model_path = Path('model/classification.tflite')
-    
+
     download_file(tflite_model_url, filename=tflite_model_path.name, directory=tflite_model_path.parent)
 
 
@@ -422,9 +422,9 @@ It is pre-trained model optimized to work with TensorFlow Lite.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     model_tflite = core.read_model(tflite_model_path)
     compiled_model_tflite = core.compile_model(model=model_tflite, device_name="CPU")
 
@@ -453,15 +453,15 @@ model form torchvision library. After conversion model using
     import openvino as ov
     import torch
     from torchvision.models import resnet18, ResNet18_Weights
-    
+
     core = ov.Core()
-    
+
     pt_model = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
     example_input = torch.zeros((1, 3, 224, 224))
     ov_model_pytorch = ov.convert_model(pt_model, example_input=example_input)
-    
+
     compiled_model_pytorch = core.compile_model(ov_model_pytorch, device_name="CPU")
-    
+
     ov.save_model(ov_model_pytorch, "model/exported_pytorch_model.xml")
 
 Getting Information about a Model
@@ -481,7 +481,7 @@ Information about the inputs and outputs of the model are in
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     ir_model_name_xml = 'classification.xml'
     ir_model_name_bin = 'classification.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory='model')
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory='model')
 
@@ -515,7 +515,7 @@ dictionary.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
@@ -587,7 +587,7 @@ Model Outputs
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
@@ -691,7 +691,7 @@ produced data as values.
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     ir_model_name_xml = 'classification.xml'
     ir_model_name_bin = 'classification.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory='model')
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory='model')
 
@@ -717,7 +717,7 @@ produced data as values.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     classification_model_xml = "model/classification.xml"
     model = core.read_model(model=classification_model_xml)
@@ -734,7 +734,7 @@ the input layout of the network.
 .. code:: ipython3
 
     import cv2
-    
+
     image_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_hollywood.jpg",
         directory="data"
@@ -789,7 +789,7 @@ add the ``N`` dimension (where ``N``\ = 1) by calling the
 .. code:: ipython3
 
     import numpy as np
-    
+
     input_data = np.expand_dims(np.transpose(resized_image, (2, 0, 1)), 0).astype(np.float32)
     input_data.shape
 
@@ -814,10 +814,10 @@ predicted result in ``np.array`` format.
 
     # for single input models only
     result = compiled_model(input_data)[output_layer]
-    
+
     # for multiple inputs in a list
     result = compiled_model([input_data])[output_layer]
-    
+
     # or using a dictionary, where the key is input tensor name or index
     result = compiled_model({input_layer.any_name: input_data})[output_layer]
 
@@ -878,7 +878,7 @@ input shape.
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     ir_model_name_xml = 'segmentation.xml'
     ir_model_name_bin = 'segmentation.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory='model')
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory='model')
 
@@ -906,17 +906,17 @@ input shape.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
     segmentation_input_layer = segmentation_model.input(0)
     segmentation_output_layer = segmentation_model.output(0)
-    
+
     print("~~~~ ORIGINAL MODEL ~~~~")
     print(f"input shape: {segmentation_input_layer.shape}")
     print(f"output shape: {segmentation_output_layer.shape}")
-    
+
     new_shape = ov.PartialShape([1, 3, 544, 544])
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
@@ -966,7 +966,7 @@ set ``new_shape = (2,3,544,544)`` in the cell above.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
     segmentation_input_layer = segmentation_model.input(0)
@@ -974,7 +974,7 @@ set ``new_shape = (2,3,544,544)`` in the cell above.
     new_shape = ov.PartialShape([2, 3, 544, 544])
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
-    
+
     print(f"input shape: {segmentation_input_layer.shape}")
     print(f"output shape: {segmentation_output_layer.shape}")
 
@@ -993,7 +993,7 @@ input image through the network to see the result:
 
     import numpy as np
     import openvino as ov
-    
+
     core = ov.Core()
     segmentation_model_xml = "model/segmentation.xml"
     segmentation_model = core.read_model(model=segmentation_model_xml)
@@ -1003,9 +1003,9 @@ input image through the network to see the result:
     segmentation_model.reshape({segmentation_input_layer.any_name: new_shape})
     segmentation_compiled_model = core.compile_model(model=segmentation_model, device_name="CPU")
     input_data = np.random.rand(2, 3, 544, 544)
-    
+
     output = segmentation_compiled_model([input_data])
-    
+
     print(f"input data shape: {input_data.shape}")
     print(f"result data data shape: {segmentation_output_layer.shape}")
 
@@ -1043,7 +1043,7 @@ the cache.
     ir_model_url = 'https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/002-example-models/'
     ir_model_name_xml = 'classification.xml'
     ir_model_name_bin = 'classification.bin'
-    
+
     download_file(ir_model_url + ir_model_name_xml, filename=ir_model_name_xml, directory='model')
     download_file(ir_model_url + ir_model_name_bin, filename=ir_model_name_bin, directory='model')
 
@@ -1070,23 +1070,23 @@ the cache.
 
     import time
     from pathlib import Path
-    
+
     import openvino as ov
-    
+
     core = ov.Core()
-    
-    device_name = "GPU" 
-    
+
+    device_name = "GPU"
+
     if device_name in core.available_devices:
         cache_path = Path("model/model_cache")
         cache_path.mkdir(exist_ok=True)
         # Enable caching for OpenVINO Runtime. To disable caching set enable_caching = False
         enable_caching = True
         config_dict = {"CACHE_DIR": str(cache_path)} if enable_caching else {}
-    
+
         classification_model_xml = "model/classification.xml"
         model = core.read_model(model=classification_model_xml)
-    
+
         start_time = time.perf_counter()
         compiled_model = core.compile_model(model=model, device_name=device_name, config=config_dict)
         end_time = time.perf_counter()

@@ -1,6 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <regex>
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -11,8 +13,6 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/fusing_test_utils.hpp"
-
-#include <regex>
 
 using namespace CPUTestUtils;
 

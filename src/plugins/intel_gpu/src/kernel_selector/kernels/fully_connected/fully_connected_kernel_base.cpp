@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -146,7 +146,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     // TODO Pass estimated time only through DispatchData
     kd.autoTuneIndex = autoTuneIndex;

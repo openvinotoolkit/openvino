@@ -45,10 +45,14 @@ public:
           m_context(context),
           m_shapeAgnosticData(DnnlFCPrimitive::createShapeAgnosticData(m_attrs, postOps, memory, m_context, cacheWeights)),
           m_primArgs(m_shapeAgnosticData->primAttrs.dnnlArgs) {}
-    void update(const MemoryArgs& memory) override {
+    bool update(const MemoryArgs& memory) override {
         const auto primitive = createPrimitive(memory);
+        if (!primitive) {
+            return false;
+        }
         updateMemory(m_primitive, primitive, memory);
         m_primitive = primitive;
+        return true;
     }
 
     void execute(const MemoryArgs& memory) override {
@@ -61,7 +65,7 @@ public:
     }
 
     impl_desc_type implType() const override {
-        return m_primitive->implType();
+        return m_primitive ? m_primitive->implType() : undef;
     }
 
 private:

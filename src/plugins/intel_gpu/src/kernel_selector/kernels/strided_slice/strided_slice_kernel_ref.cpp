@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -252,7 +252,7 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params) const {
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.has_dynamic_tensors());
+                     0, 1, newParams.is_shape_agnostic);
 
     return {kd};
 }

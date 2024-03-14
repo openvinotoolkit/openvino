@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,7 +165,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      orgParams.use_multiple_outputs ? 2 : 1,
-                     is_dynamic);
+                     orgParams.is_shape_agnostic);
 
     if (orgParams.has_second_output && !orgParams.use_multiple_outputs)
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

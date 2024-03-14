@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -133,6 +133,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool1d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
@@ -145,6 +146,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
@@ -156,6 +158,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool3d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
@@ -168,6 +171,7 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool1d(self, params, ceil_mode, dilation, ie_device, precision, ir_version):

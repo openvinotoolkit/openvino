@@ -40,7 +40,7 @@ static const LayoutConfig dnnlFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp,
 // clang-format off
 static const TypeMapping dnnlFCTypeMapping {
     // {src, wei, bia, dst}                              pt<src, wei, bias, dst>
-    {{_bf16, _bf16, _any, _bf16 | _f32},                 pt(bypass(), bypass(), use<3>(), use<3>())},
+    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},          pt(bypass(), bypass(), use<3>(), use<3>())},
     {{_f16, _f16, _any, _f16 | _f32},                    pt(bypass(), bypass(), use<3>(), use<3>())},
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},       pt(bypass(), bypass(), use<0>(), use<0>())},
@@ -63,7 +63,7 @@ static const MappingNotation dnnlConvolutionMappingNotation {
 
 static const TypeMapping dnnlConvolutionTypeMapping {
     // {src, wei, bia, dst}                        pt<src, wei, bias, dst>
-    {{_bf16, _bf16, _any, _bf16 | _f32},           pt(bypass(), bypass(), use<3>(), use<3>())},
+    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},    pt(bypass(), bypass(), use<3>(), use<3>())},
     {{_f16, _f16, _any, _f16 | _f32},              pt(bypass(), bypass(), use<3>(), use<3>())},
     // integer precision outputs are not supported for float precision inputs
     {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, pt(bypass(), bypass(), use<0>(), use<0>())},
@@ -255,11 +255,18 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                         const ExecutorContext::CPtr context,
                         std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
                         ConvAttrs convAttrs{attrs.withBias};
-                        return DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
+                        auto primitive =
+                            DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
                             memory,
                             convAttrs,
                             context,
                             shareAgnosticData);
+
+                        if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
+                            // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
+                            return nullptr;
+                        }
+                        return primitive;
                     }
                 };
 

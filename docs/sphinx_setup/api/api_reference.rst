@@ -10,9 +10,10 @@ API Reference
    :maxdepth: 2
    :hidden:
 
+   ie_python_api/api
    c_cpp_api/group__ov__cpp__api
    c_cpp_api/group__ov__c__api
-   ie_python_api/api
+   OpenVINO Node.js API <nodejs_api/nodejs_api>
 
 
 
@@ -28,6 +29,6 @@ OpenVINO API may be described by the following:
   frameworks.
 - Can address input and output tensors by the index. Some model formats like ONNX are sensitive
   to the input and output order, which is preserved by OpenVINO.
-- Includes :doc:`properties <../openvino_docs_OV_UG_query_api>`, unifying metrics and configuration key concepts.
+- Includes :doc:`properties <../openvino-workflow/running-inference/inference-devices-and-modes/query-device-properties>`, unifying metrics and configuration key concepts.
   The main advantage is that they have the C++ type: ``static constexpr Property<std::string> full_name{"FULL_DEVICE_NAME"};``
 

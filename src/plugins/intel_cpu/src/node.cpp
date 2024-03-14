@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1005,6 +1005,9 @@ const std::vector<impl_desc_type>& Node::getDefaultImplPriority() {
         impl_desc_type::jit_sse42_dw,
         impl_desc_type::jit_sse42_1x1,
         impl_desc_type::jit_sse42,
+#if defined(OPENVINO_ARCH_ARM64)
+        impl_desc_type::jit_asimd,
+#endif
         impl_desc_type::gemm_any,
         impl_desc_type::gemm_blas,
         impl_desc_type::gemm_avx512,

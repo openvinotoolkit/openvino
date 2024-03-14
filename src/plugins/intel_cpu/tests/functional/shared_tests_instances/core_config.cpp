@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,10 @@ void core_configuration(ov::test::SubgraphBaseTest* test) {
         // todo: issue: 123320
         test->convert_precisions.insert({ov::element::bf16, ov::element::f32});
         test->convert_precisions.insert({ov::element::f16, ov::element::f32});
+
+        // Enable CPU pinning in CPU funtional tests to save validation time of Intel CPU plugin func tests (parallel)
+        // on Windows
+        test->configuration.insert({ov::hint::enable_cpu_pinning.name(), true});
 }
 
 } // namespace test
