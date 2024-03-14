@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 from openvino.tools.mo.middle.InsertSelect import check_inputs
 from openvino.tools.mo.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
