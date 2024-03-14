@@ -34,8 +34,6 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         // input is complex tensor representation in a form [N1, N2, ..., Nk, 2]
         // where slice [N1, N2, ..., Nk, 0] contains real part of the complex tensor and
         // slice [N1, N2, ..., Nk, 1] contains imaginary part of the complex tensor
-
-        
         // compute sum of squared real and imaginary parts
 
         auto gather_index_real = make_shared<v0::Constant>(input.get_element_type(), Shape{}, 0);
