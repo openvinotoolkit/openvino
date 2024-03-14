@@ -32,7 +32,7 @@ public:
 
     ov::Dimension::value_type GetROISecondDimSizeForOp() const {
         // Those magic numbers comes from definition of ROIAlign ops.
-        if(std::is_same<TOp, op::v14::ROIAlignRotated>::value)
+        if (std::is_same<TOp, op::v14::ROIAlignRotated>::value)
             return 6;
         return 4;
     }
