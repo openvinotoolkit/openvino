@@ -59,7 +59,7 @@ void scatter_elem_update_no_reduction(const size_t data_elem_size,
 }  // namespace
 
 template <typename T>
-T reduction_neutral_value(const Reduction reduction_type) {
+inline T reduction_neutral_value(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
         return std::numeric_limits<T>::lowest();
@@ -76,7 +76,7 @@ T reduction_neutral_value(const Reduction reduction_type) {
 }
 
 template <typename T>
-std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
+inline std::function<T(const T, const T)> reduction_functor_for(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
         return [](const T a, const T b) {
@@ -97,7 +97,7 @@ std::function<T(const T, const T)> reduction_functor_for(const Reduction reducti
 }
 
 template <>
-std::function<char(const char, const char)> reduction_functor_for<char>(const Reduction reduction_type) {
+inline std::function<char(const char, const char)> reduction_functor_for<char>(const Reduction reduction_type) {
     switch (reduction_type) {
     case Reduction::MAX:
         return [](const char a, const char b) {
