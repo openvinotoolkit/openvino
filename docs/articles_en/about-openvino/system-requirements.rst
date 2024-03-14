@@ -98,19 +98,6 @@ Intel® Neural Processing Unit
         the :doc:`download page <../get-started/install-openvino>`.
 
 
-Intel® Gaussian & Neural Accelerator
-##########################################
-
-.. tab-set::
-
-   .. tab-item:: Operating Systems for GNA
-
-      * Ubuntu 22.04 long-term support (LTS), 64-bit
-      * Ubuntu 20.04 long-term support (LTS), 64-bit
-      * Windows 10, 64-bit
-      * Windows 11, 64-bit
-
-
 Operating systems and developer environment
 #######################################################
 
