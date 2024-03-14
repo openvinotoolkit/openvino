@@ -100,24 +100,21 @@ OutputVector translate_movedim(const NodeContext& context) {
     std::tie(std::ignore, rank) = get_shape_rank(context, context.get_input(0), true);
     src_dims = normalize_axis(context, src_dims, rank);
     dst_dims = normalize_axis(context, dst_dims, rank);
-    auto start = context.mark_node(v0::Constant::create(element::i32, {}, {0}));
-    auto step = context.mark_node(v0::Constant::create(element::i32, {}, {1}));
-    auto range = context.mark_node(std::make_shared<v4::Range>(start, rank, step, element::i32));
-    auto range_src = context.mark_node(std::make_shared<v4::Range>(start, rank, step, element::i32));
-    auto range_dst = context.mark_node(std::make_shared<v4::Range>(start, rank, step, element::i32));
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, {}, {0}));
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, {}, {1}));
+    auto range = context.mark_node(std::make_shared<v4::Range>(const_0, rank, const_1, element::i32));
     auto dims_1d_shape = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     // operation accepts 0d and 1d source and destination, make them always 1d
     src_dims = context.mark_node(std::make_shared<v1::Reshape>(src_dims, dims_1d_shape, false));
     dst_dims = context.mark_node(std::make_shared<v1::Reshape>(dst_dims, dims_1d_shape, false));
-    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto dims_shape = context.mark_node(std::make_shared<v3::ShapeOf>(src_dims, element::i32));
     auto minus_one_replaces = context.mark_node(std::make_shared<v1::Broadcast>(dims_1d_shape, dims_shape));
     // update position for the dim provided by user and mark used dims for source and destination as -1
-    auto perm_dims = context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, dst_dims, src_dims, axis_0));
+    auto perm_dims = context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, dst_dims, src_dims, const_0));
     auto src_perm_dims =
-        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range_src, src_dims, minus_one_replaces, axis_0));
+        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, src_dims, minus_one_replaces, const_0));
     auto dst_perm_dims =
-        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range_dst, dst_dims, minus_one_replaces, axis_0));
+        context.mark_node(std::make_shared<v3::ScatterElementsUpdate>(range, dst_dims, minus_one_replaces, const_0));
     // Remove the dims whose position we already know, the ones marked with -1 in previous step
     auto not_changed_src = context.mark_node(std::make_shared<v1::NotEqual>(src_perm_dims, dims_1d_shape));
     auto not_changed_dst = context.mark_node(std::make_shared<v1::NotEqual>(dst_perm_dims, dims_1d_shape));
@@ -127,7 +124,7 @@ OutputVector translate_movedim(const NodeContext& context) {
     // updates contains the new position it will shifted to after considering the user inputs.
     indices = context.mark_node(std::make_shared<v1::Reshape>(indices, dims_1d_shape, false));
     updates = context.mark_node(std::make_shared<v1::Reshape>(updates, dims_1d_shape, false));
-    auto scatter = std::make_shared<v3::ScatterElementsUpdate>(perm_dims, indices, updates, axis_0);
+    auto scatter = std::make_shared<v3::ScatterElementsUpdate>(perm_dims, indices, updates, const_0);
     return {context.mark_node(std::make_shared<v1::Transpose>(x, scatter))};
 };
 
