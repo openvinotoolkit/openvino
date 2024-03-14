@@ -15,7 +15,7 @@ The following C++ API is used in the application:
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) [yolo-v3-tf](@ref omz_models_model_yolo_v3_tf), [face-detection-0200](@ref omz_models_model_face_detection_0200) |
+| Validated Models | alexnet, googlenet-v1, [yolo-v3-tf](@ref omz_models_model_yolo_v3_tf), [face-detection-0200](@ref omz_models_model_face_detection_0200) |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Supported devices | [All](../../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [Python](../../../python/benchmark/sync_benchmark/README.md) |

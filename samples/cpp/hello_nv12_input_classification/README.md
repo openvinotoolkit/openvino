@@ -14,7 +14,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 | Options | Values |
 | :--- |:--- |
-| Validated Models | [alexnet](@ref omz_models_model_alexnet) |
+| Validated Models | alexnet |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Validated images | An uncompressed image in the NV12 color format - \*.yuv |
 | Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |

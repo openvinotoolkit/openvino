@@ -1,6 +1,6 @@
 # Hello Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_classification_README}
 
-This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Synchronous Inference Request API.
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -14,9 +14,9 @@ The following Python API is used in the application:
 
 | Options                    | Values                                                                                                  |
 | :------------------------- | :------------------------------------------------------------------------------------------------------ |
-| Validated Models           | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1)            |
-| Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                                |
-| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)                                       |
+| Validated Models           | alexnet, googlenet-v1                                                                                   |
+| Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx)                               |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)                               |
 | Other language realization | [C++](../../../samples/cpp/hello_classification/README.md), [C](../../c/hello_classification/README.md) |
 
 ## How It Works
@@ -76,7 +76,7 @@ The sample application logs each step in a standard output stream and outputs to
 [ INFO ] Loading the model to the plugin
 [ INFO ] Starting inference in synchronous mode
 [ INFO ] Image path: /images/banana.jpg
-[ INFO ] Top 10 results:     
+[ INFO ] Top 10 results:
 [ INFO ] class_id probability
 [ INFO ] --------------------
 [ INFO ] 954      0.9703885
