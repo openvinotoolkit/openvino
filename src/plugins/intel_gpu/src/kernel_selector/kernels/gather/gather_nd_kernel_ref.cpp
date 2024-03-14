@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -212,7 +212,7 @@ KernelsData GatherNDKernelRef::GetKernelsData(const Params& params) const {
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.has_dynamic_tensors());
+                     newParams.is_shape_agnostic);
 
     return { kd };
 }

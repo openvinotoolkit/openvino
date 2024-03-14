@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ KernelsData SoftmaxKernelBase::GetCommonKernelsData(const Params& params) const 
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     orgParams.outputs[0].is_dynamic());
+                     orgParams.is_shape_agnostic);
 
     return {kd};
 }

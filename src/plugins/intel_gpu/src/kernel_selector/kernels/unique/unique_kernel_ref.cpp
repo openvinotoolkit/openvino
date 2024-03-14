@@ -165,7 +165,7 @@ KernelsData UniqueCountKernelRef::GetKernelsData(const Params& params) const {
                      static_cast<int>(kernel_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(kernel_params),
                      static_cast<int>(kernel_params.outputs.size()),
-                     kernel_params.inputs.front().is_dynamic());
+                     kernel_params.is_shape_agnostic);
 
     // Additional buffer to save intermediate algorithm results
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -276,7 +276,7 @@ KernelsData UniqueGatherKernelRef::GetKernelsData(const Params& params) const {
                      static_cast<int>(kernel_params.inputs.size()),
                      GetFusedPrimitiveInputsCount(kernel_params),
                      static_cast<int>(kernel_params.outputs.size()),
-                     kernel_params.outputs.front().is_dynamic());
+                     kernel_params.is_shape_agnostic);
 
     return {kernel_data};
 }

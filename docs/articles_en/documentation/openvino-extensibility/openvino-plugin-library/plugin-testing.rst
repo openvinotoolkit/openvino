@@ -1,4 +1,4 @@
-.. {#openvino_docs_ov_plugin_dg_plugin_testing}
+.. {#plugin_testing}
 
 Plugin Testing
 ==============
@@ -13,7 +13,7 @@ OpenVINO tests infrastructure provides a predefined set of functional tests and 
 All the tests are written in the `Google Test C++ framework <https://github.com/google/googletest>`__.
 
 OpenVINO Plugin tests are included in the ``openvino::funcSharedTests`` CMake target which is built within the OpenVINO repository
-(see :doc:`Build Plugin Using CMake <openvino_docs_ov_plugin_dg_plugin_build>` guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
+(see :doc:`Build Plugin Using CMake <build-plugin-using-cmake>` guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
 Test definitions are split into tests class declaration (see ``src/tests/functional/plugin/shared/include``) and tests class implementation (see ``src/tests/functional/plugin/shared/src``) and include the following scopes of plugin conformance tests:
 
@@ -58,7 +58,7 @@ To use these tests for your own plugin development, link the ``openvino::funcSha
    
    A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
 
-To build test binaries together with other build artifacts, use the ``make all`` command. For details, see :doc:`Build Plugin Using CMake <openvino_docs_ov_plugin_dg_plugin_build>`.
+To build test binaries together with other build artifacts, use the ``make all`` command. For details, see :doc:`Build Plugin Using CMake <build-plugin-using-cmake>`.
 
 How to Extend OpenVINO Plugin Tests
 +++++++++++++++++++++++++++++++++++

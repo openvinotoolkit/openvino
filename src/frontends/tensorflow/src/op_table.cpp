@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,8 +166,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Swish", CreatorFunction(translate_unary_op<v4::Swish>)},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
-        {"Add", CreatorFunction(translate_binary_op<v1::Add>)},
-        {"AddV2", CreatorFunction(translate_binary_op<v1::Add>)},
+        {"Add", CreatorFunction(translate_addv2_op)},
+        {"AddV2", CreatorFunction(translate_addv2_op)},
         {"Atan2", CreatorFunction(translate_atan2_op)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
@@ -298,6 +298,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
+        {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},
         {"MatrixDiag", CreatorFunction(translate_matrix_diag_op)},
         {"MaxPool", CreatorFunction(translate_max_pool_op)},
         {"MaxPoolV2", CreatorFunction(translate_max_pool_op)},

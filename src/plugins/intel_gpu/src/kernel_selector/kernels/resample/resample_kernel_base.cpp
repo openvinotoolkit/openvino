@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -210,6 +210,10 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     }
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) {
+        jit.AddConstant(MakeJitConstant("RTE_OUTPUT", 1));
+    }
 
     return jit;
 }
