@@ -324,7 +324,7 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --cache_path = {self._cache_path}")
         logger.info(f"[ARGUMENTS] --expected_failures = {self._expected_failures_file}")
         logger.info(f"[ARGUMENTS] --expected_failures_update = {self._expected_failures_update}")
-        logger.info(f"[ARGUMENTS] --disable_rerun = {self._is_rerun}")
+        logger.info(f"[ARGUMENTS] --disable_rerun = {not self._is_rerun}")
         logger.info(f"[ARGUMENTS] --timeout = {self._timeout}")
 
         if self._type == constants.OP_CONFORMANCE:

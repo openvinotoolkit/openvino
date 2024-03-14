@@ -688,7 +688,7 @@ class TestParallelRunner:
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
 
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        if self._repeat_failed > 0:
+        if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
                 not_runned_test_filters = [
