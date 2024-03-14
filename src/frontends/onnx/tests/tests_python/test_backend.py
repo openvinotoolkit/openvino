@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -667,9 +667,13 @@ tests_expected_to_fail = [
     (
         xfail_issue_125485,
         "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
+        "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
     ),
     (
         xfail_issue_125488,

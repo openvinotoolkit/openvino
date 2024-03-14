@@ -130,6 +130,5 @@ Additional Resources
 ====================
 
 * `OpenVINO Success Stories <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html>`__ - See how Intel partners have successfully used OpenVINO in production applications to solve real-world problems.
-* :doc:`OpenVINO Supported Models <about-openvino/compatibility-and-support/supported-models>` - Check which models OpenVINO supports on your hardware.
 * :doc:`Performance Benchmarks <about-openvino/performance-benchmarks>` - View results from benchmarking models with OpenVINO on Intel hardware.
 
