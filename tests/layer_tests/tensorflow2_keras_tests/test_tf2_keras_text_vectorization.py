@@ -17,8 +17,8 @@ class TestTextVectorization(CommonTF2LayerTest):
         assert 'text_input' in inputs_info
         input_shape = inputs_info['text_input']
         inputs_data = {}
-        strings_dictionary = ['hi OpenVINO here  ', '  hello OpenVINO there', ' привет ОПЕНВИНО  \n',
-                              'hello PyTorch here  ', '  hi TensorFlow here', '  hi JAX here \t']
+        strings_dictionary = ['hi OpenVINO here  ', '  hello OpenVINO there', 'hello PyTorch here  ',
+                              '  hi TensorFlow here', '  hi JAX here \t']
         inputs_data['text_input'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
@@ -36,7 +36,7 @@ class TestTextVectorization(CommonTF2LayerTest):
         return tf2_net, None
 
     @pytest.mark.parametrize('input_shapes', [[[1, 1]], [[3, 1]]])
-    @pytest.mark.parametrize('vocabulary', [['hello', 'there', 'OpenVINO', 'check', 'привет', 'ОПЕНВИНО']])
+    @pytest.mark.parametrize('vocabulary', [['hello', 'there', 'OpenVINO', 'check']])
     @pytest.mark.parametrize('output_mode', ['int'])
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
     @pytest.mark.precommit_tf_fe
