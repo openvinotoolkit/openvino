@@ -8,10 +8,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/subtract.hpp"
-#include "utils.hpp"
 
 using namespace std;
 using namespace ov::op;
+using namespace ov::frontend::tensorflow;
 
 namespace ov {
 namespace frontend {
@@ -33,7 +33,6 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     set_node_name(node.get_name(), is_less);
     return {is_less};
 }
-
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
