@@ -15,7 +15,7 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
 
     const auto avg_pool_v14_pattern = pattern::wrap_type<ov::op::v14::AvgPool>();
 
-    const matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto avg_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::AvgPool>(m.get_match_root());
         if (!avg_pool_v14) {
             return false;

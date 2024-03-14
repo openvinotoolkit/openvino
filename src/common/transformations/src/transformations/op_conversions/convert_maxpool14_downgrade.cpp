@@ -14,7 +14,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
 
     const auto max_pool_v14_pattern = pattern::wrap_type<ov::op::v14::MaxPool>();
 
-    const matcher_pass_callback callback = [this](pattern::Matcher& m) {
+    const matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto max_pool_v14 = std::dynamic_pointer_cast<ov::op::v14::MaxPool>(m.get_match_root());
         if (!max_pool_v14) {
             return false;
