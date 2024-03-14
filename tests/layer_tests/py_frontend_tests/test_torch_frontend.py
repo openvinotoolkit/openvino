@@ -250,7 +250,7 @@ def test_so_extension():
     converted_model = fe.convert(input_model)
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
-        "Parameter", "Elu", "Result"]
+        'Parameter', 'Elu', 'Constant', 'ConvertLike', 'Multiply', 'Result']
 
     fe.add_extension(get_builtin_extensions_path())
     converted_model = fe.convert(input_model)

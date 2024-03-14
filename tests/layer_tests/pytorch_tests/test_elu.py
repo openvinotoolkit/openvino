@@ -1,35 +1,45 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
+import torch
+import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+
+
+class aten_elu(torch.nn.Module):
+    def __init__(self, alpha, dtype, inplace):
+        super(aten_elu, self).__init__()
+        self.alpha = alpha
+        self.dtype = dtype
+        self.inplace = inplace
+        if alpha is None:
+            self.forward = self.forward_no_alpha
+
+    def forward(self, x):
+        x_copy = x.to(self.dtype)
+        return F.elu(x_copy, alpha=self.alpha, inplace=self.inplace), x_copy
+
+    def forward_no_alpha(self, x):
+        x_copy = x.to(self.dtype)
+        return F.elu(x_copy, inplace=self.inplace), x_copy
 
 
 class TestElu(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(2, 3).astype(np.float32),)
+        return (np.random.randn(2, 4, 224, 224).astype(np.float32),)
 
-    def create_model(self, alpha, inplace):
-        import torch
-        import torch.nn.functional as F
-
-        class aten_elu(torch.nn.Module):
-            def __init__(self, alpha, inplace):
-                super(aten_elu, self).__init__()
-                self.alpha = alpha
-                self.inplace = inplace
-
-            def forward(self, x):
-                return F.elu(x, alpha=self.alpha, inplace=self.inplace)
-
-        ref_net = None
-
-        return aten_elu(alpha, inplace), ref_net, "aten::elu"
-
-    @pytest.mark.precommit_fx_backend
-    @pytest.mark.parametrize("alpha", [1.0, 0.5])
-    @pytest.mark.parametrize("inplace", [True, False])
-    def test_elu(self, alpha, inplace, ie_device, precision, ir_version):
-        self._test(*self.create_model(alpha, inplace), ie_device, precision, ir_version)
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("alpha", [None, 0.5, 2.])
+    @pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    def test_elu(self, alpha, dtype, inplace, ie_device, precision, ir_version):
+        kwargs = {}
+        if dtype == torch.float16:
+            kwargs["custom_eps"] = 1e-2
+        self._test(aten_elu(alpha, dtype, inplace), None,
+                   "aten::elu_" if inplace else "aten::elu", ie_device, precision, ir_version, **kwargs)

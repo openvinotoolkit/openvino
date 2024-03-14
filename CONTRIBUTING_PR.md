@@ -16,6 +16,7 @@
 * Follow the [OpenVINO code style guide](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/coding_style.md).
 * Make your PRs small - each PR should address one issue. Remove all changes 
   unrelated to the PR.
+* [Link your Pull Request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar) if it addresses one.
 * Document your contribution! If your changes may impact how the user works with
   OpenVINO, provide the information in proper articles. You can do it yourself, 
   or contact one of OpenVINO documentation contributors to work together on

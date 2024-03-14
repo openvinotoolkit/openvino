@@ -42,6 +42,7 @@ OPS = {
     "aten::log1p": torch.log1p,
     "aten::log1p_": torch.log1p_,
     "aten::log_sigmoid": F.logsigmoid,
+    "aten::mish": F.mish,
     "aten::cos": torch.cos,
     "aten::cos_": torch.cos_,
     "aten::sin": torch.sin,
@@ -181,6 +182,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::log2_",
                                  "aten::log10_",
                                  "aten::log1p_",
+                                 "aten::mish",
                                  # trigonometry
                                  "aten::cos_",
                                  "aten::sin_",
@@ -251,6 +253,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::selu",
                                  "aten::silu",
                                  "aten::hardswish"
+                                 "aten::mish",
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
