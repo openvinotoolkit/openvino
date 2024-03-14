@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -68,12 +68,15 @@ class TestTorchConvertModel(TestConvertModel):
             from torch.export import export
             from packaging import version
             from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
-            import inspect
-            from openvino.frontend.pytorch.utils import prepare_example_inputs_and_model
 
             input_shapes = []
             input_types = []
             model_obj.eval()
+            # need to infer before export to initialize everything, otherwise it will be initialized with FakeTensors
+            if isinstance(self.example, dict):
+                pt_res = model_obj(**self.example)
+            else:
+                pt_res = model_obj(*self.example)
             if isinstance(self.example, dict):
                 graph = export(model_obj, tuple(), self.example)
                 for input_data in self.example.values():
@@ -105,10 +108,6 @@ class TestTorchConvertModel(TestConvertModel):
             if isinstance(self.example, dict):
                 decoder._input_signature = list(self.example.keys())  
             ov_model = convert_model(decoder, example_input=self.example) 
-            if isinstance(self.example, dict):         
-                pt_res = model_obj(**self.example)
-            else:
-                pt_res = model_obj(*self.example)
             if isinstance(pt_res, dict):
                 for i, k in enumerate(pt_res.keys()):
                     ov_model.outputs[i].get_tensor().set_names({k})
