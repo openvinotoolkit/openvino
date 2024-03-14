@@ -20,17 +20,18 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Reciprocal"}, true);
     auto x = node.get_input(0);
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-
+    auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
+    auto two = make_shared<v0::Constant>(element::i32, Shape{1}, 2);
     if (complex_type_mark_x) {
         x = complex_type_mark_x->input_value(0);
-        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
-        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+        auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+        auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
         auto x_real = make_shared<v8::Gather>(x, gather_index_real, minus_one)->output(0);
         auto x_imag = make_shared<v8::Gather>(x, gather_index_imag, minus_one)->output(0);
 
-        // Compute (a^2-b^2)
-        auto real_squared_norm = make_shared<v1::Multiply>(x_real, x_real);
-        auto img_squared_norm = make_shared<v1::Multiply>(x_imag, x_imag);
+        // Compute (a^2+b^2)
+        auto real_squared_norm = make_shared<v1::Power>(x_real, two);
+        auto img_squared_norm = make_shared<v1::Multiply>(x_imag, two);
         auto squared_norm = make_shared<v1::Add>(real_squared_norm, img_squared_norm);
 
         auto reciprocal_real = make_shared<v1::Divide>(x_real, squared_norm);
