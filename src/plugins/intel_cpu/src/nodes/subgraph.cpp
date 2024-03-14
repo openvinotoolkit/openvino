@@ -410,6 +410,8 @@ void Snippet::initOptimalPrimitiveDescriptor() {
                                            ov::intel_cpu::tpp::pass::EltwiseToEltwiseTPP);
 #endif
 
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
     std::vector<ov::element::Type> input_precisions;

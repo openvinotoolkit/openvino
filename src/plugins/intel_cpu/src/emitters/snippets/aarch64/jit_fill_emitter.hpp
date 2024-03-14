@@ -39,9 +39,6 @@ private:
     uint32_t fill_value = 0x0;
 };
 
-template <>
-void jit_fill_emitter::emit_isa<dnnl::impl::cpu::aarch64::asimd>(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
-
 }   // namespace aarch64
 }   // namespace intel_cpu
 }   // namespace ov

@@ -807,6 +807,15 @@ void Transformations::MainSnippets(void) {
     tokenization_config.concurrency = config.streamExecutorConfig.get_threads_per_stream();
     if (tokenization_config.concurrency == 0)
         tokenization_config.concurrency = parallel_get_max_threads();
+#if defined(OPENVINO_ARCH_ARM64)
+    // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 platform register, 3 registers for temporary use,
+    // and 2 stack related registers, it has 24 remaining registers.
+    tokenization_config.data_ptr_grp_count = 24;
+#else
+    // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
+    // and 2 stack related registers, it has 11 remaining registers.
+    tokenization_config.data_ptr_grp_count = 11;
+#endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
@@ -869,7 +878,34 @@ void Transformations::MainSnippets(void) {
     };
 #endif // OPENVINO_ARCH_X86_64
 
-    auto has_supported_in_out = [](const std::shared_ptr<const ov::Node> &n) -> bool {
+    auto is_support_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
+#if defined(OPENVINO_ARCH_ARM64)
+        return (ov::is_type<ov::op::v1::Add>(n) ||
+                ov::is_type<ov::op::v1::Multiply>(n) ||
+                ov::is_type<ov::op::v0::Relu>(n));
+#else
+        // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
+        auto is_unsupported_swish = [](const std::shared_ptr<const ov::Node> &n) {
+            return ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
+                   !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+        };
+        // todo: general tokenization flow is not currently supported for these operations.
+        // they can be tokenized only as a part of complex patterns
+        auto is_unsupported_by_common_tokenization = [](const std::shared_ptr<const ov::Node> &n) {
+            return (ov::is_type<const ov::op::v1::Softmax>(n) ||
+                    ov::is_type<const ov::op::v8::Softmax>(n) ||
+                    ov::is_type<const ov::op::v0::MatMul>(n) ||
+                    ov::is_type<const ov::op::v1::Transpose>(n) ||
+                    ov::is_type<const ov::op::v1::Broadcast>(n) ||
+                    ov::is_type<const ov::op::v3::Broadcast>(n) ||
+                    ov::is_type<const ov::op::v1::ReduceMax>(n) ||
+                    ov::is_type<const ov::op::v1::ReduceSum>(n));
+        };
+        return !is_unsupported_swish(n) && !is_unsupported_by_common_tokenization (n);
+#endif
+    };
+
+    auto has_supported_element_types = [](const std::shared_ptr<const ov::Node> &n) -> bool {
         auto supported = [&n](descriptor::Tensor& t) -> bool {
             auto get_supported_element_types = []() {
 #if defined(OPENVINO_ARCH_ARM64)
@@ -881,9 +917,6 @@ void Transformations::MainSnippets(void) {
 #endif
                 return supported_element_types;
             };
-            // TODO [122585] Need to add dynamic rank support
-            if (t.get_partial_shape().rank().is_dynamic())
-                return false;
             // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
             //  So i32 is supported exclusively for transposes and broadcast
             return get_supported_element_types().count(t.get_element_type()) != 0 ||
@@ -915,27 +948,13 @@ void Transformations::MainSnippets(void) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
         }, snippets::pass::ExtractReshapesFromMHA);
-        CPU_SET_CALLBACK_X64(snippetsManager,
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
+        CPU_SET_CALLBACK_COMMON(snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (n->is_dynamic())
                     return true;
-                // CPU Plugin support Swish in Subgraph via conversion to SwichCPU which assumes second input to be constant
-                const bool is_unsupported_swish =
-                        ov::is_type<const ov::op::v4::Swish>(n) && n->inputs().size() > 1 &&
-                        !ov::is_type<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
-                if (is_unsupported_swish)
+                if (!is_support_op(n))
                     return true;
-                // todo: general tokenization flow is not currently supported for these operations.
-                //  they can be tokenized only as a part of complex patterns
-                const bool is_disabled_tokenization = (ov::is_type<const ov::op::v1::Softmax>(n) ||
-                                                       ov::is_type<const ov::op::v8::Softmax>(n) ||
-                                                       ov::is_type<const ov::op::v0::MatMul>(n) ||
-                                                       ov::is_type<const ov::op::v1::Transpose>(n) ||
-                                                       ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                       ov::is_type<const ov::op::v3::Broadcast>(n) ||
-                                                       ov::is_type<const ov::op::v1::ReduceMax>(n) ||
-                                                       ov::is_type<const ov::op::v1::ReduceSum>(n));
-                if (is_disabled_tokenization)
+                if (!has_supported_element_types(n))
                     return true;
                 const auto& inputs = n->inputs();
                 // todo: clarify whether we can evaluate snippets on const paths
@@ -968,12 +987,6 @@ void Transformations::MainSnippets(void) {
                 return false;
             },
             snippets::pass::TokenizeSnippets);
-            CPU_SET_CALLBACK_ARM(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-                const bool is_support_op = ov::is_type<const ov::op::v1::Add>(n) ||
-                                           ov::is_type<const ov::op::v1::Multiply>(n) ||
-                                           ov::is_type<const ov::op::v0::Relu>(n);
-                return !is_support_op || !has_supported_in_out(n);
-            }, snippets::pass::TokenizeSnippets);
     }
     snippetsManager.run_passes(model);
 }

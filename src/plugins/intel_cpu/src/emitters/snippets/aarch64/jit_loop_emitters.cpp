@@ -169,8 +169,7 @@ void jit_loop_end_static_emitter::emit_code(const std::vector<size_t> &in, const
 
 void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs;
-    // the last input is actually a work_amount reg
-    data_ptr_reg_idxs.reserve(num_inputs - 1);
+    data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     XReg reg_work_amount = XReg(in.back());
