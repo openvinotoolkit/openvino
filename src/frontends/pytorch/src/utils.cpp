@@ -407,7 +407,8 @@ void align_eltwise_input_types(const NodeContext& context,
     ov::Output<ov::Node> tmp_lhs = lhs;
     ov::Output<ov::Node> tmp_rhs = rhs;
     // Python scalar has lower priority than any tensor with any dimension.
-    // If only one input is PyScalar, replace it with const to mitigate issues with dynamic type caused by dynamic shape.
+    // If only one input is PyScalar, replace it with const to mitigate issues with dynamic type caused by dynamic
+    // shape.
     if (is_lhs_python_scalar && !is_rhs_python_scalar) {
         tmp_lhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_0, lhs));
         tmp_rhs = context.mark_node(std::make_shared<opset10::ConvertLike>(const_1, rhs));
