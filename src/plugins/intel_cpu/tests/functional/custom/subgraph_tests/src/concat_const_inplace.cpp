@@ -75,13 +75,8 @@ public:
 
 namespace {
 TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
-    if (this->GetParam() == ov::element::f16) {
-        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-        }
-    }
     run();
-    if (this->GetParam() == ov::element::bf16)
+    if (this->GetParam() == ov::element::bf16 || this->GetParam() == ov::element::f16)
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
     else
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);
