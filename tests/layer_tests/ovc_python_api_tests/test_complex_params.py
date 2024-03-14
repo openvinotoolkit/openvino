@@ -78,7 +78,7 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': [PartialShape([1, 3, -1, -1]), [1, 3, -1, -1]]},
-         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}  },
+         'params_ref': {'input_shape': "[1,3,?,?],[1,3,?,?]", 'input': 'Input1:0,Input2:0'}},
         {'params_test': {'input': [(2, 3, 4), [2, 3, 4], (Dimension(2), Dimension(3), Dimension(4))]},
          'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1:0,Input2:0,Input3:0'}},
         {'params_test': {'input': {"Input1:0": PartialShape([2, 3, 4]), "Input2:0": [2, 3, 4],
