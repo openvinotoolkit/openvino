@@ -548,5 +548,33 @@ template <Type_t ET, class T, typename std::enable_if<is_byte_type(ET) || ET == 
 constexpr T* iterator(T* ptr) {
     return ptr;
 }
+
+/**
+ * @brief Make iterator from void pointer.
+ *
+ * Data will be reinterpreted using fundamental type for ov::element::Type.
+ *
+ * @tparam ET  OpenVINO element type.
+ * @param ptr  Pointer to data.
+ * @return Iterator for given ET.
+ */
+template <Type_t ET, class T = ov::fundamental_type_for<ET>>
+constexpr auto iterator(void* ptr) -> decltype(iterator<ET, T>(reinterpret_cast<T*>(ptr))) {
+    return iterator<ET, T>(reinterpret_cast<T*>(ptr));
+}
+
+/**
+ * @brief Make iterator from constant void pointer.
+ *
+ * Data will be reinterpreted using fundamental type for ov::element::Type.
+ *
+ * @tparam ET  OpenVINO element type.
+ * @param ptr  Pointer to data.
+ * @return Iterator for given ET.
+ */
+template <Type_t ET, class T = typename std::add_const<ov::fundamental_type_for<ET>>::type>
+constexpr auto iterator(const void* ptr) -> decltype(iterator<ET, T>(reinterpret_cast<T*>(ptr))) {
+    return iterator<ET, T>(reinterpret_cast<T*>(ptr));
+}
 }  // namespace element
 }  // namespace ov

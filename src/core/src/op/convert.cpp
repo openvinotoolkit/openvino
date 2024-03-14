@@ -28,7 +28,7 @@ struct Evaluate : public element::NoAction<bool> {
                           CONVERT_ET_LIST,
                           EvalByOutputType,
                           out.get_element_type(),
-                          iterator<ET_IN>(reinterpret_cast<const TI*>(arg.data())),
+                          iterator<ET_IN>(arg.data()),
                           out,
                           count);
     }
@@ -39,7 +39,7 @@ private:
 
         template <element::Type_t ET_OUT, class InputIter, class TO = ov::fundamental_type_for<ET_OUT>>
         static result_type visit(InputIter arg, Tensor& out, const size_t count) {
-            reference::convert(arg, element::iterator<ET_OUT>(reinterpret_cast<TO*>(out.data())), count);
+            reference::convert(arg, element::iterator<ET_OUT>(out.data()), count);
             return true;
         }
     };
