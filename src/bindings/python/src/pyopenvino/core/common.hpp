@@ -104,7 +104,7 @@ std::vector<char> array_as_vector_bool(py::array& array) {
     std::vector<char> result;
     result.reserve(array.size());
 
-    for(size_t i = 0; i < array.size(); i++) {
+    for(long int i = 0; i < array.size(); i++) {
         result.emplace_back(*(static_cast<T*>(const_cast<void*>(array.data())) + i) != 0 ? 1 : 0);
     }
 
