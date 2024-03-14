@@ -1,6 +1,6 @@
 # Image Classification Async C++ Sample {#openvino_inference_engine_samples_classification_sample_async_README}
 
-This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.  
+This sample demonstrates how to do inference of image classification models using Asynchronous Inference Request API.
 Models with only one input and output are supported.
 
 In addition to regular images, the sample also supports single-channel `ubyte` images as an input for LeNet model.
@@ -18,7 +18,7 @@ Basic OpenVINO™ Runtime API is covered by [Hello Classification C++ sample](..
 
 | Options | Values |
 | :--- | :--- |
-| Validated Models | [alexnet](@ref omz_models_model_alexnet), [googlenet-v1](@ref omz_models_model_googlenet_v1) |
+| Validated Models | alexnet, googlenet-v1 |
 | Model Format | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx) |
 | Supported devices | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization | [Python](../../../samples/python/classification_sample_async/README.md) |
