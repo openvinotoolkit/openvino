@@ -16,8 +16,7 @@ using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
 inline static std::vector<XReg> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
-    std::vector<XReg> regs;
-    regs.resize(idxs.size(), XReg(0));
+    std::vector<XReg> regs(idxs.size(), XReg(0));
     std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return XReg(idx);});
     return regs;
 }
@@ -223,7 +222,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::j
     // - Reserve reg_indexes_idx and reg_runtime_params_idx, since they'll be used to pass runtime call args to kernel
     // - However we can use reg_indexes_idx and reg_runtime_params_idx for non memory access operations
     //   since we won't need them after offsets calculation
-    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx, reg_runtime_params_idx});
+    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx});
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& data_ptr_regs) const {

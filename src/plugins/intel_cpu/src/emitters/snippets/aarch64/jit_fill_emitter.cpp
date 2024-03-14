@@ -55,14 +55,6 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t> &in, const std::vector
         fill_tail<isa>(in, out);
 }
 
-template <>
-void jit_fill_emitter::emit_isa<dnnl::impl::cpu::aarch64::asimd>(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    if (is_full_reg())
-        fill_full<dnnl::impl::cpu::aarch64::asimd>(out);
-    else
-        fill_tail<dnnl::impl::cpu::aarch64::asimd>(in, out);
-}
-
 template <cpu_isa_t isa>
 void jit_fill_emitter::fill_full(const std::vector<size_t> &out) const {
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;

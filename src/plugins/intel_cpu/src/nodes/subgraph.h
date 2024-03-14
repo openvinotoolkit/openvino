@@ -6,7 +6,6 @@
 
 #include "node.h"
 #include "onednn/dnnl.h"
-#include "openvino/pass/visualize_tree.hpp"
 #include "snippets/op/subgraph.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)

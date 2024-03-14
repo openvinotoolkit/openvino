@@ -394,6 +394,8 @@ void Snippet::initOptimalPrimitiveDescriptor() {
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON
+#undef SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64
 #undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
     std::vector<ov::element::Type> input_precisions;
@@ -672,6 +674,8 @@ void Snippet::SnippetJitExecutor::generate(const jit_snippets_compile_args* jcp)
                                            ov::intel_cpu::pass::FuseLoadStoreConvert);
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After, ov::intel_cpu::pass::FuseLoadStoreConvert,
                                            ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape);
+
+#undef SNIPPETS_REGISTER_PASS_RELATIVE_X86_64
 
     schedule = snippetAttrs.snippet->generate_from_linear_ir(std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                                              backend_passes,

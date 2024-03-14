@@ -71,6 +71,9 @@ public:
               mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {}
 
         size_t concurrency = 1;
+        // The number of grp that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
+        // Result, Buffers with the same ID)
+        size_t data_ptr_grp_count = 8;
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.

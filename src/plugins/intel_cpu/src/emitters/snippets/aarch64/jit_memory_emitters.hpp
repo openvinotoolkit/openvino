@@ -11,9 +11,9 @@ namespace ov {
 namespace intel_cpu {
 namespace aarch64 {
 
-class MemoryEmitter : public jit_emitter  {
+class jit_memory_emitter : public jit_emitter  {
 public:
-    MemoryEmitter(dnnl::impl::cpu::aarch64::jit_generator* h,
+    jit_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                   dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                   const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -25,7 +25,7 @@ protected:
     size_t byte_offset = 0;
 };
 
-class jit_load_memory_emitter : public MemoryEmitter {
+class jit_load_memory_emitter : public jit_memory_emitter {
 public:
     jit_load_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                 dnnl::impl::cpu::aarch64::cpu_isa_t isa,
@@ -45,7 +45,7 @@ private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
-class jit_load_broadcast_emitter : public MemoryEmitter {
+class jit_load_broadcast_emitter : public jit_memory_emitter {
 public:
     jit_load_broadcast_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                          dnnl::impl::cpu::aarch64::cpu_isa_t isa,
@@ -61,7 +61,7 @@ private:
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
 };
 
-class jit_store_memory_emitter : public MemoryEmitter  {
+class jit_store_memory_emitter : public jit_memory_emitter  {
 public:
     jit_store_memory_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                  dnnl::impl::cpu::aarch64::cpu_isa_t isa,

@@ -66,7 +66,10 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
 }
 
 size_t jit_load_emitter::get_aux_gprs_count() const {
-    return 1;
+    if (load_num_ == 3)
+        return 1;
+
+    return 0;
 }
 
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
@@ -120,7 +123,10 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
 }
 
 size_t jit_store_emitter::get_aux_gprs_count() const {
-    return 1;
+    if (store_num_ == 3)
+        return 1;
+
+    return 0;
 }
 
 }   // namespace aarch64
