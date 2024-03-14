@@ -282,6 +282,32 @@ static ReduceMaximum reduce_maximum;
 static ReduceMinimum reduce_minimum;
 static ReduceNone data_assign;
 
+#define CALL_SCATTER_ELEMENTS_UPDATE(fundamental_type)                                                          \
+  do {                                                                                                          \
+    switch (reduction_type) {                                                                                   \
+    case Reduction::NONE :                                                                                      \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);     \
+        break;                                                                                                  \
+    case Reduction::SUM:                                                                                        \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);      \
+        break;                                                                                                  \
+    case Reduction::MAX :                                                                                       \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);  \
+        break;                                                                                                  \
+    case Reduction::MIN :                                                                                       \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);  \
+        break;                                                                                                  \
+    case Reduction::PROD:                                                                                       \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply); \
+        break;                                                                                                  \
+    case Reduction::MEAN :                                                                                      \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);     \
+        break;                                                                                                  \
+    default :                                                                                                   \
+        break;                                                                                                  \
+    }                                                                                                           \
+  } while (0)
+
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
@@ -417,74 +443,11 @@ void ScatterUpdate::execute(dnnl::stream strm) {
                 "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
             // auto start = high_resolution_clock::now();
             if (dstMemPtr->getPrecision() == ov::element::f32) {
-                switch (reduction_type) {
-                case Reduction::NONE :
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);
-                    break;
-                case Reduction::SUM:
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
-                    break;
-                case Reduction::MAX :
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
-                    break;
-                case Reduction::MIN :
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
-                    break;
-                case Reduction::PROD :
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
-                    break;
-                case Reduction::MEAN :
-                    scatterElementsUpdate<float>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
-                    break;
-                default :
-                    break;
-                }
+                CALL_SCATTER_ELEMENTS_UPDATE(float);
             } else if (dstMemPtr->getPrecision() == ov::element::bf16) {
-                switch (reduction_type) {
-                case Reduction::NONE :
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);
-                    break;
-                case Reduction::SUM:
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
-                    break;
-                case Reduction::MAX :
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
-                    break;
-                case Reduction::MIN :
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
-                    break;
-                case Reduction::PROD :
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
-                    break;
-                case Reduction::MEAN :
-                    scatterElementsUpdate<ov::bfloat16>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
-                    break;
-                default :
-                    break;
-                }
+                CALL_SCATTER_ELEMENTS_UPDATE(ov::bfloat16);
             } else if (dstMemPtr->getPrecision() == ov::element::i32) {
-                switch (reduction_type) {
-                case Reduction::NONE :
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);
-                    break;
-                case Reduction::SUM:
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);
-                    break;
-                case Reduction::MAX :
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);
-                    break;
-                case Reduction::MIN :
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);
-                    break;
-                case Reduction::PROD :
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply);
-                    break;
-                case Reduction::MEAN :
-                    scatterElementsUpdate<int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);
-                    break;
-                default :
-                    break;
-                }
+                CALL_SCATTER_ELEMENTS_UPDATE(int32_t);
             }
             // auto stop = high_resolution_clock::now();
             // auto duration = duration_cast<microseconds>(stop - start);
