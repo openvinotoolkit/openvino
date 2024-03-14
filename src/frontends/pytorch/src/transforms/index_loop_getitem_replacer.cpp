@@ -83,16 +83,18 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
         if (!ov::as_type_ptr<v0::Constant>(dim.get_node_shared_ptr()))
             return false;
 
+        pass::NodeRegistry rg;
         // connect chunk input directly to loop
         auto chunk_input = chunk_op->input_value(0);
         chunk_op->output(0).replace(chunk_input);
         // len(chunks) is number of iterations
         auto chunks_outside = chunk_op->input_value(1);
+        chunks_outside = rg.make<v0::Convert>(chunks_outside, element::i32);
         loop_op->input_value(0).replace(chunks_outside);
 
         auto chunk_counter = getitem->input_value(1);
+        chunk_counter = rg.make<v0::Convert>(chunk_counter, element::i32);
 
-        pass::NodeRegistry rg;
         auto tensor_0 = v0::Constant::create(element::i32, Shape{1}, {0});
         auto one_1d = v0::Constant::create(element::i32, Shape{1}, {1});
 

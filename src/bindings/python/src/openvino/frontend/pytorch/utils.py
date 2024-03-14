@@ -51,9 +51,6 @@ def get_type_from_py_type(value):
     if isinstance(value, bool):
         return OVType.boolean
     if isinstance(value, int):
-        # Python int is 64 bit, but we will convert it to int32 except cases when it can't fit in 32 bits
-        if torch.iinfo(torch.int).min <= value <= torch.iinfo(torch.int).max:
-            return OVType.i32
         return OVType.i64
     return OVType.dynamic
 
@@ -123,7 +120,7 @@ def graph_has_ops(graph, op_types:list) -> bool:
 
 pt_to_ov_type_map = {
     "float": OVType.f32,
-    "int": OVType.i32,
+    "int": OVType.i64,
     "bool": OVType.boolean,
     "torch.bfloat16": OVType.bf16,
     "torch.float16": OVType.f16,
