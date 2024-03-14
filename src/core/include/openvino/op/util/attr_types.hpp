@@ -50,6 +50,7 @@ std::ostream& operator<<(std::ostream& s, const PadType& type);
 enum class RoundingType {
     FLOOR = 0,
     CEIL = 1,
+    CEIL_TORCH = 2,
 };
 
 OPENVINO_API
