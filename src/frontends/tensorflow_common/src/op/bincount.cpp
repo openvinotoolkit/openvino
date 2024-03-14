@@ -32,19 +32,10 @@ OutputVector translate_bincount_op(const NodeContext& node) {
     auto size = node.get_input(1);
     auto weights = node.get_input(2);
 
-    std::vector<int32_t> size_scalar_vec;
-    get_const_input(node, 1, &size_scalar_vec);
-    TENSORFLOW_OP_VALIDATION(node, size_scalar_vec.size() == 1, "size must be a scalar");
-    int32_t size_scalar_val = size_scalar_vec[0];
-    TENSORFLOW_OP_VALIDATION(node, size_scalar_val > 0, "size must be non-negative.");
-
     auto scalar_shape = make_shared<v0::Constant>(element::i32, ov::Shape{0}, std::vector<int32_t>{});
     size = make_shared<v1::Reshape>(size, scalar_shape, false);
 
     auto weights_type = weights.get_element_type();
-    TENSORFLOW_OP_VALIDATION(node,
-                             arr.get_shape() == weights.get_shape() || shape_size(weights.get_shape()) == 0,
-                             "The shape of the weights must either match the first input or 0.");
 
     if (weights.get_partial_shape() == ov::Shape{0}) {
         auto arr_shape = make_shared<v3::ShapeOf>(arr, element::i32);
@@ -57,17 +48,14 @@ OutputVector translate_bincount_op(const NodeContext& node) {
     auto step = make_shared<v0::Constant>(element::i32, Shape{}, std::vector<int>{1});
     auto range = make_shared<v4::Range>(start, size, step, element::i32);
 
-    auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
-    auto const_zero = make_shared<v0::Constant>(element::i32, Shape{}, 0);
-    auto const_axis_zero = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int>({0}));
-    auto const_axis_one = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int>({1}));
-
     // Reshape arr and weights to 1D tensors
-    auto const_flatten_shape = make_shared<v0::Constant>(element::i32, Shape{1}, shape_size(arr.get_shape()));
+    auto const_flatten_shape = make_shared<v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{-1});
     auto arr_reshaped = make_shared<v1::Reshape>(arr, const_flatten_shape, false);
     auto weights_reshaped = make_shared<v1::Reshape>(weights, const_flatten_shape, false);
 
     // Unsqueeze range to [size, 1] shape and unsqueeze arr and weights to shapes [1, num]
+    auto const_axis_zero = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int>({0}));
+    auto const_axis_one = make_shared<v0::Constant>(element::i32, Shape{1}, vector<int>({1}));
     auto unsqueeze_range = make_shared<v0::Unsqueeze>(range, const_axis_one);
     auto unsqueeze_arr = make_shared<v0::Unsqueeze>(arr_reshaped, const_axis_zero);
     auto unsqueeze_weights = make_shared<v0::Unsqueeze>(weights_reshaped, const_axis_zero);
@@ -78,7 +66,8 @@ OutputVector translate_bincount_op(const NodeContext& node) {
     auto mask_casted = make_shared<v0::Convert>(mask, weights_type);
 
     auto to_sum = make_shared<v1::Multiply>(mask_casted, unsqueeze_weights);
-    auto result = make_shared<v1::ReduceSum>(to_sum, const_one);
+    auto reduce_axis = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+    auto result = make_shared<v1::ReduceSum>(to_sum, reduce_axis);
 
     set_node_name(node.get_name(), result);
 
