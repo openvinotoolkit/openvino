@@ -84,11 +84,9 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
 
         # remove CMAKE_COMPILE_WARNING_AS_ERROR for onednn_gpu
-        set(_NEW_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-        set(_NEW_CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         if(WIN32 AND CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
-            string(REPLACE "/WX" "" _NEW_CMAKE_CXX_FLAGS "${_NEW_CMAKE_CXX_FLAGS}")
-            string(REPLACE "/WX" "" _NEW_CMAKE_C_FLAGS "${_NEW_CMAKE_C_FLAGS}")
+            string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+            string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         endif()
 
         ExternalProject_Add(onednn_gpu_build
@@ -104,8 +102,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                 "-DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}"
                 "-DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}"
-                "-DCMAKE_CXX_FLAGS=${_NEW_CMAKE_CXX_FLAGS}"
-                "-DCMAKE_C_FLAGS=${_NEW_CMAKE_C_FLAGS}"
+                "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
+                "-DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}"
                 "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=${ENABLE_LTO}"
                 "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
