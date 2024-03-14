@@ -76,7 +76,6 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
 
         auto complex_result = make_shared<ComplexTypeMark>(concat_result->output(0), complex_part_type);
         return {complex_result};
-
     }
     else{
         auto exponent = create_same_type_const_scalar<float>(input, -0.5f);
