@@ -13,6 +13,8 @@
 #include "openvino/opsets/opset12.hpp"
 #include "utils/plain_tensor.hpp"
 
+#include "../shape_inference/include/element_visitor.hpp"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -23,8 +25,6 @@ using namespace dnnl;
 namespace ov {
 namespace intel_cpu {
 namespace node {
-
-using namespace math;
 
 bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -62,10 +62,10 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     const auto node = std::dynamic_pointer_cast<const ov::op::v12::ScatterElementsUpdate>(op);
     if (node) {
-        reduction_type = node->get_reduction();
-        use_init_val = node->get_use_init_val();
+        m_config.reduction_type = node->get_reduction();
+        m_config.use_init_val = node->get_use_init_val();
     } else {
-        reduction_type = ov::op::v12::ScatterElementsUpdate::Reduction::NONE;
+        m_config.reduction_type = ov::op::v12::ScatterElementsUpdate::Reduction::NONE;
     }
 }
 
@@ -230,7 +230,9 @@ void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-int64_t ScatterUpdate::getIndicesValue(uint8_t *indices, size_t offset) {
+static inline
+int64_t getIndicesValue(uint8_t *indices, size_t offset) {
+    int indicesSize = 4;
     auto *indicesPtr = indices + offset * indicesSize;
     int64_t ret = 0;
     if (indicesSize == 4) {
@@ -255,6 +257,73 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     }
     return blockND;
 }
+
+namespace scatter_elements_update {
+
+template <typename reduced_t>
+struct AccumulativeType {
+  using type = reduced_t;
+};
+template <>
+struct AccumulativeType<ov::bfloat16> {
+  using type = float;
+};
+template <>
+struct AccumulativeType<ov::float16> {
+  using type = float;
+};
+
+template <typename T>
+using AccType = typename AccumulativeType<T>::type;
+
+
+class ReduceMultiply {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data *= AccType<DT>(*src_data);
+    }
+};
+
+class ReduceAdd {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data += AccType<DT>(*src_data);
+    }
+};
+
+class ReduceMean {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data += AccType<DT>(*src_data);
+    }
+};
+
+class ReduceMaximum {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(*src_data) ? AccType<DT>(*src_data) : std::max(*dst_data, AccType<DT>(*src_data));
+    }
+};
+
+class ReduceMinimum {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(*src_data) ? AccType<DT>(*src_data) : std::min(*dst_data, AccType<DT>(*src_data));
+    }
+};
+
+class ReduceNone {
+public:
+    template <typename DT>
+    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
+        *dst_data = AccType<DT>(*src_data);
+    }
+};
 
 template <typename T>
 static T reduction_neutral_value(const Reduction reduction_type) {
@@ -282,31 +351,52 @@ static ReduceMaximum reduce_maximum;
 static ReduceMinimum reduce_minimum;
 static ReduceNone data_assign;
 
+template <typename DT, typename reduce_func>
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, reduce_func& kernel_func);
+template <typename DT>
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
+
 #define CALL_SCATTER_ELEMENTS_UPDATE(fundamental_type)                                                          \
   do {                                                                                                          \
-    switch (reduction_type) {                                                                                   \
+    switch (config.reduction_type) {                                                                                   \
     case Reduction::NONE :                                                                                      \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);     \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);     \
         break;                                                                                                  \
     case Reduction::SUM:                                                                                        \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_add);      \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);      \
         break;                                                                                                  \
     case Reduction::MAX :                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_maximum);  \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);  \
         break;                                                                                                  \
     case Reduction::MIN :                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_minimum);  \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);  \
         break;                                                                                                  \
     case Reduction::PROD:                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_multiply); \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply); \
         break;                                                                                                  \
     case Reduction::MEAN :                                                                                      \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce_mean);     \
+        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);     \
         break;                                                                                                  \
     default :                                                                                                   \
         break;                                                                                                  \
     }                                                                                                           \
   } while (0)
+
+
+struct Caller : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t DATA_ET, class DT = ov::fundamental_type_for<DATA_ET>>
+    static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
+        CALL_SCATTER_ELEMENTS_UPDATE(DT);
+       return true;
+    }
+};
+
+};  // namespace scatter_elements_update
+
+#    define IF_TYPE_OF_CALL_SUE(types, visitor, ...)         \
+        ::ov::element::IfTypeOf<types>::apply<visitor>(__VA_ARGS__)
 
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
@@ -442,13 +532,12 @@ void ScatterUpdate::execute(dnnl::stream strm) {
                             dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
                 "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
             // auto start = high_resolution_clock::now();
-            if (dstMemPtr->getPrecision() == ov::element::f32) {
-                CALL_SCATTER_ELEMENTS_UPDATE(float);
-            } else if (dstMemPtr->getPrecision() == ov::element::bf16) {
-                CALL_SCATTER_ELEMENTS_UPDATE(ov::bfloat16);
-            } else if (dstMemPtr->getPrecision() == ov::element::i32) {
-                CALL_SCATTER_ELEMENTS_UPDATE(int32_t);
-            }
+            using namespace ov::element;
+            IF_TYPE_OF_CALL_SUE(OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
+                                scatter_elements_update::Caller,
+                                dataPrec,
+                                dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
+                                );
             // auto stop = high_resolution_clock::now();
             // auto duration = duration_cast<microseconds>(stop - start);
             // if (duration.count() > 900) {
@@ -550,14 +639,18 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
     }
 }
 
+namespace scatter_elements_update {
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 template <typename DataType, typename func_t>
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, func_t& kernel_func) {
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, func_t& kernel_func) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
+
+    const bool use_init_val = config.use_init_val;
+    const Reduction reduction_type = config.reduction_type;
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -744,7 +837,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 }
 
 template <typename DataType>
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ReduceMean& kernel_func) {
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, ReduceMean& kernel_func) {
     PlainTensor data_buf, indices_buf, updates_buf;
     data_buf.reset(mem_data);
     indices_buf.reset(mem_indices);
@@ -756,6 +849,9 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
+
+    const bool use_init_val = config.use_init_val;
+    const Reduction reduction_type = config.reduction_type;
 
     using acc_t = AccType<DataType>;
 
@@ -809,22 +905,24 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
                 DataType src = updates_buf.at<DataType, size_t>(indices_coord);
                 kernel_func((acc_t*)std::addressof(dst), &src);
 
-                if (reduction_type == Reduction::MEAN) {
+                // if (reduction_type == Reduction::MEAN) {
                     mean_reduction_counters[idxValue] += 1;
-                }
+                // }
             }
 
-            if (reduction_type == Reduction::MEAN) {
+            // if (reduction_type == Reduction::MEAN) {
                 for (const auto& counter : mean_reduction_counters) {
                     data_coord[axis] = counter.first;
                     DataType& dst = data_buf.at<DataType, size_t>(data_coord);
                     const auto N = counter.second + static_cast<int32_t>(use_init_val);
                     dst = static_cast<DataType>(static_cast<double>(dst) / N);
                 }
-            }
+            // }
         }
     });
 }
+
+}; // namespace scatter_elements_update
 
 bool ScatterUpdate::created() const {
     return getType() == Type::ScatterUpdate
