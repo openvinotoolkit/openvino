@@ -19,3 +19,5 @@ target_link_libraries(${TARGET_NAME}
         gflags
     PRIVATE
         gtest_main)
+
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})

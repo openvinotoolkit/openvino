@@ -10,13 +10,6 @@ if(NOT WIN32)
     message(FATAL_ERROR "This test only supports windows OS")
 endif()
 
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_EXTENSIONS OFF)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
-endif()
-
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
 
@@ -24,6 +17,10 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithD
 set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
+find_package(OpenVINODeveloperScripts REQUIRED
+             PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
 
 add_subdirectory(thread_local)
 add_subdirectory(thread_local_test)
