@@ -27,5 +27,3 @@ set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../")
 
 add_subdirectory(thread_local)
 add_subdirectory(thread_local_test)
-
-

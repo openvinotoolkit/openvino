@@ -38,9 +38,3 @@ add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/pugixml
                  EXCLUDE_FROM_ALL)
 add_subdirectory("${OpenVINO_SOURCE_DIR}/tests/lib" tests_shared_lib)
 target_link_libraries(${TARGET_NAME} PUBLIC tests_shared_lib)
-
-
-
-
-
-

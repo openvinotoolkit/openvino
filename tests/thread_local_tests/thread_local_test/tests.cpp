@@ -8,6 +8,8 @@
 #include <psapi.h>
 #include <tlhelp32.h>
 
+typedef void (*TestFunc)(std::string);
+
 class ThreadLocalTest : public ::testing::Test, public ::testing::WithParamInterface<std::string>
 {
 public:
@@ -18,11 +20,7 @@ public:
 
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj)
     {
-        const auto layerName = obj.param;
-        std::ostringstream result;
-
-        result << layerName;
-        return result.str();
+        return obj.param;
     }
 
 public:
@@ -35,7 +33,7 @@ TEST(LoadLibraryTest, load_free_library)
     std::future<void> free_future = free_promise.get_future();
     std::promise<void> thread_exit_promise;
     std::future<void> thread_exit_future = thread_exit_promise.get_future();
-    HMODULE shared_object = LoadLibraryA("openvino.dll");
+    auto shared_object = LoadLibraryA("openvino.dll");
 
     std::thread sub_thread = std::thread([&]
                                          {
@@ -50,8 +48,6 @@ TEST(LoadLibraryTest, load_free_library)
         sub_thread.join();
     }
 }
-
-typedef void (*TestFunc)(std::string);
 
 TEST_P(ThreadLocalTest, get_property_test)
 {
@@ -68,6 +64,41 @@ TEST_P(ThreadLocalTest, infer_test)
     procAddr(target_device);
     FreeLibrary(shared_object);
 }
+
+void process_sub_thread(std::string func_name, std::string target_device)
+{
+    auto shared_object = LoadLibraryA("ov_thread_local.dll");
+    auto procAddr = reinterpret_cast<TestFunc>(GetProcAddress(shared_object, func_name.c_str()));
+    std::promise<void> free_promise;
+    std::future<void> free_future = free_promise.get_future();
+    std::promise<void> thread_exit_promise;
+    std::future<void> thread_exit_future = thread_exit_promise.get_future();
+    std::thread sub_thread = std::thread([&]
+                                         {
+        procAddr(target_device);
+        free_promise.set_value();
+        thread_exit_future.get(); });
+
+    free_future.get();
+    FreeLibrary(shared_object);
+
+    thread_exit_promise.set_value();
+    if (sub_thread.joinable())
+    {
+        sub_thread.join();
+    }
+}
+
+TEST_P(ThreadLocalTest, get_property_test_subthread)
+{
+    process_sub_thread("core_get_property_test", target_device);
+}
+
+TEST_P(ThreadLocalTest, infer_test_subthread)
+{
+    process_sub_thread("core_infer_test", target_device);
+}
+
 
 INSTANTIATE_TEST_SUITE_P(OV_ThreadLocalTests,
                          ThreadLocalTest, ::testing::Values("CPU", "GPU"),

@@ -19,5 +19,3 @@ target_link_libraries(${TARGET_NAME}
         gflags
     PRIVATE
         gtest_main)
-
-

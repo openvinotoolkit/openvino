@@ -10,6 +10,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/reshape.hpp"
 #include "thread_local.hpp"
@@ -71,10 +72,10 @@ void core_infer_test(std::string target_device)
     auto actualNetwork = make_split_concat();
     {
         ov::Core ie;
-        auto net = ie.compile_model(actualNetwork, target_device);
-        auto infer_req = net.create_infer_request();
         sub_thread = std::thread([&]
                                  {
+            auto net = ie.compile_model(actualNetwork, target_device);
+            auto infer_req = net.create_infer_request();
             ie.get_property(target_device, ov::supported_properties);
             infer_req.infer();
             call_finish_promise.set_value();
