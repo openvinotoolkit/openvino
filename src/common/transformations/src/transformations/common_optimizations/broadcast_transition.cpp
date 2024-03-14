@@ -34,9 +34,9 @@ ov::pass::BroadcastTransition::BroadcastTransition() {
             return false;
         }
 
-        const auto bcast = ov::as_type_ptr<ov::op::v3::Broadcast>(pattern_map.at(bcast_m).get_node_shared_ptr());
-        const auto& bcast_type = bcast->get_broadcast_spec().m_type;
-        if (bcast_type != ov::op::BroadcastType::NUMPY && bcast_type != ov::op::BroadcastType::BIDIRECTIONAL) {
+        const auto bcast = ov::as_type_ptr<ov::op::util::BroadcastBase>(pattern_map.at(bcast_m).get_node_shared_ptr());
+        if (!bcast || (bcast->get_broadcast_spec().m_type != ov::op::BroadcastType::NUMPY &&
+                       bcast->get_broadcast_spec().m_type != ov::op::BroadcastType::BIDIRECTIONAL)) {
             return false;
         }
 
