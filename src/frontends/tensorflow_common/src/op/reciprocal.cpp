@@ -34,6 +34,7 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
         auto img_squared_norm = make_shared<v1::Multiply>(x_imag, two);
         auto squared_norm = make_shared<v1::Add>(real_squared_norm, img_squared_norm);
 
+        // compute 1/(a+bi) = (a-bi)/(a^2+b^2)
         auto reciprocal_real = make_shared<v1::Divide>(x_real, squared_norm);
         auto reciprocal_imag = make_shared<v1::Divide>(make_shared<Negative>(x_imag), squared_norm);
 
