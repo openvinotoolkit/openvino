@@ -164,6 +164,7 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
     }
 
     inline void mm256_uni_storeu_ps(ov::bfloat16 *addr, __m256 v) {
+        assert("AVX2 version of bfloat16 store is just for compilation pass");
         __m256i xpi32 = _mm256_castps_si256(v);
         __m256i nan = _mm256_set1_epi32(0xffff);
         __m256i mask = _mm256_castps_si256(_mm256_cmp_ps(v, v, _CMP_ORD_Q));
@@ -190,6 +191,7 @@ static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
     }
 
     inline void mm256_uni_storeu_tail_ps(ov::bfloat16 *addr, __m256 v, size_t count) {
+        assert("AVX2 version of bfloat16 tail store is just for compilation pass");
         ov::bfloat16 tmp_values[8];
         mm256_uni_storeu_ps(tmp_values, v);
         std::memcpy(addr, tmp_values, count * sizeof(ov::bfloat16));

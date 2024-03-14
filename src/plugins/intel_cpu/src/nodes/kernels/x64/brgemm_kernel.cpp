@@ -44,7 +44,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
         THROW_ERROR("brgemm bf16 kernel could only be used above avx512_bf16");
     // TODO: amx_f16
     if (inType == ov::element::f16 && (!mayiuse(avx512_core_fp16)))
-        THROW_ERROR("brgemm f16 kernel could only be used with avx512_core_fp16/avx2_vnni_2");
+        THROW_ERROR("brgemm f16 kernel could only be used with avx512_core_fp16");
 
     // TODO: support amx_fp16
     bool isAMXSupported = (mayiuse(avx512_core_amx) && ov::element::bf16 == inType);
