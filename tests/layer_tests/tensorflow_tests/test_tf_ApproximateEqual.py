@@ -1,3 +1,5 @@
+# Copyright (C) 2018-2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
 import numpy as np
 import tensorflow as tf
 import pytest
@@ -5,13 +7,14 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestApproximateEqual(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
         assert 'tensor1:0' in inputs_info
         assert 'tensor2:0' in inputs_info
         tensor1_shape = inputs_info['tensor1:0']
         tensor2_shape = inputs_info['tensor2:0']
         inputs_data = {}
-        inputs_data['tensor1:0'] = np.random.uniform(-10, 10, tensor1_shape).astype(np.float32)
-        inputs_data['tensor2:0'] = np.random.uniform(-10, 10, tensor2_shape).astype(np.float32)
+        inputs_data['tensor1:0'] = 4 * rng.random(tensor1_shape).astype(np.float32) - 2
+        inputs_data['tensor2:0'] = 4 * rng.random(tensor2_shape).astype(np.float32) - 2
         return inputs_data
 
     def create_approximate_equal_net(self, input1_shape, input2_shape):
