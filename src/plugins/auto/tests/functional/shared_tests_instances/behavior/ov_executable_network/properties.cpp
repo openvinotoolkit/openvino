@@ -6,6 +6,7 @@
 
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/auto/properties.hpp"
 
 using namespace ov::test::behavior;
 
@@ -141,9 +142,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
 
 const std::vector<ov::AnyMap> default_properties = {
     {ov::enable_profiling(false)},
-};
+    {ov::log::level("LOG_NONE")},
+    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)},
+    {ov::intel_auto::device_bind_buffer(false)},
+    {ov::intel_auto::enable_startup_fallback(true)},
+    {ov::intel_auto::schedule_policy(ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY)},
+    {ov::device::priorities("")}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_Profiling_test,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_Default_test,
                          OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(default_properties)),
