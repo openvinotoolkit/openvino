@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -17,12 +17,20 @@ if (ENABLE_SANITIZER)
             "https://github.com/openvinotoolkit/openvino/wiki/AddressSanitizer-and-LeakSanitizer")
         endif()
     elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address")
+        set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/asan/ignore.txt")
+        if(BUILD_SHARED_LIBS)
+            set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -shared-libasan")
+        endif()
+
         check_cxx_compiler_flag("-fsanitize-recover=address" SANITIZE_RECOVER_ADDRESS_SUPPORTED)
         if (SANITIZE_RECOVER_ADDRESS_SUPPORTED)
             set(SANITIZER_COMPILER_FLAGS "${SANITIZER_COMPILER_FLAGS} -fsanitize-recover=address")
         endif()
-        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address")
+
+        set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fsanitize=address -fsanitize-blacklist=${OpenVINO_SOURCE_DIR}/tests/asan/ignore.txt")
+        if(BUILD_SHARED_LIBS)
+            set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -shared-libasan")
+        endif()
     else()
         message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
     endif()
@@ -90,8 +98,16 @@ if(DEFINED SANITIZER_COMPILER_FLAGS)
         # prevent unloading libraries at runtime, so sanitizer can resolve their symbols
         if(NOT OV_COMPILER_IS_APPLECLANG)
             set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -Wl,-z,nodelete")
-            if(OV_COMPILER_IS_CLANG AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-                set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
+            
+            if(OV_COMPILER_IS_CLANG)
+                if(BUILD_SHARED_LIBS)
+                    # clang does not provide rpath if -shared-libasan is used
+                    # https://stackoverflow.com/questions/68571138/asan-dynamic-runtime-is-missing-on-ubuntu-18, https://bugs.llvm.org/show_bug.cgi?id=51271
+                    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS},-rpath=$(dirname $($CXX --print-file-name libclang_rt.asan-x86_64.so))")
+                endif()
+                if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
+                    set(SANITIZER_LINKER_FLAGS "${SANITIZER_LINKER_FLAGS} -fuse-ld=lld")
+                endif()
             endif()
         endif()
     else()
