@@ -22,10 +22,10 @@ class TestTextVectorization(CommonTF2LayerTest):
         inputs_data['text_input'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
-    def create_text_vectorization_net(self, input_shape, vocabulary, output_mode, output_sequence_length):
-        assert len(input_shape) > 0
+    def create_text_vectorization_net(self, input_shapes, vocabulary, output_mode, output_sequence_length):
+        assert len(input_shapes) > 0
         tf.keras.backend.clear_session()
-        text_input = tf.keras.Input(shape=input_shape[1:], name='text_input',
+        text_input = tf.keras.Input(shape=input_shapes[0][1:], name='text_input',
                                     dtype=tf.string)
         vectorized_text = TextVectorization(vocabulary=vocabulary,
                                             output_mode=output_mode,
@@ -35,7 +35,7 @@ class TestTextVectorization(CommonTF2LayerTest):
 
         return tf2_net, None
 
-    @pytest.mark.parametrize('input_shape', [[2, 1], [2, 3]])
+    @pytest.mark.parametrize('input_shapes', [[[1, 1]], [[3, 1]]])
     @pytest.mark.parametrize('vocabulary', [['hello', 'there', 'OpenVINO', 'check', 'привет', 'ОПЕНВИНО']])
     @pytest.mark.parametrize('output_mode', ['int'])
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
@@ -45,10 +45,10 @@ class TestTextVectorization(CommonTF2LayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'],
                        reason='Ticket - 126314, 132699')
-    def test_text_vectorization(self, input_shape, vocabulary, output_mode, output_sequence_length, ie_device,
+    def test_text_vectorization(self, input_shapes, vocabulary, output_mode, output_sequence_length, ie_device,
                                 precision, ir_version, temp_dir, use_legacy_frontend):
         params = {}
-        params['input_shape'] = input_shape
+        params['input_shapes'] = input_shapes
         params['vocabulary'] = vocabulary
         params['output_mode'] = output_mode
         params['output_sequence_length'] = output_sequence_length
