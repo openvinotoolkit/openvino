@@ -50,11 +50,6 @@ if(NOT X86_64)
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
 endif()
 
-if(NOT RISCV64)
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/RISCV64)
-endif()
-
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
