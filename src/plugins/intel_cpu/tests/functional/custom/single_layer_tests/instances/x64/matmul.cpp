@@ -191,6 +191,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
         fusingMultiplyPerChannel,
 #endif
         fusingFakeQuantizePerTensorRelu,
+        fusingReluScaleShift
 };
 
 const auto fullyConnectedParams2D_Brgemm_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_smoke),
@@ -550,14 +551,6 @@ const auto testParams2D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedPara
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1, MatMulLayerCPUTest, testParams2D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
 
-const auto testParams2D_Brgconv1x1_binary_po =
-    ::testing::Combine(fullyConnectedParams2D_Brgconv1x1_smoke,
-                       ::testing::Values(MatMulNodeType::FullyConnected),
-                       ::testing::Values(fusingReluScaleShift), // eltwise_relu (to prevent Multiply opt out), binary_mul, binary_add
-                       ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgconv1x1_binary_po, MatMulLayerCPUTest, testParams2D_Brgconv1x1_binary_po, MatMulLayerCPUTest::getTestCaseName);
-
 const std::vector<ShapeRelatedParams> IS3D_Brgconv1x1_smoke = {
     {static_shapes_to_test_representation({{2, 49, 120}, {120, 120}}), {true, false}},
     {static_shapes_to_test_representation({{4, 79, 120}, {120, 120}}), {true, false}},
@@ -610,14 +603,6 @@ const auto testParams3D_Brgconv1x1_smoke = ::testing::Combine(fullyConnectedPara
                                              ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_Brgconv1x1, MatMulLayerCPUTest, testParams3D_Brgconv1x1_smoke, MatMulLayerCPUTest::getTestCaseName);
-
-const auto testParams3D_Brgconv1x1_binary_po =
-    ::testing::Combine(fullyConnectedParams3D_Brgconv1x1_smoke,
-                       ::testing::Values(MatMulNodeType::FullyConnected),
-                       ::testing::Values(fusingReluScaleShift), // eltwise_relu (to prevent Multiply opt out), binary_mul, binary_add
-                       ::testing::ValuesIn(filterSpecificParams_Brgconv1x1()));
-
-INSTANTIATE_TEST_SUITE_P(smoke_FC_3D_Brgconv1x1_binary_po, MatMulLayerCPUTest, testParams3D_Brgconv1x1_binary_po, MatMulLayerCPUTest::getTestCaseName);
 
 const auto fullyConnectedParams2D_Brgemm_Amx_smoke = ::testing::Combine(::testing::ValuesIn(IS2D_Brgemm_Amx_smoke),
                                                        ::testing::Values(ElementType::f32),
