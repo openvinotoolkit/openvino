@@ -5,7 +5,9 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
 #include "openvino/pass/manager.hpp"
@@ -23,7 +25,7 @@
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
-#include "validation_util.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
@@ -105,10 +107,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
             ov::set_up_symbolic_info(output, te);
         op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
-            for (const auto& sub_graph : multi_subgraph_op->get_functions())
-                if (sub_graph)
-                    run_on_model(sub_graph);
+        ov::op::util::process_subgraph(*this, op);
 
         // additional label propagation rules must be triggered here
         special_case_range_label_propagation(op);
@@ -117,9 +116,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
         for (auto& output : op->outputs()) {
             auto shape = output.get_partial_shape();
             symbolic_set_up_for_shape(dt, shape);
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output.get_tensor().set_tensor_type(output.get_element_type(), shape);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            ov::descriptor::set_tensor_type(output.get_tensor(), output.get_element_type(), shape);
         }
     }
     return true;

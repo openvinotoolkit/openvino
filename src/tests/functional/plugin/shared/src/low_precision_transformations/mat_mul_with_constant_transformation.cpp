@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>
@@ -38,8 +37,6 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
 
 
 void MatMulWithConstantTransformation::SetUp() {
-    abs_threshold = 1.0e-3;
-
     ov::element::Type precision;
     MatMulWithConstantTransformationTestValues testValues;
     std::tie(precision, targetDevice, testValues) = this->GetParam();

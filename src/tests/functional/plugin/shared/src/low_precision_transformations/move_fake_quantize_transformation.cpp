@@ -11,8 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 #include "ov_lpt_models/move_fake_quantize.hpp"
 
 namespace LayerTestsDefinitions {
@@ -36,8 +34,6 @@ std::string MoveFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 }
 
 void MoveFakeQuantizeTransformation::SetUp() {
-    abs_threshold = 1.1;
-
     ov::element::Type netPrecision;
     std::vector<ov::PartialShape> inputShapes;
     ov::pass::low_precision::LayerTransformation::Params params;

@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API BroadcastConstRangeReplacement;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief BroadcastConstRangeReplacement replaces Constant filled with range values starting from 0 and replaces it with
  * Range op
  */

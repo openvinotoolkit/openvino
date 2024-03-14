@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/util/common_util.hpp"
 #include "base/ov_behavior_test_utils.hpp"
@@ -65,11 +64,11 @@ using compileModelLoadFromFileParams = std::tuple<
 class CompileModelLoadFromFileTestBase : public testing::WithParamInterface<compileModelLoadFromFileParams>,
                                   virtual public SubgraphBaseTest,
                                   virtual public OVPluginTestBase {
+public:
     std::string m_cacheFolderName;
     std::string m_modelName;
     std::string m_weightsName;
 
-public:
     static std::string getTestCaseName(testing::TestParamInfo<compileModelLoadFromFileParams> obj);
 
     void SetUp() override;

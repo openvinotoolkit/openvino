@@ -11,9 +11,6 @@
 
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
 
 #include "ov_lpt_models/mat_mul.hpp"
 
@@ -30,8 +27,6 @@ std::string GemmTransformation::getTestCaseName(const testing::TestParamInfo<Gem
 }
 
 void GemmTransformation::SetUp() {
-    abs_threshold = 17;
-
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

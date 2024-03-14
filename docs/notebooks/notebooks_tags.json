@@ -76,11 +76,6 @@
         "ONNX",
         "Pytorch"
     ],
-    "111-yolov5-quantization-migration": [
-        "Benchmark Model",
-        "NNCF",
-        "ONNX"
-    ],
     "112-pytorch-post-training-quantization-nncf": [
         "Benchmark Model",
         "NNCF",
@@ -152,6 +147,12 @@
     "126-tensorflow-hub": [
         "Tensorflow"
     ],
+    "127-tensorflow-bit-image-classification-nncf-quantization": [
+        "NNCF",
+        "Reshape Model",
+        "Tensorflow",
+        "Train Model"
+    ],
     "203-meter-reader": [
         "Dynamic Shape",
         "Reshape Model"
@@ -197,10 +198,6 @@
     ],
     "216-attention-center": [
         "Tensorflow"
-    ],
-    "217-vision-deblur": [
-        "Download Model",
-        "Pytorch"
     ],
     "219-knowledge-graphs-conve": [
         "Benchmark Model",
@@ -359,7 +356,6 @@
         "Transformers"
     ],
     "246-depth-estimation-videpth": [
-        "ONNX",
         "Pytorch",
         "Torchvision"
     ],
@@ -438,6 +434,8 @@
         "Pytorch"
     ],
     "259-decidiffusion-image-generation": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -538,6 +536,23 @@
     "280-depth-anything": [
         "Pytorch",
         "Torchvision"
+    ],
+    "281-kosmos2-multimodal-large-language-model": [
+        "Async Inference",
+        "Pytorch",
+        "Transformers"
+    ],
+    "282-siglip-zero-shot-image-classification": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Transformers"
+    ],
+    "283-photo-maker": [
+        "Pytorch"
+    ],
+    "284-openvoice": [
+        "Pytorch"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",

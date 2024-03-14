@@ -14,23 +14,16 @@ struct reshape_params : public base_params {
     reshape_params() : base_params(KernelType::RESHAPE) {}
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// reshape_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct reshape_optional_params : optional_params {
-    reshape_optional_params() : optional_params(KernelType::RESHAPE) {}
-};
-
 class ReshapeKernelRef : public KernelBaseOpenCL {
 public:
     ReshapeKernelRef() : KernelBaseOpenCL("reshape_ref") {}
     virtual ~ReshapeKernelRef() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& op) const override;
+    bool Validate(const Params& pp) const override;
 };
 }  // namespace kernel_selector

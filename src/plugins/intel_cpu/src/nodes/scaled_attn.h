@@ -59,7 +59,8 @@ private:
 
     struct Executor {
         virtual void execute(dnnl::stream strm, const Config& config, const std::vector<MemoryPtr>& inputs, const MemoryPtr output,
-                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input) = 0;
+                             const MemoryPtr presentk_input, const MemoryPtr presentv_input, const MemoryPtr beam_input,
+                             const PlainTensor& k_scale_zp, const PlainTensor& v_scale_zp) = 0;
     };
 
     Config m_config;
@@ -69,8 +70,6 @@ private:
 
     std::shared_ptr<VariableStateKVcache> m_k_state;
     std::shared_ptr<VariableStateKVcache> m_v_state;
-
-    PlainTensor m_tmp_reorder;
 };
 
 }  // namespace node

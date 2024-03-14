@@ -10,6 +10,7 @@
 
 #include "openvino/openvino.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 namespace util {

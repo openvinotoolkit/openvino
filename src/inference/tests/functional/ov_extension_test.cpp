@@ -8,7 +8,6 @@
 #include "openvino/util/file_util.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
 using namespace ov::test::utils;
 
 namespace {

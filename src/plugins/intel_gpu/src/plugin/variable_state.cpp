@@ -18,10 +18,9 @@ namespace ov {
 namespace intel_gpu {
 
 VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
-    : ov::IVariableState {info.m_id}
+    : VariableStateBase{info.m_id, context}
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
-    , m_context(context)
     , m_shape_predictor(shape_predictor)
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
@@ -38,13 +37,6 @@ cldnn::memory::ptr VariableState::get_memory() const {
 
 const cldnn::layout& VariableState::get_layout() const {
     return m_layout;
-}
-
-bool VariableState::is_set() const {
-    return m_is_set;
-}
-void VariableState::set() {
-    m_is_set = true;
 }
 
 void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {

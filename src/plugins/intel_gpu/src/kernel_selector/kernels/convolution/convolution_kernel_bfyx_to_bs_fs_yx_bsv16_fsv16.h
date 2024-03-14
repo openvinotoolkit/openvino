@@ -17,8 +17,8 @@ public:
     virtual ~ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16() {}
 
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
@@ -30,7 +30,7 @@ protected:
                  FusedOpType::ACTIVATION };
     }
 
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

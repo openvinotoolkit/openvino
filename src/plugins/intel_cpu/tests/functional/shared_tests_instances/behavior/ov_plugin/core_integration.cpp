@@ -10,7 +10,7 @@ using namespace ov::test::behavior;
 
 namespace {
 
-// IE Class Query model
+// OV Class Query model
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("CPU"));
 

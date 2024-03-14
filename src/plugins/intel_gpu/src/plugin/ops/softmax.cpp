@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/softmax.hpp"
-#include "openvino/op/log_softmax.hpp"
-#include "validation_util.hpp"
-
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/log_softmax.hpp"
+#include "openvino/op/softmax.hpp"
 
 namespace ov {
 namespace intel_gpu {

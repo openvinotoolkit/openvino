@@ -30,7 +30,6 @@ std::string ReduceMinTransformation::getTestCaseName(const testing::TestParamInf
 }
 
 void ReduceMinTransformation::SetUp() {
-    abs_threshold = 0.1;
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params params;

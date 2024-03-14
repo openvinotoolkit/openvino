@@ -13,6 +13,7 @@
 #include "psroi_pooling.h"
 #include "cpu/x64/jit_generator.hpp"
 #include "nodes/common/blocked_desc_creator.h"
+#include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
 using namespace dnnl::impl;

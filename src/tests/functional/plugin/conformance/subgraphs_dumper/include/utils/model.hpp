@@ -26,6 +26,11 @@ void
 get_subgraph_set_node(std::unordered_set<std::shared_ptr<ov::Node>>& nodes_to_check,
                       const std::shared_ptr<ov::Node>& node);
 
+bool is_same_paired_op_cnt(const std::shared_ptr<ov::Model> &fist_model,
+                           const std::shared_ptr<ov::Model> &second_model);
+
+bool build_control_dependency(std::shared_ptr<ov::Model> &model);
+
 inline std::pair<std::shared_ptr<ov::Model>, std::map<std::string, ov::conformance::InputInfo>>
 generate_model(ov::NodeVector& nodes,
                bool is_copy_constants = true,
@@ -38,6 +43,7 @@ generate_model(ov::NodeVector& nodes,
     std::unordered_map<std::string, std::unordered_set<size_t>> model_output_nodes;
     std::map<std::string, ov::conformance::InputInfo> model_input_info;
     ov::ParameterVector model_parameters;
+    ov::SinkVector model_sinks;
     {
         // prepare map { original_op_name, cloned_node }
         size_t functional_node_cnt = 0;
@@ -82,7 +88,10 @@ generate_model(ov::NodeVector& nodes,
                             if (cloned_node_map.count(orig_in_node_name)) {
                                 auto orig_in_node = cloned_node_map[orig_in_node_name];
                                 auto cloned_in_node_name = cloned_in_node->get_friendly_name();
-                                ov::replace_output_update_name(cloned_in_node->output(out_idx), orig_in_node->output(out_idx));
+                                size_t cloned_in_node_out_idx = ov::op::util::is_parameter(cloned_in_node) ||
+                                                                ov::op::util::is_constant(cloned_in_node) ? 0 : out_idx;
+                                // cloned_in_node is parameter or constant, it could have only one input
+                                ov::replace_output_update_name(cloned_in_node->output(cloned_in_node_out_idx), orig_in_node->output(out_idx));
                                 if (ov::op::util::is_parameter(orig_in_node)) {
                                     auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(orig_in_node);
                                     model_parameters.push_back(param);
@@ -96,6 +105,8 @@ generate_model(ov::NodeVector& nodes,
                                     }
                                     node_input_info.insert({ orig_in_node->get_friendly_name(),
                                                              node_input_info[cloned_in_node_name]});
+                                } else if (ov::op::util::is_sink(cloned_node)) {
+                                    model_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(cloned_node->shared_from_this()));
                                 }
                                 filled_input_idx++;
                                 // clean up replaced node data
@@ -138,7 +149,12 @@ generate_model(ov::NodeVector& nodes,
             }
         }
     }
-    auto model = std::make_shared<ov::Model>(model_results, model_parameters);
+
+    auto model = std::make_shared<ov::Model>(model_results, model_sinks, model_parameters);
+
+    if (!build_control_dependency(model)) {
+        throw std::runtime_error("Incorrect ReadValue/Assign amout, correct model could not be created!");
+    }
 
     // prepare unique model name based on operations from model
     std::string string_to_hash;

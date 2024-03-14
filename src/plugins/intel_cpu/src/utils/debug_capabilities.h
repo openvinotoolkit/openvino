@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #ifdef CPU_DEBUG_CAPS
 
 #include <string>
@@ -11,6 +12,7 @@
 #include <regex>
 
 #include "onednn/dnnl.h"
+#include "nodes/node_config.h"
 #include <dnnl_debug.h>
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/model.hpp"
@@ -45,7 +47,9 @@ class NodeDesc;
 class MemoryDesc;
 class Node;
 class Edge;
+class Graph;
 class IMemory;
+
 class PrintableModel {
 public:
     PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "") : model(model), tag(tag), prefix(prefix) {}
@@ -90,8 +94,12 @@ public:
     }
 };
 
+std::ostream & operator<<(std::ostream & os, const PortConfig& desc);
+std::ostream & operator<<(std::ostream & os, const NodeConfig& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
+std::ostream & operator<<(std::ostream & os, const ov::intel_cpu::Graph& graph);
+std::ostream & operator<<(std::ostream & os, const Shape& shape);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const IMemory& mem);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
@@ -106,6 +114,8 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtype);
 std::ostream & operator<<(std::ostream & os, const dnnl::primitive_attr& attr);
 std::ostream & operator<<(std::ostream & os, const dnnl::algorithm& alg);
+
+void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message = "");
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {

@@ -26,15 +26,15 @@ ParamsKey ConvolutionKernel_bfyx_depthwise_weights_lwg::GetSupportedKey() const 
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_depthwise_weights_lwg::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey ConvolutionKernel_bfyx_depthwise_weights_lwg::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -59,7 +59,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_2;
 }
 
@@ -73,8 +73,7 @@ JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const
     return mem_consts;
 }
 
-KernelsData ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsData(const Params& params,
-                                                                         const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 }  // namespace kernel_selector

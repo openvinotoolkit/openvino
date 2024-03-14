@@ -24,7 +24,7 @@ typedef std::tuple<InputShape,           // input_shapes
 typedef std::tuple<embeddingSegmentsSumParams,
                    ElementType,  // embedding table
                    ElementType,  // indices
-                   LayerTestsUtils::TargetDevice>
+                   ov::test::TargetDevice>
     embeddingSegmentsSumLayerTestParamsSet;
 
 class EmbeddingSegmentsSumLayerCPUTest : public testing::WithParamInterface<embeddingSegmentsSumLayerTestParamsSet>,

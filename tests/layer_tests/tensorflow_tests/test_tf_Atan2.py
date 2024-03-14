@@ -9,13 +9,13 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestAtan2(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'y' in inputs_info
-        assert 'x' in inputs_info
-        y_shape = inputs_info['y']
-        x_shape = inputs_info['x']
+        assert 'y:0' in inputs_info
+        assert 'x:0' in inputs_info
+        y_shape = inputs_info['y:0']
+        x_shape = inputs_info['x:0']
         inputs_data = {}
-        inputs_data['y'] = np.random.rand(*y_shape).astype(self.input_type) - np.random.rand(*y_shape).astype(self.input_type)
-        inputs_data['x'] = np.random.rand(*x_shape).astype(self.input_type) - np.random.rand(*x_shape).astype(self.input_type)
+        inputs_data['y:0'] = np.random.rand(*y_shape).astype(self.input_type) - np.random.rand(*y_shape).astype(self.input_type)
+        inputs_data['x:0'] = np.random.rand(*x_shape).astype(self.input_type) - np.random.rand(*x_shape).astype(self.input_type)
         return inputs_data
 
     def create_atan2_net(self, input_shape, input_type):
@@ -40,7 +40,7 @@ class TestAtan2(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_atan2_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(*self.create_atan2_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

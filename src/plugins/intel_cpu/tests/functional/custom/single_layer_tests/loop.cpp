@@ -381,8 +381,8 @@ protected:
 
 class StaticLoopDynamicSubgraphCPUTest : public SubgraphBaseTest {
     void SetUp() override {
-        InputShape input_shape = {{25, 1, 1}, {{25, 1, 1}}};
-        InputShape input_exec_flag_shape = {{1}, {{1}}};
+        InputShape input_shape = {{25, 1, 1}, {{25, 1, 1}, {25, 1, 1}}};  // infer more than once
+        InputShape input_exec_flag_shape = {{1}, {{1}, {1}}};
         targetDevice = ov::test::utils::DEVICE_CPU;
         ElementType netType = ov::element::f32;
         init_input_shapes({input_shape, input_exec_flag_shape});

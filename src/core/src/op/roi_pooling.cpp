@@ -5,7 +5,6 @@
 #include "openvino/op/roi_pooling.hpp"
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "roi_pooling_shape_inference.hpp"
 
 namespace ov {

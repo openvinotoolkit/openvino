@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace std;
 using namespace ov;
@@ -39,8 +39,6 @@ TEST(type_prop, depth_to_space_input_interval_shape_default_block_size) {
     EXPECT_THAT(get_shape_labels(depth_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_dynamic) {
     auto A = make_shared<ov::op::v0::Parameter>(element::f32,
                                                 PartialShape{{2, 10}, {81, 82}, {3, 7}, {423, 3000}, {235, 1345}});
@@ -49,7 +47,7 @@ TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_
 
     ASSERT_EQ(depth_to_space->get_output_partial_shape(0),
               (PartialShape{{2, 10},
-                            {ngraph::ceil_div(81, 27), 82 / 27},
+                            {ov::util::ceil_div(81, 27), 82 / 27},
                             {3 * 3, 7 * 3},
                             {423 * 3, 3000 * 3},
                             {235 * 3, 1345 * 3}}));

@@ -8,11 +8,11 @@
 #include "element_visitor.hpp"
 #include "gather_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/reference/gather.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -182,6 +182,36 @@ void GatherBase::set_batch_dims(int64_t batch_dims) {
     m_batch_dims = batch_dims;
 }
 
+bool GatherBase::has_evaluate() const {
+    OV_OP_SCOPE(util_GatherBase_has_evaluate);
+
+    switch (get_input_element_type(0)) {
+    case element::boolean:
+    case element::f16:
+    case element::f32:
+    case element::i8:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u32:
+    case element::u64:
+    case element::string:
+        break;
+    default:
+        return false;
+    }
+
+    switch (get_input_element_type(1)) {
+    case element::i32:
+    case element::i64:
+        return true;
+    default:
+        break;
+    }
+
+    return false;
+}
+
 bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(util_GatherBase_evaluate);
 
@@ -203,18 +233,21 @@ bool GatherBase::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     output.set_shape(out_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(util_GatherBase_evaluate,
-                      OV_PP_ET_LIST(boolean, f16, f32, i8, i32, i64, u8, u32, u64),
-                      gather::Evaluate,
-                      data.get_element_type(),
-                      data,
-                      indices,
-                      output,
-                      data_shape,
-                      indices_shape,
-                      out_shape,
-                      axis,
-                      batch_dims);
+    return IF_TYPE_OF_CONVERT_TENSORS(util_GatherBase_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(boolean, f32, i8, i32, i64, u8, u32, u64, string),
+                                      gather::Evaluate,
+                                      data.get_element_type(),
+                                      data,
+                                      indices,
+                                      output,
+                                      data_shape,
+                                      indices_shape,
+                                      out_shape,
+                                      axis,
+                                      batch_dims);
 }
 
 bool GatherBase::evaluate_lower(TensorVector& output_values) const {
@@ -226,9 +259,7 @@ bool GatherBase::evaluate_upper(TensorVector& output_values) const {
 }
 
 bool GatherBase::evaluate_label(TensorLabelVector& output_labels) const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     return gather::have_indices_and_axis_bound_set(this) && ov::util::default_label_evaluator(this, output_labels);
-    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 bool GatherBase::constant_fold(OutputVector& output_values, const OutputVector& input_values) {

@@ -47,32 +47,47 @@ LoRA, OpenVINO and quantization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__. Let us get
 “controlling”!
 
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-**Table of contents:**
+-  `Background <#background>`__
 
-- `Background <#background>`__
-- `Stable Diffusion <#stable-diffusion>`__
-- `controlnet <#controlnet>`__
-- `Low-Rank Adaptation of Large Language Models (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
-- `Prerequisites <#prerequisites>`__
-- `Load Original Diffusers pipeline and prepare models for conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
-- `Condition Image <#condition-image>`__
-- `Convert models to OpenVINO Intermediate representation (IR) format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
-- `ControlNet conversion <#controlnet-conversion>`__
-- `U-Net <#u-net>`__
-- `textencoder <#text-encoder>`__
-- `VAE Decoder conversion <#vae-decoder-conversion>`__
-- `Prepare Inference pipeline <#prepare-inference-pipeline>`__
-- `Prepare tokenizer and LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
-- `Select inference device for Stable Diffusion pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
-- `Running Text-to-Image Generation with ControlNet Conditioning and OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
-- `Quantization <#quantization>`__
-- `Prepare calibration datasets <#prepare-calibration-datasets>`__
-- `Run quantization <#run-quantization>`__
-- `Compare inference time of the FP16 and INT8 models <#compare-inference-time-of-the-fp-and-int-models>`__
-- `Compare model file sizes <#compare-model-file-sizes>`__
-- `Interactive Demo <#interactive-demo>`__
+   -  `Stable Diffusion <#stable-diffusion>`__
+   -  `ControlNet <#controlnet>`__
+   -  `Low-Rank Adaptation of Large Language Models
+      (LoRA) <#low-rank-adaptation-of-large-language-models-lora>`__
 
+-  `Prerequisites <#prerequisites>`__
+-  `Load Original Diffusers pipeline and prepare models for
+   conversion <#load-original-diffusers-pipeline-and-prepare-models-for-conversion>`__
+-  `Condition Image <#condition-image>`__
+-  `Convert models to OpenVINO Intermediate representation (IR)
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+
+   -  `ControlNet conversion <#controlnet-conversion>`__
+   -  `U-Net <#u-net>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE Decoder conversion <#vae-decoder-conversion>`__
+
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+
+   -  `Prepare tokenizer and
+      LCMScheduler <#prepare-tokenizer-and-lcmscheduler>`__
+   -  `Select inference device for Stable Diffusion
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+
+-  `Running Text-to-Image Generation with ControlNet Conditioning and
+   OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare inference time of the FP16 and INT8
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+
+      -  `Compare model file sizes <#compare-model-file-sizes>`__
+
+-  `Interactive Demo <#interactive-demo>`__
 
 Background
 ----------

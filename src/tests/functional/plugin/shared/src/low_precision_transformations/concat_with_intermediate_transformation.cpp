@@ -42,8 +42,6 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(const testing:
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    abs_threshold = 0.1;
-
     ov::element::Type ngPrecision;
     ov::PartialShape inputShape;
     ov::pass::low_precision::LayerTransformation::Params trasformationParams;

@@ -25,7 +25,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
 
     auto transpose_label = pattern::wrap_type<ov::op::v1::Transpose>(
         {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<ov::op::v0::Constant>()});
-    ov::matcher_pass_callback matcher_pass_callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto transpose = m.get_match_root();
         auto data = transpose->input_value(0);
         const auto input_shape = transpose->input(0).get_partial_shape();

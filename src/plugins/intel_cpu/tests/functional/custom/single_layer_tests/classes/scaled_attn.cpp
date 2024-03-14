@@ -8,6 +8,7 @@
 #include "openvino/opsets/opset13.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace CPUTestUtils;
 
@@ -124,6 +125,16 @@ void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
+    CPUSpecificParams cpuParams;
+    ElementType inType;
+    std::vector<InputShape> inputShapes;
+    bool is_causal;
+    bool has_attn;
+    bool has_scale;
+    std::string targetDevice;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
+    if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
     run();
     CheckPluginRelatedResults(compiledModel, "ScaledAttn");
 }

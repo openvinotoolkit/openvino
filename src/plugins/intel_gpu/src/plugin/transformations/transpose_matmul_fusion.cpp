@@ -25,14 +25,6 @@ using ov::pass::pattern::op::Or;
 namespace ov {
 namespace intel_gpu {
 
-namespace {
-std::vector<int64_t> default_order(size_t rank) {
-    std::vector<int64_t> order(rank);
-    std::iota(order.begin(), order.end(), 0);
-    return order;
-}
-}  // namespace
-
 class TransposeMatMulMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("TransposeMatMulMatcher", "0");
@@ -63,6 +55,14 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
     };
+    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
+        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
+        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
+        for (size_t idx = 0; idx < num_inputs; idx++) {
+            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
+        }
+        return is_dynamic;
+    };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
@@ -73,7 +73,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -88,13 +88,17 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
             return false;
         }
 
-        auto order_a = default_order(matmul->get_input_partial_shape(0).size());
-        auto order_b = default_order(matmul->get_input_partial_shape(1).size());
-        auto order_c = default_order(matmul->get_output_partial_shape(0).size());
+        auto order_a = op::Gemm::default_order(matmul->get_input_partial_shape(0).size());
+        auto order_b = op::Gemm::default_order(matmul->get_input_partial_shape(1).size());
+        auto order_c = op::Gemm::default_order(matmul->get_output_partial_shape(0).size());
+        size_t input_a_output_idx = matmul->get_input_source_output(0).get_index();
+        size_t input_b_output_idx = matmul->get_input_source_output(1).get_index();
 
         if (pattern_map.count(transpose_a_m) > 0) {
             auto tranpose_a_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_a_order_m).get_node_shared_ptr());
             order_a = tranpose_a_order->cast_vector<int64_t>();
+            auto tranpose_a = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_a_m).get_node_shared_ptr());
+            input_a_output_idx = tranpose_a->get_input_source_output(0).get_index();
         }
         if (matmul->get_transpose_a() && order_a.size() > 1) {
             std::swap(*(order_a.end() - 1), *(order_a.end() - 2));
@@ -102,13 +106,15 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
         if (pattern_map.count(transpose_b_m) > 0) {
             auto tranpose_b_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_b_order_m).get_node_shared_ptr());
             order_b = tranpose_b_order->cast_vector<int64_t>();
+            auto tranpose_b = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_b_m).get_node_shared_ptr());
+            input_b_output_idx = tranpose_b->get_input_source_output(0).get_index();
         }
         if (matmul->get_transpose_b() && order_b.size() > 1) {
             std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
-        auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
-        auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
+        auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), input_a_output_idx);
+        auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), input_b_output_idx);
 
         auto gemm = std::make_shared<op::Gemm>(input_a, input_b, order_a, order_b, order_c);
         gemm->set_friendly_name(matmul->get_friendly_name());
@@ -133,6 +139,14 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
     };
+    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
+        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
+        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
+        for (size_t idx = 0; idx < num_inputs; idx++) {
+            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
+        }
+        return is_dynamic;
+    };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
@@ -143,7 +157,7 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m});
 
@@ -156,13 +170,17 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
         }
 
         auto tranpose_c_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_c_order_m).get_node_shared_ptr());
-        auto order_a = default_order(matmul->get_input_partial_shape(0).size());
-        auto order_b = default_order(matmul->get_input_partial_shape(1).size());
+        auto order_a = op::Gemm::default_order(matmul->get_input_partial_shape(0).size());
+        auto order_b = op::Gemm::default_order(matmul->get_input_partial_shape(1).size());
         auto order_c = tranpose_c_order->cast_vector<int64_t>();
+        size_t input_a_output_idx = matmul->get_input_source_output(0).get_index();
+        size_t input_b_output_idx = matmul->get_input_source_output(1).get_index();
 
         if (pattern_map.count(transpose_a_m) > 0) {
             auto tranpose_a_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_a_order_m).get_node_shared_ptr());
             order_a = tranpose_a_order->cast_vector<int64_t>();
+            auto tranpose_a = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_a_m).get_node_shared_ptr());
+            input_a_output_idx = tranpose_a->get_input_source_output(0).get_index();
         }
         if (matmul->get_transpose_a() && order_a.size() > 1) {
             std::swap(*(order_a.end() - 1), *(order_a.end() - 2));
@@ -170,13 +188,15 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
         if (pattern_map.count(transpose_b_m) > 0) {
             auto tranpose_b_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_map.at(transpose_b_order_m).get_node_shared_ptr());
             order_b = tranpose_b_order->cast_vector<int64_t>();
+            auto tranpose_b = std::dynamic_pointer_cast<ov::op::v1::Transpose>(pattern_map.at(transpose_b_m).get_node_shared_ptr());
+            input_b_output_idx = tranpose_b->get_input_source_output(0).get_index();
         }
         if (matmul->get_transpose_b() && order_b.size() > 1) {
             std::swap(*(order_b.end() - 1), *(order_b.end() - 2));
         }
 
-        auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();
-        auto input_b = pattern_map.at(input_b_m).get_node_shared_ptr();
+        auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), input_a_output_idx);
+        auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), input_b_output_idx);
 
         auto gemm = std::make_shared<op::Gemm>(input_a, input_b, order_a, order_b, order_c);
         gemm->set_friendly_name(m.get_match_root()->get_friendly_name());

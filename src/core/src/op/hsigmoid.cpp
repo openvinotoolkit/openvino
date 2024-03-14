@@ -44,13 +44,16 @@ bool HSigmoid::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     outputs[0].set_shape(input_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(v5_HSigmoid_evaluate,
-                      OV_PP_ET_LIST(bf16, f16, f32),
-                      hsigmoid::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      count);
+    return IF_TYPE_OF_CONVERT_TENSORS(v5_HSigmoid_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      hsigmoid::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      count);
 }
 
 bool HSigmoid::has_evaluate() const {

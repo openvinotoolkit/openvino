@@ -26,15 +26,14 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
     return dispatchData;
 }
 
-KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
-                                                       const optional_params& options) const {
+KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::GATHER_TREE);
     const auto& gt_params = static_cast<const gather_tree_params&>(params);
 
     auto dispatchData = SetDefault(gt_params);
     auto kernel_data = KernelData::Default<gather_tree_params>(params);
     auto cldnn_jit = GetJitConstants(gt_params);
-    auto entry_point = GetEntryPoint(kernelName, gt_params.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, gt_params.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0],
                      dispatchData,

@@ -138,14 +138,26 @@ private:
     void reshapeAndFillOutput(dnnl::stream strm);
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
+
+    /* run dynamic subgraph inside a static node */
     bool runAsDynamic() const;
+    void restoreSubgraphInputByBackEdges();
 
     Graph sub_graph;
     std::vector<std::vector<MemoryPtr>> input_mems;
     std::vector<MemoryPtr> output_mem;
 
+    struct PortMapHasher {
+        std::size_t operator()(const std::pair<int, int>& p) const {
+            std::size_t seed = 0;
+            dnnl::impl::hash_combine(seed, p.first);
+            dnnl::impl::hash_combine(seed, p.second);
+            return seed;
+        }
+    };
+    std::unordered_map<std::pair<int, int>, std::shared_ptr<PortMapHelper>, PortMapHasher> first_mappers;  /// < Applied once before loop
+
     std::vector<std::shared_ptr<PortMapHelper>>
-        first_mappers,   /// < Applied once before loop
         last_mappers,    /// < Applied once after loop
         before_mappers,  /// < Applied before each iteration
         after_mappers,   /// < Applied after each iteration

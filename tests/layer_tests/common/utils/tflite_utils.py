@@ -80,7 +80,7 @@ def save_pb_to_tflite(pb_model):
     return tflite_model_path
 
 
-def get_tflite_results(use_new_frontend, inputs_dict, model_path):
+def get_tflite_results(use_legacy_frontend, inputs_dict, model_path):
     interpreter = tf.compat.v1.lite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()

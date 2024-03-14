@@ -5,7 +5,7 @@
 #include "shared_test_classes/subgraph/preprocess.hpp"
 
 #include "openvino/core/preprocess/pre_post_process.hpp"
-#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 
 using namespace ov;
 using namespace ov::preprocess;

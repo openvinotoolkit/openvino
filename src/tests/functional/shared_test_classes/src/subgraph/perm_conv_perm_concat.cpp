@@ -91,7 +91,7 @@ void PermConvPermConcat::SetUp() {
     auto reshape_out_pattern = std::make_shared<ov::op::v0::Constant>(
         ov::element::i64,
         ov::Shape{2},
-        InferenceEngine::SizeVector({1, (permute_out_shape[2] + 1) * permute_out_shape[3]}));
+        std::vector<size_t>({1, (permute_out_shape[2] + 1) * permute_out_shape[3]}));
     auto reshape_out = std::make_shared<ov::op::v1::Reshape>(concat, reshape_out_pattern, false);
 
     function = std::make_shared<ov::Model>(reshape_out, input_parameter, "perm_conv_perm_concat");

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_core.hpp>
 #include <memory>
 #include <queue>
 #include <string>
@@ -47,8 +46,6 @@ std::string UnsqueezeTransformation::getTestCaseName(const testing::TestParamInf
     return result.str();
 }
 void UnsqueezeTransformation::SetUp() {
-    abs_threshold = 1.0;
-    rel_threshold = 31.0;
     ov::element::Type netPrecision;
     ov::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam unsqueezeParam;

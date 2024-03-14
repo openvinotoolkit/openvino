@@ -90,8 +90,8 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
     return dispatchData;
 }
 
-bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::RESAMPLE || o.GetType() != KernelType::RESAMPLE) {
+bool ResampleKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::RESAMPLE) {
         return false;
     }
 
@@ -211,11 +211,15 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
+    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) {
+        jit.AddConstant(MakeJitConstant("RTE_OUTPUT", 1));
+    }
+
     return jit;
 }
 
-KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -223,7 +227,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
     resample_params& newParams = *static_cast<resample_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 

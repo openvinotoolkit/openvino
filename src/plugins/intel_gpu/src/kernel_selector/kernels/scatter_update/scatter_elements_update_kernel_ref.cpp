@@ -84,7 +84,7 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, const optional_params&, bool is_second) const {
+CommonDispatchData ScatterElementsUpdateKernelRef::SetDefault(const scatter_elements_update_params& params, bool is_second) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -147,8 +147,8 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
     return jit;
 }
 
-bool ScatterElementsUpdateKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType:: SCATTER_ELEMENTS_UPDATE || o.GetType() != KernelType::SCATTER_ELEMENTS_UPDATE) {
+bool ScatterElementsUpdateKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType:: SCATTER_ELEMENTS_UPDATE) {
         return false;
     }
 
@@ -162,8 +162,8 @@ bool ScatterElementsUpdateKernelRef::Validate(const Params& p, const optional_pa
     return true;
 }
 
-KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -172,8 +172,8 @@ KernelsData ScatterElementsUpdateKernelRef::GetKernelsData(const Params& params,
     auto cldnn_jit = GetJitConstants(newParams);
 
     for (int i = 0; i < 2; i++) {
-        auto dispatchData = SetDefault(newParams, options, (i == 1));
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto dispatchData = SetDefault(newParams, (i == 1));
+        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
 
         if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));

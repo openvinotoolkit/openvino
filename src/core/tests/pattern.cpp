@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -588,14 +588,21 @@ TEST(pattern, test_sort) {
 }
 
 TEST(pattern, label_on_skip) {
+    const auto zero = std::string{"0"};
+    const auto is_zero = [&zero](const Output<Node>& node) {
+        if (const auto c = as_type_ptr<op::v0::Constant>(node.get_node_shared_ptr())) {
+            return (c->get_all_data_elements_bitwise_identical() && c->convert_value_to_string(0) == zero);
+        } else {
+            return false;
+        }
+    };
+
     Shape shape{2, 2};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
     auto b = make_shared<op::v0::Parameter>(element::i32, Shape{});
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto iconst = ngraph::make_zero(element::i32, Shape{});
+    auto iconst = op::v0::Constant::create(element::i32, Shape{}, {0.0f});
     auto label = std::make_shared<pattern::op::Label>(iconst);
-    auto const_label = std::make_shared<pattern::op::Label>(iconst, ngraph::is_zero, NodeVector{iconst});
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto const_label = std::make_shared<pattern::op::Label>(iconst, is_zero, NodeVector{iconst});
 
     auto bcst_pred = [](std::shared_ptr<Node> n) {
         return ov::as_type_ptr<op::v1::Broadcast>(n) != nullptr;

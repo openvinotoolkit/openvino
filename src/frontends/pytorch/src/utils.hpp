@@ -20,6 +20,21 @@ class FrameworkNode;
 namespace frontend {
 namespace pytorch {
 
+const std::string pytorch_prefix = "[PyTorch Frontend] ";
+
+const std::string& get_pytorch_prefix();
+
+/// \brief Macro to check whether a boolean condition holds.
+/// \param COND Condition to check
+/// \param ... Additional error message info to be added to the error message via the `<<`
+///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
+///            i.e., only if the `cond` evalutes to `false`.
+/// \throws ::ov::frontend::OpConversionFailure if `cond` is false.
+#ifndef PYTORCH_OP_CONVERSION_CHECK
+#    define PYTORCH_OP_CONVERSION_CHECK(COND, ...) \
+        OPENVINO_ASSERT_HELPER(::ov::frontend::OpConversionFailure, "", (COND), get_pytorch_prefix(), __VA_ARGS__)
+#endif
+
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
 Output<Node> make_optional_bias(const Output<Node>& base_op,
@@ -99,6 +114,17 @@ OutputVector inplace_op(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
                                   "inplace_op function must be used on single output translators");
     context.mutate_input(idx, translation_res[0]);
+    return translation_res;
+}
+
+template <OutputVector (*T)(const NodeContext&), size_t idx>
+OutputVector optional_out(const NodeContext& context) {
+    auto translation_res = T(context);
+    if (!context.input_is_none(idx)) {
+        FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
+                                      "inplace_op function must be used on single output translators");
+        context.mutate_input(idx, translation_res[0]);
+    }
     return translation_res;
 }
 

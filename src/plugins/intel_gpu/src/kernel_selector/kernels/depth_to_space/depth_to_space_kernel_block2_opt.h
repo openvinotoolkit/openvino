@@ -14,11 +14,11 @@ public:
     DepthToSpaceKernelBlock2Opt() : DepthToSpaceKernelBase("depth_to_space_block2_opt") {}
     virtual ~DepthToSpaceKernelBlock2Opt() {}
 
-    bool Validate(const Params&, const optional_params&) const override;
+    bool Validate(const Params&) const override;
     JitConstants GetJitConstants(const depth_to_space_params& params) const override;
     CommonDispatchData SetDefault(const depth_to_space_params& params) const override;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 };
 }  // namespace kernel_selector

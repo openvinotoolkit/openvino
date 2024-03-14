@@ -8,13 +8,15 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "low_precision/lpt_itt.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
 #include "low_precision/rt_info/intervals_alignment_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -431,6 +433,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         precisionsAttribute.value() = { dataPrecision.precision };
     }
 
+    OPENVINO_DEBUG << "LPT: done: " << newFakeQuantize;
     return true;
 }
 

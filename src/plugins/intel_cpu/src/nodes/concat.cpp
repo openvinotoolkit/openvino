@@ -4,6 +4,8 @@
 
 #include "concat.h"
 
+#include "openvino/op/concat.hpp"
+
 #include <map>
 #include <utility>
 #include <vector>
@@ -14,11 +16,6 @@
 #include <edge.h>
 #include <cpu_memory.h>
 #include "openvino/core/parallel.hpp"
-#include "conv.h"
-#include "fake_quantize.h"
-#include "pooling.h"
-#include "eltwise.h"
-#include <limits>
 #include "common/cpu_memcpy.h"
 #include "common/blocked_desc_creator.h"
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -41,6 +38,9 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         const auto concatOp = ov::as_type_ptr<const ov::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
+            return false;
+        }
+        if (concatOp->get_output_element_type(0) == ov::element::string) {
             return false;
         }
     } catch (...) {

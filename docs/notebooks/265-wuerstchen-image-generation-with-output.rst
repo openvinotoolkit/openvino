@@ -4,7 +4,6 @@ Image generation with Würstchen and OpenVINO
 .. image:: 265-wuerstchen-image-generation-with-output_files/499b779a-61d1-4e68-a1c3-437122622ba7.png
 
 
-
 `Würstchen <https://arxiv.org/abs/2306.00637>`__ is a diffusion model,
 whose text-conditional model works in a highly compressed latent space
 of images. Why is this important? Compressing data can reduce

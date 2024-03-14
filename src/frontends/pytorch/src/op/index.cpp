@@ -224,7 +224,7 @@ OutputVector translate_index(const NodeContext& context) {
         ov::pass::NodeRegistry rg;
         auto rank = x.get_partial_shape().rank();
         // index transformation supports only tensors with static rank
-        FRONT_END_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
+        PYTORCH_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
         auto res = index_on_list(rg, x, list_elems, rank.get_length());
         context.mark_nodes(rg.get());
         return res;
@@ -266,7 +266,7 @@ OutputVector translate_index_fx(const NodeContext& context) {
         rank = context.get_decoder()->get_input_shape(0).rank();
     }
     // index transformation supports only tensors with static rank
-    FRONT_END_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
+    PYTORCH_OP_CONVERSION_CHECK(rank.is_static(), "Dynamic rank for aten::index input is not supported.");
     auto res = index_on_list(rg, x, list_elems, rank.get_length());
     context.mark_nodes(rg.get());
     return res;

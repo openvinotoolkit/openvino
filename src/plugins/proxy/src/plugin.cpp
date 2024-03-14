@@ -9,12 +9,12 @@
 #include <stdexcept>
 
 #include "compiled_model.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/proxy/properties.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
@@ -369,15 +369,13 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_proxy_context(
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(properties);
     auto has_dev_idx = is_device_in_config(properties);
-    auto is_new_api = get_core()->is_new_api();
     ov::SoPtr<ov::IRemoteContext> device_context;
     ov::SoPtr<ov::IRemoteContext> remote_context;
     try {
         device_context = compiled_model->get_context();
         if (!device_context._so)
             device_context._so = compiled_model._so;
-        remote_context =
-            std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx, is_new_api);
+        remote_context = std::make_shared<ov::proxy::RemoteContext>(device_context, dev_name, dev_idx, has_dev_idx);
     } catch (const ov::NotImplemented&) {
     }
     return remote_context;
@@ -426,7 +424,6 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
     auto has_dev_idx = is_device_in_config(remote_properties);
-    auto is_new_api = get_core()->is_new_api();
 
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
@@ -436,8 +433,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
             get_core()->create_context(get_fallback_device(get_device_from_config(remote_properties)), device_config),
             dev_name,
             dev_idx,
-            has_dev_idx,
-            is_new_api);
+            has_dev_idx);
         return remote_context;
     }
     // Properties doesn't have device id, so try to create context for all devices
@@ -449,8 +445,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::create_context(const ov::AnyMap
                                            device_config),
                 dev_name,
                 i,
-                has_dev_idx,
-                is_new_api);
+                has_dev_idx);
             return remote_context;
         } catch (const ov::Exception&) {
         }
@@ -463,7 +458,6 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::A
     auto dev_name = get_device_name();
     auto dev_idx = get_device_from_config(remote_properties);
     auto has_dev_idx = is_device_in_config(remote_properties);
-    auto is_new_api = get_core()->is_new_api();
 
     auto device_config = remote_properties;
     remove_proxy_properties(device_config);
@@ -472,8 +466,7 @@ ov::SoPtr<ov::IRemoteContext> ov::proxy::Plugin::get_default_context(const ov::A
         get_core()->get_default_context(get_fallback_device(get_device_from_config(remote_properties))),
         dev_name,
         dev_idx,
-        has_dev_idx,
-        is_new_api);
+        has_dev_idx);
     return remote_context;
 }
 

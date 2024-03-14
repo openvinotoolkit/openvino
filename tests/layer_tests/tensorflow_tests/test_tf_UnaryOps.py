@@ -1,13 +1,12 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 import platform
+import sys
 
 import numpy as np
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestUnaryOps(CommonTFLayerTest):
@@ -49,17 +48,14 @@ class TestUnaryOps(CommonTFLayerTest):
 
         return inputs_dict
 
-    def create_net_with_mish(self, shape, ir_version, use_new_frontend):
+    def create_net_with_mish(self, shape, ir_version, use_legacy_frontend):
         import tensorflow as tf
         import tensorflow_addons as tfa
 
         tf.compat.v1.reset_default_graph()
 
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-
-            input = tf.compat.v1.placeholder(tf.float32, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(tf.float32, shape, 'Input')
             tfa.activations.mish(input)
 
             tf.compat.v1.global_variables_initializer()
@@ -69,7 +65,7 @@ class TestUnaryOps(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    def create_net_with_unary_op(self, shape, ir_version, op_type, use_new_frontend):
+    def create_net_with_unary_op(self, shape, ir_version, op_type, use_legacy_frontend):
         import tensorflow as tf
 
         self.current_op_type = op_type
@@ -114,10 +110,7 @@ class TestUnaryOps(CommonTFLayerTest):
             type = tf.int32
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            tf_x_shape = shape.copy()
-            tf_x_shape = permute_nchw_to_nhwc(tf_x_shape, use_new_frontend)
-
-            input = tf.compat.v1.placeholder(type, tf_x_shape, 'Input')
+            input = tf.compat.v1.placeholder(type, shape, 'Input')
             if self.current_op_type == 'Mish':
                 # Mish has no attribute name
                 op_type_to_tf[self.current_op_type](input)
@@ -163,31 +156,31 @@ class TestUnaryOps(CommonTFLayerTest):
                                          ])
     @pytest.mark.precommit
     def test_unary_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                                use_new_frontend):
-        if not use_new_frontend and op_type in ['BitwiseNot']:
+                                use_legacy_frontend):
+        if not use_legacy_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_new_frontend=use_new_frontend),
+                                                  use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data_precommit)
     @pytest.mark.precommit
     def test_unary_op_mish_precommit(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_new_frontend):
+                                     use_legacy_frontend):
         """
         TODO: Move to `test_unary_op_precommit()` once tensorflow_addons package is available for Python 3.11
         """
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
-                                              use_new_frontend=use_new_frontend),
+                                              use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
                  dict(shape=[8, 10, 12]),
@@ -228,28 +221,28 @@ class TestUnaryOps(CommonTFLayerTest):
     @pytest.mark.skipif(sys.platform == 'darwin', reason="Ticket - 122182")
     @pytest.mark.xfail(platform.machine() in ["aarch64", "arm64", "ARM64"], reason='Ticket - 122716')
     def test_unary_op(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                      use_new_frontend):
-        if not use_new_frontend and op_type in ['BitwiseNot']:
+                      use_legacy_frontend):
+        if not use_legacy_frontend and op_type in ['BitwiseNot']:
             pytest.skip("Bitwise ops are supported only by new TF FE.")
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_unary_op(**params, ir_version=ir_version, op_type=op_type,
-                                                  use_new_frontend=use_new_frontend),
+                                                  use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     @pytest.mark.xfail(sys.version_info > (3, 10),
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
-                           use_new_frontend):
+                           use_legacy_frontend):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11
         """
         if ie_device == 'GPU':
             pytest.skip("5D tensors is not supported on GPU")
         self._test(*self.create_net_with_mish(**params, ir_version=ir_version,
-                                              use_new_frontend=use_new_frontend),
+                                              use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

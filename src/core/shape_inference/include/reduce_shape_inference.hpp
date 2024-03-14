@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "utils.hpp"
@@ -67,7 +66,12 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
         if (keep_dims) {
             output_shapes.push_back(ov::PartialShape::dynamic(data_shape.rank()));
         } else {
-            output_shapes.push_back(ov::PartialShape::dynamic());
+            if (axes_shape.is_static() && shape_size(axes_shape.to_shape()) == 1) {
+                // since there is the only axis, it is unique/not duplicated by definition. we can safely propagate rank
+                output_shapes.push_back(ov::PartialShape::dynamic(data_rank - 1));
+            } else {
+                output_shapes.push_back(ov::PartialShape::dynamic());
+            }
         }
     }
     return output_shapes;

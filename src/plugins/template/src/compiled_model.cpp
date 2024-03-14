@@ -147,7 +147,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
                                                            std::to_string(m_cfg.device_id)};
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = m_cfg.streams_executor_config._streams;
+        unsigned int value = m_cfg.streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();

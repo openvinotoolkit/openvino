@@ -84,9 +84,7 @@ OutputVector translate_queue_dequeue_many_op(const ov::frontend::tensorflow::Nod
     // compute batch dimension for outputs
     // this is a number of batch objects emitted from QueueDequeue
     Dimension batch_dim = Dimension::dynamic();
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (auto n_const = get_constant_from_source(n)) {
-        OPENVINO_SUPPRESS_DEPRECATED_END
+    if (auto n_const = ov::util::get_constant_from_source(n)) {
         auto n_value = n_const->cast_vector<int64_t>();
         if (n_value.size() > 0 && n_value[0] > 0) {
             batch_dim = n_value[0];

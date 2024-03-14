@@ -26,7 +26,7 @@ ParamsKey ConvolutionKernel_bfyx_iyxo::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey ConvolutionKernel_bfyx_iyxo::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey ConvolutionKernel_bfyx_iyxo::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -47,12 +47,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_iyxo::SetDefault(cons
     return dispatchData;
 }
 
-KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ConvolutionKernel_bfyx_iyxo::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_9;
 }
 
-bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p, const optional_params& o) const {
-    if (!ConvolutionKernelBase::Validate(p, o) || !ConvolutionCheckInput(p, o)) {
+bool ConvolutionKernel_bfyx_iyxo::Validate(const Params& p) const {
+    if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
         return false;
     }
 
@@ -81,8 +81,8 @@ JitConstants ConvolutionKernel_bfyx_iyxo::GetJitConstants(const convolution_para
     return jit;
 }
 
-KernelsData ConvolutionKernel_bfyx_iyxo::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetTunedKernelsDataByIndex(params, options);
+KernelsData ConvolutionKernel_bfyx_iyxo::GetKernelsData(const Params& params) const {
+    return GetTunedKernelsDataByIndex(params);
 }
 
 }  // namespace kernel_selector

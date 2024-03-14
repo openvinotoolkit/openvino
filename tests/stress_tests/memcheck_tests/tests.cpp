@@ -49,7 +49,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
     auto test_params = GetParam();
     MemCheckPipeline memCheckPipeline;
     auto test_pipeline = [&] {
-        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->load_plugin(device);
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(device);
@@ -70,7 +70,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
     auto test_params = GetParam();
     MemCheckPipeline memCheckPipeline;
     auto test_pipeline = [&] {
-        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->load_plugin(device);
         ie_api_wrapper->read_network(model);
         ie_api_wrapper->load_network(device);
@@ -107,7 +107,7 @@ TEST_P(MemCheckTestSuite, inference_with_streams) {
     auto test_pipeline = [&] {
         MemCheckPipeline memCheckPipeline;
         unsigned int nireq = nstreams;
-        auto ie_api_wrapper = create_infer_api_wrapper(test_params.api_version);
+        auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->load_plugin(device);
         ie_api_wrapper->set_config(device, ov::AnyMap{ov::num_streams(nstreams)});
         ie_api_wrapper->read_network(model);

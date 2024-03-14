@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,6 +12,8 @@
 #include "openvino/util/log.hpp"
 
 namespace ov {
+bool is_used(Node* node);
+
 namespace pass {
 namespace pattern {
 MatcherState::MatcherState(Matcher* matcher)
@@ -83,8 +85,30 @@ void Matcher::capture(const std::set<Node*>& static_nodes) {
         }
     }
 }
+
+namespace {
+ov::NodeVector get_subgraph_outputs(const NodeVector& nodes, const NodeVector& exclusions, bool ignore_unused) {
+    const std::set<std::shared_ptr<Node>> exclusions_set(exclusions.begin(), exclusions.end());
+    const std::set<std::shared_ptr<Node>> nodes_set(nodes.begin(), nodes.end());
+
+    NodeVector outputs;
+
+    for (const auto& n : nodes) {
+        if (exclusions_set.count(n) != 0)
+            continue;
+
+        for (const auto& u : n->get_users()) {
+            bool add_output = nodes_set.count(u) == 0 && (!ignore_unused || is_used(u.get()));
+            if (add_output) {
+                outputs.push_back(n);
+            }
+        }
+    }
+    return outputs;
+}
+}  // namespace
+
 bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unused) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     if (exclusions.empty()) {
         NodeVector label_exclusions;
         for (const auto& entry : m_pattern_map) {
@@ -93,11 +117,10 @@ bool Matcher::is_contained_match(const NodeVector& exclusions, bool ignore_unuse
                 label_exclusions.push_back(entry.second.get_node_shared_ptr());
             }
         }
-        return ngraph::get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
+        return get_subgraph_outputs(get_matched_nodes(), label_exclusions, ignore_unused).size() < 2;
     }
 
-    return ngraph::get_subgraph_outputs(get_matched_nodes(), exclusions).size() < 2;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return get_subgraph_outputs(get_matched_nodes(), exclusions, false).size() < 2;
 }
 
 bool Matcher::match_value(const ov::Output<Node>& pattern_value, const ov::Output<Node>& graph_value) {
@@ -117,7 +140,6 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
 
     auto args = graph_node->input_values();
@@ -151,7 +173,6 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     }
 
     OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     return false;
 }
 

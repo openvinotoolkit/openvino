@@ -31,7 +31,22 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
         DimensionAccessHelper dims(input);
-        const std::string data_size = toVectorMulString({dims.x(), dims.y(), dims.z()});
+        std::string data_size;
+        switch (params.ov_input_rank) {
+            case 1 :
+                data_size = dims.b();
+                break;
+            case 2 :
+                data_size = dims.f();
+                break;
+            case 3 :
+                data_size = dims.y();
+                break;
+            default:
+                data_size = dims.x();
+                break;
+        }
+
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
             MakeJitConstant("DATA_SIZE", data_size),
@@ -47,7 +62,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         });
     }
     jit.AddConstants({
-        MakeJitConstant("VEC_SIZE", 8),
+        MakeJitConstant("VEC_SIZE", vec_size),
         MakeJitConstant("VLOAD", "CAT(vload, VEC_SIZE)"),
         MakeJitConstant("VSTORE", "CAT(vstore, VEC_SIZE)"),
         MakeJitConstant("INPUT_VEC_TYPE", "MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)"),
@@ -71,10 +86,26 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     dispatchData.maxSlmSize = max_lws;
 
     if (!params.has_dynamic_tensors()) {
-        dispatchData.dataSize = input.X().v * input.Y().v * input.Z().v;
-        dispatchData.dataCount = input.Batch().v * input.Feature().v;
-        dispatchData.slmSize = dispatchData.dataSize / 8;
-        dispatchData.leftovers = dispatchData.dataSize % 8;
+        // data size to be processed within a LWG
+        switch (params.ov_input_rank) {
+            case 1:
+                dispatchData.dataSize = input.Batch().v;
+                dispatchData.dataCount = 1;
+            case 2:
+                dispatchData.dataSize = input.Feature().v;
+                dispatchData.dataCount = input.Batch().v;
+            case 3:
+                dispatchData.dataSize = input.Y().v;
+                dispatchData.dataCount = input.Batch().v * input.Feature().v;
+                break;
+            default:
+                dispatchData.dataSize = input.X().v;
+                dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
+                break;
+        }
+
+        dispatchData.slmSize = dispatchData.dataSize / vec_size;
+        dispatchData.leftovers = dispatchData.dataSize % vec_size;
 
         dispatchData.gws[0] = dispatchData.slmSize;
         dispatchData.gws[1] = dispatchData.dataCount;
@@ -87,8 +118,8 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     return dispatchData;
 }
 
-bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const {
-    if (!Parent::Validate(p, o))
+bool RMSKernelBfyxOpt::Validate(const Params& p) const {
+    if (!Parent::Validate(p))
         return false;
 
     const rms_params& params = static_cast<const rms_params&>(p);
@@ -96,12 +127,12 @@ bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const
 
     if (!gamma.is_dynamic()) {
         size_t data_size = gamma.LogicalSize();
-        if (data_size < 8) {
+        if (data_size < vec_size) {
             return false;
         }
         auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
         auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
-        auto slm_size = data_size / 8;
+        auto slm_size = data_size / vec_size;
         if (slm_size > max_lws) {
             return false;
         }
@@ -110,11 +141,11 @@ bool RMSKernelBfyxOpt::Validate(const Params& p, const optional_params& o) const
     return true;
 }
 
-KernelsData RMSKernelBfyxOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData RMSKernelBfyxOpt::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority RMSKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority RMSKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

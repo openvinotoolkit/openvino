@@ -10,12 +10,14 @@
 #include <vector>
 #include <cassert>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -347,6 +349,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
     if (ov::is_type<ov::opset1::Subtract>(onWeights)) {
         ov::disable_constant_folding(onWeights);
     }
+
+    OPENVINO_DEBUG << "LPT: done: " << convolution;
     return true;
 }
 } // namespace low_precision

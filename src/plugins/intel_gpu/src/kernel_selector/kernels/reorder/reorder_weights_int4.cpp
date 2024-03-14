@@ -24,9 +24,9 @@ ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ReorderWeightsKernelInt4::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderWeightsKernelInt4::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
 ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(const reorder_weights_params& params) const {
@@ -45,7 +45,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
     return dispatchData;
 }
 
-bool ReorderWeightsKernelInt4::Validate(const Params& params, const optional_params& /*options*/) const {
+bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
@@ -62,7 +62,7 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params, const optional_par
     return supported_case;
 }
 
-KernelsPriority ReorderWeightsKernelInt4::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderWeightsKernelInt4::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

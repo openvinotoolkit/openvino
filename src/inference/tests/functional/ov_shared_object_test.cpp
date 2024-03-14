@@ -4,10 +4,9 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/util/file_util.hpp>
-
 #include "common_test_utils/file_utils.hpp"
-#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
 using namespace ::testing;
@@ -25,7 +24,7 @@ protected:
     }
     std::shared_ptr<void> shared_object;
 
-    using CreateF = void(std::shared_ptr<InferenceEngine::IInferencePlugin>&);
+    using CreateF = void(std::shared_ptr<ov::IPlugin>&);
 
     std::function<CreateF> make_std_function(const std::string& functionName) {
         std::function<CreateF> ptr(
@@ -46,7 +45,7 @@ TEST_F(SharedObjectOVTests, loaderThrowsIfNoPlugin) {
 TEST_F(SharedObjectOVTests, canFindExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function("CreatePluginEngine");
+    auto factory = make_std_function(ov::create_plugin_function);
     EXPECT_NE(nullptr, factory);
 }
 
@@ -58,7 +57,7 @@ TEST_F(SharedObjectOVTests, throwIfMethodNofFoundInLibrary) {
 TEST_F(SharedObjectOVTests, canCallExistedMethod) {
     loadDll(get_mock_engine_name());
 
-    auto factory = make_std_function("CreatePluginEngine");
-    std::shared_ptr<InferenceEngine::IInferencePlugin> ptr;
+    auto factory = make_std_function(ov::create_plugin_function);
+    std::shared_ptr<ov::IPlugin> ptr;
     EXPECT_NO_THROW(factory(ptr));
 }

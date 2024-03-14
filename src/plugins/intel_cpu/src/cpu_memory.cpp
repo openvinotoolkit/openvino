@@ -3,6 +3,7 @@
 //
 
 #include "cpu_memory.h"
+#include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
 
 namespace ov {

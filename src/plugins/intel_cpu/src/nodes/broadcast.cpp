@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
 #include <vector>
 #include <string>
 #include "dnnl_types.h"
 #include "openvino/core/parallel.hpp"
-#include "utils/bfloat16.hpp"
-#include "selective_build.h"
+#include <selective_build.h>
 #include "broadcast.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "openvino/opsets/opset1.hpp"
 #include "common/cpu_memcpy.h"
+#include "utils/ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

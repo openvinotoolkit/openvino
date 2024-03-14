@@ -12,13 +12,13 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief AddTransformation propagates dequantization subtraction from one input branch to another and
  * propagates dequantization multiplication from the same branch through Add operation.
  *
  * For more details about the transformation, refer to
  * [AddTransformation](@ref openvino_docs_OV_UG_lpt_AddTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API AddTransformation : public EltwiseBaseTransformation {
 public:

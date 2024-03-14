@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSInterpolateBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSInterpolateForward transformation sinks Transpose through Interpolate operation
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSInterpolateBackward transformation sinks Transpose through Interpolate operation
  * in the backward direction.
  */

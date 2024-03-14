@@ -9,8 +9,8 @@
 
 namespace kernel_selector {
 
-bool SelectKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::SELECT || o.GetType() != KernelType::SELECT) {
+bool SelectKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::SELECT) {
         return false;
     }
 
@@ -120,15 +120,15 @@ void SelectKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kd = KernelData::Default<select_params>(params);
     select_params& newParams = *static_cast<select_params*>(kd.params.get());
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -142,7 +142,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params, const o
                      (uint32_t)newParams.inputs.size(),
                      0,
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

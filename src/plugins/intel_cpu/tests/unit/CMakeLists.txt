@@ -23,7 +23,8 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations
-      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp)
+      ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -56,7 +57,6 @@ ov_add_test_target(
             openvino::shape_inference
             openvino_runtime_s
             unit_test_utils
-            ov_models
             ov_snippets_models
             snippets_test_utils
             ${MLAS_LIBRARY}

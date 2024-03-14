@@ -129,7 +129,7 @@ public:
                 return;
         }
         ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
-                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+                << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while OV " << actualOutputs.size();
 
         abs_threshold = 1e-2f;
         compare(expectedOutputs, actualOutputs);

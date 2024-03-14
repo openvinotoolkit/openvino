@@ -13,12 +13,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PReluTransformation propagates dequantization operations through PRelu operation.
  *
  * For more details about the transformation, refer to
  * [PReluTransformation](@ref openvino_docs_OV_UG_lpt_PReluTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API PReluTransformation : public LayerTransformation {
 public:

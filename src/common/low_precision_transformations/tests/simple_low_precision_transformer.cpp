@@ -28,8 +28,6 @@ using namespace testing;
 using namespace ov::pass;
 using namespace ov::pass::low_precision;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 SimpleLowPrecisionTransformer::SimpleLowPrecisionTransformer(
     const std::vector<ov::pass::low_precision::PrecisionsRestriction>& precisionRestrictions,
     const std::vector<ov::pass::low_precision::QuantizationGranularityRestriction>& quantizationRestrictions,

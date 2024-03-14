@@ -12,13 +12,13 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-ov::OutputVector matmul_integer(const Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector matmul_integer(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& A = inputs.at(0);
     const auto& B = inputs.at(1);
@@ -51,6 +51,6 @@ ov::OutputVector matmul_integer(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

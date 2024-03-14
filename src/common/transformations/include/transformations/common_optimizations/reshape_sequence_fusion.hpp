@@ -16,7 +16,7 @@ class TRANSFORMATIONS_API ReshapeSequenceFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReshapeSequenceFusion fuses sequence of Reshape operation into single Reshape or eliminates full redundant
  * sequence
  */

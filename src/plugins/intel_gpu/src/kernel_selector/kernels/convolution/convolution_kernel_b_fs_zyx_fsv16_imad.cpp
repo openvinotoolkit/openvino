@@ -376,16 +376,15 @@ ParamsKey Convolution_kernel_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey Convolution_kernel_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
-    auto k = get_common_subgroups_device_features_key(params, options);
+DeviceFeaturesKey Convolution_kernel_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params) const {
+    auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params,
-                                                                   const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
 JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params,
@@ -471,7 +470,7 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetD
     return dispatchData;
 }  // SetDefault
 
-KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
 
     if (static_cast<float>(p.weights.IFM().v) / static_cast<float>(Align(p.weights.IFM().v, fsv)) < 0.5f)
@@ -480,8 +479,8 @@ KernelsPriority Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsPriority(const
         return FORCE_PRIORITY_2;
 }
 
-bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
-    if (!Parent::Validate(params, options)) {
+bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {
+    if (!Parent::Validate(params)) {
         return false;
     }
 

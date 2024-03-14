@@ -7,8 +7,8 @@
 
 namespace kernel_selector {
 
-bool PermuteKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::PERMUTE || o.GetType() != KernelType::PERMUTE) {
+bool PermuteKernelBase::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::PERMUTE) {
         return false;
     }
     const permute_params& params = static_cast<const permute_params&>(p);
@@ -41,8 +41,8 @@ void PermuteKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData PermuteKernelBase::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -54,7 +54,7 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
 
     GetUpdateDispatchDataFunc(kd);
 
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     std::pair<std::string, std::string> jit = CreateJit(kernelName, cldnn_jit, entry_point);
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
@@ -69,7 +69,7 @@ KernelsData PermuteKernelBase::GetKernelsData(const Params& params, const option
                      1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

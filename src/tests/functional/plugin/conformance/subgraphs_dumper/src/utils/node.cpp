@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "openvino/core/validation_util.hpp"
 #include "utils/node.hpp"
 
 namespace ov {
@@ -116,9 +117,7 @@ std::shared_ptr<ov::Node> clone_node(std::shared_ptr<ov::Node> node,
     for (size_t i = 0; i < node->get_input_size(); ++i) {
         std::string input_name = node_name + "_" + std::to_string(i);
         // todo: replace deprecated code && remove this w/a for constant size
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        const auto constant_input = ov::get_constant_from_source(node->input(i).get_source_output());
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        const auto constant_input = ov::util::get_constant_from_source(node->input(i).get_source_output());
         if (constant_input) {
             if (is_save_const || constant_input->get_byte_size() < 1024) {
                 auto in_const = std::make_shared<ov::op::v0::Constant>(constant_input->get_element_type(),

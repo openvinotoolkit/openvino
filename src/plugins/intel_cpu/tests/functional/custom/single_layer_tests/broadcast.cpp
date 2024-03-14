@@ -223,7 +223,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapes4D = {{{{}
                                                                               {// Static shapes
                                                                                {50, 50}}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4D,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::Values(staticInputShapes4D[0]),
                                                               ::testing::ValuesIn(std::vector<std::vector<int64_t>>{
@@ -237,7 +237,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape4D,
                                            ::testing::ValuesIn(CPUParams4D)),
                         BroadcastLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape4DE,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4DE,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::Values(staticInputShapes4D[1]),
                                                               ::testing::Values(std::vector<int64_t>{1, 50, 50, 16}),
@@ -253,7 +253,7 @@ const std::vector<std::vector<ov::test::InputShape>> staticInputShapesScalar = {
                                                                                   {// Static shapes
                                                                                    {1}}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape4DScalar,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape4DScalar,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapesScalar),
                                                               ::testing::Values(std::vector<int64_t>{1, 16, 3, 3}),
@@ -280,7 +280,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapes4D = {
        {{1, 16, 1, 1}},
        {{8, 1, 1, 1}}}}}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_DynamicShape4D,
     BroadcastLayerCPUTest,
     ::testing::Combine(
@@ -300,7 +300,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicInputShapesScalar = 
                                                                                     {1},
                                                                                     {7}}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShape4DScalar,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape4DScalar,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapesScalar),
                                                               ::testing::Values(std::vector<int64_t>{8, 16, 1, 7}),
@@ -338,7 +338,7 @@ const std::vector<CPUSpecificParams> CPUParams5D = {
     cpuParams_ndhwc,
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape5D,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapes5D),
                                                               ::testing::ValuesIn(std::vector<std::vector<int64_t>>{
@@ -352,7 +352,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5D,
                                            ::testing::ValuesIn(CPUParams5D)),
                         BroadcastLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_StaticShape5DScalar,
+INSTANTIATE_TEST_SUITE_P(smoke_StaticShape5DScalar,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(staticInputShapesScalar),
                                                               ::testing::Values(std::vector<int64_t>{1, 16, 3, 1, 3}),
@@ -364,7 +364,7 @@ INSTANTIATE_TEST_CASE_P(smoke_StaticShape5DScalar,
                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         BroadcastLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape5D,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapes5D),
                                                               ::testing::ValuesIn(targetShapes5D),
@@ -378,7 +378,7 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5D,
                                            ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"})),
                         BroadcastLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShape5DScalar,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShape5DScalar,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicInputShapesScalar),
                                                               ::testing::Values(std::vector<int64_t>{8, 16, 1, 1, 7}),
@@ -399,7 +399,7 @@ const std::vector<std::vector<ov::test::InputShape>> dynamicShapes1D = {{{// Ori
                                                                            {1},
                                                                            {1}}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicShapes1D,
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicShapes1D,
                         BroadcastLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(dynamicShapes1D),
                                                               ::testing::Values(std::vector<int64_t>{0}),

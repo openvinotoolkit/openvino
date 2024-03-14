@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SoftPlusDecomposition;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftPlusDecomposition transformation replaces SoftPlus op to
  * group of operations: log(exp(x) + 1).
  */

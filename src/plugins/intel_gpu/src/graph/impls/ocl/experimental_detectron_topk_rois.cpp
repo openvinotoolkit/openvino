@@ -15,8 +15,7 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
     using parent = typed_primitive_impl_ocl<experimental_detectron_topk_rois>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::experimental_detectron_topk_rois_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_topk_roi_params,
-                                      kernel_selector::experimental_detectron_topk_roi_optional_params>;
+    using kernel_params_t = kernel_selector::experimental_detectron_topk_roi_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_topk_rois_impl)
 
@@ -30,7 +29,7 @@ struct experimental_detectron_topk_rois_impl : typed_primitive_impl_ocl<experime
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.max_rois = primitive->max_rois;
 
-        return {params, {}};
+        return params;
     }
 };
 

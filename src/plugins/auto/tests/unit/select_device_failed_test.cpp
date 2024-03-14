@@ -106,7 +106,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                                   ::testing::Matcher<const std::string&>(StrEq(deviceName)),
                                   (_)))
-                .WillByDefault(Throw(ov::Exception{"compile error"}));
+                .WillByDefault(ov::Throw("compile error"));
         }
         DeviceInformation devInfo;
         switch (configModel) {
@@ -151,10 +151,10 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         selDevsSize = deviceConfigs.size();
         if (selDevsSize > 1) {
             ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _, _))
-                .WillByDefault(Throw(ov::Exception{""}));
+                .WillByDefault(ov::Throw(""));
         } else {
             ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))
-                .WillByDefault(Throw(ov::Exception{""}));
+                .WillByDefault(ov::Throw(""));
         }
     }
 

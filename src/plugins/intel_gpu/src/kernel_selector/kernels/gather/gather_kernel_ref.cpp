@@ -240,10 +240,17 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
-    if (params.support_neg_ind)
-        jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
-    if (!GetGatherIndexDim(params).is_dynamic)
+    bool dyn_gather_idx_dim = GetGatherIndexDim(params).is_dynamic;
+    if (params.support_neg_ind) {
+        if (!dyn_gather_idx_dim) {
+            jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
+        } else {
+            jit.AddConstant(MakeJitConstant("INDEX_DIM", "shape_info[" + std::to_string(GetGatherAxisIndexInShapeInfo(params)) + "]"));
+        }
+    }
+
+    if (!dyn_gather_idx_dim)
         jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
 
     if (params.is_shape_agnostic)
@@ -295,8 +302,8 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     return jit;
 }
 
-bool GatherKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GATHER || o.GetType() != KernelType::GATHER) {
+bool GatherKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GATHER) {
         return false;
     }
 
@@ -342,8 +349,8 @@ void GatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GatherKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -351,7 +358,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -378,12 +385,12 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.has_dynamic_tensors());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

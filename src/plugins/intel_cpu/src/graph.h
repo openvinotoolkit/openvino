@@ -6,9 +6,10 @@
 
 #include "config.h"
 #include "cpu_memory.h"
+#include "openvino/runtime/profiling_info.hpp"
+#include "node.h"
 #include "edge.h"
 #include "graph_context.h"
-#include "node.h"
 #include "openvino/runtime/profiling_info.hpp"
 
 #include <map>
@@ -16,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_mgr.h"
 
 namespace ov {
@@ -37,6 +39,7 @@ public:
     };
 
     Graph() = default;
+
     ~Graph();
 
     bool IsReady() {
@@ -189,6 +192,7 @@ public:
     getInternalStateNodes() const {
         return internalStateNodes;
     }
+    void InitGraph(bool optimize = true);
 
 protected:
     void ForgetGraphData() {
@@ -218,12 +222,12 @@ protected:
     bool graphHasDynamicInput = false;
 
     void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
-    void InitGraph();
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
+    void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void Allocate();
     void AllocateWithReuse();
@@ -256,8 +260,10 @@ private:
 
     void EnforceInferencePrecision();
     void EnforceBF16();
-    void resolveInPlaceDirection(const NodePtr& node) const;
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
+
+using GraphPtr = std::shared_ptr<Graph>;
 
 }  // namespace intel_cpu
 }  // namespace ov

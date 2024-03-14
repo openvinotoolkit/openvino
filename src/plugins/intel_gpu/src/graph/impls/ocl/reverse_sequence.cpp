@@ -14,7 +14,7 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     using parent = typed_primitive_impl_ocl<reverse_sequence>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::reverse_sequence_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::reverse_sequence_params, kernel_selector::reverse_sequence_optional_params>;
+    using kernel_params_t = kernel_selector::reverse_sequence_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reverse_sequence_impl)
 
@@ -25,14 +25,13 @@ struct reverse_sequence_impl : typed_primitive_impl_ocl<reverse_sequence> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<reverse_sequence>();
         auto params = get_default_params<kernel_selector::reverse_sequence_params>(impl_param);
-        auto optional_params = get_default_optional_params<kernel_selector::reverse_sequence_optional_params>(impl_param.get_program());
 
         params.seq_axis = primitive->seq_axis;
         params.batch_axis = primitive->batch_axis;
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
-        return {params, optional_params};
+        return params;
     }
 };
 

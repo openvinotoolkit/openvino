@@ -31,9 +31,6 @@ std::string ConvolutionBackpropDataTransformation::getTestCaseName(const testing
 }
 
 void ConvolutionBackpropDataTransformation::SetUp() {
-    rel_threshold = 3.1;
-    abs_threshold = 800.1;
-
     ov::element::Type netPrecision;
     std::pair<ov::PartialShape, bool> inputShapeAndHandling;
     ov::Shape outputShape;
@@ -44,11 +41,11 @@ void ConvolutionBackpropDataTransformation::SetUp() {
 
     std::shared_ptr<ov::Node> weights;
 
-    const auto inputShape = inputShapeAndHandling.first;
-
+    const auto& inputShape = inputShapeAndHandling.first;
+    const auto rank = inputShape.rank();
     init_input_shapes(inputShape);
 
-    ov::Shape weightsShape(4, 1ul);
+    ov::Shape weightsShape(rank.get_length(), 1ul);
     weightsShape[0] = inputShape[1].get_length();
     weightsShape[1] = inputShape[1].get_length() / 2;
 

@@ -62,7 +62,7 @@ The tutorial consists of the following steps:
 
 ..
 
-   **Note**: Some demonstrated models can require at least 64GB RAM for
+   **NOTE**: Some demonstrated models can require at least 64GB RAM for
    conversion and running.
 
 Table of contents:
@@ -303,7 +303,7 @@ Text2image Generation Interactive Demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 
@@ -460,7 +460,7 @@ Image2Image Generation Interactive Demo
 
 .. .. raw:: html
 
-..     <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 

@@ -79,8 +79,8 @@ used to build the saliency map. Here is how it can be done:
 5. Update the corresponding region on the ``saliency map``.
 6. Repeat steps 2-5 multiple times (``n_iters``).
 
-**Table of contents:**
----
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Initial Implementation with Transformers and
    Pytorch <#initial-implementation-with-transformers-and-pytorch>`__
@@ -96,8 +96,7 @@ used to build the saliency map. Here is how it can be done:
    AsyncInferQueue <#accelerate-inference-with-asyncinferqueue>`__
 -  `Pack the Pipeline into a
    Function <#pack-the-pipeline-into-a-function>`__
--  `Interactive demo with
-   Gradio <#interactive-demo-with-gradio>`__
+-  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 -  `What To Do Next <#what-to-do-next>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG

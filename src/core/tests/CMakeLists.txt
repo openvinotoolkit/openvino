@@ -37,7 +37,6 @@ ov_add_test_target(
         LINK_LIBRARIES
             common_test_utils
             openvino::reference
-            openvino::builders
             openvino::util
             openvino::shape_inference
             ${CMAKE_DL_LIBS}

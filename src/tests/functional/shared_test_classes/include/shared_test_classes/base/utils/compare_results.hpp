@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ie_core.hpp"
 
 namespace ov {
 namespace test {

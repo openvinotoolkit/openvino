@@ -5,9 +5,9 @@
 #include "openvino/op/read_value.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/variable_context.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

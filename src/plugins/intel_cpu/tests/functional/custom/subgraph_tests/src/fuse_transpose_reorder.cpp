@@ -5,8 +5,9 @@
 #include "custom/subgraph_tests/include/fuse_transpose_reorder.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
-#include "ov_models/preprocess/preprocess_builders.hpp"
+#include "common_test_utils/subgraph_builders/preprocess_builders.hpp"
 #include "openvino/openvino.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 using namespace CPUTestUtils;
 
@@ -353,6 +354,52 @@ TEST_P(FuseTransposeAndReorderTest4, CompareWithRefs) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest4, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
+
+void FuseTransposeAndReorderTest5::create_model() {
+    OPENVINO_ASSERT(input_shape.size() == 4);
+    const ov::Shape kernel = {1, 1};
+    const ov::Shape stride = {1, 1};
+    const ov::Shape dilation = {1, 1};
+    const std::vector<ptrdiff_t> padBegin = {0, 0};
+    const std::vector<ptrdiff_t> padEnd = {0, 0};
+    const size_t convOutChannels = 4;
+    auto memFmt = nhwc;
+
+    ov::ParameterVector inputParams{std::make_shared<ov::op::v0::Parameter>(in_prec, ov::Shape(input_shape))};
+    const auto relu = std::make_shared<ov::op::v0::Relu>(inputParams[0]);
+    const auto transposeOrder = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
+    const auto transpose_shared = std::make_shared<ov::op::v1::Transpose>(relu, transposeOrder);
+    const auto conv1 = ov::test::utils::make_convolution(transpose_shared,
+                                                         in_prec,
+                                                         kernel,
+                                                         stride,
+                                                         padBegin,
+                                                         padEnd,
+                                                         dilation,
+                                                         ov::op::PadType::AUTO,
+                                                         convOutChannels);
+    conv1->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
+    const auto conv2 = ov::test::utils::make_convolution(transpose_shared,
+                                                         in_prec,
+                                                         kernel,
+                                                         stride,
+                                                         padBegin,
+                                                         padEnd,
+                                                         dilation,
+                                                         ov::op::PadType::AUTO,
+                                                         convOutChannels);
+    conv2->get_rt_info() = makeCPUInfo({memFmt}, {memFmt}, {});
+    const auto add = std::make_shared<ov::op::v1::Add>(conv1, conv2);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(add->output(0))};
+    function = std::make_shared<ov::Model>(results, inputParams, "TransposeReorder");
+}
+
+TEST_P(FuseTransposeAndReorderTest5, CompareWithRefs) {
+    run();
+    check_transpose_count(0);
+}
+INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest5, convSumTranposeParams, FuseTransposeAndReorderTest::getTestCaseName);
 
 TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
     auto model = ov::builder::preprocess::create_preprocess_1input(ov::element::u8, ov::PartialShape{1, 3, 224, 224});

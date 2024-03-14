@@ -13,12 +13,12 @@ public:
     SoftmaxKernel_fb() : SoftmaxKernelBaseBF("softmax_gpu_fb") {}
     virtual ~SoftmaxKernel_fb() {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& o) const override;
+    bool Validate(const Params& p) const override;
     DispatchData SetDefault(const softmax_params& params) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {

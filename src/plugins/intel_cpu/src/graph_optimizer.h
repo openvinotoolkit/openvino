@@ -16,10 +16,12 @@ public:
 public:
     void ApplyCommonGraphOptimizations(Graph& graph);
     void ApplyImplSpecificGraphOptimizations(Graph& graph);
+    void ShareReorders(Graph &graph);
 
 private:
     void FuseConvMatmulFCDeconvAndDQScales(Graph &graph);
     void FuseFCAndWeightsDecompression(Graph &graph);
+    void FuseGatherAndWeightsDecompression(Graph &graph);
     void FuseConvolutionMatMulDeconvAndBias(Graph &graph);
     void FuseDeconvolutionAndSimpleOperation(Graph &graph);
     void FuseMultiplyAndAdd(Graph &graph);

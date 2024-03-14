@@ -9,10 +9,10 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSqueeze(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'input' in inputs_info
-        input_shape = inputs_info['input']
+        assert 'input:0' in inputs_info
+        input_shape = inputs_info['input:0']
         inputs_data = {}
-        inputs_data['input'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
+        inputs_data['input:0'] = np.random.randint(-50, 50, input_shape).astype(self.input_type)
 
         return inputs_data
 
@@ -40,10 +40,10 @@ class TestSqueeze(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_squeeze_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                           use_new_frontend):
+                           use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_1D = [
         dict(input_shape=[1], axis=[], input_type=np.float32),
@@ -52,10 +52,10 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_1D)
     @pytest.mark.nightly
-    def test_squeeze_1D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_squeeze_1D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_2D = [
         dict(input_shape=[1, 2], axis=[0], input_type=np.float32),
@@ -64,10 +64,10 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_2D)
     @pytest.mark.nightly
-    def test_squeeze_2D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_squeeze_2D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_3D = [
         dict(input_shape=[2, 1, 3], axis=[], input_type=np.float32),
@@ -76,10 +76,10 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_3D)
     @pytest.mark.nightly
-    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_squeeze_3D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_4D = [
         dict(input_shape=[1, 1, 5, 10], axis=[], input_type=np.int32),
@@ -89,10 +89,10 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_4D)
     @pytest.mark.nightly
-    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_squeeze_4D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
     test_data_5D = [
         dict(input_shape=[1, 1, 5, 10, 22], axis=[], input_type=np.float32),
@@ -105,22 +105,22 @@ class TestSqueeze(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.nightly
-    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend):
+    def test_squeeze_5D(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_squeeze_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)
 
 
 class TestComplexSqueeze(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         rng = np.random.default_rng()
-        assert 'param_real' in inputs_info
-        assert 'param_imag' in inputs_info
-        param_real_shape_1 = inputs_info['param_real']
-        param_imag_shape_1 = inputs_info['param_imag']
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real:0']
+        param_imag_shape_1 = inputs_info['param_imag:0']
         inputs_data = {}
-        inputs_data['param_real'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
         return inputs_data
 
     def create_complex_squeeze_net(self, input_shape, axis):
@@ -150,8 +150,8 @@ class TestComplexSqueeze(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_complex_squeeze(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(
             *self.create_complex_squeeze_net(**params),
             ie_device, precision, ir_version, temp_dir=temp_dir,
-            use_new_frontend=use_new_frontend)
+            use_legacy_frontend=use_legacy_frontend)

@@ -16,9 +16,9 @@
 
 using namespace ov::op;
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace {
 std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) {
     const auto& original_zero_point =
@@ -45,8 +45,8 @@ std::shared_ptr<ov::Node> get_filter_zero_point(const ov::OutputVector& inputs) 
 namespace op {
 namespace set_1 {
 
-ov::OutputVector conv_integer(const Node& node) {
-    const ov::OutputVector& inputs = node.get_ng_inputs();
+ov::OutputVector conv_integer(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector& inputs = node.get_ov_inputs();
 
     const auto& input = inputs.at(0);
     const auto& filter = inputs.at(1);
@@ -82,6 +82,6 @@ ov::OutputVector conv_integer(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

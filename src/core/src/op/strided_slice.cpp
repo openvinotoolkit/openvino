@@ -21,7 +21,6 @@
 #include "openvino/reference/strided_slice.hpp"
 #include "strided_slice_shape_inference.hpp"
 #include "utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

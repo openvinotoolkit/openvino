@@ -6,6 +6,8 @@
 #include "openvino/openvino.hpp"
 #include "utils/convolution_params.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace CPUTestUtils;
 
@@ -78,7 +80,7 @@ TEST_F(EdgeWithSameNameInTwoModels, smoke_CompareWithRef) {
     // model compilation
     std::map<std::string, ov::AnyMap> config;
     auto& device_config = config[targetDevice];
-    device_config[targetDevice + "_THROUGHPUT_STREAMS"] = 4;
+    device_config[ov::num_streams.name()] = 4;
 
     ov::Core core;
     for (auto&& item : config) {

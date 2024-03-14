@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -20,7 +20,7 @@
  */
 
 #define OPENVINO_VERSION_MAJOR 2024
-#define OPENVINO_VERSION_MINOR 0
+#define OPENVINO_VERSION_MINOR 1
 #define OPENVINO_VERSION_PATCH 0
 
 namespace ov {

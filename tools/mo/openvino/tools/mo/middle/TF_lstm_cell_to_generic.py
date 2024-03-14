@@ -10,7 +10,7 @@ from openvino.tools.mo.middle.replacement import MiddleReplacementPattern
 
 class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
     """
-    Resolves all differences in TensorFlow LSTMCell and Inference Engine LSTMCell:
+    Resolves all differences in TensorFlow LSTMCell and OpenVINO LSTMCell:
     - weights transposing
     - shift_const value addition to biases
     - extra inputs deletion
@@ -79,7 +79,7 @@ class TensorFlowLSTMtoGeneric(MiddleReplacementPattern):
         weights = weights.reshape([weights.shape[0], -1])
         biases = biases.flatten()
 
-        # TF stores weights in IO, but IE requires it in OI: transpose
+        # TF stores weights in IO, but OV requires it in OI: transpose
         weights = weights.transpose()
 
         weights_node.value = weights

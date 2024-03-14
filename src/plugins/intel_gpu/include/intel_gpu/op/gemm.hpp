@@ -37,6 +37,12 @@ public:
     std::vector<int64_t> get_output_order() const { return m_order_c; }
     ov::element::Type get_output_type() const { return m_output_type; }
 
+    static std::vector<int64_t> default_order(size_t rank) {
+        std::vector<int64_t> order(rank);
+        std::iota(order.begin(), order.end(), 0);
+        return order;
+    }
+
 protected:
     std::vector<int64_t> m_order_a;
     std::vector<int64_t> m_order_b;

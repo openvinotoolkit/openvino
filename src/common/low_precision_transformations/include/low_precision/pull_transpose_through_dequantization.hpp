@@ -20,13 +20,13 @@ class LP_TRANSFORMATIONS_API PullTransposeThroughDequantization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PullTransposeThroughDequantization propagates dequantization operations through Transpose operations.
  * The transformation is used on constant subgraph weights to prepare a model for the next low precision transformations.
  *
  * For more details about the transformation, refer to
  * [PullTransposeThroughDequantization](@ref openvino_docs_OV_UG_lpt_PullTransposeThroughDequantization) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class ov::pass::low_precision::PullTransposeThroughDequantization : public ov::pass::MatcherPass {
 public:

@@ -34,7 +34,7 @@ ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params, const optional_params& options) const {
+DeviceFeaturesKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::get_required_device_features_key(const Params& params) const {
     DeviceFeaturesKey k;
     k.requires_reqd_subgroup_size();
 
@@ -143,15 +143,15 @@ bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::IsGlobalPooling(const pooling_params&
     return params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && params.outputs[0].Z().v == 1;
 }
 
-KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options);
+KernelsData PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsData(const Params& params) const {
+    return GetCommonKernelsData(params);
 }
 
-KernelsPriority PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_1;
 }
 
-bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
-    return PoolingKernelBase::Validate(params, options);
+bool PoolingKernelGPU_b_fs_zyx_fsv16_imad::Validate(const Params& params) const {
+    return PoolingKernelBase::Validate(params);
 }
 }  // namespace kernel_selector

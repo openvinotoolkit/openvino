@@ -129,8 +129,8 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
     return jit;
 }
 
-bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GATHER_ELEMENTS || o.GetType() != KernelType::GATHER_ELEMENTS) {
+bool GatherElementsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GATHER_ELEMENTS) {
         return false;
     }
 
@@ -161,8 +161,8 @@ void GatherElementsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -171,18 +171,18 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     return { kd };
 }
 
-KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

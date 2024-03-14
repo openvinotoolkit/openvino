@@ -22,7 +22,7 @@ The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
 aligned sentences. Here is the pipeline diagram:
 
-|image01|
+|image0|
 
 Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
@@ -37,8 +37,8 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
 -  `Get Books <#get-books>`__
 -  `Clean Text <#clean-text>`__
@@ -54,8 +54,7 @@ Prerequisites
 -  `Speed up Embeddings
    Computation <#speed-up-embeddings-computation>`__
 
-
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
+.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
 .. code:: ipython3
 
@@ -113,7 +112,7 @@ Let’s check that we got the right books by showing a part of the texts:
 
 .. parsed-literal::
 
-    ﻿The Project Gutenberg eBook of Anna Karenina
+    The Project Gutenberg eBook of Anna Karenina
 
     This ebook is for the use of anyone anywhere in the United States and
     most other parts of the world at no cost and with almost no restrictions
@@ -401,12 +400,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image0|
+|image01|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image0| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png%22
+.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
 
 .. code:: ipython3
 
@@ -477,7 +476,7 @@ Optimize the Model with OpenVINO
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model Conversion
-API <https://docs.openvino.ai/2023.3/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
+API <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
 execution graph, as PyTorch constructs it dynamically during inference.
@@ -855,26 +854,24 @@ Speed up Embeddings Computation
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using
 OpenVINO, you need to compile the model after reading it. There are two
-main reasons for this:
-
-1. Compatibility with different devices. The
+main reasons for this: 1. Compatibility with different devices. The
 model can be compiled to run on a `specific
-device <https://docs.openvino.ai/2023.3/openvino_docs_Runtime_Inference_Modes_Overview.html>`__,
-like CPU, GPU. Each device may work with different data types,
+device <https://docs.openvino.ai/2024/openvino-workflow/running-inference/inference-devices-and-modes.html>`__,
+like CPU, GPU or GNA. Each device may work with different data types,
 support different features, and gain performance by changing the neural
 network for a specific computing model. With OpenVINO, you do not need
 to store multiple copies of the network with optimized for different
-hardware. A universal OpenVINO model representation is enough.
-2. Optimization for different scenarios. For example, one scenario
+hardware. A universal OpenVINO model representation is enough. 1.
+Optimization for different scenarios. For example, one scenario
 prioritizes minimizing the *time between starting and finishing model
 inference* (`latency-oriented
-optimization <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_latency.html>`__).
+optimization <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-latency.html>`__).
 In our case, it is more important *how many texts per second the model
 can process* (`throughput-oriented
-optimization <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__).
+optimization <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput.html>`__).
 
 To get a throughput-optimized model, pass a `performance
-hint <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html#performance-hints-latency-and-throughput>`__
+hint <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html#performance-hints-latency-and-throughput>`__
 as a configuration during compilation. Then OpenVINO selects the optimal
 parameters for execution on the available hardware.
 
@@ -937,8 +934,8 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   **Note**: To get a more accurate benchmark, use the `Benchmark Python
-   Tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__
+   **NOTE**: To get a more accurate benchmark, use the `Benchmark Python
+   Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 
 .. code:: ipython3
 
@@ -1046,8 +1043,9 @@ Async mode with throughput hint, we get ×3.21 (or 221%) performance
 boost.
 
 Here are useful links with information about the techniques used in this
-notebook:
-
-- `OpenVINO performance hints <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Performance_Hints.html>`__
-- `OpenVINO Async API <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
-- `Throughput Optimizations <https://docs.openvino.ai/2023.3/openvino_docs_deployment_optimization_guide_tput.html>`__
+notebook: - `OpenVINO performance
+hints <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/high-level-performance-hints.html>`__
+- `OpenVINO Async
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html#prefer-openvino-async-api>`__
+- `Throughput
+Optimizations <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimizing-throughput.html>`__

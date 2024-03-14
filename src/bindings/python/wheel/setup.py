@@ -85,6 +85,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "npu_plugin": {
+        "name": "npu",
+        "prefix": f"{BUILD_BASE}/libs.npu",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "multi_plugin": {
         "name": "multi",
         "prefix": f"{BUILD_BASE}/libs.multi",
@@ -270,7 +277,6 @@ class CustomBuild(build):
                 self.spawn(["cmake", "--install", binary_dir,
                                      "--prefix", prefix,
                                      "--config", CONFIG,
-                                     "--strip",
                                      "--component", cpack_comp_name])
 
     def run(self):

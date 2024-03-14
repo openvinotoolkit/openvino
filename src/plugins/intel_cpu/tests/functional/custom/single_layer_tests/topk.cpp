@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <random>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
@@ -268,7 +270,7 @@ std::vector<CPUSpecificParams> cpuParams = {CPUSpecificParams({nChw16c, x}, {nCh
                                             CPUSpecificParams({nchw, x}, {nchw, nchw}, {}, {}),
                                             CPUSpecificParams({nhwc, x}, {nhwc, nhwc}, {}, {})};
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK,
                         TopKLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k),
                                                               ::testing::ValuesIn(axes),
@@ -282,7 +284,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK,
                                            ::testing::ValuesIn(additionalConfig)),
                         TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_dynamic,
                         TopKLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::Values(1),
                                                               ::testing::ValuesIn(axes),
@@ -305,7 +307,7 @@ std::vector<ov::test::InputShape> inputShapes_int32 = {
 std::vector<ov::test::InputShape> inputShapesDynamic_int32 = {
     {{9, {5, 10}, 9, {5, 10}}, {{9, 9, 9, 9}, {9, 10, 9, 10}}}};
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_int32,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32,
                         TopKLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::ValuesIn(k_int32),
                                                               ::testing::ValuesIn(axes),
@@ -319,7 +321,7 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_int32,
                                            ::testing::Values(additionalConfig[0])),
                         TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_int32_dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_TopK_int32_dynamic,
                         TopKLayerCPUTest,
                         ::testing::Combine(::testing::Combine(::testing::Values(1),
                                                               ::testing::ValuesIn(axes),
@@ -340,7 +342,7 @@ std::vector<ov::test::InputShape> inputShapes_bubble_BLK_on_channel_horiz = {
 std::vector<ov::test::InputShape> inputShapesDynamic_bubble_BLK_on_channel_horiz = {
     {{2, {2, 3}, 2, 2}, {{2, 2, 2, 2}, {2, 3, 2, 2}}}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_TopK_bubble_BLK_on_channel_horiz,
     TopKLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::Values(1),
@@ -355,7 +357,7 @@ INSTANTIATE_TEST_CASE_P(
                        ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_TopK_bubble_BLK_on_channel_horiz_dynamic,
     TopKLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::Values(1),
@@ -376,7 +378,7 @@ std::vector<ov::test::InputShape> inputShapes_top1 = {
 
 std::vector<ov::test::InputShape> inputShapesDynamic_top1 = {{{1, 1, 2, {1, 2}}, {{1, 1, 2, 1}, {1, 1, 2, 2}}}};
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Top1,
     TopKLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::Values(1),
@@ -391,7 +393,7 @@ INSTANTIATE_TEST_CASE_P(
                        ::testing::ValuesIn(additionalConfig)),
     TopKLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     smoke_Top1_dynamic,
     TopKLayerCPUTest,
     ::testing::Combine(::testing::Combine(::testing::Values(1),

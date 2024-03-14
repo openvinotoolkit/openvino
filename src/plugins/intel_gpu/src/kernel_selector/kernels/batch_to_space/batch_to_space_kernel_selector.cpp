@@ -11,7 +11,7 @@ batch_to_space_kernel_selector::batch_to_space_kernel_selector() {
     Attach<BatchToSpaceKernelRef>();
 }
 
-KernelsData batch_to_space_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::BATCH_TO_SPACE);
+KernelsData batch_to_space_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::BATCH_TO_SPACE);
 }
 }  // namespace kernel_selector

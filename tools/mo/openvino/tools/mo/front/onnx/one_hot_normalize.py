@@ -13,7 +13,7 @@ from openvino.tools.mo.graph.graph import Graph
 class OneHotNormalize(FrontReplacementSubgraph):
     """
     The ONNX OneHot layer has input with values of shape [2] which contains off and on values. This transformation
-    splits this input into two and connects them back to the OneHot layer in reverse order because in IE layer the
+    splits this input into two and connects them back to the OneHot layer in reverse order because in OV layer the
     on value goes to port 2 and off values goes to port 3.
     """
     enabled = True

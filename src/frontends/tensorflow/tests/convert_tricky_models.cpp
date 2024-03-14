@@ -773,7 +773,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
                               {},
                               {},
                               {},
-                              {"cond"},
+                              {"cond:0"},
                               {&cond_value});
     }
     {
@@ -830,5 +830,25 @@ TEST_F(FrontEndConversionWithReferenceTestsF, GatherWithStringParams) {
 
         auto gather = make_shared<v8::Gather>(string_const, param_inds, axis);
         model_ref = make_shared<Model>(OutputVector{gather}, ParameterVector{param_inds});
+    }
+}
+
+TEST_F(FrontEndConversionWithReferenceTestsF, UnitializedVariableV2AsInput) {
+    {
+        model = convert_model("unitialized_variablev2/unitialized_variablev2.pb",
+                              nullptr,
+                              {"x", "variable_yy2"},
+                              {element::f32, element::f32},
+                              {Shape{3, 2}, Shape{2}},
+                              {},
+                              {},
+                              false,
+                              {"mul"});
+    }
+    {
+        auto x = make_shared<v0::Parameter>(element::f32, Shape{3, 2});
+        auto var = make_shared<v0::Parameter>(element::f32, Shape{2});
+        auto mul = make_shared<v1::Multiply>(x, var);
+        model_ref = make_shared<Model>(OutputVector{mul}, ParameterVector{x, var});
     }
 }

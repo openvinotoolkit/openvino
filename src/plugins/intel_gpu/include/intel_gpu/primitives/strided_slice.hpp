@@ -86,6 +86,41 @@ struct strided_slice : public primitive_base<strided_slice> {
           ellipsis_mask(ellipsis_mask),
           out_size(out_size) {}
 
+    /// @brief Constructs strided_slice primitive with constant begin/end/stride
+    /// @param id This primitive id.
+    /// @param inputs Array of input primitive ids.
+    /// @param begin Begin indexes for input.
+    /// @param end End indexes for input.
+    /// @param strides Strides for input.
+    /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
+    /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
+    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
+    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param ellipsis_mask Array of bits, that provide inserts missing dimensions on a position of a non-zero bit.
+    /// @param out_size Size of output tensor
+    strided_slice(const primitive_id& id,
+                  const std::vector<input_info>& inputs,
+                  const std::vector<int64_t>& begin,
+                  const std::vector<int64_t>& end,
+                  const std::vector<int64_t>& strides,
+                  const std::vector<int64_t>& begin_mask,
+                  const std::vector<int64_t>& end_mask,
+                  const std::vector<int64_t>& new_axis_mask,
+                  const std::vector<int64_t>& shrink_axis_mask,
+                  const std::vector<int64_t>& ellipsis_mask,
+                  const ov::Shape out_size,
+                  const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}),
+          begin(begin),
+          end(end),
+          strides(strides),
+          begin_mask(begin_mask),
+          end_mask(end_mask),
+          new_axis_mask(new_axis_mask),
+          shrink_axis_mask(shrink_axis_mask),
+          ellipsis_mask(ellipsis_mask),
+          out_size(out_size) {}
+
     /// @brief Begin indexes for input
     std::vector<int64_t> begin;
     /// @brief End indexes for input

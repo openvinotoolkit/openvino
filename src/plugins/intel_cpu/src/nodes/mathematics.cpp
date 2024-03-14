@@ -7,8 +7,8 @@
 #include <string>
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "mathematics.h"
-#include "utils/general_utils.h"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
 namespace ov {

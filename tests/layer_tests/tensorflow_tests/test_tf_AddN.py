@@ -14,8 +14,8 @@ import logging
 class TestAddN(CommonTFLayerTest):
     # input_shapes - should be an array, could be a single shape, or array of n-dimentional shapes
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_addn_placeholder_const_net(self, input_shapes, ir_version, use_new_frontend):
+    # use_legacy_frontend - common parameter
+    def create_addn_placeholder_const_net(self, input_shapes, ir_version, use_legacy_frontend):
         """
             Tensorflow net                  IR net
 
@@ -28,7 +28,7 @@ class TestAddN(CommonTFLayerTest):
         if len(input_shapes) == 0:
             raise RuntimeError("Input list couldn't be empty")
 
-        if len(input_shapes) == 1 and not use_new_frontend:
+        if len(input_shapes) == 1 and not use_legacy_frontend:
             pytest.xfail(reason="96687")
         import tensorflow as tf
 
@@ -61,8 +61,8 @@ class TestAddN(CommonTFLayerTest):
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_addn_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend):
+                                      use_legacy_frontend):
         self._test(*self.create_addn_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

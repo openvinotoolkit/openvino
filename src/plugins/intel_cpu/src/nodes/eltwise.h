@@ -4,15 +4,25 @@
 
 #pragma once
 
+#include <node.h>
+#include <string>
+#include <vector>
+#include <memory>
+
+#include "dnnl_postops_composer_legacy.h"
+#include "nodes/executors/eltwise.hpp"
 #include "executors/eltwise_list.hpp"
-#include "node.h"
+#include "nodes/kernels/jit_eltwise_call_args_ptrs.hpp"
+
+#if defined(OPENVINO_ARCH_ARM64)
+#include "kernels/aarch64/jit_uni_eltwise_generic.hpp"
+#endif
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define MAX_ELTWISE_INPUTS 7
-#define MAX_ELTWISE_DIM_RANK 12
+#ifndef OPENVINO_ARCH_ARM64
 
 struct jit_eltwise_params {
     size_t inputs_number;
@@ -32,18 +42,6 @@ struct jit_eltwise_params {
 
     size_t work_amount;
     bool use_runtime_ptrs;
-};
-
-struct jit_eltwise_call_args_ptrs {
-    const void *src_ptr[MAX_ELTWISE_INPUTS];
-    void *dst_ptr;
-    //ptr to array of post op inputs pointers (flat list)
-    const void** post_op_data;
-
-    // shape agnostic kernel
-    size_t work_amount;
-    const void *src_offsets[MAX_ELTWISE_INPUTS];
-    const void *dst_offsets;
 };
 
 struct jit_eltwise_call_args_indexes {
@@ -68,6 +66,8 @@ struct jit_uni_eltwise_kernel {
     jit_eltwise_params jep_;
 };
 
+#endif
+
 enum class EltwiseImplType {
     reference = 0,
     optimized = 1,
@@ -76,16 +76,6 @@ enum class EltwiseImplType {
 
 class Eltwise : public Node {
 public:
-    struct EltwiseData {
-        Algorithm algo;
-        dnnl::algorithm onednnAlgorithm;
-        float alpha;
-        float beta;
-        float gamma;
-
-        bool operator==(const EltwiseData& rhs) const noexcept;
-    };
-
     class IEltwiseExecutor {
     public:
         IEltwiseExecutor() = default;
@@ -106,16 +96,19 @@ public:
     void execute(dnnl::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override;
+    bool canFuseParent(const NodePtr& parentNode) const;
     bool canFuse(const NodePtr& node) const override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::unordered_map<int, MemoryPtr>& postOpsMem, const int channelAxis = 1) override;
     void appendPostOps(dnnl::post_ops& ops, const VectorDims &postOpDims, std::vector<const void*>& postOpsMem, const int channelAxis = 1) override;
-    bool appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
+    bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastPostOp, dnnl::memory::data_type outDataType, bool allowBinary = true);
     void fuseInto(NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const { return alpha; }
     float getBeta() const { return beta; }
     float getGamma() const { return gamma; }
+    const std::vector<float>& getScales() const { return scales; }
+    const std::vector<float>& getShifts() const { return shifts; }
 
     dnnl::algorithm getOneDnnAlgorithm() const { return onednnAlgorithm; }
 
@@ -201,8 +194,8 @@ private:
 class eltwise_precision_helper {
 public:
     static ov::element::Type get_precision(const size_t inputs_number,
-                                                    const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
-                                                    const std::vector<Eltwise::EltwiseData>& eltwise_data);
+                                           const ov::element::Type (&src_prc)[MAX_ELTWISE_INPUTS],
+                                           const std::vector<EltwiseData>& eltwise_data);
 
 private:
     static std::set<std::vector<element::Type>> get_supported_precisions(const Algorithm& algo);

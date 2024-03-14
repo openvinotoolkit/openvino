@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SpaceToBatchFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SpaceToBatchFusion transformation replaces following graph:
  * Transpose (or Reshape) -> Pad -> SpaceToDepth -> Transpose (or Reshape)
  * to SpaceToBatch

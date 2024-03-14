@@ -207,7 +207,7 @@ def prepare_graph_def(model):
         for node in nodes_to_clear_device:
             node.device = ""
         return model, {}, "tf", None
-    if isinstance(model, tf.keras.Model):
+    if isinstance(model, tf.keras.Model): # pylint: disable=no-member
 
         assert hasattr(model, "inputs") and model.inputs is not None, "Model inputs specification is required."
 
@@ -215,7 +215,7 @@ def prepare_graph_def(model):
         for inp in model.inputs:
             if isinstance(inp, tf.Tensor):
                 model_inputs.append(inp)
-            elif tf.keras.backend.is_keras_tensor(inp):
+            elif tf.keras.backend.is_keras_tensor(inp): # pylint: disable=no-member
                 model_inputs.append(inp.type_spec)
             else:
                 raise Error("Unknown input tensor type {}".format(type(input)))
@@ -308,7 +308,7 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
                     # Code to extract Keras model.
                     # tf.keras.models.load_model function throws TypeError,KeyError or IndexError
                     # for TF 1.x SavedModel format in case TF 1.x installed
-                    imported = tf.keras.models.load_model(model_dir, compile=False)
+                    imported = tf.keras.models.load_model(model_dir, compile=False) # pylint: disable=no-member
                 except:
                     imported = tf.saved_model.load(model_dir, saved_model_tags)  # pylint: disable=E1120
 
