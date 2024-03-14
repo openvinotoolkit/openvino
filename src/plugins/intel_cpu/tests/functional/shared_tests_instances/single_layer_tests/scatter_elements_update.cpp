@@ -25,7 +25,7 @@ const std::vector<std::vector<size_t>> idx_value = {
 const std::vector<ov::element::Type> model_types = {
         ov::element::f32,
         ov::element::f16,
-        // ov::element::i32,
+        ov::element::i32,
 };
 
 const std::vector<ov::element::Type> idx_types = {
