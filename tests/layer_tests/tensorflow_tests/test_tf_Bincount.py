@@ -8,17 +8,19 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
+rng = np.random.default_rng()
+
 class TestBincount(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
         assert 'x:0' in inputs_info, "Test error: inputs_info must contain `x`"
         x_shape = inputs_info['x:0']
 
         inputs_data = {}
-        inputs_data['x:0'] = np.random.randint(0, np.max(x_shape), x_shape)
+        inputs_data['x:0'] = rng.integers(0, 8, x_shape).astype(np.int32)
 
         if 'w:0' in inputs_info:
             w_shape = inputs_info['w:0']
-            inputs_data['w:0'] = np.random.rand(*w_shape).astype(self.weights_type)
+            inputs_data['w:0'] = rng.uniform(-2.0, 2.0, w_shape).astype(self.weights_type)
 
         return inputs_data
 
@@ -40,27 +42,23 @@ class TestBincount(CommonTFLayerTest):
 
         return tf_net, None
 
-    def gen_data(weights, weights_type):
-      input_shape = tuple(np.random.randint(1, 10, size=np.random.randint(1, 5)))
-      size = np.random.randint(1, np.max(input_shape) + 1)
-      return dict(input_shape=input_shape, size=size, weights=weights, weights_type=weights_type)
-  
     test_data = [
         # with no weights
-        gen_data(None, np.float32),
-        gen_data(None, np.float64),
-        gen_data(None, np.int32),
-        gen_data(None, np.int64),
+        dict(input_shape=[], size=1, weights=None, weights_type=np.float32),
+        dict(input_shape=[2], size=2, weights=None, weights_type=np.float64),
+        dict(input_shape=[1,3], size=3, weights=None, weights_type=np.int32),
+        dict(input_shape=[3,1,4], size=4, weights=None, weights_type=np.int64),
+
 
         # with weights
-        gen_data(True, np.float32),
-        gen_data(True, np.float64),
-        gen_data(True, np.int32),
-        gen_data(True, np.int64),
+        dict(input_shape=[], size=1, weights=True, weights_type=np.float32),
+        dict(input_shape=[2], size=2, weights=True, weights_type=np.float64),
+        dict(input_shape=[1,3], size=3, weights=True, weights_type=np.int32),
+        dict(input_shape=[3,1,4], size=4, weights=True, weights_type=np.int64),
     ]
 
     @pytest.mark.parametrize("params", test_data)
-    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
     def test_bincount(self, params, ie_device, precision, ir_version, temp_dir):
         self._test(*self.create_bincount_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir)
