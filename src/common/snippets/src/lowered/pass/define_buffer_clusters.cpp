@@ -48,7 +48,7 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_input_buffers(const 
 
     const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     // Input Buffers
     for (size_t i = 0; i < in_count; ++i) {
@@ -69,7 +69,7 @@ DefineBufferClusters::BufferPorts DefineBufferClusters::get_output_buffers(const
     const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(loop_expr->get_node());
     const auto in_count = loop_end->get_input_num();
     const auto out_count = loop_end->get_output_num();
-    const auto connectors = loop_expr->get_input_port_connectors();
+    const auto& connectors = loop_expr->get_input_port_connectors();
 
     for (size_t i = in_count; i < in_count + out_count; ++i) {
         for (const auto& consumer : connectors[i]->get_consumers()) {
@@ -213,7 +213,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
     };
     int64_t final_offset = 0;
     int64_t last_loop_exec_order = 0;
-    const auto buffer_outs = buffer_expr->get_output_port_connectors();
+    const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
         for (const auto& consumer : consumers) {
@@ -222,7 +222,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
             if (loop_end && consumer_expr->get_loop_ids() == buffer_expr->get_loop_ids()) {
                 const auto loop_order = ov::snippets::pass::GetTopologicalOrder(loop_end);
                 if (loop_order > last_loop_exec_order) {
-                    const auto loop_inputs = consumer_expr->get_input_port_connectors();
+                    const auto& loop_inputs = consumer_expr->get_input_port_connectors();
                     final_offset = loop_end->get_finalization_offsets()[index(loop_inputs, buffer_out)];
                     last_loop_exec_order = loop_order;
                 }

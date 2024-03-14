@@ -6,8 +6,6 @@
 
 #include "pass.hpp"
 
-#include "snippets/lowered/loop_manager.hpp"
-
 namespace ov {
 namespace snippets {
 namespace lowered {

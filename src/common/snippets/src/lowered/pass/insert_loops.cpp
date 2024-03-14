@@ -7,6 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -44,7 +45,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     init_common_params(loop_exits);
 
     // Should be inited by LoopInfo
-    const auto is_dynamic_loop = false;
+    const auto is_dynamic_loop = is_loop_dynamic(loop_info);
 
     std::shared_ptr<op::LoopBegin> loop_begin = nullptr;
     std::shared_ptr<op::LoopEnd> loop_end = nullptr;
@@ -78,6 +79,17 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
+}
+
+bool InsertLoops::is_loop_dynamic(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    auto is_loop_port_dynamic = [](const LinearIR::LoopManager::LoopPort& port) {
+        return port.is_dynamic();
+    };
+    const auto& entry_points = loop_info->get_entry_points();
+    const auto& exit_points = loop_info->get_exit_points();
+    return utils::is_dynamic_value(loop_info->get_work_amount()) ||
+           std::any_of(entry_points.cbegin(), entry_points.cend(), is_loop_port_dynamic) ||
+           std::any_of(exit_points.cbegin(), exit_points.cend(), is_loop_port_dynamic);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {

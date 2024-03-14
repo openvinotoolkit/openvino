@@ -10,6 +10,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "shape_inference/custom/subgraph.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/hash.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
@@ -607,8 +608,7 @@ Snippet::SnippetJitExecutor::SnippetJitExecutor(SnippetAttrs attrs, bool is_dyna
     };
     initDataSizes();
 
-    if (std::any_of(canonicalShape.begin(), canonicalShape.end(),
-                    [](size_t x){return x == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION;}))
+    if (snippets::utils::is_dynamic_vdims(canonicalShape))
         OPENVINO_THROW("Snippets: Canonicalization returned dynamic shape in static pipeline");
 
     // generate

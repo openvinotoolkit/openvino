@@ -81,15 +81,23 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
     const auto& config = linear_ir.get_config();
     if (linear_ir.empty())
         return false;
+
     m_tile_rank = 1;
+
     if (!config.m_enable_domain_optimization) {
         // Note: this is a special case: if optimization is not allowed, always assume 2D tile
         m_tile_rank = 2;
         return false;
     }
+
+    VectorDims master_shape = linear_ir.get_master_shape();
+    if (linear_ir.is_dynamic()) {
+        m_tile_rank = master_shape.size() > 1 ? 2 : 1;
+        return false;
+    }
+
     OPENVINO_ASSERT(config.m_min_parallel_work_amount != 0, "OptimizeDomain: Min parallel work amount can't equal to zero");
     std::vector<VectorDims> input_shapes;
-    VectorDims master_shape = linear_ir.get_master_shape();
     bool blocked_input_shapes = false;
     for (const auto& io_expr : linear_ir.get_IO_ops()) {
         if (io_expr->get_type() == snippets::lowered::IOExpression::io_type::INPUT) {
@@ -108,7 +116,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
                                                         io_expr;
             const auto& shape = utils::get_preordered_vdims(shape_producing_expr->get_output_port(0));
             OPENVINO_ASSERT(std::none_of(shape.begin(), shape.end(),
-                                        [](size_t d) {return d == snippets::IShapeInferSnippets::DYNAMIC_DIMENSION; }),
+                                        [](size_t d) { return utils::is_dynamic_value(d); }),
                             "OptimizeDomain pass does not support dynamic shapes");
             input_shapes.emplace_back(shape);
         }

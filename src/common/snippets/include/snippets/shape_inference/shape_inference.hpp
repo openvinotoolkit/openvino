@@ -20,7 +20,6 @@ enum class ShapeInferStatus {
  */
 class IShapeInferSnippets {
 public:
-    enum {DYNAMIC_DIMENSION = std::numeric_limits<size_t>::max()};
     struct Result {
         std::vector<VectorDims> dims;
         ShapeInferStatus status;

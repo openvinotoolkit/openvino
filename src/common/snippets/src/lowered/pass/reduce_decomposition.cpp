@@ -4,11 +4,14 @@
 
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 
-#include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/utils.hpp"
+#include "snippets/itt.hpp"
 
 namespace ov {
 namespace snippets {
@@ -66,7 +69,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
         const auto& reduce_type_info = reduce->get_type_info();
         const auto& input_shape = reduce_expr->get_input_port_descriptor(0)->get_shape();
         const auto work_amount = *(input_shape.rbegin());
-        const auto increment = m_vector_size <= work_amount ? m_vector_size : work_amount;
+        const auto increment = utils::is_dynamic_value(work_amount) || m_vector_size <= work_amount ? m_vector_size : work_amount;
         const bool is_dynamic = reduce->is_dynamic();
         OPENVINO_ASSERT(reduce->get_axis() == input_shape.size() - 1, "ReduceDecomposition supports only Reduce by last dimension.");
 
@@ -96,7 +99,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             0,
             std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
-        const auto tail_size = work_amount % increment;
+        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
         if (tail_size != 0) {
             loop_manager->get_loop_info(reduce_loop_id)->register_handler<HandlerType::LAST_ITER, SetFillOffset>(tail_size);
         }

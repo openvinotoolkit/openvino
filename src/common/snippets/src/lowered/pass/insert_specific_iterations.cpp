@@ -106,27 +106,27 @@ bool InsertSpecificIterations::run(LinearIR& linear_ir, lowered::LinearIR::const
             return new_loop_end;
         };
 
-        const bool specific_first_iteration = !handlers.get_first_iter_handelrs().empty();
+        const bool specific_first_iteration = !handlers.get_first_iter_handlers().empty();
         if (work_amount == increment) {
-            handlers.get_first_iter_handelrs().run(linear_ir, main_first_body_op_it, main_loop_end_it);
+            handlers.get_first_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
         } else {
             if (specific_first_iteration) {
-                const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_first_iter_handelrs());
+                const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_first_iter_handlers());
                 update_loop_params(loop_end_copy, increment, increment, true);
             }
 
             const auto tail_size = work_amount % increment;
             if (tail_size != 0) {
                 if (!specific_first_iteration || work_amount > 2 * increment) {
-                    const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_main_iter_handelrs());
+                    const auto loop_end_copy = copy_and_run_specific_handlers(handlers.get_main_iter_handlers());
                     const auto reduce_value = specific_first_iteration ? tail_size + increment : tail_size;
                     const auto new_work_amount = work_amount - reduce_value;
                     update_loop_params(loop_end_copy, new_work_amount, increment, true);
                 }
-                handlers.get_last_iter_handelrs().run(linear_ir, main_first_body_op_it, main_loop_end_it);
+                handlers.get_last_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
                 update_loop_params(loop_end, tail_size, tail_size, false);
             } else if (specific_first_iteration) {
-                handlers.get_main_iter_handelrs().run(linear_ir, main_first_body_op_it, main_loop_end_it);
+                handlers.get_main_iter_handlers().run(linear_ir, main_first_body_op_it, main_loop_end_it);
                 update_loop_params(loop_end, work_amount - increment, increment, false);
             }
         }

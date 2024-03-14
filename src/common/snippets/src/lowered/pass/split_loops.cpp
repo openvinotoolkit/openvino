@@ -25,7 +25,7 @@ bool SplitLoops::can_be_split(const LoopInfoPtr& loop_to_split, const LoopInfoPt
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
-    const bool only_main_body = handlers.get_first_iter_handelrs().empty() && handlers.get_last_iter_handelrs().empty();
+    const bool only_main_body = handlers.get_first_iter_handlers().empty() && handlers.get_last_iter_handlers().empty();
     return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
@@ -54,20 +54,24 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
                 continue;
 
             const auto& parent_loop_id = parent_loop_ids.front();
-            const auto parent_loop_port = loop_manager->get_loop_port_by_expr_port(parent_port, parent_loop_id);
-            // We don't split loop which are not compatible with parent loop because such loops will not be fused
-            if (!FuseLoops::loop_ports_are_compatible(loop_manager, loop_id, parent_loop_id))
-                continue;
-
             const auto parent_loop = loop_manager->get_loop_info(parent_loop_id);
+
             const bool split_parent = parent_loop->get_increment() < loop->get_increment();
+            const auto upper_loop = std::make_shared<LoopManager::LoopInfo>(*parent_loop);
+            const auto lower_loop = std::make_shared<LoopManager::LoopInfo>(*loop);
+            if (split_parent)
+                upper_loop->set_increment(loop->get_increment());
+            else
+                lower_loop->set_increment(parent_loop->get_increment());
+
             const auto& loop_to_split = split_parent ? parent_loop : loop;
-            const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
             const auto& loop_to_fuse = !split_parent ? parent_loop : loop;
-            if (can_be_split(loop_to_split, loop_to_fuse)) {
+            // We don't split loop which are not compatible with parent loop because such loops will not be fused
+            if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
                 loop_was_split = true;
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
 
+                const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,
                                                                       loop_to_split->get_entry_points(),
                                                                       loop_to_split->get_exit_points());
