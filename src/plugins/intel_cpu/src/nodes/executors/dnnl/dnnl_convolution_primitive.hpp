@@ -7,13 +7,13 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,6 +60,13 @@ public:
     impl_desc_type implType() const {
         return m_implType;
     }
+
+    // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
+    static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
+                                                            const PostOps& postOps,
+                                                            const MemoryArgs& memory,
+                                                            const ExecutorContext::CPtr context,
+                                                            const bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
                                                             const ConvAttrs& attrs,

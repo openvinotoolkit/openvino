@@ -146,7 +146,7 @@ OV_CPU_MAYBE_UNUSED_FUNCTION static inline bool noPostOps(const FCConfig& config
 template <>
 const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<FCAttrs>> fullyconnectedImplementations {
-        OV_CPU_INSTANCE_X64(
+        OV_CPU_INSTANCE_MLAS_X64(
             "fullyconnected_mlas",
             ExecutorType::Mlas,
             OperationType::MatMul,
