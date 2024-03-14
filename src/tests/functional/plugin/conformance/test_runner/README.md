@@ -103,6 +103,10 @@ The script has the following optional arguments:
                         Overwrite expected failures list in case same failures were fixed
 * `-cache_path CACHE_PATH`
                         Path to the cache file with test_name list sorted by execution time as `.lst` file!
+* `-r DISABLE_RERUN, --disable_rerun DISABLE_RERUN`
+                        Disable re-run of interapted/lost tests. Default value is `False`
+* `--timeout TIMEOUT`
+                        Set a custom timeout per worker in s
 
 > **NOTE**: All arguments are optional and have default values to reproduce OMZ based Opset conformance results  on `CPU` in a default method.
 
