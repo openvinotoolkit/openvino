@@ -103,13 +103,36 @@ std::shared_ptr<ov::Node> make_ng_reduction_op(const Node& node,
         return set_1::identity(node).at(0).get_node_shared_ptr();
     }
 }
-}  // namespace
 
-namespace set_13 {
-ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
-    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
+std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node, const bool axes_as_attr = true) {
+    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
+    const auto square_node = std::make_shared<v1::Multiply>(input, input);
+    return make_ng_reduction_op<v1::ReduceSum>(node, square_node, axes_as_attr);
 }
-}  // namespace set_13
+
+std::shared_ptr<ov::Node> onnx_reduce_sum_square_zero_rank(const ov::frontend::onnx::Node& node,
+                                                           const bool axes_as_attr = true) {
+    const auto data = node.get_ov_inputs().at(0);
+    const auto data_rank = data.get_partial_shape().rank();
+    FRONT_END_GENERAL_CHECK(data_rank.is_static(), "ONNX Softmax data rank needs to be known (static)");
+
+    std::shared_ptr<ov::Node> result;
+
+    switch (data_rank.get_length()) {
+    case 0: {
+        result = v0::Constant::create(data.get_element_type(), ov::Shape{}, {0});
+        break;
+    }
+    default: {
+        result = {onnx_reduce_sum_square(node, axes_as_attr)};
+        break;
+    }
+    }
+
+    return result;
+}
+
+}  // namespace
 
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
@@ -152,12 +175,33 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
-    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
-    const auto square_node = std::make_shared<v1::Multiply>(input, input);
-    return {make_ng_reduction_op<v1::ReduceSum>(node, square_node)};
+    return {onnx_reduce_sum_square(node)};
 }
 
 }  // namespace set_1
+
+namespace set_11 {
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square(node)};
+}
+}  // namespace set_11
+namespace set_13 {
+ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
+    return {make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false)};
+}
+
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square_zero_rank(node)};
+}
+
+}  // namespace set_13
+
+namespace set_18 {
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square_zero_rank(node, false)};
+}
+}  // namespace set_18
+
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
