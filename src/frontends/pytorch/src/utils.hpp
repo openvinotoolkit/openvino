@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,17 @@ OutputVector inplace_op(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
                                   "inplace_op function must be used on single output translators");
     context.mutate_input(idx, translation_res[0]);
+    return translation_res;
+}
+
+template <OutputVector (*T)(const NodeContext&), size_t idx>
+OutputVector optional_out(const NodeContext& context) {
+    auto translation_res = T(context);
+    if (!context.input_is_none(idx)) {
+        FRONT_END_OP_CONVERSION_CHECK(translation_res.size() == 1,
+                                      "inplace_op function must be used on single output translators");
+        context.mutate_input(idx, translation_res[0]);
+    }
     return translation_res;
 }
 

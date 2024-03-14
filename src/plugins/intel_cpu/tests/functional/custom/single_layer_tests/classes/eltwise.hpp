@@ -29,12 +29,16 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj);
 
 protected:
-    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape);
+    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals = false);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
 private:
     utils::EltwiseTypes eltwiseType;
+
+    std::string getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
+                                 const ov::element::Type_t& element_type,
+                                 const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
 };
 
 namespace Eltwise {
@@ -53,6 +57,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn();
 const std::vector<CPUSpecificParams>& cpuParams_4D();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D();
 const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const();
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D();
 const std::vector<InputShape>& inShapes_4D_dyn_param();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D_1D();
 const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode();
@@ -65,6 +70,7 @@ const std::vector<InputShape>& inShapes_5D_dyn_const();
 const std::vector<InputShape>& inShapes_5D_dyn_param();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_constant();
 const std::vector<CPUSpecificParams>& cpuParams_5D_1D_parameter();
+const std::vector<std::vector<ov::Shape>>& inShapes_fusing_5D();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesI32();
 

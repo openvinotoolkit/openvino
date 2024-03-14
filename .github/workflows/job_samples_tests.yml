@@ -36,13 +36,13 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -124,11 +124,11 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -X warn_default_encoding -m pytest $INSTALL_TEST_DIR/smoke_tests \
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
             --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-samples
