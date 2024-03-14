@@ -262,16 +262,14 @@ private:
     ExecutorPtr create(const size_t implId,
                        const MemoryArgs& memory,
                        const ExecutorContext::CPtr context) {
-        assert(implId < m_executors.size());
-        auto executor = m_executors[implId];
-        if (executor)
-            return executor;
+        assert(implId < m_executors.size() && implId < m_suitableImplementations.size());
 
-        assert(implId < m_suitableImplementations.size());
-        const auto& impl = m_suitableImplementations[implId].get();
-        DEBUG_LOG("Creating executor using implementation: ", impl.name());
+        if (!m_executors[implId]) {
+            const auto& impl = m_suitableImplementations[implId].get();
+            m_executors[implId] = impl.create(m_attrs, m_postOps, memory, context);
+        }
 
-        return impl.create(m_attrs, m_postOps, memory, context);
+        return m_executors[implId];
     }
 
     const Attrs& m_attrs;
