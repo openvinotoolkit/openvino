@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -89,7 +89,6 @@ xfail_issue_38734 = xfail_test(reason="RuntimeError: OV does not support the fol
 xfail_issue_38735 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
-xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44851 = xfail_test(reason="Expected: Unsupported dynamic op: Broadcast")
 xfail_issue_44858 = xfail_test(reason="Expected: Unsupported dynamic op: Unsqueeze")
 xfail_issue_44957 = xfail_test(reason="Expected: Unsupported dynamic op: NonZero")

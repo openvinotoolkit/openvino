@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -476,7 +476,7 @@ public:
         auto new_order = new_fmt.internal_order();
         std::vector<value_type> old_sizes = sizes();
         std::vector<value_type> new_sizes(old_sizes.size(), default_size);
-        const auto& new_traits = format::traits(new_fmt);
+        const auto& new_traits = new_fmt.traits();
         static const std::map<char, char> flatten_mapping = {
             { 'v', 'u'},
             { 'u', 'w'},
