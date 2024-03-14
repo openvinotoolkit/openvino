@@ -101,4 +101,3 @@ class TestComplexRsqrt(CommonTFLayerTest):
             ie_device, precision, ir_version, temp_dir=temp_dir,
             use_legacy_frontend=use_legacy_frontend)
 
-
