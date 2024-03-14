@@ -19,7 +19,7 @@ it('Core.setProperty()', () => {
 });
 
 it('Core.setProperty(\'CPU\')', () => {    
-  const tmpDir = '/home/nvishnya/tmp123';
+  const tmpDir = '/home/nvishnya/tmp';
 
   core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
 
@@ -29,9 +29,25 @@ it('Core.setProperty(\'CPU\')', () => {
 });
 
 it('Core.getProperty(\'CPU\', \'SUPPORTED_PROPERTIES\') is Array', () => {    
-  const tmpDir = '/home/nvishnya/tmp123';
-
   const supportedPropertiesArray = core.getProperty('CPU', 'SUPPORTED_PROPERTIES');
 
-  assert.ok(Array.isArray(supportedPropertiesArray), tmpDir);
+  assert.ok(Array.isArray(supportedPropertiesArray));
+});
+
+it('Core.setProperty(\'CPU\', { \'NUM_STREAMS\': 5 })', () => {   
+  const streams = 5;
+
+  core.setProperty('CPU', { 'NUM_STREAMS': streams });
+  const result = core.getProperty('CPU', 'NUM_STREAMS');
+
+  assert.equal(result, streams);
+});
+
+it('Core.setProperty(\'CPU\', { \'INFERENCE_NUM_THREADS\': 3 })', () => {   
+  const threads = 3;
+
+  core.setProperty('CPU', { 'INFERENCE_NUM_THREADS': threads });
+  const result = core.getProperty('CPU', 'INFERENCE_NUM_THREADS');
+
+  assert.equal(result, threads);
 });

@@ -128,11 +128,23 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value);
 
-template <>
-Napi::Array cpp_to_js<const std::vector<ov::PropertyName>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<ov::PropertyName> properties_array);
+/**
+ * @brief  Template function to convert C++ vector type into Javascript Array
+ * @tparam SourceType C++ data type of vector elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Array.
+ */
+template <typename SourceType>
+Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<SourceType>& vec);
 
-template <>
-Napi::Array cpp_to_js<const std::vector<std::string>, Napi::Array>(const Napi::CallbackInfo& info, const std::vector<std::string> string_array);
+/**
+ * @brief  Template function to convert C++ map into Javascript Object. Map key must be std::string.
+ * @tparam MapElementType C++ data type of map elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Object.
+ */
+template <typename MapElementType>
+Napi::Object cpp_map_to_js_object(const Napi::CallbackInfo& info, const std::map<std::string, MapElementType>& map);
 
 /** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to ov::TensorVector. */
 ov::TensorVector parse_input_data(const Napi::Value& input);
@@ -172,3 +184,9 @@ ov::Tensor value_to_tensor(const Napi::Value& value, ov::InferRequest& infer_req
 napi_types napiType(const Napi::Value& val);
 
 bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable);
+
+Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value);
+
+ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value);
+
+bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num);

@@ -25,17 +25,11 @@ struct CoreSetPropertyArgs {
 
         for (uint32_t i = 0; i < keys.Length(); ++i) {
             auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            Napi::Value value = parameters.Get(property_name);
+            
 
-            if (value.IsString()) {
-                this->parameters.insert(std::make_pair(property_name, value.ToString().Utf8Value()));
-            } else if (value.IsNumber()) {
-                this->parameters.insert(std::make_pair(property_name, value.ToNumber()));
-            } else if (value.IsBoolean()) {
-                this->parameters.insert(std::make_pair(property_name, value.ToBoolean()));
-            } else {
-                throw std::runtime_error("Unsupported type of parameter value");
-            }
+            ov::Any any_value = js_to_any(info, parameters.Get(property_name));
+
+            this->parameters.insert(std::make_pair(property_name, any_value));
         }
     }
 

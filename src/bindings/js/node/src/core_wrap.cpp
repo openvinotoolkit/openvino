@@ -274,19 +274,5 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
         value = _core.get_property(device_name, property_name);
     }
 
-    if (value.is<std::string>()) {
-        return Napi::String::New(info.Env(), value.as<std::string>());
-    } else if (value.is<bool>()) {
-        return Napi::Boolean::New(info.Env(), value.as<bool>());
-    } else if (value.is<const std::vector<ov::PropertyName>>()) {
-        auto p = value.as<const std::vector<ov::PropertyName>>();
-
-        return cpp_to_js<const std::vector<ov::PropertyName>, Napi::Array>(info, p);
-    } else if (value.is<const std::vector<std::string>>()) {
-        auto p = value.as<const std::vector<std::string>>();
-
-        return cpp_to_js<const std::vector<std::string>, Napi::Array>(info, p);
-    }
-
-    return info.Env().Undefined();
+    return any_to_js(info, value);
 }
