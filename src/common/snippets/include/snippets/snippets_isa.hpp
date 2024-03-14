@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,7 @@
 #include "op/vector_buffer.hpp"
 #include "op/rank_normalization.hpp"
 #include "op/perf_count.hpp"
+#include "op/reduce.hpp"
 
 namespace ov {
 namespace snippets {

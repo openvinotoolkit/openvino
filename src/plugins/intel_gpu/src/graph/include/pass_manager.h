@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -327,7 +327,7 @@ public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
     void add_memory_dependency(program_node* node, program_node* dep) {
         if (node->can_be_optimized() || !dep->can_be_optimized()) {
-            node->add_memory_dependency(dep->id());
+            node->add_memory_dependency(static_cast<int32_t>(dep->get_unique_id()));
         } else {
             if (node->id() == dep->id()) {
                 return;
