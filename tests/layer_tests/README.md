@@ -2,7 +2,7 @@
 
 The layer tests primarily aim to validate support for PyTorch, TensorFlow, TensorFlow Lite, and ONNX frameworks' operations by OpenVINO.
 The test pipeline includes the following steps:
-1. Creation of a model with the tested operation using framework API
+1. Creation of a model with the tested operation using original framework API
 2. Conversion of the created model using OpenVINO's `convert_model` method
 3. Inference of both the original and converted models using the framework and OpenVINO on random input data
 4. Checking whether the inference results from OpenVINO and the framework are the same or different within a tolerance threshold
