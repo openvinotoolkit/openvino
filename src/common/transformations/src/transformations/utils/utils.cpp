@@ -241,9 +241,10 @@ std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& nod
 std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
     const std::shared_ptr<ov::Node>& shape_node,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
-    const auto& indices_op = v0::Constant::create(ov::element::i64, {indices.size()}, indices);
-    const auto& axis_op = v0::Constant::create(ov::element::i64, {}, {0});
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from,
+    const ov::element::Type& shape_path_precision) {
+    const auto& indices_op = v0::Constant::create(shape_path_precision, {indices.size()}, indices);
+    const auto& axis_op = v0::Constant::create(shape_path_precision, {}, {0});
     auto op = make_try_fold<v7::Gather>(shape_node, indices_op, axis_op);
     if (!copy_rt_info_from.empty())
         ov::copy_runtime_info(copy_rt_info_from, {op, indices_op, axis_op});
@@ -253,11 +254,15 @@ std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_node(
 std::shared_ptr<ov::Node> node_to_get_shape_value_of_indices_from_shape_source(
     const ov::Output<ov::Node>& shape_source,
     const std::vector<size_t>& indices,
-    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from) {
-    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source);
+    const std::vector<std::shared_ptr<ov::Node>>& copy_rt_info_from,
+    const ov::element::Type& shape_path_precision) {
+    const auto& shape_node = make_try_fold<v3::ShapeOf>(shape_source, shape_path_precision);
     if (!copy_rt_info_from.empty())
         ov::copy_runtime_info(copy_rt_info_from, shape_node);
-    return node_to_get_shape_value_of_indices_from_shape_node(shape_node, indices, copy_rt_info_from);
+    return node_to_get_shape_value_of_indices_from_shape_node(shape_node,
+                                                              indices,
+                                                              copy_rt_info_from,
+                                                              shape_path_precision);
 }
 
 bool shapes_equal_except_dynamic_expected_batch(const ov::PartialShape& expected, const ov::PartialShape& actual) {
