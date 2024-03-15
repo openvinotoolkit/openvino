@@ -480,6 +480,17 @@ struct EltwiseEmitter {
 };
 
 template<>
+struct EltwiseEmitter<jit_clamp_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_clamp_emitter>(ctx.host,
+                                                          ctx.host_isa,
+                                                          ctx.opData.alpha,
+                                                          ctx.opData.beta,
+                                                          ctx.exec_prc);
+    }
+};
+
+template<>
 struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host,
@@ -503,10 +514,14 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
 
     OV_SWITCH(intel_cpu, EltwiseEmitter, ctx, data.algo,
     OV_CASE(Algorithm::EltwiseAdd, ov::intel_cpu::aarch64::jit_add_emitter),
+    OV_CASE(Algorithm::EltwiseClamp, ov::intel_cpu::aarch64::jit_clamp_emitter),
+    OV_CASE(Algorithm::EltwiseDivide, ov::intel_cpu::aarch64::jit_divide_emitter),
     OV_CASE(Algorithm::EltwiseMulAdd, ov::intel_cpu::aarch64::jit_mul_add_emitter),
     OV_CASE(Algorithm::EltwiseMultiply, ov::intel_cpu::aarch64::jit_multiply_emitter),
     OV_CASE(Algorithm::EltwisePowerStatic, ov::intel_cpu::aarch64::jit_power_static_emitter),
-    OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter));
+    OV_CASE(Algorithm::EltwisePrelu, ov::intel_cpu::aarch64::jit_prelu_emitter),
+    OV_CASE(Algorithm::EltwiseRelu, ov::intel_cpu::aarch64::jit_relu_emitter),
+    OV_CASE(Algorithm::EltwiseSubtract, ov::intel_cpu::aarch64::jit_subtract_emitter));
 
     if (!ctx.emitter)
         OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
@@ -653,9 +668,13 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
     OV_SWITCH(intel_cpu, SupportedPrecisions, precisions, algo,
         OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
         OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
+        OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
+        OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseMulAdd, jit_mul_add_emitter),
         OV_CASE(Algorithm::EltwiseMultiply, jit_multiply_emitter),
-        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter));
+        OV_CASE(Algorithm::EltwisePrelu, jit_prelu_emitter),
+        OV_CASE(Algorithm::EltwisePowerStatic, jit_power_static_emitter),
+        OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
 
     if (precisions.empty())
         OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
