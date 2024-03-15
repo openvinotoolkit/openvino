@@ -19,6 +19,9 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <type_traits>
+#include <typeinfo>
+
 using namespace std::chrono;
 using namespace dnnl;
 
@@ -262,14 +265,14 @@ template <typename reduced_t>
 struct AccumulativeType {
   using type = reduced_t;
 };
-template <>
-struct AccumulativeType<ov::bfloat16> {
-  using type = ov::bfloat16;
-};
-template <>
-struct AccumulativeType<ov::float16> {
-  using type = float;
-};
+// template <>
+// struct AccumulativeType<ov::bfloat16> {
+//   using type = ov::bfloat16;
+// };
+// template <>
+// struct AccumulativeType<ov::float16> {
+//   using type = float;
+// };
 
 template <typename T>
 using AccType = typename AccumulativeType<T>::type;
@@ -349,213 +352,12 @@ static ReduceMaximum reduce_maximum;
 static ReduceMinimum reduce_minimum;
 static ReduceNone data_assign;
 
-template <typename DT, typename reduce_func>
-void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, reduce_func& kernel_func);
-template <typename DT>
-void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
-
-struct Caller : public element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
-    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
-        using namespace ov::element;
-        return IF_TYPE_OF(scatter_el_update_idx_type,
-                          OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
-                          EvaluateByIndicesType,
-                          indicesPrec,
-                          dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, (DT*)0ul);
-    }
-private:
-    struct EvaluateByIndicesType : public element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
-
-        template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
-        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int& axis, const ScatterUpdate::Config& config, DT* fake) {
-            switch (config.reduction_type) {                                                                                 
-            case Reduction::NONE :                                                                                    
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);   
-                break;                                                                                                
-            case Reduction::SUM:                                                                                      
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);    
-                break;                                                                                                
-            case Reduction::MAX :                                                                                     
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);
-                break;                                                                                                
-            case Reduction::MIN :                                                                                     
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);
-                break;                                                                                                
-            case Reduction::PROD:                                                                                     
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply);
-                break;                                                                                                
-            case Reduction::MEAN :                                                                                    
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);   
-                break;                                                                                                
-            default :                                                                                                 
-                break;                                                                                                
-            }  
-            return true;
-        }
-    };
-};
+// template <typename DT, typename IT, typename reduce_func>
+// void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, reduce_func& kernel_func);
+// template <typename DT, typename IT>
+// void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
 
 };  // namespace scatter_elements_update
-
-void ScatterUpdate::execute(dnnl::stream strm) {
-    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    auto dstMemPtr = getDstMemoryAtPort(0);
-    auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
-    auto updateMemPtr = getSrcMemoryAtPort(UPDATE_ID);
-
-    uint8_t *dstPtr = dstMemPtr->getDataAs<uint8_t>();
-    uint8_t *srcPtr = srcMemPtr->getDataAs<uint8_t>();
-    uint8_t *indicesPtr = indicesMemPtr->getDataAs<uint8_t>();
-    uint8_t *updatePtr = updateMemPtr->getDataAs<uint8_t>();
-
-    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t srcRank = srcDataDim.size();
-
-    // 1d short vector scatter update optimized for shape inference subgraph
-    if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
-        indicesPrec == ov::element::i32 && dataPrec == ov::element::i32 && srcDataDim[0] <= 64) {
-        auto updateDims = updateMemPtr->getStaticDims();
-        if (updateDims.size() <= 1) {
-            DEBUG_LOG(getName(), " exec1DCase");
-            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
-            auto srcLength = srcMemPtr->getStaticDims()[0];
-            auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
-            auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
-            for (size_t i = 0; i < srcLength; i++) {
-                pdst[i] = psrc[i];
-            }
-            auto* pindices = reinterpret_cast<int32_t*>(indicesPtr);
-            auto* pupdate = reinterpret_cast<int32_t*>(updatePtr);
-            for (size_t i = 0; i < updateCnt; i++) {
-                pdst[pindices[i]] = pupdate[i];
-            }
-            return;
-        }
-    }
-
-    int axis = 0;
-    if (axisRelaxed) {
-        auto axisMemPtr = getSrcMemoryAtPort(AXIS_ID);
-        uint8_t *axisPtr = axisMemPtr->getDataAs<uint8_t>();
-        if (axisSize == 4) {
-            auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
-            axis = *axisPtr32;
-        } else {
-            auto *axisPtr64 = reinterpret_cast<int64_t*>(axisPtr);
-            axis = *axisPtr64;
-        }
-
-        if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * - 1)) {
-            OPENVINO_THROW(errorPrefix
-           , " should have axis value in range [-r, r - 1], where r is the rank of input data");
-        }
-        axis = axis < 0 ? (axis + srcRank) : axis;
-
-        size_t srcDimAxis = srcDataDim[axis];
-        std::vector<size_t> indicesBlockND = getBlockND(indicesDim);
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(indicesBlockND[0], nthr, ithr, start, end);
-            for (size_t i = start; i < end; i++) {
-                int64_t idxValue =  getIndicesValue(indicesPtr, i);
-                if (idxValue >= static_cast<int64_t>(srcDimAxis) ||
-                    (idxValue < 0 && scatterUpdateMode != ScatterUpdateMode::ScatterElementsUpdate)) {
-                    OPENVINO_THROW(errorPrefix
-                              , " have indices value that points to non-existing output tensor element");
-                }
-            }
-        });
-
-        if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
-            VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-            VectorDims updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-            size_t indicesRank = indicesDim.size();
-            size_t updateRank = updateDim.size();
-            VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
-            int axisIter = 0;
-            for (size_t rs = 0; rs < srcRank; rs++) {
-                if (rs != static_cast<size_t>(axis)) {
-                    expectUpdateShape[axisIter] = srcDataDim[rs];
-                    axisIter++;
-                } else {
-                    for (size_t ri = 0; ri < indicesRank; ri++) {
-                        expectUpdateShape[axisIter] = indicesDim[ri];
-                        axisIter++;
-                    }
-                }
-            }
-            if (updateRank > expectUpdateShape.size())
-                OPENVINO_THROW(errorPrefix,
-                               " cannot update shape. New rank: ",
-                               updateRank,
-                               ", expected: ",
-                               expectUpdateShape.size());
-            for (size_t ru = 0; ru < updateRank; ru++) {
-                if (updateDim[ru] != expectUpdateShape[ru]) {
-                    OPENVINO_THROW(errorPrefix,
-                                   " do not have matched tensor shape relationship for input, indices and update");
-                }
-            }
-        }
-    }
-
-    if (srcPtr != dstPtr) {
-        // std::cout << "===============" << __LINE__ << std::endl;
-        std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(srcBlockND[0], nthr, ithr, start, end);
-            size_t size = (end - start) * dataSize;
-            start *= dataSize;
-            cpu_memcpy(dstPtr + start, srcPtr + start, size);
-        });
-    }
-
-    if (isInputTensorAtPortEmpty(INDICES_ID)) {
-        return;
-    }
-
-    switch (scatterUpdateMode) {
-        case ScatterUpdateMode::ScatterUpdate: {
-            scatterUpdate(indicesPtr, updatePtr, axis, dstPtr);
-            break;
-        }
-        case ScatterUpdateMode::ScatterNDUpdate: {
-            scatterNDUpdate(indicesPtr, updatePtr, dstPtr);
-            break;
-        }
-        case ScatterUpdateMode::ScatterElementsUpdate: {
-            OPENVINO_ASSERT(one_of(dstMemPtr->getPrecision(), ov::element::f32, ov::element::bf16, ov::element::i32) &&
-                            indicesMemPtr->getPrecision() == ov::element::i32 &&
-                            dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
-                "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
-            // auto start = high_resolution_clock::now();
-            using namespace ov::element;
-            IF_TYPE_OF(scatter_el_update_data_type,
-                        OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
-                        scatter_elements_update::Caller,
-                        dataPrec, indicesPrec,
-                        dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
-                        );
-            // auto stop = high_resolution_clock::now();
-            // auto duration = duration_cast<microseconds>(stop - start);
-            // if (duration.count() > 900) {
-            //     std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us, size="
-            //     << ov::PartialShape(indicesMemPtr->getStaticDims())  << std::endl;
-            // }
-            break;
-        }
-        default: {
-            OPENVINO_THROW(errorPrefix
-           , " is not supported");
-        }
-    }
-}
 
 // For the data tensor of shape [d_0, d_1, ..., d_n],
 // and indices tensor of shape [i_0, i_1, ..., i_k].
@@ -652,6 +454,9 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
+
+    // std::cout << "===============decltype(dataPtr) is " << typeid(dataPtr).name() << '\n';
+    // std::cout << "===============decltype(indicesPtr) is " << typeid(indicesPtr).name() << '\n\n';
 
     const bool use_init_val = config.use_init_val;
     const Reduction reduction_type = config.reduction_type;
@@ -907,6 +712,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 data_coord[axis] = idxValue;
                 DataType& dst = data_buf.at<DataType, size_t>(data_coord);
                 DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+
                 kernel_func((acc_t*)std::addressof(dst), &src);
 
                 // if (reduction_type == Reduction::MEAN) {
@@ -926,7 +732,237 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     });
 }
 
+struct Caller : public element::NoAction<bool> {
+    using element::NoAction<bool>::visit;
+
+    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
+    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
+        using namespace ov::element;
+        return IF_TYPE_OF(scatter_el_update_idx_type,
+                          OV_PP_ET_LIST(i32),
+                          EvaluateByIndicesType,
+                          indicesPrec,
+                          dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, (DT*)0ul);
+    }
+private:
+    struct EvaluateByIndicesType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
+        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config, DT* fake) {
+            switch (config.reduction_type) {                                                                                 
+            case Reduction::NONE :                                                                                    
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);   
+                break;                                                                                                
+            case Reduction::SUM:                                                                                      
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);    
+                break;                                                                                                
+            case Reduction::MAX :                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);
+                break;                                                                                                
+            case Reduction::MIN :                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);
+                break;                                                                                                
+            case Reduction::PROD:                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply);
+                break;                                                                                                
+            case Reduction::MEAN :                                                                                    
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);   
+                break;                                                                                                
+            default :
+                OPENVINO_THROW("unsupported reduce");                                                                                          
+                break;                                                                                                
+            }  
+            return true;
+        }
+    };
+};
 }; // namespace scatter_elements_update
+
+void ScatterUpdate::execute(dnnl::stream strm) {
+    auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
+    auto dstMemPtr = getDstMemoryAtPort(0);
+    auto indicesMemPtr = getSrcMemoryAtPort(INDICES_ID);
+    auto updateMemPtr = getSrcMemoryAtPort(UPDATE_ID);
+
+    uint8_t *dstPtr = dstMemPtr->getDataAs<uint8_t>();
+    uint8_t *srcPtr = srcMemPtr->getDataAs<uint8_t>();
+    uint8_t *indicesPtr = indicesMemPtr->getDataAs<uint8_t>();
+    uint8_t *updatePtr = updateMemPtr->getDataAs<uint8_t>();
+
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    size_t srcRank = srcDataDim.size();
+
+    // 1d short vector scatter update optimized for shape inference subgraph
+    if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate && srcDataDim.size() == 1 && indicesDim.size() <= 1 &&
+        indicesPrec == ov::element::i32 && dataPrec == ov::element::i32 && srcDataDim[0] <= 64) {
+        auto updateDims = updateMemPtr->getStaticDims();
+        if (updateDims.size() <= 1) {
+            DEBUG_LOG(getName(), " exec1DCase");
+            auto updateCnt = (updateDims.size() == 0) ? 1 : updateDims[0];
+            auto srcLength = srcMemPtr->getStaticDims()[0];
+            auto* psrc = reinterpret_cast<int32_t*>(srcPtr);
+            auto* pdst = reinterpret_cast<int32_t*>(dstPtr);
+            for (size_t i = 0; i < srcLength; i++) {
+                pdst[i] = psrc[i];
+            }
+            auto* pindices = reinterpret_cast<int32_t*>(indicesPtr);
+            auto* pupdate = reinterpret_cast<int32_t*>(updatePtr);
+            for (size_t i = 0; i < updateCnt; i++) {
+                pdst[pindices[i]] = pupdate[i];
+            }
+            return;
+        }
+    }
+
+    int axis = 0;
+    if (axisRelaxed) {
+        auto axisMemPtr = getSrcMemoryAtPort(AXIS_ID);
+        uint8_t *axisPtr = axisMemPtr->getDataAs<uint8_t>();
+        if (axisSize == 4) {
+            auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
+            axis = *axisPtr32;
+        } else {
+            auto *axisPtr64 = reinterpret_cast<int64_t*>(axisPtr);
+            axis = *axisPtr64;
+        }
+
+        if (axis >= static_cast<int>(srcRank) || axis < (static_cast<int>(srcRank) * - 1)) {
+            OPENVINO_THROW(errorPrefix
+           , " should have axis value in range [-r, r - 1], where r is the rank of input data");
+        }
+        axis = axis < 0 ? (axis + srcRank) : axis;
+
+        size_t srcDimAxis = srcDataDim[axis];
+        std::vector<size_t> indicesBlockND = getBlockND(indicesDim);
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(indicesBlockND[0], nthr, ithr, start, end);
+            for (size_t i = start; i < end; i++) {
+                int64_t idxValue =  getIndicesValue(indicesPtr, i);
+                if (idxValue >= static_cast<int64_t>(srcDimAxis) ||
+                    (idxValue < 0 && scatterUpdateMode != ScatterUpdateMode::ScatterElementsUpdate)) {
+                    OPENVINO_THROW(errorPrefix
+                              , " have indices value that points to non-existing output tensor element");
+                }
+            }
+        });
+
+        if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
+            VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+            VectorDims updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
+            size_t indicesRank = indicesDim.size();
+            size_t updateRank = updateDim.size();
+            VectorDims expectUpdateShape(srcRank + indicesRank - 1, 0);
+            int axisIter = 0;
+            for (size_t rs = 0; rs < srcRank; rs++) {
+                if (rs != static_cast<size_t>(axis)) {
+                    expectUpdateShape[axisIter] = srcDataDim[rs];
+                    axisIter++;
+                } else {
+                    for (size_t ri = 0; ri < indicesRank; ri++) {
+                        expectUpdateShape[axisIter] = indicesDim[ri];
+                        axisIter++;
+                    }
+                }
+            }
+            if (updateRank > expectUpdateShape.size())
+                OPENVINO_THROW(errorPrefix,
+                               " cannot update shape. New rank: ",
+                               updateRank,
+                               ", expected: ",
+                               expectUpdateShape.size());
+            for (size_t ru = 0; ru < updateRank; ru++) {
+                if (updateDim[ru] != expectUpdateShape[ru]) {
+                    OPENVINO_THROW(errorPrefix,
+                                   " do not have matched tensor shape relationship for input, indices and update");
+                }
+            }
+        }
+    }
+
+    if (srcPtr != dstPtr) {
+        // std::cout << "===============" << __LINE__ << std::endl;
+        std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(srcBlockND[0], nthr, ithr, start, end);
+            size_t size = (end - start) * dataSize;
+            start *= dataSize;
+            cpu_memcpy(dstPtr + start, srcPtr + start, size);
+        });
+    }
+
+    if (isInputTensorAtPortEmpty(INDICES_ID)) {
+        return;
+    }
+
+    switch (scatterUpdateMode) {
+        case ScatterUpdateMode::ScatterUpdate: {
+            scatterUpdate(indicesPtr, updatePtr, axis, dstPtr);
+            break;
+        }
+        case ScatterUpdateMode::ScatterNDUpdate: {
+            scatterNDUpdate(indicesPtr, updatePtr, dstPtr);
+            break;
+        }
+        case ScatterUpdateMode::ScatterElementsUpdate: {
+            OPENVINO_ASSERT(one_of(dstMemPtr->getPrecision(), ov::element::f32, ov::element::bf16, ov::element::i32) &&
+                            indicesMemPtr->getPrecision() == ov::element::i32 &&
+                            dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
+                "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
+            // auto start = high_resolution_clock::now();
+                using namespace ov::element;
+                const char* p = std::getenv("EXEC_IF_TYPEOF");
+                if (p) {
+                    IF_TYPE_OF(scatter_el_update_data_type,
+                            OV_PP_ET_LIST(f32, bf16, f16, i32),
+                            scatter_elements_update::Caller,
+                            dataPrec, indicesPrec,
+                            dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
+                            );
+                } else {
+                    using DT=ov::bfloat16;
+                    using IT=int32_t;
+                    using namespace scatter_elements_update;
+                    switch (m_config.reduction_type) {                                                                                 
+                    case Reduction::NONE :                                                                                    
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, data_assign);   
+                        break;                                                                                                
+                    case Reduction::SUM:                                                                                      
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_add);    
+                        break;                                                                                                
+                    case Reduction::MAX :                                                                                     
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_maximum);
+                        break;                                                                                                
+                    case Reduction::MIN :                                                                                     
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_minimum);
+                        break;                                                                                                
+                    case Reduction::PROD:                                                                                     
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_multiply);
+                        break;                                                                                                
+                    case Reduction::MEAN :                                                                                    
+                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_mean);   
+                        break;                                                                                                
+                    default :                                                                                                 
+                        break;                                                                                                
+                    } 
+                }
+            // auto stop = high_resolution_clock::now();
+            // auto duration = duration_cast<microseconds>(stop - start);
+            // if (duration.count() > 900) {
+            //     std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us, size="
+            //     << ov::PartialShape(indicesMemPtr->getStaticDims())  << std::endl;
+            // }
+            break;
+        }
+        default: {
+            OPENVINO_THROW(errorPrefix
+           , " is not supported");
+        }
+    }
+}
 
 bool ScatterUpdate::created() const {
     return getType() == Type::ScatterUpdate
