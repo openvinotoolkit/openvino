@@ -47,7 +47,7 @@ private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
 
-    // inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
+    inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };

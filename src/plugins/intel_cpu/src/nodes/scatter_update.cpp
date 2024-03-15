@@ -230,9 +230,7 @@ void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-static inline
-int64_t getIndicesValue(uint8_t *indices, size_t offset) {
-    int indicesSize = 4;
+int64_t ScatterUpdate::getIndicesValue(uint8_t *indices, size_t offset) {
     auto *indicesPtr = indices + offset * indicesSize;
     int64_t ret = 0;
     if (indicesSize == 4) {
@@ -356,26 +354,26 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 template <typename DT>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
 
-#define CALL_SCATTER_ELEMENTS_UPDATE(fundamental_type)                                                          \
+#define CALL_SCATTER_ELEMENTS_UPDATE(DT, IT)                                                          \
   do {                                                                                                          \
     switch (config.reduction_type) {                                                                                   \
     case Reduction::NONE :                                                                                      \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);     \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);     \
         break;                                                                                                  \
     case Reduction::SUM:                                                                                        \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);      \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);      \
         break;                                                                                                  \
     case Reduction::MAX :                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);  \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);  \
         break;                                                                                                  \
     case Reduction::MIN :                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);  \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);  \
         break;                                                                                                  \
     case Reduction::PROD:                                                                                       \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply); \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply); \
         break;                                                                                                  \
     case Reduction::MEAN :                                                                                      \
-        scatterElementsUpdate<fundamental_type>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);     \
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);     \
         break;                                                                                                  \
     default :                                                                                                   \
         break;                                                                                                  \
@@ -386,17 +384,49 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 struct Caller : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
-    template <element::Type_t DATA_ET, class DT = ov::fundamental_type_for<DATA_ET>>
-    static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
-        CALL_SCATTER_ELEMENTS_UPDATE(DT);
-       return true;
+    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
+    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
+        using namespace ov::element;
+        return IF_TYPE_OF(scatter_el_update_idx_type,
+                          OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
+                          EvaluateByIndicesType,
+                          indicesPrec,
+                          dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, (DT*)0ul);
     }
+private:
+    struct EvaluateByIndicesType : public element::NoAction<bool> {
+        using element::NoAction<bool>::visit;
+
+        template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
+        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int& axis, const ScatterUpdate::Config& config, DT* fake) {
+            switch (config.reduction_type) {                                                                                 
+            case Reduction::NONE :                                                                                    
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);   
+                break;                                                                                                
+            case Reduction::SUM:                                                                                      
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);    
+                break;                                                                                                
+            case Reduction::MAX :                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);
+                break;                                                                                                
+            case Reduction::MIN :                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);
+                break;                                                                                                
+            case Reduction::PROD:                                                                                     
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply);
+                break;                                                                                                
+            case Reduction::MEAN :                                                                                    
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);   
+                break;                                                                                                
+            default :                                                                                                 
+                break;                                                                                                
+            }  
+            return true;
+        }
+    };
 };
 
 };  // namespace scatter_elements_update
-
-#    define IF_TYPE_OF_CALL_SUE(types, visitor, ...)         \
-        ::ov::element::IfTypeOf<types>::apply<visitor>(__VA_ARGS__)
 
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
@@ -533,11 +563,12 @@ void ScatterUpdate::execute(dnnl::stream strm) {
                 "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
             // auto start = high_resolution_clock::now();
             using namespace ov::element;
-            IF_TYPE_OF_CALL_SUE(OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
-                                scatter_elements_update::Caller,
-                                dataPrec,
-                                dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
-                                );
+            IF_TYPE_OF(scatter_el_update_data_type,
+                        OV_PP_ET_LIST(boolean, f32, i16, i32, i64, u32, u64),
+                        scatter_elements_update::Caller,
+                        dataPrec, indicesPrec,
+                        dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
+                        );
             // auto stop = high_resolution_clock::now();
             // auto duration = duration_cast<microseconds>(stop - start);
             // if (duration.count() > 900) {
@@ -643,11 +674,11 @@ namespace scatter_elements_update {
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
-template <typename DataType, typename func_t>
+template <typename DataType, typename IndexType, typename func_t>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, func_t& kernel_func) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
-    uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
+    IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
 
     const bool use_init_val = config.use_init_val;
     const Reduction reduction_type = config.reduction_type;
@@ -694,7 +725,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             for (size_t worker = start; worker < end; worker++) {
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // TODO check up idxValue
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
@@ -749,7 +780,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 // inner axis loop for better performance
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
                     auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // TODO check up idxValue
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
@@ -786,7 +817,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             size_t *ptr_indices_offset = &indices_offsets[0];
             size_t *ptr_dst_offset = &dst_offsets[0];
             for (size_t worker = start; worker < end; worker++) { // idx = 0
-                int64_t idxValue = getIndicesValue(indicesPtr, *ptr_indices_offset);
+                IndexType idxValue = *(indicesPtr + *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
                 // OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
@@ -822,7 +853,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 ptr_dst_offset = &dst_offsets[0];
                 for (size_t worker = start; worker < end; worker++) {
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlockND[axis + 1];
-                    int64_t idxValue = getIndicesValue(indicesPtr, indices_offset);
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     // OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
@@ -836,7 +867,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     });
 }
 
-template <typename DataType>
+template <typename DataType, typename IndexType>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, ReduceMean& kernel_func) {
     PlainTensor data_buf, indices_buf, updates_buf;
     data_buf.reset(mem_data);
@@ -873,7 +904,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
                 for (size_t i = 0; i < index_dim_size; i++) {
                     indices_coord[axis] = i;
-                    int32_t idxValue = indices_buf.at<int32_t, size_t>(indices_coord);
+                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
                     if (idxValue < 0) idxValue += data_dim_size;
                     OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     data_coord[axis] = idxValue;
@@ -897,7 +928,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             // inner axis loop for better performance
             for (size_t i = 0; i < index_dim_size; i++) {
                 indices_coord[axis] = i;
-                int32_t idxValue = indices_buf.at<int32_t, size_t>(indices_coord);
+                IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
                 if (idxValue < 0) idxValue += data_dim_size;
                 OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 data_coord[axis] = idxValue;
