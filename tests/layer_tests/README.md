@@ -36,6 +36,7 @@ Example to run the TensorFlow layer test for the `tf.raw_ops.Unique` operation o
     export TEST_DEVICE="CPU"
     pytest tensorflow_tests/test_tf_Unique.py
     ```
+
 Example to run the PyTorch layer test for the `torch.linalg.cross` operation on CPU and GPU with `FP16` and `FP32` inference precisions:
     ```sh
     cd tests/layer_tests
