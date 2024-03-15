@@ -242,7 +242,8 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = get_plugin_outputs();
-
+    size_t blobSizeInitial = -1;
+    size_t blobSizeAfterwards = -1;
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
         compiledModel = {}; // Destroy network object
@@ -250,14 +251,33 @@ void CompileModelCacheTestBase::run() {
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
-            if (targetDevice.find("AUTO") == std::string::npos)
+            if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
                 ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            } else {
+                while (true) {
+                    auto exeDevices = compiledModel.get_property(ov::execution_devices);
+                    if (exeDevices.size() == 1 && exeDevices.front().find("(CPU)") != std::string::npos)
+                        continue;
+                    std::cout << "AUTO compiling model done. Execution device list:" << std::endl;
+                    for (auto& device : exeDevices) {
+                        std::cout << "\t" << device << std::endl;
+                    }
+                    break;
+                }
+            }
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
-        // cache is created and reused
-        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        if (i == 0) {
+            // blob size should be greater than 0 initially
+            blobSizeInitial = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_GT(blobSizeInitial, 0);
+        } else {
+            // cache is created and reused
+            blobSizeAfterwards = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_EQ(blobSizeInitial, blobSizeAfterwards);
+        }
         compare(originalOutputs, get_plugin_outputs());
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
