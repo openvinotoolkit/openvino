@@ -496,16 +496,9 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
     } else if (value.IsBigInt()) {
         Napi::BigInt big_value = value.As<Napi::BigInt>();
         bool loses;
+        int64_t big_num = big_value.Int64Value(&loses);
 
-        if (big_value < 0) {
-            int64_t big_num = big_value.Int64Value(&loses);
-
-            return ov::Any(big_num);
-        } else {
-            uint64_t unsigned_big_num = big_value.Int64Value(&loses);
-
-            return ov::Any(unsigned_big_num);
-        }
+        return ov::Any(big_num);
     } else if (value.IsNumber()) {
         Napi::Number num = value.ToNumber();
 
