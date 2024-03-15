@@ -72,7 +72,10 @@ def repack_ov_result_to_tf_format(ov_out, signature, outer_name=None):
 def get_output_signature_from_keras_layer(model):
     try:
         from openvino.frontend.tensorflow.utils import trace_tf_model_if_needed
-        traced_model = trace_tf_model_if_needed(model, None, None, None)
+        if hasattr(model, "model") and isinstance(model.model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+            traced_model = trace_tf_model_if_needed(model.model, None, None, None)
+        else:
+            traced_model = trace_tf_model_if_needed(model, None, None, None)
         return traced_model.structured_outputs
     except:
         return None
@@ -102,7 +105,7 @@ def load_graph(graph_filename):
     return graph
 
 
-def get_input_signature(graph: tf_v1.Graph):
+def get_input_signature_from_tf_graph(graph: tf_v1.Graph):
     input_signature = []
     for op in graph.get_operations():
         if op.type == "Placeholder":
@@ -139,3 +142,26 @@ def get_output_signature(graph: tf_v1.Graph):
             if op.type not in unlikely_output_types:
                 outputs.append(op.name + ':0')
     return outputs
+
+
+def try_get_signature(model):
+    if type(model) is tf_v1.Graph:
+        return get_input_signature_from_tf_graph(model)
+    elif hasattr(model, "input_signature") and model.input_signature is not None:
+        return model.input_signature
+    elif hasattr(model, "structured_input_signature") and model.input_signature is not None:
+        assert len(model.structured_input_signature) > 1, "incorrect model or test issue"
+        return model.structured_input_signature[1].items()
+    else:
+        return None
+
+
+def get_input_signature(model):
+    signature = try_get_signature(model)
+    if signature is None:
+        if hasattr(model, "model"):
+            signature = try_get_signature(model.model)
+    if signature is None:
+        raise Exception("Could not extract signature from original model.")
+    return signature
+

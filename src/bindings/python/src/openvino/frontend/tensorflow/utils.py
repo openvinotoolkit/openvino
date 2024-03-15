@@ -405,6 +405,9 @@ def extract_model_graph(argv):
             raise Exception("Unknown checkpoint format.")
 
     if isinstance(model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+        if hasattr(model, "model") and model.model is not None and \
+                isinstance(model.model, (tf.keras.layers.Layer, tf.Module, tf.keras.Model)):
+            argv["input_model"] = model.model
         return True
     if trackable_is_imported and isinstance(model, Trackable):
         if hasattr(model, "signatures") and len(model.signatures.items()):
