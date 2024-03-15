@@ -29,7 +29,8 @@ Find instructions on how to build on [GitHub page](https://github.com/openvinoto
 
 ## Run Tests
 
-Example to run the TensorFlow layer test for the `tf.raw_ops.Unique` operation on CPU:
+Set environment variables `TEST_DEVICE` and `TEST_PRECISION` to select device and inference precision for OpenVINO inference. Allowed values for `TEST_DEVICE` are `CPU` and `GPU`. Allowed values for `TEST_PRECISION` are `FP32` and `FP16`.
+Example to run the TensorFlow layer test for the `tf.raw_ops.Unique` operation on CPU with default inference precision:
    ```sh
    export TEST_DEVICE="CPU"
    pytest tensorflow_tests/test_tf_Unique.py
