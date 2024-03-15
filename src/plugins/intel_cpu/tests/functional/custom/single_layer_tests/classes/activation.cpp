@@ -139,7 +139,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
                                                      const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const {
 #if defined(OV_CPU_WITH_ACL)
 #if defined(OPENVINO_ARCH_ARM64)
-    if ((element_type == ov::element::f32) && (activation_type == utils::ActivationTypes::Relu)) {
+    if ((element_type == ov::element::f32) &&
+        ((activation_type == utils::ActivationTypes::Clamp) ||
+        (activation_type == utils::ActivationTypes::Relu))) {
         return "jit";
     }
 
