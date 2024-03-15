@@ -161,11 +161,17 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
 
             const auto& node = nodes[0];
+            auto element_type = nodes[0].get_element_type();
+            OPENVINO_ASSERT(element_type.is_real(),
+                            "Pad preprocessing can be applied to 'float' inputs. Consider using of "
+                            "'convert_element_type' before padding. Current type is: ",
+                            element_type);
+
             auto pad_value = opset8::Constant::create(node.get_element_type(), Shape{}, pad_values);
 
             auto npads_begin = opset8::Constant::create(element::i64, Shape{pads_begin.size()}, pads_begin);
             auto npads_end = opset8::Constant::create(element::i64, Shape{pads_end.size()}, pads_end);
-            auto npad_value = opset8::Constant::create(element::f32, Shape{}, pad_values);
+            auto npad_value = opset8::Constant::create(element_type, Shape{}, pad_values);
 
             auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, mode);
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
