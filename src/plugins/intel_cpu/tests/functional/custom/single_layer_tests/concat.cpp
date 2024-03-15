@@ -822,6 +822,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_4D_static,
                                             ::testing::Values(planarChannels_inplace_4D)),
                          ConcatLayerCPUTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_4D_sp_w_static,
+                         ConcatLayerCPUTest,
+                         ::testing::Combine(::testing::Values(2),
+                                            ::testing::Values(static_shapes_to_test_representation({{1, 1, 32, 32},
+                                                                                                    {1, 1, 32, 32}})),
+                                            ::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(planarChannels_inplace_4D)),
+                         ConcatLayerCPUTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_Concat_CPU_planarChannels_inplace_5D_static,
                          ConcatLayerCPUTest,
                          ::testing::Combine(::testing::Values(1),
