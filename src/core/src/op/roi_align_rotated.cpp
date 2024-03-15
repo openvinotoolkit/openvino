@@ -9,6 +9,8 @@
 using namespace std;
 
 namespace ov {
+namespace op {
+namespace v14 {
 op::v14::ROIAlignRotated::ROIAlignRotated(const Output<Node>& input,
                                           const Output<Node>& rois,
                                           const Output<Node>& batch_indices,
