@@ -41,12 +41,13 @@ class TestTextVectorization(CommonTF2LayerTest):
     @pytest.mark.parametrize('output_sequence_length', [32, 64])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'],
-                       reason='Ticket - 126314, 132699')
     def test_text_vectorization(self, input_shapes, vocabulary, output_mode, output_sequence_length, ie_device,
                                 precision, ir_version, temp_dir, use_legacy_frontend):
+        if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
+                                                                     'aarch64',
+                                                                     'arm64',
+                                                                     'ARM64']:
+            pytest.xfail(reason='126314, 132699: Build tokenizers for ARM and MacOS')
         params = {}
         params['input_shapes'] = input_shapes
         params['vocabulary'] = vocabulary

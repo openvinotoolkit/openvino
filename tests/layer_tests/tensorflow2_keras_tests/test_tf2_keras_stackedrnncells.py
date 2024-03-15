@@ -41,10 +41,6 @@ class TestKerasStackedRNNCells(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_tf_fe
-    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
-                                                                                                     'aarch64',
-                                                                                                     'arm64', 'ARM64'],
-                       reason='Ticket - 126314, 132699')
     def test_keras_stackedrnncells(self, params, ie_device, precision, ir_version, temp_dir,
                                    use_legacy_frontend):
         self._test(*self.create_keras_stackedrnncells_net(**params, ir_version=ir_version),
