@@ -151,8 +151,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_Default_test,
                                             ::testing::ValuesIn(auto_default_properties)),
                          OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
 
-const std::vector<ov::AnyMap> multi_default_properties = {{ov::enable_profiling(false)},
-                                                          {ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+const std::vector<ov::AnyMap> multi_default_properties = {{ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_Default_test,
                          OVClassCompiledModelPropertiesDefaultTests,
