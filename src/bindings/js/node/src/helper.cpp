@@ -323,63 +323,63 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     // Check for std::string
     if (value.is<std::string>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for bool
     else if (value.is<bool>()) {
         return Napi::Boolean::New(info.Env(), value.as<bool>());
-    } 
+    }
     // Check for ov::PropertyName
     else if (value.is<ov::PropertyName>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::device::Type
     else if (value.is<ov::device::Type>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for int
     else if (value.is<int>()) {
         return Napi::Number::New(info.Env(), value.as<int>());
-    } 
+    }
     // Check for ov::Affinity
     else if (value.is<ov::Affinity>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::element::Type
     else if (value.is<ov::element::Type>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::hint::PerformanceMode
     else if (value.is<ov::hint::PerformanceMode>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::hint::ExecutionMode
     else if (value.is<ov::hint::ExecutionMode>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::hint::SchedulingCoreType
     else if (value.is<ov::hint::SchedulingCoreType>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for ov::log::Level
     else if (value.is<ov::log::Level>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
-    } 
+    }
     // Check for uint32_t
     else if (value.is<uint32_t>()) {
         return Napi::Number::New(info.Env(), value.as<uint32_t>());
-    } 
+    }
     // Check for std::vector<ov::Any>
     else if (value.is<const std::vector<ov::Any>>()) {
         auto p = value.as<const std::vector<ov::Any>>();
 
         return cpp_vector_to_js_array(info, p);
-    } 
+    }
     // Check for std::vector<ov::PropertyName>
     else if (value.is<const std::vector<ov::PropertyName>>()) {
         auto p = value.as<const std::vector<ov::PropertyName>>();
 
         return cpp_vector_to_js_array(info, p);
-    } 
+    }
     // Check for std::vector<std::string>
     else if (value.is<const std::vector<std::string>>()) {
         auto p = value.as<const std::vector<std::string>>();
@@ -504,13 +504,13 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
         } else {
             uint64_t unsigned_big_num = big_value.Int64Value(&loses);
 
-            return ov::Any(unsigned_big_num);                
+            return ov::Any(unsigned_big_num);
         }
     } else if (value.IsNumber()) {
         Napi::Number num = value.ToNumber();
 
         if (is_napi_value_int(info, value)) {
-            return ov::Any(num.Int32Value());    
+            return ov::Any(num.Int32Value());
         } else {
             return ov::Any(num.DoubleValue());
         }
@@ -522,12 +522,13 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
 }
 
 bool is_napi_value_int(const Napi::CallbackInfo& info, Napi::Value& num) {
-  return info.Env().Global()
-      .Get("Number")
-      .ToObject()
-      .Get("isInteger")
-      .As<Napi::Function>()
-      .Call({num})
-      .ToBoolean()
-      .Value();
+    return info.Env()
+        .Global()
+        .Get("Number")
+        .ToObject()
+        .Get("isInteger")
+        .As<Napi::Function>()
+        .Call({num})
+        .ToBoolean()
+        .Value();
 }

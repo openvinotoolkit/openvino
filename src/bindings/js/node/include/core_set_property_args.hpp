@@ -2,6 +2,7 @@
 
 #include <napi.h>
 
+#include "node/include/helper.hpp"
 #include "openvino/runtime/core.hpp"
 
 /**
@@ -13,19 +14,19 @@ struct CoreSetPropertyArgs {
 
     CoreSetPropertyArgs() {}
     CoreSetPropertyArgs(const Napi::CallbackInfo& info) {
+        CoreSetPropertyArgs::validate(info);
+
         const size_t args_length = info.Length();
 
-        if (!is_valid_input(args_length, info))
-            throw std::runtime_error("Invalid arguments of set_property function");
+        if (args_length > 1)
+            device_name = info[0].ToString();
 
-        if (args_length > 1) device_name = info[0].ToString();
-        
-        Napi::Object parameters = info[args_length > 1 ? 1 : 0].ToObject();
+        const size_t parameters_position_index = device_name.empty() ? 0 : 1;
+        Napi::Object parameters = info[parameters_position_index].ToObject();
         const auto& keys = parameters.GetPropertyNames();
 
         for (uint32_t i = 0; i < keys.Length(); ++i) {
             auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
-            
 
             ov::Any any_value = js_to_any(info, parameters.Get(property_name));
 
@@ -33,10 +34,15 @@ struct CoreSetPropertyArgs {
         }
     }
 
-    bool is_valid_input(size_t args_length, const Napi::CallbackInfo& info) {
-        const bool is_passed_device = info[0].IsString();
-        const bool has_params_obj = info[is_passed_device ? 1 : 0];
+    void static validate(const Napi::CallbackInfo& info) {
+        const size_t args_length = info.Length();
+        const bool is_device_specified = info[0].IsString();
+        const bool has_params_obj = info[is_device_specified ? 1 : 0];
 
-        return args_length <= (is_passed_device ? 2 : 1) && has_params_obj;
+        if (!has_params_obj)
+            throw std::runtime_error("Properties parameter must be an object");
+
+        if (args_length > (is_device_specified ? 2 : 1))
+            throw std::runtime_error("setProperty applies 1 or 2 arguments only");
     }
 };

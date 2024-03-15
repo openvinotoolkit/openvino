@@ -6,11 +6,11 @@
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
+#include "node/include/core_set_property_args.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
-#include "node/include/core_set_property_args.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
@@ -262,8 +262,9 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
     if (!(info[0].IsString() || (args_length == 2 && info[0].IsString() && info[1].IsString())))
         throw std::runtime_error("Invalid arguments of get_property function");
 
-    if (args_length == 2) device_name = info[0].ToString();
-    
+    if (args_length == 2)
+        device_name = info[0].ToString();
+
     std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
 
     ov::Any value;
