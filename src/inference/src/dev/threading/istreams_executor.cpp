@@ -46,19 +46,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                                streams);
             }
         } else if (key == ov::cpu_core_ids) {
-            std::string ids_str = value.as<std::string>();
-            std::vector<int> ids;
-            std::stringstream ss(ids_str);
-            std::string item;
-            while (getline(ss, item, ',')) {
-                ids.push_back(std::stoi(item));
-            }
-            _executor_id = config_available_cpus(_executor_id, ids);
-            printf("### update excutor id=%d, name=%s ids=%s, streams=%d\n",
-                   _executor_id,
-                   _name.c_str(),
-                   ids_str.c_str(),
-                   _streams);
+            _core_ids_str = value.as<std::string>();
         } else if (key == ov::inference_num_threads) {
             int val_i;
             try {
@@ -178,13 +166,28 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(
     return streamConfig;
 }
 
+void IStreamsExecutor::Config::apply_cpu_core_ids() {
+    int status = _name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
+
+    if (_executor_id > -1 || status == CPU_USED) {
+        return;
+    }
+
+    std::vector<int> ids;
+    std::stringstream ss(_core_ids_str);
+    std::string item;
+    while (getline(ss, item, ',')) {
+        ids.push_back(std::stoi(item));
+    }
+    _executor_id = config_available_cpus(_executor_id, ids);
+}
+
 void IStreamsExecutor::Config::reserve_cpu_threads() {
     int status = _name.find("StreamsExecutor") != std::string::npos ? NOT_USED : CPU_USED;
 
     if (_streams_info_table.size() == 0 || (status == CPU_USED && !_cpu_reservation)) {
         return;
     }
-
     reserve_available_cpus(_executor_id, _streams_info_table, _stream_processor_ids, status);
 }
 

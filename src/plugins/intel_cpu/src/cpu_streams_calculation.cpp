@@ -563,7 +563,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            config.threads,
                                                            IStreamsExecutor::Config::PreferredCoreType::ANY,
                                                            streams_info_table,
-                                                           cpu_reservation};
+                                                           cpu_reservation,
+                                                           config.streamExecutorConfig.get_executor_id(),
+                                                           config.streamExecutorConfig.get_core_ids()};
 
     return proc_type_table;
 }

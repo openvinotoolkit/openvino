@@ -409,9 +409,6 @@ int main(int argc, char* argv[]) {
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
             auto supported_properties = core.get_property(device, ov::supported_properties);
-            // for( auto& it : supported_properties) {
-            //     printf("### key = %s\n", it.c_str());
-            // }
 
             auto supported = [&](const std::string& key) {
                 return std::find(std::begin(supported_properties), std::end(supported_properties), key) !=

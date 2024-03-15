@@ -114,7 +114,7 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_num_streams;
 
 /**
- * @brief Read-write property<uint32_t string> to set/get the number of executor logical partitions.
+ * @brief Read-write property<uint32_t list string> to set/get the cores that executor can use.
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)

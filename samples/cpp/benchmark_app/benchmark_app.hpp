@@ -111,7 +111,7 @@ static const char infer_num_streams_message[] =
     "Also, using nstreams>1 is inherently throughput-oriented option, "
     "while for the best-latency estimations the number of streams should be set to 1.";
 
-/// @brief message for #streams for CPU inference
+/// @brief message for #cpu_core_ids bind with streams for CPU inference
 static const char infer_cpu_core_ids_message[] =
     "Optional. cpu cores used to run streams. using like 2,3,4 means using core 2,3,4 for infer.";
 
@@ -418,9 +418,9 @@ static void show_usage() {
     std::cout << "    -api <sync/async>             " << api_message << std::endl;
     std::cout << "    -nireq  <integer>             " << infer_requests_count_message << std::endl;
     std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
+    std::cout << "    -cpu_core_ids  <ids_string>          " << infer_cpu_core_ids_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
-    std::cout << "    -cpu_core_ids  <ids_string>          " << infer_cpu_core_ids_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
