@@ -259,10 +259,6 @@ void CompileModelCacheTestBase::run() {
                     auto exeDevices = compiledModel.get_property(ov::execution_devices);
                     if (exeDevices.size() == 1 && exeDevices.front().find("(CPU)") != std::string::npos)
                         continue;
-                    std::cout << "AUTO compiling model done. Execution device list:" << std::endl;
-                    for (auto& device : exeDevices) {
-                        std::cout << "\t" << device << std::endl;
-                    }
                     break;
                 }
             }
