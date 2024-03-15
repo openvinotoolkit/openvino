@@ -218,6 +218,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
         {"Bucketize", CreatorFunction(translate_bucketize_op)},
         {"BiasAdd", CreatorFunction(translate_bias_add_op)},
+        {"Bincount", CreatorFunction(translate_bincount_op)},
         {"Cast", CreatorFunction(translate_cast_op)},
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
