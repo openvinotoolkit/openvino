@@ -201,8 +201,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
                 // input->shape changing ops->load
-                auto shape_infer_consumers = snippets::lowered::LinearIR::propagate_expr_through_shape_infer_ops(expr, true);
-                auto mem_desc_expr = shape_infer_consumers.empty() ? expr : shape_infer_consumers.back();
+                auto mem_desc_expr = ov::snippets::lowered::LinearIR::get_last_shape_infer_expr(expr, true);
                 auto consumer_inputs = mem_desc_expr->get_output_port_connector(0)->get_consumers();
                 for (const auto& child_input : consumer_inputs) {
                     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
@@ -217,8 +216,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
                 // store->shape changing ops->result
-                auto shape_infer_sources = snippets::lowered::LinearIR::propagate_expr_through_shape_infer_ops(expr, false);
-                auto mem_desc_expr = shape_infer_sources.empty() ? expr : shape_infer_sources.back();
+                auto mem_desc_expr = ov::snippets::lowered::LinearIR::get_last_shape_infer_expr(expr, false);
                 desc = mem_desc_expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
                 etype = mem_desc_expr->get_node()->get_input_element_type(0);
                 break;

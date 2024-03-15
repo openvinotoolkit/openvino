@@ -32,8 +32,7 @@ void validate_ports(const ExpressionPtr& expr) {
 void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Parameter>(expr->get_node()),
                     "Parameter validation expects Parameter op");
-    auto shape_infer_consumers = LinearIR::propagate_expr_through_shape_infer_ops(expr, true);
-    auto expr_val = shape_infer_consumers.empty() ? expr : shape_infer_consumers.back();
+    auto expr_val = LinearIR::get_last_shape_infer_expr(expr, true);
     auto consumer_inputs = expr_val->get_output_port_connector(0)->get_consumers();
     std::set<std::vector<size_t>> layouts;
     for (const auto& consumer_input : consumer_inputs) {
@@ -52,8 +51,7 @@ void validate_parameter(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 void validate_result(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     OPENVINO_ASSERT(ov::is_type<ov::op::v0::Result>(expr->get_node()),
                     "Result validation expects Result op");
-    auto shape_infer_parents = snippets::lowered::LinearIR::propagate_expr_through_shape_infer_ops(expr, false);
-    auto expr_val = shape_infer_parents.empty() ? expr : shape_infer_parents.back();
+    auto expr_val = LinearIR::get_last_shape_infer_expr(expr, false);
     const auto source = expr_val->get_input_port_connector(0)->get_source();
     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
@@ -68,10 +66,7 @@ void validate_buffer(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(source.get_expr()->get_node());
     OPENVINO_ASSERT(ma && ma->is_memory_access_input_port(source.get_index()),
                     "Buffer expects MemoryAccess parent");
-
-    auto shape_infer_consumers = LinearIR::propagate_expr_through_shape_infer_ops(expr, true);
-    auto expr_val = shape_infer_consumers.empty() ? expr : shape_infer_consumers.back();
-
+    auto expr_val = LinearIR::get_last_shape_infer_expr(expr, true);
     const auto& out = expr_val->get_output_port_connector(0);
     const auto consumers = out->get_consumers();
     for (const auto& consumer_input : consumers) {

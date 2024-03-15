@@ -231,6 +231,14 @@ public:
      */
     static std::vector<ExpressionPtr> propagate_expr_through_shape_infer_ops(const ExpressionPtr& start_expr, bool downstream);
 
+    /**
+     * @brief Get last shape infer op from start_expr in a sequence. If no shape infer op is connect to start_expr, return start_expr.
+     * @param start_expr Search from start_expr.
+     * @param downstream search downstream if it's true, otherwise search upstream.
+     * @return last shape infer expr
+     */
+    static ExpressionPtr get_last_shape_infer_expr(const ExpressionPtr& start_expr, bool downstream);
+
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 
