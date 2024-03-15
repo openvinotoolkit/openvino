@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -109,7 +109,7 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
-                    rewritten |= shared_node_optimization(sub_graph);
+                    rewritten = shared_node_optimization(sub_graph) || rewritten;
             }
         }
         for (auto& output : op->outputs()) {
@@ -136,7 +136,8 @@ bool shared_node_optimization(const shared_ptr<Model>& model) {
                             continue;
                         const auto& child_op = shared_nodes[j];
                         if (nodes_are_equal(root_op, child_op)) {
-                            rewritten |= replace_output_update_name(child_op->output(0), root_op->output(0));
+                            rewritten =
+                                replace_output_update_name(child_op->output(0), root_op->output(0)) || rewritten;
                             visited_nodes[j] = true;
                         }
                     }
@@ -154,7 +155,7 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
         if (auto multi_subgraph_op = dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
                 if (sub_graph)
-                    rewritten |= shape_of_upgrade(sub_graph);
+                    rewritten = shape_of_upgrade(sub_graph) || rewritten;
             }
         } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
             auto v3_shape_of = std::make_shared<v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
@@ -171,6 +172,6 @@ bool pass::SharedOpOptimization::run_on_model(const shared_ptr<Model>& model) {
     RUN_ON_FUNCTION_SCOPE(SharedOpOptimization);
 
     bool rewritten = shape_of_upgrade(model);
-    rewritten |= shared_node_optimization(model);
+    rewritten = shared_node_optimization(model) || rewritten;
     return rewritten;
 }
