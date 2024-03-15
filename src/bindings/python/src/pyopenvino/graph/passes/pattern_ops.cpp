@@ -496,23 +496,24 @@ static void reg_pattern_optional(py::module m) {
                   R"(
                   Create Optional with the given node type.
 
-                  :param type_name node type. For example: "opset8.Abs"
-                  :type type_name: str
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
     )");
 
-    //optional_type.def(py::init([](const std::string& type_name, const Predicate& pred) {
-    //                  return std::make_shared<ov::pass::pattern::op::Optional>(get_type(type_name), pred);
-    //              }),
-    //              py::arg("type_name"),
-    //              R"(
-    //              Create Optional with the given node type.
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const Predicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), pred);
+                  }),
+                  py::arg("type_names"),
+                  py::arg("pred"),
+                  R"(
+                  Create Optional with the given node type and predicate.
 
-    //              :param type_name: node type. For example: "opset8.Abs"
-    //              :type type_name: str
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
 
-    //              :param pred: Function to check the conditions for matching.
-    //              :type pred: function
-    //)");
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: function
+    )");
 
     optional_type.def("__repr__", [](const ov::pass::pattern::op::Optional& self) {
         return Common::get_simple_repr(self);

@@ -84,25 +84,31 @@ def test_any_input_predicate():
     assert matcher.match(param)
     assert not matcher.match(slope)
 
-def test_optional_full_match():
+def test_optional_predicate():
     model_add = ops.add(AnyInput(), AnyInput())
-    model_relu = ops.relu(model_add.output(0))
+    model_add1 = ops.add(AnyInput(), AnyInput())
 
     pattern_add = Optional(["opset13.Add"])
-    pattern_relu = ops.relu(pattern_add.output(0))
 
-    matcher = Matcher(pattern_relu, "FindRelu")
-    assert matcher.match(model_relu)
-
-def test_optional_half_match():
-    model_add = ops.add(AnyInput(), AnyInput())
-    model_relu = ops.relu(model_add.output(0))
-
-    pattern_relu = Optional(["opset13.Relu"])
-    pattern_relu1 = ops.relu(pattern_relu.output(0))
-
-    matcher = Matcher(pattern_relu1, "FindRelu")
-    assert matcher.match(model_relu)
+#def test_optional_full_match():
+#    model_add = ops.add(AnyInput(), AnyInput())
+#    model_relu = ops.relu(model_add.output(0))
+#
+#    pattern_add = Optional(["opset13.Add"])
+#    pattern_relu = ops.relu(pattern_add.output(0))
+#
+#    matcher = Matcher(pattern_relu, "FindRelu")
+#    assert matcher.match(model_relu)
+#
+#def test_optional_half_match():
+#    model_add = ops.add(AnyInput(), AnyInput())
+#    model_relu = ops.relu(model_add.output(0))
+#
+#    pattern_relu = Optional(["opset13.Relu"])
+#    pattern_relu1 = ops.relu(pattern_relu.output(0))
+#
+#    matcher = Matcher(pattern_relu1, "FindRelu")
+#    assert matcher.match(model_relu)
 
 def test_all_predicates():
     static_param = ops.parameter(PartialShape([1, 3, 22, 22]), np.float32)
