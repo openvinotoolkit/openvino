@@ -25,6 +25,12 @@
 using namespace std::chrono;
 using namespace dnnl;
 
+#ifdef NDEBUG
+#define ASSERT_DEBUG_ONLY(...)
+#else
+#define ASSERT_DEBUG_ONLY(...) OPENVINO_ASSERT(__VA_ARGS__)
+#endif
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
@@ -455,9 +461,6 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
 
-    // std::cout << "===============decltype(dataPtr) is " << typeid(dataPtr).name() << '\n';
-    // std::cout << "===============decltype(indicesPtr) is " << typeid(indicesPtr).name() << '\n\n';
-
     const bool use_init_val = config.use_init_val;
     const Reduction reduction_type = config.reduction_type;
 
@@ -505,7 +508,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
                     IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    // TODO check up idxValue
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
                     *dst = value;
                 }
@@ -560,7 +563,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
                     IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    // TODO check up idxValue
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
                     kernel_func((acc_t*)dst, src);
@@ -597,7 +600,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             for (size_t worker = start; worker < end; worker++) { // idx = 0
                 IndexType idxValue = *(indicesPtr + *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
-                // OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                 auto src = updatePtr + *ptr_indices_offset;
                 kernel_func((acc_t*)dst, src);
@@ -633,7 +636,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     auto indices_offset = *ptr_indices_offset + idx * indicesBlockND[axis + 1];
                     IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    // OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
                     kernel_func((acc_t*)dst, src);
@@ -684,7 +687,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     indices_coord[axis] = i;
                     IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
                     if (idxValue < 0) idxValue += data_dim_size;
-                    OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     data_coord[axis] = idxValue;
                     data_buf.at<DataType, size_t>(data_coord) = value;
                 }
@@ -708,7 +711,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 indices_coord[axis] = i;
                 IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
                 if (idxValue < 0) idxValue += data_dim_size;
-                OPENVINO_ASSERT(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 data_coord[axis] = idxValue;
                 DataType& dst = data_buf.at<DataType, size_t>(data_coord);
                 DataType src = updates_buf.at<DataType, size_t>(indices_coord);
