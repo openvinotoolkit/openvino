@@ -43,7 +43,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int GetROISInputSecondDimSize() const override {
+    int get_rois_input_second_dim_size() const override {
         return 4;
     }
 
@@ -91,7 +91,7 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    int GetROISInputSecondDimSize() const override {
+    int get_rois_input_second_dim_size() const override {
         return 4;
     }
 

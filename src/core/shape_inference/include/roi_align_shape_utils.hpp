@@ -75,10 +75,10 @@ std::vector<TRShape> shape_infer(const util::ROIAlignBase* op, const std::vector
     if (rois_ps_rank.is_static()) {
         const auto& rois_second_dim = rois_ps[1];
         NODE_VALIDATION_CHECK(op,
-                              rois_second_dim.compatible(op->GetROISInputSecondDimSize()),
+                              rois_second_dim.compatible(op->get_rois_input_second_dim_size()),
                               "The second dimension of ROIs input should contain box coordinates. "
                               "op dimension is expected to be equal to ",
-                              op->GetROISInputSecondDimSize(),
+                              op->get_rois_input_second_dim_size(),
                               ". Got: ",
                               rois_second_dim);
 

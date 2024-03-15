@@ -41,7 +41,7 @@ protected:
 public:
     // Return size of second dimension of the ROI input.
     // Needed for validation check.
-    virtual int GetROISInputSecondDimSize() const = 0;
+    virtual int get_rois_input_second_dim_size() const = 0;
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
