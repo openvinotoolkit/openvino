@@ -26,20 +26,15 @@
 namespace ov {
 namespace intel_cpu {
 
-inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, bool subStreamsMode) {
+inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, int subStreamNum) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
-    if (subStreamsMode) {
-        CPU_REGISTER_PASS_COMMON(manager, SplitFC);
-        // ov::element::TypeVector decompression_precisions{ov::element::u8,
-        //                                                  ov::element::u4,
-        //                                                  ov::element::i4,
-        //                                                  ov::element::nf4};
-        // CPU_REGISTER_PASS_X64(manager, ov::pass::MarkDequantizationSubgraph, decompression_precisions, false);
+    if (subStreamNum >= 1) {
+        CPU_REGISTER_PASS_COMMON(manager, SplitFC, subStreamNum);
     }
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
     CPU_REGISTER_PASS_COMMON(manager, AlignMatMulInputRanks);

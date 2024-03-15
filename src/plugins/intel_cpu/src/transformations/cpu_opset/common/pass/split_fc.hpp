@@ -12,7 +12,7 @@ namespace intel_cpu {
 class SplitFC: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SplitFC", "0");
-    SplitFC();
+    SplitFC(int sub_stream_num);
 };
 
 }   // namespace intel_cpu
