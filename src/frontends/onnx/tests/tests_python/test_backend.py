@@ -51,13 +51,11 @@ from tests import (
     xfail_issue_99954,
     xfail_issue_99955,
     xfail_issue_99957,
-    xfail_issue_99958,
     xfail_issue_99960,
     xfail_issue_99961,
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
-    xfail_issue_99972,
     xfail_issue_99973,
     xfail_issue_101965,
     xfail_issue_113506,
@@ -454,10 +452,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_layer_normalization_default_axis_expanded_ver18_cpu",
     ),
     (
-        xfail_issue_99958,
-        "OnnxBackendNodeModelTest.test_logsoftmax_large_number_expanded_ver18_cpu",
-    ),
-    (
         xfail_issue_99960,
         "OnnxBackendNodeModelTest.test_mvn_expanded_ver18_cpu",
     ),
@@ -545,10 +539,6 @@ tests_expected_to_fail = [
         xfail_issue_99970,
         "OnnxBackendNodeModelTest.test_scatternd_max_cpu",
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
-    ),
-    (
-        xfail_issue_99972,
-        "OnnxBackendNodeModelTest.test_softmax_large_number_expanded_ver18_cpu",
     ),
     (
         xfail_issue_99973,
