@@ -140,6 +140,7 @@ public:
     static auto get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t;
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
     static auto is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool;
+    static auto get_last_shape_infer_op(const std::shared_ptr<ov::Node>& op, bool downstream) -> std::shared_ptr<ov::Node>;
 
     void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
                                    const std::vector<ov::element::Type>& input_precisions = {},

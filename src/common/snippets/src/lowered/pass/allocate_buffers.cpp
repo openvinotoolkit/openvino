@@ -46,7 +46,8 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
-    const auto& buffer_out = buffer_expr->get_output_port_connector(0);
+    auto last_shape_infer = ov::snippets::lowered::LinearIR::get_last_shape_infer_expr(buffer_expr, true);
+    const auto& buffer_out = last_shape_infer->get_output_port_connector(0);
     for (const auto& child_expr_input : buffer_out->get_consumers()) {
         const auto& child_expr = child_expr_input.get_expr();
         const auto port = child_expr_input.get_index();
@@ -54,13 +55,12 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         auto memory_access = ov::as_type_ptr<ov::snippets::op::MemoryAccess>(child_node);
         if (memory_access && memory_access->is_memory_access_input_port(port)) {
             memory_access->set_input_offset(offset, port);
-        } else if (ov::is_type<op::LoopEnd>(child_node) || op::Subgraph::is_shape_infer_op(child_node)) {
+        } else if (ov::is_type<op::LoopEnd>(child_node)) {
             // After Loop initialization, Buffer can be connected to LoopEnd - it's ok
-            // There are also buffer before shape-changing ops
             continue;
         } else {
             OPENVINO_THROW(
-                    "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
+                "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
         }
     }
 }

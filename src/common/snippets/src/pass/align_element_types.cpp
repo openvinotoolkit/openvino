@@ -29,7 +29,7 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     for (size_t i = 0; i < m_output_precisions.size(); i++) {
         const auto needed_out_type = m_output_precisions[i];
         if (results[i]->get_input_element_type(0) != needed_out_type) {
-            std::shared_ptr<ov::Node> consumer = results[i];
+            std::shared_ptr<ov::Node> consumer = op::Subgraph::get_last_shape_infer_op(results[i], false);
             auto parent_output = consumer->get_input_source_output(0);
 
             // Snippets supports Transpose only after Parameter or before Result nodes
@@ -76,18 +76,11 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
             parameter->set_element_type(needed_in_type);
             parameter->validate_and_infer_types();
 
-            auto parent_output = parameter->output(0);
-            auto consumer_inputs = parent_output.get_target_inputs();
-
-            auto first_child = consumer_inputs.begin()->get_node()->shared_from_this();
             // Note: shape infer ops is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            while (op::Subgraph::is_shape_infer_op(first_child)) {
-                OPENVINO_ASSERT(consumer_inputs.size() == 1, "Shape infer ops are supposed to be the only consumer");
-                parent_output = first_child->output(0);
-                consumer_inputs = parent_output.get_target_inputs();
-                first_child = consumer_inputs.begin()->get_node()->shared_from_this();
-            }
+            auto first_child = op::Subgraph::get_last_shape_infer_op(parameter, true);
+            auto parent_output = first_child->output(0);
+            auto consumer_inputs = parent_output.get_target_inputs();
 
             // Snippets supports Transpose only after Parameter or before Result nodes
             // So we have to insert Convert after Transpose (if there is) on Subgraph inputs

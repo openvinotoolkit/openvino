@@ -485,10 +485,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::NormalizeL2Decomposition);
 
-    // todo: only support f32 in first version
     CPU_SET_CALLBACK_X64(manager,
-        [](const_node_ptr &node) -> bool {
-            return !node->is_dynamic() && node->get_element_type() == element::f32;
+        [this](const_node_ptr &node) -> bool {
+            return !node->is_dynamic() && node->get_element_type() == element::f32 && inferencePrecision != ov::element::bf16;
         },
         ov::pass::GroupNormalizationDecomposition);
 

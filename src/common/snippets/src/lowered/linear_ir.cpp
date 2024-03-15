@@ -366,13 +366,14 @@ VectorDims LinearIR::get_master_shape() const {
     }
     // Note: Snippets would benefit from a more generic master_shape calculation approach.
     //  It will be implemented in the scope of ROI propagation activity (ticket 120505)
-    const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
-    auto last_exp = source.get_expr();
-    if (!m_config.m_enable_domain_optimization && out_exprs.size() == 1 &&
-        ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
-        master_shape = utils::get_preordered_vdims(source);
-    } else if (out_exprs.size() == 1 && ov::is_type<snippets::op::Reshape>(last_exp->get_node())) {
-        master_shape = utils::get_preordered_vdims(last_exp->get_input_port_connector(0)->get_source());
+    if (out_exprs.size() == 1) {
+        const auto& source = out_exprs[0]->get_input_port_connector(0)->get_source();
+        if (!m_config.m_enable_domain_optimization && ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
+            master_shape = utils::get_preordered_vdims(source);
+        } else {
+            auto last_shape_infer_expr = LinearIR::get_last_shape_infer_expr(out_exprs[0], false);
+            master_shape = utils::get_preordered_vdims(last_shape_infer_expr->get_input_port_connector(0)->get_source());
+        }
     } else {
         for (const auto& oe : out_exprs) {
             const auto& port_desc = oe->get_input_port_descriptor(0);
@@ -514,7 +515,7 @@ std::vector<ExpressionPtr> LinearIR::propagate_expr_through_shape_infer_ops(cons
             current_exp = first_child;
             if (current_exp->get_output_count() == 0)
                 break;
-            auto consumers = current_exp->get_output_port_connector(0)->get_consumers();
+            consumers = current_exp->get_output_port_connector(0)->get_consumers();
             first_child = consumers.begin()->get_expr();
         }
         return shape_infer_exprs;
@@ -531,6 +532,37 @@ std::vector<ExpressionPtr> LinearIR::propagate_expr_through_shape_infer_ops(cons
             first_source = current_exp->get_input_port_connector(0)->get_source().get_expr();
         }
         return shape_infer_exprs;
+    }
+}
+
+ExpressionPtr LinearIR::get_last_shape_infer_expr(const ExpressionPtr& start_expr, bool downstream) {
+    auto last_exp = start_expr;
+    if (downstream) {
+        if (last_exp->get_output_count() == 0)
+            return last_exp;
+        auto consumers = last_exp->get_output_port_connector(0)->get_consumers();
+        auto first_child = consumers.begin()->get_expr();
+        while (op::Subgraph::is_shape_infer_op(first_child->get_node())) {
+            OPENVINO_ASSERT(consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
+            last_exp = first_child;
+            if (last_exp->get_output_count() == 0)
+                break;
+            consumers = last_exp->get_output_port_connector(0)->get_consumers();
+            first_child = consumers.begin()->get_expr();
+        }
+        return last_exp;
+    } else {
+        // upstream
+        if (last_exp->get_input_count() == 0)
+            return last_exp;
+        auto first_source = last_exp->get_input_port_connector(0)->get_source().get_expr();
+        while (op::Subgraph::is_shape_infer_op(first_source->get_node())) {
+            last_exp = first_source;
+            if (last_exp->get_input_count() == 0)
+                break;
+            first_source = last_exp->get_input_port_connector(0)->get_source().get_expr();
+        }
+        return last_exp;
     }
 }
 
