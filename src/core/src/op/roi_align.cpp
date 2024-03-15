@@ -246,7 +246,13 @@ bool evaluate(const TensorVector& args,
 
 bool v3::ROIAlign::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v3_ROIAlign_evaluate);
-    return roi_align::evaluate(inputs, outputs[0], get_pooled_h(), get_pooled_w(), get_sampling_ratio(), get_sampling_ratio(), get_mode());
+    return roi_align::evaluate(inputs,
+                               outputs[0],
+                               get_pooled_h(),
+                               get_pooled_w(),
+                               get_sampling_ratio(),
+                               get_sampling_ratio(),
+                               get_mode());
 }
 
 bool v3::ROIAlign::has_evaluate() const {
