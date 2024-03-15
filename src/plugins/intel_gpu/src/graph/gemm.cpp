@@ -164,17 +164,16 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
         ov::PartialShape fused_ops_input_pshape;
 
         if (target_shape.size() > 0 && output_pattern.size() > 0) {
-            if (input_pshape.is_static()) {
-                auto input_shape = input_pshape.to_shape();
-                int idx_recalc = find_index_from_vec(target_shape, 1);
-                int idx_target = find_index_from_vec(output_pattern, 0);
-                size_t shape_count = input_shape[idx_target] * input_shape[idx_recalc];
-                input_shape[idx_recalc] = shape_count;
-                input_shape.erase(input_shape.begin() + idx_target);
-                fused_ops_input_pshape = ov::PartialShape(input_shape);
+            std::vector<ov::Dimension> dims(input_pshape);
+            int idx_recalc = find_index_from_vec(target_shape, 1);
+            int idx_target = find_index_from_vec(output_pattern, 0);
+            if (dims[idx_recalc].is_static() && dims[idx_target].is_static()) {
+                dims[idx_recalc] *= dims[idx_target];
             } else {
-                fused_ops_input_pshape = ov::PartialShape::dynamic(output_pattern.size());
+                dims[idx_recalc] = ov::Dimension::dynamic();
             }
+            dims.erase(dims.begin() + idx_target);
+            fused_ops_input_pshape = ov::PartialShape(dims);
         } else {
             fused_ops_input_pshape = input_pshape;
         }
