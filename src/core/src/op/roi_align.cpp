@@ -251,7 +251,7 @@ bool v3::ROIAlign::evaluate(TensorVector& outputs, const TensorVector& inputs) c
                                get_pooled_h(),
                                get_pooled_w(),
                                get_sampling_ratio(),
-                               get_sampling_ratio(),
+                               get_spatial_scale(),
                                get_mode());
 }
 
