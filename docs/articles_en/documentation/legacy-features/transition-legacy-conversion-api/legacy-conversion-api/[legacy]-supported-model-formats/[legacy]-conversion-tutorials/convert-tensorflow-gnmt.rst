@@ -5,15 +5,15 @@ Converting a TensorFlow GNMT Model
 
 
 .. meta::
-   :description: Learn how to convert a GNMT model 
+   :description: Learn how to convert a GNMT model
                  from TensorFlow to the OpenVINO Intermediate Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 This tutorial explains how to convert Google Neural Machine Translation (GNMT) model to the Intermediate Representation (IR).
 
 There are several public versions of TensorFlow GNMT model implementation available on GitHub. This tutorial explains how to convert the GNMT model from the `TensorFlow Neural Machine Translation (NMT) repository <https://github.com/tensorflow/nmt>`__ to the IR.
@@ -26,7 +26,7 @@ Before converting the model, you need to create a patch file for the repository.
 1. Go to a writable directory and create a ``GNMT_inference.patch`` file.
 2. Copy the following diff code to the file:
 
-   .. code-block:: cpp
+   .. code-block:: py
 
       diff --git a/nmt/inference.py b/nmt/inference.py
       index 2cbef07..e185490 100644
@@ -244,7 +244,7 @@ Output cutting:
 
 * ``LookupTableFindV2`` operation is cut from the output and the ``dynamic_seq2seq/decoder/decoder/GatherTree`` node is treated as a new exit point.
 
-For more information about model cutting, refer to the :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>` guide.
+For more information about model cutting, refer to the :doc:`Cutting Off Parts of a Model <../../[legacy]-cutting-parts-of-a-model>` guide.
 
 Using a GNMT Model
 ##################
@@ -313,5 +313,5 @@ Running GNMT IR
       result_ie = exec_net.infer(input_data)
 
 
-For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <api/ie_python_api/api>` guide.
+For more information about Python API, refer to the :doc:`OpenVINO Runtime Python API <../../../../../../api/ie_python_api/api>` guide.
 

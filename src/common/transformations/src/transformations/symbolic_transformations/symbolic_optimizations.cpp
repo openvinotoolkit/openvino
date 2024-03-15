@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@
 #include "transformations/symbolic_transformations/nop_broadcast.hpp"
 #include "transformations/symbolic_transformations/reshape_optimizations.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 using namespace ov::symbol::util;
@@ -106,10 +107,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
             ov::set_up_symbolic_info(output, te);
         op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
-            for (const auto& sub_graph : multi_subgraph_op->get_functions())
-                if (sub_graph)
-                    run_on_model(sub_graph);
+        ov::op::util::process_subgraph(*this, op);
 
         // additional label propagation rules must be triggered here
         special_case_range_label_propagation(op);
