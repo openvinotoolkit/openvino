@@ -34,6 +34,10 @@ std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseL
     return result.str();
 }
 
+// If adopt_intervals is true then:
+// 1) the generated tensor value range is limited by operation result value (especially for multiply)
+// which has to be in signed/unsigned int8 type range,
+// 2) start value is defined by type sign: for signed int8 it's zero to have symmetric interval.
 ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals) {
     struct gen_params {
         uint32_t range;
@@ -66,10 +70,18 @@ ov::Tensor EltwiseLayerCPUTest::generate_eltwise_input(const ov::element::Type& 
     } else {
         switch (type) {
             case ov::element::i8:
-                params = gen_params(INT8_MAX, INT8_MIN);
+                if (adopt_intervals) {
+                    params = gen_params(11 * 2, -11);
+                } else {
+                    params = gen_params(INT8_MAX, INT8_MIN);
+                }
                 break;
             case ov::element::u8:
-                params = gen_params(UINT8_MAX, 0);
+                if (adopt_intervals) {
+                    params = gen_params(15, 0);
+                } else {
+                    params = gen_params(UINT8_MAX, 0);
+                }
                 break;
             case ov::element::i16:
                 params = gen_params(INT16_MAX, INT16_MIN);
@@ -109,7 +121,8 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
         inputs.insert({funcInput.get_node_shared_ptr(), generate_eltwise_input(
             funcInput.get_element_type(),
             targetInputStaticShapes[i],
-            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32))});
+            (funcInput.get_element_type() == element::i32) || (funcInput.get_element_type() == element::u32) ||
+            (funcInput.get_element_type() == element::i8) || (funcInput.get_element_type() == element::u8))});
     }
 }
 
@@ -199,7 +212,11 @@ void EltwiseLayerCPUTest::SetUp() {
                     }
                 }
 
-                auto data_tensor = generate_eltwise_input(netType, shape, (netType == element::i32) || (netType == element::u32));
+                auto data_tensor = generate_eltwise_input(
+                    netType,
+                    shape,
+                    (netType == element::i32) || (netType == element::u32) ||
+                    (netType == element::i8) || (netType == element::u8));
                 if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
                     auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
                     std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
