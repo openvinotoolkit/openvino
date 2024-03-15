@@ -19,6 +19,7 @@ public:
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign node matching the ONNX ROIAlign specification
+    /// Check util::ROIAlignBase for description of common params.
     ///
     /// \param mode            Method of pooling - 'avg' or 'max'
     ROIAlign(const Output<Node>& input,
@@ -75,7 +76,9 @@ public:
 
     ROIAlign() = default;
     /// \brief Constructs a ROIAlign operation.
+    /// Check util::ROIAlignBase for description of common params.
     ///
+    /// \param mode            Method of pooling - 'avg' or 'max'
     /// \param aligned_mode    Method of coordinates alignment - 'asymmetric', 'half_pixel_for_nn' or 'half_pixel'
     ROIAlign(const Output<Node>& input,
              const Output<Node>& rois,

@@ -21,7 +21,6 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const string& mode)
     : ROIAlignBase{input, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale},
       m_mode{EnumNames<ROIAlign::PoolingMode>::as_enum(mode)} {
-    constructor_validate_and_infer_types();
 }
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
@@ -34,7 +33,6 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const PoolingMode mode)
     : ROIAlignBase{input, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale},
       m_mode{mode} {
-    constructor_validate_and_infer_types();
 }
 
 void op::v3::ROIAlign::validate_and_infer_types() {
