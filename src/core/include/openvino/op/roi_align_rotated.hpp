@@ -18,7 +18,7 @@ public:
 
     ROIAlignRotated() = default;
     /// \brief Constructs a ROIAlignRotated operation.
-    /// 
+    ///
     /// \param clockwise_mode  If true, rotation angle is interpreted as clockwise, otherwise as counterclockwise
     ROIAlignRotated(const Output<Node>& input,
                     const Output<Node>& rois,
