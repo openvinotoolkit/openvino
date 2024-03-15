@@ -49,6 +49,7 @@ jobs:
       - name: Install deps
         run: |
           pip3 install -r .github/scripts/requirements.txt
+          pip3 install PyGithub==2.2.0 psycopg2-binary==2.9.9
 
       - name: Send metrics to SQL database
         env:
