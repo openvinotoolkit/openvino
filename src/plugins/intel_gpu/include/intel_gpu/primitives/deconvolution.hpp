@@ -226,10 +226,9 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @param weights List of primitive ids containing weights data.
     /// @param bias List of primitive ids containing bias data. Provide empty vector if using next parameters without bias.
     /// @param groups Number of filter groups.
-    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
+    /// @param padding_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param padding_end Defines a padding added to input image on right (x axis) and bottom (y axis).
     /// @param output_size User-defined output data size of the primitive (w/o padding).
     deconvolution(const primitive_id& id,
                   const input_info& input,
@@ -259,15 +258,15 @@ struct deconvolution : public primitive_base<deconvolution> {
           weights(weights),
           bias(bias) {}
 
-    /// @brief Constructs deconvolution primitive (w/o bias, computes input paddings to match output size).
+    /// @brief Constructs deconvolution primitive (w/o bias).
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights List of primitive ids containing weights data.
-    /// @param pad Defines logical pad value added to input tensor
     /// @param stride Defines shift in input buffer between adjacent calculations of output values.
-    /// @param with_activation Enables Relu activation.
-    /// @param activation_slp Relu activation slope.
+    /// @param pad Defines logical pad value added to input tensor
+    /// @param dilations Defines the distance in width and height between elements in the filter.
     /// @param output_size User-defined output data size of the primitive (w/o padding).
+    /// @param output_padding Defines additional amount of paddings per each spatial axis added to output tensor.
     deconvolution(const primitive_id& id,
                   const input_info& input,
                   const std::vector<primitive_id>& weights,
@@ -289,6 +288,86 @@ struct deconvolution : public primitive_base<deconvolution> {
           grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
+
+    /// @brief Constructs deconvolution primitive (w/o bias).
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param weights List of primitive ids containing weights data.
+    /// @param groups Number of filter groups.
+    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
+    /// @param dilations Defines the distance in width and height between elements in the filter.
+    /// @param pads_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param pads_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
+    /// @param output_data_type type of output values.
+    /// @param auto_pad The pad type for automatically computing padding sizes
+    /// @param output_padding Defines additional amount of paddings per each spatial axis added to output tensor.
+    deconvolution(const primitive_id& id,
+                  const input_info& input,
+                  const std::vector<primitive_id>& weights,
+                  uint32_t groups,
+                  ov::Strides stride,
+                  ov::Strides dilations,
+                  ov::CoordinateDiff pads_begin,
+                  ov::CoordinateDiff pads_end,
+                  ov::CoordinateDiff out_padding,
+                  bool grouped_weights_shape,
+                  data_types output_data_type,
+                  const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
+                  const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+          stride(stride),
+          dilations(dilations),
+          with_output_size(true),
+          groups(groups),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          out_padding(out_padding),
+          grouped_weights_shape(grouped_weights_shape),
+          weights(weights),
+          auto_pad(auto_pad) {}
+
+    /// @brief Constructs deconvolution primitive (w/o bias, with explicit output shape).
+    /// @param id This primitive id.
+    /// @param input Input primitive id.
+    /// @param weights List of primitive ids containing weights data.
+    /// @param output_shape Tensor with shape of output layout.
+    /// @param groups Number of filter groups.
+    /// @param stride Defines shift in input buffer between adjacent calculations of output values.
+    /// @param dilations Defines the distance in width and height between elements in the filter.
+    /// @param pads_begin Defines a padding added to input image on left (x axis) and top (y axis).
+    /// @param pads_end Defines a padding added to input image on right (x axis) and bottom (y axis).
+    /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
+    /// @param output_data_type type of output values.
+    /// @param auto_pad The pad type for automatically computing padding sizes
+    /// @param output_padding Defines additional amount of paddings per each spatial axis added to output tensor.
+    deconvolution(const primitive_id& id,
+                  const input_info& input,
+                  const std::vector<primitive_id>& weights,
+                  uint32_t groups,
+                  ov::Strides stride,
+                  ov::Strides dilations,
+                  ov::CoordinateDiff pads_begin,
+                  ov::CoordinateDiff pads_end,
+                  ov::CoordinateDiff out_padding,
+                  bool grouped_weights_shape,
+                  data_types output_data_type,
+                  primitive_id output_shape,
+                  const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
+                  const padding& output_padding = padding())
+        : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+          stride(stride),
+          dilations(dilations),
+          with_output_size(true),
+          groups(groups),
+          pads_begin(pads_begin),
+          pads_end(pads_end),
+          out_padding(out_padding),
+          grouped_weights_shape(grouped_weights_shape),
+          weights(weights),
+          output_shape(output_shape),
+          auto_pad(auto_pad) {}
+
 
     /// @brief Constructs deconvolution primitive (computes input paddings to match output size).
     /// @param id This primitive id.
@@ -338,7 +417,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
                                                  ov::Strides dilations = {1, 1},
-                                                 const padding& output_padding = padding())     {
+                                                 const padding& output_padding = padding()) {
         return deconvolution(id,
                              input,
                              weights,
@@ -377,6 +456,10 @@ struct deconvolution : public primitive_base<deconvolution> {
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
+    /// @brief Tensor with shape of output layout.
+    const primitive_id output_shape;
+    /// @brief The pad type for automatically computing padding sizes
+    ov::op::PadType auto_pad = ov::op::PadType::NOTSET;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
