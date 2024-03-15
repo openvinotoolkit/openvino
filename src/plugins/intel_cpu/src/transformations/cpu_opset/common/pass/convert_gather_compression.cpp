@@ -71,7 +71,7 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         if (std::find(precisions.begin(), precisions.end(), input_precision) == precisions.end()) {
             return false;
         }
-        if (input.get_shape().size() != 2u) {
+        if ((input.get_shape().size() != 2u) && (input.get_shape().size() != 3u)) {
             return false;
         }
 
@@ -90,8 +90,12 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         } else {
             return false;
         }
-        // Shape=[?, 1]
-        if (!(zp->get_shape().size() == 2u && zp->get_shape()[1] == 1u)) {
+
+        // Shape=[?, 1] or [?, ?, 1]
+        auto check_shape = [](const ov::Shape& shape) {
+            return (shape.size() == 2u || shape.size() == 3u) && shape.at(shape.size() - 1u) == 1u;
+        };
+        if (!check_shape(zp->get_shape())) {
             return false;
         }
         auto input_zp =
@@ -108,8 +112,8 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
         } else {
             return false;
         }
-        // Shape=[?, 1]
-        if (!(scale->get_shape().size() == 2u && scale->get_shape()[1] == 1u)) {
+
+        if (!(check_shape(scale->get_shape()))) {
             return false;
         }
         auto input_scale = scale->get_element_type() != ov::element::f32
