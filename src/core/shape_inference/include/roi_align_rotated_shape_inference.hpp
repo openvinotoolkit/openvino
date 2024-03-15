@@ -12,7 +12,7 @@ namespace v14 {
 class ROIAlignRotated;
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const ROIAlignRotated* op, const std::vector<TShape>& input_shapes) {
-    return roi_align::shape_infer<ROIAlignRotated, TShape, 6, TRShape>(op, input_shapes);
+    return roi_align::shape_infer<TShape, TRShape>(op, input_shapes);
 }
 }  // namespace v14
 }  // namespace op

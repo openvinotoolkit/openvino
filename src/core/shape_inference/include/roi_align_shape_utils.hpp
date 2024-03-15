@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <openvino/op/util/roi_align_base.hpp>
+
 #include "utils.hpp"
 
 namespace ov {
@@ -45,8 +47,8 @@ inline void batch_indicies_et(const Node* const op) {
 }
 }  // namespace validate
 
-template <class OpType, class TShape, int ROI_SECOND_DIM, class TRShape = result_shape_t<TShape>>
-std::vector<TRShape> shape_infer(const OpType* op, const std::vector<TShape>& input_shapes) {
+template <class TShape, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> shape_infer(const util::ROIAlignBase* op, const std::vector<TShape>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 3);
 
     using TDim = typename TShape::value_type;
@@ -73,10 +75,10 @@ std::vector<TRShape> shape_infer(const OpType* op, const std::vector<TShape>& in
     if (rois_ps_rank.is_static()) {
         const auto& rois_second_dim = rois_ps[1];
         NODE_VALIDATION_CHECK(op,
-                              rois_second_dim.compatible(ROI_SECOND_DIM),
+                              rois_second_dim.compatible(op->GetROISInputSecondDimSize()),
                               "The second dimension of ROIs input should contain box coordinates. ",
                               "op dimension is expected to be equal to ",
-                              ROI_SECOND_DIM,
+                              op->GetROISInputSecondDimSize(),
                               ". Got: ",
                               rois_second_dim);
 

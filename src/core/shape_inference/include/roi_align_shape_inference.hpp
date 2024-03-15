@@ -14,14 +14,14 @@ namespace op {
 namespace v3 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
-    return roi_align::shape_infer<ROIAlign, TShape, 4, TRShape>(op, input_shapes);
+    return roi_align::shape_infer<TShape, TRShape>(op, input_shapes);
 }
 }  // namespace v3
 
 namespace v9 {
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const ROIAlign* op, const std::vector<TShape>& input_shapes) {
-    return roi_align::shape_infer<ROIAlign, TShape, 4, TRShape>(op, input_shapes);
+    return roi_align::shape_infer<TShape, TRShape>(op, input_shapes);
 }
 }  // namespace v9
 }  // namespace op
