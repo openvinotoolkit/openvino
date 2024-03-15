@@ -238,11 +238,11 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
         return info.Env().Undefined();
     }
     if (!info[0].IsBuffer()) {
-        reportError(info.Env(), "Invalid argument.");
+        reportError(info.Env(), "The first argument must be of type Buffer.");
         return info.Env().Undefined();
     }
     if (!info[1].IsString()) {
-        reportError(info.Env(), "Invalid argument.");
+        reportError(info.Env(), "The second argument must be of type String.");
         return info.Env().Undefined();
     }
     const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
