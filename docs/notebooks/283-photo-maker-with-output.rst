@@ -72,7 +72,7 @@ Clone PhotoMaker repository
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     if not Path("PhotoMaker").exists():
         !git clone https://github.com/TencentARC/PhotoMaker.git
 
@@ -84,360 +84,358 @@ Clone PhotoMaker repository
 
 .. parsed-literal::
 
-    remote: Enumerating objects: 212, done.[K
-    remote: Counting objects:   0% (1/121)[K
-remote: Counting objects:   1% (2/121)[K
-remote: Counting objects:   2% (3/121)[K
-remote: Counting objects:   3% (4/121)[K
-remote: Counting objects:   4% (5/121)[K
-remote: Counting objects:   5% (7/121)[K
-remote: Counting objects:   6% (8/121)[K
-remote: Counting objects:   7% (9/121)[K
-remote: Counting objects:   8% (10/121)[K
-remote: Counting objects:   9% (11/121)[K
-remote: Counting objects:  10% (13/121)[K
-remote: Counting objects:  11% (14/121)[K
-remote: Counting objects:  12% (15/121)[K
-remote: Counting objects:  13% (16/121)[K
-remote: Counting objects:  14% (17/121)[K
-remote: Counting objects:  15% (19/121)[K
-remote: Counting objects:  16% (20/121)[K
-remote: Counting objects:  17% (21/121)[K
-remote: Counting objects:  18% (22/121)[K
-remote: Counting objects:  19% (23/121)[K
-remote: Counting objects:  20% (25/121)[K
-remote: Counting objects:  21% (26/121)[K
-remote: Counting objects:  22% (27/121)[K
-remote: Counting objects:  23% (28/121)[K
-remote: Counting objects:  24% (30/121)[K
-remote: Counting objects:  25% (31/121)[K
-remote: Counting objects:  26% (32/121)[K
-remote: Counting objects:  27% (33/121)[K
-remote: Counting objects:  28% (34/121)[K
-remote: Counting objects:  29% (36/121)[K
-remote: Counting objects:  30% (37/121)[K
-remote: Counting objects:  31% (38/121)[K
-remote: Counting objects:  32% (39/121)[K
-remote: Counting objects:  33% (40/121)[K
-remote: Counting objects:  34% (42/121)[K
-remote: Counting objects:  35% (43/121)[K
-remote: Counting objects:  36% (44/121)[K
-remote: Counting objects:  37% (45/121)[K
-remote: Counting objects:  38% (46/121)[K
-remote: Counting objects:  39% (48/121)[K
-remote: Counting objects:  40% (49/121)[K
-remote: Counting objects:  41% (50/121)[K
-remote: Counting objects:  42% (51/121)[K
-remote: Counting objects:  43% (53/121)[K
-remote: Counting objects:  44% (54/121)[K
-remote: Counting objects:  45% (55/121)[K
-remote: Counting objects:  46% (56/121)[K
-remote: Counting objects:  47% (57/121)[K
-remote: Counting objects:  48% (59/121)[K
-remote: Counting objects:  49% (60/121)[K
-remote: Counting objects:  50% (61/121)[K
-remote: Counting objects:  51% (62/121)[K
-remote: Counting objects:  52% (63/121)[K
-remote: Counting objects:  53% (65/121)[K
-remote: Counting objects:  54% (66/121)[K
-remote: Counting objects:  55% (67/121)[K
-remote: Counting objects:  56% (68/121)[K
-remote: Counting objects:  57% (69/121)[K
-remote: Counting objects:  58% (71/121)[K
-remote: Counting objects:  59% (72/121)[K
-remote: Counting objects:  60% (73/121)[K
-remote: Counting objects:  61% (74/121)[K
-remote: Counting objects:  62% (76/121)[K
-remote: Counting objects:  63% (77/121)[K
-remote: Counting objects:  64% (78/121)[K
-remote: Counting objects:  65% (79/121)[K
-remote: Counting objects:  66% (80/121)[K
-remote: Counting objects:  67% (82/121)[K
-remote: Counting objects:  68% (83/121)[K
-remote: Counting objects:  69% (84/121)[K
-remote: Counting objects:  70% (85/121)[K
-remote: Counting objects:  71% (86/121)[K
-remote: Counting objects:  72% (88/121)[K
-remote: Counting objects:  73% (89/121)[K
-remote: Counting objects:  74% (90/121)[K
-remote: Counting objects:  75% (91/121)[K
-remote: Counting objects:  76% (92/121)[K
-remote: Counting objects:  77% (94/121)[K
-remote: Counting objects:  78% (95/121)[K
-remote: Counting objects:  79% (96/121)[K
-remote: Counting objects:  80% (97/121)[K
-remote: Counting objects:  81% (99/121)[K
-remote: Counting objects:  82% (100/121)[K
-remote: Counting objects:  83% (101/121)[K
-remote: Counting objects:  84% (102/121)[K
-remote: Counting objects:  85% (103/121)[K
-remote: Counting objects:  86% (105/121)[K
-remote: Counting objects:  87% (106/121)[K
-remote: Counting objects:  88% (107/121)[K
-remote: Counting objects:  89% (108/121)[K
-remote: Counting objects:  90% (109/121)[K
-remote: Counting objects:  91% (111/121)[K
-remote: Counting objects:  92% (112/121)[K
-remote: Counting objects:  93% (113/121)[K
-remote: Counting objects:  94% (114/121)[K
-remote: Counting objects:  95% (115/121)[K
-remote: Counting objects:  96% (117/121)[K
-remote: Counting objects:  97% (118/121)[K
-remote: Counting objects:  98% (119/121)[K
-remote: Counting objects:  99% (120/121)[K
-remote: Counting objects: 100% (121/121)[K
-remote: Counting objects: 100% (121/121), done.[K
-    remote: Compressing objects:   1% (1/75)[K
-remote: Compressing objects:   2% (2/75)[K
-remote: Compressing objects:   4% (3/75)[K
-remote: Compressing objects:   5% (4/75)[K
-remote: Compressing objects:   6% (5/75)[K
-remote: Compressing objects:   8% (6/75)[K
-remote: Compressing objects:   9% (7/75)[K
-remote: Compressing objects:  10% (8/75)[K
-remote: Compressing objects:  12% (9/75)[K
-remote: Compressing objects:  13% (10/75)[K
-remote: Compressing objects:  14% (11/75)[K
-remote: Compressing objects:  16% (12/75)[K
-remote: Compressing objects:  17% (13/75)[K
-remote: Compressing objects:  18% (14/75)[K
-remote: Compressing objects:  20% (15/75)[K
-remote: Compressing objects:  21% (16/75)[K
-remote: Compressing objects:  22% (17/75)[K
-remote: Compressing objects:  24% (18/75)[K
-remote: Compressing objects:  25% (19/75)[K
-remote: Compressing objects:  26% (20/75)[K
-remote: Compressing objects:  28% (21/75)[K
-remote: Compressing objects:  29% (22/75)[K
-remote: Compressing objects:  30% (23/75)[K
-remote: Compressing objects:  32% (24/75)[K
-remote: Compressing objects:  33% (25/75)[K
-remote: Compressing objects:  34% (26/75)[K
-remote: Compressing objects:  36% (27/75)[K
-remote: Compressing objects:  37% (28/75)[K
-remote: Compressing objects:  38% (29/75)[K
-remote: Compressing objects:  40% (30/75)[K
-remote: Compressing objects:  41% (31/75)[K
-remote: Compressing objects:  42% (32/75)[K
-remote: Compressing objects:  44% (33/75)[K
-remote: Compressing objects:  45% (34/75)[K
-remote: Compressing objects:  46% (35/75)[K
-remote: Compressing objects:  48% (36/75)[K
-remote: Compressing objects:  49% (37/75)[K
-remote: Compressing objects:  50% (38/75)[K
-remote: Compressing objects:  52% (39/75)[K
-remote: Compressing objects:  53% (40/75)[K
-remote: Compressing objects:  54% (41/75)[K
-remote: Compressing objects:  56% (42/75)[K
-remote: Compressing objects:  57% (43/75)[K
-remote: Compressing objects:  58% (44/75)[K
-remote: Compressing objects:  60% (45/75)[K
-remote: Compressing objects:  61% (46/75)[K
-remote: Compressing objects:  62% (47/75)[K
-remote: Compressing objects:  64% (48/75)[K
-remote: Compressing objects:  65% (49/75)[K
-remote: Compressing objects:  66% (50/75)[K
-remote: Compressing objects:  68% (51/75)[K
-remote: Compressing objects:  69% (52/75)[K
-remote: Compressing objects:  70% (53/75)[K
-remote: Compressing objects:  72% (54/75)[K
-remote: Compressing objects:  73% (55/75)[K
-remote: Compressing objects:  74% (56/75)[K
-remote: Compressing objects:  76% (57/75)[K
-remote: Compressing objects:  77% (58/75)[K
-remote: Compressing objects:  78% (59/75)[K
-remote: Compressing objects:  80% (60/75)[K
-remote: Compressing objects:  81% (61/75)[K
-remote: Compressing objects:  82% (62/75)[K
-remote: Compressing objects:  84% (63/75)[K
-remote: Compressing objects:  85% (64/75)[K
-remote: Compressing objects:  86% (65/75)[K
-remote: Compressing objects:  88% (66/75)[K
-remote: Compressing objects:  89% (67/75)[K
-remote: Compressing objects:  90% (68/75)[K
-remote: Compressing objects:  92% (69/75)[K
-remote: Compressing objects:  93% (70/75)[K
-remote: Compressing objects:  94% (71/75)[K
-remote: Compressing objects:  96% (72/75)[K
-remote: Compressing objects:  97% (73/75)[K
-remote: Compressing objects:  98% (74/75)[K
-remote: Compressing objects: 100% (75/75)[K
-remote: Compressing objects: 100% (75/75), done.[K
-    Receiving objects:   0% (1/212)
-Receiving objects:   1% (3/212)
+    remote: Enumerating objects: 236, done.[K
+    remote: Counting objects:   0% (1/145)[K
+remote: Counting objects:   1% (2/145)[K
+remote: Counting objects:   2% (3/145)[K
+remote: Counting objects:   3% (5/145)[K
+remote: Counting objects:   4% (6/145)[K
+remote: Counting objects:   5% (8/145)[K
+remote: Counting objects:   6% (9/145)[K
+remote: Counting objects:   7% (11/145)[K
+remote: Counting objects:   8% (12/145)[K
+remote: Counting objects:   9% (14/145)[K
+remote: Counting objects:  10% (15/145)[K
+remote: Counting objects:  11% (16/145)[K
+remote: Counting objects:  12% (18/145)[K
+remote: Counting objects:  13% (19/145)[K
+remote: Counting objects:  14% (21/145)[K
+remote: Counting objects:  15% (22/145)[K
+remote: Counting objects:  16% (24/145)[K
+remote: Counting objects:  17% (25/145)[K
+remote: Counting objects:  18% (27/145)[K
+remote: Counting objects:  19% (28/145)[K
+remote: Counting objects:  20% (29/145)[K
+remote: Counting objects:  21% (31/145)[K
+remote: Counting objects:  22% (32/145)[K
+remote: Counting objects:  23% (34/145)[K
+remote: Counting objects:  24% (35/145)[K
+remote: Counting objects:  25% (37/145)[K
+remote: Counting objects:  26% (38/145)[K
+remote: Counting objects:  27% (40/145)[K
+remote: Counting objects:  28% (41/145)[K
+remote: Counting objects:  29% (43/145)[K
+remote: Counting objects:  30% (44/145)[K
+remote: Counting objects:  31% (45/145)[K
+remote: Counting objects:  32% (47/145)[K
+remote: Counting objects:  33% (48/145)[K
+remote: Counting objects:  34% (50/145)[K
+remote: Counting objects:  35% (51/145)[K
+remote: Counting objects:  36% (53/145)[K
+remote: Counting objects:  37% (54/145)[K
+remote: Counting objects:  38% (56/145)[K
+remote: Counting objects:  39% (57/145)[K
+remote: Counting objects:  40% (58/145)[K
+remote: Counting objects:  41% (60/145)[K
+remote: Counting objects:  42% (61/145)[K
+remote: Counting objects:  43% (63/145)[K
+remote: Counting objects:  44% (64/145)[K
+remote: Counting objects:  45% (66/145)[K
+remote: Counting objects:  46% (67/145)[K
+remote: Counting objects:  47% (69/145)[K
+remote: Counting objects:  48% (70/145)[K
+remote: Counting objects:  49% (72/145)[K
+remote: Counting objects:  50% (73/145)[K
+remote: Counting objects:  51% (74/145)[K
+remote: Counting objects:  52% (76/145)[K
+remote: Counting objects:  53% (77/145)[K
+remote: Counting objects:  54% (79/145)[K
+remote: Counting objects:  55% (80/145)[K
+remote: Counting objects:  56% (82/145)[K
+remote: Counting objects:  57% (83/145)[K
+remote: Counting objects:  58% (85/145)[K
+remote: Counting objects:  59% (86/145)[K
+remote: Counting objects:  60% (87/145)[K
+remote: Counting objects:  61% (89/145)[K
+remote: Counting objects:  62% (90/145)[K
+remote: Counting objects:  63% (92/145)[K
+remote: Counting objects:  64% (93/145)[K
+remote: Counting objects:  65% (95/145)[K
+remote: Counting objects:  66% (96/145)[K
+remote: Counting objects:  67% (98/145)[K
+remote: Counting objects:  68% (99/145)[K
+remote: Counting objects:  69% (101/145)[K
+remote: Counting objects:  70% (102/145)[K
+remote: Counting objects:  71% (103/145)[K
+remote: Counting objects:  72% (105/145)[K
+remote: Counting objects:  73% (106/145)[K
+remote: Counting objects:  74% (108/145)[K
+remote: Counting objects:  75% (109/145)[K
+remote: Counting objects:  76% (111/145)[K
+remote: Counting objects:  77% (112/145)[K
+remote: Counting objects:  78% (114/145)[K
+remote: Counting objects:  79% (115/145)[K
+remote: Counting objects:  80% (116/145)[K
+remote: Counting objects:  81% (118/145)[K
+remote: Counting objects:  82% (119/145)[K
+remote: Counting objects:  83% (121/145)[K
+remote: Counting objects:  84% (122/145)[K
+remote: Counting objects:  85% (124/145)[K
+remote: Counting objects:  86% (125/145)[K
+remote: Counting objects:  87% (127/145)[K
+remote: Counting objects:  88% (128/145)[K
+remote: Counting objects:  89% (130/145)[K
+remote: Counting objects:  90% (131/145)[K
+remote: Counting objects:  91% (132/145)[K
+remote: Counting objects:  92% (134/145)[K
+remote: Counting objects:  93% (135/145)[K
+remote: Counting objects:  94% (137/145)[K
+remote: Counting objects:  95% (138/145)[K
+remote: Counting objects:  96% (140/145)[K
+remote: Counting objects:  97% (141/145)[K
+remote: Counting objects:  98% (143/145)[K
+remote: Counting objects:  99% (144/145)[K
+remote: Counting objects: 100% (145/145)[K
+remote: Counting objects: 100% (145/145), done.[K
+    remote: Compressing objects:   1% (1/97)[K
+remote: Compressing objects:   2% (2/97)[K
+remote: Compressing objects:   3% (3/97)[K
+remote: Compressing objects:   4% (4/97)[K
+remote: Compressing objects:   5% (5/97)[K
+remote: Compressing objects:   6% (6/97)[K
+remote: Compressing objects:   7% (7/97)[K
+remote: Compressing objects:   8% (8/97)[K
+remote: Compressing objects:   9% (9/97)[K
+remote: Compressing objects:  10% (10/97)[K
+remote: Compressing objects:  11% (11/97)[K
+remote: Compressing objects:  12% (12/97)[K
+remote: Compressing objects:  13% (13/97)[K
+remote: Compressing objects:  14% (14/97)[K
+remote: Compressing objects:  15% (15/97)[K
+remote: Compressing objects:  16% (16/97)[K
+remote: Compressing objects:  17% (17/97)[K
+remote: Compressing objects:  18% (18/97)[K
+remote: Compressing objects:  19% (19/97)[K
+remote: Compressing objects:  20% (20/97)[K
+remote: Compressing objects:  21% (21/97)[K
+remote: Compressing objects:  22% (22/97)[K
+remote: Compressing objects:  23% (23/97)[K
+remote: Compressing objects:  24% (24/97)[K
+remote: Compressing objects:  25% (25/97)[K
+remote: Compressing objects:  26% (26/97)[K
+remote: Compressing objects:  27% (27/97)[K
+remote: Compressing objects:  28% (28/97)[K
+remote: Compressing objects:  29% (29/97)[K
+remote: Compressing objects:  30% (30/97)[K
+remote: Compressing objects:  31% (31/97)[K
+remote: Compressing objects:  32% (32/97)[K
+remote: Compressing objects:  34% (33/97)[K
+remote: Compressing objects:  35% (34/97)[K
+remote: Compressing objects:  36% (35/97)[K
+remote: Compressing objects:  37% (36/97)[K
+remote: Compressing objects:  38% (37/97)[K
+remote: Compressing objects:  39% (38/97)[K
+remote: Compressing objects:  40% (39/97)[K
+remote: Compressing objects:  41% (40/97)[K
+remote: Compressing objects:  42% (41/97)[K
+remote: Compressing objects:  43% (42/97)[K
+remote: Compressing objects:  44% (43/97)[K
+remote: Compressing objects:  45% (44/97)[K
+remote: Compressing objects:  46% (45/97)[K
+remote: Compressing objects:  47% (46/97)[K
+remote: Compressing objects:  48% (47/97)[K
+remote: Compressing objects:  49% (48/97)[K
+remote: Compressing objects:  50% (49/97)[K
+remote: Compressing objects:  51% (50/97)[K
+remote: Compressing objects:  52% (51/97)[K
+remote: Compressing objects:  53% (52/97)[K
+remote: Compressing objects:  54% (53/97)[K
+remote: Compressing objects:  55% (54/97)[K
+remote: Compressing objects:  56% (55/97)[K
+remote: Compressing objects:  57% (56/97)[K
+remote: Compressing objects:  58% (57/97)[K
+remote: Compressing objects:  59% (58/97)[K
+remote: Compressing objects:  60% (59/97)[K
+remote: Compressing objects:  61% (60/97)[K
+remote: Compressing objects:  62% (61/97)[K
+remote: Compressing objects:  63% (62/97)[K
+remote: Compressing objects:  64% (63/97)[K
+remote: Compressing objects:  65% (64/97)[K
+remote: Compressing objects:  67% (65/97)[K
+remote: Compressing objects:  68% (66/97)[K
+remote: Compressing objects:  69% (67/97)[K
+remote: Compressing objects:  70% (68/97)[K
+remote: Compressing objects:  71% (69/97)[K
+remote: Compressing objects:  72% (70/97)[K
+remote: Compressing objects:  73% (71/97)[K
+remote: Compressing objects:  74% (72/97)[K
+remote: Compressing objects:  75% (73/97)[K
+remote: Compressing objects:  76% (74/97)[K
+remote: Compressing objects:  77% (75/97)[K
+remote: Compressing objects:  78% (76/97)[K
+remote: Compressing objects:  79% (77/97)[K
+remote: Compressing objects:  80% (78/97)[K
+remote: Compressing objects:  81% (79/97)[K
+remote: Compressing objects:  82% (80/97)[K
+remote: Compressing objects:  83% (81/97)[K
+remote: Compressing objects:  84% (82/97)[K
+remote: Compressing objects:  85% (83/97)[K
+remote: Compressing objects:  86% (84/97)[K
+remote: Compressing objects:  87% (85/97)[K
+remote: Compressing objects:  88% (86/97)[K
+remote: Compressing objects:  89% (87/97)[K
+remote: Compressing objects:  90% (88/97)[K
+remote: Compressing objects:  91% (89/97)[K
+remote: Compressing objects:  92% (90/97)[K
+remote: Compressing objects:  93% (91/97)[K
+remote: Compressing objects:  94% (92/97)[K
+remote: Compressing objects:  95% (93/97)[K
+remote: Compressing objects:  96% (94/97)[K
+remote: Compressing objects:  97% (95/97)[K
+remote: Compressing objects:  98% (96/97)[K
+remote: Compressing objects: 100% (97/97)[K
+remote: Compressing objects: 100% (97/97), done.[K
+    Receiving objects:   0% (1/236)
+Receiving objects:   1% (3/236)
 
 .. parsed-literal::
 
-    Receiving objects:   2% (5/212), 1.57 MiB | 3.10 MiB/s
+    Receiving objects:   2% (5/236)
+Receiving objects:   3% (8/236)
+Receiving objects:   4% (10/236)
+Receiving objects:   5% (12/236)
+Receiving objects:   6% (15/236)
+Receiving objects:   7% (17/236)
+Receiving objects:   8% (19/236)
 
 .. parsed-literal::
 
-    Receiving objects:   2% (6/212), 3.53 MiB | 3.44 MiB/s
+    Receiving objects:   9% (22/236)
 
 .. parsed-literal::
 
-    Receiving objects:   3% (7/212), 3.53 MiB | 3.44 MiB/s
-Receiving objects:   4% (9/212), 3.53 MiB | 3.44 MiB/s
-Receiving objects:   5% (11/212), 3.53 MiB | 3.44 MiB/s
-Receiving objects:   6% (13/212), 3.53 MiB | 3.44 MiB/s
-Receiving objects:   7% (15/212), 3.53 MiB | 3.44 MiB/s
-Receiving objects:   8% (17/212), 3.53 MiB | 3.44 MiB/s
+    Receiving objects:  10% (24/236)
+Receiving objects:  11% (26/236)
+Receiving objects:  12% (29/236)
+Receiving objects:  13% (31/236)
+Receiving objects:  14% (34/236)
 
 .. parsed-literal::
 
-    Receiving objects:   9% (20/212), 3.53 MiB | 3.44 MiB/s
+    Receiving objects:  15% (36/236)
+Receiving objects:  16% (38/236)
+Receiving objects:  17% (41/236)
+Receiving objects:  18% (43/236)
+Receiving objects:  19% (45/236)
+Receiving objects:  20% (48/236)
+Receiving objects:  21% (50/236)
+Receiving objects:  22% (52/236)
+Receiving objects:  23% (55/236)
+Receiving objects:  24% (57/236)
+Receiving objects:  25% (59/236)
 
 .. parsed-literal::
 
-    Receiving objects:  10% (22/212), 5.48 MiB | 3.55 MiB/s
+    Receiving objects:  26% (62/236)
+Receiving objects:  27% (64/236)
 
 .. parsed-literal::
 
-    Receiving objects:  11% (24/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  12% (26/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  13% (28/212), 5.48 MiB | 3.55 MiB/s
+    Receiving objects:  28% (67/236)
+Receiving objects:  29% (69/236)
+Receiving objects:  30% (71/236)
+Receiving objects:  31% (74/236)
+Receiving objects:  32% (76/236)
+remote: Total 236 (delta 114), reused 65 (delta 48), pack-reused 91[K
+    Receiving objects:  33% (78/236)
+Receiving objects:  34% (81/236)
+Receiving objects:  35% (83/236)
+Receiving objects:  36% (85/236)
+Receiving objects:  37% (88/236)
+Receiving objects:  38% (90/236)
+Receiving objects:  39% (93/236)
+Receiving objects:  40% (95/236)
+Receiving objects:  41% (97/236)
+Receiving objects:  42% (100/236)
+Receiving objects:  43% (102/236)
+Receiving objects:  44% (104/236)
+Receiving objects:  45% (107/236)
+Receiving objects:  46% (109/236)
+Receiving objects:  47% (111/236)
+Receiving objects:  48% (114/236)
+Receiving objects:  49% (116/236)
+Receiving objects:  50% (118/236)
+Receiving objects:  51% (121/236)
+Receiving objects:  52% (123/236)
+Receiving objects:  53% (126/236)
+Receiving objects:  54% (128/236)
+Receiving objects:  55% (130/236)
+Receiving objects:  56% (133/236)
+Receiving objects:  57% (135/236)
+Receiving objects:  58% (137/236)
+Receiving objects:  59% (140/236)
+Receiving objects:  60% (142/236)
+Receiving objects:  61% (144/236)
+Receiving objects:  62% (147/236)
+Receiving objects:  63% (149/236)
+Receiving objects:  64% (152/236)
+Receiving objects:  65% (154/236)
+Receiving objects:  66% (156/236)
+Receiving objects:  67% (159/236)
+Receiving objects:  68% (161/236)
+Receiving objects:  69% (163/236)
+Receiving objects:  70% (166/236)
+Receiving objects:  71% (168/236)
+Receiving objects:  72% (170/236)
+Receiving objects:  73% (173/236)
+Receiving objects:  74% (175/236)
+Receiving objects:  75% (177/236)
+Receiving objects:  76% (180/236)
+Receiving objects:  77% (182/236)
+Receiving objects:  78% (185/236)
+Receiving objects:  79% (187/236)
+Receiving objects:  80% (189/236)
+Receiving objects:  81% (192/236)
+Receiving objects:  82% (194/236)
+Receiving objects:  83% (196/236)
+Receiving objects:  84% (199/236)
+Receiving objects:  85% (201/236)
+Receiving objects:  86% (203/236)
+Receiving objects:  87% (206/236)
+Receiving objects:  88% (208/236)
+Receiving objects:  89% (211/236)
+Receiving objects:  90% (213/236)
+Receiving objects:  91% (215/236)
+Receiving objects:  92% (218/236)
+Receiving objects:  93% (220/236)
+Receiving objects:  94% (222/236)
+Receiving objects:  95% (225/236)
+Receiving objects:  96% (227/236)
+Receiving objects:  97% (229/236)
+Receiving objects:  98% (232/236)
+Receiving objects:  99% (234/236)
+Receiving objects: 100% (236/236)
+Receiving objects: 100% (236/236), 9.31 MiB | 18.88 MiB/s, done.
+    Resolving deltas:   0% (0/120)
+Resolving deltas:   3% (4/120)
+Resolving deltas:  42% (51/120)
+Resolving deltas:  46% (56/120)
+Resolving deltas:  50% (60/120)
+Resolving deltas:  88% (106/120)
+Resolving deltas:  90% (109/120)
+Resolving deltas:  95% (115/120)
+Resolving deltas:  97% (117/120)
+Resolving deltas:  98% (118/120)
 
 .. parsed-literal::
 
-    Receiving objects:  14% (30/212), 5.48 MiB | 3.55 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  15% (32/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  16% (34/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  17% (37/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  18% (39/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  19% (41/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  20% (43/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  21% (45/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  22% (47/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  23% (49/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  24% (51/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  25% (53/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  26% (56/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  27% (58/212), 5.48 MiB | 3.55 MiB/s
-Receiving objects:  28% (60/212), 5.48 MiB | 3.55 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  29% (62/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  30% (64/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  31% (66/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  32% (68/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  33% (70/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  34% (73/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  35% (75/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  36% (77/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  37% (79/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  38% (81/212), 7.41 MiB | 3.63 MiB/s
-Receiving objects:  39% (83/212), 7.41 MiB | 3.63 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  40% (85/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  41% (87/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  42% (90/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  43% (92/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  44% (94/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  45% (96/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  46% (98/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  47% (100/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  48% (102/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  49% (104/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  50% (106/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  51% (109/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  52% (111/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  53% (113/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  54% (115/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  55% (117/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  56% (119/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  57% (121/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  58% (123/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  59% (126/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  60% (128/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  61% (130/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  62% (132/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  63% (134/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  64% (136/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  65% (138/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  66% (140/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  67% (143/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  68% (145/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  69% (147/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  70% (149/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  71% (151/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  72% (153/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  73% (155/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  74% (157/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  75% (159/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  76% (162/212), 9.27 MiB | 3.64 MiB/s
-remote: Total 212 (delta 98), reused 56 (delta 46), pack-reused 91[K
-    Receiving objects:  77% (164/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  78% (166/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  79% (168/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  80% (170/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  81% (172/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  82% (174/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  83% (176/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  84% (179/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  85% (181/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  86% (183/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  87% (185/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  88% (187/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  89% (189/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  90% (191/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  91% (193/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  92% (196/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  93% (198/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  94% (200/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  95% (202/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  96% (204/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  97% (206/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  98% (208/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects:  99% (210/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects: 100% (212/212), 9.27 MiB | 3.64 MiB/s
-Receiving objects: 100% (212/212), 9.31 MiB | 3.64 MiB/s, done.
-    Resolving deltas:   0% (0/104)
-Resolving deltas:   3% (4/104)
-Resolving deltas:  41% (43/104)
-Resolving deltas:  46% (48/104)
-Resolving deltas:  50% (52/104)
-Resolving deltas:  86% (90/104)
-Resolving deltas:  89% (93/104)
-Resolving deltas:  95% (99/104)
-Resolving deltas:  97% (101/104)
-Resolving deltas:  98% (102/104)
-
-.. parsed-literal::
-
-    Resolving deltas:  99% (103/104)
-Resolving deltas: 100% (104/104)
-Resolving deltas: 100% (104/104), done.
+    Resolving deltas:  99% (119/120)
+Resolving deltas: 100% (120/120)
+Resolving deltas: 100% (120/120), done.
 
 
 Install required packages
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
-    transformers diffusers gradio openvino-nightly torchvision
-
-
-.. parsed-literal::
-
-    WARNING: Skipping openvino-dev as it is not installed.
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
+    transformers diffusers gradio "openvino>=2024.0.0" torchvision
 
 
 .. parsed-literal::
 
     DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-
+    
 
 .. parsed-literal::
 
@@ -450,7 +448,7 @@ Prepare PyTorch models
 
     adapter_id = "TencentARC/PhotoMaker"
     base_model_id = "SG161222/RealVisXL_V3.0"
-
+    
     TEXT_ENCODER_OV_PATH = Path("model/text_encoder.xml")
     TEXT_ENCODER_2_OV_PATH = Path("model/text_encoder_2.xml")
     UNET_OV_PATH = Path("model/unet.xml")
@@ -478,15 +476,15 @@ PhotoMaker to generate the original PhotoMaker pipeline.
     from PhotoMaker.photomaker.pipeline import PhotoMakerStableDiffusionXLPipeline
     from diffusers import EulerDiscreteScheduler
     import gc
-
+    
     trigger_word = "img"
-
+    
     def load_original_pytorch_pipeline_components(photomaker_path: str, base_model_id: str):
         # Load base model
         pipe = PhotoMakerStableDiffusionXLPipeline.from_pretrained(
             base_model_id, use_safetensors=True
         ).to("cpu")
-
+    
         # Load PhotoMaker checkpoint
         pipe.load_photomaker_adapter(
             os.path.dirname(photomaker_path),
@@ -502,30 +500,30 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 
 .. parsed-literal::
 
-    2024-02-10 01:01:11.344416: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-10 01:01:11.379661: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-13 00:39:33.433623: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-13 00:39:33.468677: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-02-10 01:01:12.029266: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-13 00:39:34.115959: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
 
 
 .. code:: ipython3
 
     from huggingface_hub import hf_hub_download
-
+    
     photomaker_path = hf_hub_download(
         repo_id=adapter_id, filename="photomaker-v1.bin", repo_type="model"
     )
-
+    
     pipe = load_original_pytorch_pipeline_components(
         photomaker_path, base_model_id
     )
@@ -539,17 +537,17 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 
 .. parsed-literal::
 
-    Loading PhotoMaker components [1] id_encoder from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/3602d02ba7cc99ce8886e24063ed10e4f2510c84]...
+    Loading PhotoMaker components [1] id_encoder from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/d7ec3fc17290263135825194aeb3bc456da67cc5]...
 
 
 .. parsed-literal::
 
-    Loading PhotoMaker components [2] lora_weights from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/3602d02ba7cc99ce8886e24063ed10e4f2510c84]
+    Loading PhotoMaker components [2] lora_weights from [/opt/home/k8sworker/.cache/huggingface/hub/models--TencentARC--PhotoMaker/snapshots/d7ec3fc17290263135825194aeb3bc456da67cc5]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/loaders/lora.py:1078: FutureWarning: `fuse_text_encoder_lora` is deprecated and will be removed in version 0.27. You are using an old version of LoRA backend. This will be deprecated in the next releases in favor of PEFT make sure to install the latest PEFT and transformers packages in the future.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/loaders/lora.py:1078: FutureWarning: `fuse_text_encoder_lora` is deprecated and will be removed in version 0.27. You are using an old version of LoRA backend. This will be deprecated in the next releases in favor of PEFT make sure to install the latest PEFT and transformers packages in the future.
       deprecate("fuse_text_encoder_lora", "0.27", LORA_DEPRECATION_MESSAGE)
 
 
@@ -576,7 +574,7 @@ The pipeline consists of five important parts:
 .. code:: ipython3
 
     import openvino as ov
-
+    
     def flattenize_inputs(inputs):
         """
         Helper function for resolve nested input structure (e.g. lists or tuples of tensors)
@@ -590,8 +588,8 @@ The pipeline consists of five important parts:
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-
-
+    
+    
     dtype_mapping = {
         torch.float32: ov.Type.f32,
         torch.float64: ov.Type.f64,
@@ -599,8 +597,8 @@ The pipeline consists of five important parts:
         torch.int64: ov.Type.i64,
         torch.bool: ov.Type.boolean,
     }
-
-
+    
+    
     def prepare_input_info(input_dict):
         """
         Helper function for preparing input info (shapes and data types) for conversion based on example inputs
@@ -613,8 +611,8 @@ The pipeline consists of five important parts:
                 updated_shape[1] = -1
             input_info.append((dtype_mapping[input_data.dtype], updated_shape))
         return input_info
-
-
+    
+    
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_info):
         """
         Helper function for converting PyTorch model to OpenVINO IR
@@ -627,7 +625,7 @@ The pipeline consists of five important parts:
                     model, example_input=example_input, input=input_info
                 )
             ov.save_model(ov_model, xml_path)
-
+            
             del ov_model
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -646,22 +644,22 @@ output(text embeddings) which will be the input for U-Net model.
 
     id_encoder = pipe.id_encoder
     id_encoder.eval()
-
+    
     def create_bool_tensor(*size):
         new_tensor = torch.zeros((size), dtype=torch.bool)
         return new_tensor
-
-
+    
+    
     inputs = {
         "id_pixel_values": torch.randn((1, 1, 3, 224, 224)),
         "prompt_embeds": torch.randn((1, 77, 2048)),
         "class_tokens_mask": create_bool_tensor(1, 77),
     }
-
+    
     input_info = prepare_input_info(inputs)
-
+    
     convert(id_encoder, ID_ENCODER_OV_PATH, inputs, input_info)
-
+    
     del id_encoder
     gc.collect()
 
@@ -678,15 +676,21 @@ output(text embeddings) which will be the input for U-Net model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:273: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:281: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:313: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:321: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/283-photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/283-photo-maker/PhotoMaker/photomaker/model.py:84: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert class_tokens_mask.sum() == stacked_id_embeds.shape[0], f"{class_tokens_mask.sum()} != {stacked_id_embeds.shape[0]}"
 
 
@@ -715,21 +719,21 @@ sequence of latent text embeddings.
     text_encoder.eval()
     text_encoder_2 = pipe.text_encoder_2
     text_encoder_2.eval()
-
+    
     text_encoder.config.output_hidden_states = True
     text_encoder.config.return_dict = False
     text_encoder_2.config.output_hidden_states = True
     text_encoder_2.config.return_dict = False
-
+    
     inputs = {
         "input_ids": torch.ones((1, 77), dtype=torch.long)
     }
-
+    
     input_info = prepare_input_info(inputs)
-
+    
     convert(text_encoder, TEXT_ENCODER_OV_PATH, inputs, input_info)
     convert(text_encoder_2, TEXT_ENCODER_2_OV_PATH, inputs, input_info)
-
+    
     del text_encoder
     del text_encoder_2
     gc.collect()
@@ -737,11 +741,11 @@ sequence of latent text embeddings.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:281: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:289: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
 
 
@@ -765,12 +769,12 @@ original Stable Diffusion XL model.
 
     unet = pipe.unet
     unet.eval()
-
+    
     class UnetWrapper(torch.nn.Module):
         def __init__(self, unet):
             super().__init__()
             self.unet = unet
-
+    
         def forward(
             self,
             sample=None,
@@ -785,8 +789,8 @@ original Stable Diffusion XL model.
                 encoder_hidden_states,
                 added_cond_kwargs={"text_embeds": text_embeds, "time_ids": time_ids},
             )
-
-
+    
+    
     inputs = {
         "sample": torch.rand([2, 4, 128, 128], dtype=torch.float32),
         "timestep": torch.from_numpy(np.array(1, dtype=float)),
@@ -794,35 +798,35 @@ original Stable Diffusion XL model.
         "text_embeds": torch.rand([2, 1280], dtype=torch.float32),
         "time_ids": torch.rand([2, 6], dtype=torch.float32),
     }
-
+    
     input_info = prepare_input_info(inputs)
-
+    
     w_unet = UnetWrapper(unet)
     convert(w_unet, UNET_OV_PATH, inputs, input_info)
-
+    
     del w_unet, unet
     gc.collect()
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:924: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_2d_condition.py:924: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if dim % default_overall_up_factor != 0:
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:135: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/downsampling.py:144: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:149: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       assert hidden_states.shape[1] == self.channels
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/upsampling.py:165: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if hidden_states.shape[0] >= 64:
 
 
@@ -851,21 +855,21 @@ VAE decoder.
 
     vae_decoder = pipe.vae
     vae_decoder.eval()
-
+    
     class VAEDecoderWrapper(torch.nn.Module):
         def __init__(self, vae_decoder):
             super().__init__()
             self.vae = vae_decoder
-
+    
         def forward(self, latents):
             return self.vae.decode(latents)
-
-
+    
+    
     w_vae_decoder = VAEDecoderWrapper(vae_decoder)
     inputs = torch.zeros((1, 4, 128, 128))
-
+    
     convert(w_vae_decoder, VAE_DECODER_OV_PATH, inputs, input_info=[1, 4, 128, 128])
-
+    
     del w_vae_decoder, vae_decoder
     gc.collect()
 
@@ -895,16 +899,16 @@ Select inference device for Stable Diffusion pipeline
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -940,17 +944,17 @@ model objects and inference output must be converted from numpy to
 .. code:: ipython3
 
     from collections import namedtuple
-
-
+    
+    
     class OVIDEncoderWrapper(PhotoMakerIDEncoder):
         dtype = torch.float32  # accessed in the original workflow
-
+    
         def __init__(self, id_encoder, orig_id_encoder):
             super().__init__()
             self.id_encoder = id_encoder
             self.modules = orig_id_encoder.modules  # accessed in the original workflow
             self.config = orig_id_encoder.config  # accessed in the original workflow
-
+    
         def __call__(
             self,
             *args,
@@ -968,21 +972,21 @@ model objects and inference output must be converted from numpy to
 
     class OVTextEncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-
+    
         def __init__(self, text_encoder, orig_text_encoder):
             self.text_encoder = text_encoder
             self.modules = orig_text_encoder.modules  # accessed in the original workflow
             self.config = orig_text_encoder.config  # accessed in the original workflow
-
+    
         def __call__(self, input_ids, **kwargs):
             inputs = {"input_ids": input_ids}
             output = self.text_encoder(inputs)
-
+    
             hidden_states = []
             hidden_states_len = len(output)
             for i in range(1, hidden_states_len):
                 hidden_states.append(torch.from_numpy(output[i]))
-
+    
             BaseModelOutputWithPooling = namedtuple(
                 "BaseModelOutputWithPooling", "last_hidden_state hidden_states"
             )
@@ -998,7 +1002,7 @@ model objects and inference output must be converted from numpy to
             self.add_embedding = (
                 unet_orig.add_embedding
             )  # accessed in the original workflow
-
+    
         def __call__(self, *args, **kwargs):
             latent_model_input, t = args
             inputs = {
@@ -1008,24 +1012,24 @@ model objects and inference output must be converted from numpy to
                 "text_embeds": kwargs["added_cond_kwargs"]["text_embeds"],
                 "time_ids": kwargs["added_cond_kwargs"]["time_ids"],
             }
-
+    
             output = self.unet(inputs)
-
+    
             return [torch.from_numpy(output[0])]
 
 .. code:: ipython3
 
     class OVVAEDecoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-
+    
         def __init__(self, vae, vae_orig):
             self.vae = vae
             self.config = vae_orig.config  # accessed in the original workflow
-
+    
         def decode(self, latents, return_dict=False):
             output = self.vae(latents)[0]
             output = torch.from_numpy(output)
-
+    
             return [output]
 
 Replace the PyTorch model objects in original pipeline with OpenVINO
@@ -1047,22 +1051,22 @@ Running Text-to-Image Generation with OpenVINO
 .. code:: ipython3
 
     from diffusers.utils import load_image
-
+    
     prompt = "sci-fi, closeup portrait photo of a man img in Iron man suit, face"
     negative_prompt = "(asymmetry, worst quality, low quality, illustration, 3d, 2d, painting, cartoons, sketch), open mouth"
     generator = torch.Generator("cpu").manual_seed(42)
-
+    
     input_id_images = []
     original_image = load_image("./PhotoMaker/examples/newton_man/newton_0.jpg")
     input_id_images.append(original_image)
-
+    
     ## Parameter setting
     num_steps = 20
     style_strength_ratio = 20
     start_merge_step = int(float(style_strength_ratio) / 100 * num_steps)
     if start_merge_step > 30:
         start_merge_step = 30
-
+    
     images = pipe(
         prompt=prompt,
         input_id_images=input_id_images,
@@ -1083,12 +1087,12 @@ Running Text-to-Image Generation with OpenVINO
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
-
+    
+    
     def visualize_results(orig_img: Image.Image, output_img: Image.Image):
         """
         Helper function for pose estimationresults visualization
-
+    
         Parameters:
            orig_img (Image.Image): original image
            output_img (Image.Image): processed image with PhotoMaker
@@ -1124,8 +1128,8 @@ Running Text-to-Image Generation with OpenVINO
         )
         fig.tight_layout()
         return fig
-
-
+    
+    
     fig = visualize_results(original_image, images[0])
 
 
@@ -1141,14 +1145,14 @@ Interactive Demo
 .. code:: ipython3
 
     import gradio as gr
-
-
+    
+    
     def generate_from_text(
         text_promt, input_image, neg_prompt, seed, num_steps, style_strength_ratio
     ):
         """
         Helper function for generating result image from prompt text
-
+    
         Parameters:
            text_promt (String): positive prompt
            input_image (Image.Image): original image
@@ -1156,7 +1160,7 @@ Interactive Demo
            seed (Int):  seed for random generator state initialization
            num_steps (Int): number of sampling steps
            style_strength_ratio (Int):  the percentage of step when merging the ID embedding to text embedding
-
+           
         Returns:
            result (Image.Image): generation result
         """
@@ -1174,10 +1178,10 @@ Interactive Demo
             height=1024,
             width=1024,
         ).images[0]
-
+    
         return result
-
-
+    
+    
     with gr.Blocks() as demo:
         with gr.Column():
             with gr.Row():
@@ -1234,8 +1238,8 @@ Interactive Demo
                 ],
                 [positive_input, neg_input],
             )
-
-
+    
+    
     demo.queue().launch()
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
@@ -1245,14 +1249,22 @@ Interactive Demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. .. raw:: html
 
-..    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
+
+
+
+
+
+
+    
+
 
 
 .. code:: ipython3

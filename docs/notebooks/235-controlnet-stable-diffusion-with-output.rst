@@ -21,8 +21,10 @@ such as Stable Diffusion.
 
 This notebook explores ControlNet in depth, especially a new technique
 for imparting high levels of control over the shape of synthesized
-images. It demonstrates how to run it, using OpenVINO. Let us get
-“controlling”!
+images. It demonstrates how to run it, using OpenVINO. An additional
+part demonstrates how to run quantization with
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
+pipeline. Let us get “controlling”!
 
 Background
 ----------
@@ -167,6 +169,15 @@ Table of contents:
    OpenVINO <#running-text-to-image-generation-with-controlnet-conditioning-and-openvino>`__
 -  `Select inference device for Stable Diffusion
    pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Run quantization <#run-quantization>`__
+   -  `Compare model file sizes <#compare-model-file-sizes>`__
+   -  `Compare inference time of the FP16 and INT8
+      pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
@@ -177,7 +188,7 @@ Prerequisites
 
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch" "torchvision"
     %pip install -q "diffusers>=0.14.0" "transformers>=4.30.2" "controlnet-aux>=0.0.6" "gradio>=3.36" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "openvino>=2023.1.0"
+    %pip install -q "openvino>=2023.1.0" "datasets>=2.14.6" "nncf>=2.7.0"
 
 Instantiating Generation Pipeline
 ---------------------------------
@@ -213,20 +224,6 @@ controlnet model and ``stable-diffusion-v1-5``:
         "runwayml/stable-diffusion-v1-5", controlnet=controlnet
     )
 
-
-
-.. parsed-literal::
-
-    Loading pipeline components...:   0%|          | 0/7 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["id2label"]` will be overriden.
-    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["bos_token_id"]` will be overriden.
-    `text_config_dict` is provided which will be used to initialize `CLIPTextConfig`. The value `text_config["eos_token_id"]` will be overriden.
-
-
 OpenPose
 ~~~~~~~~
 
@@ -255,13 +252,6 @@ The code below demonstrates how to instantiate the OpenPose model.
     
     pose_estimator = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 
-
-.. parsed-literal::
-
-    /home/ea/work/openvino_notebooks/test_env/lib/python3.8/site-packages/controlnet_aux/mediapipe_face/mediapipe_face_common.py:7: UserWarning: The module 'mediapipe' is not installed. The package will have limited functionality. Please install it using the command: pip install 'mediapipe'
-      warnings.warn(
-
-
 Now, let us check its result on example image:
 
 .. code:: ipython3
@@ -277,19 +267,19 @@ Now, let us check its result on example image:
     pose = pose_estimator(img)
     
     
-    def visualize_pose_results(orig_img:Image.Image, skeleton_img:Image.Image):
+    def visualize_pose_results(orig_img:Image.Image, skeleton_img:Image.Image, left_title:str = "Original image", right_title:str = "Pose"):
         """
         Helper function for pose estimationresults visualization
         
         Parameters:
            orig_img (Image.Image): original image
            skeleton_img (Image.Image): processed image with body keypoints
+           left_title (str): title for the left image
+           right_title (str): title for the right image
         Returns:
            fig (matplotlib.pyplot.Figure): matplotlib generated figure contains drawing result
         """
         orig_img = orig_img.resize(skeleton_img.size)
-        orig_title = "Original image"
-        skeleton_title = "Pose"
         im_w, im_h = orig_img.size
         is_horizontal = im_h <= im_w
         figsize = (20, 10) if is_horizontal else (10, 20)
@@ -304,8 +294,8 @@ Now, let us check its result on example image:
             a.grid(False)
         list_axes[0].imshow(np.array(orig_img))
         list_axes[1].imshow(np.array(skeleton_img))
-        list_axes[0].set_title(orig_title, fontsize=15)
-        list_axes[1].set_title(skeleton_title, fontsize=15) 
+        list_axes[0].set_title(left_title, fontsize=15)
+        list_axes[1].set_title(right_title, fontsize=15) 
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00 , hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         return fig
@@ -381,7 +371,7 @@ estimation part, which is located inside the wrapper
 
 .. parsed-literal::
 
-    OpenPose successfully converted to IR
+    OpenPose will be loaded from openpose.xml
 
 
 To reuse the original drawing procedure, we replace the PyTorch OpenPose
@@ -460,7 +450,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', index=2, options=('CPU', 'GPU', 'AUTO'), value='AUTO')
+    Dropdown(description='Device:', index=1, options=('CPU', 'AUTO'), value='AUTO')
 
 
 
@@ -542,7 +532,7 @@ blocks, which serves additional context for the UNet model.
 
 .. parsed-literal::
 
-    9962
+    4890
 
 
 
@@ -971,8 +961,8 @@ on OpenVINO.
             """
             self.text_encoder = core.compile_model(text_encoder, device)
             self.text_encoder_out = self.text_encoder.output(0)
-            self.controlnet = core.compile_model(controlnet, device)
-            self.unet = core.compile_model(unet, device)
+            self.register_to_config(controlnet=core.compile_model(controlnet, device))
+            self.register_to_config(unet=core.compile_model(unet, device))
             self.unet_out = self.unet.output(0)
             self.vae_decoder = core.compile_model(vae_decoder)
             self.vae_decoder_out = self.vae_decoder.output(0)
@@ -1294,7 +1284,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -1315,16 +1305,404 @@ select device from dropdown list for running inference using OpenVINO
     result[0]
 
 
+.. parsed-literal::
+
+    /home/ltalamanova/tmp_venv/lib/python3.11/site-packages/diffusers/configuration_utils.py:139: FutureWarning: Accessing config attribute `controlnet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'controlnet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.controlnet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
 
 
-.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_34_0.png
+
+
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_34_1.png
+
+
+
+Quantization
+------------
+
+
+
+`NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
+post-training quantization by adding quantization layers into model
+graph and then using a subset of the training dataset to initialize the
+parameters of these additional quantization layers. Quantized operations
+are executed in ``INT8`` instead of ``FP32``/``FP16`` making model
+inference faster.
+
+According to ``OVContrlNetStableDiffusionPipeline`` structure,
+ControlNet and UNet are used in the cycle repeating inference on each
+diffusion step, while other parts of pipeline take part only once. That
+is why computation cost and speed of ControlNet and UNet become the
+critical path in the pipeline. Quantizing the rest of the SD pipeline
+does not significantly improve inference performance but can lead to a
+substantial degradation of accuracy.
+
+The optimization process contains the following steps:
+
+1. Create a calibration dataset for quantization.
+2. Run ``nncf.quantize()`` to obtain quantized model.
+3. Save the ``INT8`` model using ``openvino.save_model()`` function.
+
+Please select below whether you would like to run quantization to
+improve model inference speed.
+
+.. code:: ipython3
+
+    to_quantize = widgets.Checkbox(
+        value=True,
+        description='Quantization'
+    )
+    
+    to_quantize
+
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Quantization')
+
+
+
+Let’s load ``skip magic`` extension to skip quantization if
+``to_quantize`` is not selected
+
+.. code:: ipython3
+
+    import sys
+    sys.path.append("../utils")
+    
+    int8_pipe = None
+    
+    %load_ext skip_kernel_extension
+
+Prepare calibration datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+We use a portion of
+`jschoormans/humanpose_densepose <https://huggingface.co/datasets/jschoormans/humanpose_densepose>`__
+dataset from Hugging Face as calibration data. We use a prompts below as
+negative prompts for ControlNet and UNet. To collect intermediate model
+inputs for calibration we should customize ``CompiledModel``.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    negative_prompts = [
+        "blurry unreal occluded",
+        "low contrast disfigured uncentered mangled",
+        "amateur out of frame low quality nsfw",
+        "ugly underexposed jpeg artifacts",
+        "low saturation disturbing content",
+        "overexposed severe distortion",
+        "amateur NSFW",
+        "ugly mutilated out of frame disfigured",
+    ]
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    
+    num_inference_steps = 20
+    subset_size = 200
+    
+    dataset = datasets.load_dataset("jschoormans/humanpose_densepose", split="train", streaming=True).shuffle(seed=42)
+    input_data = []
+    for batch in dataset:
+        caption = batch["caption"]
+        if len(caption) > tokenizer.model_max_length:
+            continue
+        img = batch["file_name"]
+        input_data.append((caption, pose_estimator(img)))
+        if len(input_data) >= subset_size // num_inference_steps:
+            break
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import datasets
+    from tqdm.notebook import tqdm
+    from transformers import set_seed
+    from typing import Any, Dict, List
+    
+    set_seed(42)
+    
+    class CompiledModelDecorator(ov.CompiledModel):
+        def __init__(self, compiled_model: ov.CompiledModel, keep_prob: float = 1.0):
+            super().__init__(compiled_model)
+            self.data_cache = []
+            self.keep_prob = np.clip(keep_prob, 0, 1)
+    
+        def __call__(self, *args, **kwargs):
+            if np.random.rand() <= self.keep_prob:
+                self.data_cache.append(*args)
+            return super().__call__(*args, **kwargs)
+    
+    def collect_calibration_data(pipeline: OVContrlNetStableDiffusionPipeline, subset_size: int) -> List[Dict]:
+        original_unet = pipeline.unet
+        pipeline.unet = CompiledModelDecorator(original_unet)
+        pipeline.set_progress_bar_config(disable=True)
+    
+        pbar = tqdm(total=subset_size)
+        for prompt, pose in input_data:
+            img = batch["file_name"]
+            negative_prompt = np.random.choice(negative_prompts)
+            _ = pipeline(prompt, pose, num_inference_steps, negative_prompt=negative_prompt)
+            collected_subset_size = len(pipeline.unet.data_cache)
+            pbar.update(collected_subset_size - pbar.n)
+            if collected_subset_size >= subset_size:
+                break
+    
+        calibration_dataset = pipeline.unet.data_cache[:subset_size]
+        pipeline.set_progress_bar_config(disable=False)
+        pipeline.unet = original_unet
+        return calibration_dataset
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    CONTROLNET_INT8_OV_PATH = Path("controlnet-pose_int8.xml")
+    UNET_INT8_OV_PATH = Path("unet_controlnet_int8.xml")
+    
+    if not (CONTROLNET_INT8_OV_PATH.exists() and UNET_INT8_OV_PATH.exists()):
+        unet_calibration_data = collect_calibration_data(ov_pipe, subset_size=subset_size)
+
+
+
+.. parsed-literal::
+
+      0%|          | 0/200 [00:00<?, ?it/s]
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not CONTROLNET_INT8_OV_PATH.exists():
+        control_calibration_data = []
+        prev_idx = 0
+        for _, pose_img in input_data:
+            preprocessed_image, _ = preprocess(pose_img)
+            preprocessed_image = np.concatenate(([preprocessed_image] * 2))
+            for i in range(prev_idx, prev_idx + num_inference_steps):
+                control_calibration_data.append(unet_calibration_data[i][:3] + [preprocessed_image])
+            prev_idx += num_inference_steps
+
+Run quantization
+~~~~~~~~~~~~~~~~
+
+
+
+Create a quantized model from the pre-trained converted OpenVINO model.
+``FastBiasCorrection`` algorithm is disabled due to minimal accuracy
+improvement in SD models and increased quantization time.
+
+   **NOTE**: Quantization is time and memory consuming operation.
+   Running quantization code below may take some time.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import nncf
+    
+    if not UNET_INT8_OV_PATH.exists():
+        unet = core.read_model(UNET_OV_PATH)
+        quantized_unet = nncf.quantize(
+            model=unet,
+            calibration_dataset=nncf.Dataset(unet_calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(
+                disable_bias_correction=True
+            )
+        )
+        ov.save_model(quantized_unet, UNET_INT8_OV_PATH)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    if not CONTROLNET_INT8_OV_PATH.exists():
+        controlnet = core.read_model(CONTROLNET_OV_PATH)
+        quantized_controlnet = nncf.quantize(
+            model=controlnet,
+            calibration_dataset=nncf.Dataset(control_calibration_data),
+            subset_size=subset_size,
+            model_type=nncf.ModelType.TRANSFORMER,
+            advanced_parameters=nncf.AdvancedQuantizationParameters(
+                disable_bias_correction=True
+            )
+        )
+        ov.save_model(quantized_controlnet, CONTROLNET_INT8_OV_PATH)
+
+Let’s compare the images generated by the original and optimized
+pipelines.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    int8_pipe = OVContrlNetStableDiffusionPipeline(
+        tokenizer,
+        scheduler,
+        core,
+        CONTROLNET_INT8_OV_PATH,
+        TEXT_ENCODER_OV_PATH,
+        UNET_INT8_OV_PATH,
+        VAE_DECODER_OV_PATH,
+        device=device.value
+    )
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    np.random.seed(42)
+    int8_image = int8_pipe(prompt, pose, 20, negative_prompt=negative_prompt)[0]
+    fig = visualize_pose_results(result[0], int8_image, left_title="FP16 pipeline", right_title="INT8 pipeline")
+
+
+
+.. image:: 235-controlnet-stable-diffusion-with-output_files/235-controlnet-stable-diffusion-with-output_50_0.png
+
+
+Compare model file sizes
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 .. code:: ipython3
 
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = UNET_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    quantized_model_size = UNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    
+    print(f"FP16 UNet size: {fp16_ir_model_size:.2f} MB")
+    print(f"INT8 UNet size: {quantized_model_size:.2f} MB")
+    print(f"UNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 UNet size: 1639.41 MB
+    INT8 UNet size: 820.96 MB
+    UNet compression rate: 1.997
+
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp16_ir_model_size = CONTROLNET_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    quantized_model_size = CONTROLNET_INT8_OV_PATH.with_suffix(".bin").stat().st_size / 2**20
+    
+    print(f"FP16 ControlNet size: {fp16_ir_model_size:.2f} MB")
+    print(f"INT8 ControlNet size: {quantized_model_size:.2f} MB")
+    print(f"ControlNet compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 ControlNet size: 689.07 MB
+    INT8 ControlNet size: 345.12 MB
+    ControlNet compression rate: 1.997
+
+
+Compare inference time of the FP16 and INT8 pipelines
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+To measure the inference performance of the ``FP16`` and ``INT8``
+pipelines, we use mean inference time on 3 samples.
+
+   **NOTE**: For the most accurate performance estimation, it is
+   recommended to run ``benchmark_app`` in a terminal/command prompt
+   after closing other applications.
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    import time
+    
+    def calculate_inference_time(pipeline):
+        inference_time = []
+        pipeline.set_progress_bar_config(disable=True)
+        for i in range(3):
+            prompt, pose = input_data[i]
+            negative_prompt = np.random.choice(negative_prompts)
+            start = time.perf_counter()
+            _ = pipeline(prompt, pose, num_inference_steps=num_inference_steps, negative_prompt=negative_prompt)
+            end = time.perf_counter()
+            delta = end - start
+            inference_time.append(delta)
+        pipeline.set_progress_bar_config(disable=False)
+        return np.mean(inference_time)
+
+.. code:: ipython3
+
+    %%skip not $to_quantize.value
+    
+    fp_latency = calculate_inference_time(ov_pipe)
+    print(f"FP16 pipeline: {fp_latency:.3f} seconds")
+    int8_latency = calculate_inference_time(int8_pipe)
+    print(f"INT8 pipeline: {int8_latency:.3f} seconds")
+    print(f"Performance speed-up: {fp_latency / int8_latency:.3f}")
+
+
+.. parsed-literal::
+
+    FP16 pipeline: 31.296 seconds
+
+
+.. parsed-literal::
+
+    /home/ltalamanova/tmp_venv/lib/python3.11/site-packages/diffusers/configuration_utils.py:139: FutureWarning: Accessing config attribute `unet` directly via 'OVContrlNetStableDiffusionPipeline' object attribute is deprecated. Please access 'unet' over 'OVContrlNetStableDiffusionPipeline's config object instead, e.g. 'scheduler.config.unet'.
+      deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
+
+
+.. parsed-literal::
+
+    INT8 pipeline: 24.183 seconds
+    Performance speed-up: 1.294
+
+
+Interactive demo
+----------------
+
+
+
+Please select below whether you would like to use the quantized model to
+launch the interactive demo.
+
+.. code:: ipython3
+
+    quantized_model_present = int8_pipe is not None
+    
+    use_quantized_model = widgets.Checkbox(
+        value=True if quantized_model_present else False,
+        description='Use quantized model',
+        disabled=not quantized_model_present,
+    )
+    
+    use_quantized_model
+
+.. code:: ipython3
+
     import gradio as gr
     from urllib.request import urlretrieve
+    
+    pipeline = int8_pipe if use_quantized_model.value else ov_pipe
     
     urlretrieve(example_url, "example.jpg")
     gr.close_all()
@@ -1356,7 +1734,7 @@ select device from dropdown list for running inference using OpenVINO
     
         def generate(pose, prompt, negative_prompt, seed, num_steps, progress=gr.Progress(track_tqdm=True)):
             np.random.seed(seed)
-            result = ov_pipe(prompt, pose, num_steps, negative_prompt)[0]
+            result = pipeline(prompt, pose, num_steps, negative_prompt)[0]
             return result
     
         pose_btn.click(extract_pose, inp_img, [out_pose, step1, step2])

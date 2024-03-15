@@ -45,9 +45,10 @@ Table of contents:
 -  `Convert model to OpenVINO Intermediate Representation (IR) and
    compress model weights to INT4 using
    NNCF <#convert-model-to-openvino-intermediate-representation-ir-and-compress-model-weights-to-int4-using-nncf>`__
--  `Estimate model performance <#estimate-model-performance>`__
 -  `Apply stateful transformation for automatic handling model
    state <#apply-stateful-transformation-for-automatic-handling-model-state>`__
+-  `Select device for inference <#select-device-for-inference>`__
+-  `Estimate model performance <#estimate-model-performance>`__
 -  `Using model with Optimum Intel <#using-model-with-optimum-intel>`__
 -  `Interactive chatbot demo <#interactive-chatbot-demo>`__
 
@@ -73,21 +74,11 @@ For starting work, we should install required packages first
 
 .. code:: ipython3
 
-    %pip install -q "transformers>=4.36.0"
+    %pip install -q "transformers>=4.38.2"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -r ./openvino.genai/llm_bench/python/requirements.txt
     %pip uninstall -q -y openvino openvino-dev openvino-nightly
     %pip install -q openvino-nightly
     %pip install -q gradio
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-    WARNING: Skipping openvino-dev as it is not installed.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-    Note: you may need to restart the kernel to use updated packages.
-
 
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF
 --------------------------------------------------------------------------------------------------------
@@ -105,100 +96,6 @@ and performance of large models where the size of weights is relatively
 larger than the size of activations, for example, Large Language Models
 (LLM). Compared to INT8 compression, INT4 compression improves
 performance even more but introduces a minor drop in prediction quality.
-
-.. code:: ipython3
-
-    model_path = Path("stable-zephyr-3b/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT") 
-    
-    convert_script = genai_llm_bench / "convert.py"
-    
-    !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b --force_convert
-
-
-.. parsed-literal::
-
-    2024-01-22 17:38:18.929022: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-22 17:38:18.969898: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-22 17:38:19.655976: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    [ INFO ] openvino runtime version: 2024.0.0-14080-d0619edd211
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Using the export variant default. Available variants are:
-        - default: The default ONNX variant.
-    Using framework PyTorch: 2.0.1+cu117
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /home/ea/.cache/huggingface/modules/transformers_modules/stabilityai/stable-zephyr-3b/d3cd371e290a92f653b4cd07c825cf9fa43c49c9/modeling_stablelm_epoch.py:106: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    /home/ea/.cache/huggingface/modules/transformers_modules/stabilityai/stable-zephyr-3b/d3cd371e290a92f653b4cd07c825cf9fa43c49c9/modeling_stablelm_epoch.py:236: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
-    /home/ea/.cache/huggingface/modules/transformers_modules/stabilityai/stable-zephyr-3b/d3cd371e290a92f653b4cd07c825cf9fa43c49c9/modeling_stablelm_epoch.py:243: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    /home/ea/.cache/huggingface/modules/transformers_modules/stabilityai/stable-zephyr-3b/d3cd371e290a92f653b4cd07c825cf9fa43c49c9/modeling_stablelm_epoch.py:253: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
-    [ INFO ] Compress model weights to 4BIT_DEFAULT
-    [ INFO ] Compression options:
-    [ INFO ] {'mode': <CompressWeightsMode.INT4_SYM: 'int4_sym'>, 'group_size': 128}
-    INFO:nncf:Statistics of the bitwidth distribution:
-    +--------------+---------------------------+-----------------------------------+
-    | Num bits (N) | % all parameters (layers) |    % ratio-defining parameters    |
-    |              |                           |             (layers)              |
-    +==============+===========================+===================================+
-    | 8            | 9% (2 / 226)              | 0% (0 / 224)                      |
-    +--------------+---------------------------+-----------------------------------+
-    | 4            | 91% (224 / 226)           | 100% (224 / 224)                  |
-    +--------------+---------------------------+-----------------------------------+
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:04:15 • 0:00:00;0;104;181m0:00:02181m0:00:13
-    
-
-Estimate model performance
---------------------------
-
-
-
-openvino.genai / llm_bench / python / benchmark.py script allow to
-estimate text generation pipeline inference on specific input prompt
-with given number of maximum generated tokens.
-
-.. code:: ipython3
-
-    benchmark_script = genai_llm_bench / "benchmark.py"
-    
-    !python $benchmark_script -m $model_path -ic 512 -p "Tell me story about cats"
-
-
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    2024-01-22 17:43:38.099096: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-22 17:43:38.139649: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-22 17:43:38.777855: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    [ INFO ] ==SUCCESS FOUND==: use_case: text_gen, model_type: stable-zephyr-3b
-    [ INFO ] OV Config={'PERFORMANCE_HINT': 'LATENCY', 'CACHE_DIR': '', 'NUM_STREAMS': '1'}
-    [ INFO ] OPENVINO_TORCH_BACKEND_DEVICE=CPU
-    [ INFO ] Model path=stable-zephyr-3b/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT, openvino runtime version: 2024.0.0-14080-d0619edd211
-    Provided model does not contain state. It may lead to sub-optimal performance.Please reexport model with updated OpenVINO version >= 2023.3.0 calling the `from_pretrained` method with original model and `export=True` parameter
-    Compiling the model to CPU ...
-    [ INFO ] From pretrained time: 5.18s
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    [ INFO ] Numbeams: 1, benchmarking iter nums(exclude warm-up): 0, prompt nums: 1
-    [ INFO ] [warm-up] Input text: Tell me story about cats
-    Setting `pad_token_id` to `eos_token_id`:0 for open-end generation.
-    [ INFO ] [warm-up] Input token size: 5, Output size: 279, Infer count: 512, Tokenization Time: 2.88ms, Detokenization Time: 0.48ms, Generation Time: 18.57s, Latency: 66.55 ms/token
-    [ INFO ] [warm-up] First token latency: 1304.75 ms/token, other tokens latency: 62.02 ms/token, len of tokens: 279
-    [ INFO ] [warm-up] First infer latency: 1295.99 ms/infer, other infers latency: 61.45 ms/infer, inference count: 279
-    [ INFO ] [warm-up] Result MD5:['1275534c5906590ce297cf1059f24a90']
-    [ INFO ] [warm-up] Generated: Tell me story about cats and dogs.
-    Once upon a time, in a small village, there lived a young girl named Lily. She had two pets, a cat named Mittens and a dog named Max. Mittens was a beautiful black cat with green eyes, and Max was a big lovable golden retriever with a wagging tail.
-    One sunny day, Lily decided to take Mittens and Max for a walk in the nearby forest. As they were walking, they heard a loud barking sound. Suddenly, a pack of dogs appeared from the bushes, led by a big brown dog with a friendly smile.
-    Lily was scared and worried about her pets. She quickly remembered that she had a whistle that she used to train Max. She took a deep breath and blew the whistle.
-    Max, who was trained to respond to the whistle, ran towards Lily and the dogs. The big brown dog approached Lily and introduced himself as Buddy.
-    Lily was relieved and happy to see her pets safe and sound. She thanked Buddy for helping her and her pets.
-    From that day on, Lily and Buddy became good friends. They often went on walks in the forest, and Buddy even learned to stay and wait while Lily played with Mittens.
-    And so, Lily and Max and Buddy lived happily ever after, enjoying their time together in the forest.<|endoftext|>
-
 
 Apply stateful transformation for automatic handling model state
 ----------------------------------------------------------------
@@ -236,39 +133,44 @@ cache enables storing and updating the cache values in a more
 device-friendly representation. It helps to reduce memory consumption
 and additionally optimize model performance.
 
-You can estimate the model performance by adding stateful transformation
-using ``--stateful`` flag on conversion step
+llm_bench convert model in stateful format by default, if you want
+disable this behavior you can specify ``--disable_stateful`` flag for
+that
 
 .. code:: ipython3
 
     stateful_model_path = Path("stable-zephyr-3b-stateful/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT") 
     
-    !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateful --force_convert --stateful
+    convert_script = genai_llm_bench / "convert.py"
+    
+    if not (stateful_model_path / "openvino_model.xml").exists()
+        !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateful --force_convert
 
 
 .. parsed-literal::
 
-    2024-01-22 17:44:08.466565: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-22 17:44:08.505214: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-22 17:44:09.190945: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    [ INFO ] openvino runtime version: 2024.0.0-14080-d0619edd211
+    2024-03-05 13:50:49.184866: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-05 13:50:49.186797: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:50:49.223416: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:50:49.223832: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-03-05 13:50:49.887707: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.1.0+cu121 with CUDA 1201 (you have 2.2.0+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    WARNING:nncf:NNCF provides best results with torch==2.2.1, while current torch version is 2.2.0+cpu. If you encounter issues, consider switching to torch==2.2.1
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    [ INFO ] openvino runtime version: 2024.1.0-14645-e6dc0865128
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Using the export variant default. Available variants are:
-        - default: The default ONNX variant.
-    Using framework PyTorch: 2.0.1+cu117
-    The BetterTransformer implementation does not support padding during training, as the fused kernels do not support attention masks. Beware that passing padded batched data during training may result in unexpected outputs. Please refer to https://huggingface.co/docs/optimum/bettertransformer/overview for more details.
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /home/ea/work/openvino_notebooks/notebooks/273-stable-zephyr-3b-chatbot/openvino.genai/llm_bench/python/utils/conversion_utils/better_transformer_patch.py:289: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size(0) > 1:
-    /home/ea/work/openvino_notebooks/notebooks/273-stable-zephyr-3b-chatbot/openvino.genai/llm_bench/python/utils/conversion_utils/better_transformer_patch.py:290: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if input_shape[-1] > 1:
-    /home/ea/.cache/huggingface/modules/transformers_modules/stabilityai/stable-zephyr-3b/d3cd371e290a92f653b4cd07c825cf9fa43c49c9/modeling_stablelm_epoch.py:106: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if seq_len > self.max_seq_len_cached:
-    /home/ea/work/openvino_notebooks/notebooks/273-stable-zephyr-3b-chatbot/openvino.genai/llm_bench/python/utils/conversion_utils/better_transformer_patch.py:380: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
+    [ INFO ] Model conversion to FP16 will be skipped as found converted model stable-zephyr-3b-stateful/pytorch/dldt/FP16/openvino_model.xml.If it is not expected behaviour, please remove previously converted model or use --force_convert option
     [ INFO ] Compress model weights to 4BIT_DEFAULT
     [ INFO ] Compression options:
     [ INFO ] {'mode': <CompressWeightsMode.INT4_SYM: 'int4_sym'>, 'group_size': 128}
@@ -281,43 +183,227 @@ using ``--stateful`` flag on conversion step
     +--------------+---------------------------+-----------------------------------+
     | 4            | 91% (224 / 226)           | 100% (224 / 224)                  |
     +--------------+---------------------------+-----------------------------------+
-    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:04:13 • 0:00:00;0;104;181m0:00:02181m0:00:13
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:01:29 • 0:00:00;0;104;181m0:00:01181m0:00:05
     
+
+Select device for inference
+---------------------------
+
+
 
 .. code:: ipython3
 
-    !python $benchmark_script -m $stateful_model_path -ic 512 -p "Tell me story about cats"
+    import ipywidgets as widgets
+    import openvino as ov
+    
+    core = ov.Core()
+    
+    device = widgets.Dropdown(
+        options=core.available_devices,
+        value="CPU",
+        description="Device:",
+        disabled=False,
+    )
+    
+    device
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1'), value='CPU')
+
+
+
+Estimate model performance
+--------------------------
+
+
+
+openvino.genai / llm_bench / python / benchmark.py script allow to
+estimate text generation pipeline inference on specific input prompt
+with given number of maximum generated tokens.
+
+.. code:: ipython3
+
+    benchmark_script = genai_llm_bench / "benchmark.py"
+    
+    !python $benchmark_script -m $stateful_model_path -ic 512 -p "Tell me story about cats" -d $device.value
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.1.0+cu121 with CUDA 1201 (you have 2.2.0+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    2024-03-05 13:52:39.048911: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-05 13:52:39.050779: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:52:39.088178: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:52:39.088623: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-03-05 13:52:39.754578: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    [ INFO ] ==SUCCESS FOUND==: use_case: text_gen, model_type: stable-zephyr-3b-stateful
+    [ INFO ] OV Config={'PERFORMANCE_HINT': 'LATENCY', 'CACHE_DIR': '', 'NUM_STREAMS': '1'}
+    [ INFO ] OPENVINO_TORCH_BACKEND_DEVICE=CPU
+    [ INFO ] Model path=stable-zephyr-3b-stateful/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT, openvino runtime version: 2024.1.0-14645-e6dc0865128
+    Compiling the model to CPU ...
+    [ INFO ] From pretrained time: 3.21s
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    [ INFO ] Numbeams: 1, benchmarking iter nums(exclude warm-up): 0, prompt nums: 1
+    [ INFO ] [warm-up] Input text: Tell me story about cats
+    Setting `pad_token_id` to `eos_token_id`:0 for open-end generation.
+    [ INFO ] [warm-up] Input token size: 5, Output size: 336, Infer count: 512, Tokenization Time: 2.23ms, Detokenization Time: 0.51ms, Generation Time: 23.79s, Latency: 70.80 ms/token
+    [ INFO ] [warm-up] First token latency: 837.58 ms/token, other tokens latency: 68.43 ms/token, len of tokens: 336
+    [ INFO ] [warm-up] First infer latency: 836.44 ms/infer, other infers latency: 67.89 ms/infer, inference count: 336
+    [ INFO ] [warm-up] Result MD5:['601aa0958ff0e0f9b844a9e6d186fbd9']
+    [ INFO ] [warm-up] Generated: Tell me story about cats and dogs.
+    Once upon a time, in a small village, there lived a young girl named Lily. She had two pets, a cat named Mittens and a dog named Max. Mittens was a beautiful black cat with green eyes, and Max was a big lovable golden retriever with a wagging tail.
+    One sunny day, Lily decided to take her pets for a walk in the nearby forest. As they were walking, they heard a loud barking sound. Suddenly, a group of dogs appeared from the bushes, led by a big brown dog with a friendly smile.
+    Lily was scared at first, but Max quickly jumped in front of her and growled at the dogs. The big brown dog introduced himself as Rocky and explained that he and his friends were just out for a walk too.
+    Lily and Rocky became fast friends, and they often went on walks together. Max and Rocky got along well too, and they would play together in the forest.
+    One day, while Lily was at school, Mittens and Max decided to explore the forest and stumbled upon a group of stray cats. The cats were hungry and scared, so Mittens and Max decided to help them by giving them some food.
+    The cats were grateful and thanked Mittens and Max for their kindness. They even allowed Mittens to climb on their backs and enjoy the sun.
+    From that day on, Mittens and Max became known as the village's cat and dog heroes. They were always there to help their furry friends in need.
+    And so, Lily learned that sometimes the best friends are the ones that share the same love for pets.<|endoftext|>
+
+
+Compare with model without state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+.. code:: ipython3
+
+    stateless_model_path = Path("stable-zephyr-3b-stateless/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT") 
+    
+    if not (stateless_model_path / "openvino_model.xml").exists():
+        !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateless --force_convert --disable-stateful
 
 
 .. parsed-literal::
 
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-    2024-01-22 17:49:29.675469: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-22 17:49:29.715263: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-05 13:53:12.727472: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-05 13:53:12.729379: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:53:12.765262: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:53:12.765680: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-01-22 17:49:30.371670: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    [ INFO ] ==SUCCESS FOUND==: use_case: text_gen, model_type: stable-zephyr-3b-stateful
+    2024-03-05 13:53:13.414451: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.1.0+cu121 with CUDA 1201 (you have 2.2.0+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    WARNING:nncf:NNCF provides best results with torch==2.2.1, while current torch version is 2.2.0+cpu. If you encounter issues, consider switching to torch==2.2.1
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    [ INFO ] openvino runtime version: 2024.1.0-14645-e6dc0865128
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    Using the export variant default. Available variants are:
+        - default: The default ONNX variant.
+    Using framework PyTorch: 2.2.0+cpu
+    Overriding 1 configuration item(s)
+    	- use_cache -> True
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:299: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if past_key_values_length > 0:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/stablelm/modeling_stablelm.py:97: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if seq_len > self.max_seq_len_cached:
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/stablelm/modeling_stablelm.py:341: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_weights.size() != (bsz, self.num_heads, q_len, kv_seq_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/stablelm/modeling_stablelm.py:348: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/transformers/models/stablelm/modeling_stablelm.py:360: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+      if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
+    [ INFO ] Compress model weights to 4BIT_DEFAULT
+    [ INFO ] Compression options:
+    [ INFO ] {'mode': <CompressWeightsMode.INT4_SYM: 'int4_sym'>, 'group_size': 128}
+    INFO:nncf:Statistics of the bitwidth distribution:
+    +--------------+---------------------------+-----------------------------------+
+    | Num bits (N) | % all parameters (layers) |    % ratio-defining parameters    |
+    |              |                           |             (layers)              |
+    +==============+===========================+===================================+
+    | 8            | 9% (2 / 226)              | 0% (0 / 224)                      |
+    +--------------+---------------------------+-----------------------------------+
+    | 4            | 91% (224 / 226)           | 100% (224 / 224)                  |
+    +--------------+---------------------------+-----------------------------------+
+    [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:01:29 • 0:00:00;0;104;181m0:00:01181m0:00:05
+    
+
+.. code:: ipython3
+
+    !python $benchmark_script -m $stateless_model_path -ic 512 -p "Tell me story about cats" -d $device.value
+
+
+.. parsed-literal::
+
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.1.0+cu121 with CUDA 1201 (you have 2.2.0+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    2024-03-05 13:55:27.540258: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-05 13:55:27.542166: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:55:27.578718: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-03-05 13:55:27.579116: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+    2024-03-05 13:55:28.229026: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
+    [ INFO ] ==SUCCESS FOUND==: use_case: text_gen, model_type: stable-zephyr-3b-stateless
     [ INFO ] OV Config={'PERFORMANCE_HINT': 'LATENCY', 'CACHE_DIR': '', 'NUM_STREAMS': '1'}
     [ INFO ] OPENVINO_TORCH_BACKEND_DEVICE=CPU
-    [ INFO ] Model path=stable-zephyr-3b-stateful/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT, openvino runtime version: 2024.0.0-14080-d0619edd211
+    [ INFO ] Model path=stable-zephyr-3b-stateless/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT, openvino runtime version: 2024.1.0-14645-e6dc0865128
+    Provided model does not contain state. It may lead to sub-optimal performance.Please reexport model with updated OpenVINO version >= 2023.3.0 calling the `from_pretrained` method with original model and `export=True` parameter
     Compiling the model to CPU ...
-    [ INFO ] From pretrained time: 5.38s
+    [ INFO ] From pretrained time: 3.15s
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     [ INFO ] Numbeams: 1, benchmarking iter nums(exclude warm-up): 0, prompt nums: 1
     [ INFO ] [warm-up] Input text: Tell me story about cats
     Setting `pad_token_id` to `eos_token_id`:0 for open-end generation.
-    [ INFO ] [warm-up] Input token size: 5, Output size: 279, Infer count: 512, Tokenization Time: 2.15ms, Detokenization Time: 0.46ms, Generation Time: 15.03s, Latency: 53.86 ms/token
-    [ INFO ] [warm-up] First token latency: 1266.67 ms/token, other tokens latency: 49.42 ms/token, len of tokens: 279
-    [ INFO ] [warm-up] First infer latency: 1265.67 ms/infer, other infers latency: 48.81 ms/infer, inference count: 279
-    [ INFO ] [warm-up] Result MD5:['1275534c5906590ce297cf1059f24a90']
+    [ INFO ] [warm-up] Input token size: 5, Output size: 336, Infer count: 512, Tokenization Time: 2.02ms, Detokenization Time: 0.51ms, Generation Time: 18.59s, Latency: 55.32 ms/token
+    [ INFO ] [warm-up] First token latency: 990.01 ms/token, other tokens latency: 52.47 ms/token, len of tokens: 336
+    [ INFO ] [warm-up] First infer latency: 989.00 ms/infer, other infers latency: 51.98 ms/infer, inference count: 336
+    [ INFO ] [warm-up] Result MD5:['601aa0958ff0e0f9b844a9e6d186fbd9']
     [ INFO ] [warm-up] Generated: Tell me story about cats and dogs.
     Once upon a time, in a small village, there lived a young girl named Lily. She had two pets, a cat named Mittens and a dog named Max. Mittens was a beautiful black cat with green eyes, and Max was a big lovable golden retriever with a wagging tail.
-    One sunny day, Lily decided to take Mittens and Max for a walk in the nearby forest. As they were walking, they heard a loud barking sound. Suddenly, a pack of dogs appeared from the bushes, led by a big brown dog with a friendly smile.
-    Lily was scared and worried about her pets. She quickly remembered that she had a whistle that she used to train Max. She took a deep breath and blew the whistle.
-    Max, who was trained to respond to the whistle, ran towards Lily and the dogs. The big brown dog approached Lily and introduced himself as Buddy.
-    Lily was relieved and happy to see her pets safe and sound. She thanked Buddy for helping her and her pets.
-    From that day on, Lily and Buddy became good friends. They often went on walks in the forest, and Buddy even learned to stay and wait while Lily played with Mittens.
-    And so, Lily and Max and Buddy lived happily ever after, enjoying their time together in the forest.<|endoftext|>
+    One sunny day, Lily decided to take her pets for a walk in the nearby forest. As they were walking, they heard a loud barking sound. Suddenly, a group of dogs appeared from the bushes, led by a big brown dog with a friendly smile.
+    Lily was scared at first, but Max quickly jumped in front of her and growled at the dogs. The big brown dog introduced himself as Rocky and explained that he and his friends were just out for a walk too.
+    Lily and Rocky became fast friends, and they often went on walks together. Max and Rocky got along well too, and they would play together in the forest.
+    One day, while Lily was at school, Mittens and Max decided to explore the forest and stumbled upon a group of stray cats. The cats were hungry and scared, so Mittens and Max decided to help them by giving them some food.
+    The cats were grateful and thanked Mittens and Max for their kindness. They even allowed Mittens to climb on their backs and enjoy the sun.
+    From that day on, Mittens and Max became known as the village's cat and dog heroes. They were always there to help their furry friends in need.
+    And so, Lily learned that sometimes the best friends are the ones that share the same love for pets.<|endoftext|>
 
 
 Using model with Optimum Intel
@@ -327,8 +413,7 @@ Using model with Optimum Intel
 
 Running model with Optimum-Intel API required following steps: 1.
 register normalized config for model 2. create instance of
-``OVModelForCausalLM`` class using ``from_pretrained`` method and
-providing path to the model and ``stateful`` flag
+``OVModelForCausalLM`` class using ``from_pretrained`` method.
 
 The model text generation interface remains without changes, the text
 generation process started with running ``ov_model.generate`` method and
@@ -337,14 +422,10 @@ sequence of generated token ids that should be decoded using a tokenizer
 
 .. code:: ipython3
 
-    from utils.ov_model_classes import register_normalized_configs
     from optimum.intel.openvino import OVModelForCausalLM
     from transformers import AutoConfig
     
-    # Load model into Optimum Interface
-    register_normalized_configs()
-    
-    ov_model = OVModelForCausalLM.from_pretrained(stateful_model_path, compile=False, config=AutoConfig.from_pretrained(stateful_model_path, trust_remote_code=True), stateful=True)
+    ov_model = OVModelForCausalLM.from_pretrained(stateful_model_path, config=AutoConfig.from_pretrained(stateful_model_path, trust_remote_code=True), device=device.value)
 
 Interactive chatbot demo
 ------------------------
@@ -422,7 +503,7 @@ You can modify them in ``Advanced generation options`` section.
     
     model_name = "stable-zephyr-3b"
     
-    tok = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+    tok = AutoTokenizer.from_pretrained(stateful_model_path)
     
     DEFAULT_SYSTEM_PROMPT = """\
     You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
@@ -734,3 +815,73 @@ You can modify them in ``Advanced generation options`` section.
     # demo.launch(share=True)
     # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
     demo.launch(share=True)
+
+
+.. parsed-literal::
+
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/deprecation.py:40: UserWarning: `height` is deprecated in `Interface()`, please use it within `launch()` instead.
+      warnings.warn(value)
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/deprecation.py:43: UserWarning: You have unused kwarg parameters in Textbox, please remove them: {'container': False}
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    Running on local URL:  http://127.0.0.1:7860
+
+
+::
+
+
+    ---------------------------------------------------------------------------
+
+    KeyboardInterrupt                         Traceback (most recent call last)
+
+    Cell In[9], line 326
+        320 demo.queue(max_size=2)
+        321 # if you are launching remotely, specify server_name and server_port
+        322 #  demo.launch(server_name='your server name', server_port='server port in int')
+        323 # if you have any issue to launch on your platform, you can pass share=True to launch method:
+        324 # demo.launch(share=True)
+        325 # it creates a publicly shareable link for the interface. Read more in the docs: https://gradio.app/docs/
+    --> 326 demo.launch(share=True)
+
+
+    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/blocks.py:1542, in Blocks.launch(self, inline, inbrowser, share, debug, enable_queue, max_threads, auth, auth_message, prevent_thread_lock, show_error, server_name, server_port, show_tips, height, width, encrypt, favicon_path, ssl_keyfile, ssl_certfile, ssl_keyfile_password, quiet, show_api, file_directories, _frontend)
+       1540 try:
+       1541     if self.share_url is None:
+    -> 1542         self.share_url = networking.setup_tunnel(
+       1543             self.server_name, self.server_port, self.share_token
+       1544         )
+       1545     print(strings.en["SHARE_LINK_DISPLAY"].format(self.share_url))
+       1546     if not (quiet):
+
+
+    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/networking.py:168, in setup_tunnel(local_host, local_port, share_token)
+        164     remote_host, remote_port = payload["host"], int(payload["port"])
+        165     tunnel = Tunnel(
+        166         remote_host, remote_port, local_host, local_port, share_token
+        167     )
+    --> 168     address = tunnel.start_tunnel()
+        169     return address
+        170 except Exception as e:
+
+
+    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/tunneling.py:61, in Tunnel.start_tunnel(self)
+         59 def start_tunnel(self) -> str:
+         60     binary_path = self.download_binary()
+    ---> 61     self.url = self._start_tunnel(binary_path)
+         62     return self.url
+
+
+    File ~/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/gradio/tunneling.py:97, in Tunnel._start_tunnel(self, binary)
+         95 if self.proc.stdout is None:
+         96     continue
+    ---> 97 line = self.proc.stdout.readline()
+         98 line = line.decode("utf-8")
+         99 if "start proxy success" in line:
+
+
+    KeyboardInterrupt: 
+

@@ -133,7 +133,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/Safety_Full_Hat_and_Vest.mp4
 
 
 .. code:: ipython3
@@ -150,12 +150,12 @@ Test File Functions
 
 .. parsed-literal::
 
-    openvino_notebooks_readme.md:   0%|          | 0.00/16.3k [00:00<?, ?B/s]
+    openvino_notebooks_readme.md:   0%|          | 0.00/3.26k [00:00<?, ?B/s]
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -173,7 +173,7 @@ Test File Functions
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/utils/openvino_notebooks_readme.md
 
 
 .. code:: ipython3
@@ -560,5 +560,5 @@ Test Alerts
 
 .. raw:: html
 
-    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2023.3.0-13775-ceeafaf64f3-releases/2023/3</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
+    <div class="alert alert-danger">This notebook requires OpenVINO 2022.1. The version on your system is: <i>2024.0.0-14509-34caeefd078-releases/2024/0</i>.<br>Please run <span style='font-family:monospace'>pip install --upgrade -r requirements.txt</span> in the openvino_env environment to install this version. See the <a href='https://github.com/openvinotoolkit/openvino_notebooks'>OpenVINO Notebooks README</a> for detailed instructions
 

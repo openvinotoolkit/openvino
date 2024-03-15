@@ -67,11 +67,11 @@ image from an open dataset.
 .. code:: ipython3
 
     import urllib.request
-
+    
     from torchvision.io import read_image
     import torchvision.transforms as transforms
-
-
+    
+    
     img_path = 'cats_image.jpeg'
     urllib.request.urlretrieve(
         url='https://huggingface.co/datasets/huggingface/cats-image/resolve/main/cats_image.jpeg',
@@ -95,12 +95,12 @@ models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-ava
 .. code:: ipython3
 
     import torchvision.models as models
-
+    
     # List available models
     all_models = models.list_models()
     # List of models by type. Classification models are in the parent module.
     classification_models = models.list_models(module=models)
-
+    
     print(classification_models)
 
 
@@ -136,17 +136,17 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 .. code:: ipython3
 
     import torch
-
-
+    
+    
     preprocess = models.ConvNeXt_Tiny_Weights.DEFAULT.transforms()
-
+    
     input_data = preprocess(image)
     input_data = torch.stack([input_data], dim=0)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/transforms/functional.py:1603: UserWarning: The default value of the antialias parameter of all the resizing transforms (Resize(), RandomResizedCrop(), etc.) will change from None to True in v0.17, in order to be consistent across the PIL and Tensor backends. To suppress this warning, directly pass antialias=True (recommended, future default), antialias=None (current default, which means False for Tensors and True for PIL), or antialias=False (only works on Tensors - PIL will still use antialiasing). This also applies if you are using the inference transforms from the models weights: update the call to weights.transforms(antialias=True).
       warnings.warn(
 
 
@@ -164,8 +164,8 @@ And print results
 .. code:: ipython3
 
     import urllib.request
-
-
+    
+    
     # download class number to class label mapping
     imagenet_classes_file_path = "imagenet_2012.txt"
     urllib.request.urlretrieve(
@@ -173,12 +173,12 @@ And print results
         filename=imagenet_classes_file_path
     )
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
-
-
+    
+    
     def print_results(outputs: torch.Tensor):
         _, predicted_class = outputs.max(1)
         predicted_probability = torch.softmax(outputs, dim=1)[0, predicted_class].item()
-
+    
         print(f"Predicted Class: {predicted_class.item()}")
         print(f"Predicted Label: {imagenet_classes[predicted_class.item()]}")
         print(f"Predicted Probability: {predicted_probability}")
@@ -192,7 +192,7 @@ And print results
 
     Predicted Class: 281
     Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.5800774693489075
+    Predicted Probability: 0.4724695086479187
 
 
 Convert the model to OpenVINO Intermediate representation format
@@ -212,12 +212,12 @@ interface. However, it can also be saved on disk using
 .. code:: ipython3
 
     from pathlib import Path
-
-    import openvino as ov
-
-
+    
+    import openvino as ov 
+    
+    
     ov_model_xml_path = Path('models/ov_convnext_model.xml')
-
+    
     if not ov_model_xml_path.exists():
         ov_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
         converted_model = ov.convert_model(model, example_input=torch.randn(1, 3, 224, 224))
@@ -238,7 +238,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -246,7 +246,7 @@ Select device from dropdown list for running inference using OpenVINO
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -261,7 +261,7 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     compiled_model = core.compile_model(ov_model_xml_path, device_name=device.value)
 
 Use the OpenVINO IR model to run an inference
@@ -279,5 +279,5 @@ Use the OpenVINO IR model to run an inference
 
     Predicted Class: 281
     Predicted Label: n02123045 tabby, tabby cat
-    Predicted Probability: 0.6132654547691345
+    Predicted Probability: 0.6132656931877136
 

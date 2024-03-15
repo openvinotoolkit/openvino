@@ -22,7 +22,7 @@ The notebook guides you through the entire process of creating a
 parallel book: from obtaining raw texts to building a visualization of
 aligned sentences. Here is the pipeline diagram:
 
-|image0|
+|image01|
 
 Visualizing the result allows you to identify areas for improvement in
 the pipeline steps, as indicated in the diagram.
@@ -58,7 +58,14 @@ Table of contents:
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" matplotlib seaborn ipywidgets
+    import platform
+
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu requests pysbd transformers[torch] "openvino>=2023.1.0" seaborn ipywidgets
 
 Get Books
 ---------
@@ -190,7 +197,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
+    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA *\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
 
 
 
@@ -400,12 +407,12 @@ languages. It has the same architecture as the BERT model but has been
 trained on a different task: to produce identical embeddings for
 translation pairs.
 
-|image01|
+|image0|
 
 This makes LaBSE a great choice for our task and it can be reused for
 different language pairs still producing good results.
 
-.. |image01| image:: https://user-images.githubusercontent.com/51917466/254582913-51531880-373b-40cb-bbf6-1965859df2eb.png
+.. |image01| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/627d3a39-7076-479f-a7b1-392f49a0b83e
 
 .. code:: ipython3
 
@@ -476,12 +483,28 @@ Optimize the Model with OpenVINO
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model Conversion
-API <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conversion-parameters.html>`__
 accepts the PyTorch/Transformers model object and additional information
 about model inputs. An ``example_input`` is needed to trace the model
 execution graph, as PyTorch constructs it dynamically during inference.
 The converted model must be compiled for the target device using the
 ``Core`` object before it can be used.
+
+For starting work, we should select device for inference first:
+
+.. code:: ipython3
+
+    import ipywidgets as widgets
+
+    core = ov.Core()
+    device = widgets.Dropdown(
+        options=core.available_devices + ["AUTO"],
+        value='AUTO',
+        description='Device:',
+        disabled=False,
+    )
+
+    device
 
 .. code:: ipython3
 
@@ -494,7 +517,7 @@ The converted model must be compiled for the target device using the
     )
 
     core = ov.Core()
-    compiled_model = core.compile_model(ov_model, "CPU")
+    compiled_model = core.compile_model(ov_model, device.value)
 
     embeddings_en = get_embeddings(sentences_en, compiled_model)
     embeddings_de = get_embeddings(sentences_de, compiled_model)
@@ -598,7 +621,7 @@ the converted model is the same as the original one.
 
 
 
-.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_31_0.png
+.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_32_0.png
 
 
 After visualizing and comparing the alignment matrices, let’s transform
@@ -882,14 +905,14 @@ parameters for execution on the available hardware.
 
     compiled_throughput_hint = core.compile_model(
         ov_model,
-        device_name="CPU",
+        device_name=device.value,
         config={"PERFORMANCE_HINT": "THROUGHPUT"},
     )
 
 To further optimize hardware utilization, let’s change the inference
 mode from synchronous (Sync) to asynchronous (Async). While the
 synchronous API may be easier to start with, it is
-`recommended <https://docs.openvino.ai/2022.1/openvino_docs_deployment_optimization_guide_common.html#prefer-openvino-async-api>`__
+`recommended <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/general-optimizations.html#prefer-openvino-async-api>`__
 to use the asynchronous (callbacks-based) API in production code. It is
 the most general and scalable way to implement flow control for any
 number of requests.
@@ -934,7 +957,7 @@ advance and fill it in as the inference requests are executed.
 
 Let’s compare the models and plot the results.
 
-   **NOTE**: To get a more accurate benchmark, use the `Benchmark Python
+   **Note**: To get a more accurate benchmark, use the `Benchmark Python
    Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 
 .. code:: ipython3
@@ -1034,7 +1057,7 @@ Let’s compare the models and plot the results.
 
 
 
-.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_48_0.png
+.. image:: 220-cross-lingual-books-alignment-with-output_files/220-cross-lingual-books-alignment-with-output_49_0.png
 
 
 On an Intel Core i9-10980XE CPU, the OpenVINO model processed 45% more
