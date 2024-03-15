@@ -49,11 +49,11 @@
 #include "openvino/core/preprocess/output_info.hpp"
 #include "openvino/core/preprocess/output_model_info.hpp"
 #include "openvino/core/preprocess/output_tensor_info.hpp"
+#include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"
 #include "openvino/core/preprocess/resize_algorithm.hpp"
-#include "openvino/core/preprocess/padding_mode.hpp"
 
 // type
 #include "openvino/core/type/element_type.hpp"

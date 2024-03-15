@@ -135,27 +135,26 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
                                 const std::vector<float>& pad_values,
                                 PaddingMode mode) {
     std::string name;
-    name = "pad(begin " + vector_to_string(pads_begin) +
-            ", end " + vector_to_string(pads_end);
+    name = "pad(begin " + vector_to_string(pads_begin) + ", end " + vector_to_string(pads_end);
     switch (mode) {
-        case PaddingMode::CONSTANT:
-            name += ", with " + vector_to_string(pad_values) + ")";
-            break;
-        case PaddingMode::EDGE:
-            name += ", copied from edge)";
-            break;
-        case PaddingMode::REFLECT:
-            name += ", reflected from tensor)";
-            break;
-        case PaddingMode::SYMMETRIC:
-            name += ", symmetrically added from tensor)";
-            break;
+    case PaddingMode::CONSTANT:
+        name += ", with " + vector_to_string(pad_values) + ")";
+        break;
+    case PaddingMode::EDGE:
+        name += ", copied from edge)";
+        break;
+    case PaddingMode::REFLECT:
+        name += ", reflected from tensor)";
+        break;
+    case PaddingMode::SYMMETRIC:
+        name += ", symmetrically added from tensor)";
+        break;
     }
 
     m_actions.emplace_back(
         [pads_begin, pads_end, pad_values, mode](const std::vector<Output<Node>>& nodes,
-                                             const std::shared_ptr<Model>& function,
-                                             PreprocessingContext& ctxt) {
+                                                 const std::shared_ptr<Model>& function,
+                                                 PreprocessingContext& ctxt) {
             OPENVINO_ASSERT(nodes.size() == 1,
                             "Can't pad multi-plane input. Suggesting to convert current image to "
                             "RGB/BGR color format using 'PreProcessSteps::convert_color'");
@@ -175,7 +174,8 @@ void PreStepsList::add_pad_impl(const std::vector<int>& pads_begin,
 
             auto pad = std::make_shared<opset8::Pad>(node, npads_begin, npads_end, npad_value, mode);
             return std::make_tuple(std::vector<Output<Node>>{pad}, true);
-        }, name);
+        },
+        name);
 }
 
 void PreStepsList::add_convert_impl(const element::Type& type) {
