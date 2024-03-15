@@ -51,13 +51,20 @@ Imports
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0"
-
+    
     %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6"
-
+    
     %pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" "easydict" "munch" "natsort"
     %pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
     %pip install -q scikit-image
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
@@ -83,9 +90,14 @@ Imports
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.33.1 which is incompatible.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.0 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.1 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
 
 
 .. parsed-literal::
@@ -98,7 +110,7 @@ Imports
     import time
     import warnings
     from pathlib import Path
-
+    
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
@@ -109,7 +121,7 @@ Imports
     from PIL import Image
     from paddle.static import InputSpec
     from ppgan.apps import RealSRPredictor
-
+    
     # Fetch `notebook_utils` module
     import urllib.request
     urllib.request.urlretrieve(
@@ -130,7 +142,7 @@ Settings
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     OUTPUT_DIR.mkdir(exist_ok=True)
-
+    
     model_path = MODEL_DIR / MODEL_NAME
     ir_path = model_path.with_suffix(".xml")
     onnx_path = model_path.with_suffix(".onnx")
@@ -161,7 +173,7 @@ source code.
 
 .. parsed-literal::
 
-    [02/09 23:42:09] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [03/12 23:24:03] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -289,12 +301,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-02-09 23:42:16 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-03-12 23:24:10 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0209 23:42:16.006111 2843987 program_interpreter.cc:212] New Executor is Running.
+    I0312 23:24:10.040381 3060798 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -303,29 +315,29 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Model file path: model/paddle_model_static_onnx_temp_dir/model.pdmodel
     [Paddle2ONNX] Paramters file path: model/paddle_model_static_onnx_temp_dir/model.pdiparams
     [Paddle2ONNX] Start to parsing Paddle model...
+    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
+    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
 
 
 .. parsed-literal::
 
-    [Paddle2ONNX] Use opset_version = 13 for ONNX export.
-    [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-02-09 23:42:19 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2024-03-12 23:24:13 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 .. code:: ipython3
 
     print("Exporting ONNX model to OpenVINO IR... This may take a few minutes.")
-
+    
     model = ov.convert_model(
         onnx_path,
         input=input_shape
     )
-
+    
     # Serialize model in IR format
     ov.save_model(model, str(ir_path))
 
@@ -358,14 +370,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value='AUTO',
         description='Device:',
         disabled=False,
     )
-
+    
     device
 
 
@@ -394,7 +406,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe9ebed32e0>
+    <matplotlib.image.AxesImage at 0x7fa4a90a0d60>
 
 
 
@@ -423,7 +435,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Inference duration: 3.27 seconds
+    Inference duration: 3.23 seconds
 
 
 .. code:: ipython3
@@ -446,7 +458,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7fe9b40e3580>
+    <matplotlib.image.AxesImage at 0x7fa48e2ae5e0>
 
 
 
@@ -469,7 +481,7 @@ between both versions.
     bicubic_pil = Image.fromarray(image_bicubic)
     gif_image_path = OUTPUT_DIR / Path(IMAGE_PATH.stem + "_comparison.gif")
     final_image_path = OUTPUT_DIR / Path(IMAGE_PATH.stem + "_super.png")
-
+    
     result_pil.save(
         fp=str(gif_image_path),
         format="GIF",
@@ -478,7 +490,7 @@ between both versions.
         duration=1000,
         loop=0,
     )
-
+    
     result_pil.save(fp=str(final_image_path), format="png")
     DisplayImage(open(gif_image_path, "rb").read(), width=1920 // 2)
 
@@ -512,24 +524,24 @@ open it directly from the images directory, and play it locally.
         image_super.shape[0] // 2,
         image_super.shape[1] // 2,
     )
-
+    
     out_video = cv2.VideoWriter(
         str(result_video_path),
         FOURCC,
         90,
         (video_target_width, video_target_height),
     )
-
+    
     resized_result_image = cv2.resize(image_super, (video_target_width, video_target_height))[
         :, :, (2, 1, 0)
     ]
     resized_bicubic_image = cv2.resize(image_bicubic, (video_target_width, video_target_height))[
         :, :, (2, 1, 0)
     ]
-
+    
     progress_bar = ProgressBar(total=video_target_width)
     progress_bar.display()
-
+    
     for i in range(2, video_target_width):
         # Create a frame where the left part (until i pixels width) contains the
         # superresolution image, and the right part (from i pixels width) contains
@@ -540,7 +552,7 @@ open it directly from the images directory, and play it locally.
                 resized_bicubic_image[:, i:, :],
             )
         )
-
+    
         # Create a small black border line between the superresolution
         # and bicubic part of the image.
         comparison_frame[:, i - 1 : i + 1, :] = 0
@@ -563,7 +575,7 @@ you use the Google Colab
     if 'google.colab' in str(get_ipython()):
         # Save a file
         from google.colab import files
-
+    
         # Save the file to the local file system
         with open(result_video_path, 'r') as f:
             files.download(result_video_path)

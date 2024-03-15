@@ -1,14 +1,17 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
-
 # Testing operation Equal
 # Documentation: https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/equal
+rng = np.random.default_rng()
+
 
 class TestTFEqual(CommonTFLayerTest):
     output_type = np.float32
@@ -210,3 +213,45 @@ class TestTFEqual(CommonTFLayerTest):
                    ie_device, precision,
                    temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
                    **params)
+
+
+class TestEqualStr(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
+        inputs_data = {}
+        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n\s sentence', ' UppEr LoweR CAse SENtence \t\n',
+                              '  some sentence', 'another sentence HERE    ']
+        inputs_data['x:0'] = rng.choice(strings_dictionary, x_shape)
+        inputs_data['y:0'] = rng.choice(strings_dictionary, y_shape)
+        return inputs_data
+
+    def create_equal_net(self, x_shape, y_shape):
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.string, x_shape, 'x')
+            y = tf.compat.v1.placeholder(tf.string, x_shape, 'y')
+            tf.raw_ops.Equal(x=x, y=y)
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        ref_net = None
+
+        return tf_net, ref_net
+
+    @pytest.mark.parametrize('x_shape', [[1], [5]])
+    @pytest.mark.parametrize('y_shape', [[1], [5]])
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='126314, 132699: Build tokenizers for ARM and MacOS')
+    def test_equal_str(self, x_shape, y_shape,
+                       ie_device, precision, ir_version, temp_dir,
+                       use_legacy_frontend):
+        self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
