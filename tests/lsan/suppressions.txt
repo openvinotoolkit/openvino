@@ -47,3 +47,5 @@ leak:site-packages/google/protobuf
 leak:thirdparty/protobuf
 leak:thirdparty/protobuf/protobuf
 leak:thirdparty/gtest
+leak:thirdparty/tbb
+leak:libtbb.so
