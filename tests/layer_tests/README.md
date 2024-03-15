@@ -31,16 +31,16 @@ Find instructions on how to build on [GitHub page](https://github.com/openvinoto
 
 Set environment variables `TEST_DEVICE` and `TEST_PRECISION` to select device and inference precision for OpenVINO inference. Allowed values for `TEST_DEVICE` are `CPU` and `GPU`. Allowed values for `TEST_PRECISION` are `FP32` and `FP16`.
 Example to run the TensorFlow layer test for the `tf.raw_ops.Unique` operation on CPU with default inference precision for device:
-    ```sh
-    cd tests/layer_tests
-    export TEST_DEVICE="CPU"
-    pytest tensorflow_tests/test_tf_Unique.py
-    ```
+   ```sh
+   cd tests/layer_tests
+   export TEST_DEVICE="CPU"
+   pytest tensorflow_tests/test_tf_Unique.py
+   ```
 
 Example to run the PyTorch layer test for the `torch.linalg.cross` operation on CPU and GPU with `FP16` and `FP32` inference precisions:
-    ```sh
-    cd tests/layer_tests
-    export TEST_DEVICE="CPU;GPU"
-    export TEST_PRECISION="FP32;FP16"
-    pytest pytorch_tests/test_cross.py
-    ```
+   ```sh
+   cd tests/layer_tests
+   export TEST_DEVICE="CPU;GPU"
+   export TEST_PRECISION="FP32;FP16"
+   pytest pytorch_tests/test_cross.py
+   ```
