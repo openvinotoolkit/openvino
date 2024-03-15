@@ -39,13 +39,13 @@ std::shared_ptr<Node> ROIAlignRotated::clone_with_new_inputs(const OutputVector&
     OV_OP_SCOPE(v14_ROIAlignRotated_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<ROIAlignRotated>(new_args.at(0),
-                                        new_args.at(1),
-                                        new_args.at(2),
-                                        get_pooled_h(),
-                                        get_pooled_w(),
-                                        get_sampling_ratio(),
-                                        get_spatial_scale(),
-                                        get_clockwise_mode());
+                                             new_args.at(1),
+                                             new_args.at(2),
+                                             get_pooled_h(),
+                                             get_pooled_w(),
+                                             get_sampling_ratio(),
+                                             get_spatial_scale(),
+                                             get_clockwise_mode());
 }
 }  // namespace v14
 }  // namespace op
