@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace cpu_unit_test {
 class DummyNode : public Node {
 public:
     // dummy node of the same shape and precision to both input and output.
-    DummyNode(const ov::Shape& shape,
+    DummyNode(const ov::PartialShape& shape,
               const ov::element::Type_t& prc,
               const std::string& name,
               const std::string& type,

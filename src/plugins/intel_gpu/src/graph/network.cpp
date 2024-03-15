@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -647,8 +647,6 @@ void cldnn::network::check_names() {
 }
 
 std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
-    std::shared_ptr<primitive_inst> ret;
-
     if (_primitives.find(id) != _primitives.end())
         return _primitives.at(id);
 
