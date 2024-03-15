@@ -709,8 +709,13 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::CausalMaskPreprocess);
+
+    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "sdpa0.cpp");
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+
+    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "sdpa.cpp");
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);

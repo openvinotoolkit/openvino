@@ -60,6 +60,12 @@ public:
     RoPEShareCosSin();
 };
 
+class CausalMaskPreprocess : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("CausalMaskPreprocess", "0");
+    CausalMaskPreprocess();
+};
+
 class RoPEFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("RoPEFusion", "0");

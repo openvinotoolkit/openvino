@@ -218,6 +218,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"RoPE", Type::RoPE},
+        {"VNode", Type::VNode},
     };
     return type_to_name_tbl;
 }
@@ -336,6 +337,7 @@ std::string NameFromType(const Type type) {
         CASE(Ngram);
         CASE(ScaledDotProductAttention);
         CASE(RoPE);
+        CASE(VNode);
         CASE(Unknown);
     }
 #undef CASE

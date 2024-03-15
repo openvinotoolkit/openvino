@@ -1185,13 +1185,7 @@ public:
                     _VERBOSE_LOG("expecting Constant op, but got ", value_node);
                     return false;
                 }
-                if (pconst_node->get_output_element_type(0) != vconst_node->get_output_element_type(0)) {
-                    _VERBOSE_LOG("expecting Constant of type ",
-                                 pconst_node->get_output_element_type(0),
-                                 " but got ",
-                                 vconst_node);
-                    return false;
-                }
+
                 // for constant node matched in pattern, a scalar constant is considered to
                 // be compatible with any shape with 1 element, like {}, {1,1}, {1,1,...}
                 const auto& expected_shape = pconst_node->get_output_shape(0);
@@ -1206,6 +1200,27 @@ public:
                         return false;
                     }
                 }
+
+                if (pconst_node->get_output_element_type(0) != vconst_node->get_output_element_type(0)) {
+                    // signed integer compare is relaxed, as long as tey are equal when both up-casted to int64_t
+                    if (pconst_node->get_output_element_type(0).is_integral() &&
+                        pconst_node->get_output_element_type(0).is_signed() &&
+                        vconst_node->get_output_element_type(0).is_integral() &&
+                        vconst_node->get_output_element_type(0).is_signed()) {
+                        auto p_values = pconst_node->cast_vector<int64_t>();
+                        auto v_values = vconst_node->cast_vector<int64_t>();
+                        if (p_values == v_values) {
+                            continue;
+                        }
+                    }
+
+                    _VERBOSE_LOG("expecting Constant of type ",
+                                 pconst_node->get_output_element_type(0),
+                                 " but got ",
+                                 vconst_node);
+                    return false;
+                }
+
                 auto byte_size =
                     shape_size(vconst_node->get_output_shape(0)) * vconst_node->get_output_element_type(0).size();
                 if (std::memcmp(pconst_node->get_data_ptr(), vconst_node->get_data_ptr(), byte_size) != 0) {
@@ -1303,6 +1318,7 @@ public:
                 }
             }
         }
+        _VERBOSE_LOG("PatternValidator validate success!");
         return true;
     }
 
