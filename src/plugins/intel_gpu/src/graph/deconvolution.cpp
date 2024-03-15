@@ -34,7 +34,9 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
         data_type = impl_param.get_fused_output_layout().data_type;
     }
 
-    auto pad = desc->pad;
+    auto pads_begin = desc->pads_begin;
+    auto pads_end = desc->pads_end;
+    auto output_padding = desc->out_padding;
     auto strd = desc->stride;
 
     int32_t number_of_features = weights_layout.group() * weights_layout.ofm();
@@ -72,7 +74,7 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
         return {data_type, out_fmt, output_size};
     }
 
-    int32_t off_factor = -2;
+    int32_t off_factor = -1;
     size_t spatial_dims = input_layout.get_spatial_rank();
     CLDNN_ERROR_GREATER_THAN(desc->id,
                              "number of spatial dimensions",
@@ -82,16 +84,28 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                              "As for now, deconvolutions with more than 3 dimensions are not supported");
 
     int32_t x = static_cast<int32_t>(
-        off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0));
+        off_factor * pads_begin[pads_begin.size() - 1] +
+        off_factor * pads_end[pads_end.size() - 1] +
+        output_padding[output_padding.size() - 1] +
+        (input_layout.spatial(0) - 1) * strd[strd.size() - 1] +
+        weights_layout.spatial(0));
     int32_t y = 1;
     if (spatial_dims > 1) {
         y = static_cast<int32_t>(
-            off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1));
+            off_factor * pads_begin[pads_begin.size() - 2] +
+            off_factor * pads_end[pads_end.size() - 2] +
+            output_padding[output_padding.size() - 2] +
+            (input_layout.spatial(1) - 1) * strd[strd.size() - 2] +
+            weights_layout.spatial(1));
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
         z = static_cast<int32_t>(
-            off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
+            off_factor * pads_begin[pads_begin.size() - 3] +
+            off_factor * pads_end[pads_end.size() - 3] +
+            output_padding[output_padding.size() - 3] +
+            (input_layout.spatial(2) - 1) * strd[strd.size() - 3] +
+            weights_layout.spatial(2));
     }
 
     tensor output_size(input_layout.batch(),
@@ -236,7 +250,8 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
     json_composite deconv_info;
     deconv_info.add("stride", cldnn::to_string(strd));
-    deconv_info.add("pad", cldnn::to_string(desc->pad));
+    deconv_info.add("pads_begin", cldnn::to_string(desc->pads_begin));
+    deconv_info.add("pads_end", cldnn::to_string(desc->pads_end));
     deconv_info.add("groups", desc->groups);
     if (desc->with_output_size) {
         json_composite ud_out_size_info;
@@ -264,7 +279,8 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
     if (node.is_dynamic())
         return;
     auto stride = argument->stride;
-    auto pad = argument->pad;
+    auto pads_begin = argument->pads_begin;
+    auto pads_end = argument->pads_end;
 
     auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
@@ -281,17 +297,22 @@ deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node co
                           "output size",
                           output_layout.get_spatial_rank(),
                           "Stride/output number of dimension does not match.");
-
     CLDNN_ERROR_NOT_EQUAL(node.id(),
-                          "Input offset size",
-                          pad.size(),
-                          "input number of dimensions",
+                          "Pads begin size",
+                          pads_begin.size(),
+                          "output size",
                           output_layout.get_spatial_rank(),
-                          "");
+                          "Pads begin/output number of dimension does not match.");
+    CLDNN_ERROR_NOT_EQUAL(node.id(),
+                          "Pads end size",
+                          pads_end.size(),
+                          "output_size",
+                          output_layout.get_spatial_rank(),
+                          "Pads end/output number of dimension does not match.");
 
     auto filter_inst = node.weights().get_output_layout().convert_to_weights_layout(argument->grouped_weights_shape);
 
-    if (argument->bias.size() != 0) {
+    if (bias_term()) {
         auto bias_inst = node.bias().get_output_layout();
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                                 "Bias batch[0]",

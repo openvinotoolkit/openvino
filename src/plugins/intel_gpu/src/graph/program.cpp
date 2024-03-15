@@ -344,7 +344,7 @@ bool program::analyze_output_size_handling_need() {
             auto primInputSize = prim_node.get_input_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
                                                                             filter_size,
-                                                                            prim->pad,
+                                                                            ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                                                                             prim->stride,
                                                                             ov::Strides(prim->stride.size(), 1),
                                                                             true,

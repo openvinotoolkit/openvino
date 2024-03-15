@@ -22,9 +22,9 @@ const std::vector<QuantizationGranularity> granularity = {QuantizationGranularit
 /* ============= 2D GroupConvolutionBackpropData ============= */
 const std::vector<ov::Shape> inputShapes2D = {{1, 16, 10, 10}, {1, 32, 10, 10}};
 const std::vector<ov::Shape> kernels2D = {{1, 1}, {3, 3}};
-const std::vector<ov::Shape> strides2D = {{1, 1}};
-const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}};
-const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}};
+const std::vector<ov::Shape> strides2D = {{1, 1}, {2, 2}};
+const std::vector<std::vector<ptrdiff_t>> padBegins2D = {{0, 0}, {1, 2}};
+const std::vector<std::vector<ptrdiff_t>> padEnds2D = {{0, 0}, {1, 2}};
 const std::vector<ov::Shape> dilations2D = {{1, 1}};
 
 const auto quantConvBackpropData2DParams = ::testing::Combine(
@@ -49,10 +49,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_QuantConvBackpropData2D, QuantConvBackpropDataLay
 
 /* ============= 3D ConvolutionBackpropData ============= */
 const std::vector<ov::Shape> inputShapes3D = {{1, 16, 5, 5, 5}, {1, 32, 5, 5, 5}};
-const std::vector<ov::Shape> kernels3D = {{1, 1, 1}, {3, 3, 3}};
-const std::vector<ov::Shape> strides3D = {{1, 1, 1}};
-const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}};
-const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}};
+const std::vector<ov::Shape> kernels3D = {{1, 1, 1}, {4, 4, 4}};
+const std::vector<ov::Shape> strides3D = {{1, 1, 1}, {3, 4, 5}};
+const std::vector<std::vector<ptrdiff_t>> padBegins3D = {{0, 0, 0}, {5, 4, 6}};
+const std::vector<std::vector<ptrdiff_t>> padEnds3D = {{0, 0, 0}, {5, 4, 3}};
 const std::vector<ov::Shape> dilations3D = {{1, 1, 1}};
 
 const auto quantConvBackpropData3DParams = ::testing::Combine(

@@ -18,8 +18,8 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
 
     dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
     dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);
-    dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
-    dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
+    dnnl::memory::dims pad_l(prim->pads_begin.begin(), prim->pads_begin.end());
+    dnnl::memory::dims pad_r(prim->pads_end.begin(), prim->pads_end.end());
 
     auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
     auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);

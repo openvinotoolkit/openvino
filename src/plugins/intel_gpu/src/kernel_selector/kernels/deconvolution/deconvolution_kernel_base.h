@@ -19,7 +19,8 @@ struct deconvolution_params : public weight_bias_params {
     uSize filterSize;
     uSize stride;
     uSize dilation;
-    uSize padding;
+    uSize pads_begin;
+    uSize pads_end;
     uint32_t groups = 1;
 
     std::string to_string() const override;

@@ -102,7 +102,7 @@ void prepare_padding::run(program& p) {
                 auto needed_padding = calc_sliding_window_needed_input_padding(prim_node.get_input_layout(),
                                                                                prim->output_size,
                                                                                filter_size,
-                                                                               prim->pad,
+                                                                               ov::CoordinateDiff(prim->pads_begin.begin(), prim->pads_begin.end()),
                                                                                prim->stride,
                                                                                ov::Strides(prim->stride.size(), 1),
                                                                                true,

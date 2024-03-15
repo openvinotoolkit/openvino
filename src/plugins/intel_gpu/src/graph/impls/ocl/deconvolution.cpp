@@ -39,7 +39,8 @@ public:
         const auto& stride = primitive->stride;
         const ov::Strides dilation(impl_param.get_output_layout().get_spatial_rank(), 1);
 
-        const auto& pad = primitive->pad;
+        const auto& pads_begin = primitive->pads_begin;
+        const auto& pads_end = primitive->pads_end;
         const auto& groups = primitive->groups;
 
         auto params = get_weights_bias_default_params<kernel_selector::deconvolution_params>(impl_param, primitive->grouped_weights_shape);
@@ -54,10 +55,15 @@ public:
 
         params.filterSize = { kx, ky, kz };
 
-        uint32_t pad_z = std::max<std::ptrdiff_t>(pad.size() >= 3 ? pad[pad.size() - 3] : 0, 0);
-        uint32_t pad_y = std::max<std::ptrdiff_t>(pad.size() >= 2 ? pad[pad.size() - 2] : 0, 0);
-        uint32_t pad_x = std::max<std::ptrdiff_t>(pad.size() >= 1 ? pad[pad.size() - 1] : 0, 0);
-        params.padding = {pad_x, pad_y, pad_z};
+        uint32_t pads_begin_z = std::max<std::ptrdiff_t>(pads_begin.size() >= 3 ? pads_begin[pads_begin.size() - 3] : 0, 0);
+        uint32_t pads_begin_y = std::max<std::ptrdiff_t>(pads_begin.size() >= 2 ? pads_begin[pads_begin.size() - 2] : 0, 0);
+        uint32_t pads_begin_x = std::max<std::ptrdiff_t>(pads_begin.size() >= 1 ? pads_begin[pads_begin.size() - 1] : 0, 0);
+        params.pads_begin = {pads_begin_x, pads_begin_y, pads_begin_z};
+
+        uint32_t pads_end_z = std::max<std::ptrdiff_t>(pads_end.size() >= 3 ? pads_end[pads_end.size() - 3] : 0, 0);
+        uint32_t pads_end_y = std::max<std::ptrdiff_t>(pads_end.size() >= 2 ? pads_end[pads_end.size() - 2] : 0, 0);
+        uint32_t pads_end_x = std::max<std::ptrdiff_t>(pads_end.size() >= 1 ? pads_end[pads_end.size() - 1] : 0, 0);
+        params.pads_end = {pads_end_x, pads_end_y, pads_end_z};
 
         uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
         uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;

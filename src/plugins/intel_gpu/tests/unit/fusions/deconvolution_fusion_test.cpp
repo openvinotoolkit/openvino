@@ -236,7 +236,7 @@ TEST_P(deconv_actv, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, p.dilation, format::is_grouped(get_weights_layout(p).format)),
         activation("act", input_info("deconv"), activation_func::relu),
         reorder("out", input_info("act"), p.default_format, data_types::f32)
     );
@@ -337,7 +337,7 @@ TEST_P(deconv_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "bias" , p.groups, p.stride, p.pad, { 1, 1 }),
         eltwise("bias_add", { input_info("deconv"), input_info("bias") }, eltwise_mode::sum),
         reorder("out", input_info("bias_add"), p.default_format, data_types::f32)
     );
@@ -394,7 +394,7 @@ TEST_P(deconv_scale, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -4, 4)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod),
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
@@ -409,7 +409,7 @@ TEST_P(deconv_scale, fp16_scale_out) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -4, 4)),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
         reorder("out", input_info("scale"), p.default_format, data_types::f32)
     );
@@ -464,7 +464,7 @@ public:
             input_layout("input", get_input_layout(p)),
             data("weights", get_mem(get_weights_layout(p))),
             data("eltw_data", get_mem(get_output_layout(p))),
-            deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+            deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
             activation("act1", input_info("deconv"), activation_func::relu),
             eltwise("eltw", { input_info("act1"), input_info("eltw_data") }, eltwise_mode::sum),
             activation("act2", input_info("eltw"), activation_func::relu),
@@ -579,7 +579,7 @@ TEST_P(deconv_scale_actv_quant_i8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         eltwise("scale", { input_info("deconv"), input_info("scale_data") }, eltwise_mode::prod),
         activation("actv", input_info("scale"), activation_func::softsign),
         quantize("quant", input_info("actv"), input_info("in_lo"), input_info("in_hi"),
@@ -695,7 +695,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         data("in2_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out2_lo", get_mem(get_single_element_layout(p), -127)),
         data("out2_hi", get_mem(get_single_element_layout(p), 127)),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         eltwise("scale1", { input_info("deconv"), input_info("scale1_data") }, eltwise_mode::prod),
         activation("actv1", input_info("scale1"), activation_func::relu),
         quantize("quant1", input_info("actv1"), input_info("in1_lo"), input_info("in1_hi"),
@@ -802,7 +802,7 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
-        deconvolution("deconv_prim", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         data("scale_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
         eltwise("scale", { input_info("deconv_prim"), input_info("scale_data") }, eltwise_mode::prod),
         activation("activation", input_info("scale"), activation_func::relu),
@@ -852,7 +852,7 @@ TEST_P(deconv_activation_eltwise_diff_sizes, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
-        deconvolution("deconv_prim", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.pad, { 1, 1 }),
         activation("activation", input_info("deconv_prim"), activation_func::relu),
         eltwise("sum", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
         reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)

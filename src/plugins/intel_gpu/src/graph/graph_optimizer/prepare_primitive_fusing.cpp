@@ -347,7 +347,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
             auto desc = deconv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
+            auto biases = bias_name;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (deconv.bias_term()) {
@@ -368,7 +368,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                          biases,
                                                                          desc->groups,
                                                                          desc->stride,
-                                                                         desc->pad,
+                                                                         desc->pads_begin,
+                                                                         desc->pads_end,
                                                                          desc->dilations,
                                                                          deconv.get_output_layout().get_tensor(),
                                                                          desc->grouped_weights_shape);

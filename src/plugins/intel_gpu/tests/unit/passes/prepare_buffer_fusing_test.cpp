@@ -786,7 +786,7 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
         data("biases", biases),
         reorder("to_weight", input_info("weights"), { data_types::f16, format::bfyx, { 2, 1, 2, 2 } }),
         crop("crop_weight", input_info("to_weight"), tensor{ 1, 1, 2, 2 }, tensor(1, 0, 0, 0)),
-        deconvolution("deconv", input_info("crop_input"), { "crop_weight" }, { "biases" }, { 2, 2 }, { 1, 1 }),
+        deconvolution("deconv", input_info("crop_input"), "crop_weight", "biases", 1, { 2, 2 }, { 1, 1 }, { 1, 1 }),
         reorder("output", input_info("deconv"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);

@@ -22,7 +22,8 @@ std::string deconvolution_params::to_string() const {
     s << filterSize.x << "_" << filterSize.y << "_";
     s << stride.x << "_" << stride.y << "_";
     s << dilation.x << "_" << dilation.y << "_";
-    s << padding.x << "_" << padding.y << "_";
+    s << pads_begin.x << "_" << pads_begin.y << "_";
+    s << pads_end.x << "_" << pads_end.y << "_";
     s << 1;
 
     return s.str();
@@ -53,16 +54,16 @@ bool DeconvolutionKernelBase::Validate(const Params& p) const {
 
 JitConstants DeconvolutionKernelBase::GetJitConstants(const deconvolution_params& dp) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(dp);
-    const auto& padding = dp.padding;
+    const auto& pads_begin = dp.pads_begin;
     const auto& input = dp.inputs[0];
 
     int64_t input_offset_with_padding = (int64_t)input.GetFirstElementOffset() -
-                                        (dp.filterSize.x - 1 + padding.x) * input.X().pitch -
-                                        (dp.filterSize.y - 1 + padding.y) * input.Y().pitch;
+                                        (dp.filterSize.x - 1 + pads_begin.x) * input.X().pitch -
+                                        (dp.filterSize.y - 1 + pads_begin.y) * input.Y().pitch;
     input_offset_with_padding = std::max(input_offset_with_padding, (int64_t)0);
 
     jit.AddConstants({ MakeJitConstant("STRIDE", dp.stride),
-                       MakeJitConstant("PADDING", dp.padding),
+                       MakeJitConstant("PADDING", dp.pads_begin),
                        MakeJitConstant("DILATION", dp.dilation),
                        MakeJitConstant("FILTER_ARRAY_NUM", 1),
                        MakeJitConstant("INPUT0_OFFSET_WITH_PADDING", input_offset_with_padding),
