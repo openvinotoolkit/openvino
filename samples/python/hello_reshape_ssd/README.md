@@ -1,6 +1,6 @@
 # Hello Reshape SSD Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_reshape_ssd_README}
 
-This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).  
+This sample demonstrates how to do synchronous inference of object detection models using [Shape Inference feature](../../../docs/OV_Runtime_UG/ShapeInference.md).
 Models with only 1 input and output are supported.
 
 The following Python API is used in the application:
@@ -11,17 +11,17 @@ The following Python API is used in the application:
 
 Basic OpenVINO™ Runtime API is covered by [Hello Classification Python* Sample](../hello_classification/README.md).
 
-| Options                    | Values                                                                   |
-| :------------------------- | :----------------------------------------------------------------------- |
-| Validated Models           | [mobilenet-ssd](@ref omz_models_model_mobilenet_ssd)                     |
-| Validated Layout           | NCHW                                                                     |
+| Options                    | Values                                                                    |
+| :------------------------- | :------------------------------------------------------------------------ |
+| Validated Models           | mobilenet-ssd                                                             |
+| Validated Layout           | NCHW                                                                      |
 | Model Format               | OpenVINO™ toolkit Intermediate Representation (.xml + .bin), ONNX (.onnx) |
-| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md)        |
-| Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md)                  |
+| Supported devices          | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
+| Other language realization | [C++](../../../samples/cpp/hello_reshape_ssd/README.md)                   |
 
 ## How It Works
 
-At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data.  
+At startup, the sample application reads command-line parameters, prepares input data, loads a specified model and image to the OpenVINO™ Runtime plugin, performs synchronous inference, and processes output data.
 As a result, the program creates an output image, logging each step in a standard output stream.
 
 You can see the explicit description of
