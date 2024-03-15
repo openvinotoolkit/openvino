@@ -264,7 +264,7 @@ struct AccumulativeType {
 };
 template <>
 struct AccumulativeType<ov::bfloat16> {
-  using type = float;
+  using type = ov::bfloat16;
 };
 template <>
 struct AccumulativeType<ov::float16> {
@@ -353,33 +353,6 @@ template <typename DT, typename reduce_func>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, reduce_func& kernel_func);
 template <typename DT>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
-
-#define CALL_SCATTER_ELEMENTS_UPDATE(DT, IT)                                                          \
-  do {                                                                                                          \
-    switch (config.reduction_type) {                                                                                   \
-    case Reduction::NONE :                                                                                      \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);     \
-        break;                                                                                                  \
-    case Reduction::SUM:                                                                                        \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);      \
-        break;                                                                                                  \
-    case Reduction::MAX :                                                                                       \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);  \
-        break;                                                                                                  \
-    case Reduction::MIN :                                                                                       \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);  \
-        break;                                                                                                  \
-    case Reduction::PROD:                                                                                       \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply); \
-        break;                                                                                                  \
-    case Reduction::MEAN :                                                                                      \
-        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);     \
-        break;                                                                                                  \
-    default :                                                                                                   \
-        break;                                                                                                  \
-    }                                                                                                           \
-  } while (0)
-
 
 struct Caller : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
@@ -743,7 +716,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
+                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
                             dst_idx += tensorItr[i] * dataBlockND[i + 1];
                             indices_idx += tensorItr[i] * indicesBlockND[i + 1];
                         }
@@ -799,7 +772,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
+                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
                             dst_idx += tensorItr[i] * dataBlockND[i + 1];
                             indices_idx += tensorItr[i] * indicesBlockND[i + 1];
                         }
@@ -835,7 +808,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, i = 0; i < static_cast<size_t>(axis); ++i) {
+                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
                             dst_idx += tensorItr[i] * dataBlockND[i + 1];
                             indices_idx += tensorItr[i] * indicesBlockND[i + 1];
                         }
