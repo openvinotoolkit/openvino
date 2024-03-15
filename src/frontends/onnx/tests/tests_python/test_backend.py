@@ -499,12 +499,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_negative_axes_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_do_not_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_max_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_log_sum_exp_negative_axes_keepdims_random_cpu",
         "OnnxBackendNodeModelTest.test_reduce_mean_do_not_keepdims_random_cpu",
@@ -732,7 +726,6 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_125495,
-        "OnnxBackendNodeModelTest.test_reduce_max_bool_inputs_cpu",
         "OnnxBackendNodeModelTest.test_reduce_min_bool_inputs_cpu",
     ),
     (
