@@ -45,8 +45,8 @@ struct InputAndWeigthsShapeParams {
 };
 
 using GatherWeightsDecompressParams = std::tuple<InputAndWeigthsShapeParams,
-                                                 ov::element::Type,  // weights type
-                                                 ov::AnyMap,         // additional config
+                                                 ov::element::Type,  // Weights precision
+                                                 ov::element::Type,  // Inference precision
                                                  bool,               // Scalar axis or not
                                                  fusingSpecificParams,
                                                  bool>;  // should use decompression implementation
@@ -58,71 +58,85 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherWeightsDecompressParams> obj) {
         InputAndWeigthsShapeParams shape_params;
         ov::element::Type weights_precision;
-        ov::AnyMap additional_config;
+        ov::element::Type infer_precision;
         bool scalar_axis;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
-        std::tie(shape_params, weights_precision, additional_config, scalar_axis, fusing_params, should_fuse) = obj.param;
+        std::tie(shape_params, weights_precision, infer_precision, scalar_axis, fusing_params, should_fuse) = obj.param;
 
         std::ostringstream result;
         result << "data_shape=" << shape_params.data_shape << "_";
         result << "weights_shape=" << shape_params.weights_shape << "_";
         result << "weights_precision=" << weights_precision << "_";
+        result << "infer_precision=" << infer_precision << "_";
         result << "scalar_axis=" << scalar_axis << "_";
-
-        result << "config=(";
-        for (const auto& configEntry : additional_config) {
-            result << configEntry.first << "=" << configEntry.second.as<std::string>() << ":";
-        }
-        result << ")";
         result << CpuTestWithFusing::getTestCaseName(fusing_params);
-
         return result.str();
     }
 
 protected:
     std::shared_ptr<ov::Node> initDecompressionWeights(const ov::Shape& weights_shape,
-                                                       const ov::element::Type weights_precision) {
+                                                       const ov::Shape& weights_new_shape,
+                                                       const ov::element::Type weights_precision,
+                                                       const ov::element::Type infer_precision) {
         auto weights = ov::test::utils::make_constant(weights_precision,
                                                       weights_shape,
                                                       ov::test::utils::InputGenerateData{0, 255});
         weights->set_friendly_name("Compressed_weights");
-        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, infer_precision);
 
-        std::shared_ptr<ov::Node> zp_const = ov::test::utils::make_constant(weights_precision,
-                                                                            ov::Shape{weights_shape[0], 1},
-                                                                            ov::test::utils::InputGenerateData{});
-        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f16);
+        auto tmp_shape = weights_shape;
+        tmp_shape[tmp_shape.size() - 1] = 1;
+        std::shared_ptr<ov::Node> zp_const =
+            ov::test::utils::make_constant(weights_precision, tmp_shape, ov::test::utils::InputGenerateData{});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, infer_precision);
 
         std::shared_ptr<ov::Node> scale_const =
-            ov::test::utils::make_constant(ov::element::f16,
-                                           ov::Shape{weights_shape[0], 1},
-                                           ov::test::utils::InputGenerateData{});
+            ov::test::utils::make_constant(infer_precision, tmp_shape, ov::test::utils::InputGenerateData{});
         auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale_const);
-        auto last_node = std::make_shared<ov::op::v0::Convert>(multiply, ov::element::f32);
-        return last_node;
+
+        std::shared_ptr<ov::op::v1::Reshape> multiply_reshape = nullptr;
+        if (weights_shape.size() != 2u) {
+            // Group quantization
+            auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {2u}, weights_new_shape);
+            multiply_reshape = std::make_shared<ov::op::v1::Reshape>(multiply, constReshape, true);
+            if (multiply_reshape->get_element_type() != ov::element::f32) {
+                return std::make_shared<ov::op::v0::Convert>(multiply_reshape, ov::element::f32);
+            }
+            return multiply_reshape;
+        }
+
+        if (multiply->get_element_type() != ov::element::f32) {
+            return std::make_shared<ov::op::v0::Convert>(multiply, ov::element::f32);
+        }
+        return multiply;
     }
 
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
                                             const ov::Shape& weights_shape,
                                             const ov::element::Type& weights_precision,
-                                            const ov::element::Type& data_precision,
+                                            const ov::element::Type& infer_precision,
                                             const bool& scalar_axis) {
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i64, data_shape)};
         auto params_convert = std::make_shared<ov::op::v0::Convert>(params[0], ov::element::i32);
         auto axis = ov::op::v0::Constant::create(element::i32, scalar_axis ? ov::Shape() : ov::Shape{1}, {0});
 
-        const auto weights_subgraph = initDecompressionWeights(weights_shape,
-                                                               weights_precision);
+        auto weights_new_shape = weights_shape;
+        if (weights_shape.size() == 3u) {
+            weights_new_shape = ov::Shape{weights_shape[0], weights_shape[1] * weights_shape[2]};
+        }
+
+        const auto weights_subgraph = initDecompressionWeights(weights_shape, weights_new_shape, weights_precision, infer_precision);
 
         auto gather = std::make_shared<ov::op::v8::Gather>(weights_subgraph, params_convert, axis);
         gather->set_friendly_name("GatherCompression");
 
-        auto matB = ov::op::v0::Constant::create(element::f32, Shape{weights_shape[1], 1}, {1});
+        auto matB = ov::op::v0::Constant::create(element::f32, Shape{weights_new_shape[1], 1}, {1});
         auto matMul = std::make_shared<ov::op::v0::MatMul>(gather, matB, false, false);
-        return makeNgraphFunction(data_precision, params, matMul, "GatherWeightsDecompression");
+        matMul->set_friendly_name("lastMatMul");
+        return makeNgraphFunction(ov::element::f32, params, matMul, "GatherWeightsDecompression");
     }
 
     void SetUp() override {
@@ -130,21 +144,21 @@ protected:
 
         InputAndWeigthsShapeParams shape_params;
         ov::element::Type weights_precision;
-        ov::AnyMap additional_config;
+        ov::element::Type infer_precision;
         bool scalar_axis;
         fusingSpecificParams fusing_params;
         bool should_fuse;
 
-        std::tie(shape_params, weights_precision, additional_config, scalar_axis, fusing_params, should_fuse) = GetParam();
+        std::tie(shape_params, weights_precision, infer_precision, scalar_axis, fusing_params, should_fuse) = GetParam();
 
-        configuration.insert(additional_config.begin(), additional_config.end());
+        configuration.insert({ov::hint::inference_precision.name(), infer_precision});
+
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
-        ElementType netType = ov::element::f32;
-        inType = outType = netType;
+        inType = outType = infer_precision;
 
-        function = initSubgraph(inputDynamicShapes[0], shape_params.weights_shape, weights_precision, netType, scalar_axis);
+        function = initSubgraph(inputDynamicShapes[0], shape_params.weights_shape, weights_precision, infer_precision, scalar_axis);
     }
 
     void check_results() {
@@ -175,17 +189,17 @@ TEST_P(GatherWeightsDecompression, CompareWithRefs) {
 
 namespace {
 
-std::vector<ov::AnyMap> filter_additional_config() {
-    std::vector<ov::AnyMap> additional_config = {};
-    additional_config.push_back({{ov::hint::inference_precision(ov::element::f32)}});
+std::vector<ov::element::Type> filter_infer_precision() {
+    std::vector<ov::element::Type> additional_infer_precision = {};
+    additional_infer_precision.push_back(ov::element::f32);
     if (ov::with_cpu_x86_bfloat16()) {
-        additional_config.push_back({{ov::hint::inference_precision(ov::element::bf16)}});
+        additional_infer_precision.push_back(ov::element::bf16);
     }
-
-    return additional_config;
+    return additional_infer_precision;
 }
 
 const std::vector<InputAndWeigthsShapeParams> input_weights_shapes = {
+    {{{-1, -1}, {{1, 1}}}, {32, 4, 32}},
     {{{-1, -1}, {{1, 1}}}, {16, 32}},
     {{{-1, -1}, {{1, 8}}}, {16, 64}},
     {{{}, {{2, 1}}}, {16, 33}}
@@ -201,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherCompressedWeights_basic,
                          GatherWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_weights_shapes),
                                             ::testing::ValuesIn(input_weights_precision),
-                                            ::testing::ValuesIn(filter_additional_config()),
+                                            ::testing::ValuesIn(filter_infer_precision()),
                                             ::testing::ValuesIn(vec_scalar_axis),
                                             ::testing::ValuesIn(fs_params),
                                             ::testing::Values(true)),

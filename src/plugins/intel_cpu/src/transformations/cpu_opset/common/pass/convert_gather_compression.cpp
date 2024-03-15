@@ -32,7 +32,7 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
      *         \       /
      *          Multiply
      *             |
-     *          Convert
+     *          Convert (Optional)
      *             |
      *           Gather
      */
@@ -44,9 +44,17 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     auto subtract_pattern = ov::pass::pattern::wrap_type<opset10::Subtract>({convert1_pattern, zero_point_pattern});
     auto multiply_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({subtract_pattern, ov::pass::pattern::any_input()});
 
+    // Optional
     auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_pattern}, ov::pass::pattern::consumers_count(1));
+
     auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>();
-    auto gather_pattern = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
+    auto gather_pattern_1 = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
+    auto gather_pattern_2 = ov::pass::pattern::wrap_type<opset8::Gather>({multiply_pattern, ov::pass::pattern::any_input(), const_pattern});
+
+    auto gather_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
+        gather_pattern_1,
+        gather_pattern_2,
+    });
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_map = m.get_pattern_value_map();
