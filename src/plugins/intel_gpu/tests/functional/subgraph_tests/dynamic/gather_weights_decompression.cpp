@@ -156,7 +156,7 @@ protected:
         // Group decompression: [I, N, 1]
         ov::Shape scaleshift_target_shape{data_shape[0]};
         scaleshift_target_shape.insert(scaleshift_target_shape.end(), group_decompression ? data_shape[1] / group_size : 1);
-        if (group_decompression) {
+        if (group_decompression || scaleshift_target_shape.size() < original_data_shape.size()) {
             auto data_idx = scaleshift_target_shape.size() - 1;
             scaleshift_target_shape.insert(scaleshift_target_shape.begin() + data_idx + 1, 1);
         }
@@ -284,6 +284,7 @@ const std::vector<ShapeParams> input_shapes_basic = {
     {{2, 5}, {{-1, -1}, {{2, 3}}}, 1, 1},
     {{15, 32}, {{-1, -1}, {{2, 3}}}, 1, 0, 16},
     {{2, 5}, {{}, {{2, 3}}}, 1, -1},
+    {{15, 16, 2}, {{-1, -1}, {{2, 3}}}, 0, 0},
 };
 const std::vector<bool> add_decompression_sub = {true, false};
 const std::vector<bool> reshape_on_decompression = {true, false};

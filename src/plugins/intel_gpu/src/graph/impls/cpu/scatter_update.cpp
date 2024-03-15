@@ -53,11 +53,14 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "scatter_update::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
-        for (auto e : events) {
-            e->wait();
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
         }
 
-        auto ev = stream.create_user_event(false);
         auto params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
@@ -90,9 +93,15 @@ struct scatter_update_impl : public typed_primitive_impl<scatter_update> {
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
 
-        ev->set();
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
 
-        return ev;
+        return stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
