@@ -140,13 +140,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
                          ::testing::Combine(::testing::Values("AUTO:TEMPLATE"),
                                             ::testing::ValuesIn(multiModelPriorityConfigs)));
 
-const std::vector<ov::AnyMap> default_properties = {{ov::enable_profiling(false)},
-                                                    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
-                                                    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
+const std::vector<ov::AnyMap> auto_default_properties = {
+    {ov::enable_profiling(false)},
+    {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_Default_test,
                          OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
-                                            ::testing::ValuesIn(default_properties)),
+                                            ::testing::ValuesIn(auto_default_properties)),
                          OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> multi_default_properties = {{ov::enable_profiling(false)},
+                                                          {ov::hint::model_priority(ov::hint::Priority::MEDIUM)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_Default_test,
+                         OVClassCompiledModelPropertiesDefaultTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
+                                            ::testing::ValuesIn(multi_default_properties)),
+                         OVClassCompiledModelPropertiesDefaultTests::getTestCaseName);
+
 }  // namespace
