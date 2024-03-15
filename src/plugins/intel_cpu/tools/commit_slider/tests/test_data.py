@@ -63,7 +63,8 @@ class TestData():
         BmNoDegradation = 8,
         BmUnstableDev = 9,
         BmWrongPath = 10,
-        BmPathFound = 11
+        BmPathFound = 11,
+        BmFirstFixed = 12
 
     def requireTestData(self, reqLambda):
         # mapping json to test data holder
@@ -107,6 +108,19 @@ class BenchmarkAppDataStable(TestData):
 
     def getTestName(self):
         return "BmBinarySearchStable"
+
+    def __init__(self):
+        from test_util import requireBinarySearchData
+        self.requireTestData(
+            requireBinarySearchData
+        )
+
+class BenchmarkFirstFixedAppData(TestData):
+    def getTestCase():
+        return TestData.TestCase.BmFirstFixed
+
+    def getTestName(self):
+        return "BmFirstFixed"
 
     def __init__(self):
         from test_util import requireBinarySearchData

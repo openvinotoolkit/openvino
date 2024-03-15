@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -773,7 +773,7 @@ TEST_F(FrontEndConversionWithReferenceTestsF, TF1IfWithNonExistentOpInBranch) {
                               {},
                               {},
                               {},
-                              {"cond"},
+                              {"cond:0"},
                               {&cond_value});
     }
     {

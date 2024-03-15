@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,7 +36,6 @@ class TestPlaceholder(CommonTFLayerTest):
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
             x = tf.raw_ops.Placeholder(dtype=dtype, shape=input_shape, name='x')
-            tf.raw_ops.Identity(input=x, name='Identityrfefef')
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 

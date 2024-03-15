@@ -153,7 +153,7 @@ void Inverse::lu_decomposition(const T* data,
 
         // Find maximum value pivot - non-parallel
         for (size_t i = (k + 1) * m_side, j = k + 1; i < m_side_squared; i += m_side, ++j) {
-            if (abs(U[i + k]) > abs(U[pivot_idx + k])) {
+            if (std::abs(U[i + k]) > std::abs(U[pivot_idx + k])) {
                 pivot_row = j;
                 pivot_idx = pivot_row * m_side;
             }

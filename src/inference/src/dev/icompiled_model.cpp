@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,4 +142,8 @@ ov::SoPtr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
     if (m_context)
         return m_context;
     return m_plugin->get_default_context({});
+}
+
+void ov::ICompiledModel::set_model_shared_object(ov::Model& model, const std::shared_ptr<void>& shared_object) {
+    model.m_shared_object = shared_object;
 }

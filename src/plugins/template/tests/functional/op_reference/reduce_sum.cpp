@@ -1,10 +1,12 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/op/reduce_sum.hpp"
 
 #include <gtest/gtest.h>
+
+#include <random>
 
 #include "reduction.hpp"
 

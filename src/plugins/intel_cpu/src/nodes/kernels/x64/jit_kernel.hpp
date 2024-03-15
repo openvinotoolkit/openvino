@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -699,6 +699,9 @@ private:
     internal::consts_table _consts;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 };
+
+template <>
+const Xbyak::Reg64& jit_kernel::reserve<Xbyak::Reg64>();
 
 template<typename T>
 void jit_kernel::copy(const Xbyak::Reg64& dst,

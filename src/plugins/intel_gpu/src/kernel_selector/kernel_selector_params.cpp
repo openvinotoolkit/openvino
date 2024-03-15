@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -457,23 +457,6 @@ std::string Params::to_string() const {
 
 std::string Params::to_cache_string_v2() const {
     return "";
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ParamsKey optional_params::GetSupportedKey() const {
-    ParamsKey k;
-
-    for (auto l : inputLayouts) {
-        k.EnableInputLayout(l);
-    }
-
-    for (auto l : outputLayouts) {
-        k.EnableOutputLayout(l);
-    }
-
-    return k;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

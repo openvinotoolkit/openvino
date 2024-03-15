@@ -41,6 +41,12 @@ namespace intel_cpu {
 #    define OV_CPU_INSTANCE_X64(...)
 #endif
 
+#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
+#    define OV_CPU_INSTANCE_MLAS_X64(...) {__VA_ARGS__},
+#else
+#    define OV_CPU_INSTANCE_MLAS_X64(...)
+#endif
+
 #define OV_CPU_INSTANCE_COMMON(...) {__VA_ARGS__},
 
 // @todo another option is to determine shape relation by executor type
@@ -53,10 +59,11 @@ enum class ExecutorType {
     Undefined,
     Graph,
     Common,
-    x64,
+    jit_x64,
     Dnnl,
     Acl,
-    Mlas
+    Mlas,
+    jit_aarch64
 };
 
 enum class OperationType {
@@ -135,7 +142,11 @@ using ExecutorFactoryLegacyCPtr = std::shared_ptr<const ExecutorFactoryLegacy>;
 
 class Executor {
 public:
-    virtual void update(const MemoryArgs& memory) {}
+    // returns false if the stage has failed and the executor must be rejected
+    virtual bool update(const MemoryArgs& memory) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'update' method is not implemented by executor");
+        return false;
+    }
     virtual void execute() const {}
     // dnnl_fullyconnected 3D workaround version
     virtual void execute(const MemoryArgs& memory) {
