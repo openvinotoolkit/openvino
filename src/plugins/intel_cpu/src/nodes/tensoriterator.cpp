@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -413,7 +413,7 @@ void TensorIterator::getSupportedDescriptors() {
 
     const auto &inMap = sub_graph.GetInputNodesMap();
     for (const auto &param : tiOp->get_function()->get_parameters()) {
-        auto inNode = inMap.find(param->get_friendly_name());
+        auto inNode = inMap.find(tiOp->get_function()->get_parameter_index(param));
         if (inNode != inMap.end()) {
             input_mems.push_back(getToMemories(inNode->second.get(), 0));
         }
@@ -421,9 +421,7 @@ void TensorIterator::getSupportedDescriptors() {
 
     const auto &outMap = sub_graph.GetOutputNodesMap();
     for (const auto &out : tiOp->get_function()->get_results()) {
-        const auto prev = out->input_value(0);
-        const auto inputID = ov::op::util::create_ie_output_name(prev);
-        auto outNode = outMap.find(inputID);
+        auto outNode = outMap.find(tiOp->get_function()->get_result_index(out));
         if (outNode != outMap.end()) {
             auto outMem = outNode->second->getSrcMemoryAtPort(0);
             output_mem.push_back(outMem);

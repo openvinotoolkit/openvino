@@ -19,7 +19,7 @@ class Test_sync_benchmark_cpp(SamplesCommonTestClass):
     sample_name = 'sync_benchmark'
 
     def test(self, cache):
-        self._test({'m': os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')}, cache, use_preffix=False)
+        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)
 
 
 class Test_sync_benchmark_py(SamplesCommonTestClass):
@@ -28,4 +28,4 @@ class Test_sync_benchmark_py(SamplesCommonTestClass):
 
     def test(self, monkeypatch, cache):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
-        self._test({'m': os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')}, cache, use_preffix=False)
+        self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)

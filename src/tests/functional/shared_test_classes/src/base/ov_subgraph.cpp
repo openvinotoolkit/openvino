@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
-#include <signal.h>
 #include <setjmp.h>
+#include <signal.h>
 
+#include <chrono>
 #include <fstream>
 #include <thread>
 
@@ -471,26 +471,36 @@ std::vector<ov::Tensor> SubgraphBaseTest::get_plugin_outputs() {
 
 void SubgraphBaseTest::validate() {
     std::vector<ov::Tensor> expectedOutputs, actualOutputs;
+    std::exception_ptr expected_outputs_error, actual_output_error;
 
 #ifndef NDEBUG
     actualOutputs = get_plugin_outputs();
     expectedOutputs = calculate_refs();
 #else
-    if (targetDevice == "TEMPLATE") {
-        // TODO: Fix it in CVS-129397
-        // This is workaround to reduce occurrence of SIGABRT on Windows build when using TEMPLATE device
-        actualOutputs = get_plugin_outputs();
-        expectedOutputs = calculate_refs();
-    } else {
-        std::thread t_device([&] {
+    std::thread t_device([this, &actualOutputs, &actual_output_error] {
+        // The try ... catch block is required to handle exceptions during output calculations and report as test fail.
+        // If exception is not caught then application would be terminated with crash. (CVS-133676)
+        try {
             actualOutputs = get_plugin_outputs();
-        });
-        std::thread t_ref([&] {
+        } catch (...) {
+            actual_output_error = std::current_exception();
+        }
+    });
+    std::thread t_ref([this, &expectedOutputs, &expected_outputs_error] {
+        try {
             expectedOutputs = calculate_refs();
-        });
+        } catch (...) {
+            expected_outputs_error = std::current_exception();
+        }
+    });
+    t_device.join();
+    t_ref.join();
 
-        t_device.join();
-        t_ref.join();
+    if (actual_output_error) {
+        std::rethrow_exception(actual_output_error);
+    }
+    if (expected_outputs_error) {
+        std::rethrow_exception(expected_outputs_error);
     }
 #endif
 
