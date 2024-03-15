@@ -899,11 +899,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
     if (fc_prim->compressed_weights) {
         auto weights_dt = node.weights().get_output_layout().data_type;
-        if (ov::element::Type(weights_dt).bitwidth() != 8)
+        if (fc_prim->decompression_zero_point_scalar.has_value()) {
+            GPU_DEBUG_TRACE << node.id() << ": OneDNN does not support scalar zp" << std::endl;
             return false;
-
-        if (fc_prim->decompression_zero_point_scalar.has_value())
-            return false;
+        }
 
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
@@ -1350,7 +1349,7 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
             const auto& fc_node = node.as<fully_connected>();
             const auto fc_prim = fc_node.get_primitive();
             wei_dt = fc_node.weights().get_output_layout(false).data_type;
-            if (fc_prim->compressed_weights && ov::element::Type(wei_dt).bitwidth() == 8)
+            if (fc_prim->compressed_weights)
                 return true;
         } else {
             wei_dt = node.as<gemm>().get_input_layout(1).data_type;
