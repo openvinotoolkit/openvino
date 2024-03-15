@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
@@ -401,6 +402,10 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         if (m_file_name.empty())
             return false;
+
+        for (auto& node : model->get_ordered_ops()) {
+            ov::op::util::process_subgraph(*this, node);
+        }
 
         std::ofstream ofs(m_file_name);
         if (!ofs) {

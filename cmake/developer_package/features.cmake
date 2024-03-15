@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,10 +8,7 @@ include(target_flags)
 set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
 list (APPEND OV_OPTIONS CPACK_GENERATOR)
 
-# FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
-#        this must be addressed in a proper way
-ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF
-    "LINUX;EMSCRIPTEN OR NOT CMAKE_CROSSCOMPILING;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
+ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ov_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 
