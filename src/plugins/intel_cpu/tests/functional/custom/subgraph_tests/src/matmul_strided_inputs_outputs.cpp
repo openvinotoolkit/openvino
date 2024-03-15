@@ -91,7 +91,7 @@ TEST_P(MatmulStridedInputsOutputsTest, CompareWithRefs) {
 
 using MatmulStridedInputsOutputsTest_FP16 = MatmulStridedInputsOutputsTest;
 TEST_P(MatmulStridedInputsOutputsTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});

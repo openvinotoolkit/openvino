@@ -483,7 +483,6 @@ CPUTestsBase::get_default_imp_precision_type(const ov::element::Type& in_type,
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
     const std::string key = ov::hint::inference_precision.name();
-    const std::string KEY_ENFORCE_BF16 = "ENFORCE_BF16";
     // if is not float
     if (!in_type.is_real()) {
         return in_type;

@@ -78,7 +78,7 @@ public:
 namespace {
 TEST_P(ConcatConstantInPlaceTest, smoke_ConcatConstantInPlaceTest_CPU) {
     run();
-    if (this->GetParam() == ov::element::bf16 || this->GetParam() == ov::element::f16)
+    if (this->GetParam() == ov::element::bf16)
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 3);
     else
         CheckNumberOfNodesWithType(compiledModel, "Reorder", 2);

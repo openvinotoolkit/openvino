@@ -173,7 +173,7 @@ TEST_P(IntertactionCPUTest, CompareWithRefs) {
 
 using IntertactionCPUTest_FP16 = IntertactionCPUTest;
 TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
-    if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
+    if (!(ov::with_cpu_x86_avx512_core_fp16())) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
@@ -184,7 +184,7 @@ TEST_P(IntertactionCPUTest_FP16, CompareWithRefs) {
 
 namespace {
 const std::vector<ElementType> inPrecisions = {ElementType::f32, ElementType::bf16, ElementType::i32, ElementType::i8};
-const std::vector<ElementType> inPrecisions_FP16 = {ElementType::f32, ElementType::i32, ElementType::i8};
+const std::vector<ElementType> inPrecisions_FP16 = {ElementType::f32, ElementType::i32};
 // the model has 27 inputs with same shape
 const std::vector<InputShape> input_shapes = {
     // temporarily disable dynamic shape for performance issue

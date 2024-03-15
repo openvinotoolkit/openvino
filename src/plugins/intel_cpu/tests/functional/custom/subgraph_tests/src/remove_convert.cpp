@@ -98,13 +98,7 @@ public:
 };
 
 TEST_P(RemoveUselessBF16ConvertCPUTest, CompareWithRefs) {
-    ElementType inType;
-    InputShape inputShape;
-    std::tie(inType, inputShape) = this->GetParam();
-    if (inType == ElementType::bf16) {
-        configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
-    }
-
+    configuration.insert({ov::hint::inference_precision.name(), ov::element::bf16});
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");
@@ -117,12 +111,9 @@ TEST_P(RemoveUselessConvertCPUTest, CompareWithRefs) {
 
 using RemoveUselessFP16ConvertCPUTest = RemoveUselessBF16ConvertCPUTest;
 TEST_P(RemoveUselessFP16ConvertCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-    //     GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-    // }
-
     configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+    auto implType = get_default_imp_precision_type(ov::element::f16, configuration);
+    selectedType = makeSelectedTypeStr("ref", implType);
     run();
     CheckNumberOfNodesWithTypes(compiledModel, {"Convert", "Subgraph"}, 0);
     CheckPluginRelatedResults(compiledModel, "StridedSlice");

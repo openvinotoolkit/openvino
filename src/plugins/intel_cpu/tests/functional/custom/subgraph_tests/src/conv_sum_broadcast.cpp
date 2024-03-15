@@ -166,23 +166,6 @@ TEST_P(ConvSumInPlaceTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
 
-class ConvSumInPlaceTest_FP16 : public ConvSumInPlaceTest {
-public:
-    void SetUp() override {
-        if (!(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx512_core_amx_fp16())) {
-            GTEST_SKIP() << "Skipping test, platform don't support precision f16";
-        }
-        ConvSumInPlaceTest::SetUp();
-    }
-    bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA(!ov::with_cpu_x86_avx512_core_amx_fp16());
-        if (isaType == "")
-            return primType == "ref";
-        else
-            return  primType == makeSelectedTypeStr(std::string("brgconv_") + isaType, ov::element::f16);
-    }
-};
-
 class ConvSumInPlaceStrided : public ConvSumInPlaceTest {
 public:
     ConvSumInPlaceStrided() {
@@ -434,11 +417,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingReluScaleShift
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSetFP16{
-        emptyFusingSpec,
-        fusingSigmoid,
-        fusingReluScaleShift
-};
+const std::vector<fusingSpecificParams> fusingParamsSetFP16 = fusingParamsSetBF16;
 
 InputShape convInpShape = {
         //dynamic shapes
@@ -491,7 +470,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                          ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
-                         ConvSumInPlaceTest_FP16,
+                         ConvSumInPlaceTest,
                          ::testing::Combine(
                                  ::testing::Values(convInpShape),
                                  ::testing::ValuesIn(secondInp),

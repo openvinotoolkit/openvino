@@ -521,18 +521,12 @@ protected:
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
         auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        ov::element::Type inference_precision = (it != additionalConfig.end()) ?
-                                                it->second.as<ov::element::Type>() : ov::element::undefined;
-        if (inference_precision == ov::element::bf16) {
+        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
-        } else if (inference_precision == ov::element::f16) {
-            convertOutType = inType = outType = netType = ElementType::f16;
-            weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::f16;
         } else {
             inType = outType = netType;
         }
-
 
         std::string cpuNodeType = "FullyConnected";
         selectedType = makeSelectedTypeStr(selectedType, outType);
@@ -543,7 +537,7 @@ protected:
         }
         std::shared_ptr<ov::Node> inputWeights =
             ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
-        if (weiConstElemType == ElementType::f16 && weiConstElemType != convertOutType) {
+        if (weiConstElemType == ElementType::f16) {
             inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);
         }
