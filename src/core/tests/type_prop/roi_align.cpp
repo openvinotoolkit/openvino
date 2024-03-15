@@ -14,7 +14,7 @@ using namespace testing;
 
 template <typename TOp>
 class ROIAlignTest : public testing::Test {
-public:
+protected:
     std::shared_ptr<TOp> make_roi_op(const Output<Node>& input,
                                      const Output<Node>& rois,
                                      const Output<Node>& batch_indices,
