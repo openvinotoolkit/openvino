@@ -1,4 +1,4 @@
-name: Send workflows to OpenTelemetry (BETA)
+name: Export workflow metrics (BETA)
 
 on:
   workflow_run:
@@ -29,14 +29,35 @@ permissions: read-all
 
 jobs:
   otel-export-trace:
-    name: OpenTelemetry Export Trace
-    runs-on: ubuntu-latest
+    name: Export finished workflow metrics
+    runs-on: aks-linux-2-cores-8gb
 
     steps:
-      - name: Export Workflow Trace
+      - name: Export Workflow Trace to Honeycomb
         uses: inception-health/otel-export-trace-action@7eabc7de1f4753f0b45051b44bb0ba46d05a21ef
         with:
           otlpEndpoint: grpc://api.honeycomb.io:443/
           otlpHeaders: ${{ secrets.OTLP_HEADERS }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           runId: ${{ github.event.workflow_run.id }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: '.github'
+
+      - name: Install deps
+        run: |
+          pip3 install -r .github/scripts/requirements.txt
+          pip3 install PyGithub==2.2.0 psycopg2-binary==2.9.9
+
+      - name: Send metrics to SQL database
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
+          PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
+          PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
+          PGPORT: 5432
+        run: |
+          python3 .github/scripts/collect_github_metrics.py
