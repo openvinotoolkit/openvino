@@ -153,6 +153,10 @@
         "Tensorflow",
         "Train Model"
     ],
+    "128-opnevino-tokenizers": [
+        "Async Inference",
+        "Transformers"
+    ],
     "203-meter-reader": [
         "Dynamic Shape",
         "Reshape Model"
@@ -240,10 +244,7 @@
         "Pytorch",
         "Transformers"
     ],
-    "228-clip-zero-shot-convert": [
-        "Transformers"
-    ],
-    "228-clip-zero-shot-quantize": [
+    "228-clip-zero-shot-classification": [
         "Benchmark Model",
         "NNCF",
         "Pytorch",
@@ -282,11 +283,7 @@
         "Pytorch",
         "Transformers"
     ],
-    "233-blip-convert": [
-        "Pytorch",
-        "Transformers"
-    ],
-    "233-blip-optimize": [
+    "233-blip-visual-language-processing": [
         "Benchmark Model",
         "NNCF",
         "Pytorch",
@@ -296,6 +293,8 @@
         "Pytorch"
     ],
     "235-controlnet-stable-diffusion": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Reshape Model",
         "Transformers"
@@ -304,13 +303,12 @@
         "Pytorch",
         "Transformers"
     ],
-    "236-stable-diffusion-v2-optimum-demo-comparison": [
-        "ONNX"
-    ],
     "236-stable-diffusion-v2-text-to-image-demo": [
         "Transformers"
     ],
     "236-stable-diffusion-v2-text-to-image": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -403,7 +401,6 @@
         "Transformers"
     ],
     "254-rag-chatbot": [
-        "Async Inference",
         "NNCF",
         "Pytorch",
         "Transformers"
@@ -501,6 +498,7 @@
         "Transformers"
     ],
     "272-paint-by-example": [
+        "NNCF",
         "Pytorch",
         "Transformers"
     ],
@@ -534,6 +532,8 @@
         "Transformers"
     ],
     "280-depth-anything": [
+        "Benchmark Model",
+        "NNCF",
         "Pytorch",
         "Torchvision"
     ],
@@ -553,6 +553,33 @@
     ],
     "284-openvoice": [
         "Pytorch"
+    ],
+    "285-surya-line-level-text-detection": [
+        "Pytorch"
+    ],
+    "286-instant-id": [
+        "Benchmark Model",
+        "Dynamic Shape",
+        "NNCF",
+        "ONNX",
+        "Pytorch",
+        "Transformers"
+    ],
+    "287-yolov9-optimization": [
+        "Benchmark Model",
+        "NNCF",
+        "Pytorch",
+        "Reshape Model"
+    ],
+    "288-grounded-segment-anything": [
+        "Async Inference",
+        "Pytorch",
+        "Torchvision",
+        "Transformers"
+    ],
+    "289-mobileclip-video-search": [
+        "Pytorch",
+        "Torchvision"
     ],
     "301-tensorflow-training-openvino-nncf": [
         "Benchmark Model",
