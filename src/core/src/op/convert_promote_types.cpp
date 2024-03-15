@@ -91,8 +91,6 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
 
     const auto is_input_0_real = input_0_type.is_real();
     const auto is_input_1_real = input_1_type.is_real();
-    const size_t input_0_bitwidth = input_0_type.bitwidth();
-    const size_t input_1_bitwidth = input_1_type.bitwidth();
 
     if (is_input_0_real != is_input_1_real) {
         // Floating and integer mixed, align to floating
@@ -109,27 +107,36 @@ element::Type evaluate_common_type(const v14::ConvertPromoteTypes* op) {
 
     } else if (is_input_0_real == is_input_1_real) {
         // Type formats are the same (both are either floating or integer).
-        const auto& input_0_pshape = op->get_input_partial_shape(0);
-        const auto& input_1_pshape = op->get_input_partial_shape(1);
-        const auto is_input_0_scalar = input_0_pshape.is_static() && is_scalar(input_0_pshape);
-        const auto is_input_1_scalar = input_1_pshape.is_static() && is_scalar(input_1_pshape);
+        if (pytorch_scalar_promotion) {
+            const auto& input_0_rank = op->get_input_partial_shape(0).rank();
+            const auto& input_1_rank = op->get_input_partial_shape(1).rank();
+            if (input_0_rank.is_dynamic() || input_1_rank.is_dynamic()) {
+                // For pytorch mode, return element::dynamic if ranks affecting output type are dynamic.
+                return element::dynamic;
+            }
+            const auto is_input_0_scalar = input_0_rank.get_length() == 0;
+            const auto is_input_1_scalar = input_1_rank.get_length() == 0;
+            if (is_input_0_scalar != is_input_1_scalar) {
+                // For pytorch mode, when number formats are same, promote to type of non-scalar input.
+                const auto& target = is_input_0_scalar ? input_1_type : input_0_type;
+                if (!promote_unsafe) {
+                    // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
+                    const auto& scalar = is_input_0_scalar ? input_0_type : input_1_type;
+                    const auto is_pytorch_promote_safe =
+                        ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
+                         (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth()));
+                    NODE_VALIDATION_CHECK(op,
+                                          is_pytorch_promote_safe,
+                                          "Scalar input cannot be PyTorch-like promoted using safe promotion rules.");
+                }
+                return target;
+            }
+        }
         const auto is_input_0_signed = input_0_type.is_signed();
         const auto is_input_1_signed = input_1_type.is_signed();
-        if (pytorch_scalar_promotion && (is_input_0_scalar != is_input_1_scalar)) {
-            // For pytorch mode, when number formats are same, promote to type of non-scalar input.
-            const auto target = is_input_0_scalar ? input_1_type : input_0_type;
-            if (!promote_unsafe) {
-                // For safe mode, check wether target type has bitwidth able to hold data from scalar type.
-                const auto scalar = is_input_0_scalar ? input_0_type : input_1_type;
-                const auto is_pytorch_promote_safe =
-                    ((target.is_signed() == scalar.is_signed() && target.bitwidth() >= scalar.bitwidth()) ||
-                     (target.is_signed() && !scalar.is_signed() && target.bitwidth() * 2 >= scalar.bitwidth()));
-                NODE_VALIDATION_CHECK(op,
-                                      is_pytorch_promote_safe,
-                                      "Scalar input cannot be PyTorch-like promoted using safe promotion rules.");
-            }
-            return target;
-        } else if ((is_input_0_signed != is_input_1_signed)) {
+        const auto input_0_bitwidth = input_0_type.bitwidth();
+        const auto input_1_bitwidth = input_1_type.bitwidth();
+        if ((is_input_0_signed != is_input_1_signed)) {
             // Signed and unsigned integers are mixed, convert to signed integer with bitwidth able to hold all unsigned
             // data. Exception for u64 + integer - either convert to type from `u64_promotion_target` or fail in safe
             // mode.
