@@ -36,12 +36,16 @@ namespace test {
 
 struct InputAndWeigthsShapeParams {
     InputAndWeigthsShapeParams() = default;
-    InputAndWeigthsShapeParams(InputShape _data_shape, ov::Shape _weights_shape)
+    InputAndWeigthsShapeParams(InputShape _data_shape, ov::Shape _weights_shape, ov::Shape _zp_shape, ov::Shape _scale_shape)
         : data_shape(std::move(_data_shape)),
-          weights_shape(std::move(_weights_shape)) {}
+          weights_shape(std::move(_weights_shape)),
+          zp_shape(std::move(_zp_shape)),
+          scale_shape(std::move(_scale_shape)) {}
 
     InputShape data_shape;
     ov::Shape weights_shape;
+    ov::Shape zp_shape;
+    ov::Shape scale_shape;
 };
 
 using GatherWeightsDecompressParams = std::tuple<InputAndWeigthsShapeParams,
@@ -68,6 +72,8 @@ public:
         std::ostringstream result;
         result << "data_shape=" << shape_params.data_shape << "_";
         result << "weights_shape=" << shape_params.weights_shape << "_";
+        result << "zp_shape=" << shape_params.zp_shape << "_";
+        result << "scale_shape=" << shape_params.scale_shape << "_";
         result << "weights_precision=" << weights_precision << "_";
         result << "infer_precision=" << infer_precision << "_";
         result << "scalar_axis=" << scalar_axis << "_";
@@ -76,31 +82,33 @@ public:
     }
 
 protected:
-    std::shared_ptr<ov::Node> initDecompressionWeights(const ov::Shape& weights_shape,
-                                                       const ov::Shape& weights_new_shape,
+    std::shared_ptr<ov::Node> initDecompressionWeights(const InputAndWeigthsShapeParams& shape_params,
                                                        const ov::element::Type weights_precision,
                                                        const ov::element::Type infer_precision) {
         auto weights = ov::test::utils::make_constant(weights_precision,
-                                                      weights_shape,
+                                                      shape_params.weights_shape,
                                                       ov::test::utils::InputGenerateData{0, 255});
         weights->set_friendly_name("Compressed_weights");
         auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, infer_precision);
 
-        auto tmp_shape = weights_shape;
-        tmp_shape[tmp_shape.size() - 1] = 1;
         std::shared_ptr<ov::Node> zp_const =
-            ov::test::utils::make_constant(weights_precision, tmp_shape, ov::test::utils::InputGenerateData{});
+            ov::test::utils::make_constant(weights_precision, shape_params.zp_shape, ov::test::utils::InputGenerateData{});
         auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, infer_precision);
+        zp_convert->set_friendly_name("zp_convert");
 
         std::shared_ptr<ov::Node> scale_const =
-            ov::test::utils::make_constant(infer_precision, tmp_shape, ov::test::utils::InputGenerateData{});
+            ov::test::utils::make_constant(infer_precision, shape_params.scale_shape, ov::test::utils::InputGenerateData{});
         auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zp_convert);
         auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale_const);
+        multiply->set_friendly_name("multiply:subtract_by_scale");
 
         std::shared_ptr<ov::op::v1::Reshape> multiply_reshape = nullptr;
-        if (weights_shape.size() != 2u) {
+        if (shape_params.weights_shape.size() != 2u) {
             // Group quantization
-            auto constReshape = ov::op::v0::Constant::create(ov::element::i32, {2u}, weights_new_shape);
+            auto constReshape = ov::op::v0::Constant::create(
+                ov::element::i32,
+                {2u},
+                {shape_params.weights_shape[0], shape_params.weights_shape[1] * shape_params.weights_shape[2]});
             multiply_reshape = std::make_shared<ov::op::v1::Reshape>(multiply, constReshape, true);
             if (multiply_reshape->get_element_type() != ov::element::f32) {
                 return std::make_shared<ov::op::v0::Convert>(multiply_reshape, ov::element::f32);
@@ -115,7 +123,7 @@ protected:
     }
 
     std::shared_ptr<ov::Model> initSubgraph(const ov::PartialShape& data_shape,
-                                            const ov::Shape& weights_shape,
+                                            const InputAndWeigthsShapeParams& shape_params,
                                             const ov::element::Type& weights_precision,
                                             const ov::element::Type& infer_precision,
                                             const bool& scalar_axis) {
@@ -123,17 +131,16 @@ protected:
         auto params_convert = std::make_shared<ov::op::v0::Convert>(params[0], ov::element::i32);
         auto axis = ov::op::v0::Constant::create(element::i32, scalar_axis ? ov::Shape() : ov::Shape{1}, {0});
 
-        auto weights_new_shape = weights_shape;
-        if (weights_shape.size() == 3u) {
-            weights_new_shape = ov::Shape{weights_shape[0], weights_shape[1] * weights_shape[2]};
-        }
-
-        const auto weights_subgraph = initDecompressionWeights(weights_shape, weights_new_shape, weights_precision, infer_precision);
+        const auto weights_subgraph = initDecompressionWeights(shape_params, weights_precision, infer_precision);
 
         auto gather = std::make_shared<ov::op::v8::Gather>(weights_subgraph, params_convert, axis);
         gather->set_friendly_name("GatherCompression");
 
-        auto matB = ov::op::v0::Constant::create(element::f32, Shape{weights_new_shape[1], 1}, {1});
+        auto fea_dim = shape_params.weights_shape.size() == 2u
+                           ? shape_params.weights_shape[1]
+                           : shape_params.weights_shape[1] * shape_params.weights_shape[2];
+        auto matB = ov::op::v0::Constant::create(element::f32, Shape{fea_dim, 1}, {1});
+        matB->set_friendly_name("matB");
         auto matMul = std::make_shared<ov::op::v0::MatMul>(gather, matB, false, false);
         matMul->set_friendly_name("lastMatMul");
         return makeNgraphFunction(ov::element::f32, params, matMul, "GatherWeightsDecompression");
@@ -158,7 +165,7 @@ protected:
 
         inType = outType = infer_precision;
 
-        function = initSubgraph(inputDynamicShapes[0], shape_params.weights_shape, weights_precision, infer_precision, scalar_axis);
+        function = initSubgraph(inputDynamicShapes[0], shape_params, weights_precision, infer_precision, scalar_axis);
     }
 
     void check_results() {
@@ -199,10 +206,11 @@ std::vector<ov::element::Type> filter_infer_precision() {
 }
 
 const std::vector<InputAndWeigthsShapeParams> input_weights_shapes = {
-    {{{-1, -1}, {{1, 1}}}, {32, 4, 32}},
-    {{{-1, -1}, {{1, 1}}}, {16, 32}},
-    {{{-1, -1}, {{1, 8}}}, {16, 64}},
-    {{{}, {{2, 1}}}, {16, 33}}
+    {{{-1, -1}, {{1, 1}}}, {64, 4, 32}, {64, 4, 1}, {64, 4, 1}},
+    {{{-1, -1}, {{1, 1}}}, {8, 4, 32}, {1}, {8, 4, 1}},
+    {{{-1, -1}, {{1, 1}}}, {16, 32}, {16, 1}, {16, 1}},
+    {{{-1, -1}, {{1, 8}}}, {16, 64}, {16, 1}, {16, 1}},
+    {{{}, {{2, 1}}}, {16, 33}, {16, 1}, {16, 1}}
 };
 
 const std::vector<ov::element::Type> input_weights_precision = {{ov::element::u8, ov::element::u4}};

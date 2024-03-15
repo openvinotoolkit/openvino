@@ -24,11 +24,11 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     /**
      * Dequantization subgraph pattern
      *
-     * Input
+     * Input(shape=[?,?,?]/[?,?])
      *    \
-     *  Convert    zero point
+     *  Convert    zero point(shape=[?,?,1]/[?,1]/[1])
      *      \      /
-     *      Subtract    scale
+     *      Subtract    scale(shape=[?,?,1]/[?,1])
      *         \       /
      *          Multiply
      *             |
@@ -44,17 +44,25 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
     auto subtract_pattern = ov::pass::pattern::wrap_type<opset10::Subtract>({convert1_pattern, zero_point_pattern});
     auto multiply_pattern = ov::pass::pattern::wrap_type<opset10::Multiply>({subtract_pattern, ov::pass::pattern::any_input()});
 
-    // Optional
-    auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_pattern}, ov::pass::pattern::consumers_count(1));
+    // Optional Reshape
+    auto reshape_pattern = ov::pass::pattern::wrap_type<opset10::Reshape>(
+        {multiply_pattern, ov::pass::pattern::wrap_type<opset10::Constant>()},
+        ov::pass::pattern::consumers_count(1));
+    auto multiply_reshape_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
+        reshape_pattern,
+        multiply_pattern,
+    });
+
+    // Optional Convert
+    auto convert2_pattern = ov::pass::pattern::wrap_type<opset10::Convert>({multiply_reshape_pattern},
+                                                                           ov::pass::pattern::consumers_count(1));
+    auto multiply_convert_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
+        multiply_reshape_pattern,
+        convert2_pattern,
+    });
 
     auto const_pattern = ov::pass::pattern::wrap_type<opset10::Constant>();
-    auto gather_pattern_1 = ov::pass::pattern::wrap_type<opset8::Gather>({convert2_pattern, ov::pass::pattern::any_input(), const_pattern});
-    auto gather_pattern_2 = ov::pass::pattern::wrap_type<opset8::Gather>({multiply_pattern, ov::pass::pattern::any_input(), const_pattern});
-
-    auto gather_pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{
-        gather_pattern_1,
-        gather_pattern_2,
-    });
+    auto gather_pattern = ov::pass::pattern::wrap_type<opset8::Gather>({multiply_convert_pattern, ov::pass::pattern::any_input(), const_pattern});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -91,11 +99,10 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
             return false;
         }
 
-        // Shape=[?, 1] or [?, ?, 1]
-        auto check_shape = [](const ov::Shape& shape) {
-            return (shape.size() == 2u || shape.size() == 3u) && shape.at(shape.size() - 1u) == 1u;
-        };
-        if (!check_shape(zp->get_shape())) {
+        // Shape=[?, 1] or [?, ?, 1] or [1]
+        auto zp_shape = zp->get_shape();
+        if (!((zp_shape.size() == 2u || zp_shape.size() == 3u || zp_shape.size() == 1u) &&
+              zp_shape.at(zp_shape.size() - 1u) == 1u)) {
             return false;
         }
         auto input_zp =
@@ -113,7 +120,10 @@ ov::intel_cpu::ConvertToGatherCompression::ConvertToGatherCompression() {
             return false;
         }
 
-        if (!(check_shape(scale->get_shape()))) {
+        // Shape=[?, 1] or [?, ?, 1]
+        auto scale_shape = scale->get_shape();
+        if (!((scale_shape.size() == 2u || scale_shape.size() == 3u) &&
+              scale_shape.at(scale_shape.size() - 1u) == 1u)) {
             return false;
         }
         auto input_scale = scale->get_element_type() != ov::element::f32

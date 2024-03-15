@@ -84,6 +84,7 @@ void GatherCompression::execReferenceU4() {
     const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
+    bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
     const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
     auto* pdst = getDstDataAtPortAs<float>(0);
@@ -93,7 +94,8 @@ void GatherCompression::execReferenceU4() {
     const auto seqLen = idxDims[1];
 
     auto axisDim = srcMemPtr->getStaticDims()[0];
-    auto feaDim = srcMemPtr->getStaticDims()[1];
+    auto groupDim = srcMemPtr->getStaticDims().size() == 2 ? 1 : srcMemPtr->getStaticDims()[1];
+    auto feaDim = srcMemPtr->getStaticDims().size() == 2 ? srcMemPtr->getStaticDims()[1] : srcMemPtr->getStaticDims()[2];
 
     parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
         auto dstIdx = b * seqLen + s;
@@ -105,21 +107,30 @@ void GatherCompression::execReferenceU4() {
                 ii = axisDim;
         }
 
-        auto* dst = pdst + dstIdx * feaDim;
-        auto& deq_zp = zp[ii];
-        auto& deq_scale = scale[ii];
+        auto* dst = pdst + dstIdx * feaDim * groupDim;
+        auto* src = psrc + ii * feaDim * groupDim / 2;
 
-        auto* pcur = psrc + ii*feaDim/2;
-        size_t k = 0;
-        for (; k < feaDim; k+=2) {
-            auto x = pcur[k>>1];
-            dst[k] = ((x & 0x0F) - deq_zp) * deq_scale;
-            dst[k+1] = ((x >> 4) - deq_zp) * deq_scale;
-        }
-        // Process last one if feaDim is odd
-        for (; k < feaDim; k++) {
-            auto x = pcur[k>>1];
-            dst[k] = ((x & 0x0F) - deq_zp) * deq_scale;
+        for (size_t g = 0; g < groupDim; g++) {
+            // auto& deq_zp = zp[ii];
+            // auto& deq_scale = scale[ii];
+            auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
+            auto& deq_scale = scale[ii * groupDim + g];
+
+            size_t k = 0;
+            for (; k < feaDim; k += 2) {
+                auto x = src[0];
+                dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
+                dst[1] = ((x >> 4) - deq_zp) * deq_scale;
+                dst += 2;
+                src++;
+            }
+            // Process last one if feaDim is odd
+            for (; k < feaDim; k++) {
+                auto x = src[0];
+                dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
+                dst++;
+                src++;
+            }
         }
     });
 }
@@ -131,6 +142,7 @@ void GatherCompression::execReferenceU8() {
     const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
+    bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
     const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
     auto* pdst = getDstDataAtPortAs<float>(0);
@@ -140,7 +152,10 @@ void GatherCompression::execReferenceU8() {
     const auto seqLen = idxDims[1];
 
     auto axisDim = srcMemPtr->getStaticDims()[0];
-    auto feaDim = srcMemPtr->getStaticDims()[1];
+    auto groupDim = srcMemPtr->getStaticDims().size() == 2 ? 1 : srcMemPtr->getStaticDims()[1];
+    auto feaDim =
+        srcMemPtr->getStaticDims().size() == 2 ? srcMemPtr->getStaticDims()[1] : srcMemPtr->getStaticDims()[2];
+
 
     parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
         auto dstIdx = b * seqLen + s;
@@ -152,12 +167,18 @@ void GatherCompression::execReferenceU8() {
                 ii = axisDim;
         }
 
-        auto* src = psrc + ii * feaDim;
-        auto* dst = pdst + dstIdx * feaDim;
-        auto& deq_zp = zp[ii];
-        auto& deq_scale = scale[ii];
-        for (size_t k = 0; k < feaDim; k++) {
-            dst[k] = (static_cast<float>(src[k]) - deq_zp) * deq_scale;
+        auto* src = psrc + ii * feaDim * groupDim;
+        auto* dst = pdst + dstIdx * feaDim * groupDim;
+
+
+        for (size_t g = 0; g < groupDim; g++) {
+            auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
+            auto& deq_scale = scale[ii * groupDim + g];
+            for (size_t k = 0; k < feaDim; k++) {
+                dst[0] = (static_cast<float>(src[0]) - deq_zp) * deq_scale * 2.0f;
+                dst++;
+                src++;
+            }
         }
     });
 }

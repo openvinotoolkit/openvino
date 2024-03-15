@@ -48,20 +48,19 @@ void ov::intel_cpu::GatherCompressionNode::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, scale_pshape.is_static(), "Scale pshape must be static");
     const auto scale_shape = scale_pshape.to_shape();
 
-    NODE_VALIDATION_CHECK(this, weights_pshape.size() == 2, "Weights rank must be equal 2");
-    NODE_VALIDATION_CHECK(this, zp_pshape.size() == 2, "ZP rank must be equal 2");
-    NODE_VALIDATION_CHECK(this, scale_pshape.size() == 2, "Scale rank must be equal 2");
-    NODE_VALIDATION_CHECK(this, zp_pshape[0] == weights_pshape[0], "Weights and zp dim 0 must be same");
+    NODE_VALIDATION_CHECK(this, weights_pshape.size() == 2u || weights_pshape.size() == 3u, "Weights rank must be equal 2 or 3");
+    NODE_VALIDATION_CHECK(this, zp_pshape.size() == 2u || zp_pshape.size() == 3u || zp_pshape.size() == 1u, "ZP rank must be equal 2 or 3");
+    NODE_VALIDATION_CHECK(this, scale_pshape.size() == 2u || scale_pshape.size() == 3u, "Scale rank must be equal 2 or 3");
     NODE_VALIDATION_CHECK(this, scale_pshape[0] == weights_pshape[0], "Weights and scale dim 0 must be same");
-    NODE_VALIDATION_CHECK(this, zp_pshape[1] == 1, "ZP dim 1 must be equal 1");
-    NODE_VALIDATION_CHECK(this, scale_pshape[1] == 1, "Scale dim 1 must be equal 1");
+    NODE_VALIDATION_CHECK(this, zp_pshape[zp_pshape.size() - 1] == 1u, "ZP last dim must be equal 1");
+    NODE_VALIDATION_CHECK(this, scale_pshape[scale_pshape.size() - 1] == 1u, "Scale last dim must be equal 1");
 
     // Index
     const auto index_pshape = get_input_partial_shape(3);
 
     // Result shape
     ov::PartialShape output_pshape = index_pshape;
-    output_pshape.push_back(weights_shape[1]);
+    output_pshape.push_back(weights_shape.size() == 2u ? weights_shape[1] : (weights_shape[1] * weights_shape[2]));
 
     auto output_type = m_output_type == ov::element::undefined ? ov::element::f32 : m_output_type;
     set_output_type(0, output_type, output_pshape);
