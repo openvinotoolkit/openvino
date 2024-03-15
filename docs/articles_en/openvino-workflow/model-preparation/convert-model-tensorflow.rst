@@ -12,6 +12,8 @@ This page provides general instructions on how to run model conversion from a Te
 
 .. note:: TensorFlow models can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
 
+.. note:: ``openvino.convert_model`` uses sharing of model weights by default. That means that OpenVINO model will share the same areas in program memory where the original weights are located, for this reason the original model cannot be modified (Python object cannot be deallocated and original model file cannot be deleted) for the whole lifetime of OpenVINO model. Model inference for TensorFlow models can lead to model modification, so original TF model should not be inferred during the lifetime of OpenVINO model. If it is not desired, set ``share_weights=False`` when calling ``openvino.convert_model``.
+
 .. note:: Examples below that convert TensorFlow models from a file, do not require any version of TensorFlow to be installed on the system, except in cases when the ``tensorflow`` module is imported explicitly.
 
 Converting TensorFlow 2 Models
