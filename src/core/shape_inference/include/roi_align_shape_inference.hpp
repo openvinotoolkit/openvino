@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/op/roi_align.hpp>
+#include "openvino/op/roi_align.hpp"
 
 #include "roi_align_shape_utils.hpp"
 
