@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_inst.h"
@@ -200,24 +200,31 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> primitive,
                                           const std::vector<layout>& input_layouts,
                                           const layout& output_layout) {
+    auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& transpose_order) {
+        ov::PartialShape transposed_pshape = pshape;
+        auto rank_diff = pshape.size() - transpose_order.size();
+        for (size_t i = 0; i < transpose_order.size(); ++i) {
+            size_t idx = static_cast<size_t>(transpose_order[i]);
+            transposed_pshape[i + rank_diff] = std::move(pshape[idx + rank_diff]);
+        }
+        return transposed_pshape;
+    };
+
     auto updated_output_layout = output_layout;
     auto output_rank = output_layout.get_partial_shape().size();
     if (output_rank < 4) {
-        auto input0_pshape = input_layouts[0].get_partial_shape();
-        auto input1_pshape = input_layouts[1].get_partial_shape();
+        ov::PartialShape transposed_input0_pshape = transpose_pshape(input_layouts[0].get_partial_shape(), primitive->input0_order);
+        ov::PartialShape transposed_input1_pshape = transpose_pshape(input_layouts[1].get_partial_shape(), primitive->input1_order);
 
-        auto input0_order = primitive->input0_order;
-        auto input1_order = primitive->input1_order;
+        auto M = (transposed_input0_pshape.size() > 1) ? transposed_input0_pshape[transposed_input0_pshape.size() - 2]
+                                                       : transposed_input0_pshape[0];
+        auto N = transposed_input1_pshape[transposed_input1_pshape.size() - 1];
 
-        auto m_idx = ((input0_order.size() > 1) ? input0_order[input0_order.size() - 2] : input0_order[0])
-                    + input0_pshape.size() - input0_order.size();
-        auto n_idx = input1_order[input1_order.size() - 1] + input1_pshape.size() - input1_order.size();
-        auto M = input0_pshape[m_idx];
-        auto N = input1_pshape[n_idx];
-
-        auto output_pshape = input_layouts[0].get_partial_shape();
+        auto output_pshape = transposed_input0_pshape;
         for (size_t i = 0; i != primitive->input_size(); ++i) {
-            auto input_pshape = input_layouts[i].get_partial_shape();
+            auto input_pshape = (i == 0) ? transposed_input0_pshape :
+                                (i == 1) ? transposed_input1_pshape :
+                                input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
                 ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
             }
@@ -232,13 +239,7 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
         output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
 
         if (primitive->output_order.size() > 0) {
-            ov::PartialShape transposed_output_pshape = output_pshape;
-            auto rank_diff = output_pshape.size() - primitive->output_order.size();
-            for (size_t i = 0; i < primitive->output_order.size(); ++i) {
-                size_t idx = static_cast<size_t>(primitive->output_order[i]);
-                transposed_output_pshape[i + rank_diff] = std::move(output_pshape[idx + rank_diff]);
-            }
-            output_pshape = transposed_output_pshape;
+            output_pshape = transpose_pshape(output_pshape, primitive->output_order);
         }
 
         updated_output_layout.set_partial_shape(output_pshape);

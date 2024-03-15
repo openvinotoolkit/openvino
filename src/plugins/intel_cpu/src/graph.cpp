@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,11 +91,15 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     this->graphNodes = graphNodes;
     this->graphEdges = graphEdges;
 
+    std::size_t parameter_index = 0;
+    std::size_t result_index = 0;
     for (auto node : graphNodes) {
         if ("Parameter" == node->getTypeStr()) {
-            inputNodesMap[node->getName()] = node;
+            inputNodesMap[parameter_index] = node;
+            parameter_index++;
         } else if ("Result" == node->getTypeStr()) {
-            outputNodesMap[node->getName()] = node;
+            outputNodesMap[result_index] = node;
+            result_index++;
         }
     }
 
@@ -134,16 +138,24 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
-            const std::string name = get_port_name(ov::Output<ov::Node>(op, 0));
-            inputNodesMap[name] = node;
+            auto input_index = model->get_parameter_index(std::dynamic_pointer_cast<op::v0::Parameter>(op));
+            OPENVINO_ASSERT(input_index >= 0,
+                            "CPU plugin cannot find op: ",
+                            op->get_friendly_name(),
+                            " in model parameter list!");
+            inputNodesMap[input_index] = node;
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
-            const std::string inputID = get_port_name(op->output(0));
-            outputNodesMap[inputID] = node;
+            auto output_index = model->get_result_index(std::dynamic_pointer_cast<op::v0::Result>(op));
+            OPENVINO_ASSERT(output_index >= 0,
+                            "CPU plugin cannot find op: ",
+                            op->get_friendly_name(),
+                            " in model result list!");
+            outputNodesMap[output_index] = node;
         }
 
         op2node[op] = node;
@@ -778,7 +790,7 @@ void Graph::AllocateWithReuse() {
                         }
                     }
                     // sometimes there are unused output ports.
-                    OPENVINO_ASSERT(count <= 1, "cannot find output node. count ", count);
+                    OPENVINO_ASSERT(count <= 1, "CPU plugin cannot find output node. count ", count);
                 }
             }
         }
@@ -938,9 +950,9 @@ bool Graph::ProcessDynNodes() {
     return result;
 }
 
-void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& input) {
+void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
     if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
-    auto input_itr = inputNodesMap.find(name);
+    auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
         auto childEdge = node->getChildEdgeAt(0);
@@ -965,31 +977,30 @@ void Graph::PushInputData(const std::string& name, const ov::SoPtr<ITensor>& inp
             }
         }
     } else {
-        OPENVINO_THROW("Input blob for infer '", name, "' doesn't correspond to input in network");
+        OPENVINO_THROW("Input tensor with index '", index, "' is not available in the model");
     }
 }
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
-void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& output) {
+void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
     if (!IsReady())
         OPENVINO_THROW("Wrong state. Topology not ready.");
 
     for (auto &outputMap : outputNodesMap) {
-        auto name = outputMap.first;
+        auto output_index = outputMap.first;
         auto node = outputMap.second;
         auto parentEdge = node->getParentEdgeAt(0);
         const auto& intr_blob = parentEdge->getMemory();
 
-        const auto ext_blob_map = output.find(name);
+        const auto ext_blob_map = output.find(output_index);
+        OPENVINO_ASSERT(ext_blob_map != output.end(),
+                        "The CPU plugin graph doesn't contain output node with output_index: ",
+                        output_index);
         const auto ext_blob = ext_blob_map->second;
-        if (ext_blob_map == output.end()) {
-            OPENVINO_THROW("The CPU plugin graph doesn't contain output node with name: ", name.c_str());
-        }
-
         auto expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         const auto actualDesc = intr_blob.getDescWithType<BlockedMemoryDesc>();
 
-        DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()));
+        DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()));
 
         // TODO [NM]: need to create universal reorder which will be detect cases when we really need to use it
         // WA: for cases when output shape after transformation will be 1x1x1x1 but model output is scalar
@@ -1005,12 +1016,12 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
         if (ext_blob->get_shape() != outDims && !isScalarOutput) {
             // WA: because input/output info initially contains non empty dims, order etc.
             // and setDims (called inside setShape) can't correct modify blocked desc for desc with blocked layout
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), " -> ", PartialShape(outDims),
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), " -> ", PartialShape(outDims),
             ", intr ptr ", intr_blob.getData(), " , parentedge's memory object ", parentEdge->getMemoryPtr().get());
             ext_blob->set_shape(outDims);
-            DEBUG_LOG(name, ", tensor data addr ", static_cast<void*>(output[name]->data()),
-            " dims ", PartialShape(output[name]->get_shape()), ", intr ptr ", intr_blob.getData());
+            DEBUG_LOG(output_index, ", tensor data addr ", static_cast<void*>(output[output_index]->data()),
+            " dims ", PartialShape(output[output_index]->get_shape()), ", intr ptr ", intr_blob.getData());
             expected_desc_ptr = MemoryDescUtils::generateCpuBlockedMemoryDesc(ext_blob);
         }
 
@@ -1030,7 +1041,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
 
         void *ext_blob_ptr = ext_blob->data();
         void *intr_blob_ptr = intr_blob.getData();
-        DEBUG_LOG(name, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
+        DEBUG_LOG(output_index, " @ ", intr_blob_ptr, " -> ", ext_blob_ptr, " zero-copy: ", intr_blob_ptr == ext_blob_ptr, " graph ", this, "\r\n");
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -1042,7 +1053,7 @@ void Graph::PullOutputData(std::unordered_map<std::string, ov::SoPtr<ITensor>>& 
             Memory outBloMem(getEngine(), expected_desc_ptr, ext_blob_ptr, false);
             outBloMem.load(intr_blob, false);
         } else {
-            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor ", name, " is different from the external one");
+            OPENVINO_ASSERT(srcPrec == dstPrec, "The precision of the CPU output tensor index", output_index, " is different from the external one");
             size_t size_to_copy = intr_blob.getSize();
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
