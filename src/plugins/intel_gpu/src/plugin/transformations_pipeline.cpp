@@ -133,6 +133,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace {
 template<typename T>
@@ -549,6 +550,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
+        pass_config->disable<ov::pass::NopStridedSlice>();
+        pass_config->disable<ov::pass::NopStridedSliceByShape>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
