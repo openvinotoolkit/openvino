@@ -915,20 +915,12 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
 }
 
 TEST(pre_post_process, pad_vector_constant_layout) {
-    auto f = create_simple_function(element::f32, Shape{1, 3, 199, 199});
+    auto f = create_simple_function(element::f32, Shape{1, 3, 200, 200});
     auto p = PrePostProcessor(f);
 
-    std::stringstream exp_dump;
-    exp_dump << PartialShape{1, 3, 200, 200};
-    try{
-        p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::CONSTANT);
-        p.build();
-    } catch (const ov::Exception& err) {
-        // Padded shape should be {1, 3, 200, 200}
-        EXPECT_TRUE(std::string(err.what()).find(exp_dump.str())) << err.what();
-    } catch (...) {
-        FAIL() << "Expected ov::Exception";
-    }
+    p.input().tensor().set_shape({1, 3, 199, 199});
+    p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::CONSTANT);
+    EXPECT_NO_THROW(p.build());
 }
 
 TEST(pre_post_process, pad_vector_out_of_range) {
