@@ -325,3 +325,9 @@ ov::copy_runtime_info({conv, bias}, {conv_fused});
 ov::copy_runtime_info({a, b, c}, {e, f});
 // ! [ov:copy_runtime_info]
 }
+
+void get_element_type_example() {
+    // ! [get_element_type]
+    ov_input->get_element_type()
+    // ! [get_element_type]
+}

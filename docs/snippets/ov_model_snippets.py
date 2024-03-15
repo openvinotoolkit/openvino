@@ -76,10 +76,18 @@ def visualize_example(m : ov.Model):
 
 def model_inputs_outputs(model : ov.Model):
     #! [all_inputs_ouputs]
-    ov_model_input = ov_model.input
-    ov_model_output = ov_model.output
+    model.input(original_fw_in_tensor_name)
+    model.output(original_fw_out_tensor_name)
+
+    for ov_input in model.inputs:
+        ov_tensor_names = ov_input.get_names()
+        # user logic here
     #! [all_inputs_ouputs]
 
+def get_element_type_example():
+    #! [get_element_type]
+    ov_input.get_element_type()
+    #! [get_element_type]
 
 def main():
     ov_api_examples()

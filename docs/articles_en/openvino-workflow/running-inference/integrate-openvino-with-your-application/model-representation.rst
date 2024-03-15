@@ -56,7 +56,23 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` section.
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The ``ov::element::Type``
-is used for data types. See the section below for representation of shapes.
+is used for data types.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.py
+         :language: cpp
+         :fragment: [get_element_type]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+         :language: cpp
+         :fragment: [get_element_type]
 
 Representation of Shapes
 ###########################
