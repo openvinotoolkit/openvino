@@ -25,7 +25,7 @@ The operation takes inputs with the following properties:
 
 .. note:: Negative Values in Begin and End (Negative Values Adjusting)
 
-   Negative values in begin, end (**NOT** stride) represent indexing from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
+   Negative values in begin, end (**NOT** stride) represent indices from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 The basic slicing operation accumulates output elements as follows:
 
@@ -37,7 +37,7 @@ The basic slicing operation accumulates output elements as follows:
 
 Notice that the basic slicing operation assumes N = M (that is, i-th slicing step corresponds to i-th dimension), as no masks are used.
 
-.. note:: Indexing in Reverse
+.. note:: Indexing in Reverse (Slicing in Reverse)
 
    If :math:`stride[i] < 0`, the indexing will happen in reverse. At each step, the value of :math:`stride[i]` will be subtracted from the :math:`slicing\_index`. As long as the :math:`slicing\_index > end[i]`, the corresponding element is added to the output. Whenever :math:`slicing\_index <= end[i]`, the slicing stops.
 
@@ -337,13 +337,12 @@ Example of ``shrink_axis_mask`` usage. Equivalent of performing array[0:1, 0, 0:
         </output>
     </layer>
 
-Example of ``ellipsis_mask`` usage. Equivalent of performing array[0, ..., 0] on a 10D array.
+Example of ``ellipsis_mask`` usage. Equivalent of performing array[0:4, ..., 0:5] on a 10D array.
 
 .. code-block:: xml
    :force:
 
     <layer ... type="StridedSlice" ...>
-        <!-- this pattern aims to modify first and last dimension -->
         <data begin_mask="0,0,0" end_mask="0,0,0" new_axis_mask="0,0,0" shrink_axis_mask="0,0,0" ellipsis_mask="0,1,0"/>
         <input>
             <port id="0">
@@ -394,7 +393,6 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
    :force:
 
     <layer ... type="StridedSlice" ...>
-        <!-- this pattern aims to modify first and last dimension -->
         <data begin_mask="0,0,1,1" end_mask="1,1,0,0" new_axis_mask="0,0,1" shrink_axis_mask="0" ellipsis_mask="0,1"/>
         <input>
             <port id="0">
@@ -428,7 +426,7 @@ Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalen
                 <dim>10</dim>
                 <dim>10</dim>
                 <dim>10</dim> <!-- ellipsis skipped over 8 dimensions -->
-                <dim>10</dim> <!-- 8 = 10 - (4 - 1 - 1)>
+                <dim>10</dim> <!-- 8 = 10 - (4 - 1 - 1) -->
                 <dim>10</dim> <!-- 10 - rank(input), 4 - rank(begin), 1 - new_axis_mask -->
                 <dim>10</dim>
                 <dim>10</dim>
