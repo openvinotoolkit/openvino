@@ -19,7 +19,7 @@ it('Core.setProperty()', () => {
 });
 
 it('Core.setProperty(\'CPU\')', () => {    
-  const tmpDir = '/home/nvishnya/tmp';
+  const tmpDir = '/tmp';
 
   core.setProperty('CPU', { 'CACHE_DIR': tmpDir });
 
