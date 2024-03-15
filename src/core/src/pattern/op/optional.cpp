@@ -18,7 +18,8 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     // Turn the Optional node into WrapType node to create a case where the Optional node is present
     ov::OutputVector input_values_to_optional = input_values();
     size_t num_input_values_to_optional = input_values_to_optional.size();
-    auto wrap_node = std::make_shared<ov::pass::pattern::op::WrapType>(optional_types, m_predicate, input_values_to_optional);
+    auto wrap_node =
+        std::make_shared<ov::pass::pattern::op::WrapType>(optional_types, m_predicate, input_values_to_optional);
 
     // Add the newly created WrapType node to the list containing its inputs and create an Or node with the list
     input_values_to_optional.push_back(wrap_node);
