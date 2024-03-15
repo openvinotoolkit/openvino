@@ -40,7 +40,7 @@ std::shared_ptr<LoopPort> LoopPort::clone_with_new_expr(const ExpressionPtr& new
 }
 
 LoopInfo::SpecificIterationHandlers::SpecificIterationHandlers(size_t loop_work_amount, size_t loop_increment) {
-    const auto tail_size = loop_work_amount % loop_increment;
+    const auto tail_size = utils::is_dynamic_value(loop_work_amount) ? 1lu : loop_work_amount % loop_increment;
     if (tail_size != 0) {
         m_last_iter_handlers.register_pass<lowered::pass::UpdateMemoryAccessCounts>(tail_size);
         m_last_iter_handlers.register_pass<lowered::pass::UpdateSubtensors>(tail_size);
@@ -54,15 +54,15 @@ LoopInfo::SpecificIterationHandlers::SpecificIterationHandlers(lowered::pass::Pa
       m_main_body_handlers(std::move(main_body_handlers)),
       m_last_iter_handlers(std::move(last_iter_handlers)) {}
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_first_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_first_iter_handlers() const {
     return m_first_iter_handlers;
 }
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_main_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_main_iter_handlers() const {
     return m_main_body_handlers;
 }
 
-const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_last_iter_handelrs() const {
+const lowered::pass::PassPipeline& LoopInfo::SpecificIterationHandlers::get_last_iter_handlers() const {
     return m_last_iter_handlers;
 }
 
@@ -70,9 +70,9 @@ LoopInfo::SpecificIterationHandlers LoopInfo::SpecificIterationHandlers::merge_h
     const SpecificIterationHandlers& lhs,
     const SpecificIterationHandlers& rhs) {
     return LoopInfo::SpecificIterationHandlers(
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handelrs(), rhs.get_first_iter_handelrs()),
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handelrs(), rhs.get_main_iter_handelrs()),
-        lowered::pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handelrs(), rhs.get_last_iter_handelrs()));
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_first_iter_handlers(), rhs.get_first_iter_handlers()),
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_main_iter_handlers(), rhs.get_main_iter_handlers()),
+        lowered::pass::PassPipeline::merge_pipelines(lhs.get_last_iter_handlers(), rhs.get_last_iter_handlers()));
 }
 
 LoopInfo::LoopInfo(size_t work_amount,
@@ -203,6 +203,10 @@ bool operator<(const LinearIR::LoopManager::LoopPort& lhs, const LinearIR::LoopM
            (lhs.expr_port == rhs.expr_port &&
             (lhs.is_incremented < rhs.is_incremented ||
              (lhs.is_incremented == rhs.is_incremented && lhs.dim_idx < rhs.dim_idx)));
+}
+
+bool LinearIR::LoopManager::LoopPort::is_dynamic() const {
+    return utils::is_dynamic_value(ptr_increment) || utils::is_dynamic_value(finalization_offset);
 }
 
 std::shared_ptr<LoopManager> LoopManager::clone_with_new_expr(const ExpressionMap& expr_map) const {
@@ -362,6 +366,7 @@ void LinearIR::LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_p
 void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                                       LinearIR::constExprIt loop_end_pos,
                                       size_t loop_depth, size_t vector_size) {
+    const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
     std::vector<ExpressionPort> loop_entry_points, loop_exit_points;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_entry_points, loop_exit_points);
 
@@ -375,13 +380,11 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(index < size, "Incorrect index for broadcasting");
         const auto lhs_value = index < lhs_size ? *(lhs.crbegin() + index) : 1;
         const auto rhs_value = index < rhs_size ? *(rhs.crbegin() + index) : 1;
-        OPENVINO_ASSERT(lhs_value == rhs_value || lhs_value == 1 || rhs_value == 1,
-                        "Output shapes of Loop must be broadcastable!");
-        *(lhs.rbegin() + index) = std::max(lhs_value, rhs_value);
+        utils::broadcast_merge_dim(*(lhs.rbegin() + index), lhs_value, rhs_value);
     };
 
-    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [](size_t lhs) { return lhs == PortDescriptor::ServiceDimensions::FULL_DIM; });
+    auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
     };
 
     std::vector<size_t> loop_subtensor;
@@ -394,7 +397,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             subtensor[subtensor.size() - 1] = vector_size;
         }
 
-        const size_t resizing_value = is_outside_loop(subtensor) ? PortDescriptor::ServiceDimensions::FULL_DIM : 1;
+        const size_t resizing_value = is_outside_loop(subtensor) ? FULL_DIM : 1;
         while (subtensor.size() < loop_depth)
             subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
@@ -404,7 +407,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-            if (*(subtensor.rbegin() + dim_idx) != PortDescriptor::ServiceDimensions::FULL_DIM) {
+            if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
                 broadcast(loop_tensor, shape, dim_idx);
             }
         }
@@ -413,7 +416,7 @@ void LinearIR::LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
-        if (subtensor_value == PortDescriptor::ServiceDimensions::FULL_DIM) {
+        if (subtensor_value == FULL_DIM) {
             continue;
         }
 

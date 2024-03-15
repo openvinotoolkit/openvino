@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -580,6 +580,55 @@ TEST(reorder_gpu_f32, basic_subtract_value) {
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+TEST(reorder_gpu_f32, fusing_double_activations) {
+    // reorder_data                      reorder_data
+    //      |                                 |
+    //     sqrt                               |
+    //       |               fuse             |
+    //     power data        ---->            | data
+    //       \   /                            |  /
+    //       divide                         divide
+    //         |                              |
+    //       result                         result
+    //
+    // This test case is limited to the case of reorder_data using ReorderKernelRef.
+    // Because other kernels for reorder_data don't support fusing double activations e.g. reorder_data_fast_b1
+    //
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({{1}, data_types::f32, format::bfyx});
+    auto input2 = engine.allocate_memory({{1, 1, 1, 2, 2}, data_types::f32, format::bfzyx});
+
+    topology topology {
+        input_layout("input1", input1->get_layout()),
+        reorder("reorder", input_info("input1"), format::bfyx, data_types::f32),
+        activation("sqrt", input_info("reorder"), activation_func::sqrt),
+        activation("power", input_info("sqrt"), activation_func::pow),
+        input_layout("input2", input2->get_layout()),
+        eltwise("divide", {input_info("power"), input_info("input2")}, eltwise_mode::div),
+        reorder("result", input_info("divide"), format::bfyx, data_types::f32)
+    };
+
+    set_values(input1, {25000});
+    set_values(input2, {0.1f, 0.2f, 0.5f, 1.0f});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc reorder_impl = {format::bfyx, "reorder_data"};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reorder", reorder_impl}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto output = network.execute();
+
+    mem_lock<float> output_mem(output.at("result").get_memory(), network.get_stream());
+    std::vector<int32_t> output_ref = {10, 5, 2, 1};
+    for (size_t i = 0; i < output_mem.size(); ++i) {
+        ASSERT_EQ(output_mem[i], output_ref[i]);
     }
 }
 

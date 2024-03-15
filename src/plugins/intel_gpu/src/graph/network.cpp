@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -422,8 +422,13 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
+
+                // (dynamic) -> static optimizable reshape -> static optimizable reshape -> some_op
+                // In that case, it is a limit about second reshape.
                 auto prim = dep.first->get_impl_params()->desc;
-                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || prim->type == read_value::type_id()))
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
+                                                      dep.first->output_memory_ptr() == nullptr ||
+                                                      prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
@@ -642,8 +647,6 @@ void cldnn::network::check_names() {
 }
 
 std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
-    std::shared_ptr<primitive_inst> ret;
-
     if (_primitives.find(id) != _primitives.end())
         return _primitives.at(id);
 

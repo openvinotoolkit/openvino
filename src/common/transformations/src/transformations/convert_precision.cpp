@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,18 +231,18 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
     for (auto& node : ops) {
         if (skip_precision_sensitive && fp16_compression_is_disabled(node) && has_fp16_compression)
             continue;
-        is_changed |= convert_node_input_precision(node, precisions, type_to_extend);
+        is_changed = convert_node_input_precision(node, precisions, type_to_extend) || is_changed;
     }
 
     for (const auto& param : f->get_parameters()) {
         if (skip_precision_sensitive && fp16_compression_is_disabled(param) && has_fp16_compression)
             continue;
-        is_changed |= fuse_type_to_parameter(param, precisions, convert_input_output_precision);
+        is_changed = fuse_type_to_parameter(param, precisions, convert_input_output_precision) || is_changed;
     }
 
     if (convert_input_output_precision || store_original_precision_as_rt_attribute) {
         for (const auto& variable : f->get_variables()) {
-            is_changed |= fuse_type_to_variable(variable, precisions);
+            is_changed = fuse_type_to_variable(variable, precisions) || is_changed;
         }
     }
 
@@ -272,17 +272,18 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
         if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(node)) {
             size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
             for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                is_changed |= convert_function_precision(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)),
-                                                         type_to_fuse,
-                                                         type_to_extend,
-                                                         precisions,
-                                                         const_to_internal_output,
-                                                         has_fp16_compression,
-                                                         skip_precision_sensitive,
-                                                         is_changed || is_output_precision_changed,
-                                                         true,
-                                                         true,
-                                                         store_original_precision_as_rt_attribute);
+                is_changed = convert_function_precision(sub_graph_node->get_function(static_cast<int>(sub_graph_ind)),
+                                                        type_to_fuse,
+                                                        type_to_extend,
+                                                        precisions,
+                                                        const_to_internal_output,
+                                                        has_fp16_compression,
+                                                        skip_precision_sensitive,
+                                                        is_changed || is_output_precision_changed,
+                                                        true,
+                                                        true,
+                                                        store_original_precision_as_rt_attribute) ||
+                             is_changed;
             }
         }
         // if convert_input_output_precision flag is set, we don't need to preserve the original precision
@@ -293,16 +294,17 @@ bool convert_function_precision(const std::shared_ptr<Model>& f,
             node->revalidate_and_infer_types();
             continue;
         }
-        is_output_precision_changed |= convert_node_output_precision(node,
-                                                                     precisions,
-                                                                     type_to_fuse,
-                                                                     const_to_internal_output,
-                                                                     is_changed || is_output_precision_changed);
+        is_output_precision_changed = convert_node_output_precision(node,
+                                                                    precisions,
+                                                                    type_to_fuse,
+                                                                    const_to_internal_output,
+                                                                    is_changed || is_output_precision_changed) ||
+                                      is_output_precision_changed;
     }
 
     if (is_output_precision_changed) {
         ops = f->get_ordered_ops();
-        is_changed |= is_output_precision_changed;
+        is_changed = is_output_precision_changed || is_changed;
     }
 
     if (!is_subgraph) {
