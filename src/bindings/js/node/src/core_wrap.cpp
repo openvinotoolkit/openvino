@@ -20,7 +20,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                        InstanceMethod("importModel", &CoreWrap::import_model),
+                        InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
 }
 

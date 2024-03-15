@@ -36,7 +36,7 @@ interface Core {
     modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   readModelSync(modelPath: string, weightsPath?: string): Model;
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
-  importModel(modelStream: Buffer, device: string): CompiledModel;
+  importModelSync(modelStream: Buffer, device: string): CompiledModel;
   getAvailableDevices(): string[];
 }
 interface CoreConstructor {
@@ -57,7 +57,7 @@ interface CompiledModel {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   createInferRequest(): InferRequest;
-  exportModel(): Buffer;
+  exportModelSync(): Buffer;
 }
 
 interface Tensor {
