@@ -96,6 +96,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.new_full.default": None,
             "torch.ops.aten.neg.default": None,
             "torch.ops.aten.new_ones.default": None,
+            "torch.ops.aten.ones_like.default": None,
             "torch.ops.aten.permute.default": None,
             "torch.ops.aten.pow.Tensor_Scalar": None,
             "torch.ops.aten.relu.default": None,
@@ -126,6 +127,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.var_mean.correction": None,
             "torch.ops.aten.view.default": None,
             "torch.ops.aten.where.self": None,
+            "torch.ops.aten.zeros.default": None,
             "torch.ops.aten.zeros_like.default": None,
         }
 
