@@ -39,8 +39,8 @@ public:
             const Shape& pads_end,
             const Shape& kernel,
             bool exclude_pad,
-            op::RoundingType rounding_type = op::RoundingType::FLOOR,
-            const PadType& auto_pad = op::PadType::EXPLICIT);
+            RoundingType rounding_type = RoundingType::FLOOR,
+            PadType auto_pad = PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
 
@@ -79,8 +79,8 @@ public:
             const Shape& pads_end,
             const Shape& kernel,
             bool exclude_pad,
-            op::RoundingType rounding_type = op::RoundingType::FLOOR,
-            const PadType& auto_pad = op::PadType::EXPLICIT);
+            RoundingType rounding_type = RoundingType::FLOOR,
+            PadType auto_pad = PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
 
