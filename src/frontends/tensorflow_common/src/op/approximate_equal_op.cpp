@@ -3,7 +3,6 @@
 //
 
 #include "common_op_table.hpp"
-#include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/less.hpp"
