@@ -94,6 +94,7 @@ void ov::hetero::Plugin::update_device_priorities(std::vector<std::string>& devi
     for (const auto& device_name : device_names) {
         if (device_name.find("CPU") != std::string::npos) {
             CPU.emplace_back(device_name);
+            device_mem_map["CPU"] = 0;
         } else if (device_name.find("GPU") != std::string::npos) {
             std::string device_type;
             try {
@@ -119,6 +120,7 @@ void ov::hetero::Plugin::update_device_priorities(std::vector<std::string>& devi
     }
     std::sort(dGPU.begin(), dGPU.end(), sort_by_mem);
     std::sort(iGPU.begin(), iGPU.end(), sort_by_mem);
+    // Priority of sorted device: dGPU > iGPU > 3rd part devices > CPU
     device_names.clear();
     device_names.insert(device_names.end(), dGPU.begin(), dGPU.end());
     device_names.insert(device_names.end(), iGPU.begin(), iGPU.end());
@@ -164,7 +166,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             if (fallback_device) {
                 device_config[ov::query_model_ratio.name()] = 1.0f;
             } else {
-                unsigned long total_ops_size = 0;
+                size_t total_ops_size = 0;
                 for (auto&& op : model->get_ordered_ops()) {
                     if (ov::op::util::is_constant(op)) {
                         total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
@@ -174,14 +176,15 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                 if (device_mem_map[device_name] >= 1.2 * total_ops_size) {
                     device_config[ov::query_model_ratio.name()] = 1.0f;
                 } else if (device_mem_map["all_left"] >= 1.2 * total_ops_size ||
-                           device_mem_map["all_left"] == device_mem_map[device_name]) {
-                    float model_ratio = device_mem_map[device_name] * 1.0 / (total_ops_size * 1.2);
+                           device_mem_map.find("CPU") != device_mem_map.end()) {
+                    float model_ratio = static_cast<float>(device_mem_map[device_name] * 1.0 / (total_ops_size * 1.2));
                     if (total_ops_size < device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 } else {
-                    float model_ratio = device_mem_map[device_name] * 1.0 / device_mem_map["all_left"];
+                    float model_ratio =
+                        static_cast<float>(device_mem_map[device_name] * 1.0 / device_mem_map["all_left"]);
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 }
                 if (device_mem_map.find(device_name) != device_mem_map.end()) {
