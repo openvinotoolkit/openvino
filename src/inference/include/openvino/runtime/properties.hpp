@@ -752,13 +752,10 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
- * @brief Read-write property which specifies whether device memory should be taken into account during query model
- * value type: boolean
- *   - True take device memory into account during query model
- *   - False doesn't take device memory into account during query model
+ * @brief Read-write property to set the percentage of the model can be queried during query model
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<bool, PropertyMutability::RW> query_model_uses_device_mem{"QUERY_MODEL_USES_DEVICE_MEM"};
+static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
 
 /**
  * @brief Namespace with device properties

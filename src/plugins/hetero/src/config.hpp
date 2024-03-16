@@ -34,6 +34,7 @@ struct Configuration {
     bool dump_dot_files() const;
 
     std::string device_priorities;
+    bool hetero_query_model_by_device = false;
     ov::AnyMap device_properties;
 };
 }  // namespace hetero

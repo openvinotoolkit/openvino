@@ -19,7 +19,6 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
-#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
@@ -27,6 +26,8 @@
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
+
+using ConfigParams = std::tuple<float, std::unordered_set<std::string>>;
 
 std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>& s);
 
@@ -41,17 +42,17 @@ std::ostream& operator<<(std::ostream& os, const std::unordered_set<std::string>
     return os;
 }
 
-class GetSupportedNodesTest : public ::testing::Test {
+class GetSupportedNodesTest : public ::testing::TestWithParam<ConfigParams> {
 protected:
     ov::Shape m_shape{1, 84};
-    std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<ov::Model> m_function;
 
 public:
     void Run(std::function<void(std::shared_ptr<ov::Model>&)> transform,
              std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported,
              const std::unordered_set<std::string>& expected,
-             uint64_t memory_size_in_bytes = 0) {
-        auto supported = ov::get_supported_nodes(m_model, transform, is_node_supported, memory_size_in_bytes);
+             float query_model_ratio = 1.0f) {
+        auto supported = ov::get_supported_nodes(m_function, transform, is_node_supported, query_model_ratio);
         auto const is_in_expected = [&expected](const std::string& x) {
             return expected.find(x) != expected.end();
         };
@@ -78,7 +79,7 @@ TEST_F(GetSupportedNodesTest, UnsupportedCompressedConstantCF) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -113,7 +114,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphCF) {
         reshape->set_friendly_name("reshape");
         auto result = std::make_shared<ov::op::v0::Result>(reshape);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -147,7 +148,7 @@ TEST_F(GetSupportedNodesTest, SupportedCompressedConstantNop) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -174,7 +175,7 @@ TEST_F(GetSupportedNodesTest, SupportedConstantInsertAdditionalOp) {
         mul->set_friendly_name("output_operation");
         auto result = std::make_shared<ov::op::v0::Result>(mul);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -224,7 +225,7 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         auto result2 = std::make_shared<ov::op::v0::Result>(mul);
         result2->set_friendly_name("result2");
 
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -265,7 +266,7 @@ TEST_F(GetSupportedNodesTest, ConstantSubgraphSupported) {
         auto result = std::make_shared<ov::op::v0::Result>(matmul);
         result->set_friendly_name("result");
 
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -306,7 +307,7 @@ TEST_F(GetSupportedNodesTest, UnmarkedSupportedInputsOutputs) {
         add->set_friendly_name("add");
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -339,7 +340,7 @@ TEST_F(GetSupportedNodesTest, WrongFusedNamesInOriginalModel) {
         auto result = std::make_shared<ov::op::v0::Result>(add);
         result->set_friendly_name("result");
 
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -362,7 +363,7 @@ TEST_F(GetSupportedNodesTest, FusedNamesSupportedUnsupportedBoth) {
         logsoftmax->set_friendly_name("logsoftmax");
         auto result = std::make_shared<ov::op::v0::Result>(logsoftmax);
         result->set_friendly_name("result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param, dummy_param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -408,7 +409,7 @@ TEST_F(GetSupportedNodesTest, ShapeOfNonConstantNode) {
         interpolate->set_friendly_name("interpolate");
         auto interpolate_result = std::make_shared<ov::op::v0::Result>(interpolate);
         interpolate_result->set_friendly_name("interpolate_result");
-        m_model = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{interpolate_result}, ov::ParameterVector{param});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -451,7 +452,7 @@ TEST_F(GetSupportedNodesTest, ShuffleChannelFusion) {
         auto reshape_after = std::make_shared<ov::op::v1::Reshape>(permute, shape_reshape_after, true);
         reshape_after->set_friendly_name("reshape_after");
 
-        m_model = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
+        m_function = std::make_shared<ov::Model>(ov::NodeVector{reshape_after}, ov::ParameterVector{input});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -475,7 +476,7 @@ TEST_F(GetSupportedNodesTest, FusedNameReduceL2Test) {
         auto reduce_l2 = std::make_shared<ov::op::v4::ReduceL2>(data, axes, true);
         reduce_l2->set_friendly_name("reduce_l2");
 
-        m_model = std::make_shared<ov::Model>(ov::NodeVector{reduce_l2}, ov::ParameterVector{data});
+        m_function = std::make_shared<ov::Model>(ov::NodeVector{reduce_l2}, ov::ParameterVector{data});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
@@ -502,7 +503,7 @@ TEST_F(GetSupportedNodesTest, AssignReadValueTest) {
         auto add = std::make_shared<ov::op::v1::Add>(read_value, param);
         auto assign = std::make_shared<ov::op::v6::Assign>(add, variable);
         auto res = std::make_shared<ov::op::v0::Result>(add);
-        m_model =
+        m_function =
             std::make_shared<ov::Model>(ov::ResultVector{res}, ov::SinkVector{assign}, ov::ParameterVector{param});
     }
     Run(
@@ -518,3 +519,172 @@ TEST_F(GetSupportedNodesTest, AssignReadValueTest) {
         },
         {});
 }
+
+TEST_F(GetSupportedNodesTest, NoSupportedOpsTest) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto const_value = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value->set_friendly_name("const_val");
+        auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
+        add->set_friendly_name("add");
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        res->set_friendly_name("res");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return false;
+        },
+        {},
+        0.9f);
+}
+
+TEST_F(GetSupportedNodesTest, NoConstOpTest) {
+    {
+        auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 512});
+        param1->set_friendly_name("input1");
+        auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 512});
+        param2->set_friendly_name("input2");
+        auto add = std::make_shared<ov::op::v1::Add>(param1, param2);
+        add->set_friendly_name("add");
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        res->set_friendly_name("res");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param1, param2});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::is_type<ov::op::v1::Add>(op);
+        },
+        {"input1", "input2", "add", "res"},
+        0.9f);
+}
+
+using GetSupportedNodesStatefulTest = GetSupportedNodesTest;
+using GetSupportedNodesOneConstOp = GetSupportedNodesTest;
+using GetSupportedNodesStopSplit = GetSupportedNodesTest;
+
+TEST_P(GetSupportedNodesStatefulTest, SplitModelTest) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value1->set_friendly_name("const_val1");
+        auto add1 = std::make_shared<ov::op::v1::Add>(param, const_value1);
+        add1->set_friendly_name("add1");
+        auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value2->set_friendly_name("const_val2");
+        auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
+        add2->set_friendly_name("add2");
+        auto result = std::make_shared<ov::op::v0::Result>(add2);
+        result->set_friendly_name("res");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    }
+    float query_model_ratio;
+    std::unordered_set<std::string> expected;
+    std::tie(query_model_ratio, expected) = this->GetParam();
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v1::Add>(op) || ov::is_type<ov::op::v1::Reshape>(op);
+        },
+        expected,
+        query_model_ratio);
+}
+
+TEST_P(GetSupportedNodesOneConstOp, OneConstOpTest) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto const_value = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value->set_friendly_name("const_val");
+        auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
+        add->set_friendly_name("add");
+        auto res = std::make_shared<ov::op::v0::Result>(add);
+        res->set_friendly_name("res");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+    }
+    float query_model_ratio;
+    std::unordered_set<std::string> expected;
+    std::tie(query_model_ratio, expected) = this->GetParam();
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::op::util::is_constant(op) ||
+                   ov::is_type<ov::op::v1::Add>(op);
+        },
+        expected,
+        query_model_ratio);
+}
+
+TEST_P(GetSupportedNodesStopSplit, StopSplitTest) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+        param->set_friendly_name("input");
+        auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value1->set_friendly_name("const_val1");
+        auto add = std::make_shared<ov::op::v1::Add>(param, const_value1);
+        add->set_friendly_name("add");
+        auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 2, 2}, {1});
+        const_value2->set_friendly_name("const_val2");
+        auto mul_scale = std::make_shared<ov::op::v1::Multiply>(add, const_value2);
+        mul_scale->set_friendly_name("mul_scale");
+        auto result = std::make_shared<ov::op::v0::Result>(mul_scale);
+        result->set_friendly_name("res");
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    }
+    float query_model_ratio;
+    std::unordered_set<std::string> expected;
+    std::tie(query_model_ratio, expected) = this->GetParam();
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return ov::op::util::is_parameter(op) || ov::op::util::is_output(op) || ov::is_type<ov::op::v1::Add>(op) ||
+                   ov::op::util::is_constant(op);
+        },
+        expected,
+        query_model_ratio);
+}
+
+const std::vector<ConfigParams> testConfigs = {
+    ConfigParams{0.0f, std::unordered_set<std::string>{}},
+    ConfigParams{0.5f, std::unordered_set<std::string>{"input", "const_val1", "add1"}},
+    ConfigParams{1.0f, std::unordered_set<std::string>{"input", "const_val1", "add1", "const_val2", "add2", "res"}}};
+
+const std::vector<ConfigParams> testConfigs1 = {
+    ConfigParams{0.0f, std::unordered_set<std::string>{}},
+    ConfigParams{0.5f, std::unordered_set<std::string>{}},
+    ConfigParams{1.0f, std::unordered_set<std::string>{"input", "const_val", "add", "res"}}};
+
+const std::vector<ConfigParams> testConfigs2 = {
+    ConfigParams{0.0f, std::unordered_set<std::string>{}},
+    ConfigParams{0.3f, std::unordered_set<std::string>{}},
+    ConfigParams{0.9f, std::unordered_set<std::string>{"input", "const_val1", "add"}},
+    ConfigParams{1.0f, std::unordered_set<std::string>{"input", "const_val1", "add"}}};
+
+INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesStatefulTest, ::testing::ValuesIn(testConfigs));
+INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesOneConstOp, ::testing::ValuesIn(testConfigs1));
+INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesStopSplit, ::testing::ValuesIn(testConfigs2));

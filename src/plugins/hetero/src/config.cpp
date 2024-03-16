@@ -6,6 +6,7 @@
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "properties.hpp"
 
 using namespace ov::hetero;
 
@@ -20,6 +21,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 
         if (ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
+        } else if (ov::hetero::hetero_query_model_by_device == key) {
+            hetero_query_model_by_device = value.as<bool>();
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -31,6 +34,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 ov::Any Configuration::get(const std::string& name) const {
     if (name == ov::device::priorities) {
         return {device_priorities};
+    } else if (name == ov::hetero::hetero_query_model_by_device) {
+        return {hetero_query_model_by_device};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
@@ -42,7 +47,8 @@ std::vector<ov::PropertyName> Configuration::get_supported() const {
 }
 
 ov::AnyMap Configuration::get_hetero_properties() const {
-    return {{ov::device::priorities.name(), device_priorities}};
+    return {{ov::device::priorities.name(), device_priorities},
+            {ov::hetero::hetero_query_model_by_device.name(), hetero_query_model_by_device}};
 }
 
 ov::AnyMap Configuration::get_device_properties() const {
