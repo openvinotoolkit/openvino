@@ -175,7 +175,7 @@ void GatherCompression::execReferenceU8() {
             auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
             auto& deq_scale = scale[ii * groupDim + g];
             for (size_t k = 0; k < feaDim; k++) {
-                dst[0] = (static_cast<float>(src[0]) - deq_zp) * deq_scale * 2.0f;
+                dst[0] = (static_cast<float>(src[0]) - deq_zp) * deq_scale;
                 dst++;
                 src++;
             }
