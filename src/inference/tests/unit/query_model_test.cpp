@@ -225,7 +225,8 @@ TEST_F(GetSupportedNodesTest, PartiallySupportedCompressedConstant) {
         auto result2 = std::make_shared<ov::op::v0::Result>(mul);
         result2->set_friendly_name("result2");
 
-        m_function = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
+        m_function =
+            std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{param1, param2});
     }
     Run(
         [&](std::shared_ptr<ov::Model>& model) {

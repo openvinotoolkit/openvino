@@ -162,7 +162,6 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         auto supported_properties = get_core()->get_property(device_name, ov::supported_properties);
         if (ov::util::contains(supported_properties, ov::query_model_ratio)) {
             if (fallback_device) {
-                std::cout << "fallback_device: " << device_name << " 1.0f\n";
                 device_config[ov::query_model_ratio.name()] = 1.0f;
             } else {
                 unsigned long total_ops_size = 0;
@@ -180,11 +179,9 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                     if (total_ops_size < device_mem_map[device_name]) {
                         model_ratio = 1.0f;
                     }
-                    std::cout << device_name << " " << model_ratio << std::endl;;
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 } else {
                     float model_ratio = device_mem_map[device_name] * 1.0 / device_mem_map["all_left"];
-                    std::cout << device_name << " " << model_ratio << std::endl;;
                     device_config[ov::query_model_ratio.name()] = model_ratio;
                 }
                 if (device_mem_map.find(device_name) != device_mem_map.end()) {
