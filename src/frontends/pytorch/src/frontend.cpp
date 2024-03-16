@@ -25,7 +25,6 @@
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
-#include "transforms/aten_index_copy_replacer.hpp"
 #include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
@@ -199,7 +198,6 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
-    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexCopyReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
