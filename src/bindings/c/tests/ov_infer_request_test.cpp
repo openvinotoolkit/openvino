@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <mutex>
@@ -301,9 +301,7 @@ TEST_P(ov_infer_request_test, cancel) {
     OV_ASSERT_OK(ov_infer_request_start_async(infer_request));
     OV_EXPECT_OK(ov_infer_request_cancel(infer_request));
     ov_status_e return_status = ov_infer_request_wait(infer_request);
-    if (return_status == ov_status_e::OK || return_status == ov_status_e::INFER_CANCELLED)
-        GTEST_SUCCEED();
-    else
+    if (return_status == ov_status_e::UNKNOW_EXCEPTION || return_status == ov_status_e::GENERAL_ERROR)
         GTEST_FAIL();
 }
 

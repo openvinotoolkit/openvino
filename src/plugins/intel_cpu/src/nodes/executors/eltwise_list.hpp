@@ -8,6 +8,7 @@
 
 #include "eltwise.hpp"
 #if defined(OV_CPU_WITH_ACL)
+#include "aarch64/jit_eltwise.hpp"
 #include "acl/acl_eltwise.hpp"
 #endif
 

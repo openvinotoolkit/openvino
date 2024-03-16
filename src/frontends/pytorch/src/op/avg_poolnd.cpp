@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_avg_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 3, 7);
+    num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
