@@ -29,6 +29,19 @@ graph {
             }
         }
     }
+    input {
+    name: "axes"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
     output {
         name: "B"
         type {
