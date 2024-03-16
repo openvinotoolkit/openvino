@@ -252,7 +252,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
-    unsigned long total_ops_size = 0;
+    size_t total_ops_size = 0;
     for (auto&& op : ops) {
         if (ov::op::util::is_constant(op)) {
             const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
@@ -271,14 +271,14 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         std::set<std::string> split_node_set;
         int64_t last_total_len = 0;
         bool stop_split = false;
-        unsigned long last_total_size = 0;
+        size_t last_total_size = 0;
         copy_set(supported, temp_supported);
         copy_set(unsupported, temp_unsupported);
         do {
             std::map<std::string, int> temp_pair_checker;
             bool ready_split = false;
             bool start_split = false;
-            unsigned long total_size = 0;
+            size_t total_size = 0;
             copy_set(temp_supported, supported);
             copy_set(temp_unsupported, unsupported);
             // Walk over transformed model for special handing of Parameters/Constants/Results
