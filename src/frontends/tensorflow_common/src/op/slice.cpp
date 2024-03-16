@@ -29,20 +29,33 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     auto start = node.get_input(1);
     auto size = node.get_input(2);
+
+     // create axiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
+
+    // compute stop values in case non-negative sizes
     auto stop_pos = make_shared<v1::Add>(start, size);
+
+    // compute stop values in case negative sizes
+    // since TensorFlow supports only -1 among negative sizes
+    // assign stop values to the data shape
     Output<Node> stop_neg = make_shared<v3::ShapeOf>(input);
     stop_neg = make_shared<v1::ConvertLike>(stop_neg, size);
+
+    // select the correct stop value based on a sign of size value
     auto negative_sizes_mask = make_shared<v1::Less>(size, const_zero);
+    // TODO: investigate if we can simplify and replace Select with FloorMod operation
+    // like FloorMod(size, input_shape)
     auto stop = make_shared<v1::Select>(negative_sizes_mask, stop_neg, stop_pos);
+
+    // broadcast step value
     auto start_shape = make_shared<v3::ShapeOf>(start);
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
-    OutputVector slice;
+    
 
     if(complex_type_mark){
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_part_type->input_value(0);
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
         auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
@@ -60,17 +73,13 @@ OutputVector translate_slice_op(const NodeContext& node) {
         auto concat = make_shared<v0::Concat>(concat_inputs, 0);
 
         auto complex_slice = make_shared<ComplexTypeMark>(concat, complex_part_type);
-        slice = {complex_slice->output(0)};
-
-
+        return {complex_slice->output(0)};
     }
 
-    else{
+
     auto res = make_shared<v8::Slice>(input, start, stop, step);
     set_node_name(node.get_name(), res);
-    slice = res->outputs();
-    }
-    return slice;
+    return res->outputs();
     
 }
 }  // namespace op
