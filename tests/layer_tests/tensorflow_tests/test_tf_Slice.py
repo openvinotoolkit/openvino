@@ -5,19 +5,7 @@ import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
-
 class TestSlice(CommonTFLayerTest):
-
-    def _prepare_input(self, inputs_info):
-        rng = np.random.default_rng()
-        assert 'param_real:0' in inputs_info
-        assert 'param_imag:0' in inputs_info
-        param_real_shape_1 = inputs_info['param_real:0']
-        param_imag_shape_1 = inputs_info['param_imag:0']
-        inputs_data = {}
-        inputs_data['param_real:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
-        inputs_data['param_imag:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
-        return inputs_data
     def create_slice_net(self, input_shape, input_type, begin_value, size_value):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
@@ -31,7 +19,34 @@ class TestSlice(CommonTFLayerTest):
 
         ref_net = None
         return tf_net, ref_net
+
+    test_data_basic = [
+        dict(input_shape=[6], input_type=tf.float32, begin_value=[2], size_value=[2]),
+        dict(input_shape=[2, 5, 3], input_type=tf.int32, begin_value=[0, 1, 0], size_value=[-1, 1, -1]),
+        dict(input_shape=[10, 5, 1, 5], input_type=tf.float32, begin_value=[5, 1, 0, 3], size_value=[2, 4, -1, -1]),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_basic)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_slice_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        self._test(*self.create_slice_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
     
+
+
+class TestComplexSlice(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
+        assert 'param_real:0' in inputs_info
+        assert 'param_imag:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real:0']
+        param_imag_shape_1 = inputs_info['param_imag:0']
+        inputs_data = {}
+        inputs_data['param_real:0'] = 4* rng.random(param_real_shape_1).astype(np.float32)-2
+        inputs_data['param_imag:0'] = 4* rng.random(param_imag_shape_1).astype(np.float32)-2
+        return inputs_data
     def create_complex_slice_net(self, input_shape, input_type, begin_value, size_value):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
@@ -46,8 +61,7 @@ class TestSlice(CommonTFLayerTest):
 
         ref_net = None
         return tf_net, ref_net
-
-            
+    
 
     test_data_basic = [
     dict(input_shape=[6], input_type=tf.float32, begin_value=[2], size_value=[2]),
@@ -57,17 +71,9 @@ class TestSlice(CommonTFLayerTest):
     dict(input_shape=[4, 4, 4], input_type=tf.float32, begin_value=[0, 1, 2], size_value=[-1, 2, 1]),
     dict(input_shape=[5, 5, 5, 5], input_type=tf.float32, begin_value=[2, 2, 2, 2], size_value=[2, 2, 2, 2]),
 ]
-
-
-
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
-    def test_slice_basic(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
-        self._test(self.create_slice_net(*params),
-                   ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_legacy_frontend=use_legacy_frontend)
-    
 
     def test_slice_complex(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(self.create_complex_slice_net(*params),
