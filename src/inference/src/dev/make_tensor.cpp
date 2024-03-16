@@ -225,7 +225,7 @@ public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
         : ViewTensor{element_type,
                      shape,
-                     [this, &shape, &element_type, &allocator] {
+                     [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          const auto byte_size = get_elements_byte_size(shape_size(shape), element_type);
                          auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
