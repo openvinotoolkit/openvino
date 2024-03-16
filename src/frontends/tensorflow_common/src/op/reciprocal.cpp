@@ -24,9 +24,9 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Reciprocal"}, true);
     auto x = node.get_input(0);
     auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
-    auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
     if (complex_type_mark_x) {
         x = complex_type_mark_x->input_value(0);
+        auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
         auto two = create_same_type_const_scalar<int32_t>(x, 2);
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
@@ -46,14 +46,13 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
 
         set_node_name(node.get_name(), complex_reciprocal);
         return {complex_reciprocal};
-
-    } else {
-        // For real numbers, computes element-wise 1/x, where x - input
-        auto minus_one_const = create_same_type_const_scalar<int32_t>(x, -1);
-        auto reciprocal = make_shared<v1::Power>(x, minus_one_const);
-        set_node_name(node.get_name(), reciprocal);
-        return {reciprocal};
     }
+
+    // For real numbers, computes element-wise 1/x, where x - input
+    auto minus_one_const = create_same_type_const_scalar<int32_t>(x, -1);
+    auto reciprocal = make_shared<v1::Power>(x, minus_one_const);
+    set_node_name(node.get_name(), reciprocal);
+    return {reciprocal};
 }
 }  // namespace op
 }  // namespace tensorflow
