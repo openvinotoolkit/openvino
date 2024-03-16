@@ -30,9 +30,9 @@ OutputVector translate_round_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Round", "ROUND"});
     auto input = node.get_input(0);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+    
     if (complex_type_mark) {
          element::Type complex_part_type = complex_type_mark->get_complex_part_type();
-        input = complex_part_type->input_value(0);
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto gather_index_imag = make_shared<v0::Constant>(element::i32, Shape{}, 1);
         auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
@@ -49,16 +49,15 @@ OutputVector translate_round_op(const NodeContext& node) {
         auto concat = make_shared<v0::Concat>(concat_inputs, 0);
 
         auto complex_round = make_shared<ComplexTypeMark>(concat, complex_part_type);
-        round = {complex_round->output(0)};
-    } else {
-        // using default round mode "half_to_even" in openvino,
-        // as TF has only that mode
-        auto round_mode = v5::Round::RoundMode::HALF_TO_EVEN;
-        auto res = make_shared<v5::Round>(input, round_mode);
-        set_node_name(node.get_name(), res);
-        round = {res->output(0)};
-    }
-    return round;
+        return {complex_round->output(0)};
+    } 
+    // using default round mode "half_to_even" in openvino,
+    // as TF has only that mode
+    auto round_mode = v5::Round::RoundMode::HALF_TO_EVEN;
+    auto res = make_shared<v5::Round>(input, round_mode);
+    set_node_name(node.get_name(), res);
+    return {res->output(0)};
+
 } // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
