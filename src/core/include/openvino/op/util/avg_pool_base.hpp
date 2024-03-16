@@ -36,61 +36,39 @@ public:
                 const Shape& pads_end,
                 const Shape& kernel,
                 bool exclude_pad,
-                op::RoundingType rounding_type = op::RoundingType::FLOOR,
-                const PadType& auto_pad = op::PadType::EXPLICIT);
+                RoundingType rounding_type = RoundingType::FLOOR,
+                PadType auto_pad = PadType::EXPLICIT);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     /// \return The kernel shape.
-    const Shape& get_kernel() const {
-        return m_kernel;
-    }
-    void set_kernel(const Shape& kernel) {
-        m_kernel = kernel;
-    }
+    const Shape& get_kernel() const;
+    void set_kernel(const Shape& kernel);
+
     /// \return The strides.
-    const Strides& get_strides() const {
-        return m_strides;
-    }
-    void set_strides(const Strides& strides) {
-        m_strides = strides;
-    }
+    const Strides& get_strides() const;
+    void set_strides(const Strides& strides);
+
     /// \return The beginning of padding shape.
-    const Shape& get_pads_begin() const {
-        return m_pads_begin;
-    }
-    void set_pads_begin(const Shape& pads_begin) {
-        m_pads_begin = pads_begin;
-    }
+    const Shape& get_pads_begin() const;
+    void set_pads_begin(const Shape& pads_begin);
+
     /// \return The end of padding shape.
-    const Shape& get_pads_end() const {
-        return m_pads_end;
-    }
-    void set_pads_end(const Shape& pads_end) {
-        m_pads_end = pads_end;
-    }
+    const Shape& get_pads_end() const;
+    void set_pads_end(const Shape& pads_end);
+
     /// \return Exclude zero-values in padding area.
-    bool get_exclude_pad() const {
-        return m_exclude_pad;
-    }
-    void set_exclude_pad(bool exclude_pad) {
-        m_exclude_pad = exclude_pad;
-    }
+    bool get_exclude_pad() const;
+    void set_exclude_pad(bool exclude_pad);
+
     /// \return The pad type for pooling.
-    const PadType& get_auto_pad() const {
-        return m_auto_pad;
-    }
-    void set_auto_pad(const PadType& auto_pad) {
-        m_auto_pad = auto_pad;
-    }
+    const PadType& get_auto_pad() const;
+    void set_auto_pad(const PadType& auto_pad);
+
     /// \return The ceiling mode being used for output shape computations
-    op::RoundingType get_rounding_type() const {
-        return m_rounding_type;
-    }
-    void set_rounding_type(op::RoundingType rounding_type) {
-        m_rounding_type = rounding_type;
-    }
+    RoundingType get_rounding_type() const;
+    void set_rounding_type(RoundingType rounding_type);
 
 protected:
     Shape m_kernel;
@@ -99,7 +77,7 @@ protected:
     Shape m_pads_end;
     bool m_exclude_pad{true};
     PadType m_auto_pad{PadType::EXPLICIT};
-    op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
+    RoundingType m_rounding_type{RoundingType::FLOOR};
 };
 }  // namespace util
 }  // namespace op
