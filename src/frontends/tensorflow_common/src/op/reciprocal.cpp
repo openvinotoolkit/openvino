@@ -33,7 +33,7 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
         auto x_real = make_shared<v8::Gather>(x, gather_index_real, minus_one)->output(0);
         auto x_imag = make_shared<v8::Gather>(x, gather_index_imag, minus_one)->output(0);
 
-        // Compute (a^2+b^2)
+        // compute (a^2+b^2)
         auto real_squared_norm = make_shared<v1::Power>(x_real, two);
         auto img_squared_norm = make_shared<v1::Power>(x_imag, two);
         auto squared_norm = make_shared<v1::Add>(real_squared_norm, img_squared_norm);
