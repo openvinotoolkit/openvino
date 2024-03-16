@@ -6281,3 +6281,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
 
     test_case.run_with_tolerance_as_fp(0.000001f);
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_sampling) {
+    auto model = convert_model("multinomial.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({0.1f, 0.2f, 0.7, 0.5f, 0.3f, 0.2f});
+    test_case.add_expected_output<int>({1, 0, 2, 2, 1, 0});
+
+    test_case.run();
+}
