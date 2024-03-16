@@ -20,7 +20,7 @@ OutputVector translate_approximate_equal_op(const NodeContext& node) {
     default_op_checks(node, 2, {"ApproximateEqual"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
-    auto tolerance_value = node.get_attribute<float>("tolerance", 1e-5);
+    auto tolerance_value = node.get_attribute<float>("tolerance", 1e-5f);
     auto tolerance = create_same_type_const_scalar<float>(x, tolerance_value);
     // Implement the logic for ApproximateEqual
     auto difference = make_shared<v1::Subtract>(x, y);
