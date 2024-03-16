@@ -179,9 +179,6 @@ OutputVector translate_equal_op(const NodeContext& node) {
 
     // If both inputs are complex tensors
     if (complex_type_mark_x && complex_type_mark_y) {
-        element::Type complex_part_type_x = complex_type_mark_x->get_complex_part_type();
-        element::Type complex_part_type_y = complex_type_mark_y->get_complex_part_type();
-
         auto tensor1 = complex_type_mark_x->input_value(0);
         auto tensor2 = complex_type_mark_y->input_value(0);
 
@@ -189,7 +186,8 @@ OutputVector translate_equal_op(const NodeContext& node) {
 
         set_node_name(node.get_name(), equal_op);
 
-        auto complex_equal_op = make_shared<ComplexTypeMark>(equal_op, element::boolean);
+        auto complex_equal_op =
+            make_shared<ComplexTypeMark>(equal_op, complex_type_mark_x->get_complex_part_type(), element::boolean);
         return {complex_equal_op->output(0)};
     }
 
