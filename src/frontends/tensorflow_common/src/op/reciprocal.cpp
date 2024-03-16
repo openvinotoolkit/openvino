@@ -10,6 +10,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/power.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::op;
