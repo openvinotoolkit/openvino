@@ -76,6 +76,7 @@ class TestComplexSlice(CommonTFLayerTest):
     @pytest.mark.nightly
 
     def test_slice_complex(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        inputs_info = self._prepare_input(params)
         self._test(self.create_complex_slice_net(*params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
