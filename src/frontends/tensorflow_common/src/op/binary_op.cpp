@@ -169,6 +169,47 @@ OutputVector translate_addv2_op(const NodeContext& node) {
     return {result};
 }
 
+OutputVector translate_equal_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"Equal"}, true);
+    auto x = node.get_input(0);
+    auto y = node.get_input(1);
+
+    auto complex_type_mark_x = as_type_ptr<ComplexTypeMark>(x.get_node_shared_ptr());
+    auto complex_type_mark_y = as_type_ptr<ComplexTypeMark>(y.get_node_shared_ptr());
+
+    // If both inputs are complex tensors
+    if (complex_type_mark_x && complex_type_mark_y) {
+        element::Type complex_part_type_x = complex_type_mark_x->get_complex_part_type();
+        element::Type complex_part_type_y = complex_type_mark_y->get_complex_part_type();
+
+        auto tensor1 = complex_type_mark_x->input_value(0);
+        auto tensor2 = complex_type_mark_y->input_value(0);
+
+        auto equal_op = make_shared<v1::Equal>(tensor1, tensor2);
+
+        set_node_name(node.get_name(), equal_op);
+
+        auto complex_equal_op = make_shared<ComplexTypeMark>(equal_op, element::boolean);
+        return {complex_equal_op->output(0)};
+    }
+
+    // If only one input is complex, treat it as non-complex and perform regular equality comparison
+    if (complex_type_mark_x || complex_type_mark_y) {
+        auto non_complex_input = complex_type_mark_x ? y : x;
+        auto non_complex_tensor = complex_type_mark_x ? x : y;
+        auto equal_op = make_shared<v1::Equal>(non_complex_tensor, non_complex_input);
+
+        // Set the node name
+        set_node_name(node.get_name(), equal_op);
+        return {equal_op};
+    }
+
+    // If both inputs are non-complex, perform regular equality comparison
+    auto equal_op = make_shared<v1::Equal>(x, y);
+    set_node_name(node.get_name(), equal_op);
+    return {equal_op};
+}
+
 template OutputVector translate_binary_op<v1::Add>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseAnd>(const NodeContext& node);
 template OutputVector translate_binary_op<v13::BitwiseOr>(const NodeContext& node);

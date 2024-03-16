@@ -255,3 +255,58 @@ class TestEqualStr(CommonTFLayerTest):
         self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
+
+class TestComplexEqual(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
+        assert 'param_real_1:0' in inputs_info
+        assert 'param_imag_1:0' in inputs_info
+        assert 'param_real_2:0' in inputs_info
+        assert 'param_imag_2:0' in inputs_info
+        
+        param_real_shape_1 = inputs_info['param_real_1:0']
+        param_imag_shape_1 = inputs_info['param_imag_1:0']
+        param_real_shape_2 = inputs_info['param_real_2:0']
+        param_imag_shape_2 = inputs_info['param_imag_2:0']
+        
+        inputs_data = {}
+        inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real_2:0'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
+        inputs_data['param_imag_2:0'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
+        return inputs_data
+
+    def create_complex_equal_net(self, input_shape_1, input_shape_2):
+        tf.compat.v1.reset_default_graph()
+        # Create the graph and model
+        with tf.compat.v1.Session() as sess:
+            param_real_1 = tf.compat.v1.placeholder(np.float32, input_shape_1, 'param_real_1')
+            param_imag_1 = tf.compat.v1.placeholder(np.float32, input_shape_1, 'param_imag_1')
+            complex_1 = tf.raw_ops.Complex(real=param_real_1, imag=param_imag_1)
+
+            param_real_2 = tf.compat.v1.placeholder(np.float32, input_shape_2, 'param_real_2')
+            param_imag_2 = tf.compat.v1.placeholder(np.float32, input_shape_2, 'param_imag_2')
+            complex_2 = tf.raw_ops.Complex(real=param_real_2, imag=param_imag_2)
+
+            equal_op = tf.raw_ops.Equal(x=complex_1, y=complex_2)
+            
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        return tf_net, None
+
+    test_data_complex_equal = [
+        dict(input_shape_1=[2, 6], input_shape_2=[2, 6]),
+        dict(input_shape_1=[2, 4, 5], input_shape_2=[2, 4, 5]),
+        dict(input_shape_1=[1], input_shape_2=[1]),
+    ]
+    
+    @pytest.mark.parametrize("params", test_data_complex_equal)
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
+    def test_complex_equal(self, params, ie_device, precision, ir_version, temp_dir,
+                           use_legacy_frontend):
+        self._test(
+            *self.create_complex_equal_net(**params),
+            ie_device, precision, ir_version, temp_dir=temp_dir,
+            use_legacy_frontend=use_legacy_frontend)
