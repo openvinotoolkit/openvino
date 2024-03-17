@@ -47,11 +47,14 @@ OutputVector translate_bias_add_op(const NodeContext& node) {
         TENSORFLOW_OP_VALIDATION(node,
                                  value_shape.rank().is_static(),
                                  "Value of dynamic rank for BiasAdd in NCHW layout is not supported.");
-        auto value_rank = complex_type_inputs ? value_shape.rank().get_length() - 1 : value_shape.rank().get_length();
+        auto value_rank = complex_type_inputs ? value_shape.rank().get_length() : value_shape.rank().get_length();
 
         std::vector<int64_t> axes_unsqueeze;
         for (int64_t dim_ind = 0; dim_ind < value_rank; ++dim_ind) {
-            if (dim_ind != 1) {
+            if (!complex_type_inputs && dim_ind != 1) {
+                axes_unsqueeze.push_back(dim_ind);
+            }
+            if (complex_type_inputs && dim_ind != 2){
                 axes_unsqueeze.push_back(dim_ind);
             }
         }
