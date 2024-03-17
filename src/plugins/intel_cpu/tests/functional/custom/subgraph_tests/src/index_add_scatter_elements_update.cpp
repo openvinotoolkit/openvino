@@ -72,7 +72,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        // abs_threshold = 0.01f;
+        abs_threshold = 0.01f;
         rel_threshold = 0.01f;
 
         constexpr size_t DATA_INPUT_IDX = 0;
@@ -173,9 +173,6 @@ protected:
                                                         reduceMode);
 
         function = std::make_shared<ov::Model>(scatter_result->outputs(), ov::ParameterVector{param, indices_param, update_param}, "index_add");
-
-        ov::pass::Serialize serializer("index_add.xml", "index_add.bin");
-        serializer.run_on_model(function);
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -205,9 +202,9 @@ protected:
                 tensor = shape_size(indicesShape) == 0 ? ov::Tensor(funcInput.get_element_type(), indicesShape) :
                                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), indicesShape, in_data);
             } else if (i == 2) {  // "updates"
-                in_data.start_from = 1;
-                in_data.range = shape_size(updateShape);
-                in_data.resolution = 100;
+                in_data.start_from = -500;
+                in_data.range = 500;
+                in_data.resolution = 1;
                 tensor = shape_size(updateShape) == 0 ? ov::Tensor(funcInput.get_element_type(), updateShape) :
                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
             } else {
