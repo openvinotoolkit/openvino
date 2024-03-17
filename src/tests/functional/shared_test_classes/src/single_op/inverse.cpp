@@ -72,7 +72,7 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
 }
 
-void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
+void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
 
     auto& t1 = expected[0];
     auto& t2 = actual[0];
