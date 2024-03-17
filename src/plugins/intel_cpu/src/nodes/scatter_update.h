@@ -43,6 +43,7 @@ public:
         Reduction reduction_type;
         bool use_init_val = true;
     };
+
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);

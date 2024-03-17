@@ -223,7 +223,9 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
 
     bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
-    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}, {LayoutType::ncsp, indicesPrec}, {LayoutType::ncsp, dataPrec}};
+    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
+                                                {LayoutType::ncsp, indicesPrec},
+                                                {LayoutType::ncsp, dataPrec}};
     if (axisRelaxed)
         inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
     addSupportedPrimDesc(inPortConfig,
@@ -358,80 +360,6 @@ static ReduceMaximum reduce_maximum;
 static ReduceMinimum reduce_minimum;
 static ReduceNone data_assign;
 
-// template <typename DT, typename IT, typename reduce_func>
-// void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, reduce_func& kernel_func);
-// template <typename DT, typename IT>
-// void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, ScatterUpdate::Config&, ReduceMean& kernel_func);
-
-};  // namespace scatter_elements_update
-
-// For the data tensor of shape [d_0, d_1, ..., d_n],
-// and indices tensor of shape [i_0, i_1, ..., i_k].
-// Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
-void ScatterUpdate::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
-    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
-    size_t indicesRank = indicesDim.size();
-
-    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
-    std::vector<size_t> updateBlockND = getBlockND(updateDim);
-
-    const size_t mulIdentity = 1;
-    size_t idxLength = mulIdentity;
-    for (size_t ri = 0; ri < indicesRank; ri++) {
-        idxLength *= indicesDim[ri];
-    }
-    size_t batchToUpdate = mulIdentity;
-    for (int x = 0; x < axis; x++) {
-        batchToUpdate *= srcDataDim[x];
-    }
-    // blockToUpdate is srcBlockND[axis + 1], also is updateBlockND[axis + indicesRank]
-    size_t blockToUpdate = srcBlockND[axis + 1];
-    size_t blockToUpdateSize = blockToUpdate * dataSize;
-
-    parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
-        int64_t idxValue = getIndicesValue(indices, idx);
-        uint8_t *dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
-        uint8_t *updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
-        cpu_memcpy(dstEntry, updateEntry, blockToUpdateSize);
-    });
-}
-
-// indices is a (q-1)-dimension tensor of k-tuple,
-// k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
-// updates is a (q-1)-dimension tensor of replacement-slice-values
-void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
-    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
-    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t indicesRank = indicesDim.size();
-
-    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
-
-    size_t k = indicesDim[indicesRank - 1];
-    size_t idxTupleNum = 1;
-    for (size_t ri = 0; ri < indicesRank - 1; ri++) {
-        idxTupleNum *= indicesDim[ri];
-    }
-
-    size_t sizeToUpdate = srcBlockND[k] * dataSize;
-    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
-        size_t indicesOffset = tupleIdx * k;
-        size_t dstOffset = 0;
-        for (size_t i = 0; i < k; i++) {
-            int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
-            if (idxValue < 0) {
-                // Negative value for indices means counting backwards from the end.
-                idxValue += srcDataDim[i];
-            }
-            dstOffset += idxValue * srcBlockND[i + 1];
-        }
-        dstOffset *= dataSize;
-        size_t updateOffset = tupleIdx * sizeToUpdate;
-        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
-    });
-}
-
 static inline std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape) {
      size_t shapeRank = shape.size();
      std::vector<size_t> coordinate;
@@ -451,12 +379,12 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
     }
 }
 
-namespace scatter_elements_update {
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 template <typename DataType, typename IndexType, typename func_t>
-void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, func_t& kernel_func) {
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
+                            int axis, const ScatterUpdate::Config& config, func_t& kernel_func) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
@@ -538,7 +466,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
         });
     }
 
-    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices    
+    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         size_t i, dst_idx = 0, indices_idx = 0;
@@ -566,7 +494,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
-                    kernel_func((acc_t*)dst, src);
+                    kernel_func(reinterpret_cast<acc_t*>(dst), src);
                 }
 
                 // increment
@@ -603,7 +531,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                 auto src = updatePtr + *ptr_indices_offset;
-                kernel_func((acc_t*)dst, src);
+                kernel_func(reinterpret_cast<acc_t*>(dst), src);
 
                 // increment once for all
                 for (j = updates_rank - 1; j >= 0; j--) {
@@ -639,7 +567,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
-                    kernel_func((acc_t*)dst, src);
+                    kernel_func(reinterpret_cast<acc_t*>(dst), src);
                     ptr_indices_offset++;
                     ptr_dst_offset++;
                 }
@@ -649,7 +577,8 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 }
 
 template <typename DataType, typename IndexType>
-void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const ScatterUpdate::Config& config, ReduceMean& kernel_func) {
+void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
+                            int axis, const ScatterUpdate::Config& config, ReduceMean& kernel_func) {
     PlainTensor data_buf, indices_buf, updates_buf;
     data_buf.reset(mem_data);
     indices_buf.reset(mem_indices);
@@ -716,7 +645,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 DataType& dst = data_buf.at<DataType, size_t>(data_coord);
                 DataType src = updates_buf.at<DataType, size_t>(indices_coord);
 
-                kernel_func((acc_t*)std::addressof(dst), &src);
+                kernel_func(reinterpret_cast<acc_t*>(std::addressof(dst)), &src);
 
                 // if (reduction_type == Reduction::MEAN) {
                     mean_reduction_counters[idxValue] += 1;
@@ -739,7 +668,8 @@ struct Caller : public element::NoAction<bool> {
     using element::NoAction<bool>::visit;
 
     template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
-    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config) {
+    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                            int axis, const ScatterUpdate::Config& config) {
         using namespace ov::element;
         return IF_TYPE_OF(scatter_el_update_idx_type,
                           OV_PP_ET_LIST(i32),
@@ -747,40 +677,44 @@ struct Caller : public element::NoAction<bool> {
                           indicesPrec,
                           dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, (DT*)0ul);
     }
+
 private:
     struct EvaluateByIndicesType : public element::NoAction<bool> {
         using element::NoAction<bool>::visit;
 
         template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
-        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis, const ScatterUpdate::Config& config, DT* fake) {
-            switch (config.reduction_type) {                                                                                 
-            case Reduction::NONE :                                                                                    
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);   
-                break;                                                                                                
-            case Reduction::SUM:                                                                                      
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);    
-                break;                                                                                                
-            case Reduction::MAX :                                                                                     
+        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                                int axis, const ScatterUpdate::Config& config, DT* fake) {
+            switch (config.reduction_type) {
+            case Reduction::NONE :
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);
+                break;
+            case Reduction::SUM :
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_add);
+                break;
+            case Reduction::MAX :
                 scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_maximum);
-                break;                                                                                                
-            case Reduction::MIN :                                                                                     
+                break;
+            case Reduction::MIN :
                 scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_minimum);
-                break;                                                                                                
-            case Reduction::PROD:                                                                                     
+                break;
+            case Reduction::PROD:
                 scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_multiply);
-                break;                                                                                                
-            case Reduction::MEAN :                                                                                    
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);   
-                break;                                                                                                
+                break;
+            case Reduction::MEAN :
+                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, reduce_mean);
+                break;
             default :
-                OPENVINO_THROW("unsupported reduce");                                                                                          
-                break;                                                                                                
-            }  
+                OPENVINO_THROW("unsupported reduce");
+                break;
+            }
             return true;
         }
     };
 };
-}; // namespace scatter_elements_update
+
+};  // namespace scatter_elements_update
+
 
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
@@ -886,7 +820,6 @@ void ScatterUpdate::execute(dnnl::stream strm) {
     }
 
     if (srcPtr != dstPtr) {
-        // std::cout << "===============" << __LINE__ << std::endl;
         std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0, end = 0;
@@ -911,61 +844,116 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            OPENVINO_ASSERT(one_of(dstMemPtr->getPrecision(), ov::element::f32, ov::element::bf16, ov::element::i32) &&
-                            indicesMemPtr->getPrecision() == ov::element::i32 &&
-                            dstMemPtr->getPrecision() == updateMemPtr->getPrecision(),
-                "unsupported data element type ", dstMemPtr->getPrecision(), " and ", indicesMemPtr->getPrecision());
-            // auto start = high_resolution_clock::now();
-                using namespace ov::element;
-                const char* p = std::getenv("EXEC_IF_TYPEOF");
-                if (p) {
-                    IF_TYPE_OF(scatter_el_update_data_type,
-                            OV_PP_ET_LIST(f32, bf16, f16, i32),
-                            scatter_elements_update::Caller,
-                            dataPrec, indicesPrec,
-                            dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config
-                            );
-                } else {
-                    using DT=ov::bfloat16;
-                    using IT=int32_t;
-                    using namespace scatter_elements_update;
-                    switch (m_config.reduction_type) {                                                                                 
-                    case Reduction::NONE :                                                                                    
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, data_assign);   
-                        break;                                                                                                
-                    case Reduction::SUM:                                                                                      
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_add);    
-                        break;                                                                                                
-                    case Reduction::MAX :                                                                                     
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_maximum);
-                        break;                                                                                                
-                    case Reduction::MIN :                                                                                     
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_minimum);
-                        break;                                                                                                
-                    case Reduction::PROD:                                                                                     
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_multiply);
-                        break;                                                                                                
-                    case Reduction::MEAN :                                                                                    
-                        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_mean);   
-                        break;                                                                                                
-                    default :                                                                                                 
-                        break;                                                                                                
-                    } 
+            using namespace ov::element;
+            const char* p = std::getenv("EXEC_DEBUG_PATH");
+            if (p) {
+                using DT = ov::bfloat16;
+                using IT = int32_t;
+                using namespace scatter_elements_update;
+                switch (m_config.reduction_type) {
+                case Reduction::NONE :
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, data_assign);
+                    break;
+                case Reduction::SUM:
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_add);
+                    break;
+                case Reduction::MAX :
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_maximum);
+                    break;
+                case Reduction::MIN :
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_minimum);
+                    break;
+                case Reduction::PROD:
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_multiply);
+                    break;
+                case Reduction::MEAN :
+                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_mean);
+                    break;
+                default :
+                    break;
                 }
-            // auto stop = high_resolution_clock::now();
-            // auto duration = duration_cast<microseconds>(stop - start);
-            // if (duration.count() > 900) {
-            //     std::cout << "===================== ScatterElementsUpdate elapse=" << duration.count() << " us, size="
-            //     << ov::PartialShape(indicesMemPtr->getStaticDims())  << std::endl;
-            // }
+            } else {
+                IF_TYPE_OF(scatter_el_update_data_type,
+                    OV_PP_ET_LIST(f32, bf16, f16, i32),
+                    scatter_elements_update::Caller,
+                    dataPrec, indicesPrec,
+                    dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config);
+            }
             break;
         }
         default: {
-            OPENVINO_THROW(errorPrefix
-           , " is not supported");
+            OPENVINO_THROW(errorPrefix, " is not supported");
         }
     }
 }
+
+// For the data tensor of shape [d_0, d_1, ..., d_n],
+// and indices tensor of shape [i_0, i_1, ..., i_k].
+// Updates tensor shape should be [d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n].
+void ScatterUpdate::scatterUpdate(uint8_t *indices, uint8_t *update, int axis, uint8_t *dstData) {
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    const auto& updateDim = getParentEdgeAt(UPDATE_ID)->getMemory().getStaticDims();
+    size_t indicesRank = indicesDim.size();
+
+    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
+    std::vector<size_t> updateBlockND = getBlockND(updateDim);
+
+    const size_t mulIdentity = 1;
+    size_t idxLength = mulIdentity;
+    for (size_t ri = 0; ri < indicesRank; ri++) {
+        idxLength *= indicesDim[ri];
+    }
+    size_t batchToUpdate = mulIdentity;
+    for (int x = 0; x < axis; x++) {
+        batchToUpdate *= srcDataDim[x];
+    }
+    // blockToUpdate is srcBlockND[axis + 1], also is updateBlockND[axis + indicesRank]
+    size_t blockToUpdate = srcBlockND[axis + 1];
+    size_t blockToUpdateSize = blockToUpdate * dataSize;
+
+    parallel_for2d(batchToUpdate, idxLength, [&](size_t b, size_t idx) {
+        int64_t idxValue = getIndicesValue(indices, idx);
+        uint8_t *dstEntry = dstData + (b * srcBlockND[axis] + idxValue * blockToUpdate) * dataSize;
+        uint8_t *updateEntry = update + (b * updateBlockND[axis] + idx * blockToUpdate) * dataSize;
+        cpu_memcpy(dstEntry, updateEntry, blockToUpdateSize);
+    });
+}
+
+// indices is a (q-1)-dimension tensor of k-tuple,
+// k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
+// updates is a (q-1)-dimension tensor of replacement-slice-values
+void ScatterUpdate::scatterNDUpdate(uint8_t *indices, uint8_t *update, uint8_t *dstData) {
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    size_t indicesRank = indicesDim.size();
+
+    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
+
+    size_t k = indicesDim[indicesRank - 1];
+    size_t idxTupleNum = 1;
+    for (size_t ri = 0; ri < indicesRank - 1; ri++) {
+        idxTupleNum *= indicesDim[ri];
+    }
+
+    size_t sizeToUpdate = srcBlockND[k] * dataSize;
+    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
+        size_t indicesOffset = tupleIdx * k;
+        size_t dstOffset = 0;
+        for (size_t i = 0; i < k; i++) {
+            int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
+            if (idxValue < 0) {
+                // Negative value for indices means counting backwards from the end.
+                idxValue += srcDataDim[i];
+            }
+            dstOffset += idxValue * srcBlockND[i + 1];
+        }
+        dstOffset *= dataSize;
+        size_t updateOffset = tupleIdx * sizeToUpdate;
+        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+    });
+}
+
 
 bool ScatterUpdate::created() const {
     return getType() == Type::ScatterUpdate

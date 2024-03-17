@@ -72,7 +72,7 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        abs_threshold = 0.01f;
+        // abs_threshold = 0.01f;
         rel_threshold = 0.01f;
 
         constexpr size_t DATA_INPUT_IDX = 0;
@@ -221,15 +221,15 @@ protected:
                 auto data = tensor.data(funcInput.get_element_type());  // for debug
                 if (i == 1) {
                     for (size_t k = 0; k < tensor.get_size(); k++)
-                        std::cout << *((int*)data+k) << ", ";
+                        std::cout << *(reinterpret_cast<int*>(data)+k) << ", ";
                 } else {
-                    if (funcInput.get_element_type() == ov::element::bf16)
+                    if (funcInput.get_element_type() == ov::element::bf16) {
                         for (size_t k = 0; k < tensor.get_size(); k++) {
-                            std::cout << *((ov::bfloat16*)data+k) << ", ";
+                            std::cout << *((ov::bfloat16*)data)+k << ", ";
                         }
-                    else {
+                    } else {
                         for (size_t k = 0; k < tensor.get_size(); k++) {
-                            std::cout << *((float*)data+k) << ", ";
+                            std::cout << *(reinterpret_cast<float*>(data)+k) << ", ";
                         }
                     }
                 }
