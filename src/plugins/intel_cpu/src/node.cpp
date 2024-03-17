@@ -36,8 +36,6 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 
-#include "utils/profiler.hpp"
-
 using namespace dnnl;
 using namespace openvino;
 using namespace ov::intel_cpu::node;
@@ -547,7 +545,6 @@ void Node::updateShapes() {
                     " with name: ",
                     getName());
     if (needShapeInfer()) {
-        PROFILE(_prof, "updateShape", getName());
         auto result = shapeInfer();
         if (ShapeInferStatus::success == result.status) {
             redefineOutputMemory(result.dims);
@@ -562,7 +559,6 @@ void Node::updateDynamicParams() {
                     " with name: ",
                     getName());
     if (isExecutable()) {
-        PROFILE(_prof, "updateDynamicParams", getName());
         if (needPrepareParams()) {
             OPENVINO_ASSERT(inputShapesDefined(),
                             "Can't prepare params for ",
