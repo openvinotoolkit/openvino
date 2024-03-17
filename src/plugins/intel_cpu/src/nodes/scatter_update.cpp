@@ -339,17 +339,6 @@ static ReduceMaximum reduce_maximum;
 static ReduceMinimum reduce_minimum;
 static ReduceNone data_assign;
 
-static inline std::vector<size_t> getCoordinate(size_t offset, const VectorDims& shape) {
-     size_t shapeRank = shape.size();
-     std::vector<size_t> coordinate;
-     coordinate.resize(shapeRank);
-     for (int i = shapeRank - 1; i >= 0; i--) {
-         coordinate[i] = offset % shape[i];
-         offset /= shape[i];
-     }
-     return coordinate;
- }
-
 static inline void getCoordinate(VectorDims& coordinate, size_t offset, const VectorDims& shape) {
     size_t shapeRank = shape.size();
     for (int i = shapeRank - 1; i >= 0; i--) {
@@ -584,7 +573,8 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
 
             for (size_t worker = start; worker < end; worker++) {
-                std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+                VectorDims indices_coord(updates_rank, 0);
+                getCoordinate(indices_coord, worker, squashed_indices_shape);
                 std::vector<size_t> data_coord(indices_coord);
 
                 for (size_t i = 0; i < index_dim_size; i++) {
@@ -605,7 +595,8 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
 
         for (size_t worker = start; worker < end; worker++) {
-            std::vector<size_t> indices_coord = getCoordinate(worker, squashed_indices_shape);
+            VectorDims indices_coord(updates_rank, 0);
+            getCoordinate(indices_coord, worker, squashed_indices_shape);
             std::vector<size_t> data_coord(indices_coord);
 
             std::unordered_map<size_t, int64_t> mean_reduction_counters;
@@ -622,19 +613,15 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
                 kernel_func(std::addressof(dst), &src);
 
-                // if (reduction_type == Reduction::MEAN) {
-                    mean_reduction_counters[idxValue] += 1;
-                // }
+                mean_reduction_counters[idxValue] += 1;
             }
 
-            // if (reduction_type == Reduction::MEAN) {
-                for (const auto& counter : mean_reduction_counters) {
-                    data_coord[axis] = counter.first;
-                    DataType& dst = data_buf.at<DataType, size_t>(data_coord);
-                    const auto N = counter.second + static_cast<int32_t>(use_init_val);
-                    dst = static_cast<DataType>(static_cast<double>(dst) / N);
-                }
-            // }
+            for (const auto& counter : mean_reduction_counters) {
+                data_coord[axis] = counter.first;
+                DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                const auto N = counter.second + static_cast<int32_t>(use_init_val);
+                dst = static_cast<DataType>(static_cast<double>(dst) / N);
+            }
         }
     });
 }
