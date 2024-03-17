@@ -62,6 +62,7 @@ TFL_OP_CONVERTER(transpose_conv);
 TFL_OP_CONVERTER(unique);
 TFL_OP_CONVERTER(unpack);
 TFL_OP_CONVERTER(while_op);
+TFL_OP_CONVERTER(gelu);
 
 template <typename OV_TYPE, typename TF_TYPE>
 OutputVector translate_binary_op_with_activation(const ov::frontend::tensorflow_lite::NodeContext& node);
