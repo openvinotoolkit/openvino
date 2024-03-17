@@ -18,11 +18,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <chrono>
-#include <type_traits>
-#include <typeinfo>
 
-using namespace std::chrono;
 using namespace dnnl;
 
 #ifdef NDEBUG
@@ -845,40 +841,11 @@ void ScatterUpdate::execute(dnnl::stream strm) {
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
             using namespace ov::element;
-            const char* p = std::getenv("EXEC_DEBUG_PATH");
-            if (p) {
-                using DT = ov::bfloat16;
-                using IT = int32_t;
-                using namespace scatter_elements_update;
-                switch (m_config.reduction_type) {
-                case Reduction::NONE :
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, data_assign);
-                    break;
-                case Reduction::SUM:
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_add);
-                    break;
-                case Reduction::MAX :
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_maximum);
-                    break;
-                case Reduction::MIN :
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_minimum);
-                    break;
-                case Reduction::PROD:
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_multiply);
-                    break;
-                case Reduction::MEAN :
-                    scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, m_config, reduce_mean);
-                    break;
-                default :
-                    break;
-                }
-            } else {
-                IF_TYPE_OF(scatter_el_update_data_type,
-                    OV_PP_ET_LIST(f32, bf16, f16, i32),
-                    scatter_elements_update::Caller,
-                    dataPrec, indicesPrec,
-                    dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config);
-            }
+            IF_TYPE_OF(scatter_el_update_data_type,
+                OV_PP_ET_LIST(f32, bf16, f16, i32),
+                scatter_elements_update::Caller,
+                dataPrec, indicesPrec,
+                dstMemPtr, indicesMemPtr, updateMemPtr, axis, this->m_config);
             break;
         }
         default: {

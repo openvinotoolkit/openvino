@@ -199,8 +199,6 @@ protected:
             } else if (i == 1) {  // "indices"
                 // All index values are expected to be within bounds [-d, d - 1] along dimension d pointed by axis.
                 auto d = dataShape[normalized_axis];
-                std::cout << "=============== " << i << ": normalized_axis=" << normalized_axis << ", d=" << d
-                        << ", dataShape=" << dataShape << ", indicesShape=" << indicesShape << std::endl;
                 in_data.start_from = -1.0 * static_cast<int64_t>(d);
                 in_data.range = d-1;
                 in_data.resolution = 1;
@@ -214,26 +212,6 @@ protected:
                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
             } else {
                 OPENVINO_THROW("Unknown input");
-            }
-            const char* p = std::getenv("DUMP_INPUTS");
-            if (p) {
-                std::cout << "=============== " << i << ": shape=" << tensor.get_shape() << std::endl;
-                auto data = tensor.data(funcInput.get_element_type());  // for debug
-                if (i == 1) {
-                    for (size_t k = 0; k < tensor.get_size(); k++)
-                        std::cout << *(reinterpret_cast<int*>(data)+k) << ", ";
-                } else {
-                    if (funcInput.get_element_type() == ov::element::bf16) {
-                        for (size_t k = 0; k < tensor.get_size(); k++) {
-                            std::cout << *((ov::bfloat16*)data)+k << ", ";
-                        }
-                    } else {
-                        for (size_t k = 0; k < tensor.get_size(); k++) {
-                            std::cout << *(reinterpret_cast<float*>(data)+k) << ", ";
-                        }
-                    }
-                }
-                std::cout << std::endl;
             }
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }

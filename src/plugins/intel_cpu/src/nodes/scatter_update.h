@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <cfloat>
-#include <cmath>
 #include "node.h"
 #include "openvino/op/scatter_elements_update.hpp"
 
