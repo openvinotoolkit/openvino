@@ -87,11 +87,13 @@ def test_properties_rw_base():
             ),
         ),
         (
-            hints.MaxThreadsPerStream,
+            hints.LlmDistributionPolicy,
             (
-                (hints.MaxThreadsPerStream.AUTO, "MaxThreadsPerStream.AUTO", 0),
-                (hints.MaxThreadsPerStream.PER_PLATFORM, "MaxThreadsPerStream.PER_PLATFORM", 1),
-                (hints.MaxThreadsPerStream.PER_SOCKET, "MaxThreadsPerStream.PER_SOCKET", 2),
+                (hints.LlmDistributionPolicy.TENSOR_PARTITION, "LlmDistributionPolicy.TENSOR_PARTITION", 0),
+                (hints.LlmDistributionPolicy.DATA_PARTITION, "LlmDistributionPolicy.DATA_PARTITION", 1),
+                (hints.LlmDistributionPolicy.PIPELINE_PARTITION, "LlmDistributionPolicy.PIPELINE_PARTITION", 2),
+                (hints.LlmDistributionPolicy.ENTIRE_PLATFORM, "LlmDistributionPolicy.ENTIRE_PLATFORM", 3),
+                (hints.LlmDistributionPolicy.SINGLE_DEVICE, "LlmDistributionPolicy.SINGLE_DEVICE", 4),
             ),
         ),
         (
@@ -288,9 +290,9 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
         ),
         (
-            hints.max_threads_per_stream,
-            "MAX_THREADS_PER_STREAM",
-            ((hints.MaxThreadsPerStream.PER_PLATFORM, hints.MaxThreadsPerStream.PER_PLATFORM),),
+            hints.llm_distribution_policy,
+            "LLM_DISTRIBUTION_POLICY",
+            ((hints.LlmDistributionPolicy.ENTIRE_PLATFORM, hints.LlmDistributionPolicy.ENTIRE_PLATFORM),),
         ),
         (
             hints.enable_hyper_threading,

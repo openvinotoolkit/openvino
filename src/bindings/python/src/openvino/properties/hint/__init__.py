@@ -5,7 +5,7 @@
 # Enums
 from openvino._pyopenvino.properties.hint import Priority
 from openvino._pyopenvino.properties.hint import SchedulingCoreType
-from openvino._pyopenvino.properties.hint import MaxThreadsPerStream
+from openvino._pyopenvino.properties.hint import LlmDistributionPolicy
 from openvino._pyopenvino.properties.hint import ExecutionMode
 from openvino._pyopenvino.properties.hint import PerformanceMode
 

@@ -335,12 +335,13 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
         }
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::hint::max_threads_per_stream.name()) != props.end()) {
-        ov::hint::MaxThreadsPerStream maxThreadsPerStreams[] = {ov::hint::MaxThreadsPerStream::AUTO,
-                                                                ov::hint::MaxThreadsPerStream::PER_PLATFORM,
-                                                                ov::hint::MaxThreadsPerStream::PER_SOCKET};
-        for (auto& maxThreadsPerStream : maxThreadsPerStreams) {
-            res.push_back({ov::hint::max_threads_per_stream(maxThreadsPerStream)});
+    if (props.empty() ||
+        std::find(props.begin(), props.end(), ov::hint::llm_distribution_policy.name()) != props.end()) {
+        ov::hint::LlmDistributionPolicy llmDistributionPolicys[] = {ov::hint::LlmDistributionPolicy::TENSOR_PARTITION,
+                                                                    ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM,
+                                                                    ov::hint::LlmDistributionPolicy::SINGLE_DEVICE};
+        for (auto& llmDistributionPolicy : llmDistributionPolicys) {
+            res.push_back({ov::hint::llm_distribution_policy(llmDistributionPolicy)});
         }
     }
 

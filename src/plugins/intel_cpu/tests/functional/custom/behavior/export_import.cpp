@@ -116,17 +116,17 @@ const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_3 = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
-const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream_1 = {
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::AUTO)},
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_PLATFORM)}};
+const std::vector<ov::AnyMap> testing_property_for_llm_distribution_policy_1 = {
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::TENSOR_PARTITION)},
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM)}};
 
-const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream_2 = {
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_PLATFORM)},
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET)}};
+const std::vector<ov::AnyMap> testing_property_for_llm_distribution_policy_2 = {
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM)},
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::SINGLE_DEVICE)}};
 
-const std::vector<ov::AnyMap> testing_property_for_max_threads_per_stream_3 = {
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::AUTO)},
-    {ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET)}};
+const std::vector<ov::AnyMap> testing_property_for_llm_distribution_policy_3 = {
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::SINGLE_DEVICE)},
+    {ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::TENSOR_PARTITION)}};
 
 const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov::hint::enable_hyper_threading(true)},
                                                                              {ov::hint::enable_hyper_threading(false)}};
@@ -143,9 +143,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
                                                              testing_property_for_scheduling_core_type_1,
                                                              testing_property_for_scheduling_core_type_2,
                                                              testing_property_for_scheduling_core_type_3,
-                                                             testing_property_for_max_threads_per_stream_1,
-                                                             testing_property_for_max_threads_per_stream_2,
-                                                             testing_property_for_max_threads_per_stream_3,
+                                                             testing_property_for_llm_distribution_policy_1,
+                                                             testing_property_for_llm_distribution_policy_2,
+                                                             testing_property_for_llm_distribution_policy_3,
                                                              testing_property_for_enable_hyper_threading,
                                                              testing_property_for_enable_cpu_pinning)));
 

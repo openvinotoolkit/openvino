@@ -383,37 +383,47 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 }
 /** @endcond */
 
-enum class MaxThreadsPerStream {
-    AUTO = 0,  //!<  Using all threads per platform for one stream. Will create sub stream on dual socket platform.
-    PER_PLATFORM = 1,  //!<  Using all threads per platform for one stream even on dual socket platform.
-    PER_SOCKET = 2,    //!<  Using all threads per socket for one stream on dual socket platform.
+enum class LlmDistributionPolicy {
+    TENSOR_PARTITION = 0,    // Split one node or subgraph into parts and run one part per socket/device in parallel.
+    DATA_PARTITION = 1,      // Split one batch input into parts and run one part per socket/device in parallel.
+    PIPELINE_PARTITION = 2,  // Split one model into parts and run each socket/device in parallel as a pipeline.
+    ENTIRE_PLATFORM = 3,     // Run one model on the entire platform with all sockets/devices.
+    SINGLE_DEVICE = 4,       // Run one model on single socket/device.
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const MaxThreadsPerStream& stream_mode) {
+inline std::ostream& operator<<(std::ostream& os, const LlmDistributionPolicy& stream_mode) {
     switch (stream_mode) {
-    case MaxThreadsPerStream::AUTO:
-        return os << "AUTO";
-    case MaxThreadsPerStream::PER_PLATFORM:
-        return os << "PER_PLATFORM";
-    case MaxThreadsPerStream::PER_SOCKET:
-        return os << "PER_SOCKET";
+    case LlmDistributionPolicy::TENSOR_PARTITION:
+        return os << "TENSOR_PARTITION";
+    case LlmDistributionPolicy::DATA_PARTITION:
+        return os << "DATA_PARTITION";
+    case LlmDistributionPolicy::PIPELINE_PARTITION:
+        return os << "PIPELINE_PARTITION";
+    case LlmDistributionPolicy::ENTIRE_PLATFORM:
+        return os << "ENTIRE_PLATFORM";
+    case LlmDistributionPolicy::SINGLE_DEVICE:
+        return os << "SINGLE_DEVICE";
     default:
-        OPENVINO_THROW("Unsupported mode!");
+        OPENVINO_THROW("Unsupported LLM distribution policy!");
     }
 }
 
-inline std::istream& operator>>(std::istream& is, MaxThreadsPerStream& stream_mode) {
+inline std::istream& operator>>(std::istream& is, LlmDistributionPolicy& stream_mode) {
     std::string str;
     is >> str;
-    if (str == "AUTO") {
-        stream_mode = MaxThreadsPerStream::AUTO;
-    } else if (str == "PER_PLATFORM") {
-        stream_mode = MaxThreadsPerStream::PER_PLATFORM;
-    } else if (str == "PER_SOCKET") {
-        stream_mode = MaxThreadsPerStream::PER_SOCKET;
+    if (str == "TENSOR_PARTITION") {
+        stream_mode = LlmDistributionPolicy::TENSOR_PARTITION;
+    } else if (str == "DATA_PARTITION") {
+        stream_mode = LlmDistributionPolicy::DATA_PARTITION;
+    } else if (str == "PIPELINE_PARTITION") {
+        stream_mode = LlmDistributionPolicy::PIPELINE_PARTITION;
+    } else if (str == "ENTIRE_PLATFORM") {
+        stream_mode = LlmDistributionPolicy::ENTIRE_PLATFORM;
+    } else if (str == "SINGLE_DEVICE") {
+        stream_mode = LlmDistributionPolicy::SINGLE_DEVICE;
     } else {
-        OPENVINO_THROW("Unsupported mode: ", str);
+        OPENVINO_THROW("Unsupported LLM distribution policy: ", str);
     }
     return is;
 }
@@ -436,23 +446,24 @@ inline std::istream& operator>>(std::istream& is, MaxThreadsPerStream& stream_mo
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
- * @brief This property defines max threads per stream used for CPU inference.
+ * @brief This property defines distribution policy for Large language models (LLM).
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to select max threads of stream in latency mode for CPU inference on two socket
- * platform.
- * -- AUTO mode         : Will create main stream on one socket and sub stream on the other socket. Some node will only
- * main stream and some node will use both main stream and sub stream.
- * -- PER_PLATFORM mode : Will create one stream on both sockets
- * -- PER_SOCKET mode   : Will create one stream on single socket
+ * Developer can use this property to select LLM distribution policy for CPU inference with multiple sockets platform or
+ * GPU inference with multiple GPU devices.
+ * -- TENSOR_PARTITION   : Split one node or subgraph into parts and run one part per socket/device in parallel.
+ * -- DATA_PARTITION     : Split one batch input into parts and run one part per socket/device in parallel.
+ * -- PIPELINE_PARTITION : Split one model into parts and run each socket/device in parallel as a pipeline.
+ * -- ENTIRE_PLATFORM    : Run one model on the entire platform with all sockets/devices.
+ * -- SINGLE_DEVICE      : Run one model on single socket/device.
  *
  * The following code is an example to only use all threads of one socket for one stream on dual sockets platform.
  *
  * @code
- * ie.set_property(ov::hint::max_threads_per_stream(ov::hint::MaxThreadsPerStream::PER_SOCKET));
+ * ie.set_property(ov::hint::llm_distribution_policy(ov::hint::LlmDistributionPolicy::SINGLE_DEVICE));
  * @endcode
  */
-static constexpr Property<MaxThreadsPerStream> max_threads_per_stream{"MAX_THREADS_PER_STREAM"};
+static constexpr Property<LlmDistributionPolicy> llm_distribution_policy{"LLM_DISTRIBUTION_POLICY"};
 
 /**
  * @brief This property allows CPU pinning during inference.

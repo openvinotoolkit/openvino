@@ -191,20 +191,35 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                '/',
                                ov::hint::SchedulingCoreType::ECORE_ONLY);
             }
-        } else if (key == ov::hint::max_threads_per_stream.name()) {
-            try {
-                maxThreadsPerStream = val.as<ov::hint::MaxThreadsPerStream>();
-            } catch (ov::Exception&) {
+        } else if (key == ov::hint::llm_distribution_policy.name()) {
+            auto error_info = [&]() {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
-                               ov::hint::max_threads_per_stream.name(),
-                               ". Expected only ",
-                               ov::hint::MaxThreadsPerStream::AUTO,
+                               ov::hint::llm_distribution_policy.name(),
+                               ". CPU plugin only support ",
+                               ov::hint::LlmDistributionPolicy::TENSOR_PARTITION,
                                '/',
-                               ov::hint::MaxThreadsPerStream::PER_PLATFORM,
+                               ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM,
                                '/',
-                               ov::hint::MaxThreadsPerStream::PER_SOCKET);
+                               ov::hint::LlmDistributionPolicy::SINGLE_DEVICE);
+            };
+
+            ov::hint::LlmDistributionPolicy llm_policy = ov::hint::LlmDistributionPolicy::PIPELINE_PARTITION;
+            try {
+                llm_policy = val.as<ov::hint::LlmDistributionPolicy>();
+            } catch (ov::Exception&) {
+                error_info();
+            }
+
+            switch (llm_policy) {
+            case ov::hint::LlmDistributionPolicy::TENSOR_PARTITION:
+            case ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM:
+            case ov::hint::LlmDistributionPolicy::SINGLE_DEVICE:
+                llmDistributionPolicy = llm_policy;
+                break;
+            default:
+                error_info();
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {
