@@ -29,42 +29,52 @@ OutputVector translate_atan2(const NodeContext& context) {
     num_inputs_check(context, 3, 2);
     auto y = context.get_input(0);
     auto x = context.get_input(1);
+    std::tie(y, x) = get_inputs_with_promoted_types(context, 0, 1);
+    auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
+    align_eltwise_input_types(context, x, dummy_const, false, true);
 
     // handle the first condition : x>0
     auto div_y_x = context.mark_node(std::make_shared<v1::Divide>(y, x));
     auto atan = context.mark_node(std::make_shared<v0::Atan>(div_y_x));
-    auto const_zero = v0::Constant::create(element::f64, Shape{}, {0});
+    auto const_zero = v0::Constant::create(element::f32, Shape{}, {0});
     auto result = atan->output(0);
 
     // handle the second condition : x<0 && y>=0
-    auto const_pi = v0::Constant::create(element::f64, Shape{}, {std::atan(1.0)*4});
+    auto const_pi = v0::Constant::create(element::f32, Shape{}, {std::atan(1.0)*4});
+    align_eltwise_input_types(context, x, dummy_const, false, true);
     auto is_x_negative = context.mark_node(std::make_shared<v1::Less>(x, const_zero));
+    align_eltwise_input_types(context, y, const_zero, false, true);
     auto y_non_negative = context.mark_node(std::make_shared<v1::GreaterEqual>(y, const_zero));
     auto cond1 = context.mark_node(std::make_shared<v1::LogicalAnd>(is_x_negative, y_non_negative));
+    align_eltwise_input_types(context, atan, const_pi, false, true);
     auto atan_y_x_plus_pi = context.mark_node(std::make_shared<v1::Add>(atan, const_pi));
     result = context.mark_node(std::make_shared<v1::Select>(cond1, atan_y_x_plus_pi, result));
 
     // handle the third condition : x<0 && y<0
+    align_eltwise_input_types(context, x, const_zero, false, true);
     auto is_y_negative = context.mark_node(std::make_shared<v1::Less>(y, const_zero));
     auto cond2 = context.mark_node(std::make_shared<v1::LogicalAnd>(is_x_negative, is_y_negative));
+    align_eltwise_input_types(context, atan, const_pi, false, true);
     auto atan_y_x_minus_pi = context.mark_node(std::make_shared<v1::Subtract>(atan, const_pi));
     result = context.mark_node(std::make_shared<v1::Select>(cond2, atan_y_x_minus_pi, result));
 
     // handle the fourth condition : x=0 && y>0
+    align_eltwise_input_types(context, x, const_zero, false, true);
     auto is_x_zero = context.mark_node(std::make_shared<v1::Equal>(x, const_zero));
+    align_eltwise_input_types(context, y, const_zero, false, true);
     auto is_y_positive = context.mark_node(std::make_shared<v1::Greater>(y, const_zero));
     auto cond3 = context.mark_node(std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_positive));
-    auto const_two = v0::Constant::create(element::f64, Shape{}, {2});
+    auto const_two = v0::Constant::create(element::f32, Shape{}, {2});
     auto pi_div_two = context.mark_node(std::make_shared<v1::Divide>(const_pi, const_two));
     result = context.mark_node(std::make_shared<v1::Select>(cond3, pi_div_two, result));
 
     // handle the fifth condition : x=0 && y<0
     auto cond4 = context.mark_node(std::make_shared<v1::LogicalAnd>(is_x_zero, is_y_negative));
-    auto const_minus_two = v0::Constant::create(element::f64, Shape{}, {-2});
+    auto const_minus_two = v0::Constant::create(element::f32, Shape{}, {-2});
     auto pi_div_minus_two = context.mark_node(std::make_shared<v1::Divide>(const_pi, const_minus_two));
     result = context.mark_node(std::make_shared<v1::Select>(cond4, pi_div_two, result));
 
-    auto result_conv = context.mark_node(std::make_shared<v0::Convert>(result, context.get_input(2));
+    auto result_conv = context.mark_node(std::make_shared<v0::Convert>(result, element::context.get_input(2));
 
     return {result_conv};
 }
