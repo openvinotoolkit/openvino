@@ -383,6 +383,22 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 }
 /** @endcond */
 
+/**
+ * @brief This property defines CPU core type which can be used during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
+ * all definition of core type.
+ *
+ * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
+ *
+ * @code
+ * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
 enum class LlmDistributionPolicy {
     TENSOR_PARTITION = 0,    // Split one node or subgraph into parts and run one part per socket/device in parallel.
     DATA_PARTITION = 1,      // Split one batch input into parts and run one part per socket/device in parallel.
@@ -428,22 +444,6 @@ inline std::istream& operator>>(std::istream& is, LlmDistributionPolicy& stream_
     return is;
 }
 /** @endcond */
-
-/**
- * @brief This property defines CPU core type which can be used during inference.
- * @ingroup ov_runtime_cpp_prop_api
- *
- * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
- * all definition of core type.
- *
- * The following code is an example to only use efficient-cores for inference on hybrid CPU. If user sets this
- * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
- *
- * @code
- * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
- * @endcode
- */
-static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 /**
  * @brief This property defines distribution policy for Large language models (LLM).
