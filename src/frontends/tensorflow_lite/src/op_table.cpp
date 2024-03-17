@@ -195,6 +195,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
         {"WHERE", OP_CONVERT_TYPE_RENAME(translate_where_op, "Where")},
         {"WHILE", while_op},
         {"ZEROS_LIKE", DEQUANTIZE_INPUTS(translate_zeros_like_op)},
+        {"GELU", DEQUANTIZE_INPUTS(gelu)},
     };
 }
 }  // namespace op

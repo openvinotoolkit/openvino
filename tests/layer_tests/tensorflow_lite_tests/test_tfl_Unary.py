@@ -34,6 +34,7 @@ test_ops = [
     {'op_name': 'SQRT', 'op_func': tf.math.sqrt, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'SQUARE', 'op_func': tf.math.square},
     {'op_name': 'TANH', 'op_func': tf.math.tanh},
+    {'op_name': 'GELU', 'op_func': partial(tf.nn.gelu, approximate=True)},
 
     # These operations are getting optimized out by tflite aka empty tfl model
     # {'op_name': 'RANK', 'op_func': tf.rank},
