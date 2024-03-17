@@ -5,7 +5,6 @@
 #include "common_op_table.hpp"
 #include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/negative.hpp"
