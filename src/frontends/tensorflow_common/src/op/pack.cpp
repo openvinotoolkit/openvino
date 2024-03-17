@@ -6,6 +6,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -16,11 +17,17 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_pack_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"Pack", "PACK"});
-    auto num_size = static_cast<int>(node.get_input_size());
+    default_op_checks(node, 1, {"Pack", "PACK"}, true);
 
     auto axis = node.get_attribute<int64_t>("axis", 0);
+
+    auto num_size = static_cast<int>(node.get_input_size());
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(node.get_input(0).get_node_shared_ptr());
     auto axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis);
+
+    if (complex_type_mark) {
+        axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis + 1);
+    } 
 
     OutputVector concat_inputs;
     for (int ind = 0; ind < num_size; ++ind) {
@@ -29,7 +36,12 @@ OutputVector translate_pack_op(const NodeContext& node) {
     }
 
     auto pack = make_shared<v0::Concat>(concat_inputs, axis);
+    
     set_node_name(node.get_name(), pack);
+    if (complex_type_mark) {
+        auto complex_result = make_shared<ComplexTypeMark>(pack, complex_type_mark->get_complex_part_type());
+        return {complex_result};
+    }
     return {pack};
 }
 }  // namespace op
