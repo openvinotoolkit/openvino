@@ -3,7 +3,7 @@
 
 import numpy as np
 import pytest
-
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
 
