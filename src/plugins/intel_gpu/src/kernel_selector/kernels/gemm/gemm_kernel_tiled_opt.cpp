@@ -52,6 +52,7 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
                             (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
         std::vector<size_t> global = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
                                        total_batches };
+        GPU_DEBUG_LOG << "[" << global[0] << ", " << global[1] << ", " << global[2] << "], " << std::endl;
 
         dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
         dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
@@ -61,9 +62,8 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
 
-        GPU_DEBUG_LOG << "[" << global[0] << ", " << global[1] << ", " << global[2] << "], " << std::endl;
-        GPU_DEBUG_LOG << "[" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "], "
-                        <<"[" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "], " << std::endl;
+        GPU_DEBUG_LOG << "gws: [" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "], "
+                        <<"lws: [" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "] " << std::endl;
     }
     return dispatchData;
 }
@@ -98,14 +98,11 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
-        // Increasing tile_n_size gives performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
-        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16)
+        // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 && params.fused_ops.empty())
             tuning_data.tile_n_size = 32;
 
-        GPU_DEBUG_LOG << "tile_m_size " << tuning_data.tile_m_size
-                        << ", tile_n_size " << tuning_data.tile_n_size
-                        << ", tile_k_size " << tuning_data.tile_k_size
-                        << ", simd_size" << tuning_data.simd_size << std::endl;
+        GPU_DEBUG_LOG << "m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
     } else {
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
@@ -114,6 +111,24 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
     }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->env_var) {
+        int val;
+        if (debug_config->get_env("GEMM_TILE_M", val))
+            tuning_data.tile_m_size = val;
+        if (debug_config->get_env("GEMM_TILE_N", val))
+            tuning_data.tile_n_size = val;
+        if (debug_config->get_env("GEMM_TILE_K", val))
+            tuning_data.tile_k_size = val;
+        if (debug_config->get_env("GEMM_TILE_SIMD", val))
+            tuning_data.simd_size = val;
+    }
+
+    GPU_DEBUG_LOG << "tile_m_size: " << tuning_data.tile_m_size
+                    << ", tile_n_size: " << tuning_data.tile_n_size
+                    << ", tile_k_size: " << tuning_data.tile_k_size
+                    << ", simd_size: " << tuning_data.simd_size << std::endl;
 
     return tuning_data;
 }

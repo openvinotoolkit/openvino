@@ -102,7 +102,7 @@ public:
     int verbose_color;                                          // Print verbose color
     int list_layers;                                            // Print list layers
     int print_multi_kernel_perf;                                // Print execution time of each kernel in multi-kernel primitimive
-    int print_input_data_shapes;                                  // Print the input data_shape for benchmark_app.
+    int print_input_data_shapes;                                // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
@@ -134,6 +134,7 @@ public:
     int disable_build_time_weight_reorder_for_dynamic_nodes;    // Disable build time weight reordering for dynamic nodes
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
+    int env_var;                                                // Enable environment variable
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();
@@ -143,6 +144,7 @@ public:
     bool is_layer_for_dumping(const std::string& layerName, bool is_output = false, bool is_input = false) const;
     bool is_target_iteration(int64_t iteration) const;
     std::string get_matched_from_filelist(const std::vector<std::string>& file_names, std::string pattern) const;
+    bool get_env(std::string key, int &val) const;
 
     struct memory_preallocation_params {
         bool is_initialized = false;
