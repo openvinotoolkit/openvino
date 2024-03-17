@@ -265,68 +265,51 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
 
 namespace scatter_elements_update {
 
-template <typename reduced_t>
-struct AccumulativeType {
-  using type = reduced_t;
-};
-// template <>
-// struct AccumulativeType<ov::bfloat16> {
-//   using type = ov::bfloat16;
-// };
-// template <>
-// struct AccumulativeType<ov::float16> {
-//   using type = float;
-// };
-
-template <typename T>
-using AccType = typename AccumulativeType<T>::type;
-
-
 class ReduceMultiply {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data *= AccType<DT>(*src_data);
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data *= *src_data;
     }
 };
 
 class ReduceAdd {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data += AccType<DT>(*src_data);
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data += *src_data;
     }
 };
 
 class ReduceMean {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data += AccType<DT>(*src_data);
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data += *src_data;
     }
 };
 
 class ReduceMaximum {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(*src_data) ? AccType<DT>(*src_data) : std::max(*dst_data, AccType<DT>(*src_data));
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(*src_data) ? *src_data : std::max(*dst_data, *src_data);
     }
 };
 
 class ReduceMinimum {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(*src_data) ? AccType<DT>(*src_data) : std::min(*dst_data, AccType<DT>(*src_data));
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = std::isnan(*src_data) ? *src_data : std::min(*dst_data, *src_data);
     }
 };
 
 class ReduceNone {
 public:
     template <typename DT>
-    void operator() (AccType<DT>* dst_data, const DT* src_data) const {
-        *dst_data = AccType<DT>(*src_data);
+    void operator() (DT* dst_data, const DT* src_data) const {
+        *dst_data = *src_data;
     }
 };
 
@@ -403,8 +386,6 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
     std::vector<size_t> dataBlockND = getBlockND(data_shape);
     std::vector<size_t> indicesBlockND = getBlockND(indices_shape);
-
-    using acc_t = AccType<DataType>;
 
     if (!use_init_val) {
         const auto value = reduction_neutral_value<DataType>(reduction_type);
@@ -490,7 +471,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
-                    kernel_func(reinterpret_cast<acc_t*>(dst), src);
+                    kernel_func(dst, src);
                 }
 
                 // increment
@@ -527,7 +508,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                 auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                 auto src = updatePtr + *ptr_indices_offset;
-                kernel_func(reinterpret_cast<acc_t*>(dst), src);
+                kernel_func(dst, src);
 
                 // increment once for all
                 for (j = updates_rank - 1; j >= 0; j--) {
@@ -563,7 +544,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
                     auto src = updatePtr + indices_offset;
-                    kernel_func(reinterpret_cast<acc_t*>(dst), src);
+                    kernel_func(dst, src);
                     ptr_indices_offset++;
                     ptr_dst_offset++;
                 }
@@ -589,8 +570,6 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
     const bool use_init_val = config.use_init_val;
     const Reduction reduction_type = config.reduction_type;
-
-    using acc_t = AccType<DataType>;
 
     if (axis < 0)
         axis += updates_rank;
@@ -641,7 +620,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 DataType& dst = data_buf.at<DataType, size_t>(data_coord);
                 DataType src = updates_buf.at<DataType, size_t>(indices_coord);
 
-                kernel_func(reinterpret_cast<acc_t*>(std::addressof(dst)), &src);
+                kernel_func(std::addressof(dst), &src);
 
                 // if (reduction_type == Reduction::MEAN) {
                     mean_reduction_counters[idxValue] += 1;
@@ -680,7 +659,7 @@ private:
 
         template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
         static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                                int axis, const ScatterUpdate::Config& config, DT* fake) {
+                                int axis, const ScatterUpdate::Config& config, DT* dummy) {
             switch (config.reduction_type) {
             case Reduction::NONE :
                 scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, config, data_assign);
