@@ -98,6 +98,10 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
+        // Increasing tile_n_size gives performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16)
+            tuning_data.tile_n_size = 32;
+
         GPU_DEBUG_LOG << "tile_m_size " << tuning_data.tile_m_size
                         << ", tile_n_size " << tuning_data.tile_n_size
                         << ", tile_k_size " << tuning_data.tile_k_size
