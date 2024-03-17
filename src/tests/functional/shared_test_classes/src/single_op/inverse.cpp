@@ -37,7 +37,6 @@ void InverseLayerTest::SetUp() {
     std::vector<InputShape> input_shape;
     ov::element::Type element_type;
     bool adjoint;
-    bool test_static;
 
     std::tie(input_shape, element_type, adjoint, m_seed, targetDevice) = GetParam();
 
@@ -67,7 +66,7 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     ov::test::utils::InputGenerateData in_data;
     in_data.start_from = 10.0;
     in_data.range = 5;
-    in_data.resolution = 32;
+    in_data.resolution = 16;
     in_data.seed = m_seed;
     auto tensor = ov::test::utils::create_and_fill_tensor(in_prc, targetInputStaticShapes[0], in_data);
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
