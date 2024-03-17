@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,7 +263,8 @@ void condition_inst::postprocess_output_memory(network::ptr executed_net, cldnn:
         }
 
         _outputs[out_mem_idx] = mem_ptr;
-        GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
+        if (mem_ptr)
+            GPU_DEBUG_LOG << "Inner net - Outputs[" << out_mem_idx << "]" << mem_ptr->get_layout().to_short_string() << std::endl;
     }
 }
 }  // namespace cldnn

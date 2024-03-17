@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/symbolic_info.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 void update_label(const ov::EqTable& table, ov::label_t& label) {
@@ -250,10 +251,7 @@ bool ov::pass::OptimizeLabelsUsedAsValues::run_on_model(const std::shared_ptr<ov
             continue;
 
         // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for label sources
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op))
-            for (const auto& sub_graph : multi_subgraph_op->get_functions())
-                if (sub_graph)
-                    run_on_model(sub_graph);
+        ov::op::util::process_subgraph(*this, op);
 
         for (auto& output : op->outputs()) {
             optimize_value_usage(output, label_shape_source, label_value_source);
