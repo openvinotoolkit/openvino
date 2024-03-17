@@ -410,22 +410,14 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 // increment
                 for (j = updates_rank - 1; j >= 0; j--) {
                     tensorItr[j]++;
-                    if (tensorItr[j] < squashed_indices_shape[j]) {
-                        if (j != axis) {
-                            dst_idx += dataBlockND[j + 1];
-                            indices_idx += indicesBlockND[j + 1];
-                        }
+                    if (tensorItr[j] < squashed_indices_shape[j]) { // no need check if (j != axis) as it is squashed
+                        dst_idx += dataBlockND[j + 1];
+                        indices_idx += indicesBlockND[j + 1];
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
-                        for (i++; i < updates_rank; ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
+                        dst_idx += dataBlockND[j];
+                        indices_idx += indicesBlockND[j];
                     }
                 }
             }
@@ -467,21 +459,13 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 for (j = updates_rank - 1; j >= 0; j--) {
                     tensorItr[j]++;
                     if (tensorItr[j] < squashed_indices_shape[j]) {
-                        if (j != axis) {
-                            dst_idx += dataBlockND[j + 1];
-                            indices_idx += indicesBlockND[j + 1];
-                        }
+                        dst_idx += dataBlockND[j + 1];
+                        indices_idx += indicesBlockND[j + 1];
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
-                        for (i++; i < updates_rank; ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
+                        dst_idx += dataBlockND[j];
+                        indices_idx += indicesBlockND[j];
                     }
                 }
             }
@@ -503,21 +487,13 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 for (j = updates_rank - 1; j >= 0; j--) {
                     tensorItr[j]++;
                     if (tensorItr[j] < squashed_indices_shape[j]) {
-                        if (j != axis) {
-                            dst_idx += dataBlockND[j + 1];
-                            indices_idx += indicesBlockND[j + 1];
-                        }
+                        dst_idx += dataBlockND[j + 1];
+                        indices_idx += indicesBlockND[j + 1];
                         break;
                     } else {
                         tensorItr[j] = 0;
-                        for (dst_idx = 0, indices_idx =0, i = 0; i < static_cast<size_t>(axis); ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
-                        for (i++; i < updates_rank; ++i) {
-                            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-                        }
+                        dst_idx += dataBlockND[j];
+                        indices_idx += indicesBlockND[j];
                     }
                 }
                 *++ptr_dst_offset = dst_idx;
