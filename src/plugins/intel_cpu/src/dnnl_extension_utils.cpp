@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -274,7 +274,8 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
                        Algorithm::EltwiseAbs,
                        Algorithm::EltwiseSqrt,
                        Algorithm::EltwiseSoftRelu,
-                       Algorithm::EltwiseSigmoid);
+                       Algorithm::EltwiseSigmoid,
+                       Algorithm::EltwiseClamp);
 #elif defined(OPENVINO_ARCH_X86_64)
     return one_of(alg, Algorithm::EltwiseRelu,
                        Algorithm::EltwiseGeluErf,

@@ -7,6 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
+#include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
@@ -44,7 +45,7 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     init_common_params(loop_exits);
 
     // Should be inited by LoopInfo
-    const auto is_dynamic_loop = false;
+    const auto is_dynamic_loop = is_loop_dynamic(loop_info);
 
     std::shared_ptr<op::LoopBegin> loop_begin = nullptr;
     std::shared_ptr<op::LoopEnd> loop_end = nullptr;
@@ -80,15 +81,23 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LinearIR::LoopManagerPtr&
     linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
 }
 
-bool InsertLoops::run(LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoops")
-    if (linear_ir.empty())
-        return false;
+bool InsertLoops::is_loop_dynamic(const LinearIR::LoopManager::LoopInfoPtr& loop_info) {
+    auto is_loop_port_dynamic = [](const LinearIR::LoopManager::LoopPort& port) {
+        return port.is_dynamic();
+    };
+    const auto& entry_points = loop_info->get_entry_points();
+    const auto& exit_points = loop_info->get_exit_points();
+    return utils::is_dynamic_value(loop_info->get_work_amount()) ||
+           std::any_of(entry_points.cbegin(), entry_points.cend(), is_loop_port_dynamic) ||
+           std::any_of(exit_points.cbegin(), exit_points.cend(), is_loop_port_dynamic);
+}
 
+bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoops")
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     std::set<size_t> inserted_loops;
-    for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
+    for (auto expr_it = begin; expr_it != end; expr_it++) {
         const auto expr = *expr_it;
         const auto& node = expr->get_node();
         if (ov::is_type<op::LoopBase>(node) ||

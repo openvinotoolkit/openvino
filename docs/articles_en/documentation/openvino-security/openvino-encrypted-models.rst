@@ -22,7 +22,7 @@ After a model is optimized by model conversion API, it's deployed to target devi
 
 Encrypting and optimizing model before deploying it to the edge device can be used to protect deep-learning models. The edge device should keep the stored model protected all the time and have the model decrypted **in runtime only** for use by the OpenVINO Runtime.
 
-.. image:: _static/images/deploy_encrypted_model.svg
+.. image:: ../../_static/images/deploy_encrypted_model.svg
 
 Loading Encrypted Models
 ########################
@@ -47,10 +47,10 @@ Additional Resources
 ####################
 
 - Intel® Distribution of OpenVINO™ toolkit `home page <https://software.intel.com/en-us/openvino-toolkit>`__.
-- :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
-- :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
-- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
-- For information on a set of pre-trained models, see the :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <omz_models_group_intel>`.
+- :doc:`Convert a Model <../legacy-features/transition-legacy-conversion-api/legacy-conversion-api>`.
+- :doc:`OpenVINO™ Runtime User Guide <../../openvino-workflow/running-inference>`.
+- For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <../../learn-openvino/openvino-samples>`
+- For information on a set of pre-trained models, see the :doc:`Overview of OpenVINO™ Toolkit Pre-Trained Models <../../omz_models_group_intel>`.
 - For IoT Libraries and Code Samples, see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
 
 

@@ -163,8 +163,8 @@ void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
     for (const auto& abstract_to_physical : gpr_map_pool.first)
         data_ptr_regs_idx.push_back(abstract_to_physical.second);
 
-    vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
     gpr_map_pool.second.insert(gpr_map_pool.second.end(), pool_gpr_idxs.cbegin(), pool_gpr_idxs.cend());
+    vec_map_pool.second.insert(vec_map_pool.second.end(), pool_vec_idxs.cbegin(), pool_vec_idxs.cend());
     map_abstract_registers(gpr_map_pool, vec_map_pool, general_exprs);
 }
 
@@ -200,30 +200,33 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
         element::Type etype;
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
-                const auto first_consumer = expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-                if (ov::is_type<snippets::op::RankNormalization>(first_consumer->get_node())) {
-                    desc = first_consumer->get_output_port_descriptor(0);
-                } else {
-                    desc = expr->get_output_port_descriptor(0);
+                // Note that here we consider only the first child (which is usually load),
+                // but often there is another child - LoopEnd
+                auto consumer_inputs = expr->get_output_port_connector(0)->get_consumers();
+                const auto& first_consumer = consumer_inputs.begin()->get_expr();
+                // If there is a RankNormalization op after a parameter - we should skip it
+                if (is_type<snippets::op::RankNormalization>(first_consumer->get_node()))
+                    consumer_inputs = first_consumer->get_output_port_connector(0)->get_consumers();
+                for (const auto& child_input : consumer_inputs) {
+                    const auto ma = ov::as_type_ptr<snippets::op::MemoryAccess>(child_input.get_expr()->get_node());
+                    if (ma && ma->is_memory_access_input_port(child_input.get_index())) {
+                        desc = child_input.get_descriptor_ptr();
+                        break;
+                    }
                 }
                 etype = expr->get_node()->get_output_element_type(0);
                 break;
             }
             case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                desc = expr->get_input_port_descriptor(0);
+                desc = expr->get_input_port_connector(0)->get_source().get_descriptor_ptr();
                 etype = expr->get_node()->get_input_element_type(0);
                 break;
             } default : {
                 OPENVINO_THROW("Kernel detected unsupported io_type");
             }
         }
-        const auto& shape = desc->get_shape();
-        const auto& layout = desc->get_layout();
-        OV_CPU_JIT_EMITTER_ASSERT(shape.size() == layout.size(), "Shape and layout must have the same length");
-        const auto max_dim = *std::max_element(layout.begin(), layout.end());
-        OV_CPU_JIT_EMITTER_ASSERT(max_dim < shape.size(), "Max layout index can't be larger than the shape size");
-        io_shapes.push_back(shape);
-        io_data_layouts.push_back(layout);
+        io_shapes.push_back(desc->get_shape());
+        io_data_layouts.push_back(desc->get_layout());
         io_data_sizes.push_back(etype.size());
     }
     // Note: plugin can prepend master shape with 1 to facilitate parallel execution (usually up to 6D tensor)
@@ -231,9 +234,9 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_g
     master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
 
     // - Reserve abi_param1 and abi_param2, since they'll be used to pass runtime call args to kernel
-    // - However we can use reg_indexes_idx and reg_runtime_params_idx for non memory access operations
+    // - However we can use reg_indexes_idx for non memory access operations
     //   since we won't need them after offsets calculation
-    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx, reg_runtime_params_idx});
+    init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx});
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg64>& data_ptr_regs) const {
