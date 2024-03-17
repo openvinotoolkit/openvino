@@ -26,7 +26,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_atan2(const NodeContext& context) {
-    num_inputs_check(context, 3, 2);
+    num_inputs_check(context, 3, 3);
     auto y = context.get_input(0);
     auto x = context.get_input(1);
     std::tie(y, x) = get_inputs_with_promoted_types(context, 0, 1);
@@ -73,10 +73,11 @@ OutputVector translate_atan2(const NodeContext& context) {
     auto const_minus_two = v0::Constant::create(element::f32, Shape{}, {-2});
     auto pi_div_minus_two = context.mark_node(std::make_shared<v1::Divide>(const_pi, const_minus_two));
     result = context.mark_node(std::make_shared<v1::Select>(cond4, pi_div_two, result));
+    
+    out_tensor = context.get_input(3);
+    auto result_out = context.mark_node(std::make_shared<v1::ConvertLike>(result,out_tensor);
 
-    auto result_conv = context.mark_node(std::make_shared<v0::Convert>(result, element::context.get_input(2));
-
-    return {result_conv};
+    return {result_out};
 }
 }  // namespace op
 }  // namespace pytorch
