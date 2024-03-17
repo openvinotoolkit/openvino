@@ -74,7 +74,7 @@ OutputVector translate_atan2(const NodeContext& context) {
     auto pi_div_minus_two = context.mark_node(std::make_shared<v1::Divide>(const_pi, const_minus_two));
     result = context.mark_node(std::make_shared<v1::Select>(cond4, pi_div_two, result));
     
-    out_tensor = context.get_input(3);
+    out_tensor = context.get_input(2);
     auto result_out = context.mark_node(std::make_shared<v1::ConvertLike>(result,out_tensor);
 
     return {result_out};
