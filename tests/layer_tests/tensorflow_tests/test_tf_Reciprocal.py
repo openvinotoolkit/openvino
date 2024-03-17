@@ -84,7 +84,6 @@ class TestComplexReciprocal(CommonTFLayerTest):
         @pytest.mark.nightly
         def test_complex_reciprocal(self, params, ie_device, precision, ir_version, temp_dir,
                             use_legacy_frontend):
-            self._test(
-                *self.create_complex_reciprocal_net(**params),
+            self._test(*self.create_complex_reciprocal_net(**params),
                 ie_device, precision, ir_version, temp_dir=temp_dir,
                 use_legacy_frontend=use_legacy_frontend)

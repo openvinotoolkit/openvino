@@ -40,10 +40,9 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
         auto squared_norm = make_shared<v1::Add>(real_squared_norm, img_squared_norm);
 
         // compute 1/(a+bi) = (a-bi)/(a^2+b^2)
-        auto reciprocal_real = make_shared<v1::Divide>(x_real, squared_norm);
-        auto reciprocal_imag = make_shared<v1::Divide>(make_shared<ov::op::v0::Negative>(x_imag), squared_norm);
-
-        auto complex_reciprocal = make_shared<v0::Concat>(OutputVector({reciprocal_real, reciprocal_imag}), 1);
+        auto complex_reciprocal =
+            make_shared<v1::Divide>(make_shared<v1::Add>(x_real, make_shared<ov::op::v0::Negative>(x_imag)),
+                                    squared_norm);
 
         set_node_name(node.get_name(), complex_reciprocal);
         return {complex_reciprocal};
