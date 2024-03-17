@@ -25,7 +25,6 @@ OutputVector translate_gelu_op(const NodeContext& node) {
 
     set_node_name(node.get_name(), res);
     return res->outputs();
-    // return res;
 }
 }  // namespace op
 }  // namespace tensorflow
