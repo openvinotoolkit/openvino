@@ -21,7 +21,7 @@ op::v0::Parameter::Parameter(const element::Type& element_type, const ov::Partia
 
 bool op::v0::Parameter::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Parameter_visit_attributes);
-    visitor.on_attribute("shape", m_partial_shape);
+    visitor.on_attribute("pshape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
 }
