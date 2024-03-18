@@ -138,7 +138,10 @@ class PytorchLayerTest:
                             smodel.inlined_graph, op), f"Operation {op} type doesn't exist in provided graph"
             # OV infer:
             core = Core()
-            compiled = core.compile_model(converted_model, ie_device)
+            config = {}
+            if ie_device == "GPU" and precision == "FP32":
+                config["INFERENCE_PRECISION_HINT"] = Type.f32
+            compiled = core.compile_model(converted_model, ie_device, config)
             infer_res = compiled(deepcopy(ov_inputs))
 
             if hasattr(self, 'skip_framework') and self.skip_framework:
