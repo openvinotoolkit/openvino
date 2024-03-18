@@ -37,7 +37,7 @@ public:
     void CpuSpecificOpSet();
     void PostLpt();
     void Snippets(void);
-    void SetSubStreasMode(bool);
+    void SetSubStreamNum(int);
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -45,7 +45,7 @@ private:
     const ov::element::Type inferencePrecision;
     const Config::SnippetsMode snippetsMode;
     const Config& config;
-    bool subStreamsMode = false;
+    int subStreamNum = -1;
 
     void PreLpt(const std::vector<ov::element::Type>& defaultPrecisions);
 
