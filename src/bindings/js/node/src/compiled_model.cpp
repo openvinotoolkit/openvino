@@ -44,12 +44,14 @@ Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& in
 }
 
 Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_no_pa)() const = &ov::CompiledModel::output;
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const =
-        &ov::CompiledModel::output;
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const = &ov::CompiledModel::output;
     try {
-        return get_node(info, func_no_pa, func_tname, func_idx);
+        return get_node(
+            info,
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const>(&ov::CompiledModel::output),
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const>(
+                &ov::CompiledModel::output),
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const>(
+                &ov::CompiledModel::output));
     } catch (std::exception& e) {
         reportError(info.Env(), e.what() + std::string("outputs."));
         return info.Env().Null();
@@ -68,12 +70,14 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CompiledModelWrap::get_input(const Napi::CallbackInfo& info) {
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_no_pa)() const = &ov::CompiledModel::input;
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const =
-        &ov::CompiledModel::input;
-    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const = &ov::CompiledModel::input;
     try {
-        return get_node(info, func_no_pa, func_tname, func_idx);
+        return get_node(
+            info,
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const>(&ov::CompiledModel::input),
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const>(
+                &ov::CompiledModel::input),
+            static_cast<const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const>(
+                &ov::CompiledModel::input));
     } catch (std::exception& e) {
         reportError(info.Env(), e.what() + std::string("inputs."));
         return info.Env().Null();
