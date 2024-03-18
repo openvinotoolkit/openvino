@@ -515,6 +515,74 @@ static void reg_pattern_optional(py::module m) {
                   :type predicate: function
     )");
 
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input, const Predicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), input, pred);
+                  }),
+                  py::arg("type_names"),
+                  py::arg("input"),
+                  py::arg("pred"),
+                  R"(
+                  Create Optional with the given node type, input node and predicate.
+
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
+
+                  :param input: input node's output.
+                  :type input: openvino.runtime.Output
+
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: function
+    )");
+
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const ov::Output<ov::Node>& input) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), input, nullptr);
+                  }),
+                  py::arg("type_names"),
+                  py::arg("input"),
+                  R"(
+                  Create Optional with the given node type and input node.
+
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
+
+                  :param input: input node's output.
+                  :type input: openvino.runtime.Output
+    )");
+
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const std::shared_ptr<ov::Node>& input) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), input, nullptr);
+                  }),
+                  py::arg("type_names"),
+                  py::arg("input"),
+                  R"(
+                  Create Optional with the given node type and input node.
+
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
+
+                  :param input: input node
+                  :type input: openvino.runtime.Node
+    )");
+
+    optional_type.def(py::init([](const std::vector<std::string>& type_names, const std::shared_ptr<ov::Node>& input, const Predicate& pred) {
+                      return std::make_shared<ov::pass::pattern::op::Optional>(get_types(type_names), input, pred);
+                  }),
+                  py::arg("type_names"),
+                  py::arg("input"),
+                  py::arg("pred"),
+                  R"(
+                  Create Optional with the given node type, input node and predicate.
+
+                  :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
+                  :type type_names: List[str]
+
+                  :param input: input node
+                  :type input: openvino.runtime.Node
+
+                  :param predicate: Function that performs additional checks for matching.
+                  :type predicate: function
+    )");
+
     optional_type.def("__repr__", [](const ov::pass::pattern::op::Optional& self) {
         return Common::get_simple_repr(self);
     });
