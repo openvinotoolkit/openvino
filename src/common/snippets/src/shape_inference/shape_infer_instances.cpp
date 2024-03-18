@@ -13,9 +13,9 @@ using Result = IShapeInferSnippets::Result;
  */
 bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
     auto broadcast_merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
-        if (d1 == d2 || d1 == 1 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        if (d1 == d2 || d1 == 1 || utils::is_dynamic_value(d1)) {
             dst = d2;
-        } else if (d2 == 1 || d2 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        } else if (d2 == 1 || utils::is_dynamic_value(d2)) {
             dst = d1;
         } else {
            return false;
@@ -51,8 +51,7 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
 
             bool success = true;
             for (int64_t i = 0; i < src_rank; ++i) {
-                if (dst[axis + i] != IShapeInferSnippets::DYNAMIC_DIMENSION &&
-                    src[i] != IShapeInferSnippets::DYNAMIC_DIMENSION) {
+                if (!utils::is_dynamic_value(dst[axis + i]) && !utils::is_dynamic_value(src[i])) {
                     if (src[i] > dst[axis + i])
                         return false;
                 }
@@ -70,9 +69,9 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
  */
 bool merge_into(VectorDims& dst, const VectorDims& src) {
     auto merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
-        if (d1 == d2 || d1 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        if (d1 == d2 || utils::is_dynamic_value(d1)) {
             dst = d2;
-        } else if (d2 == IShapeInferSnippets::DYNAMIC_DIMENSION) {
+        } else if (utils::is_dynamic_value(d2)) {
             dst = d1;
         } else {
             return false;
@@ -211,9 +210,9 @@ Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         if (arg0_shape_tmp[i] == arg1_shape_tmp[i]) {
             output_shape[i] = arg0_shape_tmp[i];
         } else {
-            if (arg0_shape_tmp[i] == 1 || arg0_shape_tmp[i] == DYNAMIC_DIMENSION)
+            if (arg0_shape_tmp[i] == 1 || utils::is_dynamic_value(arg0_shape_tmp[i]))
                 output_shape[i] = arg1_shape_tmp[i];
-            else if (arg1_shape_tmp[i] == 1 || arg1_shape_tmp[i] == DYNAMIC_DIMENSION)
+            else if (arg1_shape_tmp[i] == 1 || utils::is_dynamic_value(arg1_shape_tmp[i]))
                 output_shape[i] = arg0_shape_tmp[i];
             else
                 OPENVINO_THROW("Incompatible Brgemm batch dimension");

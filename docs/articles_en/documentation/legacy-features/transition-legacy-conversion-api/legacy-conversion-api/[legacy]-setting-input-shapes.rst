@@ -7,7 +7,7 @@
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the  :doc:`Setting Input Shapes <openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model>` article.
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the  :doc:`Setting Input Shapes <../../../../openvino-workflow/model-preparation/setting-input-shapes>` article.
 
 With model conversion API you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `input_shape` and `static_shape`.
 
@@ -24,11 +24,11 @@ However, if the shape of data is not going to change from one inference request 
 it is recommended to set up static shapes (when all dimensions are fully defined) for the inputs.
 Doing it at this stage, instead of during inference in runtime, can be beneficial in terms of performance and memory consumption.
 To set up static shapes, model conversion API provides the ``input_shape`` parameter.
-For more information on input shapes under runtime, refer to the :doc:`Changing input shapes <openvino_docs_OV_UG_ShapeInference>` guide.
-To learn more about dynamic shapes in runtime, refer to the :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>` guide.
+For more information on input shapes under runtime, refer to the :doc:`Changing input shapes <../../../../openvino-workflow/running-inference/changing-input-shape>` guide.
+To learn more about dynamic shapes in runtime, refer to the :doc:`Dynamic Shapes <../../../../openvino-workflow/running-inference/dynamic-shapes>` guide.
 
 The OpenVINO Runtime API may present certain limitations in inferring models with undefined dimensions on some hardware.
-In this case, the ``input_shape`` parameter and the :doc:`reshape method <openvino_docs_OV_UG_ShapeInference>` can help to resolve undefined dimensions.
+In this case, the ``input_shape`` parameter and the :doc:`reshape method <../../../../openvino-workflow/running-inference/changing-input-shape>` can help to resolve undefined dimensions.
 
 For example, run model conversion for the TensorFlow MobileNet model with the single input
 and specify the input shape of ``[2,300,300,3]``:
@@ -147,12 +147,12 @@ For example, launch model conversion for the ONNX OCR model and specify a bounda
 
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via model conversion API.
-For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>`
+For more information about shape follow the :doc:`inference troubleshooting <[legacy]-troubleshooting-reshape-errors>`
 and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
 
 Additional Resources
 ####################
 
-* :doc:`Convert a Model <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`
-* :doc:`Cutting Off Parts of a Model <openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model>`
+* :doc:`Convert a Model <../legacy-conversion-api>`
+* :doc:`Cutting Off Parts of a Model <[legacy]-cutting-parts-of-a-model>`
 
