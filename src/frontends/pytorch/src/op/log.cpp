@@ -30,7 +30,7 @@ OutputVector translate_log_sigmoid(const NodeContext& context) {
                                 op_vector.size());
     auto sigmoid = op_vector[0];
     auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
-    return {log};
+    return {context.mark_node(make_list_construct(log->outputs()))};
 };
 
 OutputVector translate_log2(const NodeContext& context) {
