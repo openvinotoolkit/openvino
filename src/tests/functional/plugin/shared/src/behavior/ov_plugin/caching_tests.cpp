@@ -258,7 +258,7 @@ void CompileModelCacheTestBase::run() {
         }
         compare(originalOutputs, get_plugin_outputs());
         // Destroy objects here
-        // For AUTO plugin, wll wait all HW plugins to finish compiling model
+        // AUTO plugin will wait all HW plugins to finish compiling model
         // No impact for HW plugins
         compiledModel = {};
         inferRequest = {};
