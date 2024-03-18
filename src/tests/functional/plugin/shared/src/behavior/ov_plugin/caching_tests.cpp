@@ -252,21 +252,27 @@ void CompileModelCacheTestBase::run() {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
             ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
-            while (targetDevice.find("AUTO") != std::string::npos) {
-                auto exeDevices = compiledModel.get_property(ov::execution_devices);
-                if (exeDevices.size() == 1 && exeDevices.front().find("(CPU)") != std::string::npos)
-                    continue;
-                break;
+            if (targetDevice.find("AUTO") == std::string::npos) {
+                // Apply check only for HW plugins
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            } else {
+                // Wait all HW plugins to finish compiling model in AUTO.
+                while (true) {
+                    auto exeDevices = compiledModel.get_property(ov::execution_devices);
+                    auto multiDevicesPriority = compiledModel.get_property(ov::device::priorities);
+                    if (exeDevices.size() != 1 || multiDevicesPriority.find(exeDevices.front()) != std::string::npos)
+                        break;
+                }
             }
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
         if (i == 0) {
-            // blob size should be greater than 0 initially
+            // blob count should be greater than 0 initially
             blobCountInitial = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
             ASSERT_GT(blobCountInitial, 0);
         } else {
-            // cache is created and reused
+            // cache is created and reused. Blob count should be same as it was first time
             blobCountAfterwards = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
             ASSERT_EQ(blobCountInitial, blobCountAfterwards);
         }
