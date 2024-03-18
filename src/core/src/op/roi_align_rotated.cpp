@@ -18,7 +18,11 @@ ROIAlignRotated::ROIAlignRotated(const Output<Node>& input,
                                  const float spatial_scale,
                                  const bool clockwise_mode)
     : ROIAlignBase{input, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale},
-      m_clockwise_mode{clockwise_mode} {}
+      m_clockwise_mode{clockwise_mode} {
+    // NOTE: Cannot be called in base class, since then ROIAlignRotated
+    // is not fully constructed.
+    constructor_validate_and_infer_types();
+}
 
 void ROIAlignRotated::validate_and_infer_types() {
     OV_OP_SCOPE(v14_ROIAlignRotated_validate_and_infer_types);

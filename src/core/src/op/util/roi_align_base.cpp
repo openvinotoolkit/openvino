@@ -22,9 +22,7 @@ ROIAlignBase::ROIAlignBase(const Output<Node>& input,
       m_pooled_h{pooled_h},
       m_pooled_w{pooled_w},
       m_sampling_ratio{sampling_ratio},
-      m_spatial_scale{spatial_scale} {
-    constructor_validate_and_infer_types();
-}
+      m_spatial_scale{spatial_scale} {}
 
 void ROIAlignBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_RoiAlignBase_validate_and_infer_types);

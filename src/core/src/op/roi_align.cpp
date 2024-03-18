@@ -20,7 +20,11 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const float spatial_scale,
                            const string& mode)
     : ROIAlignBase{input, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale},
-      m_mode{EnumNames<ROIAlign::PoolingMode>::as_enum(mode)} {}
+      m_mode{EnumNames<ROIAlign::PoolingMode>::as_enum(mode)} {
+    // NOTE: Cannot be called in base class, since then ROIAlignRotated
+    // is not fully constructed.
+    constructor_validate_and_infer_types();
+}
 
 op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const Output<Node>& rois,
@@ -31,7 +35,11 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
                            const float spatial_scale,
                            const PoolingMode mode)
     : ROIAlignBase{input, rois, batch_indices, pooled_h, pooled_w, sampling_ratio, spatial_scale},
-      m_mode{mode} {}
+      m_mode{mode} {
+    // NOTE: Cannot be called in base class, since then ROIAlignRotated
+    // is not fully constructed.
+    constructor_validate_and_infer_types();
+}
 
 void op::v3::ROIAlign::validate_and_infer_types() {
     OV_OP_SCOPE(v3_ROIAlign_validate_and_infer_types);
