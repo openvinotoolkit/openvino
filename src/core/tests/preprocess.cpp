@@ -914,6 +914,31 @@ TEST(pre_post_process, mean_vector_dynamic_channels_shape) {
     EXPECT_EQ(f->get_output_element_type(0), element::f32);
 }
 
+TEST(pre_post_process, pad_vector_constant_layout) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 200, 200});
+    auto p = PrePostProcessor(f);
+
+    p.input().tensor().set_shape({1, 3, 199, 199});
+    p.input().preprocess().pad({0, 0, 0, 0}, {0, 0, 1, 1}, 0, PaddingMode::CONSTANT);
+    EXPECT_NO_THROW(p.build());
+}
+
+TEST(pre_post_process, pad_vector_out_of_range) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
+    auto p = PrePostProcessor(f);
+
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, -2, 0}, {0, 0, -4, 1}, 0, PaddingMode::CONSTANT);
+                 p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, pad_vector_dim_mismatch) {
+    auto f = create_simple_function(element::f32, Shape{1, 3, 5, 5});
+    auto p = PrePostProcessor(f);
+
+    ASSERT_THROW(p.input().preprocess().pad({0, 0, 2, 0, 1}, {0, 0, 4, 1, 1}, 0, PaddingMode::CONSTANT);
+                 p.build(), ov::AssertFailure);
+}
+
 TEST(pre_post_process, resize_no_model_layout) {
     auto f = create_simple_function(element::f32, Shape{1, 3, 224, 224});
     auto p = PrePostProcessor(f);
