@@ -926,6 +926,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_13) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_18_axes_as_input) {
+    auto model = convert_model("reduce_log_sum_18.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+    test_case.add_multiple_inputs(inputs);
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{2.77258872f}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_exp) {
     auto model = convert_model("reduce_log_sum_exp.onnx");
 
