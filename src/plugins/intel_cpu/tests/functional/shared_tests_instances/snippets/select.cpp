@@ -41,12 +41,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_Select_Dynamic,
                                             // Expected num nodes increases 1, because one additional Convert layer will
                                             // be inserted for precision conversion(issue 115822)
                                             ::testing::Values(2),
-                                            ::testing::Values(1),
+                                            // Expected num subgraphs to be 0. Because set by plugin callback, Dynamic
+                                            // layers will not be tokenized for now.
+                                            ::testing::Values(0),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          Select::getTestCaseName);
 
 //============================BroadcastSelect=======================================//
-std::vector<ov::test::InputShape> inShapes0{{{}, {{1, 8, 2, 1}}}, {{}, {{1, 1, 1, 1}}}};
+std::vector<ov::test::InputShape> inShapes0{{{}, {{1, 8, 1, 1}}}, {{}, {{1, 1, 1, 1}}}};
 std::vector<ov::test::InputShape> inShapes1{{{}, {{1, 8, 2, 10}}}, {{}, {{1, 8, 2, 1}}}};
 std::vector<ov::test::InputShape> inShapes2{{{}, {{1, 8, 2, 10}}}, {{}, {{1, 1, 1, 1}}}};
 std::vector<ov::PartialShape> inShapes3{{1, 8, 2, 1}, {1, 8, 2, 10}};
@@ -58,15 +60,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastSelect,
                                             ::testing::ValuesIn(inShapes2),
                                             ::testing::ValuesIn(inShapes3),
                                             ::testing::ValuesIn({ov::element::f32, ov::element::i8}),
-                                            // Expected num nodes increases 1, because one additional Convert layer will
-                                            // be inserted for precision conversion(issue 115822)
-                                            ::testing::Values(2),
+                                            // Expected num nodes to be 4. Because set by plugin callback, Broadcast layer will not be tokenized.
+                                            // Besides, 2 additional Convert layer will be inserted for precision conversion(issue 115822)
+                                            ::testing::Values(4),
                                             ::testing::Values(1),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          BroadcastSelect::getTestCaseName);
 
 // DS
-std::vector<ov::test::InputShape> inShapes0_d{{{-1, -1, -1, -1}, {{1, 8, 2, 1}, {1, 1, 1, 1}, {1, 8, 2, 1}}}};
+std::vector<ov::test::InputShape> inShapes0_d{{{-1, -1, -1, -1}, {{1, 8, 1, 1}, {1, 1, 1, 1}, {1, 8, 1, 1}}}};
 std::vector<ov::test::InputShape> inShapes1_d{{{1, -1, -1, -1}, {{1, 8, 2, 10}, {1, 8, 2, 10}, {1, 8, 2, 10}}}};
 std::vector<ov::test::InputShape> inShapes2_d{
     {{1, {1, 8}, {1, 2}, {1, 10}}, {{1, 8, 2, 10}, {1, 1, 2, 1}, {1, 8, 2, 10}}}};
@@ -79,10 +81,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BroadcastSelect_Dynamic,
                                             ::testing::ValuesIn(inShapes2_d),
                                             ::testing::ValuesIn(inShapes3_d),
                                             ::testing::ValuesIn({ov::element::f32, ov::element::i8}),
-                                            // Expected num nodes increases 1, because one additional Convert layer will
-                                            // be inserted for precision conversion(issue 115822)
-                                            ::testing::Values(2),
-                                            ::testing::Values(1),
+                                            // Expected num nodes to be 4. Because set by plugin callback, Broadcast layer will not be tokenized.
+                                            // Besides, 2 additional Convert layer will be inserted for precision conversion(issue 115822)
+                                            ::testing::Values(4),
+                                            // Expected num subgraphs to be 0. Because set by plugin callback, Dynamic
+                                            // layers will not be tokenized for now.
+                                            ::testing::Values(0),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          BroadcastSelect::getTestCaseName);
 

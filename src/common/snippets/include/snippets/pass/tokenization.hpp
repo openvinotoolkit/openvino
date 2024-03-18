@@ -73,7 +73,7 @@ public:
         size_t concurrency = 1;
         // The number of grp that can be used as data pointers for data nodes (Parameter (and non-Scalar Constants),
         // Result, Buffers with the same ID)
-        size_t data_ptr_grp_count = 8;
+        size_t data_ptr_grp_count = std::numeric_limits<size_t>::max();
         // True if "SplitDimensionM" optimization is enabled. Otherwise, it's disabled.
         bool split_m_dimension = true;
         // False if Transpose on output isn't tokenized in MHA Tokenization.

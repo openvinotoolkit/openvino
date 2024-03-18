@@ -193,7 +193,11 @@ void jit_loop_end_static_emitter::emit_impl(const std::vector<size_t>& in, const
         if (!is_incremented[idx] || finalization_offsets[idx] == 0)
             continue;
         XReg data_reg = XReg(static_cast<int>(data_ptr_reg_idxs[idx]));
-        h->add(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx]);
+        if (finalization_offsets[idx] > 0) {
+            h->add(data_reg, data_reg, finalization_offsets[idx] * data_sizes[idx]);
+        } else if (finalization_offsets[idx] < 0) {
+            h->sub(data_reg, data_reg, - finalization_offsets[idx] * data_sizes[idx]);
+        }
     }
 }
 

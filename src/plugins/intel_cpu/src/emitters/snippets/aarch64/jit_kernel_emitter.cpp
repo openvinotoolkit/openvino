@@ -28,7 +28,7 @@ inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vec
 }
 
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
-    : jit_container_emitter(h, isa), reg_runtime_params_idx(Operand::X0) {
+    : jit_emitter(h, isa), reg_runtime_params_idx(Operand::X0) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Invoked with invalid op argument");
     OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "Invoked with empty body");
@@ -72,7 +72,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
 // GPR    | Description                   | Usage             | Purpose
 // ===================================================================================
 // X0     | Argument register             | Use directly      | reg_runtime_params_idx
-// X1     | Argument register             | Use directly      | reg_indexes_idx
+// X1     | Argument register             | Use directly      | Data pointer register
 // X2     | Argument register             | Use directly      | Data pointer register
 // X3     | Argument register             | Use directly      | Data pointer register
 // X4     | Argument register             | Use directly      | Data pointer register
@@ -103,6 +103,9 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
 // X29    | Frame pointer register (FP)   | Saved in preamble | Frame pointer register
 // X30    | Link register (LR)            | Saved in preamble | Data pointer register
 // X31    | Stack Pointer (SP)            | Use directly      | Stack Pointer
+//====================================================================================
+// Note that 2 of the 25 marked Data pointer registers will be used as work_amounts in
+// two-level loops, so the actual number of Data pointer register is 23.
 //====================================================================================
 void jit_kernel_emitter::init_reg_pools(const std::set<size_t>& gpr_blacklist, const std::set<size_t>& vec_blacklist) {
     gp_regs_pool.resize(32);
@@ -220,7 +223,7 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::j
     master_shape.insert(master_shape.begin(), jcp.parallel_executor_ndims - master_shape.size(), 1);
 
     // - Reserve reg_indexes_idx and reg_runtime_params_idx, since they'll be used to pass runtime call args to kernel
-    // - However we can use reg_indexes_idx and reg_runtime_params_idx for non memory access operations
+    // - However we can use reg_indexes_idx for non memory access operations
     //   since we won't need them after offsets calculation
     init_body_regs({reg_indexes_idx, reg_runtime_params_idx}, {}, {reg_indexes_idx});
 }

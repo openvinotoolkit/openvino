@@ -4,19 +4,10 @@
 
 #include "jit_container_emitter.hpp"
 #include "emitters/utils.hpp"
-
-using namespace Xbyak_aarch64;
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
-namespace aarch64 {
-
-using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
-using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
-
-jit_container_emitter::jit_container_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa) : jit_emitter(h, isa) {
-    in_out_type_ = emitter_in_out_map::gpr_to_gpr;
-}
 
 void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, mapping_info& vec_map_pool,
                                                    snippets::lowered::LinearIR::container& expressions) const {
@@ -57,6 +48,5 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool, m
     }
 }
 
-}   // namespace aarch64
 }   // namespace intel_cpu
 }   // namespace ov
