@@ -66,13 +66,17 @@ struct VNode::VNodeExecutorCausalMaskPreprocess : public VNode::Executor {
             auto* pamask = t_attention_mask.ptr<int32_t>(n, 0);
             auto* pdst = t_dst.ptr<T>(n, 0);
             for (size_t i = 0; i < qLen; i++, pdst += kvLen) {
-                auto row = prow[i];
-                // < mask_length ?
-                for (size_t j = 0; j < kvLen; j++) {
+                auto row = static_cast<size_t>(prow[i]);
+                size_t j = 0;
+                for (; j < mask_length; j++) {
                     bool cmask_eq0 = (j <= row);
                     bool amask_eq0 = (pamask[j] == 0);
                     bool padding_mask = (cmask_eq0 && amask_eq0);
-                    pdst[j] = (padding_mask | (!cmask_eq0)) ? min_dtype : T(0);
+                    pdst[j] = (padding_mask | (!cmask_eq0))? min_dtype : T(0);
+                }
+                for (; j < kvLen; j++) {
+                    bool cmask_eq0 = (j <= row);
+                    pdst[j] = cmask_eq0 ? T(0) : min_dtype;
                 }
             }
         }
