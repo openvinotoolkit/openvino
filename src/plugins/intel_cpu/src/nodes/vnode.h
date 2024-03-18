@@ -32,9 +32,8 @@ public:
 private:
     struct Executor {
         virtual void execute(dnnl::stream strm,
-                             const intel_cpu::VNode::Config& config,
-                             const std::vector<MemoryPtr>& inputs,
-                             const std::vector<MemoryPtr>& outputs) = 0;
+                             intel_cpu::Node * pnode,
+                             const intel_cpu::VNode::Config& config) = 0;
     };
     template <typename T>
     struct VNodeExecutorCausalMaskPreprocess;
