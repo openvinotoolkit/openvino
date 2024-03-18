@@ -20,12 +20,12 @@ The operation takes inputs with the following properties:
 
 * :math:`input` tensor to slice, with N dimensions.
 * :math:`begin, end, stride` inputs - 1D lists of integers of the same length M. **Stride input cannot contain any zeros.**
-* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask inputs` - bitmasks, 1D lists of integers (0 or 1). **Each mask can have a unique length. Masks' lengths can differ from the rank of the input shape.**. :math:`ellipsis\_mask` can have up to one occurrence of the value 1.
+* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` inputs - bitmasks, 1D lists of integers (0 or 1). :math:`ellipsis\_mask` can have up to one occurrence of the value 1. **Each mask can have a unique length. Masks' lengths can differ from the rank of the input shape.**
 * :math:`new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
 
 .. note:: Negative Values in Begin and End (Negative Values Adjusting)
 
-   Negative values in begin, end (**NOT** stride) represent indices from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
+   Negative values in :math:`begin, end` (**NOT** :math:`stride`) represent indices starting from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 The basic slicing operation accumulates output elements as follows:
 
@@ -58,10 +58,10 @@ The operation accepts multiple bitmasks in the form of integer arrays to modify 
 During the i-th slicing step:
 
 * If the :math:`begin\_mask[i]` is set to one, the value of :math:`begin[i]` is set to 0 (size(dim) - 1 if slicing in reverse). Equivalent of swapping left handside of Python slicing operation :math:`array[0:10]` with :math:`array[:10]` (slice from the start).
-* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10] (assume len(array) = 10)` with :math:`array[0:]` (slice till the end, inclusive).
-* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and stride[i] ARE IGNORED, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...] -> array[..., 1, ...]`.
-* If the :math:`shrink\_axis\_mask[i]` is set to one, the value of  :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the **stride[i]** value IS IGNORED. The corresponding dimension is removed, with only a single element from that dimension remaining. Equivalent of selecting only a given element without preserving dimension (numpy equivalent of keepdims=False) :math:`array[..., 0, ...] -> array[..., ...] (one less dimension)`.
-* If the :math:`ellipsis\_mask[i]` is set to one, the :math:`begin[i], end[i], and stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in Python :math:`array[0, ..., 0], rank(array) = 10 == array[0, :, :, :, :, :, :, :, :, 0] (equivalent operation)`.
+* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10]` (assume len(array) = 10) with :math:`array[0:]` (slice till the end, inclusive).
+* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and :math:`stride[i]` **ARE IGNORED**, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...] -> array[..., 1, ...]`.
+* If the :math:`shrink\_axis\_mask[i]` is set to one, the value of  :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the :math:`stride[i]` value **IS IGNORED**. The corresponding dimension is removed, with only a single element from that dimension remaining. Equivalent of selecting only a given element without preserving dimension (numpy equivalent of keepdims=False) :math:`array[..., 0, ...] -> array[..., ...]` (one less dimension).
+* If the :math:`ellipsis\_mask[i]` is set to one, the :math:`begin[i], end[i],` and :math:`stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in Python :math:`array[0, ..., 0], rank(array) = 10 == array[0, :, :, :, :, :, :, :, :, 0]` (equivalent operation).
 
 .. note:: The i-th Slicing Step and Dimension Modification
 
@@ -121,15 +121,19 @@ During the i-th slicing step:
 
 **Inputs**:
 
-***1**: ``data`` - input tensor to be sliced of type *T* and arbitrary shape. **Required.**
+* **1**: ``data`` - input tensor to be sliced of type *T* and arbitrary shape. **Required.**
 
-***2**: ``begin`` - 1D tensor of type *T_IND* with begin indexes for input tensor slicing. **Required.**
+* **2**: ``begin`` - 1D tensor of type *T_IND* with begin indexes for input tensor slicing. **Required.**
     Out-of-bounds values are silently clamped. If ``begin_mask[i]`` is ``1`` , the value of ``begin[i]`` is ignored and the range of the appropriate dimension starts from ``0``. Negative values mean indexing starts from the end. For example, if ``data=[1,2,3]``, ``begin[0]=-1`` means ``begin[0]=3``.
 
-***3**: ``end`` - 1D tensor of type *T_IND* with end indexes for input tensor slicing. **Required.**
+* **3**: ``end`` - 1D tensor of type *T_IND* with end indexes for input tensor slicing. **Required.**
     Out-of-bounds values will be silently clamped. If ``end_mask[i]`` is ``1``, the value of ``end[i]`` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if ``data=[1,2,3]``, ``end[0]=-1`` means ``end[0]=3``.
 
-***4**: ``stride`` - 1D tensor of type *T_IND* with strides. **Optional.**
+* **4**: ``stride`` - 1D tensor of type *T_IND* with strides. If not provided, stride is assumed to be equal to 1. **Optional.**
+
+**Outputs**:
+
+* **1**: A tensor of type *T* with values selected by the slicing operation according to the rules specified above.
 
 **Types**
 
