@@ -4,11 +4,7 @@
 
 #include "openvino/runtime/iplugin.hpp"
 
-#include <openvino/core/graph_util.hpp>
-
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -205,18 +201,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         });
     };
 
-    auto filter_shapeOf = [&]() {
-        for (auto& op : model->get_ordered_ops()) {
-            const auto& name = op->get_friendly_name();
-            if (ov::is_type<ov::op::util::ShapeOfBase>(op) && (supported.count(name) || removed_nodes.count(name))) {
-                if (has_all_consumers_unsupported(supported, op) && has_all_consumers_unsupported(removed_nodes, op)) {
-                    remove_op_from_supported(op);
-                    removed_nodes.erase(name);
-                }
-            }
-        }
-    };
-
     // Check the ops to make sure Assign and ReadValue operations in pairs on the network
     std::map<std::string, int> pair_checker;
     for (auto&& op : ops) {
@@ -259,6 +243,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             total_ops_size += const_byte_size;
         }
     }
+    // If there is no constant or supported nodes in the model, mark query_by_memory_control as false
     if (total_ops_size == 0 || supported.size() == 0) {
         query_by_memory_control = false;
     }
@@ -270,10 +255,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         NameSet temp_unsupported_1;
         std::set<std::string> split_node_set;
         int64_t last_total_len = 0;
-        bool stop_split = false;
+        bool cancel_split = false;
         size_t last_total_size = 0;
         copy_set(supported, temp_supported);
         copy_set(unsupported, temp_unsupported);
+        // Search the smallest transmission node within the user's requested ratio range of 0.95-1.05 times
         do {
             std::map<std::string, int> temp_pair_checker;
             bool ready_split = false;
@@ -283,7 +269,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             copy_set(temp_unsupported, unsupported);
             // Walk over transformed model for special handing of Parameters/Constants/Results
             for (auto&& op : ops) {
-                if (supported.count(op->get_friendly_name()) && !stop_split) {
+                if (supported.count(op->get_friendly_name()) && !cancel_split) {
                     if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
                         if (temp_pair_checker.count(assign->get_variable_id()) == 0) {
                             temp_pair_checker[assign->get_variable_id()] = 1;
@@ -294,10 +280,13 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     if (ov::op::util::is_constant(op) && !ready_split) {
                         const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
                         total_size += const_byte_size;
+                        // If the total size is 1.05 times larger than the user's requirement, cancel split and break
                         if (total_size >= query_model_ratio * total_ops_size * 1.05) {
-                            stop_split = true;
+                            cancel_split = true;
                             break;
                         }
+                        // Ready to split if total size meets user's requirment and Assign-ReadValue operations in pairs
+                        // on the network
                         if (total_size >= query_model_ratio * total_ops_size * 0.95) {
                             if (!ready_split && split_node_set.find(op->get_friendly_name()) == split_node_set.end()) {
                                 ready_split = check_pairs(temp_pair_checker);
@@ -308,6 +297,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                             }
                         }
                     }
+                    // Start splitting when ready and the ops is constant
                     if (ready_split) {
                         if (ov::op::util::is_constant(op)) {
                             remove_op_from_supported(op);
@@ -324,9 +314,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     }
                 }
             }
-            // Filter ShapeOfs
-            filter_shapeOf();
-            // In case some ops not in orederd
+            // In case some ops not in orederd, so traverse the entire model to ensure accurate split
             bool changed = true;
             while (changed) {
                 changed = false;
@@ -338,6 +326,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     }
                 }
             }
+            // Calculate the data size that needs to be transmitted after the current model is split
             int64_t total_len = 0;
             for (auto& op : model->get_ordered_ops()) {
                 if (supported.count(op->get_friendly_name()) && !ov::op::util::is_constant(op) &&
@@ -355,22 +344,21 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     }
                 }
             }
-            if ((total_len < last_total_len || last_total_len == 0) && !stop_split) {
+            if ((total_len < last_total_len || last_total_len == 0) && !cancel_split) {
                 last_total_len = total_len;
                 copy_set(supported, temp_supported_1);
                 copy_set(unsupported, temp_unsupported_1);
             }
+            // Cancel split when total size is unchanged in loop
             if (total_size != last_total_size) {
                 last_total_size = total_size;
             } else {
-                stop_split = true;
+                cancel_split = true;
             }
-        } while (!stop_split);
+        } while (!cancel_split);
         copy_set(temp_supported_1, supported);
         copy_set(temp_unsupported_1, unsupported);
     } else {
-        // Filter ShapeOfs
-        filter_shapeOf();
         // If memory control is off
         // mark all removed nodes as supported
         supported.insert(removed_nodes.begin(), removed_nodes.end());
