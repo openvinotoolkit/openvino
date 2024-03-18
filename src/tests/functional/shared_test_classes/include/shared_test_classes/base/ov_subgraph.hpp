@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/test_common.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {
@@ -45,7 +45,9 @@ protected:
     void update_ref_model();
     void match_parameters();
     void init_input_shapes(const std::vector<InputShape>& shapes);
-    void set_callback_exception(std::function<void(const std::exception& exp)> callback) { callback_exception = callback; }
+    void set_callback_exception(std::function<void(const std::exception& exp)> callback) {
+        callback_exception = callback;
+    }
 
     void TearDown() override {
         if (this->HasFailure() && !is_reported) {

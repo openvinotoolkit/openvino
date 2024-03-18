@@ -73,11 +73,10 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
 }
 
 void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
-
     auto& t1 = expected[0];
     auto& t2 = actual[0];
 
-    if(t1.get_shape().size() == 3) {
+    if (t1.get_shape().size() == 3) {
         for (size_t i = 0; i < t1.get_shape()[0]; ++i) {
             for (size_t x = 0; x < t1.get_shape()[1]; ++x) {
                 for (size_t y = 0; y < t1.get_shape()[2]; ++y) {
@@ -99,7 +98,7 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
         std::cout << '\n';
     }
 
-    if(t2.get_shape().size() == 3) {
+    if (t2.get_shape().size() == 3) {
         for (size_t i = 0; i < t2.get_shape()[0]; ++i) {
             for (size_t x = 0; x < t2.get_shape()[1]; ++x) {
                 for (size_t y = 0; y < t2.get_shape()[2]; ++y) {
