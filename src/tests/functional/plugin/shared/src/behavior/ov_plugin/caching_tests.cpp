@@ -246,27 +246,22 @@ void CompileModelCacheTestBase::run() {
     size_t blobCountAfterwards = -1;
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
-        compiledModel = {}; // Destroy network object
-        inferRequest = {};
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
-            ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
             if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
                 ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
-            } else {
-                // Wait all HW plugins to finish compiling model in AUTO.
-                while (true) {
-                    auto exeDevices = compiledModel.get_property(ov::execution_devices);
-                    auto multiDevicesPriority = compiledModel.get_property(ov::device::priorities);
-                    if (exeDevices.size() != 1 || multiDevicesPriority.find(exeDevices.front()) != std::string::npos)
-                        break;
-                }
             }
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
+        compare(originalOutputs, get_plugin_outputs());
+        // Destroy objects here
+        // For AUTO plugin, wll wait all HW plugins to finish compiling model
+        // No impact for HW plugins
+        compiledModel = {};
+        inferRequest = {};
         if (i == 0) {
             // blob count should be greater than 0 initially
             blobCountInitial = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
@@ -276,7 +271,6 @@ void CompileModelCacheTestBase::run() {
             blobCountAfterwards = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
             ASSERT_EQ(blobCountInitial, blobCountAfterwards);
         }
-        compare(originalOutputs, get_plugin_outputs());
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
 #if !defined(_WIN32) && !defined(_WIN64)
