@@ -23,11 +23,11 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4146)
 elseif(OV_COMPILER_IS_CLANG)
     # -Wno-delete-non-abstract-non-virtual-dtor is support > clang8.0
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8)
-        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
-    else()
-        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
-    endif()
+    # if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 8)
+    #     ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    # else()
+    #     ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
+    # endif()
 endif()
 
 set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
