@@ -13,5 +13,8 @@ INSTANTIATE_TEST_SUITE_P(smoke, StaticShapeTwoStatesModel,           ::testing::
 INSTANTIATE_TEST_SUITE_P(smoke, DynamicShapeStatefulModelDefault,    ::testing::Values(ov::test::utils::DEVICE_CPU));
 INSTANTIATE_TEST_SUITE_P(smoke, DynamicShapeStatefulModelParam,      ::testing::Values(ov::test::utils::DEVICE_CPU));
 INSTANTIATE_TEST_SUITE_P(smoke, DynamicShapeStatefulModelStateAsInp, ::testing::Values(ov::test::utils::DEVICE_CPU));
+INSTANTIATE_TEST_SUITE_P(smoke, StatefulModelStateInLoopBody,        ::testing::Values(ov::test::utils::DEVICE_CPU));
+INSTANTIATE_TEST_SUITE_P(smoke, StatefulModelMixedStates,            ::testing::Values(ov::test::utils::DEVICE_CPU));
+INSTANTIATE_TEST_SUITE_P(smoke, StatefulModelMultipleReadValues,     ::testing::Values(ov::test::utils::DEVICE_CPU));
 
 }  // namespace
