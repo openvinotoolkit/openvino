@@ -52,8 +52,7 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     auto pattern = num_input_values_to_optional == 0 ? std::static_pointer_cast<Pattern>(wrap_node)
                                                      : std::static_pointer_cast<Pattern>(std::make_shared<Or>(
                                                            OutputVector{wrap_node, input_values_to_optional[0]}));
-
-    // Add the newly created WrapType node to the list containing its inputs and create an Or node with the list
+  
     if (matcher->match_value(pattern, graph_value) || num_input_values_to_optional == 0) {
         auto& pattern_map = matcher->get_pattern_value_map();
         if (pattern_map.count(wrap_node)) {
