@@ -23,6 +23,7 @@ Operation Specifications
    Atan-1 <operation-specs/arithmetic/atan-1>
    Atanh-3 <operation-specs/arithmetic/atanh-3>
    AvgPool-1 <operation-specs/pooling/avg-pool-1>
+   AvgPool-14 <operation-specs/pooling/avg-pool-14>
    BatchNormInference-1 <operation-specs/normalization/batch-norm-inference-1>
    BatchNormInference-5 <operation-specs/normalization/batch-norm-inference-5>
    BatchToSpace-2 <operation-specs/movement/batch-to-space-2>
@@ -127,6 +128,7 @@ Operation Specifications
    MatrixNms-8 <operation-specs/sort/matrix-non-max-suppression-8>
    MaxPool-1 <operation-specs/pooling/max-pool-1>
    MaxPool-8 <operation-specs/pooling/max-pool-8>
+   MaxPool-14 <operation-specs/pooling/max-pool-14>
    Maximum-1 <operation-specs/arithmetic/maximum-1>
    Minimum-1 <operation-specs/arithmetic/minimum-1>
    Mish-4 <operation-specs/activation/mish-4>
