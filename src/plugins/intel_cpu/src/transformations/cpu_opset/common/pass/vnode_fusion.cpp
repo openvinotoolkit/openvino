@@ -78,13 +78,9 @@ bool is_triu(ov::opset1::Constant* cmask, size_t rows, size_t columns) {
 CausalMaskPreprocess::CausalMaskPreprocess() {
     MATCHER_SCOPE(CausalMaskPreprocess);
 
-    if (std::getenv("NOCCC"))
-        return;
+    // if (std::getenv("NOCCC")) return;
 
     auto const_triu = makePattern<ov::opset1::Constant>({}, {});
-    // size_Gather  i32[1]  repeat (batchsize, 1, 1, 1)
-    // auto attention_mask = makeOP<ov::opset1::Parameter>({}, {{"shape", [?,?]}, {"element_type", "i64"}});   //
-    // tensor_array<i64[?,?]> attention_mask()
     auto attention_mask = makePattern("i64[?,?]");
     auto batch_size = makePattern("i32[1]");
     auto cache_positions = makePattern("i32[?]");
@@ -189,9 +185,6 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto SliceAssign_201_Reshape_3 =
         makePattern<ov::opset1::Reshape>({SliceAssign_201_ScatterNDUpdate, {-1, 1, max_seq_len, max_seq_len}},
                                          {{"special_zero", true}});  //  tensor_array<f32[?,1,8192,8192]>
-
-    // Add_41653     : kvLen
-    // index_Convert : cache_positions
     auto ScatterUpdate_93554 =
         makePattern<ov::opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, kvLen, {0}});  //  tensor_array<i32[4]>
     auto slice_Slice_14 = makePattern<ov::opset1::StridedSlice>(
@@ -203,8 +196,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
          {"ellipsis_mask", {}}});  //  tensor_array<f32[?,1,8192,..8192]>
     auto index_Gather = makePattern<ov::opset8::Gather>({slice_Slice_14, cache_positions, 2},
                                                         {{"batch_dims", 0}},
-                                                        nullptr,
-                                                        "XXXXX");  //  tensor_array<f32[?,1,?,..8192]>
+                                                        nullptr);  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
     std::shared_ptr<ov::opset1::Constant> global_triu;
@@ -257,7 +249,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         };
         auto replacement = std::make_shared<ov::intel_cpu::VNode>(inputs, config);
         ov::replace_node(root, replacement);
-        std::cout << "====" << matcher_name << " : " << root << std::endl;
+        // std::cout << "====" << matcher_name << " : " << root << std::endl;
         return true;
     };
 

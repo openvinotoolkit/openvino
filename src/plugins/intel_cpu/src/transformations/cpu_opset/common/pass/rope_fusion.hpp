@@ -77,6 +77,8 @@ public:
 
         add_matcher<RoPEFusionQwen>(0);
         add_matcher<RoPEFusionQwen>(1);
+
+        add_matcher<RoPEShareCosSin>();
     }
 };
 

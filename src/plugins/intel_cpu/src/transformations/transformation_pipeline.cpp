@@ -355,7 +355,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::KeepConstAndDecompression);
 
-    CPU_REGISTER_PASS_COMMON(manager, ov::intel_cpu::RoPEShareCosSin);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RPE_Fusion);
@@ -712,7 +711,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, VNodeFusion);
 
-    //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "sdpa0.cpp");
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "sdpa0.cpp");
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
 

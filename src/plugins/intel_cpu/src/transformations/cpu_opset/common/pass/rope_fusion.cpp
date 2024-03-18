@@ -767,11 +767,15 @@ ov::intel_cpu::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
     MATCHER_SCOPE(RoPEShareCosSin);
 
-    auto const_inv_freq = makePattern<opset1::Constant>({}, {});
     std::vector<std::shared_ptr<Node>> inputs = {makePattern(), makePattern()};
-    auto to_Convert = makePattern<opset1::Convert>({const_inv_freq}, {{"destination_type", "f32"}});
+    auto const_inv_freq = makePattern<opset1::Constant>({}, {});
+
+    auto Constant_58774 = makeConst(element::u8, ov::Shape({}), 0);
+    auto Broadcast_58775 = makePattern<opset1::Broadcast>({{1.000000f}, inputs[0], Constant_58774},
+                                                          {{"mode", "numpy"}});  //  tensor_array<f32[?,?,?]>
     auto expand_Broadcast =
-        makePattern<opset3::Broadcast>({to_Convert | const_inv_freq, inputs[0]}, {{"mode", "bidirectional"}});
+        makePattern<opset1::Multiply>({const_inv_freq, Broadcast_58775},
+                                      {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,128,?]>
     auto matmul_MatMul =
         makePattern<opset1::MatMul>({expand_Broadcast, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
     auto transpose_Transpose = makePattern<opset1::Transpose>({matmul_MatMul, {0, 2, 1}});
@@ -796,8 +800,6 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         }
         auto it = pattern_map.find(const_inv_freq);
-        if (it == pattern_map.end())
-            return false;
         auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
 
         // the first match is the one to be shared, collect all inputs
