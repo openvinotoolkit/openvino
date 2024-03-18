@@ -59,6 +59,7 @@ class InferRequest(_InferRequestWrapper):
         share_outputs: bool = False,
         *,
         decode_strings: bool = True,
+        cast_bf16: bool = False,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -125,6 +126,16 @@ class InferRequest(_InferRequestWrapper):
 
                                Default value: True
         :type decode_strings: bool, optional, keyword-only
+        :param cast_bf16: Controls upcasting of outputs of bfloat16 type data.
+
+                          If set to `True` bf16 outputs will be returned as numpy arrays of float32 kind.
+                          Note: This will automatically disable output sharing on this array!
+
+                          If set to `False` string outputs will be returned as numpy arrays of float16 kind.
+                          Note: Data needs to be properly reinterpreted!
+
+                          Default value: False
+        :type cast_bf16: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
@@ -133,7 +144,7 @@ class InferRequest(_InferRequestWrapper):
             self,
             inputs,
             is_shared=share_inputs,
-        ), share_outputs=share_outputs, decode_strings=decode_strings))
+        ), share_outputs=share_outputs, decode_strings=decode_strings, cast_bf16=cast_bf16))
 
     def start_async(
         self,
@@ -281,6 +292,7 @@ class CompiledModel(CompiledModelBase):
         share_outputs: bool = False,
         *,
         decode_strings: bool = True,
+        cast_bf16: bool = False,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -355,6 +367,16 @@ class CompiledModel(CompiledModelBase):
 
                                Default value: True
         :type decode_strings: bool, optional, keyword-only
+        :param cast_bf16: Controls upcasting of outputs of bfloat16 type data.
+
+                          If set to `True` bf16 outputs will be returned as numpy arrays of float32 kind.
+                          Note: This will automatically disable output sharing on this array!
+
+                          If set to `False` string outputs will be returned as numpy arrays of float16 kind.
+                          Note: Data needs to be properly reinterpreted!
+
+                          Default value: False
+        :type cast_bf16: bool, optional, keyword-only
 
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
@@ -367,6 +389,7 @@ class CompiledModel(CompiledModelBase):
             share_inputs=share_inputs,
             share_outputs=share_outputs,
             decode_strings=decode_strings,
+            cast_bf16=cast_bf16,
         )
 
 

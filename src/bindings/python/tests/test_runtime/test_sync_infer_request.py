@@ -346,16 +346,22 @@ def test_infer_mixed_keys(device, share_inputs):
     (Type.boolean, bool),
 ])
 @pytest.mark.parametrize("share_inputs", [True, False])
-def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs):
+@pytest.mark.parametrize("cast_bf16", [True, False])
+def test_infer_mixed_values(device, ov_type, numpy_dtype, share_inputs, cast_bf16):
     request, tensor, array0, array1 = concat_model_with_data(device, ov_type, numpy_dtype)
 
-    result = request.infer([tensor, array1], share_inputs=share_inputs)
+    result = request.infer([tensor, array1], share_inputs=share_inputs, cast_bf16=cast_bf16)
 
     if ov_type is Type.bf16:
-        assert result[0].dtype == np.float32
         tmp_const = ops.constant(np.concatenate((array0, array1)), dtype=Type.bf16)
         expected_bf16_result = np.array(tmp_const.get_value_strings(), dtype=np.float32)
         assert np.array_equal(request.output_tensors[0].cast_data(Type.f32), expected_bf16_result)
+        if cast_bf16:
+            assert result[0].dtype == np.float32
+            assert np.array_equal(result[0], expected_bf16_result)
+        else:
+            assert result[0].dtype == np.float16
+            assert np.array_equal(result[0].view(np.uint16), expected_bf16_result.view(np.uint16)[1::2])
     else:
         assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor.data, array1)))
 

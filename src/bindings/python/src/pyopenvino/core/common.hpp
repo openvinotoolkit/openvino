@@ -82,9 +82,15 @@ py::array as_contiguous(py::array& array, ov::element::Type type);
 
 template <typename T>
 py::array array_from_tensor_t(ov::Tensor&& t, py::dtype&& dtype) {
-    auto tmp = ov::op::v0::Constant(t).cast_vector<T>();
-    auto array = py::array(dtype, tmp.size(), tmp.data());
-    return array.reshape(t.get_shape());
+    std::vector<T> tmp;
+    if (t.get_element_type() == ov::element::bf16) {
+        for (size_t i = 0; i < t.get_size(); i++) {
+            tmp.emplace_back(static_cast<T>(ov::bfloat16::from_bits(*(reinterpret_cast<uint16_t*>(t.data()) + i)))); 
+        }
+    } else {
+        tmp = ov::op::v0::Constant(t).cast_vector<T>();
+    }
+    return py::array(dtype, t.get_shape(), tmp.data());
 }
 
 py::array array_from_tensor(ov::Tensor&& t, bool is_shared);
@@ -195,7 +201,7 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings);
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings, bool cast_bf16);
 
 ov::pass::Serialize::Version convert_to_version(const std::string& version);
 

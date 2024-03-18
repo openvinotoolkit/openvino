@@ -655,7 +655,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     }
 }
 
-py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
+py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings, bool cast_bf16) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
         auto t = request.m_request.get_tensor(out);
@@ -669,8 +669,8 @@ py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool 
                 res[py::cast(out)] = string_helpers::bytes_array_from_tensor(std::move(t));
             }
         } else {
-            // Always upcast-copy for bf16 type:
-            if (t.get_element_type() == ov::element::bf16) {
+            // Upcast-copy for bf16 type:
+            if (cast_bf16 && t.get_element_type() == ov::element::bf16) {
                 res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), ov::element::f32);
             } else {
                 res[py::cast(out)] = array_helpers::array_from_tensor(std::move(t), share_outputs);

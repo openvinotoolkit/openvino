@@ -14,14 +14,14 @@
 
 namespace py = pybind11;
 
-inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
+inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings, bool cast_bf16) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
         self.m_request.infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self, share_outputs, decode_strings);
+    return Common::outputs_to_dict(self, share_outputs, decode_strings, cast_bf16);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -167,13 +167,14 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs, bool decode_strings) {
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs, bool decode_strings, bool cast_bf16) {
             self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self, share_outputs, decode_strings);
+            return run_sync_infer(self, share_outputs, decode_strings, cast_bf16);
         },
         py::arg("inputs"),
         py::arg("share_outputs"),
         py::arg("decode_strings"),
+        py::arg("cast_bf16"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -195,15 +196,16 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs, bool decode_strings) {
+        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs, bool decode_strings, bool cast_bf16) {
             // Update inputs if there are any
             Common::set_request_tensors(self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self, share_outputs, decode_strings);
+            return run_sync_infer(self, share_outputs, decode_strings, cast_bf16);
         },
         py::arg("inputs"),
         py::arg("share_outputs"),
         py::arg("decode_strings"),
+        py::arg("cast_bf16"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -716,12 +718,13 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self, false, true);
+            return Common::outputs_to_dict(self, false, true, true);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
 
             Note: All string-based data is decoded by default.
+            Note: All bf16-based data is upcasted to fp32 by default.
 
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
