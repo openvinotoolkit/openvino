@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,11 @@ OutputVector translate_div_common(const NodeContext& context,
         if (x.get_element_type().is_dynamic() || x.get_element_type() != y.get_element_type())
             y = context.mark_node(std::make_shared<v1::ConvertLike>(y, x));
     } else {
-        align_eltwise_input_types(context, x, y, true);
+        align_eltwise_input_types(context,
+                                  x,
+                                  y,
+                                  is_python_scalar_input(context, 0),
+                                  is_python_scalar_input(context, 1));
     }
     auto res = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
     // TODO: ticket 103296; Temporarily disable ConvertDivide transformation

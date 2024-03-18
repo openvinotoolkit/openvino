@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,15 +177,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest1, fuseTranspos
     |Input  |         |Input  |
     ---------         ---------
         |                 |
-        |           -------------
-    ---------       | ----------- |
-    |Reorder|       | |Transpose| |
-    ---------       | ----------- |
-        |           |      |      |
-    ---------       | ----------- |
-    |Transpose|     |  |Reorder|  |
-    ---------       | ----------- |
-        |           |-------------|
+    |------------ |     |-------------|
+    | ----------- |     | ----------- |
+    |  |Reorder|  |     | |Transpose| |
+    | ----------- |     | ----------- |
+    |     |       |     |      |      |
+    | ----------- |     | ----------- |
+    | |Transpose| |     |  |Reorder|  |
+    | ----------- |     | ----------- |
+    |------------ |     |-------------|
         |                 |
         --------   --------
                |   |
@@ -224,7 +224,7 @@ void FuseTransposeAndReorderTest2::create_model() {
 
 TEST_P(FuseTransposeAndReorderTest2, CompareWithRefs) {
     run();
-    check_transpose_count(1);
+    check_transpose_count(0);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_Basic, FuseTransposeAndReorderTest2, fuseTransposeAndReorderCommonParams, FuseTransposeAndReorderTest::getTestCaseName);
