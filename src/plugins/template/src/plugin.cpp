@@ -16,8 +16,8 @@
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/op_conversions/convert_avg_pool_downgrade.hpp"
-#include "transformations/op_conversions/convert_maxpool14_to_maxpool8_downgrade.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {

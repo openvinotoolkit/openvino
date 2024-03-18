@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
+
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset14.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/op_conversions/convert_maxpool14_to_maxpool8_downgrade.hpp"
 
 namespace {
 
@@ -40,6 +42,29 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
 }
 
 }  // namespace
+
+TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        ov::Strides strides{1}, dilations{1};
+        ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
+        auto maxpool_8 = std::make_shared<ov::opset8::MaxPool>(data, strides, dilations, pads_begin, pads_end, kernel);
+        auto result = std::make_shared<ov::opset1::Result>(maxpool_8->output(0));
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
+        manager.register_pass<ov::pass::ConvertMaxPool8ToMaxPool1>();
+    }
+
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
+        ov::Strides strides{1};
+        ov::Shape pads_begin{0}, pads_end{0}, kernel{1};
+        auto maxpool_1 = std::make_shared<ov::opset1::MaxPool>(data, strides, pads_begin, pads_end, kernel);
+        auto result = std::make_shared<ov::opset1::Result>(maxpool_1->output(0));
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{result}, ov::ParameterVector{data});
+    }
+}
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_avg_pool_downgrade.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
