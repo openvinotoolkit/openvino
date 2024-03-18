@@ -191,32 +191,29 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                '/',
                                ov::hint::SchedulingCoreType::ECORE_ONLY);
             }
-        } else if (key == ov::hint::llm_distribution_policy.name()) {
+        } else if (key == ov::hint::model_distribution_policy.name()) {
             auto error_info = [&]() {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
-                               ov::hint::llm_distribution_policy.name(),
+                               ov::hint::model_distribution_policy.name(),
                                ". CPU plugin only support ",
-                               ov::hint::LlmDistributionPolicy::TENSOR_PARTITION,
+                               ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
                                '/',
-                               ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM,
-                               '/',
-                               ov::hint::LlmDistributionPolicy::SINGLE_DEVICE);
+                               ov::hint::ModelDistributionPolicy::NONE);
             };
 
-            ov::hint::LlmDistributionPolicy llm_policy = ov::hint::LlmDistributionPolicy::PIPELINE_PARTITION;
+            ov::hint::ModelDistributionPolicy model_policy = ov::hint::ModelDistributionPolicy::NONE;
             try {
-                llm_policy = val.as<ov::hint::LlmDistributionPolicy>();
+                model_policy = val.as<ov::hint::ModelDistributionPolicy>();
             } catch (ov::Exception&) {
                 error_info();
             }
 
-            switch (llm_policy) {
-            case ov::hint::LlmDistributionPolicy::TENSOR_PARTITION:
-            case ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM:
-            case ov::hint::LlmDistributionPolicy::SINGLE_DEVICE:
-                llmDistributionPolicy = llm_policy;
+            switch (model_policy) {
+            case ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL:
+            case ov::hint::ModelDistributionPolicy::NONE:
+                modelDistributionPolicy = model_policy;
                 break;
             default:
                 error_info();

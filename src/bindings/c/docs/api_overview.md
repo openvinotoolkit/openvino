@@ -309,7 +309,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_affinity;
 
 OPENVINO_C_VAR(const char*) ov_property_key_inference_num_threads;
 
-OPENVINO_C_VAR(const char*) ov_property_key_hint_llm_distribution_policy;
+OPENVINO_C_VAR(const char*) ov_property_key_hint_model_distribution_policy;
 
 OPENVINO_C_VAR(const char*) ov_property_key_hint_enable_cpu_pinning;
 

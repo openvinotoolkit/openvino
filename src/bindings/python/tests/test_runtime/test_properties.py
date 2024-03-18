@@ -87,13 +87,10 @@ def test_properties_rw_base():
             ),
         ),
         (
-            hints.LlmDistributionPolicy,
+            hints.ModelDistributionPolicy,
             (
-                (hints.LlmDistributionPolicy.TENSOR_PARTITION, "LlmDistributionPolicy.TENSOR_PARTITION", 0),
-                (hints.LlmDistributionPolicy.DATA_PARTITION, "LlmDistributionPolicy.DATA_PARTITION", 1),
-                (hints.LlmDistributionPolicy.PIPELINE_PARTITION, "LlmDistributionPolicy.PIPELINE_PARTITION", 2),
-                (hints.LlmDistributionPolicy.ENTIRE_PLATFORM, "LlmDistributionPolicy.ENTIRE_PLATFORM", 3),
-                (hints.LlmDistributionPolicy.SINGLE_DEVICE, "LlmDistributionPolicy.SINGLE_DEVICE", 4),
+                (hints.ModelDistributionPolicy.NONE, "ModelDistributionPolicy.NONE", 0),
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 1),
             ),
         ),
         (
@@ -290,9 +287,9 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
         ),
         (
-            hints.llm_distribution_policy,
-            "LLM_DISTRIBUTION_POLICY",
-            ((hints.LlmDistributionPolicy.ENTIRE_PLATFORM, hints.LlmDistributionPolicy.ENTIRE_PLATFORM),),
+            hints.model_distribution_policy,
+            "MODEL_DISTRIBUTION_POLICY",
+            ((hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.TENSOR_PARALLEL),),
         ),
         (
             hints.enable_hyper_threading,

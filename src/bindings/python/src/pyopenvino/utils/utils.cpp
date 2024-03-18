@@ -176,8 +176,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::intel_auto::SchedulePolicy>());
     } else if (any.is<ov::hint::SchedulingCoreType>()) {
         return py::cast(any.as<ov::hint::SchedulingCoreType>());
-    } else if (any.is<ov::hint::LlmDistributionPolicy>()) {
-        return py::cast(any.as<ov::hint::LlmDistributionPolicy>());
+    } else if (any.is<ov::hint::ModelDistributionPolicy>()) {
+        return py::cast(any.as<ov::hint::ModelDistributionPolicy>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -377,8 +377,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
         return py::cast<ov::hint::SchedulingCoreType>(py_obj);
-    } else if (py::isinstance<ov::hint::LlmDistributionPolicy>(py_obj)) {
-        return py::cast<ov::hint::LlmDistributionPolicy>(py_obj);
+    } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(py_obj)) {
+        return py::cast<ov::hint::ModelDistributionPolicy>(py_obj);
     } else if (py::isinstance<ov::hint::ExecutionMode>(py_obj)) {
         return py::cast<ov::hint::ExecutionMode>(py_obj);
     } else if (py::isinstance<ov::log::Level>(py_obj)) {

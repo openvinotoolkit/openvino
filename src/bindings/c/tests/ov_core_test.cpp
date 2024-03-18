@@ -298,8 +298,8 @@ TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     EXPECT_STREQ(val_type, ret);
     ov_free(ret);
 
-    const char* key_mode = ov_property_key_hint_llm_distribution_policy;
-    const char* val_mode = "ENTIRE_PLATFORM";
+    const char* key_mode = ov_property_key_hint_model_distribution_policy;
+    const char* val_mode = "TENSOR_PARALLEL";
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_mode, val_mode));
     ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_mode, &ret));

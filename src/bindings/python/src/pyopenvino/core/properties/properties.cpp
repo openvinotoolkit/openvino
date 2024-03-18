@@ -71,12 +71,9 @@ void regmodule_properties(py::module m) {
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
         .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
-    py::enum_<ov::hint::LlmDistributionPolicy>(m_hint, "LlmDistributionPolicy", py::arithmetic())
-        .value("TENSOR_PARTITION", ov::hint::LlmDistributionPolicy::TENSOR_PARTITION)
-        .value("DATA_PARTITION", ov::hint::LlmDistributionPolicy::DATA_PARTITION)
-        .value("PIPELINE_PARTITION", ov::hint::LlmDistributionPolicy::PIPELINE_PARTITION)
-        .value("ENTIRE_PLATFORM", ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM)
-        .value("SINGLE_DEVICE", ov::hint::LlmDistributionPolicy::SINGLE_DEVICE);
+    py::enum_<ov::hint::ModelDistributionPolicy>(m_hint, "ModelDistributionPolicy", py::arithmetic())
+        .value("NONE", ov::hint::ModelDistributionPolicy::NONE)
+        .value("TENSOR_PARALLEL", ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL);
 
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("PERFORMANCE", ov::hint::ExecutionMode::PERFORMANCE)
@@ -88,7 +85,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
-    wrap_property_RW(m_hint, ov::hint::llm_distribution_policy, "llm_distribution_policy");
+    wrap_property_RW(m_hint, ov::hint::model_distribution_policy, "model_distribution_policy");
     wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");

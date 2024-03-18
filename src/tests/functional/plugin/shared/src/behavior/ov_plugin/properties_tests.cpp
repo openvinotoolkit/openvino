@@ -336,12 +336,12 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
     }
 
     if (props.empty() ||
-        std::find(props.begin(), props.end(), ov::hint::llm_distribution_policy.name()) != props.end()) {
-        ov::hint::LlmDistributionPolicy llmDistributionPolicys[] = {ov::hint::LlmDistributionPolicy::TENSOR_PARTITION,
-                                                                    ov::hint::LlmDistributionPolicy::ENTIRE_PLATFORM,
-                                                                    ov::hint::LlmDistributionPolicy::SINGLE_DEVICE};
-        for (auto& llmDistributionPolicy : llmDistributionPolicys) {
-            res.push_back({ov::hint::llm_distribution_policy(llmDistributionPolicy)});
+        std::find(props.begin(), props.end(), ov::hint::model_distribution_policy.name()) != props.end()) {
+        ov::hint::ModelDistributionPolicy modelDistributionPolicys[] = {
+            ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
+            ov::hint::ModelDistributionPolicy::NONE};
+        for (auto& modelDistributionPolicy : modelDistributionPolicys) {
+            res.push_back({ov::hint::model_distribution_policy(modelDistributionPolicy)});
         }
     }
 
