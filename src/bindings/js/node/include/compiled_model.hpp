@@ -68,6 +68,9 @@ public:
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);
 
+    /** @brief Exports the compiled model to bytes/output stream. */
+    Napi::Value export_model(const Napi::CallbackInfo& info);
+
 private:
     /** @brief Gets node of a compiled model specified in CallbackInfo. */
     Napi::Value get_node(const Napi::CallbackInfo& info,

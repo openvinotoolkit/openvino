@@ -19,7 +19,8 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("input", &CompiledModelWrap::get_input),
                         InstanceAccessor<&CompiledModelWrap::get_inputs>("inputs"),
                         InstanceMethod("output", &CompiledModelWrap::get_output),
-                        InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs")});
+                        InstanceAccessor<&CompiledModelWrap::get_outputs>("outputs"),
+                        InstanceMethod("exportModelSync", &CompiledModelWrap::export_model)});
 }
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
@@ -113,4 +114,11 @@ Napi::Value CompiledModelWrap::get_node(
     } else {
         OPENVINO_THROW(std::string("Error while getting compiled model "));
     }
+}
+
+Napi::Value CompiledModelWrap::export_model(const Napi::CallbackInfo& info) {
+    std::stringstream _stream;
+    _compiled_model.export_model(_stream);
+    const auto& exported = _stream.str();
+    return Napi::Buffer<const char>::Copy(info.Env(), exported.c_str(), exported.size());
 }

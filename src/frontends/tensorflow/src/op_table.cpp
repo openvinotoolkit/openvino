@@ -422,6 +422,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
         {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
         {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
+        {"ApproximateEqual", CreatorFunction(translate_approximate_equal_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},
