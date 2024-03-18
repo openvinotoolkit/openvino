@@ -167,7 +167,11 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs, bool decode_strings, bool cast_bf16) {
+        [](InferRequestWrapper& self,
+           const ov::Tensor& inputs,
+           bool share_outputs,
+           bool decode_strings,
+           bool cast_bf16) {
             self.m_request.set_input_tensor(inputs);
             return run_sync_infer(self, share_outputs, decode_strings, cast_bf16);
         },
