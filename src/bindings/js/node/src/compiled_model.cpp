@@ -44,25 +44,15 @@ Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& in
 }
 
 Napi::Value CompiledModelWrap::get_output(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0) {
-        try {
-            return Output<const ov::Node>::wrap(info.Env(), _compiled_model.output());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return Napi::Value();
-        }
-    } else if (info.Length() != 1) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[0].IsString()) {
-        auto tensor_name = info[0].ToString();
-        return Output<const ov::Node>::wrap(info.Env(), _compiled_model.output(tensor_name));
-    } else if (info[0].IsNumber()) {
-        auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<const ov::Node>::wrap(info.Env(), _compiled_model.output(idx));
-    } else {
-        reportError(info.Env(), "Error while getting compiled model outputs.");
-        return Napi::Value();
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_no_pa)() const = &ov::CompiledModel::output;
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const =
+        &ov::CompiledModel::output;
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const = &ov::CompiledModel::output;
+    try {
+        return get_node(info, func_no_pa, func_tname, func_idx);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what() + std::string("outputs."));
+        return info.Env().Null();
     }
 }
 
@@ -78,25 +68,15 @@ Napi::Value CompiledModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value CompiledModelWrap::get_input(const Napi::CallbackInfo& info) {
-    if (info.Length() == 0) {
-        try {
-            return Output<const ov::Node>::wrap(info.Env(), _compiled_model.input());
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
-            return Napi::Value();
-        }
-    } else if (info.Length() != 1) {
-        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-        return Napi::Value();
-    } else if (info[0].IsString()) {
-        auto tensor_name = info[0].ToString();
-        return Output<const ov::Node>::wrap(info.Env(), _compiled_model.input(tensor_name));
-    } else if (info[0].IsNumber()) {
-        auto idx = info[0].As<Napi::Number>().Int32Value();
-        return Output<const ov::Node>::wrap(info.Env(), _compiled_model.input(idx));
-    } else {
-        reportError(info.Env(), "Error while getting compiled model inputs.");
-        return Napi::Value();
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_no_pa)() const = &ov::CompiledModel::input;
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const =
+        &ov::CompiledModel::input;
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const = &ov::CompiledModel::input;
+    try {
+        return get_node(info, func_no_pa, func_tname, func_idx);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what() + std::string("inputs."));
+        return info.Env().Null();
     }
 }
 
@@ -109,4 +89,24 @@ Napi::Value CompiledModelWrap::get_inputs(const Napi::CallbackInfo& info) {
         js_inputs[i++] = Output<const ov::Node>::wrap(info.Env(), out);
 
     return js_inputs;
+}
+
+Napi::Value CompiledModelWrap::get_node(
+    const Napi::CallbackInfo& info,
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const,
+    const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const) {
+    if (info.Length() == 0) {
+        return Output<const ov::Node>::wrap(info.Env(), (_compiled_model.*func)());
+    } else if (info.Length() != 1) {
+        OPENVINO_THROW(std::string("Invalid number of arguments."));
+    } else if (info[0].IsString()) {
+        auto tensor_name = info[0].ToString();
+        return Output<const ov::Node>::wrap(info.Env(), (_compiled_model.*func_tname)(tensor_name));
+    } else if (info[0].IsNumber()) {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        return Output<const ov::Node>::wrap(info.Env(), (_compiled_model.*func_idx)(idx));
+    } else {
+        OPENVINO_THROW(std::string("Error while getting compiled model "));
+    }
 }
