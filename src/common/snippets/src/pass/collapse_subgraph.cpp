@@ -192,9 +192,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
     auto supported = [](descriptor::Tensor& t) -> bool {
         // TODO [122585] Need to add dynamic rank support
-        if (t.get_partial_shape().rank().is_dynamic())
-            return false;
-        return true;
+        return t.get_partial_shape().rank().is_static();
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();
@@ -261,7 +259,7 @@ TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
                     ov::is_type<ov::op::v0::MatMul>(n) || ov::is_type<ov::op::v1::Transpose>(n))
                     && AppropriateForSubgraph(n);
         });
-    ov::graph_rewrite_callback callback = [&, strategy](ov::pass::pattern::Matcher &m) -> bool {
+    ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {

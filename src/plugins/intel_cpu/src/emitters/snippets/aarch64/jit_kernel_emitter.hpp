@@ -6,7 +6,7 @@
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "jit_container_emitter.hpp"
+#include "emitters/snippets/jit_container_emitter.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -29,7 +29,7 @@ namespace aarch64 {
 /// Note that Kernel doesn't accept any input arguments.
 ///
 
-class jit_kernel_emitter : public jit_container_emitter {
+class jit_kernel_emitter : public jit_emitter, public jit_container_emitter {
 public:
     jit_kernel_emitter(dnnl::impl::cpu::aarch64::jit_generator* h, dnnl::impl::cpu::aarch64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 

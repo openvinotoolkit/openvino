@@ -6,7 +6,7 @@
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "jit_container_emitter.hpp"
+#include "emitters/snippets/jit_container_emitter.hpp"
 
 
 namespace ov {
@@ -29,7 +29,7 @@ namespace intel_cpu {
 /// Note that Kernel doesn't accept any input arguments.
 ///
 
-class jit_kernel_emitter : public jit_container_emitter {
+class jit_kernel_emitter : public jit_emitter, public jit_container_emitter {
 public:
     jit_kernel_emitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -65,6 +65,8 @@ protected:
     snippets::lowered::LinearIR::container general_exprs;
 
     const size_t reg_runtime_params_idx{0};
+
+    snippets::lowered::LinearIR body;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_kernel_emitter(const jit_kernel_emitter *emitter);
