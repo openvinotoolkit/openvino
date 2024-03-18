@@ -118,6 +118,7 @@
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/vnode_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 
 // Snippets
@@ -709,7 +710,7 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, EliminateStridedSlice);
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
-    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::CausalMaskPreprocess);
+    CPU_REGISTER_PASS_X64(postLPTPassManager, VNodeFusion);
 
     //CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::PrintModel, "sdpa0.cpp");
 
