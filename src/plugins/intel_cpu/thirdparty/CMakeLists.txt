@@ -112,6 +112,7 @@ function(ov_add_onednn)
 
     if(CMAKE_CROSSCOMPILING AND CMAKE_COMPILE_WARNING_AS_ERROR)
         string(REPLACE " -Werror " "  " CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        string(REPLACE " -Werror " "  " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
         set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
     endif()
 
