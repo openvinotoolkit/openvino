@@ -3,6 +3,13 @@
 OpenVINO Release Notes
 =============================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   system_requirements
+   Long-Term Support (LTS) Policy <long_term_support_policy>
+
 
 2024.0 - 06 March 2024
 #############################
