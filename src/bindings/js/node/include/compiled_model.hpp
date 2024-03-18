@@ -68,6 +68,9 @@ public:
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);
 
+    /** @brief Exports the compiled model to bytes/output stream. */
+    Napi::Value export_model(const Napi::CallbackInfo& info);
+
 private:
     ov::CompiledModel _compiled_model;
 };

@@ -186,3 +186,17 @@ describe('Input class for ov::Input<const ov::Node>', () => {
   });
 
 });
+
+it('Test exportModel()/importModel()', () => {
+  const userStream = compiledModel.exportModelSync();
+  const newCompiled = core.importModelSync(userStream, 'CPU');
+  const epsilon = 0.5;
+  const tensor = Float32Array.from({ length: 3072 }, () => (Math.random() + epsilon));
+
+  const inferRequest = compiledModel.createInferRequest();
+  const res1 = inferRequest.infer([tensor]);
+  const newInferRequest = newCompiled.createInferRequest();
+  const res2 = newInferRequest.infer([tensor]);
+
+  assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+});

@@ -20,6 +20,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
+                        InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
 }
 
@@ -229,4 +230,26 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
         js_devices[i++] = dev;
 
     return js_devices;
+}
+
+Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
+    if (info.Length() != 2) {
+        reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
+        return info.Env().Undefined();
+    }
+    if (!info[0].IsBuffer()) {
+        reportError(info.Env(), "The first argument must be of type Buffer.");
+        return info.Env().Undefined();
+    }
+    if (!info[1].IsString()) {
+        reportError(info.Env(), "The second argument must be of type String.");
+        return info.Env().Undefined();
+    }
+    const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+    const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+    std::stringstream _stream;
+    _stream << model_stream;
+
+    const auto& compiled = _core.import_model(_stream, std::string(info[1].ToString()));
+    return CompiledModelWrap::wrap(info.Env(), compiled);
 }

@@ -84,6 +84,9 @@ protected:
                                    const Napi::String& device,
                                    const std::map<std::string, ov::Any>& config);
 
+    /** @brief Imports a compiled model from the previously exported one. */
+    Napi::Value import_model(const Napi::CallbackInfo& info);
+
     /** @brief Returns devices available for inference. */
     Napi::Value get_available_devices(const Napi::CallbackInfo& info);
 
