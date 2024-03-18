@@ -347,6 +347,48 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
     }
 }
 
+struct TensorIterator {
+    TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis) : m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis) {
+        OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
+    };
+
+    std::array<size_t, 2> startover(const size_t start, const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
+        m_tensorIter.resize(m_squashed_shape.size(), 0);
+        getCoordinate(m_tensorIter, start, m_squashed_shape);
+
+        size_t i, dst_idx = 0, indices_idx = 0;
+        for (i = 0; i < static_cast<size_t>(m_squashed_axis); ++i) {
+            dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
+            indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
+        }
+        for (i++; i < m_squashed_shape.size(); ++i) {
+            dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
+            indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
+        }
+
+        return {dst_idx, indices_idx};
+    }
+
+    void increment(std::array<size_t, 2>& offsets, const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
+        for (int64_t j = m_squashed_shape.size() - 1; j >= 0; j--) {
+            m_tensorIter[j]++;
+            if (m_tensorIter[j] < m_squashed_shape[j]) { // no need check if (j != axis) as it is squashed
+                offsets[0] += dataBlockND[j + 1];
+                offsets[1] += indicesBlockND[j + 1];
+                break;
+            } else {
+                m_tensorIter[j] = 0;
+                offsets[0] += dataBlockND[j];
+                offsets[1] += indicesBlockND[j];
+            }
+        }
+    }
+
+    VectorDims m_tensorIter;
+    const VectorDims m_squashed_shape;
+    const size_t m_squashed_axis;
+};
+
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
@@ -373,108 +415,62 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
 
-    std::vector<size_t> dataBlockND = getBlockND(data_shape);
-    std::vector<size_t> indicesBlockND = getBlockND(indices_shape);
-
-    if (!use_init_val) {
-        const auto value = reduction_neutral_value<DataType>(reduction_type);
-
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            size_t i, dst_idx = 0, indices_idx = 0;
-            int32_t j;
-            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-            VectorDims start_coord(updates_rank, 0);
-            getCoordinate(start_coord, start, squashed_indices_shape);
-
-            VectorDims tensorItr(start_coord);
-            for (i = 0; i < static_cast<size_t>(axis); ++i) {
-                dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-            }
-            for (i++; i < updates_rank; ++i) {
-                dst_idx += tensorItr[i] * dataBlockND[i + 1];
-                indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-            }
-
-            for (size_t worker = start; worker < end; worker++) {
-                for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
-                    IndexType idxValue = *(indicesPtr + indices_offset);
-                    if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
-                    *dst = value;
-                }
-
-                // increment
-                for (j = updates_rank - 1; j >= 0; j--) {
-                    tensorItr[j]++;
-                    if (tensorItr[j] < squashed_indices_shape[j]) { // no need check if (j != axis) as it is squashed
-                        dst_idx += dataBlockND[j + 1];
-                        indices_idx += indicesBlockND[j + 1];
-                        break;
-                    } else {
-                        tensorItr[j] = 0;
-                        dst_idx += dataBlockND[j];
-                        indices_idx += indicesBlockND[j];
-                    }
-                }
-            }
-        });
-    }
+    const std::vector<size_t> dataBlockND = getBlockND(data_shape);
+    const std::vector<size_t> indicesBlockND = getBlockND(indices_shape);
 
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        size_t i, dst_idx = 0, indices_idx = 0;
-        int32_t j;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+        TensorIterator tensorItr(squashed_indices_shape, axis);
 
-        VectorDims tensorItr(updates_rank, 0);
-        getCoordinate(tensorItr, start, squashed_indices_shape);
-        for (i = 0; i < static_cast<size_t>(axis); ++i) {
-            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-        }
-        for (i++; i < updates_rank; ++i) {
-            dst_idx += tensorItr[i] * dataBlockND[i + 1];
-            indices_idx += tensorItr[i] * indicesBlockND[i + 1];
-        }
-
-        if (axis == static_cast<int>(updates_rank - 1)) {
+        // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
+        // will not affect the particular reduction algorithms.
+        if (!use_init_val) {
+            const auto value = reduction_neutral_value<DataType>(reduction_type);
+            auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
             for (size_t worker = start; worker < end; worker++) {
-                // inner axis loop for better performance
+                auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    auto indices_offset = indices_idx + idx * indicesBlockND[axis + 1];
                     IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    auto dst = dataPtr + (dst_idx + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_offset;
-                    kernel_func(dst, src);
+                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
+                    *dst = value;
+                    indices_offset += indicesBlockND[axis + 1];
                 }
 
                 // increment
-                for (j = updates_rank - 1; j >= 0; j--) {
-                    tensorItr[j]++;
-                    if (tensorItr[j] < squashed_indices_shape[j]) {
-                        dst_idx += dataBlockND[j + 1];
-                        indices_idx += indicesBlockND[j + 1];
-                        break;
-                    } else {
-                        tensorItr[j] = 0;
-                        dst_idx += dataBlockND[j];
-                        indices_idx += indicesBlockND[j];
-                    }
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+            }
+        }
+
+        // Apply the Reduce function in an element-wise fashion. For better performance,
+        // when axis is the last dimension, we iterate along axis in the inner loop; otherwise we iterate axis
+        // in the outer loop.
+        auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
+        if (axis == static_cast<int>(updates_rank - 1)) {
+            for (size_t worker = start; worker < end; worker++) {
+                auto indices_offset = offsets[1];
+                for (size_t idx = 0; idx < index_dim_size; idx++) {
+                    IndexType idxValue = *(indicesPtr + indices_offset);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
+                    auto src = updatePtr + indices_offset;
+                    kernel_func(dst, src);
+                    indices_offset += indicesBlockND[axis + 1];
                 }
+                // increment
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
             }
         } else {
-            std::vector<size_t> dst_offsets(end-start+1, dst_idx);  // one extra to protect
-            std::vector<size_t> indices_offsets(end-start+1, indices_idx);
-            // external axis loop for better performance
-            size_t *ptr_indices_offset = &indices_offsets[0];
+            // For better performance, the offsets of dst and indices are cached in the first iteration of outer loop, and reused
+            // in the remaining iterations.
+            std::vector<size_t> dst_offsets(end-start+1, offsets[0]);  // one extra to avoid overflow at the last iteration of inner loop
+            std::vector<size_t> indices_offsets(end-start+1, offsets[1]);
             size_t *ptr_dst_offset = &dst_offsets[0];
+            size_t *ptr_indices_offset = &indices_offsets[0];
             for (size_t worker = start; worker < end; worker++) { // idx = 0
                 IndexType idxValue = *(indicesPtr + *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
@@ -484,20 +480,9 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                 kernel_func(dst, src);
 
                 // increment once for all
-                for (j = updates_rank - 1; j >= 0; j--) {
-                    tensorItr[j]++;
-                    if (tensorItr[j] < squashed_indices_shape[j]) {
-                        dst_idx += dataBlockND[j + 1];
-                        indices_idx += indicesBlockND[j + 1];
-                        break;
-                    } else {
-                        tensorItr[j] = 0;
-                        dst_idx += dataBlockND[j];
-                        indices_idx += indicesBlockND[j];
-                    }
-                }
-                *++ptr_dst_offset = dst_idx;
-                *++ptr_indices_offset = indices_idx;
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+                *++ptr_dst_offset = offsets[0];
+                *++ptr_indices_offset = offsets[1];
             }
             for (size_t idx = 1; idx < index_dim_size; idx++) {
                 ptr_indices_offset = &indices_offsets[0];
@@ -542,12 +527,13 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
 
-    if (!use_init_val) {
-        const auto value = reduction_neutral_value<DataType>(reduction_type);
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
 
+        if (!use_init_val) {
+            const auto value = reduction_neutral_value<DataType>(reduction_type);
             for (size_t worker = start; worker < end; worker++) {
                 VectorDims indices_coord(updates_rank, 0);
                 getCoordinate(indices_coord, worker, squashed_indices_shape);
@@ -562,13 +548,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     data_buf.at<DataType, size_t>(data_coord) = value;
                 }
             }
-        });
-    }
-
-    // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
-    parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+        }
 
         for (size_t worker = start; worker < end; worker++) {
             VectorDims indices_coord(updates_rank, 0);
