@@ -17,7 +17,7 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    # ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
