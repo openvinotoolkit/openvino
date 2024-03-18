@@ -186,6 +186,13 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace set_1
 
+namespace set_11 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v1);
+    return {std::make_shared<v0::Log>(sum_node)};
+}
+}  // namespace set_11
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
     Found difference is:
@@ -196,6 +203,11 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
 */
 
 namespace set_13 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2);
+    return {std::make_shared<v0::Log>(sum_node)};
+}
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
@@ -207,6 +219,11 @@ ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
 namespace set_18 {
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
+    return {std::make_shared<v0::Log>(sum_node)};
 }
 }  // namespace set_18
 

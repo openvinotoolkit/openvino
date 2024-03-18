@@ -13,6 +13,15 @@ namespace op {
 namespace set_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node);
 }  // namespace set_1
+namespace set_11 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node);
+}  // namespace set_11
+namespace set_13 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node);
+}  // namespace set_13
+namespace set_18 {
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node);
+}  // namespace set_18
 
 namespace set_1 {
 ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node);
