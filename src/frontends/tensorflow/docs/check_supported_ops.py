@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -55,6 +55,8 @@ with open(supported_ops_doc, 'rt') as f:
         if table_line > 2 and is_table_line:
             # skip a table header
             documented_op = line.split('|')[1].strip()
+            # remove NEW mark
+            documented_op = documented_op.replace('<sup><mark style="background-color: #00FF00">NEW</mark></sup>', '')
             is_supported = False
             if line.split('|')[2].strip() == 'YES':
                 is_supported = True

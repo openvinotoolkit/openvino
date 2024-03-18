@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -29,7 +29,7 @@ class TestBatchToSpaceND(CommonTFLayerTest):
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     def test_batch_to_space_nd_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                                     use_new_frontend):
+                                     use_legacy_frontend):
         self._test(*self.create_batch_to_space_nd_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

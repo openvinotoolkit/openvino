@@ -11,9 +11,9 @@ Get Started with Samples
 
 To use OpenVINO samples, install OpenVINO using one of the following distributions:
 
-* Archive files (recommended) - :doc:`Linux <openvino_docs_install_guides_installing_openvino_from_archive_linux>` | :doc:`Windows <openvino_docs_install_guides_installing_openvino_from_archive_windows>` | :doc:`macOS <openvino_docs_install_guides_installing_openvino_from_archive_macos>`
-* :doc:`APT <openvino_docs_install_guides_installing_openvino_apt>` or :doc:`YUM <openvino_docs_install_guides_installing_openvino_yum>` for Linux
-* :doc:`Docker image <openvino_docs_install_guides_installing_openvino_docker>`
+* Archive files (recommended) - :doc:`Linux <../../get-started/install-openvino/install-openvino-archive-linux>` | :doc:`Windows <../../get-started/install-openvino/install-openvino-archive-windows>` | :doc:`macOS <../../get-started/install-openvino/install-openvino-archive-macos>`
+* :doc:`APT <../../get-started/install-openvino/install-openvino-apt>` or :doc:`YUM <../../get-started/install-openvino/install-openvino-yum>` for Linux
+* :doc:`Docker image <../../get-started/install-openvino/install-openvino-docker-linux>`
 * `Build from source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>`__
 
 If you install OpenVINO Runtime via archive files, sample applications are created in the following directories:
@@ -25,7 +25,7 @@ If you install OpenVINO Runtime via archive files, sample applications are creat
 .. note::
    If you install OpenVINO without samples, you can still get them directly from `the OpenVINO repository <https://github.com/openvinotoolkit/openvino/>`__.
 
-Before you build samples, refer to the :doc:`system requirements <system_requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
+Before you build samples, refer to the :doc:`system requirements <../../about-openvino/system-requirements>` page and make sure that all the prerequisites have been installed. Next, you can perform the following steps:
 
 1. :ref:`Build Samples <build-samples>`.
 2. :ref:`Select a Sample <select-sample>`.
@@ -39,7 +39,7 @@ Once you perform all the steps, you can :ref:`run inference with the chosen samp
 Build the Sample Applications
 ================================
 
-Select a sample you want to use from the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page, and follow the instructions below to build it in your operating system.
+Select a sample you want to use from the :doc:`OpenVINO Samples <../openvino-samples>` page, and follow the instructions below to build it in your operating system.
 
 .. note::
 
@@ -251,7 +251,7 @@ Instructions below show how to build sample applications with CMake. If you are 
 Sample Application Setup
 ================================
 
-First, select a sample from the :doc:`Sample Overview <openvino_docs_OV_UG_Samples_Overview>` and read the dedicated article to learn how to run it.
+First, select a sample from the :doc:`Sample Overview <../openvino-samples>` and read the dedicated article to learn how to run it.
 
 .. _download-model:
 
@@ -264,7 +264,7 @@ You need a model that is specific for your inference task. You can get it from o
 Convert the Model
 --------------------
 
-If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_get_started_get_started_demos.html>`__ for information how to do it.
+If Your model requires conversion, check the `article <https://docs.openvino.ai/2023.3/openvino_docs_../../get-started_../../get-started_demos.html>`__ for information how to do it.
 
 .. _download-media:
 
@@ -412,7 +412,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 .. note::
 
-   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <openvino_docs_install_guides_configurations_for_intel_gpu>`, as described earlier on this page.
+   * Running inference on Intel® Processor Graphics (GPU) requires :doc:`additional hardware configuration steps <../../get-started/configurations/configurations-intel-gpu>`, as described earlier on this page.
    * Running on GPU is not compatible with macOS.
 
 .. tab-set::
@@ -472,7 +472,7 @@ The following command shows how to run the Image Classification Code Sample usin
 
 When the sample application is complete, you are given the label and confidence for the top 10 categories. The input image and sample output of the inference results is shown below:
 
-.. image:: _static/images/dog.png
+.. image:: ../../_static/images/dog.png
 
 .. code-block:: sh
 

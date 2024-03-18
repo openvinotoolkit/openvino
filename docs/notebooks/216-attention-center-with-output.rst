@@ -68,19 +68,37 @@ Table of contents:
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install "openvino>=2023.2.0"
+    
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: openvino>=2023.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2023.3.0)
-    Requirement already satisfied: numpy>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (1.23.5)
-    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (2023.2.1)
+    Requirement already satisfied: openvino>=2023.2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2024.0.0)
+    Requirement already satisfied: numpy>=1.16.6 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (1.23.5)
+    Requirement already satisfied: openvino-telemetry>=2023.2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (2023.2.1)
+    Requirement already satisfied: packaging in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from openvino>=2023.2.0) (24.0)
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    
+
+.. parsed-literal::
+
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
 .. parsed-literal::
@@ -107,14 +125,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 23:35:29.422785: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:35:29.457116: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 23:28:02.634827: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 23:28:02.669284: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:35:29.986390: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 23:28:03.239575: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download the attention-center model
@@ -223,7 +241,10 @@ remote: Counting objects:  79% (133/168)[K
 remote: Counting objects:  80% (135/168)[K
 remote: Counting objects:  81% (137/168)[K
 remote: Counting objects:  82% (138/168)[K
-remote: Counting objects:  83% (140/168)[K
+
+.. parsed-literal::
+
+    remote: Counting objects:  83% (140/168)[K
 remote: Counting objects:  84% (142/168)[K
 remote: Counting objects:  85% (143/168)[K
 remote: Counting objects:  86% (145/168)[K
@@ -231,10 +252,7 @@ remote: Counting objects:  87% (147/168)[K
 remote: Counting objects:  88% (148/168)[K
 remote: Counting objects:  89% (150/168)[K
 remote: Counting objects:  90% (152/168)[K
-
-.. parsed-literal::
-
-    remote: Counting objects:  91% (153/168)[K
+remote: Counting objects:  91% (153/168)[K
 remote: Counting objects:  92% (155/168)[K
 remote: Counting objects:  93% (157/168)[K
 remote: Counting objects:  94% (158/168)[K
@@ -345,7 +363,10 @@ remote: Compressing objects:  78% (103/132)[K
 remote: Compressing objects:  79% (105/132)[K
 remote: Compressing objects:  80% (106/132)[K
 remote: Compressing objects:  81% (107/132)[K
-remote: Compressing objects:  82% (109/132)[K
+
+.. parsed-literal::
+
+    remote: Compressing objects:  82% (109/132)[K
 remote: Compressing objects:  83% (110/132)[K
 remote: Compressing objects:  84% (111/132)[K
 remote: Compressing objects:  85% (113/132)[K
@@ -365,10 +386,6 @@ remote: Compressing objects:  98% (130/132)[K
 remote: Compressing objects:  99% (131/132)[K
 remote: Compressing objects: 100% (132/132)[K
 remote: Compressing objects: 100% (132/132), done.[K
-
-
-.. parsed-literal::
-
     Receiving objects:   0% (1/168)
 Receiving objects:   1% (2/168)
 Receiving objects:   2% (4/168)
@@ -408,148 +425,108 @@ Receiving objects:  32% (54/168)
 
 .. parsed-literal::
 
-    Receiving objects:  33% (56/168), 1.79 MiB | 3.52 MiB/s
+    Receiving objects:  33% (56/168), 1.60 MiB | 3.19 MiB/s
+Receiving objects:  34% (58/168), 1.60 MiB | 3.19 MiB/s
+Receiving objects:  35% (59/168), 1.60 MiB | 3.19 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  34% (58/168), 1.79 MiB | 3.52 MiB/s
-Receiving objects:  35% (59/168), 1.79 MiB | 3.52 MiB/s
+    Receiving objects:  36% (61/168), 1.60 MiB | 3.19 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  35% (59/168), 3.69 MiB | 3.66 MiB/s
+    Receiving objects:  37% (63/168), 1.60 MiB | 3.19 MiB/s
+Receiving objects:  38% (64/168), 1.60 MiB | 3.19 MiB/s
+Receiving objects:  39% (66/168), 1.60 MiB | 3.19 MiB/s
+Receiving objects:  39% (66/168), 12.00 MiB | 11.99 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  36% (61/168), 5.57 MiB | 3.69 MiB/s
+    Receiving objects:  40% (68/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  41% (69/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  42% (71/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  43% (73/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  44% (74/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  45% (76/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  46% (78/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  47% (79/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  48% (81/168), 12.00 MiB | 11.99 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  36% (61/168), 7.48 MiB | 3.72 MiB/s
+    Receiving objects:  49% (83/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  50% (84/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  51% (86/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  52% (88/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  53% (90/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  54% (91/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  55% (93/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  56% (95/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  57% (96/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  58% (98/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  59% (100/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  60% (101/168), 12.00 MiB | 11.99 MiB/s
+Receiving objects:  61% (103/168), 12.00 MiB | 11.99 MiB/s
 
 .. parsed-literal::
 
-    Receiving objects:  37% (63/168), 9.36 MiB | 3.72 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  38% (64/168), 9.36 MiB | 3.72 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  39% (66/168), 11.27 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  40% (68/168), 11.27 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  41% (69/168), 13.15 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  42% (71/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  43% (73/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  44% (74/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  45% (76/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  46% (78/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  47% (79/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  48% (81/168), 13.15 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  49% (83/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  50% (84/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  51% (86/168), 13.15 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  52% (88/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  53% (90/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  54% (91/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  55% (93/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  56% (95/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  57% (96/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  58% (98/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  59% (100/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  60% (101/168), 13.15 MiB | 3.74 MiB/s
-Receiving objects:  61% (103/168), 13.15 MiB | 3.74 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  61% (104/168), 15.07 MiB | 3.75 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  61% (104/168), 18.84 MiB | 3.78 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  61% (104/168), 22.65 MiB | 3.78 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  62% (105/168), 24.51 MiB | 3.77 MiB/s
-
-.. parsed-literal::
-
-    Receiving objects:  63% (106/168), 24.51 MiB | 3.77 MiB/s
+    Receiving objects:  62% (105/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  63% (106/168), 22.22 MiB | 14.29 MiB/s
 
 .. parsed-literal::
 
     remote: Total 168 (delta 73), reused 114 (delta 28), pack-reused 0[K
-    Receiving objects:  64% (108/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  65% (110/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  66% (111/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  67% (113/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  68% (115/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  69% (116/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  70% (118/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  71% (120/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  72% (121/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  73% (123/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  74% (125/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  75% (126/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  76% (128/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  77% (130/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  78% (132/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  79% (133/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  80% (135/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  81% (137/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  82% (138/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  83% (140/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  84% (142/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  85% (143/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  86% (145/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  87% (147/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  88% (148/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  89% (150/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  90% (152/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  91% (153/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  92% (155/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  93% (157/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  94% (158/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  95% (160/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  96% (162/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  97% (163/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  98% (165/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects:  99% (167/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects: 100% (168/168), 24.51 MiB | 3.77 MiB/s
-Receiving objects: 100% (168/168), 26.22 MiB | 3.76 MiB/s, done.
+    Receiving objects:  64% (108/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  65% (110/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  66% (111/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  67% (113/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  68% (115/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  69% (116/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  70% (118/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  71% (120/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  72% (121/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  73% (123/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  74% (125/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  75% (126/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  76% (128/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  77% (130/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  78% (132/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  79% (133/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  80% (135/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  81% (137/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  82% (138/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  83% (140/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  84% (142/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  85% (143/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  86% (145/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  87% (147/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  88% (148/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  89% (150/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  90% (152/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  91% (153/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  92% (155/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  93% (157/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  94% (158/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  95% (160/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  96% (162/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  97% (163/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  98% (165/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects:  99% (167/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects: 100% (168/168), 22.22 MiB | 14.29 MiB/s
+Receiving objects: 100% (168/168), 26.22 MiB | 15.49 MiB/s, done.
     Resolving deltas:   0% (0/73)
 Resolving deltas:   1% (1/73)
 Resolving deltas:  13% (10/73)
-Resolving deltas:  27% (20/73)
-Resolving deltas:  38% (28/73)
-Resolving deltas:  46% (34/73)
-Resolving deltas:  56% (41/73)
-Resolving deltas:  57% (42/73)
-Resolving deltas:  65% (48/73)
+Resolving deltas:  21% (16/73)
+Resolving deltas:  31% (23/73)
+Resolving deltas:  45% (33/73)
+Resolving deltas:  60% (44/73)
+Resolving deltas:  61% (45/73)
+Resolving deltas:  63% (46/73)
 Resolving deltas:  68% (50/73)
-Resolving deltas:  69% (51/73)
+Resolving deltas:  71% (52/73)
 Resolving deltas:  72% (53/73)
-Resolving deltas:  78% (57/73)
+Resolving deltas:  73% (54/73)
 Resolving deltas:  79% (58/73)
 Resolving deltas:  84% (62/73)
 Resolving deltas:  98% (72/73)
@@ -566,7 +543,7 @@ The attention-center model is pre-trained model in TensorFlow Lite
 format. In this Notebook the model will be converted to OpenVINO IR
 format with model conversion API. For more information about model
 conversion, see this
-`page <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__.
+`page <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__.
 This step is also skipped if the model is already converted.
 
 Also TFLite models format is supported in OpenVINO by TFLite frontend,
@@ -734,12 +711,12 @@ Upload input image using file loading button
 
 .. parsed-literal::
 
-    2024-01-25 23:35:43.537386: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-01-25 23:35:43.537423: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-01-25 23:35:43.537428: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-01-25 23:35:43.537586: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-01-25 23:35:43.537603: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-01-25 23:35:43.537606: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-12 23:28:11.205498: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-12 23:28:11.205530: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-03-12 23:28:11.205534: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-03-12 23:28:11.205690: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-03-12 23:28:11.205706: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-03-12 23:28:11.205709: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 

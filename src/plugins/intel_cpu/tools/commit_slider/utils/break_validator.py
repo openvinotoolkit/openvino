@@ -25,16 +25,16 @@ def checkStability(valList: list, dev: float):
 def checkPlausibility(leftInterval: list, rightInterval: list, dev: float):
     leftMean = mean(leftInterval)
     rightMean = mean(rightInterval)
-    realGap = leftMean - rightMean
+    realGap = abs(leftMean - rightMean) / leftMean
     return realGap > dev, realGap
 
 def checkBreakLocality(leftInterval: list, rightInterval: list, dev: float):
     preBreakValue = leftInterval[-1]
     postBreakValue = rightInterval[0]
-    realGap = (preBreakValue - postBreakValue) / preBreakValue
+    realGap = abs(preBreakValue - postBreakValue) / preBreakValue
     return realGap > dev, realGap
 
-def validateBMOutput(commitList: list, breakCommit: str, dev: float):
+def validateBMOutput(commitList: list, breakCommit: str, dev: float, isUpDownBreak: bool=True):
     breakId = int(
         [item['id'] for item in commitList
             if item['hash'] == breakCommit][0]
@@ -59,7 +59,9 @@ def validateBMOutput(commitList: list, breakCommit: str, dev: float):
         )
     
     # second criterion: left min > right max
-    if not min(leftInterval) > max(rightInterval):
+    majorizationCheck = min(leftInterval) > max(rightInterval) if isUpDownBreak\
+        else max(leftInterval) < min(rightInterval)
+    if not majorizationCheck:
         raise BmValidationError(
             "pre-break interval does not majorize post-break",
             BmValidationError.BmValErrType.MAJORIZATION_ERROR
@@ -69,7 +71,7 @@ def validateBMOutput(commitList: list, breakCommit: str, dev: float):
     isPlausible, realGap = checkPlausibility(leftInterval, rightInterval, dev)
     if not isPlausible:
         raise BmValidationError(
-            "mean realGap: {} more than expected deviation: {}".format(
+            "mean realGap: {} less than expected deviation: {}".format(
                 realGap, dev
                 ),
             BmValidationError.BmValErrType.LOW_GAP

@@ -116,8 +116,13 @@ jobs:
       - name: Install build dependencies
         run: |
           bash ${OPENVINO_REPO}/install_build_dependencies.sh
+          
           # default-jdk - Java API
-          apt install --assume-yes --no-install-recommends default-jdk
+          apt install --assume-yes --no-install-recommends default-jdk gcc-10 g++-10
+          
+          # Set gcc-10 as a default one
+          update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30
+          update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.4
@@ -247,7 +252,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build_logs
@@ -256,7 +261,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -264,7 +269,7 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
@@ -272,7 +277,7 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -280,7 +285,7 @@ jobs:
 
       - name: Upload openvino debian packages
         if: ${{ 'false' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -288,7 +293,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -361,17 +366,17 @@ jobs:
       runner: 'aks-linux-16-cores-arm'
       image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
 
-  TensorFlow_Hub_Models_Tests:
-    name: TensorFlow Hub Models tests
+  TensorFlow_Models_Tests:
+    name: TensorFlow Models tests
     if: ${{ 'false' }} # TODO: Enable once the dependencies are ready for arm (no tensorflow-text available for arm from PyPI)
     # if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
     #     fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Smart_CI ]
-    uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04"}'
-      event: ${{ github.event_name }}
+      model_scope: 'precommit'
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
@@ -387,7 +392,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64
     needs: [Smart_CI, Build, Debian_Packages, Samples, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests,
-            TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests]
+            TensorFlow_Models_Tests, PyTorch_Models_Tests]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,7 @@
 #include "gather_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
+#include "broadcast_inst.h"
 
 #include <vector>
 #include <list>
@@ -88,14 +89,15 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             !((impl_param.is_type<concatenation>() ||
                impl_param.is_type<gather>() ||
                impl_param.is_type<permute>() ||
-               impl_param.is_type<strided_slice>()) && impl_param.is_dynamic())) {
+               impl_param.is_type<strided_slice>() ||
+               impl_param.is_type<broadcast>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
-        kernel_params.first.is_shape_agnostic = impl_param.is_dynamic();
-        kernel_params.first.set_dynamic_shape_offsets();
+        kernel_params.is_shape_agnostic = impl_param.is_dynamic();
+        kernel_params.set_dynamic_shape_offsets();
         auto& kernel_selector = ImplType::kernel_selector_t::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(kernel_params.first, kernel_params.second);
+        auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
 
         return make_unique<ImplType>(best_kernel);
     }

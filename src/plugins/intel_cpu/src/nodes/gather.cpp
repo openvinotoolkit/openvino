@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -715,12 +715,7 @@ void Gather::fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& dec
     } else {
         DnnlBlockedMemoryDesc memoryDesc(decompression_prc, memory->getShape());
         decompressionValuesPtr = std::make_shared<Memory>(getEngine(), memoryDesc, nullptr, false);
-        const auto elementsCount = memory->getDescWithType<BlockedMemoryDesc>()->getPaddedElementsCount();
-        cpu_convert(memory->getData(),
-                    decompressionValuesPtr->getData(),
-                    DnnlExtensionUtils::DataTypeToElementType(memory->getDataType()),
-                    ov::element::f32,
-                    elementsCount);
+        decompressionValuesPtr->load(*memory);
     }
 }
 
