@@ -55,12 +55,12 @@ class TestComplexReciprocal(CommonTFLayerTest):
         
         return inputs_data
 
-    def create_complex_reciprocal_net(self, input_shape):
+    def create_complex_reciprocal_net(self, x_shape,x_type):
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            param_real1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_real_1')
-            param_imag1 = tf.compat.v1.placeholder(np.float32, input_shape, 'param_imag_1')
+            param_real1 = tf.compat.v1.placeholder(np.float32, x_shape, 'param_real_1')
+            param_imag1 = tf.compat.v1.placeholder(np.float32, x_shape, 'param_imag_1')
             complex_x = tf.raw_ops.Complex(real=param_real1, imag=param_imag1)
             reciprocal = tf.raw_ops.Reciprocal(x=complex_x)
             real = tf.raw_ops.Real(input=reciprocal)
