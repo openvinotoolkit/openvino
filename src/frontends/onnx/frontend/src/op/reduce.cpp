@@ -177,10 +177,19 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+
+ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const  ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), true);
+    return {std::make_shared<v0::Log>(sum_node)};
+}
+
 }  // namespace set_13
 
 namespace set_18 {
-// Placeholder
+    ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
+    const  ov::Output<ov::Node> sum_node = make_ng_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), false);
+    return {std::make_shared<v0::Log>(sum_node)};
+    }
 }  // namespace set_18
 }  // namespace op
 }  // namespace onnx
