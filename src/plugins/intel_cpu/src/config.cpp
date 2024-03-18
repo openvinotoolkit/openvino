@@ -66,6 +66,22 @@ void Config::applyDebugCapsProperties() {
 }
 #endif
 
+std::vector<std::string> parse_multiple_parameters(const std::string& inputs, const char separator = ',') {
+    std::vector<std::string> parameters;
+    std::string::size_type pos = 0;
+    std::string::size_type endpos = 0;
+    while ((endpos = inputs.find(separator, pos)) != std::string::npos) {
+        auto substr = inputs.substr(pos, endpos - pos);
+        if (!substr.empty())
+            parameters.push_back(substr);
+        pos = endpos + 1;
+    }
+    auto substr = inputs.substr(pos, inputs.length() - pos);
+    if (!substr.empty())
+        parameters.push_back(substr);
+    return parameters;
+}
+
 void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     const auto streamExecutorConfigKeys =
         streamExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
@@ -203,20 +219,30 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::ModelDistributionPolicy::NONE);
             };
 
-            ov::hint::ModelDistributionPolicy model_policy = ov::hint::ModelDistributionPolicy::NONE;
-            try {
-                model_policy = val.as<ov::hint::ModelDistributionPolicy>();
-            } catch (ov::Exception&) {
+            std::vector<std::string> para_vect = parse_multiple_parameters(val.as<std::string>());
+            if (para_vect.size() == 0) {
                 error_info();
             }
 
-            switch (model_policy) {
-            case ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL:
-            case ov::hint::ModelDistributionPolicy::NONE:
-                modelDistributionPolicy = model_policy;
-                break;
-            default:
-                error_info();
+            ov::hint::ModelDistributionPolicy model_policy;
+            modelDistributionPolicy.clear();
+
+            for (auto& row : para_vect) {
+                std::stringstream str_stream;
+                try {
+                    str_stream.str(row);
+                    str_stream >> model_policy;
+                    switch (model_policy) {
+                    case ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL:
+                    case ov::hint::ModelDistributionPolicy::NONE:
+                        modelDistributionPolicy.emplace(model_policy);
+                        break;
+                    default:
+                        error_info();
+                    }
+                } catch (ov::Exception&) {
+                    error_info();
+                }
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {

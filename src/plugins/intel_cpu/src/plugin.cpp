@@ -410,8 +410,17 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
     } else if (name == ov::hint::model_distribution_policy) {
-        const auto stream_mode = engConfig.modelDistributionPolicy;
-        return stream_mode;
+        std::string policy_str = "";
+        if (engConfig.modelDistributionPolicy.size() > 1) {
+            std::stringstream str_stream;
+            for (auto& row : engConfig.modelDistributionPolicy) {
+                str_stream << row;
+                policy_str += str_stream.str() + ", ";
+                str_stream.str("");
+            }
+            policy_str.erase(policy_str.length() - 2);
+        }
+        return policy_str;
     } else if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);

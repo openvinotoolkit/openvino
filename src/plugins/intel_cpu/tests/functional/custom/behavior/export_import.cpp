@@ -104,23 +104,12 @@ const std::vector<ov::AnyMap> testing_property_for_performance_mode = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_1 = {
+const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_2 = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
-const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type_3 = {
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
-
-const std::vector<ov::AnyMap> testing_property_for_model_distribution_policy_1 = {
-    {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)},
-    {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::NONE)}};
-
-const std::vector<ov::AnyMap> testing_property_for_model_distribution_policy_2 = {
+const std::vector<ov::AnyMap> testing_property_for_model_distribution_policy = {
     {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::NONE)},
     {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)}};
 
@@ -136,11 +125,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExportImportTest,
                                            ::testing::Values(testing_property_for_streams,
                                                              testing_property_for_threads,
                                                              testing_property_for_performance_mode,
-                                                             testing_property_for_scheduling_core_type_1,
-                                                             testing_property_for_scheduling_core_type_2,
-                                                             testing_property_for_scheduling_core_type_3,
-                                                             testing_property_for_model_distribution_policy_1,
-                                                             testing_property_for_model_distribution_policy_2,
+                                                             testing_property_for_scheduling_core_type,
+                                                             testing_property_for_model_distribution_policy,
                                                              testing_property_for_enable_hyper_threading,
                                                              testing_property_for_enable_cpu_pinning)));
 
