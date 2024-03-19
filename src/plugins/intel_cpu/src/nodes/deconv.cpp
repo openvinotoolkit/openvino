@@ -23,6 +23,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "utils/general_utils.h"
 #include "utils/cpu_utils.hpp"
+#include  "utils/plain_tensor.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
 #include "executors/acl/acl_utils.hpp"
@@ -663,7 +664,27 @@ void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
     }
+    // {
+    //     auto weiMem = primArgs[DNNL_ARG_WEIGHTS];
+    //     auto tensor = PlainTensor();
+    //     tensor.resize<float>({64, 16}, reinterpret_cast<float*>(weiMem.get_data_handle()));
+    //     std::cout << tensor.repr(64);
+    // }
+    // {
+    //     auto wghMemPtr = getSrcMemoryAtPort(1);
+    //     auto tensor = PlainTensor();
+    //     tensor.resize<float>({64, 16}, reinterpret_cast<float*>(wghMemPtr->getData()));
+    //     std::cout << tensor.repr(64);
+    // }
 
+    // {
+    //     auto src = primArgs[DNNL_ARG_SRC_0];
+    //     auto tensor = PlainTensor();
+    //     tensor.resize<float>({1, 64, 128, 128}, reinterpret_cast<float*>(src.get_data_handle()));
+    //     std::cout << tensor.repr(64);
+    // }
+    updateIOWeightBlob();
+    primArgs[DNNL_ARG_WEIGHTS] = weightAsIOMemPtr->getPrimitive();
     execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
@@ -936,13 +957,15 @@ void Deconvolution::createIOWeightBlob() {
                                      dimsForBlockedDesc,
                                      orderForBlockedDesc);
     weightAsIOMemPtr = std::make_shared<Memory>(getEngine(), desc, blob->getData());
+    //wghMemPtr->getMemoryMngr()->registerMemory(std::dynamic_pointer_cast<Memory>(weightAsIOMemPtr).get());
 }
 
 void Deconvolution::updateIOWeightBlob() {
     auto wghMemPtr = getSrcMemoryAtPort(1);
+
     if (wghMemPtr->getSize() != weightAsIOMemPtr->getSize())
         OPENVINO_THROW("Different memory size. Cannot update non-const weights blob for node ", getName(), ".");
-
+    std::cout << "#############" << wghMemPtr->getData() << std::endl;
     weightAsIOMemPtr->getMemoryMngr()->setExtBuff(wghMemPtr->getData(), wghMemPtr->getSize());
 }
 

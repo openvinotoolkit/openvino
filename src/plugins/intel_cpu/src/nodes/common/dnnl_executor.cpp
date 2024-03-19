@@ -3,7 +3,8 @@
 //
 
 #include "dnnl_executor.h"
-
+#include "utils/debug_capabilities.h"
+#include  "utils/plain_tensor.hpp"
 using namespace dnnl;
 
 namespace ov {

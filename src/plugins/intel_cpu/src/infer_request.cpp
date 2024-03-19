@@ -177,6 +177,7 @@ static inline void change_edge_ptr(const EdgePtr& edge, ov::SoPtr<ov::ITensor>& 
         auto memMngr = mem->getMemoryMngr();
         OPENVINO_ASSERT(memMngr);
         memMngr->setExtBuff(tensor->data(), tensor->get_byte_size());
+        std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! edge: " << edge->name() << ", ptr: "<< tensor->data() << std::endl;
     }
 }
 
