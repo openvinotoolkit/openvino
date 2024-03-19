@@ -24,11 +24,23 @@ if(NOT (ARM OR AARCH64))
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
-else()
+endif()
+
+if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
          ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
+endif()
+
+if(NOT RISCV64)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/riscv
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv)
+endif()
+
+if(ARM OR AARCH64)
     # temporary disable all custom tests for ARM
     list(APPEND EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests
@@ -43,14 +55,6 @@ else()
         ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS})
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
-
-if(NOT X86_64)
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
-endif()
-
 
 if(RISCV64)
     # temporary disable all custom tests for RISCV64
