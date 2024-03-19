@@ -64,7 +64,7 @@ ROIAlignRotated
 
 * **1**: 4D input tensor of shape ``[N, C, H, W]`` with feature maps of type *T*. **Required.**
 
-* **2**: 2D input tensor of shape ``[NUM_ROIS, 6]`` describing box consisting of 6 element tuples: ``[batch_index, center_x, center_y, width, height, angle]`` in relative coordinates of type *T*. The angle is always in radians.
+* **2**: 2D input tensor of shape ``[NUM_ROIS, 5]`` describing box consisting of 5 element tuples: ``[center_x, center_y, width, height, angle]`` in relative coordinates of type *T*. The angle is always in radians.
   * **Required.**
 
 * **3**: 1D input tensor of shape ``[NUM_ROIS]`` with batch indices of type *IND_T*. **Required.**
@@ -96,7 +96,7 @@ ROIAlignRotated
            </port>
            <port id="1">
                <dim>1000</dim>
-               <dim>6</dim>
+               <dim>5</dim>
            </port>
            <port id="2">
                <dim>1000</dim>
