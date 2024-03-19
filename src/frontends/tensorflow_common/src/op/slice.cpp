@@ -53,7 +53,6 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto start_shape = make_shared<v3::ShapeOf>(start);
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
     
-
     if(complex_type_mark){
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         auto gather_index_real = make_shared<v0::Constant>(element::i32, Shape{}, 0);
