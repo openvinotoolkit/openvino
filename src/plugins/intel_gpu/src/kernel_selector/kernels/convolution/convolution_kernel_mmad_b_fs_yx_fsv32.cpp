@@ -61,7 +61,7 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
         && !params.HasCompensation()) {
         return false;
     }
-    
+
     if (!IsSIMDSizeSupported(params.engineInfo, 8))
         return false;
 
