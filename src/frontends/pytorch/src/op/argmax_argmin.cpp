@@ -33,8 +33,7 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
         auto axis = context.const_input<int64_t>(1);
         indices =
             context
-                .mark_node(
-                    std::make_shared<v11::TopK>(input, k, axis, mode, TopKSortType::NONE, element::i64, true))
+                .mark_node(std::make_shared<v11::TopK>(input, k, axis, mode, TopKSortType::NONE, element::i64, true))
                 ->output(1);
         if (!keep_dims) {
             auto axis_to_remove = context.mark_node(v0::Constant::create(element::i32, Shape{}, {axis}));
