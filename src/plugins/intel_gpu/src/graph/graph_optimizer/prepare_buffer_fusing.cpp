@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "prepare_buffer_fusing.h"
@@ -503,6 +503,8 @@ void prepare_buffer_fusing::run(program& p) {
                     return;
                 if (user->is_type<loop>() || user->is_type<non_max_suppression>())
                     return;
+            }
+            for (auto user : node.get_users()) {
                 if (user->is_type<reshape>()) {
                     auto& reshape_node = user->as<reshape>();
                     if (can_reshape_be_optimized(reshape_node))

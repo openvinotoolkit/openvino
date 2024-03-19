@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -135,6 +135,7 @@ OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
 OP_CONVERTER(translate_minimum);
+OP_CONVERTER(translate_movedim);
 OP_CONVERTER(translate_multinomial);
 OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_native_multi_head_attention);
@@ -259,6 +260,7 @@ OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
 OP_CONVERTER(translate_fake_quantize_per_tensor_affine_fx);
 OP_CONVERTER(translate_full_fx);
+OP_CONVERTER(translate_full_like_fx);
 OP_CONVERTER(translate_gelu_fx);
 OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
@@ -269,6 +271,11 @@ OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
 OP_CONVERTER(translate_mean_fx);
 OP_CONVERTER(translate_min_dim_fx);
+OP_CONVERTER(translate_new_full_fx);
+OP_CONVERTER(translate_new_ones_fx);
+OP_CONVERTER(translate_new_zeros_fx);
+OP_CONVERTER(translate_ones_fx);
+OP_CONVERTER(translate_ones_like_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_rsub_fx);
 OP_CONVERTER(translate_scalar_tensor_fx);
@@ -288,6 +295,8 @@ OP_CONVERTER(translate_transpose_fx);
 OP_CONVERTER(translate_var_fx);
 OP_CONVERTER(translate_var_mean_fx);
 OP_CONVERTER(translate_unbind_int_fx);
+OP_CONVERTER(translate_zeros_fx);
+OP_CONVERTER(translate_zeros_like_fx);
 
 }  // namespace op
 
@@ -437,6 +446,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::floor", op::optional_out<op::translate_1to1_match_1_inputs<opset10::Floor>, 1>},
         {"aten::floor_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Floor>>},
         {"aten::floor_divide", op::translate_floor_divide},
+        {"aten::floor_divide_", op::inplace_op<op::translate_floor_divide>},
         {"aten::floordiv", op::translate_floor_divide},
         {"aten::fmod", op::translate_fmod},
         {"aten::frobenius_norm", op::translate_frobenius_norm},
@@ -524,6 +534,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::mish", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>},
         {"aten::mish_", op::inplace_op<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Mish>>},
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
+        {"aten::movedim", op::translate_movedim},
         {"aten::mul", op::translate_mul},
         {"aten::mul_", op::translate_mul_},
         {"aten::multiply", op::translate_mul},
@@ -797,7 +808,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.fmod.Tensor", op::translate_fmod},
         {"aten.full.default", op::translate_full_fx},
         {"aten.full.names", op::translate_full_fx},
-        {"aten.full_like.default", op::translate_full_like},
+        {"aten.full_like.default", op::translate_full_like_fx},
         {"aten.gather.default", op::translate_gather},
         {"aten.ge.Scalar", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
         {"aten.ge.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::GreaterEqual>},
@@ -857,7 +868,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.neg.default", op::translate_neg},
         {"aten.new_full.default", op::translate_new_full},
         {"aten.new_ones.default", op::translate_new_ones},
+        {"aten.new_zeros.default", op::translate_new_zeros_fx},
         {"aten.ones.default", op::translate_ones},
+        {"aten.ones.names", op::translate_ones},
+        {"aten.ones_like.default", op::translate_ones_like_fx},
         {"aten.permute.default", op::translate_1to1_match_2_inputs<opset10::Transpose>},
         {"aten.pow.Scalar", op::translate_pow},
         {"aten.pow.Tensor_Scalar", op::translate_pow},
@@ -913,7 +927,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.var_mean.correction", op::translate_var_mean_fx},
         {"aten.view.default", op::translate_reshape},
         {"aten.where.self", op::translate_where},
-        {"aten.zeros_like.default", op::translate_zeros_like},
+        {"aten.zeros.default", op::translate_zeros_fx},
+        {"aten.zeros.names", op::translate_zeros_fx},
+        {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.roi_align.default", op::translate_roi_align},
