@@ -248,14 +248,14 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const st
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_exp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (exec_prc_ != ov::element::f32) {
-        OPENVINO_THROW("unsupported precision: " + exec_prc_.to_string());
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     }
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
