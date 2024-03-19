@@ -55,7 +55,6 @@ class TorchScriptPythonDecoder (Decoder):
                     " yourself, please refer to PyTorch documentation: "
                     "https://pytorch.org/tutorials/beginner/Intro_to_TorchScript_tutorial.html.")
             self.graph_element = pt_module.inlined_graph
-            print(self.graph_element)
             self.alias_db = self.graph_element.alias_db()
         else:
             self.graph_element = graph_element

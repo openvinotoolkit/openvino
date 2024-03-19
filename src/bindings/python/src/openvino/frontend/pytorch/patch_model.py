@@ -19,7 +19,6 @@ class no_jit_trace:
 
 def patch_model(model, module_extensions, orig_forward_name):
     for name, m in model.named_modules():
-        # TODO: Use one way to identify a patched module, currently GPTQ model patching uses different name of attribute
         if hasattr(m, orig_forward_name):
             # already patched, skipping with a warning because it is unexpected
             print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
