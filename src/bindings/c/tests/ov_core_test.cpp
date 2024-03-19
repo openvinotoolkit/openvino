@@ -310,9 +310,7 @@ TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_mode, val_mode));
     ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_mode, &ret));
-    if ((strcmp(ret, "TENSOR_PARALLEL, NONE") != 0) && (strcmp(ret, "NONE, TENSOR_PARALLEL") != 0)) {
-        EXPECT_STREQ(val_mode, ret);
-    }
+    EXPECT_STREQ(val_mode, ret);
     ov_free(ret);
 
     OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_type, invalid_val));

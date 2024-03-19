@@ -255,7 +255,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             std::stringstream str_stream;
             for (auto& row : config.modelDistributionPolicy) {
                 str_stream << row;
-                policy_str = str_stream.str() + ", " + policy_str;
+                policy_str += str_stream.str() + ", ";
                 str_stream.str("");
             }
             policy_str.erase(policy_str.length() - 2);

@@ -235,7 +235,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     switch (model_policy) {
                     case ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL:
                     case ov::hint::ModelDistributionPolicy::NONE:
-                        modelDistributionPolicy.emplace(model_policy);
+                        modelDistributionPolicy.emplace_back(model_policy);
                         break;
                     default:
                         error_info();

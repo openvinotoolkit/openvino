@@ -15,7 +15,6 @@
 #include <bitset>
 #include <map>
 #include <mutex>
-#include <unordered_set>
 
 namespace ov {
 namespace intel_cpu {
@@ -77,8 +76,7 @@ struct Config {
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
-    std::unordered_set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {
-        ov::hint::ModelDistributionPolicy::NONE};
+    std::vector<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::NONE};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
     Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;

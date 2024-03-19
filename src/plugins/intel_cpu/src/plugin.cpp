@@ -415,7 +415,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             std::stringstream str_stream;
             for (auto& row : engConfig.modelDistributionPolicy) {
                 str_stream << row;
-                policy_str = str_stream.str() + ", " + policy_str;
+                policy_str += str_stream.str() + ", ";
                 str_stream.str("");
             }
             policy_str.erase(policy_str.length() - 2);
