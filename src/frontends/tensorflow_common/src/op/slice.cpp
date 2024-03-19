@@ -30,7 +30,7 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto start = node.get_input(1);
     auto size = node.get_input(2);
 
-     // create axiliary constants
+    // create auxiliary constants
     auto const_one = create_same_type_const_scalar<int32_t>(start, 1);
     auto const_zero = create_same_type_const_scalar<int32_t>(start, 0);
 
