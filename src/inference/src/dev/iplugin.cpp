@@ -253,10 +253,13 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         NameSet temp_unsupported;
         NameSet temp_supported_1;
         NameSet temp_unsupported_1;
+        bool cancel_split = false;
         std::set<std::string> split_node_set;
         int64_t last_total_len = 0;
-        bool cancel_split = false;
+        int search_times = 0;
         size_t last_total_size = 0;
+        size_t min_query_size = query_model_ratio * total_ops_size * 0.95;
+        size_t max_query_size = query_model_ratio * total_ops_size * 1.05;
         copy_set(supported, temp_supported);
         copy_set(unsupported, temp_unsupported);
         // Search the smallest transmission node within the user's requested ratio range of 0.95-1.05 times
@@ -264,7 +267,9 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             std::map<std::string, int> temp_pair_checker;
             bool ready_split = false;
             bool start_split = false;
+            bool has_min_graph = false;
             size_t total_size = 0;
+            search_times++;
             copy_set(temp_supported, supported);
             copy_set(temp_unsupported, unsupported);
             // Walk over transformed model for special handing of Parameters/Constants/Results
@@ -280,19 +285,27 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                     if (ov::op::util::is_constant(op) && !ready_split) {
                         const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
                         total_size += const_byte_size;
-                        // If the total size is 1.05 times larger than the user's requirement, cancel split and break
-                        if (total_size >= query_model_ratio * total_ops_size * 1.05) {
+                        // If the total size is 1.05 times larger than the user's requirement:
+                        // - If has_min_graph = false, it means there is no nodes meets requirement, so need cancel
+                        //   split and break
+                        // - If th split_node_set > 1, it means this is not the first search in do-while, so cancel
+                        //   split and break
+                        if (total_size <= max_query_size) {
+                            has_min_graph = true;
+                        } else if (!has_min_graph || search_times > 1) {
                             cancel_split = true;
                             break;
                         }
                         // Ready to split if total size meets user's requirment and Assign-ReadValue operations in pairs
                         // on the network
-                        if (total_size >= query_model_ratio * total_ops_size * 0.95) {
+                        if (total_size >= min_query_size) {
                             if (!ready_split && split_node_set.find(op->get_friendly_name()) == split_node_set.end()) {
                                 ready_split = check_pairs(temp_pair_checker);
                                 if (ready_split) {
                                     split_node_set.insert(op->get_friendly_name());
-                                    continue;
+                                    // Judge if the current constant op should be removed from supported
+                                    if (total_size < max_query_size)
+                                        continue;
                                 }
                             }
                         }
