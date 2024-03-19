@@ -12,7 +12,10 @@ from openvino.frontend.pytorch.module_extension import ModuleExtension
 
 
 def extract_module_extensions(args):
-    return {extension.module: extension for extension in args.get('extension', []) or [] if isinstance(extension, ModuleExtension)}
+    extensions = args.get('extension', [])
+    if not isinstance(extensions, (list, tuple)):
+        extensions = [extensions]
+    return {extension.module: extension for extension in extensions if isinstance(extension, ModuleExtension)}
 
 
 def get_pytorch_decoder(model, example_inputs, args):
