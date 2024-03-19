@@ -20,3 +20,4 @@ from openvino._pyopenvino.op.util import InvariantInputDescription
 from openvino._pyopenvino.op.util import SliceInputDescription
 from openvino._pyopenvino.op.util import ConcatOutputDescription
 from openvino._pyopenvino.op.util import BodyOutputDescription
+from openvino._pyopenvino.op.util import _PyOp as Op
