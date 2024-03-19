@@ -22,13 +22,16 @@ jobs:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
       volumes:
         - /mount:/mount
+    env:
+      OPENVINO_REPO: /__w/openvino/openvino/openvino
     steps:
         - name: Checkout
           uses: actions/checkout@v4
+          path: ${{ env.OPENVINO_REPO }}
 
         - name: Test Local Action
           id: test-action
-          uses: ./actions/cache
+          uses: ./openvino/.github/actions/cache
           with:
             cache_path: mount/gha_test_cache
             path: /__w/cache
