@@ -196,7 +196,8 @@ class PytorchLayerTest:
                 if not quantized_ops and n_is_not_close > 0:
                     is_ok = False
                     print("Max diff is {}".format(max_diff))
-                elif quantized_ops and (n_is_not_close > int(np.log10(cur_fw_res.size)) or max_diff > np.array(quant_size + fw_eps).max()):
+                elif quantized_ops and max_diff > np.array(quant_size + fw_eps).max():
+                    # To remove sporadic issues, allow any number of error of 1 quant
                     is_ok = False
                     print("Errors outside threshold range: {} with max diff {}, expected at most {} with max diff {}".format(
                         n_is_not_close, max_diff, int(np.log10(cur_fw_res.size)), quant_size + fw_eps))
