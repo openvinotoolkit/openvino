@@ -12,7 +12,6 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
@@ -420,7 +419,8 @@ TEST_F(TransformationTestsF, SmartReshape_ReshapeAMatMul_ReshapeInputSeveralCons
         auto matmul = std::make_shared<ov::op::v0::MatMul>(reshape, data_matmul);
         auto add = std::make_shared<ov::op::v1::Add>(matmul, reshape_const);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{data_matmul, data_reshape});;
+        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{data_matmul, data_reshape});
+        ;
         manager.register_pass<ov::pass::ReshapeAMatMul>();
     }
     {
@@ -437,7 +437,8 @@ TEST_F(TransformationTestsF, SmartReshape_ReshapeAMatMul_ReshapeInputSeveralCons
         auto const_add_1 = ov::op::v0::Constant::create(ov::element::i32, {2}, {1, 10});
         auto add = std::make_shared<ov::op::v1::Add>(matmul, const_add_1);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{reshape_param, shape_of_param});
+        model_ref =
+            std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{reshape_param, shape_of_param});
         ov::pass::Manager m;
         m.run_passes(model_ref);
     }
