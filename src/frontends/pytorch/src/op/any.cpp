@@ -20,17 +20,17 @@ OutputVector translate_any_fx(const NodeContext& context) {
     auto x = context.get_input(0);
     bool keep_dims = false;
 
+    Output<Node> dims;
     if (!context.input_is_none(1)) {
-        auto dims = context.get_input(1);
-        if (!context.input_is_none(2))
-            keep_dims = context.const_input<bool>(2);
-        auto any = context.mark_node(std::make_shared<ov::op::v1::ReduceLogicalOr>(x, dims, keep_dims));
-        return {any};
+        dims = context.get_input(1);
     } else {
-        auto axes = get_axes_range(context, 0);
-        auto any = context.mark_node(std::make_shared<ov::op::v1::ReduceLogicalOr>(x, axes, keep_dims));
-        return {any};
+        dims = get_axes_range(context, 0);
     }
+    bool keep_dims = false;
+    if (!context.input_is_none(2))
+        keep_dims = context.const_input<bool>(2);
+    auto any = context.mark_node(std::make_shared<ov::op::v1::ReduceLogicalOr>(x, dims, keep_dims));
+    return {any};
 };
 
 }  // namespace op
