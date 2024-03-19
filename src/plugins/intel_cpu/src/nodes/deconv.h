@@ -119,6 +119,7 @@ private:
     //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
     void createIOWeightBlob();
     void updateIOWeightBlob();
+    bool weightIsConst = false;
 };
 
 }   // namespace node

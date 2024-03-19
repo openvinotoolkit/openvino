@@ -664,27 +664,10 @@ void Deconvolution::execute(dnnl::stream strm) {
     if (!execPtr) {
         OPENVINO_THROW("Can't execute Deconvolution node with name: ", getName(), ", because executor is not compiled");
     }
-    // {
-    //     auto weiMem = primArgs[DNNL_ARG_WEIGHTS];
-    //     auto tensor = PlainTensor();
-    //     tensor.resize<float>({64, 16}, reinterpret_cast<float*>(weiMem.get_data_handle()));
-    //     std::cout << tensor.repr(64);
-    // }
-    // {
-    //     auto wghMemPtr = getSrcMemoryAtPort(1);
-    //     auto tensor = PlainTensor();
-    //     tensor.resize<float>({64, 16}, reinterpret_cast<float*>(wghMemPtr->getData()));
-    //     std::cout << tensor.repr(64);
-    // }
-
-    // {
-    //     auto src = primArgs[DNNL_ARG_SRC_0];
-    //     auto tensor = PlainTensor();
-    //     tensor.resize<float>({1, 64, 128, 128}, reinterpret_cast<float*>(src.get_data_handle()));
-    //     std::cout << tensor.repr(64);
-    // }
-    updateIOWeightBlob();
-    primArgs[DNNL_ARG_WEIGHTS] = weightAsIOMemPtr->getPrimitive();
+    if (!weightIsConst) {
+        updateIOWeightBlob();
+        primArgs[DNNL_ARG_WEIGHTS] = weightAsIOMemPtr->getPrimitive();
+    }
     execPtr->exec(primArgs, strm);
 
     if (externOutShape) {
@@ -957,7 +940,6 @@ void Deconvolution::createIOWeightBlob() {
                                      dimsForBlockedDesc,
                                      orderForBlockedDesc);
     weightAsIOMemPtr = std::make_shared<Memory>(getEngine(), desc, blob->getData());
-    //wghMemPtr->getMemoryMngr()->registerMemory(std::dynamic_pointer_cast<Memory>(weightAsIOMemPtr).get());
 }
 
 void Deconvolution::updateIOWeightBlob() {
@@ -965,7 +947,6 @@ void Deconvolution::updateIOWeightBlob() {
 
     if (wghMemPtr->getSize() != weightAsIOMemPtr->getSize())
         OPENVINO_THROW("Different memory size. Cannot update non-const weights blob for node ", getName(), ".");
-    std::cout << "#############" << wghMemPtr->getData() << std::endl;
     weightAsIOMemPtr->getMemoryMngr()->setExtBuff(wghMemPtr->getData(), wghMemPtr->getSize());
 }
 
@@ -998,7 +979,7 @@ void Deconvolution::prepareParams() {
         selected_pd->setImplementationType(execPtrDeconv->getImplType());
         return;
     }
-
+    weightIsConst = getParentEdgeAt(1)->getParent()->isConstant();
     auto inMemoryDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     auto outMemoryDesc = getChildEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -1023,8 +1004,8 @@ void Deconvolution::prepareParams() {
 
     if (!weightAsIOMemPtr)
         createIOWeightBlob();
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        updateIOWeightBlob();
+    // if (!weightIsConst)
+    //     updateIOWeightBlob();
     DnnlMemoryDescPtr wghDesc = weightAsIOMemPtr->getDescWithType<DnnlMemoryDesc>();
 
     DEBUG_LOG(">>>>>>>>>>>>>>>>>>#",
@@ -1050,7 +1031,7 @@ void Deconvolution::prepareParams() {
                      deconvAttrs.dilation,
                      deconvAttrs.paddingL,
                      deconvAttrs.paddingR,
-                     getParentEdgeAt(1)->getParent()->isConstant(),
+                     weightIsConst,
                      *pAttrLocal,
                      selected_pd->getImplementationType()};
 
@@ -1204,7 +1185,7 @@ void Deconvolution::prepareParams() {
     // if (key.isInt8) {
     primArgs[DNNL_ARG_SRC] = srcMemPtr->getPrimitive();
     primArgs[DNNL_ARG_DST]=  dstMemPtr->getPrimitive();
-    if (key.constWeight) {
+    if (weightIsConst) {
         // const weight preparation/reordering needs to be done once at next execution
         // when the input weight data is guaranteed to be ready (considering possible const-folding
         // subgraphs inserted between constant weight node and conv)
