@@ -74,9 +74,9 @@ class TestComplexOnesLike(CommonTFLayerTest):
 
     test_data_basic = [
         dict(x_shape=[], x_type=np.float32),
-        dict(x_shape=[2], x_type=np.int32),
+        dict(x_shape=[2], x_type=np.float32),
         dict(x_shape=[2, 3, 4], x_type=np.float32),
-        dict(x_shape=[1, 4, 3, 1], x_type=np.int32),
+        dict(x_shape=[1, 4, 3, 1], x_type=np.float32),
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
