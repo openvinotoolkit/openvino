@@ -18,7 +18,6 @@ namespace op {
 OutputVector translate_any_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto x = context.get_input(0);
-    bool keep_dims = false;
 
     Output<Node> dims;
     if (!context.input_is_none(1)) {
