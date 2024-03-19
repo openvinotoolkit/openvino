@@ -258,8 +258,8 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         int64_t last_total_len = 0;
         int search_times = 0;
         size_t last_total_size = 0;
-        size_t min_query_size = query_model_ratio * total_ops_size * 0.95;
-        size_t max_query_size = query_model_ratio * total_ops_size * 1.05;
+        double min_query_size = query_model_ratio * total_ops_size * 0.95;
+        double max_query_size = query_model_ratio * total_ops_size * 1.05;
         copy_set(supported, temp_supported);
         copy_set(unsupported, temp_unsupported);
         // Search the smallest transmission node within the user's requested ratio range of 0.95-1.05 times

@@ -864,7 +864,7 @@ public:
                 mem_size = 32;
             return decltype(ov::intel_gpu::device_total_mem_size)::value_type{mem_size};
         } else if (name == ov::device::type.name()) {
-            ov::device::Type device_type;
+            ov::device::Type device_type = ov::device::Type::INTEGRATED;
             if (device_id == "0")
                 device_type = ov::device::Type::INTEGRATED;
             else if (device_id == "1")
