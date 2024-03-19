@@ -210,18 +210,26 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyAndComplieModelWithPropsWor
     }
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryProperties() {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryProperties(bool is_sw_device) {
     std::vector<ov::AnyMap> res;
-    res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
-    res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
-    res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
-    res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
+    if (!is_sw_device) {
+        res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
+    }
 
     return res;
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalProperties() {
+std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalProperties(bool is_sw_device) {
     std::vector<ov::AnyMap> res;
+    if (is_sw_device) {
+        res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
+    }
     res.push_back({{ov::PropertyName(ov::loaded_from_cache.name(), ov::loaded_from_cache.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::luid.name(), ov::device::luid.mutability), nullptr}});
@@ -241,7 +249,9 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::configurePropert
     return res;
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(std::vector<std::string> props) {
+std::vector<ov::AnyMap>
+OVPropertiesTestsWithCompileModelProps::getRWMandatoryPropertiesValues(
+    const std::vector<std::string>& props, bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
@@ -268,14 +278,18 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWMandatoryPr
         res.push_back({{ov::enable_profiling(false)}});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
-        res.push_back({ov::streams::num(3)});
+    if (!is_sw_device) {
+        if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
+            res.push_back({ov::streams::num(3)});
+        }
     }
 
     return res;
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWMandatoryPropertiesValues(std::vector<std::string> props) {
+std::vector<ov::AnyMap>
+OVPropertiesTestsWithCompileModelProps::getWrongRWMandatoryPropertiesValues(
+    const std::vector<std::string>& props, bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::hint::performance_mode.name()) != props.end()) {
@@ -294,14 +308,18 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWMandat
         res.push_back({{ov::enable_profiling.name(), -1}});
     }
 
-    if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
-        res.push_back({ov::streams::num(-10)});
+    if (!is_sw_device) {
+        if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
+            res.push_back({ov::streams::num(-10)});
+        }
     }
 
     return res;
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(std::vector<std::string> props) {
+std::vector<ov::AnyMap>
+OVPropertiesTestsWithCompileModelProps::getRWOptionalPropertiesValues(
+    const std::vector<std::string>& props, bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
@@ -348,10 +366,18 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
         }
     }
 
+    if (is_sw_device) {
+        if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
+            res.push_back({ov::streams::num(3)});
+        }
+    }
+
     return res;
 }
 
-std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(std::vector<std::string> props) {
+std::vector<ov::AnyMap>
+OVPropertiesTestsWithCompileModelProps::getWrongRWOptionalPropertiesValues(
+    const std::vector<std::string>& props, bool is_sw_device) {
     std::vector<ov::AnyMap> res;
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::inference_num_threads.name()) != props.end()) {
@@ -381,6 +407,12 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getWrongRWOption
 
     if (props.empty() || std::find(props.begin(), props.end(), ov::log::level.name()) != props.end()) {
         res.push_back({{ov::log::level.name(), -3}});
+    }
+
+    if (is_sw_device) {
+        if (props.empty() || std::find(props.begin(), props.end(), ov::streams::num.name()) != props.end()) {
+            res.push_back({ov::streams::num(-10)});
+        }
     }
 
     return res;
