@@ -32,8 +32,8 @@ namespace op {
 OutputVector translate_atan2(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     // "aten::atan2.out(Tensor input,Tensor other, *,Tensor(a!) out) → Tensor(a!)"
-    auto y = context.get_input(0);
-    auto x = context.get_input(1);
+    Output<Node> y;
+    Output<Node> x;
     std::tie(y, x) = get_inputs_with_promoted_types(context, 0, 1);
     auto dummy_const = context.mark_node(ov::op::v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
