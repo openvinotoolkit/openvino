@@ -51,7 +51,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const int input_current_socket_id,
                                                      const std::string input_perf_hint,
-                                                     const ov::hint::LlmDistributionPolicy hint_llm_distribution_policy,
+                                                     const std::vector<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
                                                      const std::vector<std::vector<int>>& proc_type_table);
 /**
  * @brief      Get model_prefer_threads
@@ -97,13 +97,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
 void get_num_streams(const int streams,
                      const std::shared_ptr<ov::Model>& model,
                      Config& config);
-
-/**
- * @brief      Get default number of streams in certain latency threading mode
- * @param[in]  hint_llm_distribution_policy is the scope of candidate processors per stream for latency hint
- * @return     number of streams
- */
-int get_default_latency_streams(ov::hint::LlmDistributionPolicy hint_llm_distribution_policy);
 
 }  // namespace intel_cpu
 }  // namespace ov

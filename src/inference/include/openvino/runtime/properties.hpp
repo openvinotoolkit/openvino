@@ -399,47 +399,32 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
-enum class LlmDistributionPolicy {
-    TENSOR_PARTITION = 0,    // Split one node or subgraph into parts and run one part per socket/device in parallel.
-    DATA_PARTITION = 1,      // Split one batch input into parts and run one part per socket/device in parallel.
-    PIPELINE_PARTITION = 2,  // Split one model into parts and run each socket/device in parallel as a pipeline.
-    ENTIRE_PLATFORM = 3,     // Run one model on the entire platform with all sockets/devices.
-    SINGLE_DEVICE = 4,       // Run one model on single socket/device.
+enum class ModelDistributionPolicy {
+    NONE = 0,             // Run one model on single socket/device without parallelism.
+    TENSOR_PARALLEL = 1,  // Split one node or subgraph into parts and run one part per socket/device in parallel.
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const LlmDistributionPolicy& stream_mode) {
+inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy& stream_mode) {
     switch (stream_mode) {
-    case LlmDistributionPolicy::TENSOR_PARTITION:
-        return os << "TENSOR_PARTITION";
-    case LlmDistributionPolicy::DATA_PARTITION:
-        return os << "DATA_PARTITION";
-    case LlmDistributionPolicy::PIPELINE_PARTITION:
-        return os << "PIPELINE_PARTITION";
-    case LlmDistributionPolicy::ENTIRE_PLATFORM:
-        return os << "ENTIRE_PLATFORM";
-    case LlmDistributionPolicy::SINGLE_DEVICE:
-        return os << "SINGLE_DEVICE";
+    case ModelDistributionPolicy::NONE:
+        return os << "NONE";
+    case ModelDistributionPolicy::TENSOR_PARALLEL:
+        return os << "TENSOR_PARALLEL";
     default:
-        OPENVINO_THROW("Unsupported LLM distribution policy!");
+        OPENVINO_THROW("Unsupported model distribution policy!");
     }
 }
 
-inline std::istream& operator>>(std::istream& is, LlmDistributionPolicy& stream_mode) {
+inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& stream_mode) {
     std::string str;
     is >> str;
-    if (str == "TENSOR_PARTITION") {
-        stream_mode = LlmDistributionPolicy::TENSOR_PARTITION;
-    } else if (str == "DATA_PARTITION") {
-        stream_mode = LlmDistributionPolicy::DATA_PARTITION;
-    } else if (str == "PIPELINE_PARTITION") {
-        stream_mode = LlmDistributionPolicy::PIPELINE_PARTITION;
-    } else if (str == "ENTIRE_PLATFORM") {
-        stream_mode = LlmDistributionPolicy::ENTIRE_PLATFORM;
-    } else if (str == "SINGLE_DEVICE") {
-        stream_mode = LlmDistributionPolicy::SINGLE_DEVICE;
+    if (str == "NONE") {
+        stream_mode = ModelDistributionPolicy::NONE;
+    } else if (str == "TENSOR_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
     } else {
-        OPENVINO_THROW("Unsupported LLM distribution policy: ", str);
+        OPENVINO_THROW("Unsupported model distribution policy: ", str);
     }
     return is;
 }
