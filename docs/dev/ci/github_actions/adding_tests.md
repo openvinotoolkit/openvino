@@ -1,25 +1,39 @@
-# How to add Tests to the OpenVINO GitHub Actions CI
+# How to add Tests to GitHub Actions CI
 
-The OpenVINO repository has [many workflows](./../../../../.github/workflows), their general and structural overview is available [here](./overview.md).  
+The OpenVINO repository has [multiple workflows](./../../../../.github/workflows) that contain
+jobs for building and testing OpenVINO. Their general and structural overview is
+available on the [OpenVINO GitHub Actions CI page](./overview.md).
 
-The workflows have many jobs dedicated to building and testing of OpenVINO. This document describes the topic of adding 
-tests to these workflows or adding an entirely new workflow.
+This document explains how to create new workflows and add tests.
 
-## Add Tests to the Already Existing Workflow
+## Table of Contents
 
-### Add Tests to the Existing Test Suite
+* [Adding Tests to an Existing Workflow](#adding-tests-to-existing-workflow)
+  * [Adding Tests to an Existing Test Suite](#adding-tests-to-existing-test-suite)
+  * [Creating a Step in a Job](#creating-a-step-in-a-job)
+  * [Creating a New Job](#creating-a-new-job)
+  * [Creating a Workflow](#creating-a-workflow)
+* [Test Time and Usage](#test-time-and-usage)
+  * [Adding a Step](#adding-a-step)
+  * [Adding a Job](#adding-a-job)
+  * [Adding a Workflow](#adding-a-workflow)
 
-If the new tests could be executed as a part of the already existing test suite, e.g., new OVC Python API tests, 
-there is no need to change the workflows, the added tests would be executed automatically in the corresponding step. 
+## Adding Tests to an Existing Workflow
 
-Review the [workflows](./../../../../.github/workflows) and their jobs to know which tests are already enabled. 
-Additionally, review the component's tests and how they are executed.
+### Adding Tests to an Existing Test Suite
 
-### Create a Step in a Job
+If the new tests can be executed as part of the existing test suite, for example,
+new OVC Python API tests, there is no need to change the workflows.
+The added tests will automatically run in the corresponding step.
 
-If there is no step in the jobs that has the needed test suite, a new step could be added to the job. 
-The steps are the commands that are executed one by one and united under one job. 
-Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more.
+Review [workflows](./../../../../.github/workflows) and their jobs to identify which tests
+are already enabled. Additionally, examine the component tests and how they are executed.
+
+### Creating a Step in a Job
+
+If a job does not include a step with the required test suite, a new step can be added to the job.
+Steps are the commands executed consecutively and grouped together under a single job.
+Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows) for more information.
 
 An example step from [`job_python_unit_tests.yml`](./../../../../.github/workflows/job_python_unit_tests.yml):
 ```yaml
@@ -31,19 +45,22 @@ steps:
     run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 ...
 ```
-It has:
-* a `name`: `OVC unit tests`
-* `if` condition: `fromJSON(inputs.affected-components).MO.test`
-  * This step is executed only if the condition evaluates to `true`
-  * This is a part of the Smart CI system implemented for the OpenVINO workflow. Read [here](./smart_ci.md) about the system and how to use it
-* the `run` section with commands to be executed
+The step includes:
+* a `name`: `OVC unit tests`.
+* an `if` condition: `fromJSON(inputs.affected-components).MO.test`
+  * This step is executed only if the condition is `true`.
+  * This is a part of the Smart CI system implemented for the OpenVINO workflow. Read the [Smart CI Overview](./smart_ci.md) to learn about the system and its usage.
+* a `run` section with commands to be executed.
 
-To add a new step with new tests, navigate to the needed job and use the above template (or any other step in the job) for the new step. 
-Refer to [this document](./reusable_workflows.md) to learn more about the workflow and job organisation.
+To add a new step with new tests, navigate to the job and use the above template (or any existing
+step in the job) for the new step. Refer to the [Reusable Workflows page](./reusable_workflows.md) to learn
+more about workflows and job organization.
 
-### Create a New Job
+### Creating a New Job
 
-If the new tests do not fit in any of the jobs in all the workflows, it is possible to create a dedicated job for them. 
+If new tests do not align with any existing job across all workflows, it is possible to
+create a dedicated job for them.
+
 An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
 ```yaml
 NVIDIA_Plugin:
@@ -73,7 +90,7 @@ NVIDIA_Plugin:
     DEBIAN_FRONTEND: 'noninteractive'
     SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
   if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
-  
+
   steps:
   ...
 ```
@@ -81,67 +98,75 @@ NVIDIA_Plugin:
 Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#about-yaml-syntax-for-workflows) for a complete syntax reference.
 
 A job:
-* needs a name, provided by the `name` key
-* needs a runner to execute `steps` on, provided by the `runs-on` key 
-  * Refer to [this document](./runners.md) to learn more about the available runners and how to choose one
-* might use Docker to execute `steps` in. The Docker configuration is provided by the `container` key 
-  * Refer to [this document](./docker_images.md) to learn more about the available Docker images and how to choose one
+* requires a name, provided by the `name` key
+* requires a runner to execute `steps` on, provided by the `runs-on` key
+  * Learn more about [available runners](./runners.md)
+* might use Docker to execute `steps` in, configured by the `container` key
+  * Learn more about [available Docker images](./docker_images.md)
 * might use caches to speed up build and/or tests
-  * Different types of caches are available. Refer to [this document](./caches.md) to learn more about the available caches and how to use one
-* might use the Smart CI system to get executed conditionally with the `if` key
-  * Refer to [this document](./smart_ci.md) for the Smart CI overview and usage
-* a series of commands to execute, provided by the `steps` key
-  * Refer to [this section](#create-a-step-in-the-job) to learn more about `steps`
-* might use the build artefacts from the `Build` job
-  * They could be downloaded using the `actions/download-artifact`, read more about the workflows' structure [here](./overview.md#structure-of-the-workflows)
+  * Different types of caches are available. Learn more about [available caches](./caches.md)
+* might use the Smart CI system for conditional execution with the `if` key
+  * Refer to the [Smart CI Overview](./smart_ci.md) for more information
+* requires a series of commands to execute, provided by the `steps` key
+  * Refer to the [creating steps in a job section](#creating-a-step-in-a-job) to learn more about `steps`
+* might use build artifacts from the `Build` job
+  * The artifacts can be downloaded using `actions/download-artifact`, read more about the workflow structure in the [Overview of the OpenVINO GitHub Actions CI](./overview.md#structure-of-the-workflows)
 
-If the job could be used in several workflows, it could be transformed into a reusable workflow. 
-Read more about the reusable workflows [here](./reusable_workflows.md).
+If the job can be used in several workflows, it can be transformed into a reusable workflow.
+Learn more from the [Reusable Workflows page](./reusable_workflows.md).
 
-## Create a Dedicated Workflow
+## Creating a Workflow
 
-To introduce a new workflow, add a new `<name>.yml` file to the [`.github/workflows`](./../../../../.github) folder. 
-Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#create-an-example-workflow) for a complete syntax reference and browse the existing workflows in [`.github/workflows`](./../../../../.github).
+To create a new workflow, add a new `<name>.yml` file to the [`.github/workflows`](./../../../../.github) folder.
+Refer to the [official GitHub Actions documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#create-an-example-workflow) for a complete syntax reference, and browse the existing workflows in [`.github/workflows`](./../../../../.github).
 
-Refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows), their structure could be used as a template for a new one.
+You can refer to the [structural overview of the existing workflows](./overview.md#structure-of-the-workflows) as a template for a new workflow.
 
-The dedicated workflow example is [`fedora.yml`](./../../../../.github/workflows/fedora.yml). It has:
-* `Smart_CI`, `Build`, `RPM_Packages`, `Overall_Status` jobs
-  * `Smart_CI` - the [Smart CI system](./smart_ci.md)
-  * `Build` - pre-requisites installation, building of OpenVINO with certain CMake configuration, packaging and uploading of the artefacts
-  * `RPM_Packages` - pre-requisites installation, downloading of the artefacts and tests
-  * `Overall_Status` - the job for collecting the other jobs' statuses
-* the uploading and downloading of the build artefacts between jobs using `actions/upload-artifact` and `actions/download-artifact`
-* the usage of the [Smart CI system](./smart_ci.md)
-* the usage of the [self-hosted runners](./runners.md) and [Docker images](./docker_images.md)
-* the usage of [caches](./caches.md)
+The [`fedora.yml`](./../../../../.github/workflows/fedora.yml) workflow example includes:
+* The following jobs:
+  * `Smart_CI` - the [Smart CI system](./smart_ci.md).
+  * `Build` - installing prerequisites, building OpenVINO with the specified CMake configuration, packaging and uploading artifacts.
+  * `RPM_Packages` - installing prerequisites, downloading artifacts and tests.
+  * `Overall_Status` - the job for collecting statuses of other jobs
+* uploading and downloading the build artifacts between jobs using `actions/upload-artifact` and `actions/download-artifact`
+* usage of the [Smart CI system](./smart_ci.md)
+* usage of the [self-hosted runners](./runners.md) and [Docker images](./docker_images.md)
+* usage of [caches](./caches.md)
 
-## Test Times and Usage
+## Test Time and Usage
 
-Be mindful about time and runners usage when adding new steps, jobs and workflows.
+Be mindful about time and runners usage when adding new steps, jobs and workflows. When adding any new test or changing
+the scope of an existing test, always check the test execution time in your pull request. As a rule of thumb, the execution time
+of any workflow in the precommit should be less than 60 minutes. Also note that even if, as recommended, the execution time is
+less than 60 minutes, it may be unreasonably costly to run a powerful multi-core runner for a long time without a proper workload.
 
 ### Adding a Step
 
-When adding a step in a job, consider checking the times of the other steps in the job, 
-it is best if the step's execution time does not lengthen the execution time of the job too much and is in-line with the execution times of other steps.
+When adding a step in a job, check its execution time compared to other jobs. Try to
+keep it in line with these jobs to avoid extending the overall job duration too much.
 
-If the step takes a lot of time, it might be better to [extract it into a separate job](#adding-a-job) so that it runs in parallel with other jobs. 
-Additionally, when creating a job with this step, it would be possible to [pick a more powerful runner](./runners.md) to shorten the execution time.
+If the step takes too long, consider [extracting it to a separate job](#adding-a-job)
+so that it can run in parallel with other jobs. Additionally, for jobs with long steps,
+there is an option to [pick a more powerful runner](./runners.md) to shorten the execution time.
 
 ### Adding a Job
 
-When adding a job, consider checking the times of the other jobs in a workflow, it is best if the new job's execution time 
-does not exceed the time of the longest job in the workflow.
+When adding a job, check the execution time of existing jobs in the workflow. The new job
+execution time should not exceed the time of the longest job in the workflow.
 
-If the job takes a lot of time, it might be possible to run it not on the pre-commit basis but on a post-commit/nightly/weekly basis. 
-Refer to [this document](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules. 
-Additionally, it could be possible to [pick a more powerful runner](./runners.md) to shorten the execution time.
+If the job is time-consuming, consider running it on a post-commit/nightly/weekly basis,
+instead of pre-commit.
+Refer to the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules.
+Additionally, [using a more powerful runner](./runners.md) can help shorten the execution time.
 
 ### Adding a Workflow
 
-When adding a workflow, consider checking the times of the other workflows, it is best if the new workflow's execution time 
-does not exceed the time of the longest workflow.
+When adding a new workflow, check the execution times of existing workflows. The new workflow
+execution time should not exceed the time of the longest workflow.
 
-If the workflow takes a lot of time, it might be possible to run it not on the pre-commit basis but on a post-commit/nightly/weekly basis. 
-Refer to [this document](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules. 
-Additionally, make sure [the right runners](./runners.md) are picked for each job so that the execution times are optimal.
+If the workflow is time-consuming, consider running it on a post-commit/nightly/weekly basis,
+instead of pre-commit.
+Refer to the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflows-triggers-and-schedule)
+to learn more about triggers and schedules.
+Additionally, make sure [the right runners](./runners.md) are picked for each job to optimize
+execution time.

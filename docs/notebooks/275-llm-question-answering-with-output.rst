@@ -76,9 +76,8 @@ Select model for inference
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
-
-   **NOTE**: conversion of some models can require additional actions
-   from user side and at least 64GB RAM for conversion.
+>\ **Note**: conversion of some models can require additional actions
+from user side and at least 64GB RAM for conversion.
 
 The available options are:
 
@@ -138,14 +137,14 @@ The available options are:
 .. code:: ipython3
 
     model_ids = list(SUPPORTED_LLM_MODELS)
-
+    
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[1],
         description="Model:",
         disabled=False,
     )
-
+    
     model_id
 
 
@@ -233,12 +232,13 @@ Weights Compression using Optimum Intel
 
 
 
-To enable weight compression via NNCF for models supported by Optimum
-Intel ``OVQuantizer`` class should be used for ``OVModelForCausalLM``
-model.
-``OVQuantizer.quantize(save_directory=save_dir, weights_only=True)``
-enables weights compression. An example of this approach usage you can
-find in `llm-chatbot notebook <254-llm-chatbot-with-output.html>`__
+Optimum Intel supports weight compression via NNCF out of the box. For
+8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
+method of ``OVModelForCausalLM``. For 4 bit compression we provide
+``quantization_config=OVWeightQuantizationConfig(bits=4, ...)`` argument
+containing number of bits and other compression parameters. An example
+of this approach usage you can find in `llm-chatbot
+notebook <254-llm-chatbot-with-output.html>`__
 
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -251,16 +251,16 @@ instance and compresses its weights for Linear and Embedding layers. We
 will consider this variant in this notebook for both int4 and int8
 compression.
 
-   **NOTE**: This tutorial involves conversion model for FP16 and
+   **Note**: This tutorial involves conversion model for FP16 and
    INT4/INT8 weights compression scenarios. It may be memory and
    time-consuming in the first run. You can manually control the
-   compression precision below. **NOTE**: There may be no speedup for
+   compression precision below. **Note**: There may be no speedup for
    INT4/INT8 compressed models on dGPU
 
 .. code:: ipython3
 
     from IPython.display import display
-
+    
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -276,7 +276,7 @@ compression.
         description="Prepare FP16 model",
         disabled=False,
     )
-
+    
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -303,25 +303,24 @@ compression.
 .. code:: ipython3
 
     from pathlib import Path
-    import shutil
     import logging
     import openvino as ov
     import nncf
-    from optimum.intel.openvino import OVModelForCausalLM
+    from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
     from optimum.utils import NormalizedTextConfig, NormalizedConfigManager
     import gc
-
+    
     NormalizedConfigManager._conf['phi'] = NormalizedTextConfig
-
+    
     nncf.set_log_level(logging.ERROR)
-
+    
     pt_model_id = model_configuration["model_id"]
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-
+    
     core = ov.Core()
-
+    
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -330,72 +329,55 @@ compression.
         ov_model.save_pretrained(fp16_model_dir)
         del ov_model
         gc.collect()
-
-
+    
+    
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
-        int8_model_dir.mkdir(parents=True, exist_ok=True)
-        if fp16_model_dir.exists():
-            model = core.read_model(fp16_model_dir / "openvino_model.xml")
-            shutil.copy(fp16_model_dir / "config.json", int8_model_dir / "config.json")
-        else:
-            ov_model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False, load_in_8bit=False)
-            ov_model.half()
-            ov_model.config.save_pretrained(int8_model_dir)
-            model = ov_model._original_model
-            del ov_model
-            gc.collect()
-
-        compressed_model = nncf.compress_weights(model)
-        ov.save_model(compressed_model, int8_model_dir / "openvino_model.xml")
+        ov_model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False, load_in_8bit=True)
+        ov_model.save_pretrained(int8_model_dir)
         del ov_model
-        del compressed_model
         gc.collect()
-
-
+    
+    
     def convert_to_int4():
         compression_configs = {
             "mistral-7b": {
-                "mode": nncf.CompressWeightsMode.INT4_SYM,
+                "sym": True,
                 "group_size": 64,
                 "ratio": 0.6,
             },
             'red-pajama-3b-instruct': {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.5,
             },
-            "dolly-v2-3b": {"mode": nncf.CompressWeightsMode.INT4_ASYM, "group_size": 32, "ratio": 0.5},
+            "dolly-v2-3b": {
+                "sym": False,
+                "group_size": 32,
+                "ratio": 0.5
+            },
             "default": {
-                "mode": nncf.CompressWeightsMode.INT4_ASYM,
+                "sym": False,
                 "group_size": 128,
                 "ratio": 0.8,
             },
         }
-
+    
         model_compression_params = compression_configs.get(
             model_id.value, compression_configs["default"]
         )
         if (int4_model_dir / "openvino_model.xml").exists():
             return
-        int4_model_dir.mkdir(parents=True, exist_ok=True)
-        if not fp16_model_dir.exists():
-            model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False, load_in_8bit=False).half()
-            model.config.save_pretrained(int4_model_dir)
-            ov_model = model._original_model
-            del model
-            gc.collect()
-        else:
-            ov_model = core.read_model(fp16_model_dir / "openvino_model.xml")
-            shutil.copy(fp16_model_dir / "config.json", int4_model_dir / "config.json")
-        compressed_model = nncf.compress_weights(ov_model, **model_compression_params)
-        ov.save_model(compressed_model, int4_model_dir / "openvino_model.xml")
+        ov_model = OVModelForCausalLM.from_pretrained(
+            pt_model_id, export=True, compile=False,
+            quantization_config=OVWeightQuantizationConfig(bits=4, **model_compression_params)
+        )
+        ov_model.save_pretrained(int4_model_dir)
         del ov_model
-        del compressed_model
         gc.collect()
-
-
+    
+    
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -423,7 +405,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-
+    
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -447,7 +429,7 @@ Select device for inference and model variant
 
 
 
-   **NOTE**: There may be no speedup for INT4/INT8 compressed models on
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
 
 .. code:: ipython3
@@ -459,7 +441,7 @@ Select device for inference and model variant
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -480,14 +462,14 @@ Select device for inference and model variant
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-
+    
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-
+    
     model_to_run
 
 
@@ -502,7 +484,7 @@ Select device for inference and model variant
 .. code:: ipython3
 
     from transformers import AutoTokenizer
-
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -510,12 +492,12 @@ Select device for inference and model variant
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-
+    
     model_name = model_configuration["model_id"]
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-
+    
     tok = AutoTokenizer.from_pretrained(model_name)
-
+    
     ov_model = OVModelForCausalLM.from_pretrained(
         model_dir,
         device=device.value,
@@ -667,19 +649,19 @@ into model with providing additional context.
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer_kwargs = model_configuration.get("toeknizer_kwargs", {})
-
-
+    
+    
     def get_special_token_id(tokenizer: AutoTokenizer, key: str) -> int:
         """
         Gets the token ID for a given string that has been added to the tokenizer as a special token.
-
+    
         Args:
             tokenizer (PreTrainedTokenizer): the tokenizer
             key (str): the key to convert to a single token
-
+    
         Raises:
             RuntimeError: if more than one ID was generated
-
+    
         Returns:
             int: the token ID for the given key
         """
@@ -687,13 +669,13 @@ into model with providing additional context.
         if len(token_ids) > 1:
             raise ValueError(f"Expected only a single token for '{key}' but found {token_ids}")
         return token_ids[0]
-
+    
     response_key = model_configuration.get("response_key")
     tokenizer_response_key = None
-
+    
     if response_key is not None:
         tokenizer_response_key = next((token for token in tokenizer.additional_special_tokens if token.startswith(response_key)), None)
-
+    
     end_key_token_id = None
     if tokenizer_response_key:
         try:
@@ -703,7 +685,7 @@ into model with providing additional context.
             # Ensure generation stops once it generates "### End"
         except ValueError:
             pass
-
+    
     prompt_template = model_configuration.get("prompt_template", "{instruction}")
     end_key_token_id = end_key_token_id or tokenizer.eos_token_id
     pad_token_id = end_key_token_id or tokenizer.pad_token_id
@@ -728,7 +710,7 @@ parameter and returns model response.
     def run_generation(user_text:str, top_p:float, temperature:float, top_k:int, max_new_tokens:int, perf_text:str):
         """
         Text generation function
-
+        
         Parameters:
           user_text (str): User-provided instruction for a generation.
           top_p (float):  Nucleus sampling. If set to < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for a generation.
@@ -740,13 +722,13 @@ parameter and returns model response.
           model_output (str) - model-generated text
           perf_text (str) - updated perf text filed content
         """
-
+        
         # Prepare input prompt according to model expected template
         prompt_text = prompt_template.format(instruction=user_text)
-
+        
         # Tokenize the user text.
         model_inputs = tokenizer(prompt_text, return_tensors="pt", **tokenizer_kwargs)
-
+    
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
         # in the main thread. Adds timeout to the streamer to handle exceptions in the generation thread.
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -763,7 +745,7 @@ parameter and returns model response.
         )
         t = Thread(target=ov_model.generate, kwargs=generate_kwargs)
         t.start()
-
+    
         # Pull the generated text from the streamer, and update the model output.
         model_output = ""
         per_token_time = []
@@ -791,14 +773,14 @@ elements.
     def estimate_latency(current_time:float, current_perf_text:str, new_gen_text:str, per_token_time:List[float], num_tokens:int):
         """
         Helper function for performance estimation
-
+        
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
           new_gen_text (str): New generated text.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
-
+          
         Returns:
           update for performance text field
           update for a total number of tokens
@@ -810,16 +792,16 @@ elements.
             current_bucket = per_token_time[:-10]
             return f"Average generation speed: {np.mean(current_bucket):.2f} tokens/s. Total generated tokens: {num_tokens}", num_tokens
         return current_perf_text, num_tokens
-
+    
     def reset_textbox(instruction:str, response:str, perf:str):
         """
         Helper function for resetting content of all text fields
-
+        
         Parameters:
           instruction (str): Content of user instruction field.
           response (str): Content of model response field.
           perf (str): Content of performance info filed
-
+        
         Returns:
           empty string for each placeholder
         """
@@ -862,15 +844,15 @@ generation parameters:
         "Write instructions on how to become a good AI engineer",
         "Write a love letter to my best friend",
     ]
-
-
-
+    
+    
+    
     with gr.Blocks() as demo:
         gr.Markdown(
             "# Question Answering with " + model_id.value + " and OpenVINO.\n"
             "Provide instruction which describes a task below or select among predefined examples and model writes response that performs requested task."
         )
-
+    
         with gr.Row():
             with gr.Column(scale=4):
                 user_text = gr.Textbox(
@@ -896,18 +878,18 @@ generation parameters:
                 temperature = gr.Slider(
                     minimum=0.1, maximum=5.0, value=0.8, step=0.1, interactive=True, label="Temperature",
                 )
-
+    
         user_text.submit(run_generation, [user_text, top_p, temperature, top_k, max_new_tokens, performance], [model_output, performance])
         button_submit.click(run_generation, [user_text, top_p, temperature, top_k, max_new_tokens, performance], [model_output, performance])
         button_clear.click(reset_textbox, [user_text, model_output, performance], [user_text, model_output, performance])
-
+    
     if __name__ == "__main__":
         demo.queue()
         try:
             demo.launch(height=800)
         except Exception:
             demo.launch(share=True, height=800)
-
+    
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
