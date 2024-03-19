@@ -2,6 +2,7 @@ const core = require('@actions/core')
 const { log, error } = require('console')
 const fs = require('fs')
 const path = require('path')
+const tar = require('tar')
 
 const { getSortedCacheFiles } = require('./cache')
 
