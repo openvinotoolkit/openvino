@@ -1189,7 +1189,7 @@ def test_read_value():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2, 2]
     assert node.get_output_element_type(0) == Type.i32
-    assert read_value_attributes["variable_type"] == 'i32'
+    assert read_value_attributes["variable_type"] == "i32"
     assert read_value_attributes["variable_id"] == "var_id_667"
     assert read_value_attributes["variable_shape"] == [2, 2]
 
@@ -2360,8 +2360,9 @@ def test_topk_opset11():
     assert list(node.get_output_shape(0)) == [1, 3, 3]
     assert list(node.get_output_shape(1)) == [1, 3, 3]
 
-def test_parameter():
+
+def test_parameter_get_attributes():
     parameter = ov.parameter([2, 2], dtype=np.float32, name="InputData")
     parameter_attributes = parameter.get_attributes()
-    assert parameter_attributes["element_type"] == 'f32'
+    assert parameter_attributes["element_type"] == "f32"
     assert parameter_attributes["shape"] == [2, 2]
