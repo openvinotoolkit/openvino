@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -671,7 +671,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_IEClassGetMetricTest,
 
 using OVGetMetricPropsTest_CACHING_PROPERTIES = OVClassBaseTestP;
 TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, GetMetricAndPrintNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::vector<ov::PropertyName> caching_properties = {};
     const std::vector<ov::PropertyName> expected_properties = {
         ov::device::architecture.name(),

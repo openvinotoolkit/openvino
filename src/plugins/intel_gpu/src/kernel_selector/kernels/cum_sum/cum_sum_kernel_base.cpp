@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -98,7 +98,7 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params) const {
                      "", false, false, 1,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }

@@ -1,15 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-
 #include <openvino/core/model.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
-#include "openvino/op/op.hpp"
+
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/op.hpp"
+#include "snippets/generator.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/pass/manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/lowered/pass/pass.hpp"

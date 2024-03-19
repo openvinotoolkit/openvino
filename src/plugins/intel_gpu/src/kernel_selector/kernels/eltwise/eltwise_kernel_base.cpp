@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -757,7 +757,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params) const 
 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    bool is_dynamic = newParams.has_dynamic_tensors();
+    bool is_dynamic = newParams.is_shape_agnostic;
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,

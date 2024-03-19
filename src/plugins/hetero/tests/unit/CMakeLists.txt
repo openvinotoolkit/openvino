@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,6 @@ ov_add_test_target(
             ${OBJ_LIB}
         LINK_LIBRARIES
             unit_test_utils
-            ov_models
         DEPENDENCIES
             mock_engine
         ADD_CLANG_FORMAT

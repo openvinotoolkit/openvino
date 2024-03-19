@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ KernelsData ShapeOfKernelRef::GetKernelsData(const Params &params) const {
     GetUpdateDispatchDataFunc(kernel_data);
 
     FillCLKernelData(clKernelData, dispatch_data, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT,
-                     false, false, 0, 0, 1, derived_params.inputs[0].is_dynamic());
+                     false, false, 0, 0, 1, derived_params.is_shape_agnostic);
     return kernels_data;
 }
 

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -30,7 +30,6 @@ function(add_common_utils ADD_TARGET_NAME)
                     gtest
                     gtest_main
                     gmock
-                    ov_models
                     openvino::runtime
                     openvino::runtime::dev
                 PRIVATE

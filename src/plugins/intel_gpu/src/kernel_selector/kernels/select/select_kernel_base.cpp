@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ KernelsData SelectKernelBase::GetCommonKernelsData(const Params& params) const {
                      (uint32_t)newParams.inputs.size(),
                      0,
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }
