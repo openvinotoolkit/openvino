@@ -31,7 +31,7 @@ class TestUnique2(PytorchLayerTest):
         return model_class(sorted, return_inverse, return_counts), ref_net, op
 
     @pytest.mark.parametrize("input_shape", [
-        [4], [2, 3], [5, 4, 6], [3, 7, 1, 4]
+        [4], [2, 3], [5, 4, 6], [3, 7, 1, 4], [16, 3, 32, 32]
     ])
     @pytest.mark.parametrize("sorted", [False, True])
     @pytest.mark.parametrize("return_inverse", [False, True])
@@ -40,5 +40,5 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     def test_unique2(self, input_shape, sorted, return_inverse, return_counts, ie_device, precision, ir_version):
-        self.input_tensor = np.random.randn(*input_shape).astype(np.float32)
+        self.input_tensor = np.random.randint(0, 10, size=input_shape).astype(np.int32)
         self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version)

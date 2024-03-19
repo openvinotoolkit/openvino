@@ -21,7 +21,7 @@ OutputVector translate_unique2(const NodeContext& context) {
     // Tuple[Tensor, Tensor, Tensor]
     num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    auto const_empty = v0::Constant::create(element::i64, Shape{}, {0});
+    auto const_empty = std::make_shared<v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
 
     bool sorted = true;
     bool return_inverse = false;
