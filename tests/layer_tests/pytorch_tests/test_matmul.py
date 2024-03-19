@@ -12,24 +12,24 @@ class TestMatMulOperation(PytorchLayerTest):
     def create_model(self, matrix, vector):
         class CustomMatMulOperation(torch.nn.Module):
             def forward(self, matrix, vector):
-                return torch.matmul(matrix, vector)
+                return torch.mv(matrix, vector)  
 
         model_class = CustomMatMulOperation()
         ref_net = None
-        return model_class, ref_net, "aten::mm"
+        return model_class, ref_net, "aten::mv"  
 
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.parametrize("matrix, vector, dtype, device", [
         (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64, 'cpu'),
         (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32, 'cpu'),
-        # Add more test cases as needed
+        
     ])
     def test_matmul_operation(self, matrix, vector, dtype, device, ie_device, precision, ir_version):
         matrix_input = torch.tensor(matrix, dtype=torch.float32)
         vector_input = torch.tensor(vector, dtype=torch.float32)
 
-        # Convert tensors to the specified dtype and device
+        
         matrix_input = matrix_input.to(dtype=dtype, device=device)
         vector_input = vector_input.to(dtype=dtype, device=device)
 
