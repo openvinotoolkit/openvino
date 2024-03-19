@@ -109,14 +109,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CPU_Large, PoolingLayerCPUTest,
                             ::testing::Values(emptyFusingSpec)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-const std::vector<maxPoolV8SpecificParams> paramsMaxV85D_ref = {
-        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
+const std::vector<maxPoolSpecificParams> paramsMaxV85D_ref = {
+        maxPoolSpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::SAME_UPPER },
-        maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
+        maxPoolSpecificParams{ {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, {1, 1, 1},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
-        maxPoolV8SpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
+        maxPoolSpecificParams{ {2, 3, 4}, {2, 2, 2}, {2, 1, 1}, {1, 1, 1}, {1, 2, 2},
                                                         ov::element::Type_t::i32, 0,
                                                         ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
 };
