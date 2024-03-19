@@ -96,6 +96,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.new_full.default": None,
             "torch.ops.aten.neg.default": None,
             "torch.ops.aten.new_ones.default": None,
+            "torch.ops.aten.ones.default": None,
             "torch.ops.aten.ones_like.default": None,
             "torch.ops.aten.permute.default": None,
             "torch.ops.aten.pow.Tensor_Scalar": None,
