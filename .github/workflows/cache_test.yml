@@ -1,4 +1,4 @@
-name: Linux (Ubuntu 20.04, Python 3.11)
+name: Test Cache WF
 on:
   workflow_dispatch:
   pull_request:
