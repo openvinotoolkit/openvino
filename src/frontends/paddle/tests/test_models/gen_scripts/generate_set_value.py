@@ -169,7 +169,10 @@ def main():
     steps = generate_data([1], np.int64)
 
     def set_value8(x, value, *slice):
-        x[build_slice(*slice)] = value
+        if paddle.__version__ < "2.6.0":
+            x[build_slice(*slice)] = value
+        else:
+            x = paddle.static.setitem(x, build_slice(*slice), value)
         return x
 
     paddle_set_value("set_value8", data, value, set_value8, dtype, starts, ends, steps)

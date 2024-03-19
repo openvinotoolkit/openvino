@@ -103,7 +103,7 @@ NamedOutputs set_value(const NodeContext& node) {
 
     // get positive starts ends and steps
     if (node.has_input("StartsTensorList")) {
-        starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
+        starts = get_tensor_list(node.get_ng_inputs("StartsTensorList"));
     } else if (node.has_attribute("starts")) {
         auto start_vec = node.get_attribute<std::vector<int64_t>>("starts");
         if (is_contain_minus(start_vec)) {
@@ -114,7 +114,7 @@ NamedOutputs set_value(const NodeContext& node) {
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     if (node.has_input("EndsTensorList")) {
-        ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
+        ends = get_tensor_list(node.get_ng_inputs("EndsTensorList"));
     } else if (node.has_attribute("ends")) {
         auto ends_vec = node.get_attribute<std::vector<int64_t>>("ends");
         if (is_contain_minus(ends_vec)) {
@@ -125,7 +125,7 @@ NamedOutputs set_value(const NodeContext& node) {
         PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     if (node.has_input("StepsTensorList")) {
-        steps = handle_minus_index(node.get_ng_inputs("StepsTensorList"), spec_dim_node);
+        steps = get_tensor_list(node.get_ng_inputs("StepsTensorList"));
     } else if (node.has_attribute("steps")) {
         auto step_vec = node.get_attribute<std::vector<int64_t>>("steps");
         if (is_contain_minus(step_vec)) {
