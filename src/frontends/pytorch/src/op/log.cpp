@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,9 +85,9 @@ OutputVector translate_logsumexp(const NodeContext& context) {
 OutputVector translate_log1p(const NodeContext& context) {
     // torch.log1p returns a tensor with the natural logarithm of the elements of input + 1.
     num_inputs_check(context, 1, 2);
-    auto x = context.get_input(0);
+    auto x = get_input_with_floating_type(context, 0);
     auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}))->output(0);
-    align_eltwise_input_types(context, x, one);
+    one = context.mark_node(std::make_shared<v1::ConvertLike>(one, x));
     auto x_plus_one = context.mark_node(std::make_shared<v1::Add>(x, one));
     auto log = context.mark_node(std::make_shared<v0::Log>(x_plus_one));
     return {log};

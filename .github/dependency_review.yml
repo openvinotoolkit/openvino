@@ -16,3 +16,6 @@ fail-on-scopes:
   - 'unknown'
 license-check: true
 vulnerability-check: true
+allow-dependencies-licenses:
+  - 'pkg:pypi/PyGithub@2.2.0'
+  - 'pkg:pypi/psycopg2-binary'

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -373,7 +373,10 @@ static std::string get_value(const std::shared_ptr<ov::op::v0::Constant>& consta
     case ov::element::Type_t::undefined:
     case ov::element::Type_t::dynamic:
     case ov::element::Type_t::u1:
+    case ov::element::Type_t::u2:
+    case ov::element::Type_t::u3:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::u6:
     case ov::element::Type_t::nf4:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::f8e4m3:
