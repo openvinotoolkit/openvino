@@ -37,7 +37,7 @@ public:
         std::tie(m_property_name, m_throw_exception) = this->GetParam();
         m_plugin =
             std::shared_ptr<NiceMock<MockAutoBatchInferencePlugin>>(new NiceMock<MockAutoBatchInferencePlugin>());
-
+        ON_CALL(*m_plugin, get_property(StrEq("PERF_COUNT"), _)).WillByDefault(Return(true));
         ON_CALL(*m_plugin, get_property).WillByDefault([this](const std::string& name, const ov::AnyMap& arguments) {
             return m_plugin->Plugin::get_property(name, arguments);
         });
