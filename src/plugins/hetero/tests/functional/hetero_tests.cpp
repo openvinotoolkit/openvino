@@ -571,8 +571,8 @@ public:
                              ? properties.at(ov::device::id.name()).as<std::string>()
                              : m_default_device_id;
         float query_model_ratio = properties.count(ov::query_model_ratio.name())
-                             ? properties.at(ov::query_model_ratio.name()).as<float>()
-                             : 1.0f;
+                                      ? properties.at(ov::query_model_ratio.name()).as<float>()
+                                      : 1.0f;
         auto supported = ov::get_supported_nodes(
             model,
             [&](std::shared_ptr<ov::Model>& model) {
