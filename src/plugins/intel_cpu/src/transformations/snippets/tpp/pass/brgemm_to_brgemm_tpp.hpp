@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface BrgemmToBrgemmTPP
- * @brief The converts Snippets Brgemm to BrgemmTPP operation, if possible. Only fp32 Brgemms are currently converted.
+ * @brief Converts Snippets Brgemm to BrgemmTPP operation, if possible. Only fp32 Brgemms are currently converted.
  * @ingroup snippets
  */
 class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {

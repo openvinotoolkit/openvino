@@ -432,7 +432,6 @@ void Subgraph::control_flow_transformations(lowered::LinearIR& linear_ir,
 
     lowered::pass::PassPipeline pipeline(lowered_pass_config);
     pipeline.register_pass<lowered::pass::MarkLoops>(vector_size);
-    // If TPP is disabled then Reduce ops are handled through decomposition
     pipeline.register_pass<lowered::pass::ReduceDecomposition>(vector_size);
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();

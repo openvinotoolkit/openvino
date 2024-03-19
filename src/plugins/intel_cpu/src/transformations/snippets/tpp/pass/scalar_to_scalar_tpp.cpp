@@ -34,6 +34,8 @@ ScalarToScalarTPP::ScalarToScalarTPP() {
         }
         if (num_connected_tpp == 0)
             return false;
+        // Note: If needed, we can support cases when scalar has TPP and non-TPP consumers if we copy the scalar.
+        // However, this is rarely needed in practice and the assert is here to flag invalid configurations.
         OPENVINO_ASSERT(num_connected_tpp == target_ins.size(), "Either all or none Scalar outputs should be TPP");
 
         const auto& tpp_scalar = std::make_shared<tpp::op::Scalar>(*node);

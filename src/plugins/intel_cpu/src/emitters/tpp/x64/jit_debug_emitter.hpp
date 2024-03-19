@@ -34,7 +34,8 @@ protected:
         OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
                                   "Unable to execute unary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
-        std::cout << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
+        std::cout << "Running unary DebugTPPEmitter for node with name "
+                  << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*)>(emitter->m_execute_function);
         f(emitter->m_compiled_kernel, in0, out0);
     }
@@ -43,7 +44,8 @@ protected:
         OV_CPU_JIT_EMITTER_ASSERT(emitter && emitter->m_execute_function && emitter->m_compiled_kernel,
                                   "Unable to execute binary kernel");
         // Note: put a breakpoint here and analyze all the necessary debug info in runtime
-        std::cout << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
+        std::cout << "Running binary DebugTPPEmitter for node with name "
+                  << emitter->m_source_expr->get_node()->get_friendly_name() << std::endl;
         auto f = reinterpret_cast<void(*)(uintptr_t, void*, void*, void*)>(emitter->m_execute_function);
         f(emitter->m_compiled_kernel, in0, in1, out0);
     }

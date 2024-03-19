@@ -105,7 +105,7 @@ void BrgemmTppEmitter::execute_brgemm_kernel(libxsmm_gemmfunction brg_kernel, vo
     gemm_p.a.primary = in1;
     gemm_p.b.primary = in0;
     gemm_p.c.primary = out0;
-    assert(brg_kernel);
+    OV_CPU_JIT_EMITTER_ASSERT(brg_kernel, "Invalid brgemm kernel pointer");
     brg_kernel(&gemm_p);
 }
 
