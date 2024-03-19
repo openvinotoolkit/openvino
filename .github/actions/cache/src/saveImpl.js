@@ -23,7 +23,7 @@ async function save() {
       return
     }
 
-    var tarName = `${key}.tgz`
+    var tarName = `${key}.cache`
     var tarPath = path.join(cachePath, tarName)
 
     tar.c(
@@ -36,7 +36,7 @@ async function save() {
       ['.']
     )
 
-    fs.copyFileSync(`${key}.tgz`, tarPath)
+    fs.copyFileSync(tarName, tarPath)
     log(`${tarName} was copied to ${tarPath}`)
     core.setOutput('cache-file', tarName)
     core.setOutput('cache-hit', true)
