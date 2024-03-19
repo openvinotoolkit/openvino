@@ -1976,6 +1976,7 @@ struct resample_opt_random_test_params {
     format::type out_format;
     std::vector<size_t> pads_begin;
     std::vector<size_t> pads_end;
+    resample::InterpolateOp::CoordinateTransformMode coordinate_transformation_mode;
 };
 
 struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_test_params>
@@ -2082,6 +2083,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         auto prim = resample("resample", input_info("in"), params.output_size, params.num_filter, params.operation_type);
         prim.pads_begin = params.pads_begin;
         prim.pads_end = params.pads_end;
+        prim.coord_trans_mode = params.coordinate_transformation_mode;
         topo.add(prim);
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -2100,6 +2102,7 @@ struct resample_opt_random_test : testing::TestWithParam<resample_opt_random_tes
         auto prim_opt = resample("resample_opt", input_info("in_to_input_type"), params.output_size, params.num_filter, params.operation_type);
         prim_opt.pads_begin = params.pads_begin;
         prim_opt.pads_end = params.pads_end;
+        prim_opt.coord_trans_mode = params.coordinate_transformation_mode;
         topo_opt.add(prim_opt);
         topo_opt.add(reorder("res_to_bfyx", input_info("resample_opt"), origin_format, params.input_type));
 
@@ -2217,32 +2220,54 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_nearest,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
-                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
-                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
-                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
-                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
-                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
-                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
-                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_resample_opt_smoke_nearest_half_pixel,
+    resample_opt_random_test,
+    testing::ValuesIn(
+      std::vector<resample_opt_random_test_params>{
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::i8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::u8,  {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::HALF_PIXEL},
+      }));
 
 INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_padding,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 1, 1}, {0, 0, 1, 1}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 0, 0}, {0, 0, 1, 1}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {0, 0, 1, 1}, {0, 0, 0, 0}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2250,11 +2275,11 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_4d_simple,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 13, 13},  {1, 128, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2262,20 +2287,20 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_5d_nearest,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13}, {1, 16, 26, 26, 26}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2283,19 +2308,19 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_5d_onnx,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                 { data_types::f16, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                 { data_types::f32, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                 { data_types::f16, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
-                                 { data_types::f32, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
-                                 { data_types::f16, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
-                                 { data_types::f32, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                 { data_types::f16, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::f32, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::f16, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::f32, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::f16, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::f32, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                 { data_types::i8, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                 { data_types::u8, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                 { data_types::i8, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                 { data_types::u8, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                 { data_types::i8, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
-                                 { data_types::u8, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                 { data_types::i8, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::u8, {1, 16, 13, 13, 5}, {1, 16, 26, 26, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::i8, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::u8, {16, 16, 7, 7, 5}, {16, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::i8, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                 { data_types::u8, {32, 16, 7, 7, 5}, {32, 16, 14, 14, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2304,22 +2329,22 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_perf_linear_5_onnx,
                          resample_opt_random_test_ext,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f32, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f16, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
-                                { data_types::f32, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}},
-                                { data_types::f16, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
-                                { data_types::f32, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
+                                { data_types::f16, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f32, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f32, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv16, format::bs_fs_zyx_bsv16_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f32, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::i8, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                { data_types::u8, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}},
-                                { data_types::i8, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                { data_types::u8, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}},
-                                { data_types::i8, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
-                                { data_types::u8, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}},
+                                { data_types::i8, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {1, 32, 64, 64, 5}, {1, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {16, 32, 64, 64, 5}, {16, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv16_fsv32, format::bs_fs_zyx_bsv16_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::i8, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::u8, {32, 32, 64, 64, 5}, {32, 32, 128, 128, 5},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
 
-                                { data_types::f16, {32, 32, 256, 256, 1}, {32, 32, 512, 512, 1}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}},
-                                { data_types::f16, {1, 32, 64, 64, 32}, {1, 32, 128, 128, 32}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {32, 32, 256, 256, 1}, {32, 32, 512, 512, 1}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 32, 64, 64, 32}, {1, 32, 128, 128, 32}, 1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2327,18 +2352,18 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_perf_linear_5_nearest,
                          resample_opt_random_test_ext,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 128, 16, 16, 16}, {1, 128, 32, 32, 32}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 32, 32, 32}, {1, 128, 64, 64, 64}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f16, {1, 128, 64, 64, 64}, {1, 128, 128, 128, 128}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
+                                { data_types::f16, {1, 128, 16, 16, 16}, {1, 128, 32, 32, 32}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 32, 32, 32}, {1, 128, 64, 64, 64}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 128, 64, 64, 64}, {1, 128, 128, 128, 128}, 1, resample::InterpolateOp::InterpolateMode::NEAREST, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_padding,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {0, 0, 1, 1, 1}, {0, 0, 1, 1, 1}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {0, 0, 0, 0, 0}, {0, 0, 1, 1, 1}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {0, 0, 1, 1, 1}, {0, 0, 0, 0, 0}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
@@ -2346,11 +2371,11 @@ INSTANTIATE_TEST_SUITE_P(resample_opt_smoke_linear_onnx_5d_3axes_simple,
                          resample_opt_random_test,
                          testing::ValuesIn(
                             std::vector<resample_opt_random_test_params>{
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}},
-                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
+                                { data_types::f16, {1, 16, 13, 13, 13},  {1, 16, 26, 26, 26},  1, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, 1, format::b_fs_yx_fsv16, format::b_fs_yx_fsv32, {}, {}, resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC},
                             }
                         ));
 
