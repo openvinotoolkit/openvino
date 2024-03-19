@@ -363,16 +363,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-            if (hasHardwareSupport(ov::element::f16)) {
-                //fp16 precision is used as default precision on ARM for non-convolution networks
-                //fp16 ACL convolution is slower than fp32
-                if (modelType != ModelType::CNN)
-                    inferencePrecision = ov::element::f16;
-            }
-#endif
+#if defined(OV_CPU_ARM_ENABLE_FP16)
+            inferencePrecision = ov::element::f16;
+#else
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
+#endif
         } else {
             inferencePrecision = ov::element::f32;
         }
