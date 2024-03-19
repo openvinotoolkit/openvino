@@ -34,16 +34,16 @@ jobs:
         run: |
           mkdir -p /__w/tmp/test_cache
           echo test > /__w/tmp/test_cache/file.txt
-          mkdir -p mount/gha_test_cache
+          mkdir -p /mount/gha_test_cache
           pushd /__w/tmp/test_cache
-            tar -czvf mount/gha_test_cache/test_cache_$(date '+%Y%m%d%S').cache *
+            tar -czvf /mount/gha_test_cache/test_cache_$(date '+%Y%m%d%S').cache *
           popd
 
       - name: Test Local Action
         id: test-action
         uses: ./openvino/.github/actions/cache
         with:
-          cache_path: mount/gha_test_cache
+          cache_path: /mount/gha_test_cache
           path: /__w/cache
           key: "test"
 
