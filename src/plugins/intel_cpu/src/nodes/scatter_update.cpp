@@ -348,20 +348,25 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
 }
 
 struct TensorIterator {
-    TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis) : m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis) {
+    TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis, const size_t start, const size_t end) : 
+            m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis),
+            m_start(start), m_end(end) {
         OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
+        m_rank = m_squashed_shape.size();
     };
 
-    std::array<size_t, 2> startover(const size_t start, const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
+    std::array<size_t, 2> startover(const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
         m_tensorIter.resize(m_squashed_shape.size(), 0);
-        getCoordinate(m_tensorIter, start, m_squashed_shape);
+        getCoordinate(m_tensorIter, m_start, m_squashed_shape);
+
+        m_offset = 0;
 
         size_t i, dst_idx = 0, indices_idx = 0;
         for (i = 0; i < static_cast<size_t>(m_squashed_axis); ++i) {
             dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
             indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
         }
-        for (i++; i < m_squashed_shape.size(); ++i) {
+        for (i++; i < m_rank; ++i) {
             dst_idx += m_tensorIter[i] * dataBlockND[i + 1];
             indices_idx += m_tensorIter[i] * indicesBlockND[i + 1];
         }
@@ -369,8 +374,13 @@ struct TensorIterator {
         return {dst_idx, indices_idx};
     }
 
+    // increase m_step at the last dimemsion
     void increment(std::array<size_t, 2>& offsets, const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
-        for (int64_t j = m_squashed_shape.size() - 1; j >= 0; j--) {
+        m_tensorIter[m_rank - 1] += m_step;
+        offsets[0] += m_step*dataBlockND[0];
+        offsets[1] += m_step*indicesBlockND[0];
+
+        for (int64_t j = m_rank - 1; j >= 0; j--) {
             m_tensorIter[j]++;
             if (m_tensorIter[j] < m_squashed_shape[j]) { // no need check if (j != axis) as it is squashed
                 offsets[0] += dataBlockND[j + 1];
@@ -382,11 +392,24 @@ struct TensorIterator {
                 offsets[1] += indicesBlockND[j];
             }
         }
+
+        m_offset += m_step;
     }
 
+    int64_t max_step() {
+        auto last_dim = m_rank - 1;
+        m_step = std::min(m_squashed_shape[last_dim] - m_tensorIter[last_dim], m_end - m_offset);
+        OPENVINO_ASSERT(m_step > 0);
+        return m_step;
+    }
+
+private:
     VectorDims m_tensorIter;
     const VectorDims m_squashed_shape;
     const size_t m_squashed_axis;
+    const size_t m_start, m_end;
+    size_t m_offset = 0, m_step = 1;
+    size_t m_rank;
 };
 
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
@@ -422,47 +445,55 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        TensorIterator tensorItr(squashed_indices_shape, axis);
+        TensorIterator tensorItr(squashed_indices_shape, axis, start, end);
 
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.
         if (!use_init_val) {
             const auto value = reduction_neutral_value<DataType>(reduction_type);
-            auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
-            for (size_t worker = start; worker < end; worker++) {
-                auto indices_offset = offsets[1];
-                for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    IndexType idxValue = *(indicesPtr + indices_offset);
-                    if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
-                    *dst = value;
-                    indices_offset += indicesBlockND[axis + 1];
+            auto offsets = tensorItr.startover(dataBlockND, indicesBlockND);
+            auto max_step = tensorItr.max_step();
+            for (size_t worker = start; worker < end; worker+=max_step) {
+                for (int64_t i = 0; i < max_step; i++) {
+                    auto indices_offset = offsets[1] + i * indicesBlockND[0];
+                    for (size_t idx = 0; idx < index_dim_size; idx++) {
+                        IndexType idxValue = *(indicesPtr + indices_offset);
+                        if (idxValue < 0) idxValue += data_dim_size;
+                        ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                        auto dst = dataPtr + (offsets[0] + i * dataBlockND[0] + idxValue * dataBlockND[axis + 1]);
+                        *dst = value;
+                        indices_offset += indicesBlockND[axis + 1];
+                    }
                 }
 
                 // increment
                 tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+                max_step = tensorItr.max_step();
             }
         }
 
         // Apply the Reduce function in an element-wise fashion. For better performance,
         // when axis is the last dimension, we iterate along axis in the inner loop; otherwise we iterate axis
         // in the outer loop.
-        auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
+        auto offsets = tensorItr.startover(dataBlockND, indicesBlockND);
         if (axis == static_cast<int>(updates_rank - 1)) {
+            auto max_step = tensorItr.max_step();
             for (size_t worker = start; worker < end; worker++) {
-                auto indices_offset = offsets[1];
-                for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    IndexType idxValue = *(indicesPtr + indices_offset);
-                    if (idxValue < 0) idxValue += data_dim_size;
-                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_offset;
-                    kernel_func(dst, src);
-                    indices_offset += indicesBlockND[axis + 1];
+                for (int64_t i = 0; i < max_step; i++) {
+                    auto indices_offset = offsets[1] + i * indicesBlockND[0];
+                    for (size_t idx = 0; idx < index_dim_size; idx++) {
+                        IndexType idxValue = *(indicesPtr + indices_offset);
+                        if (idxValue < 0) idxValue += data_dim_size;
+                        ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                        auto dst = dataPtr + (offsets[0] + i * dataBlockND[0] + idxValue * dataBlockND[axis + 1]);
+                        auto src = updatePtr + indices_offset;
+                        kernel_func(dst, src);
+                        indices_offset += indicesBlockND[axis + 1];
+                    }
                 }
                 // increment
                 tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+                max_step = tensorItr.max_step();
             }
         } else {
             // For better performance, the offsets of dst and indices are cached in the first iteration of outer loop, and reused
