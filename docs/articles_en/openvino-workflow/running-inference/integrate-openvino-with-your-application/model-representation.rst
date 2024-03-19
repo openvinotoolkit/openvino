@@ -36,6 +36,11 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
   additional mapping of names from framework to OpenVINO as it was before. OpenVINO Runtime allows the usage of native framework
   tensor names, for example:
 
+.. warning::
+
+   The following example retrives input/output using the name `index`, which is optional. Some
+   outputs may not have names, so use explicit names and indices if required.
+
 .. tab-set::
 
    .. tab-item:: Python
