@@ -30,6 +30,15 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
 
+      - name: Test preconditions
+        run: |
+          mkdir -p /tmp/test_cache
+          echo test > /tmp/test_cache/file.txt
+          mkdir -p mount/gha_test_cache
+          pushd /tmp/test_cache
+            tar -czvf mount/gha_test_cache/test_cache_$(date '+%Y%m%d%S').cache *
+          popd
+
       - name: Test Local Action
         id: test-action
         uses: ./openvino/.github/actions/cache
