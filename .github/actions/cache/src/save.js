@@ -1,3 +1,3 @@
-const { run } = require('./saveImpl')
+const { save } = require('./saveImpl')
 
 save()
