@@ -38,6 +38,7 @@ jobs:
           pushd /__w/tmp/test_cache
             tar -czvf /mount/gha_test_cache/test_cache_$(date '+%Y%m%d%S').cache *
           popd
+          ls -la /mount/gha_test_cache
 
       - name: Test Local Action
         id: test-action
@@ -48,4 +49,6 @@ jobs:
           key: "test"
 
       - name: Print Output
-        run: echo "${{ steps.test-action.outputs.cache-file }}"
+        run: |
+          ls -la /__w/cache
+          echo "${{ steps.test-action.outputs.cache-file }}"
