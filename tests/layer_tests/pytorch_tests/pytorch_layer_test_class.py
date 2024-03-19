@@ -13,6 +13,7 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 from openvino.frontend import FrontEndManager
 from openvino.runtime import Core, Type, PartialShape
+import openvino.properties.hint as hints
 import torch
 from packaging import version
 import openvino.torch
@@ -140,7 +141,7 @@ class PytorchLayerTest:
             core = Core()
             config = {}
             if ie_device == "GPU" and precision == "FP32":
-                config["INFERENCE_PRECISION_HINT"] = Type.f32
+                config[hints.inference_precision] = Type.f32
             compiled = core.compile_model(converted_model, ie_device, config)
             infer_res = compiled(deepcopy(ov_inputs))
 
