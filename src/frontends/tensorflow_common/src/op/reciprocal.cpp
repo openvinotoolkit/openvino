@@ -43,9 +43,10 @@ OutputVector translate_reciprocal_op(const NodeContext& node) {
         auto complex_reciprocal = make_shared<v1::Divide>(
             make_shared<v0::Concat>(OutputVector{x_real, make_shared<ov::op::v0::Negative>(x_imag)}, -1),
             squared_norm);
-
+        auto complex_result =
+            make_shared<ComplexTypeMark>(complex_reciprocal, complex_type_mark_x->get_complex_part_type());
         set_node_name(node.get_name(), complex_reciprocal);
-        return {complex_reciprocal};
+        return {complex_result};
     }
 
     // For real numbers, computes element-wise 1/x, where x - input
