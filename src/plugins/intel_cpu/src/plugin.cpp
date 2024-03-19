@@ -411,11 +411,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return core_type;
     } else if (name == ov::hint::model_distribution_policy) {
         std::string policy_str = "";
-        if (engConfig.modelDistributionPolicy.size() > 1) {
+        if (engConfig.modelDistributionPolicy.size() > 0) {
             std::stringstream str_stream;
             for (auto& row : engConfig.modelDistributionPolicy) {
                 str_stream << row;
-                policy_str += str_stream.str() + ", ";
+                policy_str = str_stream.str() + ", " + policy_str;
                 str_stream.str("");
             }
             policy_str.erase(policy_str.length() - 2);

@@ -250,8 +250,17 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
         const auto stream_mode = config.schedulingCoreType;
         return stream_mode;
     } else if (name == ov::hint::model_distribution_policy) {
-        const auto model_policy = config.modelDistributionPolicy;
-        return model_policy;
+        std::string policy_str = "";
+        if (config.modelDistributionPolicy.size() > 0) {
+            std::stringstream str_stream;
+            for (auto& row : config.modelDistributionPolicy) {
+                str_stream << row;
+                policy_str = str_stream.str() + ", " + policy_str;
+                str_stream.str("");
+            }
+            policy_str.erase(policy_str.length() - 2);
+        }
+        return policy_str;
     } else if (name == ov::hint::enable_hyper_threading.name()) {
         const bool use_ht = config.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(use_ht);
