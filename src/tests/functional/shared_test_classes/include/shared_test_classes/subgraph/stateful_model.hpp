@@ -646,10 +646,11 @@ public:
 
         auto body_result_1 = std::make_shared<ov::op::v0::Result>(body_add_2);
         auto body_assign = std::make_shared<ov::op::v6::Assign>(body_result_1, inner_variable);
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
 
-        auto body = std::make_shared<ov::Model>(OutputVector{body_result_1, body_assign},
-                                                SinkVector {body_assign},
-                                                ParameterVector{body_param_1, body_param_2});
+        auto body = std::make_shared<ov::Model>(OutputVector{body_condition, body_result_1},
+                                                                SinkVector {body_assign},
+                                                                ParameterVector{body_param_1, body_param_2});
 
         // Outer Model:
 
@@ -666,13 +667,15 @@ public:
 
         auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         loop->set_invariant_input(body_param_1, outer_param);
         loop->set_invariant_input(body_param_2, outer_read);
+        loop->get_iter_value(body_result_1, -1);
+        loop->validate_and_infer_types();
 
         auto outer_result = std::make_shared<ov::op::v0::Result>(loop->output(0));
-
-        auto const_to_add = std::make_shared<ov::op::v0::Constant>(loop->output(0).get_element_type(), Shape{1}, 1);
+        auto const_to_add = std::make_shared<ov::op::v0::Constant>(netPrc, Shape{1}, 1);
         auto outer_add = std::make_shared<ov::op::v1::Add>(loop->output(0), const_to_add);
         auto outer_assign = std::make_shared<ov::op::v6::Assign>(outer_add, outer_variable);
 
@@ -720,16 +723,15 @@ public:
         init_data[0] = 1;
         model_states.front().set_state(init_tensor);
 
-        auto& input_vals = get_inputs();
-
+        const auto& input_vals = get_inputs();
         for (auto&& shapes : targetStaticShapes) {
             inputs.clear();
-            auto &input_shape = shapes.front();
+            const auto &input_shape = shapes.front();
             const auto& funcInputs = function->inputs();
             for (auto&& funcInput : funcInputs) {
                 auto tensor = ov::Tensor{testPrc, input_shape};
                 auto input_data = tensor.data<ov::element_type_traits<testPrc>::value_type>();
-                for (size_t i = 0; i < input_shape[1]; ++i) {
+                for (size_t i = 0; i < input_shape[0]; ++i) {
                     input_data[i] = input_vals[i];
                 }
                 inputs.insert({funcInput.get_node_shared_ptr(), tensor});
@@ -743,12 +745,9 @@ public:
 
             inferRequest.infer();
             auto result1 = calc_refs(input_vals, state_values);
-
-            ASSERT_EQ(result1.size(), outputTensor1.get_shape()[1]);
+            ASSERT_EQ(result1.size(), outputTensor1.get_shape()[0]);
 
             auto actual_res1 = outputTensor1.data<ov::element_type_traits<testPrc>::value_type>();
-
-
             float_compare(result1.data(), actual_res1, result1.size());
 
             auto states = inferRequest.query_state();
@@ -827,7 +826,7 @@ TEST_P(StatefulModelStateInLoopBody, smoke_Run_StatefulModelStateInLoopBody) {
 //              │ Assign1│
 //              └────────┘
 
-class StatefulModelMixedStates : public StatefulModelTest {
+class StatefulModelMixedStatesInLoop : public StatefulModelTest {
 public:
     void SetUp() override {
         targetDevice = GetParam();
@@ -854,8 +853,9 @@ public:
 
         auto body_result_1 = std::make_shared<ov::op::v0::Result>(body_add_2);
         auto body_assign = std::make_shared<ov::op::v6::Assign>(body_result_1, inner_variable);
+        auto body_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
 
-        auto body = std::make_shared<ov::Model>(OutputVector{body_result_1, body_assign},
+        auto body = std::make_shared<ov::Model>(OutputVector{body_condition, body_result_1},
                                                 SinkVector {body_assign},
                                                 ParameterVector{body_param_1, body_param_2});
 
@@ -874,13 +874,16 @@ public:
 
         auto loop = std::make_shared<ov::op::v5::Loop>(trip_count, exec_condition);
         loop->set_function(body);
+        loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{-1, 0});
 
         loop->set_invariant_input(body_param_1, outer_param);
         loop->set_invariant_input(body_param_2, outer_read);
+        loop->get_iter_value(body_result_1, -1);
 
+        loop->validate_and_infer_types();
         auto outer_result = std::make_shared<ov::op::v0::Result>(loop->output(0));
 
-        auto const_to_add = std::make_shared<ov::op::v0::Constant>(loop->output(0).get_element_type(), Shape{1}, 1);
+        auto const_to_add = std::make_shared<ov::op::v0::Constant>(netPrc, Shape{1}, 1);
         auto outer_add = std::make_shared<ov::op::v1::Add>(loop->output(0), const_to_add);
         auto outer_assign = std::make_shared<ov::op::v6::Assign>(outer_add, outer_variable);
 
@@ -975,7 +978,7 @@ public:
     }
 };
 
-TEST_P(StatefulModelMixedStates, smoke_Run_StatefulModelMixedStates) {
+TEST_P(StatefulModelMixedStatesInLoop, smoke_Run_StatefulModelMixedStates) {
     prepare();
     run_test();
     reset_state();
@@ -1067,7 +1070,7 @@ public:
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
 
-        for (int i = 0; i < num_elements; ++i) {
+        for (size_t i = 0; i < num_elements; ++i) {
             result[i] = states.state_1[i] + states.state_2[i] + states.state_1[i];
         }
         return result;
