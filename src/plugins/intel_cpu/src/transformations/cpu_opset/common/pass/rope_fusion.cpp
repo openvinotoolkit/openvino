@@ -405,9 +405,6 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto repeat_interleave_sin = makePattern<opset8::Gather>({unsqueeze_sin, const_idx, 3}, {{"batch_dims", 0}});
     auto repeat_interleave_cos = makePattern<opset8::Gather>({unsqueeze_cos, const_idx, 3}, {{"batch_dims", 0}});
 
-    auto t_cos = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
-
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = GenSlice(slice_Slice_965, 1, int32_max, 2, 3);
 
@@ -479,6 +476,17 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
                                 pattern_map.at(permute_Transpose_1213).get_node_shared_ptr()},
                                 new_node);
         ov::replace_node(old_node, new_node);
+        // shapeof may be moved up from transpose to add,
+        // After RoPE fusion, shapeof must be moved to the data input of RoPE otherwise extra subgraph exists
+        std::shared_ptr<ov::Node> rotary_emb_node = pattern_map.at(rotary_emb).get_node_shared_ptr();
+        auto rotary_emb_out = rotary_emb_node->output(0);
+        if (rotary_emb_out.get_target_inputs().size() == 2) {
+            for (auto& input : rotary_emb_out.get_target_inputs()) {
+                if (ov::is_type<opset1::ShapeOf>(input.get_node())) {
+                    input.replace_source_output(pattern_map.at(view_Reshape));
+                }
+            }
+        }
         return true;
     };
 

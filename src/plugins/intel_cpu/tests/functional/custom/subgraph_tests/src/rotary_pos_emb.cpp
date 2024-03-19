@@ -457,8 +457,15 @@ TEST_F(RoPECPUTestQwen7b, smoke_CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
 
-class RoPECPUTestGPTJ : public SubgraphBaseTest {
+class RoPECPUTestGPTJ : public SubgraphBaseTest, public testing::WithParamInterface<bool> {
 public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
+        bool hasShapeOf;
+        hasShapeOf = obj.param;
+        std::ostringstream result;
+        result << "hasShapeOf=" << hasShapeOf << std::endl;
+        return result.str();
+    }
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         const auto& funcInputs = function->inputs();
 
@@ -477,7 +484,8 @@ public:
 protected:
     std::shared_ptr<ov::Model> buildROPE_GPTJ(const int num_head,
                                               const int hidden_dims,
-                                              const int rotary_dims) {
+                                              const int rotary_dims,
+                                              bool hasShapeOf) {
         auto int32_max = std::numeric_limits<std::int32_t>::max();
         auto input =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, num_head, hidden_dims});
@@ -558,12 +566,17 @@ protected:
                                               {"ellipsis_mask", {}}});
         auto cat_Concat_1211 = makeOP<opset1::Concat>({rotary_emb, slice_Slice_971}, {{"axis", -1}});
         auto permute_Transpose_1213 = makeOP<opset1::Transpose>({cat_Concat_1211, {0, 2, 1, 3}});
-
-        return std::make_shared<ov::Model>(ov::NodeVector{permute_Transpose_1213}, ov::ParameterVector{input, sincos});
+        ov::NodeVector model_output = {permute_Transpose_1213};
+        if (hasShapeOf) {
+            auto shapeOf = makeOP<opset1::ShapeOf>({rotary_emb}, {{"output_type", "i32"}});
+            auto gather = makeOP<opset8::Gather>({shapeOf, {1}, 0}, {{"batch_dims", 0}});
+            model_output.push_back(gather);
+        }
+        return std::make_shared<ov::Model>(model_output, ov::ParameterVector{input, sincos});
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
+        bool hasShapeOf = this->GetParam();
         const int batch = 2;
         const int seq_length = 7;
         const int num_head = 16;
@@ -573,14 +586,19 @@ protected:
         InputShape input = {{batch, seq_length, num_head, hidden_dims}, {{batch, seq_length, num_head, hidden_dims}}};
         InputShape sincos = {{batch, seq_length, rotary_dims}, {{batch, seq_length, rotary_dims}}};
         init_input_shapes({input, sincos});
-        function = buildROPE_GPTJ(num_head, hidden_dims, rotary_dims);
+        function = buildROPE_GPTJ(num_head, hidden_dims, rotary_dims, hasShapeOf);
     }
 };
 
-TEST_F(RoPECPUTestGPTJ, smoke_CompareWithRefs) {
+TEST_P(RoPECPUTestGPTJ, smoke_CompareWithRefs) {
     run();
     CheckNumberOfNodesWithType(compiledModel, "RoPE", 1);
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_RoPECPUTestGPTJ,
+                         RoPECPUTestGPTJ,
+                         ::testing::Values(true, false),
+                         RoPECPUTestGPTJ::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov
