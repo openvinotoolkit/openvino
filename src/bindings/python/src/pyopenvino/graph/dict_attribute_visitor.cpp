@@ -271,6 +271,10 @@ util::DictAttributeSerializer::DictAttributeSerializer(const std::shared_ptr<ov:
     node->visit_attributes(*this);
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) {
+    if (m_attributes.contains(name)) {
+        OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
+    }
+    
     if (auto _adapter = dynamic_cast<ov::AttributeAdapter<std::shared_ptr<ov::op::util::Variable>>*>(&adapter)) {
         m_attributes[name.c_str()] = _adapter->get()->get_info().variable_id;
     } else if (auto _adapter = dynamic_cast<ov::AttributeAdapter<ov::PartialShape>*>(&adapter)) {
@@ -281,8 +285,6 @@ void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::Valu
             shape.append(dim.is_dynamic() ? py::int_(-1) : py::int_(dim.get_length()));
         }
         m_attributes[name.c_str()] = shape;
-    } else if (m_attributes.contains(name)) {
-        OPENVINO_THROW("No AttributeVisitor support for accessing attribute named: ", name);
     }
 }
 void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) {
