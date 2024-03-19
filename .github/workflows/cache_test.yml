@@ -25,17 +25,18 @@ jobs:
     env:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
     steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
           path: ${{ env.OPENVINO_REPO }}
 
-        - name: Test Local Action
-          id: test-action
-          uses: ./openvino/.github/actions/cache
-          with:
-            cache_path: mount/gha_test_cache
-            path: /__w/cache
-            key: "test"
+      - name: Test Local Action
+        id: test-action
+        uses: ./openvino/.github/actions/cache
+        with:
+          cache_path: mount/gha_test_cache
+          path: /__w/cache
+          key: "test"
 
-        - name: Print Output
-          run: echo "${{ steps.test-action.outputs.cache-file }}"
+      - name: Print Output
+        run: echo "${{ steps.test-action.outputs.cache-file }}"
