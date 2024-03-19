@@ -30,7 +30,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_atan2(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
+    num_inputs_check(context, 2, 3);
     // "aten::atan2.out(Tensor input,Tensor other, *,Tensor(a!) out) → Tensor(a!)"
     auto y = context.get_input(0);
     auto x = context.get_input(1);
