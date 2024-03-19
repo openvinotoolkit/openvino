@@ -38,7 +38,6 @@ OutputVector translate_ones_like_op(const NodeContext& node) {
         Output<Node> zeros_like = make_shared<v3::Broadcast>(zero_const, shape_of_real);
         auto result = make_shared<v0::Concat>(OutputVector{ones_like, zeros_like}, -1);
         set_node_name(node.get_name(), result);
-
         auto ones_like_complex = make_shared<ComplexTypeMark>(result, complex_type_mark_x->get_complex_part_type());
 
         return {ones_like_complex};
