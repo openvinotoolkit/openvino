@@ -105,7 +105,7 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionConstantWeightsMarkedToKeepSrcP
         auto weights = opset8::Constant::create(element::i8, Shape{3, 2}, {1, 2, 3, 4, 5, 6});
         auto dequantization_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
         auto dequantization_scale = opset8::Constant::create(element::f32, Shape{}, {2});
-        auto dequantization_multiply = std::make_shared<opset8::Multiply>(dequantization_convert, dequantization_scale );
+        auto dequantization_multiply = std::make_shared<opset8::Multiply>(dequantization_convert, dequantization_scale);
         mark_as_dequantization_node(dequantization_multiply);
         auto matmul = std::make_shared<opset8::MatMul>(data, dequantization_multiply);
         auto mul_const = opset8::Constant::create(element::f32, Shape{1, 1, 1, 2}, {2, 3});
