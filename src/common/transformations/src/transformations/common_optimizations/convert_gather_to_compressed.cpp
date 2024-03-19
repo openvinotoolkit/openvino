@@ -56,6 +56,7 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto gather_m = wrap_type<ov::opset10::Gather>({dicts_input_m, any_input(), any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "pattern match callback:----------->\n";
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(gather_m));
         OPENVINO_ASSERT(pattern_map.count(mul_const_m));
@@ -126,6 +127,7 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
         new_gather_node->set_friendly_name(gather_node->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);
         ov::replace_node(gather_node, new_gather_node);
+        std::cout << "pattern match callback return true----------->\n";
         return true;
     };
 

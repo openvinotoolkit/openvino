@@ -32,6 +32,7 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/convert_gather_to_compressed.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -277,6 +278,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager;
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);

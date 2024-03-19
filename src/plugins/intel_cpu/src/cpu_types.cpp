@@ -219,6 +219,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
         {"PagedAttentionExtension", Type::ScaledDotProductAttention},
         {"RoPE", Type::RoPE},
+        {"GatherCompression", Type::GatherCompression},
     };
     return type_to_name_tbl;
 }
