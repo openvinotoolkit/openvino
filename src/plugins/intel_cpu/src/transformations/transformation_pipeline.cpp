@@ -83,6 +83,7 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
@@ -113,6 +114,7 @@
 #include "transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/move_eltwise_up_data_movement.hpp"
+#include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
@@ -708,6 +710,11 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_X64(postLPTPassManager, RoPEFusion);
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, StatefulSDPAFusion);
+
+    // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
+    auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
+    symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
+
     postLPTPassManager.run_passes(model);
 }
 
@@ -763,13 +770,6 @@ void Transformations::MainSnippets(void) {
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
-        // [115165] At the moment Quantized and BF16 Brgemm doesn't support blocking by K and N.
-        // Big shapes may lead to perf degradation
-        const auto K = *(matmul->get_input_partial_shape(0).rbegin());
-        const auto N = *(matmul->get_input_partial_shape(1).rbegin());
-        if ((K.is_static() && K.get_length() > 512) || // heuristic values
-            (N.is_static() && N.get_length() > 256))
-            return false;
         if (in_type0 == ov::element::i8)
             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
@@ -778,6 +778,8 @@ void Transformations::MainSnippets(void) {
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
             if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+                const auto K = *(matmul->get_input_partial_shape(0).rbegin());
+                const auto N = *(matmul->get_input_partial_shape(1).rbegin());
                 return K.is_static() && (K.get_length() % bf16Factor == 0) &&
                        N.is_static() && (N.get_length() % bf16Factor == 0);
             }
@@ -830,7 +832,9 @@ void Transformations::MainSnippets(void) {
                                                        ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                        ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                        ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                       ov::is_type<const ov::op::v3::Broadcast>(n));
+                                                       ov::is_type<const ov::op::v3::Broadcast>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceMax>(n) ||
+                                                       ov::is_type<const ov::op::v1::ReduceSum>(n));
                 if (is_disabled_tokenization)
                     return true;
                 const auto& inputs = n->inputs();

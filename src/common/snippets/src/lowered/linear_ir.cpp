@@ -57,7 +57,7 @@ std::shared_ptr<LinearIR> LinearIR::clone() const {
     auto cloned = std::make_shared<LinearIR>();
     cloned->m_config = m_config;
 
-    ExressionMap expression_map;
+    ExpressionMap expression_map;
     cloned->m_expressions = deep_copy_range(m_expressions.cbegin(), m_expressions.cend(), expression_map);
     for (const auto& expr : cloned->m_expressions) {
         cloned->m_node2expression_map[expr->get_node()] = expr;
@@ -172,7 +172,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 
 LinearIR::container LinearIR::deep_copy_range(LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
-                                              ExressionMap& expression_map) {
+                                              ExpressionMap& expression_map) {
     OPENVINO_ASSERT(expression_map.empty(), "deep_copy_range expects empty expression_map as an input");
     LinearIR::container result;
     NodeVector original_nodes;
@@ -243,8 +243,10 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
 
 void LinearIR::init_emitters(const std::shared_ptr<TargetMachine>& target) {
     for (auto& expr : m_expressions) {
-        if (!expr->get_emitter())
+        if (!expr->get_emitter()) {
             expr->m_emitter = target->get(expr->get_node()->get_type_info())(expr);
+            OPENVINO_ASSERT(expr->m_emitter, "Emitter can't be created for the node ", expr->get_node());
+        }
     }
 }
 

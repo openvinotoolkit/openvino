@@ -57,7 +57,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ApplyProximalGradientDescent                            | NO                            |                               |
 | ApplyRMSProp                                            | NO                            |                               |
 | ApproxTopK                                              | NO                            |                               |
-| ApproximateEqual                                        | NO                            |                               |
+| ApproximateEqual                                        | YES                           |                               |
 | ArgMax                                                  | YES                           |                               |
 | ArgMin                                                  | YES                           |                               |
 | AsString                                                | NO                            |                               |
@@ -139,7 +139,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | BiasAdd                                                 | YES                           |                               |
 | BiasAddGrad                                             | NO                            |                               |
 | BiasAddV1                                               | NO                            |                               |
-| Bincount                                                | NO                            |                               |
+| Bincount                                                | YES                           |                               |
 | Bitcast                                                 | NO                            |                               |
 | BitwiseAnd                                              | YES                           |                               |
 | BitwiseOr                                               | YES                           |                               |
@@ -620,7 +620,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatMul                                                  | YES                           |                               |
 | MatchingFiles                                           | NO                            |                               |
 | MatchingFilesDataset                                    | NO                            |                               |
-| MatrixBandPart                                          | NO                            |                               |
+| MatrixBandPart                                          | YES                            |                               |
 | MatrixDeterminant                                       | NO                            |                               |
 | MatrixDiag                                              | YES                           |                               |
 | MatrixDiagPart                                          | NO                            |                               |

@@ -243,7 +243,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: build_logs
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -260,7 +260,7 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -268,7 +268,7 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
@@ -276,7 +276,7 @@ jobs:
 
       - name: Upload openvino debian packages
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -284,7 +284,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -318,7 +318,7 @@ jobs:
 
   Conformance:
     needs: [ Build, Smart_CI ]
-    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 30 }}
+    timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 5 || 20 }}
     defaults:
       run:
         shell: bash
@@ -349,13 +349,13 @@ jobs:
       #
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -414,7 +414,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-${{ env.TEST_DEVICE }}
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -440,7 +440,7 @@ jobs:
 
       - name: Upload Conformance Artifacts
         if: ${{ matrix.TEST_TYPE == 'API' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: conformance_artifacts_${{ matrix.TEST_TYPE }}-TEMPLATE
           path: ${{ env.CONFORMANCE_ARTIFACTS_DIR }}/conformance_artifacts.tar.gz
@@ -501,15 +501,33 @@ jobs:
   #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
   #   volumes:
   #     - /mount:/mount
-  TensorFlow_Hub_Models_Tests:
-    name: TensorFlow Hub Models tests
+  TensorFlow_Models_Tests_Precommit:
+    name: TensorFlow Models tests
     if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
         fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
-    uses: ./.github/workflows/job_tensorflow_hub_models_tests.yml
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
+      runner: 'ubuntu-20.04-8-cores'
+      model_scope: 'precommit'
+
+  TensorFlow_Models_Tests_Nightly_TF_HUB:
+    name: TensorFlow TF Hub Models tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: 'nightly_tf_hub'
+
+  TensorFlow_Models_Tests_Nightly_HF:
+    name: TensorFlow Hugging Face Models tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: 'nightly_hf'
 
   # TODO: Switch back to self-hosted runners
   # container:
@@ -573,13 +591,13 @@ jobs:
         run: apt update && apt install -y git ca-certificates
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO Developer package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_developer_package
           path: ${{ env.INSTALL_DIR }}
@@ -693,7 +711,7 @@ jobs:
           ref: 'master'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -735,7 +753,7 @@ jobs:
 
       - name: Upload openvino tokenizers wheel
         if: ${{ always() }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
@@ -755,7 +773,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests,
-            CPU_Functional_Tests, TensorFlow_Hub_Models_Tests, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

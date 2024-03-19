@@ -113,6 +113,7 @@ def get_model_path(request, tmp_path):
 @pytest.mark.parametrize("config", [
     None,
     {hints.performance_mode(): hints.PerformanceMode.THROUGHPUT},
+    {hints.execution_mode: hints.ExecutionMode.PERFORMANCE},
 ])
 def test_compact_api(model_type, device_name, config, request):
     compiled_model = None
@@ -231,7 +232,7 @@ def test_available_devices(device):
 def test_get_property(device):
     core = Core()
     conf = core.get_property(device, props.supported_properties())
-    assert "PERF_COUNT" in conf
+    assert props.enable_profiling in conf
 
 
 @pytest.mark.skipif(
@@ -240,14 +241,14 @@ def test_get_property(device):
 )
 def test_get_property_list_of_str():
     core = Core()
-    param = core.get_property("CPU", "OPTIMIZATION_CAPABILITIES")
+    param = core.get_property("CPU", props.device.capabilities)
     assert isinstance(param, list), (
-        "Parameter value for 'OPTIMIZATION_CAPABILITIES' "
+        f"Parameter value for {props.device.capabilities} "
         f"metric must be a list but {type(param)} is returned"
     )
     assert all(
         isinstance(v, str) for v in param
-    ), "Not all of the parameter values for 'OPTIMIZATION_CAPABILITIES' metric are strings!"
+    ), f"Not all of the parameter values for {props.device.capabilities} metric are strings!"
 
 
 @pytest.mark.skipif(
@@ -256,14 +257,14 @@ def test_get_property_list_of_str():
 )
 def test_get_property_tuple_of_two_ints():
     core = Core()
-    param = core.get_property("CPU", "RANGE_FOR_STREAMS")
+    param = core.get_property("CPU", props.range_for_streams)
     assert isinstance(param, tuple), (
-        "Parameter value for 'RANGE_FOR_STREAMS' "
+        f"Parameter value for {props.range_for_streams} "
         f"metric must be tuple but {type(param)} is returned"
     )
     assert all(
         isinstance(v, int) for v in param
-    ), "Not all of the parameter values for 'RANGE_FOR_STREAMS' metric are integers!"
+    ), f"Not all of the parameter values for {props.range_for_stream}s metric are integers!"
 
 
 @pytest.mark.skipif(
@@ -272,14 +273,14 @@ def test_get_property_tuple_of_two_ints():
 )
 def test_get_property_tuple_of_three_ints():
     core = Core()
-    param = core.get_property("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
+    param = core.get_property("CPU", props.range_for_async_infer_requests)
     assert isinstance(param, tuple), (
-        "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' "
+        f"Parameter value for {props.range_for_async_infer_requests} "
         f"metric must be tuple but {type(param)} is returned"
     )
     assert all(isinstance(v, int) for v in param), (
         "Not all of the parameter values for "
-        "'RANGE_FOR_ASYNC_INFER_REQUESTS' metric are integers!"
+        f"{props.range_for_async_infer_requests} metric are integers!"
     )
 
 
@@ -289,9 +290,9 @@ def test_get_property_tuple_of_three_ints():
 )
 def test_get_property_str():
     core = Core()
-    param = core.get_property("CPU", "FULL_DEVICE_NAME")
+    param = core.get_property("CPU", props.device.full_name)
     assert isinstance(param, str), (
-        "Parameter value for 'FULL_DEVICE_NAME' "
+        f"Parameter value for {props.device.full_name} "
         f"metric must be string but {type(param)} is returned"
     )
 

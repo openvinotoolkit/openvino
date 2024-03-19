@@ -102,20 +102,22 @@ class TorchScriptPythonDecoder (Decoder):
             input_params = inspect.signature(pt_module.forward if hasattr(
                 pt_module, "forward") else pt_module.__call__).parameters
             input_signature = list(input_params)
-            # name of attribute in a patched module where the original forward method is kept
-            orig_forward_name = '_openvino_module_extension_patch_orig_forward'
-            if self.module_extensions:
-                patch_model.patch_model(pt_module, self.module_extensions, orig_forward_name)
 
             if example_inputs is None:
+                if self.module_extensions:
+                    raise RuntimeError("ModuleExtension is not supported for scripting. Please provide valid example_input argument to run tracing.")
                 scripted = torch.jit.script(pt_module)
                 freeze_by_default = True
             else:
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
-                gptq_patched = False
+                # name of attribute in a patched module where the original forward method is kept
+                orig_forward_name = '_openvino_module_extension_patch_orig_forward'
+                if self.module_extensions:
+                    patch_model.patch_model(pt_module, self.module_extensions, orig_forward_name)
 
+                gptq_patched = False
                 if gptq.detect_gptq_model(pt_module):
                     try:
                         gptq.patch_model(pt_module)
@@ -134,8 +136,8 @@ class TorchScriptPythonDecoder (Decoder):
                 finally:
                     if gptq_patched:
                         gptq.unpatch_model(pt_module)
-            if self.module_extensions:
-                patch_model.unpatch_model(pt_module, orig_forward_name)
+                    if self.module_extensions:
+                        patch_model.unpatch_model(pt_module, orig_forward_name)
 
             if not freeze_by_default and graph_has_ops(scripted.inlined_graph, ["prim::Uninitialized", "prim::unchecked_cast", "aten::append"]):
                 # freeze models with unsupported ops
@@ -206,7 +208,9 @@ class TorchScriptPythonDecoder (Decoder):
         if pt_type is None:
             return OVAny(OVType.dynamic)
         # TODO: Don't use str, use native types
-        if str(pt_type) in pt_to_ov_type_map:
+        if str(pt_type) in ["int", "float", "bool"]:
+            return OVAny(DecoderType.PyScalar(OVAny(pt_to_ov_type_map[str(pt_type)])))
+        elif str(pt_type) in pt_to_ov_type_map:
             return OVAny(pt_to_ov_type_map[str(pt_type)])
         elif isinstance(pt_type, torch.TensorType):
             # Tensor type, parse element type

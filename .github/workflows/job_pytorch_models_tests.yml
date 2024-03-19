@@ -47,19 +47,19 @@ jobs:
           fi
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tokenizers extension
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -106,22 +106,34 @@ jobs:
 
       - name: Install OpenVINO Python wheels
         run: |
+          # To enable pytest parallel features
+          python3 -m pip install pytest-xdist[psutil]
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
       - name: Install PyTorch tests requirements
         run: |
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements.txt
-          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/requirements_secondary.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
           echo "Available storage:"
           df -h
         env:
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
-      - name: PyTorch Models Tests
+      - name: PyTorch Models Tests Timm and Torchvision
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n 4 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+        env:
+          TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
+          TEST_DEVICE: CPU
+          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
+
+      - name: PyTorch Models Tests Not Timm or Torchvision
+        if: always()
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -131,7 +143,7 @@ jobs:
       - name: Reformat unsupported ops file
         if: '!cancelled()'
         run: |
-          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/torch_tests/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
+          python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/scripts/process_op_report.py ${INSTALL_TEST_DIR}/TEST-torch_unsupported_ops.log
   
       - name: Available storage after tests
         run: |
@@ -139,7 +151,7 @@ jobs:
           df -h
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
           name: test-results-torch-models
