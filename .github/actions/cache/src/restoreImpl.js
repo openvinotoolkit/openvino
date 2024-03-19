@@ -26,9 +26,9 @@ async function restore() {
       cacheFile = files[0]
 
       // copy file to local fs
-      // if (!fs.existsSync(cacheLocalPath)) {
-      //   fs.mkdirSync(cacheLocalPath)
-      // }
+      if (!fs.existsSync(cacheLocalPath)) {
+        fs.mkdirSync(cacheLocalPath)
+      }
       fs.copyFileSync(
         path.join(cacheRemotePath, cacheFile),
         path.join(cacheLocalPath, cacheFile)
@@ -36,11 +36,11 @@ async function restore() {
       log(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
 
       // extract
-      // tar.x({
-      //   file: path.join(cacheLocalPath, cacheFile),
-      //   cwd: cacheLocalPath,
-      //   sync: true
-      // })
+      tar.x({
+        file: path.join(cacheLocalPath, cacheFile),
+        cwd: cacheLocalPath,
+        sync: true
+      })
 
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)
