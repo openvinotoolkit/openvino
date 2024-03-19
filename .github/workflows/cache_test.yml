@@ -1,0 +1,38 @@
+name: Linux (Ubuntu 20.04, Python 3.11)
+on:
+  workflow_dispatch:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-cache-test
+  cancel-in-progress: true
+
+jobs:
+  Build:
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-2-cores-8gb
+    container:
+      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+      volumes:
+        - /mount:/mount
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Test Local Action
+          id: test-action
+          uses: ./actions/cache
+          with:
+            cache_path: mount/gha_test_cache
+            path: /__w/cache
+            key: "test"
+
+        - name: Print Output
+          run: echo "${{ steps.test-action.outputs.cache-file }}"

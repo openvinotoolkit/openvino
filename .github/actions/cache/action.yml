@@ -1,0 +1,43 @@
+name: 'local cache'
+description: 'cache to the local file system'
+author: 'Mikhail Ryzhov'
+
+inputs:
+  cache_path:
+    description: 'A local path where to search and saeve caches'
+    required: true
+  path:
+    description:
+      'A list of files, directories, and wildcard patterns to cache and restore'
+    required: true
+  key:
+    description: 'An explicit key for restoring and saving the cache'
+    required: true
+  fail-on-cache-miss:
+    description: 'Fail the workflow if cache entry is not found'
+    default: 'false'
+    required: false
+  lookup-only:
+    description:
+      'Check if a cache entry exists for the given input(s) (key, restore-keys)
+      without downloading the cache'
+    default: 'false'
+    required: false
+  save-always:
+    description:
+      'Run the post step to save the cache even if another step before fails'
+    default: 'false'
+    required: false
+
+outputs:
+  cache-hit:
+    description:
+      'A boolean value to indicate an exact match was found for the primary key'
+  cache-file:
+    description: 'Found cache file'
+
+runs:
+  using: node20
+  main: 'dist/restore/index.js'
+  post: 'dist/save/index.js'
+  post-if: 'success() || github.event.inputs.save-always'
