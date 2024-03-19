@@ -252,7 +252,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::relu6",
                                  "aten::selu",
                                  "aten::silu",
-                                 "aten::hardswish"
+                                 "aten::hardswish",
                                  "aten::mish",
                              ])
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
