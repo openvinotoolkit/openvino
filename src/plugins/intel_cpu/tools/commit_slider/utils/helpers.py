@@ -11,6 +11,7 @@ import re
 import json
 import logging as log
 from argparse import ArgumentParser
+from utils.cfg_manager import CfgManager
 import copy
 
 
@@ -68,6 +69,13 @@ def getParams():
     with open(customCfgPath) as cfgFile:
         customCfgData = json.load(cfgFile)
     cfgFile.close()
+
+    # config manager resolves templates in config,
+    # in the future, all interactions with config will
+    # be incapsulated in config manager
+    cm = CfgManager(customCfgData)
+    customCfgData = cm.applyTemplate()
+
     # customize cfg
     for key in customCfgData:
         newVal = customCfgData[key]

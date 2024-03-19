@@ -22,7 +22,10 @@ elif args.isWorkingDir:
     from utils.helpers import checkArgAndGetCommits
 
     commitList = []
-    if args.commitSeq is None:
+    if "commitList" in cfgData["runConfig"] and\
+        "explicitList" in cfgData["runConfig"]["commitList"]:
+            commitList = cfgData["runConfig"]["commitList"]["explicitList"]
+    elif args.commitSeq is None:
         if "getCommitListCmd" in cfgData["runConfig"]["commitList"]:
             commitListCmd = cfgData["runConfig"]["commitList"]
             commitListCmd = commitListCmd["getCommitListCmd"]
