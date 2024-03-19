@@ -41,6 +41,9 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
    The following example retrives input/output using the name `index`, which is optional. Some
    outputs may not have names, so use explicit names and indices if required.
 
+   OpenVINO Runtime has methods to obtain a list of used names (`get_name` / `get_any_name`).
+   However, because not all of them have names, using these methods may return an empty list.
+
 .. tab-set::
 
    .. tab-item:: Python
