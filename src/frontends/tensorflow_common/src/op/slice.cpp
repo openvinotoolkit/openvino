@@ -79,7 +79,6 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto res = make_shared<v8::Slice>(input, start, stop, step);
     set_node_name(node.get_name(), res);
     return res->outputs();
-    
 }
 }  // namespace op
 }  // namespace tensorflow
