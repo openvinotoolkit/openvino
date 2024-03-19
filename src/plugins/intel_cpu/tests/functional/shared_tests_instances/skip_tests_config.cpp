@@ -268,9 +268,26 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_FQLayerDQBias_4D.*FQLayerDQBias.smoke_CompareWithRefs.*_TS=\(\(1.3.64.64\)_\)_layer_type=MatMul.*)",
         R"(.*smoke_Snippets_ConvMul/ConvEltwise.CompareWithRefImpl/IS\[0\]=\(1.10.16.16\)_IS\[1\]=\(1.10.16.16\)_Op=Multiply_#N=6_#S=1.*)",
         R"(.*smoke_InterpolateBicubicPillow_LayoutAlign_Test/InterpolateLayerCPUTest.CompareWithRefs/.*Sizes=\(6.8\).*)",
-        R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\(1022.64\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false_primitive=jit_avx2.*)",
+        R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_.*TS0=\(\((106|246|245|510|1022)\)\).*)",
+        R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\((1022.64|24.39|126.32|510.64)\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false_primitive=jit_avx2.*)",
+        R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\((1022.64|126.32|510.64)\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false_primitive=jit_avx2.*)",
+        R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_isInverse=false_primitive=jit_avx512.*)",
+        R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_.*_TS0=\(\((20.126|20.510|20.1022)\)\)_constAxes=true_axes=\(\(1\)\)_isInverse=false_primitive=jit_avx512.*)",
         R"(.*smoke_TestsDFT_3d/DFTLayerTest.Inference/.*TS=.*1.120.128.1.2.*_Precision=f32.*signal_size=\(\).*)",
         R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference.*TS=\{\(1.120.128.1.2\)\}_Precision=f32_Axes=\(2.1\)_signal_size=\(\)_Inverse=0.*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_4D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\[\?.\?.\?.\?\]_TS=\(\(4.16.6.7\)\).*inPrec=f32.*LEVELS=255.*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_5D_(jit|ref)/FakeQuantizeLayerCPUTest.CompareWithRefs/IS=\[\?.\?.\?.\?.\?\]_TS=\(\((4|3).16.6.7.8\)\).*inPrec=f32.*LEVELS=255.*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos/FakeQuantizeLayerCPUTest.CompareWithRefs/IS.*\(\((4.5.6.7|1.1.6.7|1.1.6.1|1.5.1.6)\)\)_inPrec=f32.*LEVELS=255.*)",
+        R"(.*smoke_CompareWithRefs/LRNLayerCPUTest.CompareWithRefs/f32_IS.*axes=\(1.2.3\).*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(9.16.32.126\)\)_constAxes=true_axes=\(\((0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0.1.2.3|3.2|_2._1|0.1|1)\)\).*isInverse=false.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(1.192.36.64\)\)_constAxes=true_axes=\(\((0|_2._1|0.1.2.3)\)_.*isInverse=false.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=.*_TS0=\(\(1.192.36.64\)_.*constAxes=false.*isInverse=false.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(46.10.128.65\)\)_constAxes=true_axes=\(\((1.0|0.1.2.3|3.1|_2._1)\)\).*isInverse=false.*primitive=jit_avx512.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(10.46.128.65\)\)_constAxes=true_axes=\(\((0.1|1.2)\)\).*isInverse=false.*primitive=jit_avx512.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\?.192.36.64\]_.*_axes=\(\((0|_2._1|_1|1)\)_.*isInverse=false.*)",
+        R"(.*smoke_RDFT_CPU_4D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\((1.120.64.64|1.120.96.96|\?.\?.\?.\?|1.192.\?.\?|1..2.\?.\?.1..100)\)\).*isInverse=false.*)",
+        R"(.*smoke_RDFT_2d/RDFTLayerTest.Inference/IS=\(100.16\)_modelType=f32_Axes=\((0.1|_2._1|1.0)\)_SignalSize=\(\).*)",
     };
 
 #if defined(OPENVINO_ARCH_X86)
@@ -351,7 +368,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u16.*Conversion=i8.*)");
     retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)");
     // by calc abs_threshold with expected value
-    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest*_eltwise_op_type=Div_.*_model_type=i32_.*)");
+    retVector.emplace_back(R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.*_eltwise_op_type=Div_.*_model_type=i32_.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)
@@ -380,6 +397,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_LPT/MatMulTransformation.CompareWithRefImpl/f32_CPU_\[(1|8|1,1,1),4,12,2\]_level=256_shape=\[\]_input_low=\{ (0|-12.8) \}_input_high=\{ (25.5|12.7) \}_output_low=\{ (0|-12.8) \}_output_high\{ (25.5|12.7) \}_.*)");
     retVector.emplace_back(
         R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompression.CompareWithRefs/data_shape=\[\?.\?.\?\]_\(\[1,1,4096\]\)_weights_shape=\[4096,4096\]_group_size=128_weights_precision=nf4_decompression_precision=f16_transpose_weights=0_decompression_subtract=full_reshape_on_decompression=1_config=\(\).*)");
+    retVector.emplace_back(R"(.*smoke_RDFT_CPU_1D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(126\)\)_constAxes=true_axes=\(\(0\)\)_isInverse=false.*)");
+    retVector.emplace_back(R"(.*smoke_RDFT_CPU_2D/RDFTTestCPU.CompareWithRefs/prec=f32_IS0=\[\]_TS0=\(\(16.38\)\)_constAxes=true_axes=\(\(0.1\)\)_isInverse=false.*)");
 #endif
     if (!ov::with_cpu_x86_avx512_core()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,

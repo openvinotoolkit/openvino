@@ -148,7 +148,7 @@ protected:
         function = std::make_shared<Model>(rdft, inputs);
 
         if (precision == ov::element::f32) {
-           abs_threshold = 8e-2;
+           abs_threshold = 1e-4;
         }
     }
 

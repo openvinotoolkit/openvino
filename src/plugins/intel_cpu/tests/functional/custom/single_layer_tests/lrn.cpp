@@ -60,7 +60,7 @@ protected:
         auto lrn = std::make_shared<ov::op::v0::LRN>(params[0], axesNode, alpha, beta, bias, size);
         function = makeNgraphFunction(inputPrecision, params, lrn, "LRN");
         if (inputPrecision == ov::element::f32) {
-            abs_threshold = 0.05;
+            abs_threshold = 5e-3;
         }
     }
 };

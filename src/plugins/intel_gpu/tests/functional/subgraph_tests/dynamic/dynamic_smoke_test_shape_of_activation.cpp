@@ -118,7 +118,6 @@ protected:
 
 
 TEST_P(shapeofActivationDynamicGPUTest, Inference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 

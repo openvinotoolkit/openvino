@@ -58,10 +58,10 @@ inline double get_eps_by_ov_type(const ov::element::Type& elem_type) {
         return 0.f;
     }
     switch (elem_type) {
+    case ov::element::f64:
+        return 1e-8;
     case ov::element::f32:
         return 1e-4;
-    case ov::element::f64:
-        return 1e-5;
     case ov::element::f16:
         return 1e-3;
     case ov::element::bf16:

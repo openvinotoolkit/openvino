@@ -89,7 +89,7 @@ void RDFTLayerTest::SetUp() {
     function = std::make_shared<ov::Model>(rdft->outputs(), ov::ParameterVector{param}, "RDFT");
 
     if (model_type == ov::element::f32) {
-        abs_threshold = 5e-3;
+        abs_threshold = 1e-4;
     }
 }
 }  // namespace test

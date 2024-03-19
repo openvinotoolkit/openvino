@@ -10,7 +10,6 @@ namespace ov {
 namespace test {
 
 TEST_P(PermConvPermConcat, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 

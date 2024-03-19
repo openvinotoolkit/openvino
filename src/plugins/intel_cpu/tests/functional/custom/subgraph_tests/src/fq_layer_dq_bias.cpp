@@ -80,7 +80,6 @@ protected:
 };
 
 TEST_P(FQLayerDQBias, smoke_CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     CheckPluginRelatedResults(compiledModel, node_type);
 }

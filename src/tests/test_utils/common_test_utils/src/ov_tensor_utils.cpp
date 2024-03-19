@@ -333,7 +333,7 @@ inline double less_or_equal(double a, double b) {
 }
 
 template <typename T1, typename T2>
-inline bool check_values_suitabl_for_comparison(double value1, double value2) {
+inline bool check_values_suitable_for_comparison(double value1, double value2) {
     bool res = true;
     auto max_val1 = std::numeric_limits<T1>::max();
     auto min_val1 = std::numeric_limits<T1>::lowest();
@@ -364,7 +364,6 @@ protected:
     };
 
     std::vector<IncorrectValue> incorrect_values_abs;
-    std::vector<IncorrectValue> incorrect_values_rel;
     double abs_threshold, rel_threshold;
     int tensor_size;
 
@@ -442,7 +441,7 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
 
-        if (!check_values_suitabl_for_comparison<ExpectedT, ActualT>(expected_value, actual_value)) {
+        if (!check_values_suitable_for_comparison<ExpectedT, ActualT>(expected_value, actual_value)) {
             continue;
         }
 

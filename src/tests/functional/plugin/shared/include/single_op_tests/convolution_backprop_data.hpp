@@ -10,7 +10,6 @@
 namespace ov {
 namespace test {
 TEST_P(ConvolutionBackpropDataLayerTest, Inference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 } // namespace test

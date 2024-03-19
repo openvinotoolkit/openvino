@@ -253,7 +253,6 @@ void RandomUniformLayerTestCPU::rndUCompare(const ov::Tensor& expected, const ov
 }
 
 TEST_P(RandomUniformLayerTestCPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     CheckPluginRelatedResults(compiledModel, "RandomUniform");
 }

@@ -9,7 +9,6 @@
 namespace ov {
 namespace test {
 TEST_P(ConvolutionLayerTest, Inference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 }  // namespace test

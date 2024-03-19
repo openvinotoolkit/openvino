@@ -10,12 +10,10 @@ namespace ov {
 namespace test {
 
 TEST_P(RangeAddSubgraphTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 
 TEST_P(RangeNumpyAddSubgraphTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 }
 

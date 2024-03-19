@@ -125,7 +125,7 @@ protected:
         function = makeNgraphFunction(inPrec, params, fq, "FakeQuantizeCPU");
 
         if (inPrec == ov::element::f32) {
-            abs_threshold = 9e-2;
+            abs_threshold = 1e-4;
         }
     }
 
