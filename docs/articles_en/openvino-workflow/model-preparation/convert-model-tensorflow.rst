@@ -10,7 +10,9 @@ Converting a TensorFlow Model
 
 This page provides general instructions on how to run model conversion from a TensorFlow format to the OpenVINO IR format. The instructions are different depending on whether your model was created with TensorFlow v1.X or TensorFlow v2.X.
 
-.. note:: TensorFlow models can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <openvino_docs_OV_UG_Integrate_OV_with_your_application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+.. note:: TensorFlow models can be loaded by ``openvino.Core.read_model`` or ``openvino.Core.compile_model`` methods by OpenVINO runtime API without preparing OpenVINO IR first. Refer to the :doc:`inference example <../running-inference/integrate-openvino-with-your-application>` for more details. Using ``openvino.convert_model`` is still recommended if model load latency matters for the inference application.
+
+.. note:: ``openvino.convert_model`` uses sharing of model weights by default. That means that OpenVINO model will share the same areas in program memory where the original weights are located, for this reason the original model cannot be modified (Python object cannot be deallocated and original model file cannot be deleted) for the whole lifetime of OpenVINO model. Model inference for TensorFlow models can lead to model modification, so original TF model should not be inferred during the lifetime of OpenVINO model. If it is not desired, set ``share_weights=False`` when calling ``openvino.convert_model``.
 
 .. note:: Examples below that convert TensorFlow models from a file, do not require any version of TensorFlow to be installed on the system, except in cases when the ``tensorflow`` module is imported explicitly.
 
@@ -326,7 +328,7 @@ Model conversion API supports passing TensorFlow/TensorFlow2 models directly fro
 Supported TensorFlow and TensorFlow 2 Keras Layers
 ##################################################
 
-For the list of supported standard layers, refer to the :doc:`Supported Operations <openvino_resources_supported_operations_frontend>` page.
+For the list of supported standard layers, refer to the :doc:`Supported Operations <../../about-openvino/compatibility-and-support/supported-operations-framework-frontend>` page.
 
 Summary
 #######
