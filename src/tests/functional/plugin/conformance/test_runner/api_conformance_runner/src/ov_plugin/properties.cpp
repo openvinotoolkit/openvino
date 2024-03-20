@@ -24,7 +24,7 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesIncorrectTests,
 
 const std::vector<ov::AnyMap> default_properties = {
         {},
-        {ov::enable_profiling(sw_plugin_in_target_device(ov::test::utils::target_device) ? false : true)},
+        {ov::enable_profiling(false)},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVPropertiesTests,

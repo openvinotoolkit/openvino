@@ -212,11 +212,12 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyAndComplieModelWithPropsWor
 
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryProperties(bool is_sw_device) {
     std::vector<ov::AnyMap> res;
+    res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
     if (!is_sw_device) {
-        res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
     }
 
     return res;
@@ -225,10 +226,10 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROMandatoryPr
 std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getROOptionalProperties(bool is_sw_device) {
     std::vector<ov::AnyMap> res;
     if (is_sw_device) {
-        res.push_back({{ov::PropertyName(ov::device::full_name.name(), ov::device::full_name.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::device::type.name(), ov::device::type.mutability), nullptr}});
         res.push_back({{ov::PropertyName(ov::execution_devices.name(), ov::execution_devices.mutability), nullptr}});
+        res.push_back({{ov::PropertyName(ov::available_devices.name(), ov::available_devices.mutability), nullptr}});
     }
     res.push_back({{ov::PropertyName(ov::loaded_from_cache.name(), ov::loaded_from_cache.mutability), nullptr}});
     res.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});
@@ -581,7 +582,10 @@ TEST_P(OVCheckMetricsPropsTests_ModelDependceProps, ChangeCorrectDevicePropertie
 
 TEST_P(OVClassSetDefaultDeviceIDPropTest, SetDefaultDeviceIDNoThrow) {
     ov::Core ie = ov::test::utils::create_core();
-
+    // sw plugins are not requested to support `ov::available_devices` and ` ov::device::id` property
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
+    }
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
         GTEST_FAIL();
@@ -602,6 +606,10 @@ TEST_P(OVSpecificDeviceSetConfigTest, GetConfigSpecificDeviceNoThrow) {
     if (pos != std::string::npos) {
         clear_target_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
+    }
+    // sw plugins are not requested to support `ov::available_devices`, `ov::device::id` and `ov::num_streams` property
+    if (sw_plugin_in_target_device(target_device)) {
+        return;
     }
     auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
     if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
@@ -640,9 +648,12 @@ TEST_P(OVSpecificDeviceGetConfigTest, GetConfigSpecificDeviceNoThrow) {
         clear_target_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
-    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_FAIL() << "No DeviceID" << std::endl;
+    // sw plugins are not requested to support `ov::available_devices` property
+    if (!sw_plugin_in_target_device(target_device)) {
+        auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+        if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+            GTEST_FAIL() << "No DeviceID" << std::endl;
+        }
     }
 
     std::vector<ov::PropertyName> configValues;
@@ -684,9 +695,12 @@ TEST_P(OVSpecificDeviceTestSetConfig, SetConfigSpecificDeviceNoThrow) {
         cleartarget_device = target_device.substr(0, pos);
         deviceID =  target_device.substr(pos + 1,  target_device.size());
     }
-    auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
-    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        GTEST_FAIL();
+    // sw plugins are not requested to support `ov::available_devices` property
+    if (!sw_plugin_in_target_device(target_device)) {
+        auto deviceIDs = ie.get_property(cleartarget_device, ov::available_devices);
+        if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
+            GTEST_FAIL();
+        }
     }
 
     OV_ASSERT_NO_THROW(ie.set_property(target_device, ov::enable_profiling(true)));
@@ -713,7 +727,12 @@ TEST_P(OVGetMetricPropsTest, GetMetricAndPrintNoThrow_AVAILABLE_DEVICES) {
 
     for (auto&& device_id : device_ids) {
         std::string full_name;
-        OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
+        // sw plugins are not requested to support `ov::device::id` property
+        if (sw_plugin_in_target_device(target_device)) {
+            OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name));
+        } else {
+            OV_ASSERT_NO_THROW(full_name = ie.get_property(target_device, ov::device::full_name, ov::device::id(device_id)));
+        }
         ASSERT_FALSE(full_name.empty());
     }
 
@@ -800,14 +819,14 @@ TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckS
         ASSERT_TRUE(it != configuration.end());
         property = it->second.as<ov::AnyMap>().begin()->second.as<ov::AnyMap>();
         if (it == configuration.end()) {
-            it = configuration.find(ov::num_streams.name());
+            it = configuration.find(ov::hint::num_requests.name());
         }
     }
-    ASSERT_TRUE(property.count(ov::num_streams.name()));
-    auto actual = property.at(ov::num_streams.name()).as<int32_t>();
+    ASSERT_TRUE(property.count(ov::hint::num_requests.name()));
+    auto actual = property.at(ov::hint::num_requests.name()).as<int32_t>();
     ov::Any value;
     //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
-    OV_ASSERT_NO_THROW(value = model.get_property(ov::num_streams.name()));
+    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::num_requests.name()));
     int32_t expect = value.as<int32_t>();
     ASSERT_EQ(actual, expect);
 }
@@ -820,7 +839,12 @@ TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     if (pos != std::string::npos) {
         clear_target_device = target_devices.begin()->substr(0, pos);
     }
-    auto deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    std::vector<std::string> deviceIDs;
+    if (sw_plugin_in_target_device(clear_target_device)) {
+        deviceIDs = {clear_target_device};
+    } else {
+        deviceIDs = ie.get_property(clear_target_device, ov::available_devices);
+    }
     if (deviceIDs.size() < target_devices.size())
         GTEST_FAIL() << "Incorrect Device ID" << std::endl;
 
