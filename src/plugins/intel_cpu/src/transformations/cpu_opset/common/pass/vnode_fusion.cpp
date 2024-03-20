@@ -26,6 +26,9 @@ class CausalMaskPreprocess : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("CausalMaskPreprocess", "0");
     CausalMaskPreprocess();
+
+private:
+    std::shared_ptr<ov::opset1::Constant> m_global_triu;
 };
 
 /*
@@ -77,8 +80,6 @@ bool is_triu(ov::opset1::Constant* cmask, size_t rows, size_t columns) {
 
 CausalMaskPreprocess::CausalMaskPreprocess() {
     MATCHER_SCOPE(CausalMaskPreprocess);
-
-    // if (std::getenv("NOCCC")) return;
 
     auto const_triu = makePattern<ov::opset1::Constant>({}, {});
     auto attention_mask = makePattern("i64[?,?]");
@@ -199,8 +200,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                                                         nullptr);  //  tensor_array<f32[?,1,?,..8192]>
     auto result = index_Gather;
 
-    std::shared_ptr<ov::opset1::Constant> global_triu;
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) mutable {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -209,8 +209,6 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         }
         ov::intel_cpu::VNode::Config config;
         config.type = "CausalMaskPreprocess";
-
-        // auto max_seq_len = validator["max_seq_len"];
 
         auto triu =
             std::dynamic_pointer_cast<ov::opset1::Constant>(pattern_map.find(const_triu)->second.get_node_shared_ptr());
@@ -221,7 +219,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         if (triu_shape[0] != 1 || triu_shape[1] != 1 || triu_shape[2] != triu_shape[3])
             return false;
 
-        if (!global_triu) {
+        if (!m_global_triu) {
             auto triu_dtype = triu->get_output_element_type(0);
             // check if it's triu
             if (triu_dtype == ov::element::i32) {
@@ -234,10 +232,10 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
                 return false;
             }
             // there should be only 1 raw triu constant
-            global_triu = triu;
+            m_global_triu = triu;
         } else {
             // check identity insread of values to save time
-            if (triu != global_triu)
+            if (triu != m_global_triu)
                 return false;
         }
 
@@ -249,7 +247,6 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         };
         auto replacement = std::make_shared<ov::intel_cpu::VNode>(inputs, config);
         ov::replace_node(root, replacement);
-        // std::cout << "====" << matcher_name << " : " << root << std::endl;
         return true;
     };
 

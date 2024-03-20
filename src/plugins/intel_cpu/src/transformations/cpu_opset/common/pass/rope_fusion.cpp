@@ -784,15 +784,7 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
     auto sin_Sin = makePattern<opset1::Sin>({cat_Concat});
     auto result = makePattern<opset1::Unsqueeze>({cos_Cos | sin_Sin, 1});
 
-    // these local variables are to be captured by value in callback lambda
-    // as so stateful lambda callback can record the first pattern match and
-    // share with following matches.
-    std::shared_ptr<opset1::Constant> inv_freq;
-    std::shared_ptr<Node> shared_cos0;
-    std::shared_ptr<Node> shared_sin0;
-    std::vector<std::shared_ptr<Node>> shared_inputs(2, nullptr);
-
-    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) mutable {
+    matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
@@ -804,23 +796,24 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
 
         // the first match is the one to be shared, collect all inputs
         // and constants into the state capture by lambda
-        if (!inv_freq) {
-            for (size_t i = 0; i < shared_inputs.size(); i++) {
+        if (!m_inv_freq) {
+            for (size_t i = 0; i < m_shared_inputs.size(); i++) {
                 auto it = pattern_map.find(inputs[i]);
                 if (it == pattern_map.end())
                     return false;
                 auto input_node = it->second.get_node_shared_ptr();
-                shared_inputs[i] = input_node;
+                m_shared_inputs[i] = input_node;
             }
-            inv_freq = cur_inv_freq;
+            m_inv_freq = cur_inv_freq;
         }
 
         // check consts are the same as the one to be shared.
-        if (cur_inv_freq->get_element_type() != inv_freq->get_element_type())
+        if (cur_inv_freq->get_element_type() != m_inv_freq->get_element_type())
             return false;
-        if (cur_inv_freq->get_shape() != inv_freq->get_shape())
+        if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
-        if (memcmp(cur_inv_freq->get_data_ptr(), inv_freq->get_data_ptr(), inv_freq->get_byte_size()) != 0)
+        auto global_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(m_inv_freq);
+        if (memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size()) != 0)
             return false;
         // check all inputs are the same as the one to be shared.
         for (size_t i = 0; i < inputs.size(); i++) {
@@ -828,25 +821,28 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
             if (it == pattern_map.end())
                 return false;
             auto input_node = it->second.get_node_shared_ptr();
-            if (shared_inputs[i] != input_node)
+            if (m_shared_inputs[i] != input_node)
                 return false;
         }
 
         // now the match share the same topology & inputs(consts) upto the sin/cos node
         // we can intialize the unsqueezed sin/cos to be shared
-        if (pattern_map.find(sin_Sin) != pattern_map.end() && !shared_sin0) {
-            shared_sin0 = root;
+        bool is_sin_matched = pattern_map.find(sin_Sin) != pattern_map.end();
+        if (is_sin_matched && !m_shared_sin0) {
+            m_shared_sin0 = root;
             return false;
         }
-        if (pattern_map.find(cos_Cos) != pattern_map.end() && !shared_cos0) {
-            shared_cos0 = root;
+        if (!is_sin_matched && !m_shared_cos0) {
+            m_shared_cos0 = root;
             return false;
         }
 
         // all inputs & consts are same, we can safely shared the subgraph
-        auto replacement = shared_cos0;
+        // Just for record, the pattern uses cos | sin as root node. This means that we could match both cases.
+        // There we use find to decides whether cons or sin is used
+        auto replacement = m_shared_cos0;
         if (pattern_map.find(sin_Sin) != pattern_map.end()) {
-            replacement = shared_sin0;
+            replacement = m_shared_sin0;
         }
         ov::replace_node(root, replacement);
         return true;

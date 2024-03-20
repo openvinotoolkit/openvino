@@ -58,6 +58,12 @@ class RoPEShareCosSin : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEShareCosSin", "0");
     RoPEShareCosSin();
+
+private:
+    std::shared_ptr<Node> m_inv_freq;
+    std::shared_ptr<Node> m_shared_cos0;
+    std::shared_ptr<Node> m_shared_sin0;
+    std::vector<std::shared_ptr<Node>> m_shared_inputs{2, nullptr};
 };
 
 class RoPEFusion : public ov::pass::GraphRewrite {
