@@ -31,7 +31,7 @@ async function restore() {
       files = await getSortedCacheFiles(cacheRemotePath, keysRestore[i])
       if (files.length) {
         cacheFile = files[0]
-        cacheSize = fs.statSync(cacheFile).size
+        cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
         core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
         break
       }
