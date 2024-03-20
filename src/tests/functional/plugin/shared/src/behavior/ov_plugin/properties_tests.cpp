@@ -341,7 +341,7 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
             ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
             ov::hint::ModelDistributionPolicy::NONE};
         for (auto& modelDistributionPolicy : modelDistributionPolicys) {
-            res.push_back({ov::hint::model_distribution_policy(modelDistributionPolicy)});
+            res.push_back({ov::hint::model_distribution_policy({modelDistributionPolicy})});
         }
     }
 

@@ -110,8 +110,10 @@ const std::vector<ov::AnyMap> testing_property_for_scheduling_core_type = {
     {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)}};
 
 const std::vector<ov::AnyMap> testing_property_for_model_distribution_policy = {
-    {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::NONE)},
-    {ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)}};
+    {ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::NONE})},
+    {ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL})},
+    {ov::hint::model_distribution_policy(
+        {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL, ov::hint::ModelDistributionPolicy::NONE})}};
 
 const std::vector<ov::AnyMap> testing_property_for_enable_hyper_threading = {{ov::hint::enable_hyper_threading(true)},
                                                                              {ov::hint::enable_hyper_threading(false)}};

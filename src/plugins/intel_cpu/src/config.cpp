@@ -219,30 +219,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::ModelDistributionPolicy::NONE);
             };
 
-            std::vector<std::string> para_vect = parse_multiple_parameters(val.as<std::string>());
-            if (para_vect.size() == 0) {
-                error_info();
-            }
-
-            ov::hint::ModelDistributionPolicy model_policy;
-            modelDistributionPolicy.clear();
-
-            for (auto& row : para_vect) {
-                std::stringstream str_stream;
-                try {
-                    str_stream.str(row);
-                    str_stream >> model_policy;
-                    switch (model_policy) {
-                    case ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL:
-                    case ov::hint::ModelDistributionPolicy::NONE:
-                        modelDistributionPolicy.emplace_back(model_policy);
-                        break;
-                    default:
+            try {
+                for (auto& row : val.as<std::set>()) {
+                    if ((row.as<ov::hint::ModelDistributionPolicy>() != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) &&
+                        (row.as<ov::hint::ModelDistributionPolicy>() != ov::hint::ModelDistributionPolicy::NONE)) {
                         error_info();
                     }
-                } catch (ov::Exception&) {
-                    error_info();
                 }
+                modelDistributionPolicy = val.as<std::set>();
+            } catch (ov::Exception&) {
+                error_info();
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {

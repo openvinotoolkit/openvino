@@ -442,10 +442,10 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
  * The following code is an example to split node into two parts run one part per socket on dual sockets platform.
  *
  * @code
- * ie.set_property(ov::hint::model_distribution_policy(ov::hint::ModelDistributionPolicy::TENSOR_PARTITION));
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARTITION}));
  * @endcode
  */
-static constexpr Property<ModelDistributionPolicy> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
+static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
 
 /**
  * @brief This property allows CPU pinning during inference.
