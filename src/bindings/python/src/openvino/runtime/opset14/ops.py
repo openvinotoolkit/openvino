@@ -138,8 +138,8 @@ def avg_pool(
 
     :param data_batch:      The input node providing data.
     :param strides:         The window movement strides.
-    :param pads_begin:      The input data optional padding below filled with zeros.
-    :param pads_end:        The input data optional padding below filled with zeros.
+    :param pads_begin:      The number of pixels to add at the beginning along each axis.
+    :param pads_end:        The number of pixels to add at the end along each axis.
     :param kernel_shape:    The pooling window shape.
     :param exclude_pad:     Whether or not to include zero padding in average computations.
     :param rounding_type:   Determines used rounding schema when computing output shape. Acceptable
