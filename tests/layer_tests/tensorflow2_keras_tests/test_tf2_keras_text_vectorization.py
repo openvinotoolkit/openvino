@@ -18,7 +18,7 @@ class TestTextVectorization(CommonTF2LayerTest):
         input_shape = inputs_info['text_input']
         inputs_data = {}
         strings_dictionary = ['hi OpenVINO here  ', '  hello OpenVINO there', 'hello PyTorch here  ',
-                              '  hi TensorFlow here', '  hi JAX here \t']
+                              '  hi TensorFlow here', '  hi JAX here \t', '   ']
         inputs_data['text_input'] = rng.choice(strings_dictionary, input_shape)
         return inputs_data
 
