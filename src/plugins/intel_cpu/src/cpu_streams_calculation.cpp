@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -609,11 +609,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                             config.changedHyperThreading,
                                             ov::util::to_string(config.hintPerfMode),
                                             proc_type_table);
-    auto cpu_reservation = get_cpu_pinning(config.enableCpuPinning,
-                                            config.changedCpuPinning,
-                                            streams,
-                                            config.hintMaxThreadsPerStream,
-                                            proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
     }
@@ -627,6 +622,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.hintMaxThreadsPerStream,
                                                      proc_type_table);
+
+    auto cpu_reservation =
+        get_cpu_pinning(config.enableCpuPinning, config.changedCpuPinning, proc_type_table, streams_info_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,

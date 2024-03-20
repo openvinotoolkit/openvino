@@ -34,7 +34,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
         auto src_item = fc_node->get_input_node_shared_ptr(0);
         auto fc_weight_node = fc_node->get_input_node_shared_ptr(1);
-        
+
         // split happens on the first dimension.
         constexpr size_t split_dim = 0;
         auto split_dim_node = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, split_dim);
@@ -78,7 +78,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             } else {
                 multiply_node = fc_weight_node;
             }
-    
+
             if (!ov::as_type_ptr<ov::op::v1::Multiply>(multiply_node)) {
                 return false;
             }
@@ -166,7 +166,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             // get input
             auto wgt_item = fc_node->get_input_node_shared_ptr(1);
             if (wgt_item->is_dynamic()) {
-	            return false;
+                return false;
             }
 
             // split weight
@@ -174,7 +174,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             // needn't to split fc when the dim is 0.
             if (split_dim_range <= 1) {
-	            return false;
+                return false;
             }
 
             // We should use VariadicSplit to split input for FC.

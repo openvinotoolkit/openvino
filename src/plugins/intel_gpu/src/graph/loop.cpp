@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
@@ -375,17 +375,22 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
     if (extern_mem_ptr != nullptr) {
         layout sliced_layout = intern_prim->get_output_layout(internal_id.idx);
         auto inter_mem_ptr = intern_prim->output_memory_ptr(internal_id.idx);
-        if (inter_mem_ptr == nullptr) {
+        if (inter_mem_ptr == nullptr || shape_changed()) {
             // if inner body intern_prim has no output memory because it has dynamic shape,
             // calculate inner body intern_prim layout using concat_mem's layout.
             auto updated_sliced_layout = sliced_layout.get_partial_shape();
             OPENVINO_ASSERT(updated_sliced_layout[io_prim_map.axis].is_static() || num_iterations > 0,
                                     "Not allowed dynamic dimension for axis when num_iteraiont is negative");
+
+            auto origin_input_layout = body_network->get_primitive(internal_id.pid)->get_node_output_layout();
             auto concat_pshape = extern_prim->get_output_layout().get_partial_shape();
             const auto shape_size = concat_pshape.size();
-            for (size_t i = 0; i < shape_size; i++) {
-                if (updated_sliced_layout[i].is_dynamic()) {
-                    updated_sliced_layout[i] = concat_pshape[i];
+            if (origin_input_layout.is_dynamic()) {
+                auto origin_input_pshape = origin_input_layout.get_partial_shape();
+                for (size_t i = 0; i < shape_size; i++) {
+                    if (origin_input_pshape[i].is_dynamic()) {
+                        updated_sliced_layout[i] = concat_pshape[i];
+                    }
                 }
             }
             GPU_DEBUG_LOG << "output pshape for [" << intern_prim->id() << "] is changed from "

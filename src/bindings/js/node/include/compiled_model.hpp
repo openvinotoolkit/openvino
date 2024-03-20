@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #pragma once
@@ -67,6 +67,9 @@ public:
      * @return A Javascript Array containing Inputs
      */
     Napi::Value get_inputs(const Napi::CallbackInfo& info);
+
+    /** @brief Exports the compiled model to bytes/output stream. */
+    Napi::Value export_model(const Napi::CallbackInfo& info);
 
 private:
     ov::CompiledModel _compiled_model;

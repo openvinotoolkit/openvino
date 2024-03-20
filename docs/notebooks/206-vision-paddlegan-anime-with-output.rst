@@ -60,12 +60,19 @@ Install requirements
 
 .. code:: ipython3
 
+    import platform
+    
     %pip install -q "openvino>=2023.1.0"
     
     %pip install -q "paddlepaddle>=2.5.1" "paddle2onnx>=0.6"
     %pip install -q "git+https://github.com/PaddlePaddle/PaddleGAN.git" --no-deps
     
-    %pip install -q opencv-python matplotlib scikit-learn scikit-image
+    if platform.system() != "Windows":
+        %pip install -q "matplotlib>=3.4"
+    else:
+        %pip install -q "matplotlib>=3.4,<3.7"
+    
+    %pip install -q opencv-python scikit-learn scikit-image
     %pip install -q "imageio==2.9.0" "imageio-ffmpeg" "numba>=0.53.1" easydict munch natsort
 
 
@@ -91,8 +98,13 @@ Install requirements
 
 .. parsed-literal::
 
+    Note: you may need to restart the kernel to use updated packages.
+
+
+.. parsed-literal::
+
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
+    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.8.0 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
     ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.1 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.9.0.80 which is incompatible.
@@ -204,7 +216,7 @@ source of the function.
 
 .. parsed-literal::
 
-    [02/09 23:41:27] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
+    [03/12 23:23:24] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/animeganv2_hayao.pdparams
 
 
 .. code:: ipython3
@@ -345,7 +357,7 @@ succeeds, the output of the next cell will include
 
 .. parsed-literal::
 
-    2024-02-09 23:41:36 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-03-12 23:23:32 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
@@ -356,12 +368,12 @@ succeeds, the output of the next cell will include
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 11 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-02-09 23:41:36 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
+    2024-03-12 23:23:32 [INFO]	ONNX model saved in model/paddlegan_anime.onnx.
 
 
 .. parsed-literal::
 
-    I0209 23:41:36.202327 2843665 program_interpreter.cc:212] New Executor is Running.
+    I0312 23:23:32.235426 3060480 program_interpreter.cc:212] New Executor is Running.
 
 
 Convert to OpenVINO IR
@@ -409,7 +421,7 @@ feeding them to the converted model.
 Now we use model conversion API and convert the model to OpenVINO IR.
 
 **Convert ONNX Model to OpenVINO IR with**\ `Model Conversion Python
-API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 
 .. code:: ipython3
 
@@ -643,12 +655,12 @@ measure inference on one image. For more accurate benchmarking, use
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime/CPU: 0.427 seconds per image, FPS: 2.34
+    OpenVINO IR model in OpenVINO Runtime/CPU: 0.425 seconds per image, FPS: 2.36
 
 
 .. parsed-literal::
 
-    PaddleGAN model on CPU: 6.182 seconds per image, FPS: 0.16
+    PaddleGAN model on CPU: 6.184 seconds per image, FPS: 0.16
 
 
 References
@@ -661,7 +673,7 @@ References
 -  `OpenVINO ONNX
    support <https://docs.openvino.ai/2021.4/openvino_docs_IE_DG_ONNX_Support.html>`__
 -  `Model Conversion
-   API <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+   API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 
 The PaddleGAN code that is shown in this notebook is written by
 PaddlePaddle Authors and licensed under the Apache 2.0 license. The
