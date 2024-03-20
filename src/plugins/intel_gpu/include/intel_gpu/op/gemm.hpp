@@ -43,13 +43,13 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
 
-    std::vector<int32_t> get_input0_target_shape() const { return m_target_shape_a; }
-    std::vector<int32_t> get_input1_target_shape() const { return m_target_shape_b; }
-    std::vector<int64_t> get_input0_output_pattern() const { return m_output_pattern_a; }
-    std::vector<int64_t> get_input1_output_pattern() const { return m_output_pattern_b; }
-    std::vector<int64_t> get_input0_order() const { return m_order_a; }
-    std::vector<int64_t> get_input1_order() const { return m_order_b; }
-    std::vector<int64_t> get_output_order() const { return m_order_c; }
+    std::vector<int32_t> get_input0_broadcast_target_shape() const { return m_target_shape_a; }
+    std::vector<int32_t> get_input1_broadcast_target_shape() const { return m_target_shape_b; }
+    std::vector<int64_t> get_input0_reshape_pattern() const { return m_output_pattern_a; }
+    std::vector<int64_t> get_input1_reshape_pattern() const { return m_output_pattern_b; }
+    std::vector<int64_t> get_input0_transpose_order() const { return m_order_a; }
+    std::vector<int64_t> get_input1_transpose_order() const { return m_order_b; }
+    std::vector<int64_t> get_output_transpose_order() const { return m_order_c; }
     ov::element::Type get_output_type() const { return m_output_type; }
 
     static std::vector<int64_t> default_order(size_t rank) {

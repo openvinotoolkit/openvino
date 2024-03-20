@@ -61,8 +61,8 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
         auto target_shape_b = std::vector<int32_t>();
         size_t input_a_output_idx = matmul->get_input_source_output(0).get_index();
         size_t input_b_output_idx = matmul->get_input_source_output(1).get_index();
-        auto order_a = matmul->get_input0_order();
-        auto order_b = matmul->get_input1_order();
+        auto order_a = matmul->get_input0_transpose_order();
+        auto order_b = matmul->get_input1_transpose_order();
 
         auto valid_transpose_order = [](const std::vector<int64_t>& order) {
             return order.size() == 4 && order[1] == 2;
@@ -119,7 +119,7 @@ BroadcastReshapeMatmulFusion::BroadcastReshapeMatmulFusion() {
 
         auto input_a = ov::Output<Node>(pattern_map.at(input_a_m).get_node_shared_ptr(), input_a_output_idx);
         auto input_b = ov::Output<Node>(pattern_map.at(input_b_m).get_node_shared_ptr(), input_b_output_idx);
-        auto order_c = matmul->get_output_order();
+        auto order_c = matmul->get_output_transpose_order();
 
         auto gemm = std::make_shared<op::Gemm>(input_a,
                                                input_b,
