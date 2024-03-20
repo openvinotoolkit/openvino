@@ -292,7 +292,7 @@ def test_properties_ro(ov_property_ro, expected_value):
             (
                 ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
                 ({hints.ModelDistributionPolicy.NONE}, {hints.ModelDistributionPolicy.NONE}),
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE}, 
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE},
                  {hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE}),
             ),
         ),
