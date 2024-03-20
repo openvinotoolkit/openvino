@@ -87,11 +87,11 @@ async function cleanUp() {
       for (let i = files.length - 1; i >= 0; i--) {
         var file = files[i]
         const filePath = path.join(directory, file)
-        const fileStats = await stat(filePath)
+        const fileStats = fs.statSync(filePath)
 
         if (fileStats.isFile() && fileStats.ctime < oneWeekAgo) {
           console.log(`Removing file: ${filePath}`)
-          await unlink(filePath)
+          fs.unlinkSync(filePath)
           totalSize -= fileStats.size
         }
 
