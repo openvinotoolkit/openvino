@@ -101,6 +101,7 @@ TEST(SerializationTest, WriteInReadOnly) {
     std::remove(test_xml_path.c_str());
     std::remove(test_bin_path.c_str());
 }
+
 TEST_P(SerializationTest, CompareFunctions) {
     CompareSerialized([this](const std::shared_ptr<ov::Model>& m) {
         ov::pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m);
