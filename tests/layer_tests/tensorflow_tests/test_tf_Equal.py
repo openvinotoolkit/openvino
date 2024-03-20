@@ -241,8 +241,8 @@ class TestEqualStr(CommonTFLayerTest):
 
         return tf_net, ref_net
 
-    @pytest.mark.parametrize('x_shape', [[1], [5]])
-    @pytest.mark.parametrize('y_shape', [[1], [5]])
+    @pytest.mark.parametrize('x_shape', [[], [1], [5]])
+    @pytest.mark.parametrize('y_shape', [[], [1], [5]])
     @pytest.mark.precommit_tf_fe
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
