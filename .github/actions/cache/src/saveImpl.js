@@ -9,11 +9,11 @@ const path = require('path')
  */
 async function save() {
   try {
-    const cachePath = core.getInput('cache_path', { required: true })
+    const cacheRemotePath = core.getInput('cache_path', { required: true })
     const toCachePath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
 
-    core.debug(`cache_path: ${cachePath}`)
+    core.debug(`cache_path: ${cacheRemotePath}`)
     core.debug(`path: ${toCachePath}`)
     core.debug(`key: ${key}`)
 
@@ -23,8 +23,14 @@ async function save() {
     }
 
     var tarName = `${key}.cache`
-    var tarPath = path.join(cachePath, tarName)
+    var tarPath = path.join(cacheRemotePath, tarName)
 
+    if (fs.existsSync(tarPath)) {
+      core.warning(`Cache file ${tarName} already exists`)
+      return
+    }
+
+    core.info(`Preparing cache archive ${tarName}`)
     tar.c(
       {
         gzip: true,
@@ -34,9 +40,10 @@ async function save() {
       },
       ['.']
     )
-
+    core.info('Copying cache...')
     fs.copyFileSync(tarName, tarPath)
     core.info(`${tarName} was copied to ${tarPath}`)
+
     core.setOutput('cache-file', tarName)
     core.setOutput('cache-hit', true)
   } catch (error) {
