@@ -33177,9 +33177,11 @@ async function restore() {
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Looking for ${key} in ${cacheRemotePath}`)
-    files = await getSortedCacheFiles(cacheRemotePath).catch(error)
+    files = getSortedCacheFiles(cacheRemotePath)
     if (files.length) {
       cacheFile = files[0]
+      cacheSize = fs.statSync(cacheFile).size
+      core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
 
       // copy file to local fs
       if (!fs.existsSync(cacheLocalPath)) {
@@ -33197,7 +33199,7 @@ async function restore() {
         cwd: cacheLocalPath,
         sync: true
       })
-      core.info(`Found cache file: ${cacheFile}`)
+
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)
     } else {
