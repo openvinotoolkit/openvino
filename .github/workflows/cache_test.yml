@@ -42,7 +42,7 @@ jobs:
           pushd ${CACHE_TMP}
             tar -czvf ${CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
           popd
-          ls -la ${${CACHE_REMOTE}}
+          ls -la ${CACHE_REMOTE}
 
       - name: Test Local Action
         id: test-action
