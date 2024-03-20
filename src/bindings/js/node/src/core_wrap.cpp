@@ -267,13 +267,7 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
 
     std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
 
-    ov::Any value;
-
-    if (device_name.empty()) {
-        value = _core.get_property(property_name);
-    } else {
-        value = _core.get_property(device_name, property_name);
-    }
+    ov::Any value = device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
 
     return any_to_js(info, value);
 }
