@@ -33188,7 +33188,7 @@ async function restore() {
     cacheFile = ''
     for (var i = 0; i < keysRestore.length; i++) {
       var keyR = keysRestore[i]
-      core.debug(`Looking for ${keyR} in ${cacheRemotePath}`)
+      core.info(`Looking for ${keyR} in ${cacheRemotePath}`)
       files = await getSortedCacheFiles(cacheRemotePath, keyR)
       if (files.length) {
         cacheFile = files[0]
