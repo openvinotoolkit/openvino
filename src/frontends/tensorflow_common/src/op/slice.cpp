@@ -24,7 +24,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_slice_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"Slice"});
+    default_op_checks(node, 3, {"Slice"}, true);
     auto input = node.get_input(0);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     auto start = node.get_input(1);
