@@ -10,7 +10,6 @@
 
 #include <map>
 #include <memory>
-#include <set>
 #include <string>
 #include <typeindex>
 #include <typeinfo>
