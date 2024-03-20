@@ -153,7 +153,7 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         bool has_shape_infer_parent = false;
         auto top_shape_infer_expr = expr;
         // parent before shape infer ops is used to determine if buffer needed according loopInfo
-        auto shape_infer_parents = LinearIR::propagate_expr_through_shape_infer_ops(first_parent_expr, false);
+        auto shape_infer_parents = LinearIR::get_shape_infer_expr_seq(first_parent_expr, false);
         if (!shape_infer_parents.empty()) {
             parent_expr_output = shape_infer_parents.back()->get_input_port_connector(0)->get_source();
             has_shape_infer_parent = true;
