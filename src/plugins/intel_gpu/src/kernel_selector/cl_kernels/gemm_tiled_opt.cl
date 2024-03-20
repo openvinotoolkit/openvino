@@ -347,6 +347,15 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
         // Loading A tile and tile C calculation
+
+        #if IS_DYNAMIC
+            // software pipelining
+            #if TILE_K_NOT_DIVISIBLE
+                A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+            #else
+                A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
+            #endif
+        #endif
         unroll_for (uint dot_id = 0; dot_id < tile_m_iterations; dot_id++) {
 #if TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
     #if IS_DYNAMIC
@@ -359,11 +368,11 @@ KERNEL(gemm_tiled_opt)(
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
             A_FLOATN a_read = input0[a_idx];
         #else
-            #if TILE_K_NOT_DIVISIBLE
-                A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
-            #else
-                A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
-            #endif
+//            #if TILE_K_NOT_DIVISIBLE
+//                A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+//            #else
+//                A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
+//            #endif
         #endif
     #else // IS_DYNAMIC
         #if INDIRECT_INPUT0
@@ -398,6 +407,13 @@ KERNEL(gemm_tiled_opt)(
     #endif // TILE_K > SIMD_WIDTH
                 }
             }
+    #if IS_DYNAMIC
+        #if TILE_K_NOT_DIVISIBLE
+            a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+        #else
+            a_read = BLOCK_READ_A(a_ptr, 0);
+        #endif
+    #endif
 #elif TRANSPOSE_INPUT0 == TRANSPOSE_OTHER // TRANSPOSE_INPUT0
     #if INDIRECT_INPUT0
             uint a_idx = FUNC_CALL(get_input0_indirect_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid), beam_table);
