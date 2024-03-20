@@ -796,6 +796,9 @@ void Transformations::MainSnippets(void) {
     if (snippetsMode == Config::SnippetsMode::Disable || !is_supported_isa())
         return;
 
+    // TODO [123659] Implement common logic to split optimization and limitation conditions
+    const auto ignoreCallback = snippetsMode == Config::SnippetsMode::IgnoreCallback;
+
     ov::snippets::pass::SnippetsTokenization::Config tokenization_config;
     // [111813]: At the moment Snippets supports Transpose on output of MHA pattern only if it is an one node between MatMul and Result.
     // However there may be Convert [f32->bf16] before Result since:
@@ -818,13 +821,13 @@ void Transformations::MainSnippets(void) {
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
-    tokenization_config.split_m_dimension = snippetsMode != Config::SnippetsMode::IgnoreCallback;
+    tokenization_config.split_m_dimension = !ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     tokenization_config.mha_supported_transpose_ranks = { 4 };
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
-    if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
+    if (!ignoreCallback)
         CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
     if (inferencePrecision == ov::element::f32)
@@ -884,7 +887,7 @@ void Transformations::MainSnippets(void) {
     };
 #endif // OPENVINO_ARCH_X86_64
 
-    auto is_support_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
+    auto is_supported_op = [](const std::shared_ptr<const ov::Node> &n) -> bool {
 #if defined(OPENVINO_ARCH_ARM64)
         return (ov::is_type<ov::op::v1::Add>(n) ||
                 ov::is_type<ov::op::v1::Multiply>(n) ||
@@ -911,56 +914,40 @@ void Transformations::MainSnippets(void) {
 #endif
     };
 
-    auto has_supported_tensors = [](const std::shared_ptr<const ov::Node> &n) -> bool {
+    auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node> &n) -> bool {
         // Check for supported precision
-        auto supported = [&n](descriptor::Tensor& t) -> bool {
-            auto get_supported_element_types = []() {
-#if defined(OPENVINO_ARCH_ARM64)
-                static const std::set<ov::element::Type> supported_element_types =
-                    { ov::element::f32 };
-#else
-                static const std::set<ov::element::Type> supported_element_types =
-                    { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
-#endif
-                return supported_element_types;
-            };
+        auto is_supported_tensor = [&n, ignoreCallback](descriptor::Tensor& t, bool is_input) -> bool {
             // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
-            //  So i32 is supported exclusively for transposes and broadcast
-            return get_supported_element_types().count(t.get_element_type()) != 0 ||
+            // So i32 is supported exclusively for transposes and broadcast
+            static const std::set<ov::element::Type> supported_element_types =
+#if defined(OPENVINO_ARCH_ARM64)
+                { ov::element::f32 };
+#else
+                { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+#endif
+
+            if (!ignoreCallback) {
+                // Check for supported ranks
+                // todo: clarify whether we can evaluate snippets on inputs with larger ranks
+                if (t.get_partial_shape().rank().get_length() > 6)
+                    return false;
+            }
+
+            return supported_element_types.count(t.get_element_type()) != 0 || is_input &&
                    (t.get_element_type() == ov::element::i32 &&
-                   (ov::is_type<const opset1::Transpose>(n) || ov::is_type<const opset1::Broadcast>(n)));
+                   (ov::is_type<const opset1::Transpose>(n) ||
+                    ov::is_type<const opset1::Broadcast>(n) ||
+                    ov::is_type<const opset1::ReduceMax>(n) ||
+                    ov::is_type<const opset1::ReduceSum>(n)));
         };
+
         const auto& inputs = n->inputs();
         const auto& outputs = n->outputs();
-        bool supported_precison =
-                std::all_of(inputs.begin(), inputs.end(), [&](const Input<const ov::Node>& in) {return  supported(in.get_tensor());}) &&
-                std::all_of(outputs.begin(), outputs.end(), [&](const Output<const ov::Node>& out) {return  supported(out.get_tensor());});
-        if (!supported_precison)
-            return false;
-
-        // Check for supported ranks
-        // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-        auto rank_is_too_large = [](const ov::descriptor::Tensor& t) {
-            // callback is called has_supported_in_out(), so it's safe to assume that the shapes are static
-            return t.get_partial_shape().rank().get_length() > 6;
-        };
-        const bool bad_input_rank = std::any_of(inputs.begin(), inputs.end(),
-                                                [&](const ov::Input<const ov::Node>& in) {
-                                                    return rank_is_too_large(in.get_tensor());
-                                                });
-        if (bad_input_rank)
-            return false;
-        const bool bad_output_rank = std::any_of(outputs.begin(), outputs.end(),
-                                                [&](const ov::Output<const ov::Node>& out) {
-                                                    return rank_is_too_large(out.get_tensor());
-                                                });
-        if (bad_output_rank)
-            return false;
-
-        return true;
+        return std::all_of(inputs.begin(), inputs.end(), [&](const Input<const ov::Node>& in) {return  is_supported_tensor(in.get_tensor(), true);}) &&
+               std::all_of(outputs.begin(), outputs.end(), [&](const Output<const ov::Node>& out) {return  is_supported_tensor(out.get_tensor(), false);});
     };
 
-    if (snippetsMode != Config::SnippetsMode::IgnoreCallback) {
+    if (!ignoreCallback) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             // Tranformation callback is called on MatMul0
             if (!is_supported_matmul(n))
@@ -979,27 +966,30 @@ void Transformations::MainSnippets(void) {
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
             return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
         }, snippets::pass::ExtractReshapesFromMHA);
-        CPU_SET_CALLBACK_COMMON(snippetsManager,
-            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (n->is_dynamic())
-                    return true;
-                if (!is_support_op(n))
-                    return true;
-                const auto& inputs = n->inputs();
-                // todo: clarify whether we can evaluate snippets on const paths
-                const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
-                                                               [](const ov::Input<const ov::Node>& in) {
-                                                                   return ov::is_type<ov::op::v0::Constant>(
-                                                                           in.get_source_output().get_node_shared_ptr());
-                                                               });
-                if (has_only_const_inputs)
-                    return true;
-                if (!has_supported_tensors(n))
-                    return true;
-                return false;
-            },
-            snippets::pass::TokenizeSnippets);
     }
+
+    CPU_SET_CALLBACK_COMMON(snippetsManager,
+    [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+        if (!ignoreCallback) {
+            if (n->is_dynamic() || !is_supported_op(n))
+                return true;
+        }
+
+        const auto& inputs = n->inputs();
+        // todo: clarify whether we can evaluate snippets on const paths
+        const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),
+                                                        [](const ov::Input<const ov::Node>& in) {
+                                                            return ov::is_type<ov::op::v0::Constant>(
+                                                                    in.get_source_output().get_node_shared_ptr());
+                                                        });
+        if (has_only_const_inputs)
+            return true;
+        if (!has_supported_tensors(n))
+            return true;
+        return false;
+    },
+    snippets::pass::TokenizeSnippets);
+
     snippetsManager.run_passes(model);
 }
 
