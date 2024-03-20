@@ -467,7 +467,7 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
 
 template <typename T>
 Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<T>& vec) {
-    Napi::Array array = Napi::Array::New(info.Env(), vec.size());
+    auto array = Napi::Array::New(info.Env(), vec.size());
 
     std::transform(vec.begin(), vec.end(), array.begin(), [](const auto& property){
         auto any = ov::Any(property);
