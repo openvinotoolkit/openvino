@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,8 +93,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             OPENVINO_SUPPRESS_DEPRECATED_START
         } else if (key == ov::affinity.name()) {
             try {
-                ov::Affinity affinity = val.as<ov::Affinity>();
                 changedCpuPinning = true;
+                ov::Affinity affinity = val.as<ov::Affinity>();
+#if defined(__APPLE__)
+                enableCpuPinning = false;
+                threadBindingType = affinity == ov::Affinity::NONE ? IStreamsExecutor::ThreadBindingType::NONE
+                                                                   : IStreamsExecutor::ThreadBindingType::NUMA;
+#else
                 enableCpuPinning =
                     (affinity == ov::Affinity::CORE || affinity == ov::Affinity::HYBRID_AWARE) ? true : false;
                 switch (affinity) {
@@ -102,11 +107,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
                     break;
                 case ov::Affinity::CORE: {
-#if (defined(__APPLE__) || defined(_WIN32))
-                    threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-#else
                     threadBindingType = IStreamsExecutor::ThreadBindingType::CORES;
-#endif
                 } break;
                 case ov::Affinity::NUMA:
                     threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
@@ -121,6 +122,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                    key,
                                    ". Expected only ov::Affinity::CORE/NUMA/HYBRID_AWARE.");
                 }
+#endif
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
@@ -367,10 +369,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
             inferencePrecision = ov::element::f32;
 #if defined(OV_CPU_ARM_ENABLE_FP16)
-            // fp16 precision is used as default precision on ARM for non-convolution networks
-            // fp16 ACL convolution is slower than fp32
-            if (modelType != ModelType::CNN)
-                inferencePrecision = ov::element::f16;
+            inferencePrecision = ov::element::f16;
 #else
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;

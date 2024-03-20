@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace {
 void update_symbol(std::shared_ptr<ov::Symbol>& symbol) {
@@ -244,11 +245,8 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         if (auto result = ov::as_type_ptr<op::v0::Result>(op))
             continue;
 
-        // STS maps aren't shared with sub-graphs because inner graph can not access outer graph for symbol sources
-        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op))
-            for (const auto& sub_graph : multi_subgraph_op->get_functions())
-                if (sub_graph)
-                    run_on_model(sub_graph);
+        // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for label sources
+        ov::op::util::process_subgraph(*this, op);
 
         for (auto& output : op->outputs()) {
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);

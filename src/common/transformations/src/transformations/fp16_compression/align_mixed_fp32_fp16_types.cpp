@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -88,8 +88,8 @@ bool ov::pass::AlignMixedFP32FP16Types::run_on_model(const std::shared_ptr<ov::M
         if (!fp16_compression_is_disabled(node))
             continue;
 
-        is_changed |= insert_converts_before_if_needed(node);
-        is_changed |= insert_converts_after_if_needed(node);
+        is_changed = insert_converts_before_if_needed(node) || is_changed;
+        is_changed = insert_converts_after_if_needed(node) || is_changed;
     }
 
     return is_changed;

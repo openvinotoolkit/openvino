@@ -36,6 +36,8 @@ interface Core {
     modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   readModelSync(modelPath: string, weightsPath?: string): Model;
   readModelSync(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Model;
+  importModelSync(modelStream: Buffer, device: string): CompiledModel;
+  getAvailableDevices(): string[];
 }
 interface CoreConstructor {
   new(): Core;
@@ -55,6 +57,7 @@ interface CompiledModel {
   output(nameOrId?: string | number): Output;
   input(nameOrId?: string | number): Output;
   createInferRequest(): InferRequest;
+  exportModelSync(): Buffer;
 }
 
 interface Tensor {
@@ -81,7 +84,6 @@ interface InferRequest {
   inferAsync(inputData: { [inputName: string]: Tensor}
     | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
   getCompiledModel(): CompiledModel;
-  getAvailableDevices(): string[];
 }
 
 type Dimension = number | [number, number];
