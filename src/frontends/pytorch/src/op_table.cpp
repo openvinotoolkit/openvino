@@ -255,6 +255,7 @@ OP_CONVERTER(translate_constant_pad_nd_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_chunk_fx);
 OP_CONVERTER(translate_div_fx);
+OP_CONVERTER(translate_div_fx_);
 OP_CONVERTER(translate_embedding_bag_fx);
 OP_CONVERTER(translate_expand_fx);
 OP_CONVERTER(translate_fake_quantize_per_channel_affine_fx);
@@ -786,6 +787,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.div.Scalar", op::translate_div_fx},
         {"aten.div.Tensor", op::translate_div_fx},
         {"aten.div.Tensor_mode", op::translate_div_fx},
+        {"aten.div_.Tensor", op::translate_div_fx_},
         {"aten.elu.default", op::translate_elu},
         {"aten.elu_.default", op::inplace_op<op::translate_elu>},
         {"aten.embedding.default", op::translate_embedding},
