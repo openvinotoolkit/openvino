@@ -53,6 +53,7 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     auto pattern = num_input_values_to_optional == 0 ? std::static_pointer_cast<Pattern>(wrap_node)
                                                      : std::static_pointer_cast<Pattern>(std::make_shared<Or>(
                                                            OutputVector{wrap_node, input_values_to_optional[0]}));
+    // bool check = (pattern_value.get_node_shared_ptr()->get_output_size() != 0 && num_input_values_to_optional == 0);
 
     if (matcher->match_value(pattern, graph_value) || (same_type && num_input_values_to_optional == 0)) {
         auto& pattern_map = matcher->get_pattern_value_map();

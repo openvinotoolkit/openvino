@@ -86,7 +86,8 @@ def test_any_input_predicate():
 
 
 def test_optional_full_match():
-    model_abs = ops.abs(AnyInput())
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_abs = ops.abs(model_input)
     model_relu = ops.relu(model_abs.output(0))
 
     pattern_abs = Optional(["opset13.Abs"])
@@ -97,14 +98,15 @@ def test_optional_full_match():
 
 
 def test_optional_half_match():
-    model_abs = ops.add(AnyInput(), AnyInput())
-    model_relu = ops.relu(model_abs.output(0))
+    model_input = ops.parameter(PartialShape.dynamic())
+    model_relu = ops.relu(model_input)
+    model_relu1 = ops.relu(model_relu.output(0))
 
-    pattern_relu = Optional(["opset13.Relu"])
+    pattern_relu = Optional(["opset13.Abs"])
     pattern_relu1 = ops.relu(pattern_relu.output(0))
 
     matcher = Matcher(pattern_relu1, "FindRelu")
-    assert matcher.match(model_relu)
+    assert matcher.match(model_relu1)
 
 
 def test_optional_one_node():
