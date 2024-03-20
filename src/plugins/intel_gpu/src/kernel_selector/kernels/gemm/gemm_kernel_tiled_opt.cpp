@@ -145,7 +145,12 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_n = "(" + leftover_n + "!=0)";
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
-
+        bool tile_k_may_have_leftover = false;
+        if (k_size.find("shape_info") == std::string::npos) {
+            tile_k_may_have_leftover = ((std::stoi(k_size) % tuning_data.tile_k_size) != 0);
+        } else {
+            tile_k_may_have_leftover = true;
+        }
         jit.AddConstants({
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
@@ -158,7 +163,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("TILE_N", tuning_data.tile_n_size),
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
             MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE", not_divisible_k),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE", tile_k_may_have_leftover),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k), // if tile_k is constant no need to add this
             MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
