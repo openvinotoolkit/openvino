@@ -481,8 +481,8 @@ template <typename T>
 Napi::Object cpp_map_to_js_object(const Napi::CallbackInfo& info, const std::map<std::string, T>& map) {
     Napi::Object obj = Napi::Object::New(info.Env());
 
-    for (auto it = map.begin(); it != map.end(); ++it) {
-        obj.Set(it->first, it->second);
+    for (const auto& [k, v] : map){
+        obj.Set(k, v);
     }
 
     return obj;
