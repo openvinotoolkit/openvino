@@ -33223,8 +33223,7 @@ async function cleanUp() {
       )
     }
   } catch (error) {
-    core.error('Error removing old cache files')
-    core.setFailed(error.message)
+    core.setFailed('Error removing old cache files.' + error.message)
   }
 }
 
@@ -33241,6 +33240,7 @@ module.exports = {
 
 const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
+const path = __nccwpck_require__(1017)
 
 async function getSortedCacheFiles(path, key = '') {
   if (!fs.existsSync(path)) {

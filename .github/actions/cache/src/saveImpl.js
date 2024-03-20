@@ -107,8 +107,7 @@ async function cleanUp() {
       )
     }
   } catch (error) {
-    core.error('Error removing old cache files')
-    core.setFailed(error.message)
+    core.setFailed('Error removing old cache files.' + error.message)
   }
 }
 

@@ -1,5 +1,6 @@
 const core = require('@actions/core')
 const fs = require('fs')
+const path = require('path')
 
 async function getSortedCacheFiles(path, key = '') {
   if (!fs.existsSync(path)) {

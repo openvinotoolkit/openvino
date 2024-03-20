@@ -33209,6 +33209,7 @@ module.exports = {
 
 const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
+const path = __nccwpck_require__(1017)
 
 async function getSortedCacheFiles(path, key = '') {
   if (!fs.existsSync(path)) {
