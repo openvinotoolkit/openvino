@@ -32,7 +32,7 @@ and sign to hold all possible values supported by input data types, except when 
 
 * In case of ``floating-point`` types, resulting type is type with lowest bit-width of mantissa and exponential to fit mantissa and exponential of input types. This may result in unexpected bit widening in conversions like ``(bf16, f16) -> f32``. Conversion of ``(f8e4m3, f8e5m2) -> f16`` is a special case where conversion result was manually set to ``f16``, however it could be promoted to either bf16 and f16 based on mantissa and exponential based on rules.
 
-* In case of ``integer`` types, resulting type is an ``integer``, signed when any of inputs is signed and with minimal bit-width to hold all possible values supported by input data types.  In case of promotion of signed and unsigned ``integers``, resulting datatype would be an signed ``integer`` with bit-width of at least double than unsigned input to be able to store possible maximum and minimum values of unsigned one. Exception is for u64 and any signed ``integers`` promotion - since it would result in unsupported by Openvino type ``i128``, outcome of this promotion can be set by *u64_integer_promotion_target*, by default set to ``f32``.
+* In case of ``integer`` types, resulting type is an ``integer``, signed when any of inputs is signed and with minimal bit-width to hold all possible values supported by input data types.  In case of promotion of signed and unsigned ``integers``, resulting datatype would be a signed ``integer`` with bit-width of at least double than unsigned input to be able to store possible maximum and minimum values of unsigned one. Exception is for u64 and any signed ``integers`` promotion - since it would result in unsupported by OpenVINO type ``i128``, outcome of this promotion can be set by *u64_integer_promotion_target* attribute, by default set to ``f32``.
 
     .. note::
         If *promote_unsafe* is set to ``false``, promotions that will introduce bit widening,
@@ -52,10 +52,10 @@ Examples (notation: ``ConvertPromoteTypes(lhs_type, rhs_type) -> promoted_common
 
     * ``ConvertPromoteTypes(f16, i64) -> f16`` - Floating-point type has higher priority, however, i64 can support values outside of range of f16, possibly resulting in undefined behaviors in conversion.
     * ``ConvertPromoteTypes(f64, u64) -> f64`` - While f64 supports much bigger max values than u64, precision loss might be significant.
-    * ``ConvertPromoteTypes(i8, u8) -> i16`` - Both inputs have same data type, however, to support ranges from both inputs, bit-widening was necessary.
+    * ``ConvertPromoteTypes(i8, u8) -> i16`` - Both inputs have integer data type, however, to support ranges from both inputs, bit-widening was necessary.
     * ``ConvertPromoteTypes(f16, bf16) -> f32`` - Both inputs have same data type, however, due to difference in mantissa and exponential, bit-widening to f32 is necessary to represent whole range and precision. This is in accordance of IEE 754.
-    * ``ConvertPromoteTypes(f8m4e3, f8m5e3) -> f16`` - Both inputs have same data type, however, due to difference in mantissa and exponential, bit widening to either f16 or bf16 is necessary, where f16 was selected as result of this promotion.
-    * ``ConvertPromoteTypes(u64, i8) -> f32`` - promotion of u64 and any signed integer would result in i128, which is not supported by OV. Common type is set according to *u64_integer_promotion_target*, default f32.
+    * ``ConvertPromoteTypes(f8m4e3, f8m5e3) -> f16`` - Both inputs have f8 data type, however, due to difference in mantissa and exponential, bit widening to either f16 or bf16 is necessary, where f16 was selected as result of this promotion.
+    * ``ConvertPromoteTypes(u64, i8) -> f32`` - promotion of u64 and any signed integer would result in i128, which is not supported. Common type is set according to *u64_integer_promotion_target*, default f32.
 
 * Promotions for PyTorch-like mode with *pytorch_scalar_promotion* set to ``true``. Notation is extended by ``S(type)`` marking 0-dimensioned (scalar) tensor, and ``D(type)`` marking dimensioned tensor. 
 
