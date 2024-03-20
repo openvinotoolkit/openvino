@@ -33214,7 +33214,7 @@ async function restore() {
       }
       core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`)
       tar.x({
-        file: path.join(cacheLocalPath, cacheFile),
+        file: path.join(tempDir, cacheFile),
         cwd: cacheLocalPath,
         sync: true
       })
