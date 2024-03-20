@@ -18,12 +18,7 @@ class no_jit_trace:
 
 
 def patch_model(model, module_extensions, orig_forward_name):
-    for name, m in model.named_modules():
-        if hasattr(m, orig_forward_name):
-            # already patched, skipping with a warning because it is unexpected
-            print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
-                  'Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.')
-            continue
+    def module_patcher(m, name):
         extension = None
         if m in module_extensions:
             extension = module_extensions[m]
@@ -54,7 +49,7 @@ def patch_model(model, module_extensions, orig_forward_name):
                         m.forward = getattr(m, orig_forward_name)
                         # call user code
                         results = extension.evaluate(
-                            m, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)
+                            m, *Trampoline.stashed_args, **Trampoline.stashed_kwargs)  # call user code
                         m.forward = patched_forward  # return patched forward back
                         return results
 
@@ -64,6 +59,14 @@ def patch_model(model, module_extensions, orig_forward_name):
                 return extension.convert(m, Trampoline.apply, *args, **kwargs)
             setattr(m, orig_forward_name, m.forward)
             m.forward = new_forward
+
+    for name, m in model.named_modules():
+        if hasattr(m, orig_forward_name):
+            # already patched, skipping with a warning because it is unexpected
+            print(f'[ WARNING ] Unexpectedly found already patched module {name} while applying ModuleExtension during PyTorch model conversion. '
+                  'Result of the conversion maybe broken. Depending on the exact issue it may lead to broken original model.')
+            continue
+        module_patcher(m, name)
 
 
 def unpatch_model(model, orig_forward_name):
