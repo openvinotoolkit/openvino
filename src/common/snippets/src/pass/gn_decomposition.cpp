@@ -27,6 +27,7 @@ GNDecomposition::GNDecomposition() {
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::pass::GNDecomposition")
         auto group_norm_node = ov::as_type_ptr<ov::op::v12::GroupNormalization>(m.get_match_root());
+        OPENVINO_ASSERT(!group_norm_node->is_dynamic(), "GroupNormalization decomposition in snippets only support static node.");
 
         const auto data = group_norm_node->input_value(0);
         const auto scale = group_norm_node->input_value(1);
@@ -87,26 +88,8 @@ GNDecomposition::GNDecomposition() {
         auto eps_add = std::make_shared<ov::op::v1::Add>(sqr_mean, eps_node);  // fma to this add and parent multiply
         // variance = sqrt( reducemean( (x - mean) ^ 2 ) + eps )
         auto variance = std::make_shared<ov::op::v0::Sqrt>(eps_add);
-
         // divide variance
         const auto variance_inv = std::make_shared<ov::snippets::op::PowerStatic>(variance, -1.f);
-
-        // remove invariance in inner loop
-        std::vector<size_t> subtensor_invariance(group_rank, 1);
-        subtensor_invariance[3] = PortDescriptor::ServiceDimensions::FULL_DIM;
-        PortDescriptorUtils::set_port_descriptor_ptr(reduce_mean->input(0), std::make_shared<PortDescriptor>(reduce_mean->input(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(reduce_mean->output(0), std::make_shared<PortDescriptor>(reduce_mean->output(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->input(0), std::make_shared<PortDescriptor>(sqr_mean->input(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->input(1), std::make_shared<PortDescriptor>(sqr_mean->input(1), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(sqr_mean->output(0), std::make_shared<PortDescriptor>(sqr_mean->output(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->input(0), std::make_shared<PortDescriptor>(eps_add->input(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->input(1), std::make_shared<PortDescriptor>(eps_add->input(1), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(eps_add->output(0), std::make_shared<PortDescriptor>(eps_add->output(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(variance->input(0), std::make_shared<PortDescriptor>(variance->input(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(variance->output(0), std::make_shared<PortDescriptor>(variance->output(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(variance_inv->input(0), std::make_shared<PortDescriptor>(variance_inv->input(0), subtensor_invariance));
-        PortDescriptorUtils::set_port_descriptor_ptr(variance_inv->output(0), std::make_shared<PortDescriptor>(variance_inv->output(0), subtensor_invariance));
-
         auto mvn = std::make_shared<ov::op::v1::Multiply>(sub_mean, variance_inv);
 
         // reshape mvn from [N, group, 1, (C / group) * spatial] to [N, group, C / group, spatial]

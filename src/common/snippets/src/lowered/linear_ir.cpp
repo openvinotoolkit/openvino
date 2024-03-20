@@ -498,7 +498,7 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     return replace_with_expr(old_exprs, new_expr, insertion_place);
 }
 
-std::vector<ExpressionPtr> LinearIR::propagate_expr_through_shape_infer_ops(const ExpressionPtr& start_expr, bool downstream) {
+std::vector<ExpressionPtr> LinearIR::get_shape_infer_expr_seq(const ExpressionPtr& start_expr, bool downstream) {
     std::vector<ExpressionPtr> shape_infer_exprs;
     auto current_exp = start_expr;
     if (op::Subgraph::is_shape_infer_op(current_exp->get_node())) {
