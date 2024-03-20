@@ -1095,7 +1095,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         }
 
         // fill <data> general attributes
-        {
+        {   
             bool compress_to_fp16 = false;
             ov::element::Type output_element_type = ov::element::dynamic;
             if (is_fp16_compression_postponed(node->get_rt_info())) {
@@ -1231,19 +1231,20 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         try {
             // create bin file
-            std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+            std::ofstream bin_file;
             bin_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+            bin_file.open(m_binPath, std::ios::out | std::ios::binary);
             OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
         
             // create xml file 
-            std::ofstream xml_file(m_xmlPath, std::ios::out);
+            std::ofstream xml_file;
             xml_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+            xml_file.open(m_xmlPath, std::ios::out);
             OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 
             serializeFunc(xml_file, bin_file, model, m_version);
         } catch (const ov::AssertFailure& e) {
-            // Handle exceptions
-            std::cerr << "OpenVINO assertion failed: " << e.what() << '\n';
+            std::cerr << "OpenVINO assertion failed: " << '\n';
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
             throw;
