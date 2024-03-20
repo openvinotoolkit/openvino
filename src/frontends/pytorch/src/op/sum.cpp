@@ -43,7 +43,7 @@ OutputVector translate_sum(const NodeContext& context) {
     auto data = context.get_input(0);
     auto data_dtype = simplified_type_interpret(context.get_input_type(0));
     // PyTorch sum converts any integer type or bool to i64 for preventing overflow
-    if (data.get_element_type().is_static() && data.get_element_type().is_integral() ||
+    if ((data.get_element_type().is_static() && data.get_element_type().is_integral()) ||
         (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
          data_dtype.as<element::Type>().is_integral())) {
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, element::i64));
@@ -78,7 +78,7 @@ OutputVector translate_sum_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         data = context.mark_node(std::make_shared<ov::op::v0::Convert>(data, dtype));
-    } else if (data.get_element_type().is_static() && data.get_element_type().is_integral() ||
+    } else if ((data.get_element_type().is_static() && data.get_element_type().is_integral()) ||
                (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
                 data_dtype.as<element::Type>().is_integral())) {
         // PyTorch sum converts any integer type or bool to i64 for preventing overflow
