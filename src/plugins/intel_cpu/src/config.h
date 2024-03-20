@@ -113,7 +113,5 @@ struct Config {
 #endif
 };
 
-std::vector<std::string> parse_multiple_parameters(const std::string& inputs, const char separator = ',');
-
 }  // namespace intel_cpu
 }   // namespace ov

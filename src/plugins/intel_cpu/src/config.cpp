@@ -24,22 +24,6 @@ namespace intel_cpu {
 using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
 
-std::vector<std::string> parse_multiple_parameters(const std::string& inputs, const char separator) {
-    std::vector<std::string> parameters;
-    std::string::size_type pos = 0;
-    std::string::size_type endpos = 0;
-    while ((endpos = inputs.find(separator, pos)) != std::string::npos) {
-        auto substr = inputs.substr(pos, endpos - pos);
-        if (!substr.empty())
-            parameters.push_back(substr);
-        pos = endpos + 1;
-    }
-    auto substr = inputs.substr(pos, inputs.length() - pos);
-    if (!substr.empty())
-        parameters.push_back(substr);
-    return parameters;
-}
-
 Config::Config() {
     // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
