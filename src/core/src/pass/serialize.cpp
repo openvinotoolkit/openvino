@@ -1245,7 +1245,6 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             serializeFunc(xml_file, bin_file, model, m_version);
         } catch (const ov::AssertFailure& e) {
             // Handle exceptions
-            std::cerr << "OpenVINO assertion failed: " << e.what() << '\n';
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
             throw;
