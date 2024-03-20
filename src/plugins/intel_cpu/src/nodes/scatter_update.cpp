@@ -368,14 +368,14 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
     int64_t index_dim_size = indices_shape[axis];
     int64_t data_dim_size = data_shape[axis];
-    int64_t data_dim_stride = arr_memptr[0].get_byte_strides<int64_t>()[axis];
-    int64_t indices_dim_stride = arr_memptr[1].get_byte_strides<int64_t>()[axis];
-    int64_t updates_dim_stride = arr_memptr[2].get_byte_strides<int64_t>()[axis];
+    int64_t data_dim_stride = arr_memptr[0].stride_bytes(axis);
+    int64_t indices_dim_stride = arr_memptr[1].stride_bytes(axis);
+    int64_t updates_dim_stride = arr_memptr[2].stride_bytes(axis);
 
     const bool use_init_val = config.use_init_val;
     const Reduction reduction_type = config.reduction_type;
 
-    auto scatter_elements_update_loop = [&](char** data, const size_t* strides, size_t n) {
+    auto scatter_elements_update_loop = [&](char** data, const size_t* strides, const size_t n) {
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.
         if (!use_init_val) {
@@ -451,11 +451,11 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
     size_t num_workloads = shape_size(squashed_indices_shape);
     int num_threads = std::min(parallel_get_max_threads(), static_cast<int>(num_workloads));
+    TensorAdvance<3> tensorItr(squashed_indices_shape, arr_memptr);
     parallel_nt(num_threads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        splitter(num_workloads, nthr, ithr, start, end);
-        TensorAdvance tensorItr(squashed_indices_shape, axis, start, end);
-        tensorItr.run<3>(scatter_elements_update_loop, arr_memptr);
+        splitter(num_workloads, nthr, ithr, start, end);        
+        tensorItr.run(scatter_elements_update_loop, start, end);
     });
 }
 
