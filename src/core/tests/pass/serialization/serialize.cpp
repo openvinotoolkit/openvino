@@ -77,8 +77,9 @@ public:
 
 TEST(SerializationTest, WriteInReadOnly) {
     // Set up paths
-    std::string test_xml_path = "test_file.xml";
-    std::string test_bin_path = "test_file.bin";
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    std::string test_xml_path = filePrefix + "test_file.xml";
+    std::string test_bin_path = filePrefix + "test_file.bin";
 
     // Create read-only files
     ASSERT_TRUE(createReadOnlyFile(test_xml_path));
@@ -88,7 +89,7 @@ TEST(SerializationTest, WriteInReadOnly) {
     ov::pass::Serialize serializer(test_xml_path, test_bin_path);
 
     
-    std::shared_ptr<ov::Model> m = std::make_shared<ov::Model>();
+    auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector {}, "");
 
     // Expect that running the serializer on a read-only file throws an exception
     EXPECT_THROW(serializer.run_on_model(m), ov::AssertFailure);
