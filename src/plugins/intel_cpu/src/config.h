@@ -76,6 +76,7 @@ struct Config {
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::NONE};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
     Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
@@ -111,6 +112,8 @@ struct Config {
     void applyDebugCapsProperties();
 #endif
 };
+
+std::vector<std::string> parse_multiple_parameters(const std::string& inputs, const char separator = ',');
 
 }  // namespace intel_cpu
 }   // namespace ov

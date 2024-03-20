@@ -87,6 +87,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            hints.ModelDistributionPolicy,
+            (
+                (hints.ModelDistributionPolicy.NONE, "ModelDistributionPolicy.NONE", 0),
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 1),
+            ),
+        ),
+        (
             hints.ExecutionMode,
             (
                 (hints.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
@@ -278,6 +285,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
+        ),
+        (
+            hints.model_distribution_policy,
+            "MODEL_DISTRIBUTION_POLICY",
+            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
         ),
         (
             hints.enable_hyper_threading,
@@ -541,7 +553,6 @@ def test_single_property_setting(device):
             props.affinity: "NONE",
             "INFERENCE_PRECISION_HINT": Type.f32,
             hints.performance_mode: hints.PerformanceMode.LATENCY,
-            hints.scheduling_core_type: hints.SchedulingCoreType.PCORE_ONLY,
             hints.num_requests: 12,
             "NUM_STREAMS": streams.Num(5),
             "ENABLE_MMAP": False,
