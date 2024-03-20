@@ -98,7 +98,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     #
 
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
-    set(ARM_COMPUTE_BINARY_DIR "${intel_cpu_thirdparty_BINARY_DIR}/ComputeLibrary")
+    set(ARM_COMPUTE_BINARY_DIR "${CMAKE_BINARY_DIR}/ComputeLibrary")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
