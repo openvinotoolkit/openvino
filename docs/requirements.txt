@@ -25,7 +25,6 @@ pyparsing==2.4.7
 pytest==6.2.5
 pytest-html==3.1.1
 pytest-metadata==1.11.0
-py>=1.9.0
 pytz==2021.1
 requests==2.31.0
 six==1.15.0
