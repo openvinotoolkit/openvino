@@ -154,7 +154,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
                     // pass, as the existence of Assign will be checked later
                     break;
                 case 3:
-                    // the fist one leads to SDPA, otherwise the matcher don't find the pattern
+                    // the fist one leads to SDPA, otherwise the matcher doesn't find the pattern
                     // the second one leads to Assign, and this is checked later
                     // the third child is allowed to be a ShapeOf op only, thus one of them must be ShapeOf
                     if (!std::any_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
