@@ -251,3 +251,14 @@ small_bert/bert_uncased_L-8_H-128_A-2,https://www.kaggle.com/models/google/bert/
 centernet/resnet50v2_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v2-512x512-kpts/versions/1
 centernet/resnet50v1_fpn_512x512,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512/versions/1
 centernet/resnet50v1_fpn_512x512_kpts,https://www.kaggle.com/models/tensorflow/centernet-resnet/frameworks/tensorFlow2/variations/50v1-fpn-512x512-kpts/versions/1
+biggan-512,https://www.kaggle.com/models/deepmind/biggan/frameworks/tensorFlow1/variations/512/versions/2
+tiny_video_net/tvn1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/tvn1/versions/1
+cond-biggan,https://www.kaggle.com/models/vtab/cond-biggan/frameworks/tensorFlow1/variations/cond-biggan/versions/1
+supcon/resnet_v1_50/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/50-imagenet-classification/versions/1
+unsupervised-adversarial-training/cifar10/wrn_106,https://www.kaggle.com/models/deepmind/wrn-106/frameworks/tensorFlow1/variations/unsupervised-adversarial-training-cifar10-wrn-106/versions/1
+supcon/resnet_v1_101/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/101-imagenet-classification/versions/1
+uncond-biggan,https://www.kaggle.com/models/vtab/uncond-biggan/frameworks/tensorFlow1/variations/uncond-biggan/versions/1
+tiny_video_net/tvn3,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/tvn3/versions/1
+supcon/resnet_v1_200/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/200-imagenet-classification/versions/1
+llr-pretrain-adv/latents,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/latents/versions/1
+tiny_video_net/mobile_1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/mobile-1/versions/1
