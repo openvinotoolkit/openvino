@@ -5,7 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/label_table.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -20,10 +20,8 @@ using namespace ov::op;
 using namespace std;
 
 TEST_F(TransformationTestsF, DeReshapeFC) {
-    auto table = std::make_shared<ov::LabelTable>(42);
-
     auto shape = PartialShape{-1, -1, 40};
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+    set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
 
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
@@ -50,10 +48,8 @@ TEST_F(TransformationTestsF, DeReshapeFC) {
 }
 
 TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
-    auto table = std::make_shared<ov::LabelTable>(42);
-
     auto shape = PartialShape{-1, -1, 40};
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+    set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
     {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
         auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);
@@ -81,10 +77,8 @@ TEST_F(TransformationTestsF, DeReshapeFCWithConvert) {
 }
 
 TEST_F(TransformationTestsF, DeReshapeFCNegative) {
-    auto table = std::make_shared<ov::LabelTable>(42);
-
     auto shape = PartialShape{-1, -1, 40};
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44
+    set_shape_symbols(shape);  // we label shape with consecutive labels: A, B, C
     {
         auto data = make_shared<v0::Parameter>(element::f16, shape);
         auto in_reshape = make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, {2}, {-1, 40}), true);

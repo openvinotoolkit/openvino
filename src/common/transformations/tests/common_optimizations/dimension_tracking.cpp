@@ -25,7 +25,9 @@ using namespace testing;
 
 TEST(TransformationTests, AutoBatch_LabelPropagation_Transpose) {
     auto batch = ov::Dimension(5);
-    batch.set_label(7);
+    auto A = std::make_shared<ov::Symbol>();
+
+    batch.set_symbol(A);
 
     auto p_shape = ov::PartialShape{batch, 4, 6, 8};
     auto arg = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p_shape);
@@ -35,12 +37,14 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Transpose) {
 
     EXPECT_EQ(r->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(r->get_output_partial_shape(0), ov::PartialShape({6, 4, batch, 8}));
-    EXPECT_EQ(r->get_output_partial_shape(0)[2].get_label(), 7);
+    EXPECT_EQ(r->get_output_partial_shape(0)[2].get_symbol(), A);
 }
 
 TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution) {
     auto batch = ov::Dimension(5);
-    batch.set_label(7);
+    auto A = std::make_shared<ov::Symbol>();
+
+    batch.set_symbol(A);
 
     auto p_shape = ov::PartialShape{batch, 4, 6, 8};
     auto arg = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p_shape);
@@ -55,7 +59,7 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution) {
 
     EXPECT_EQ(conv->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(conv->get_output_partial_shape(0), ov::PartialShape({batch, 1, 4, 6}));
-    EXPECT_EQ(conv->get_output_partial_shape(0)[0].get_label(), 7);
+    EXPECT_EQ(conv->get_output_partial_shape(0)[0].get_symbol(), A);
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
@@ -82,16 +86,16 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(!shape[0].get_label()) << shape;
-    ASSERT_TRUE(shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(!shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 
     const auto& out_shape = f->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(out_shape[0].get_label()) << out_shape;
-    ASSERT_TRUE(!out_shape[1].get_label()) << out_shape;
-    ASSERT_TRUE(!out_shape[2].get_label()) << out_shape;
-    ASSERT_TRUE(!out_shape[3].get_label()) << out_shape;
+    ASSERT_TRUE(out_shape[0].get_symbol()) << out_shape;
+    ASSERT_TRUE(!out_shape[1].get_symbol()) << out_shape;
+    ASSERT_TRUE(!out_shape[2].get_symbol()) << out_shape;
+    ASSERT_TRUE(!out_shape[3].get_symbol()) << out_shape;
 }
 
 TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution_Reshape) {
@@ -117,15 +121,15 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution_Reshape) {
     ASSERT_NO_THROW(check_rt_info(model));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 
     const auto& out_shape = model->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(out_shape[0].get_label()) << out_shape;
-    ASSERT_TRUE(!out_shape[1].get_label()) << out_shape;
-    ASSERT_TRUE(!out_shape[2].get_label()) << out_shape;
+    ASSERT_TRUE(out_shape[0].get_symbol()) << out_shape;
+    ASSERT_TRUE(!out_shape[1].get_symbol()) << out_shape;
+    ASSERT_TRUE(!out_shape[2].get_symbol()) << out_shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
@@ -143,10 +147,10 @@ TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
@@ -173,10 +177,10 @@ TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
@@ -203,10 +207,10 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
@@ -237,10 +241,10 @@ TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
@@ -270,10 +274,10 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
@@ -298,13 +302,13 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
 
     const auto& out_shape = f->get_results()[0]->get_output_partial_shape(0);
-    ASSERT_TRUE(!out_shape[0].get_label()) << out_shape;
+    ASSERT_TRUE(!out_shape[0].get_symbol()) << out_shape;
 }
 
 TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_detachment) {
@@ -318,25 +322,26 @@ TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_deta
     ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
-    ASSERT_TRUE(shape[0].get_label()) << shape;
-    ASSERT_TRUE(!shape[1].get_label()) << shape;
-    ASSERT_TRUE(!shape[2].get_label()) << shape;
-    ASSERT_TRUE(!shape[3].get_label()) << shape;
+    ASSERT_TRUE(shape[0].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[1].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[2].get_symbol()) << shape;
+    ASSERT_TRUE(!shape[3].get_symbol()) << shape;
     ASSERT_EQ(f->get_results().size(), 3);
     for (const auto& result : f->get_results()) {
         const auto& out_shape = result->get_output_partial_shape(0);
-        ASSERT_TRUE(out_shape[0].get_label()) << out_shape;
-        ASSERT_TRUE(!out_shape[1].get_label()) << out_shape;
+        ASSERT_TRUE(out_shape[0].get_symbol()) << out_shape;
+        ASSERT_TRUE(!out_shape[1].get_symbol()) << out_shape;
     }
 }
 
 TEST(partial_shape, cout_with_label) {
     ov::Dimension a = 5;
-    a.set_label(100500);
+    auto A = std::make_shared<ov::Symbol>();
+    a.set_symbol(A);
     ov::PartialShape shape{1, 2, 3, a};
     std::stringstream stream;
     stream << shape;
-    ASSERT_EQ(stream.str(), "[1,2,3,<100500>5]");
+    ASSERT_EQ(stream.str(), "[1,2,3,5]");
 }
 
 TEST(partial_shape, cout_without_label) {

@@ -158,8 +158,6 @@ std::ostream& ov::operator<<(std::ostream& str, const PartialShape& shape) {
             if (!first) {
                 str << ",";
             }
-            if (const auto& l = d.get_label())
-                str << "<" << l << ">";
             str << d;
             first = false;
         }

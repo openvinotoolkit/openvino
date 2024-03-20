@@ -67,10 +67,10 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     auto l1_shape = PartialShape{1, {0, 20}, 32, 32};
     auto l2_shape = PartialShape{1, {1, 10}, 16, 16};
 
-    set_shape_labels(in_shape, 10);
-    set_shape_labels(l0_shape, 20);
-    set_shape_labels(l1_shape, 30);
-    set_shape_labels(l2_shape, 40);
+    auto in_symbols = set_shape_symbols(in_shape);
+    auto l0_symbols = set_shape_symbols(l0_shape);
+    set_shape_symbols(l1_shape);
+    set_shape_symbols(l2_shape);
 
     const auto rois = std::make_shared<Parameter>(element::f64, in_shape);
     const auto pyramid_layer0 = std::make_shared<Parameter>(element::f64, l0_shape);
@@ -82,13 +82,15 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::f64)));
     EXPECT_THAT(
         op->outputs(),
-        ElementsAre(Property("ROIs feat shape",
-                             &Output<Node>::get_partial_shape,
-                             AllOf(PartialShape({{100, 200}, {2, 10}, 7, 7}),
-                                   ResultOf(get_shape_labels, ElementsAre(10, 41, no_label, no_label)))),
-                    Property("ROIs order shape",
-                             &Output<Node>::get_partial_shape,
-                             AllOf(PartialShape({{100, 200}, 4}), ResultOf(get_shape_labels, ElementsAre(10, 11))))));
+        ElementsAre(
+            Property("ROIs feat shape",
+                     &Output<Node>::get_partial_shape,
+                     AllOf(PartialShape({{100, 200}, {2, 10}, 7, 7}),
+                           ResultOf(get_shape_symbols, ElementsAre(in_symbols[0], l0_symbols[1], nullptr, nullptr)))),
+            Property("ROIs order shape",
+                     &Output<Node>::get_partial_shape,
+                     AllOf(PartialShape({{100, 200}, 4}),
+                           ResultOf(get_shape_symbols, ElementsAre(in_symbols[0], in_symbols[1]))))));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_propagation_not_all_inputs_labeled) {
@@ -97,9 +99,9 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     auto l1_shape = PartialShape{1, {0, 20}, 32, 32};
     auto l2_shape = PartialShape{1, {1, 10}, 16, 16};
 
-    set_shape_labels(in_shape, 10);
-    set_shape_labels(l0_shape, 20);
-    set_shape_labels(l1_shape, 30);
+    auto in_symbol = set_shape_symbols(in_shape);
+    auto l0_symbol = set_shape_symbols(l0_shape);
+    set_shape_symbols(l1_shape);
 
     const auto rois = std::make_shared<Parameter>(element::bf16, in_shape);
     const auto pyramid_layer0 = std::make_shared<Parameter>(element::bf16, l0_shape);
@@ -111,13 +113,15 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, dims_and_labels_p
     EXPECT_THAT(op->outputs(), Each(Property("Element type", &Output<Node>::get_element_type, element::bf16)));
     EXPECT_THAT(
         op->outputs(),
-        ElementsAre(Property("ROIs feat shape",
-                             &Output<Node>::get_partial_shape,
-                             AllOf(PartialShape({{100, 200}, 5, 7, 7}),
-                                   ResultOf(get_shape_labels, ElementsAre(10, 31, no_label, no_label)))),
-                    Property("ROIs order shape",
-                             &Output<Node>::get_partial_shape,
-                             AllOf(PartialShape({{100, 200}, 4}), ResultOf(get_shape_labels, ElementsAre(10, 11))))));
+        ElementsAre(
+            Property("ROIs feat shape",
+                     &Output<Node>::get_partial_shape,
+                     AllOf(PartialShape({{100, 200}, 5, 7, 7}),
+                           ResultOf(get_shape_symbols, ElementsAre(in_symbol[0], l0_symbol[1], nullptr, nullptr)))),
+            Property("ROIs order shape",
+                     &Output<Node>::get_partial_shape,
+                     AllOf(PartialShape({{100, 200}, 4}),
+                           ResultOf(get_shape_symbols, ElementsAre(in_symbol[0], in_symbol[1]))))));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_dynamic_rank) {
@@ -131,10 +135,10 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_dynami
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs feat shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({-1, -1, 7, 7}), ResultOf(get_shape_labels, Each(no_label)))),
+                                     AllOf(PartialShape({-1, -1, 7, 7}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("ROIs order shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({-1, 4}), ResultOf(get_shape_labels, Each(no_label))))));
+                                     AllOf(PartialShape({-1, 4}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_static_rank_but_dynamic_dims) {
@@ -153,10 +157,10 @@ TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, all_inputs_static
     EXPECT_THAT(op->outputs(),
                 ElementsAre(Property("ROIs feat shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({-1, -1, 7, 7}), ResultOf(get_shape_labels, Each(no_label)))),
+                                     AllOf(PartialShape({-1, -1, 7, 7}), ResultOf(get_shape_symbols, Each(nullptr)))),
                             Property("ROIs order shape",
                                      &Output<Node>::get_partial_shape,
-                                     AllOf(PartialShape({-1, 4}), ResultOf(get_shape_labels, Each(no_label))))));
+                                     AllOf(PartialShape({-1, 4}), ResultOf(get_shape_symbols, Each(nullptr))))));
 }
 
 TEST_F(TypePropExperimentalDetectronROIFeatureExtractorV6Test, input_not_floating_point) {

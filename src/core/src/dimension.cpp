@@ -7,38 +7,38 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
-#include <limits>
 #include <sstream>
 
-#include "openvino/core/label_table.hpp"
 #include "openvino/util/common_util.hpp"
 
 using namespace ov;
 
 namespace {
 /**
- * \brief Merges two labels.
+ * \brief Merges two symbols.
  *
- *  | label_a  | label_b  | result   |
- *  |----------|----------|----------|
- *  | X        | X        | X        |
- *  | X        | no label | X        |
- *  | no label | X        | X        |
- *  | X        | Y        | Y        | (if merge_unequal == true)
- *  | X        | Y        | no label | (if merge_unequal == false)
+ *  | lhs       | rhs       | result    |
+ *  |-----------|-----------|-----------|
+ *  | X         | X         | X         |
+ *  | X         | no symbol | X         |
+ *  | no symbol | X         | X         |
+ *  | X         | Y         | Y         | (if merge_unequal == true)
+ *  | X         | Y         | no symbol | (if merge_unequal == false)
  *
- * \param label_a  First input label.
- * \param label_b  Second input label.
+ * \param lhs  First input symbol.
+ * \param lhs  Second input symbol.
  *
- * \return ov::label_t Merged label value
+ * \return Merged symbol shared pointer
  */
-ov::label_t merge_labels(const ov::label_t label_a, const ov::label_t label_b, bool merge_unequal = true) {
-    if (label_a == label_b || label_b == ov::no_label)
-        return label_a;
-    else if (merge_unequal || label_a == ov::no_label)
-        return label_b;
+std::shared_ptr<ov::Symbol> merge_symbols(std::shared_ptr<ov::Symbol> lhs,
+                                          std::shared_ptr<ov::Symbol> rhs,
+                                          bool merge_unequal = true) {
+    if (ov::Symbol::are_equal(lhs, rhs) || rhs == nullptr)
+        return lhs;
+    else if (merge_unequal || lhs == nullptr)
+        return rhs;
     else
-        return ov::no_label;
+        return nullptr;
 }
 
 int64_t stringToInt64(const std::string& valStr) {
@@ -197,13 +197,9 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
         dst = Dimension(result_interval);
     }
 
-    if (auto& t = d1.m_label_table)
-        t->set_as_equal(d1, d2);
-    else if (auto& t = d2.m_label_table)
-        t->set_as_equal(d1, d2);
-
-    dst.m_label = merge_labels(d1.m_label, d2.m_label);
-
+    if (d1.m_symbol && d2.m_symbol)
+        d1.m_symbol->set_equal(d2.m_symbol);
+    dst.m_symbol = merge_symbols(d1.m_symbol, d2.m_symbol);
     return true;
 }
 
@@ -216,7 +212,7 @@ bool Dimension::broadcast_merge(Dimension& dst, const Dimension& d1, const Dimen
         if (result.empty())
             return false;
         dst = Dimension(result);
-        dst.m_label = merge_labels(d1.m_label, d2.m_label, dst.is_static());
+        dst.m_symbol = merge_symbols(d1.m_symbol, d2.m_symbol, dst.is_static());
         return true;
     } else if (d1_has_1) {
         dst = d2;
@@ -243,22 +239,14 @@ Dimension::value_type Dimension::get_min_length() const {
     return dimension_length(m_dimension.get_min_val());
 }
 
-bool Dimension::has_label() const {
-    return m_label != ov::no_label;
+bool Dimension::has_symbol() const {
+    return m_symbol != nullptr;
 }
 
-ov::label_t Dimension::get_label() const {
-    return m_label;
+std::shared_ptr<ov::Symbol> Dimension::get_symbol() const {
+    return m_symbol;
 }
 
-void Dimension::set_label(const label_t& label) {
-    m_label = label;
-}
-
-void Dimension::set_label_table(const std::shared_ptr<LabelTable>& table) {
-    m_label_table = table;
-}
-
-std::shared_ptr<LabelTable> Dimension::get_label_table() const {
-    return m_label_table;
+void Dimension::set_symbol(const std::shared_ptr<ov::Symbol>& s) {
+    m_symbol = s;
 }

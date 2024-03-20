@@ -51,8 +51,8 @@ TEST_F(TypePropROIPoolingV0, basic_shape_inference) {
 TEST_F(TypePropROIPoolingV0, dynamic_channels_dim) {
     auto feat_shape = PartialShape{1, -1, 6, 6};
     auto rois_shape = PartialShape{4, 5};
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(rois_shape, 20);
+    auto feat_symbols = set_shape_symbols(feat_shape);
+    auto rois_symbols = set_shape_symbols(rois_shape);
 
     const auto feat_maps = make_shared<Parameter>(element::f32, feat_shape);
     const auto rois = make_shared<Parameter>(element::f32, rois_shape);
@@ -60,14 +60,15 @@ TEST_F(TypePropROIPoolingV0, dynamic_channels_dim) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, -1, 2, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(rois_symbols[0], feat_symbols[1], nullptr, nullptr));
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_num_rois_dim) {
     auto feat_shape = PartialShape{1, 3, 6, 6};
     auto rois_shape = PartialShape{-1, 5};
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(rois_shape, 20);
+    auto feat_symbols = set_shape_symbols(feat_shape);
+    auto rois_symbols = set_shape_symbols(rois_shape);
 
     const auto feat_maps = make_shared<Parameter>(element::f64, feat_shape);
     const auto rois = make_shared<Parameter>(element::f64, rois_shape);
@@ -75,7 +76,8 @@ TEST_F(TypePropROIPoolingV0, dynamic_num_rois_dim) {
 
     EXPECT_EQ(op->get_element_type(), element::f64);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 2, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(rois_symbols[0], feat_symbols[1], nullptr, nullptr));
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_maps) {
@@ -85,7 +87,7 @@ TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_maps) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, -1, 2, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_rois) {
@@ -95,7 +97,7 @@ TEST_F(TypePropROIPoolingV0, dynamic_rank_feat_rois) {
 
     EXPECT_EQ(op->get_element_type(), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 3, 2, 2}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropROIPoolingV0, incompatible_input_rank) {

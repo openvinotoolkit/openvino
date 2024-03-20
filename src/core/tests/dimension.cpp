@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/dimension.hpp"
-
+#include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
-#include "openvino/core/label_table.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 using namespace std;
 using namespace ov;
@@ -123,41 +122,38 @@ TEST(dimension, division_of_static_dims) {
 }
 
 TEST(dimension, dimension_equality) {
-    auto te = make_shared<LabelTable>();
-
     // labeling dimensions
     PartialShape dimensions = PartialShape::dynamic(5);  // A, B, C, D, E
-    for (auto& dimension : dimensions)
-        te->set_up_for_tracking(dimension);
+    auto symbols = set_shape_symbols(dimensions);
 
-    // checking labels are unique
+    // checking symbols are unique
     for (const auto& dimension : dimensions)
-        EXPECT_NE(dimension.get_label(), no_label);
+        EXPECT_NE(dimension.get_symbol(), nullptr);
 
     for (const auto& lhs : dimensions) {
         for (const auto& rhs : dimensions) {
             if (&lhs == &rhs)
                 continue;
-            EXPECT_NE(lhs.get_label(), rhs.get_label());
-            EXPECT_FALSE(te->are_equal(lhs, rhs));
+            EXPECT_NE(lhs.get_symbol(), rhs.get_symbol());
+            EXPECT_FALSE(Symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
         }
     }
 
-    te->set_as_equal(dimensions[0], dimensions[1]);  // A == B
-    te->set_as_equal(dimensions[3], dimensions[4]);  // D == E
-    te->set_as_equal(dimensions[2], dimensions[3]);  // C == D
-    te->set_as_equal(dimensions[1], dimensions[2]);  // B == C
+    Symbol::set_equal(dimensions[0].get_symbol(), dimensions[1].get_symbol());  // A == B
+    Symbol::set_equal(dimensions[3].get_symbol(), dimensions[4].get_symbol());  // D == E
+    Symbol::set_equal(dimensions[2].get_symbol(), dimensions[3].get_symbol());  // C == D
+    Symbol::set_equal(dimensions[1].get_symbol(), dimensions[2].get_symbol());  // B == C
 
     // expected to see A == B == C == D == E
     for (const auto& lhs : dimensions)
         for (const auto& rhs : dimensions)
-            EXPECT_TRUE(te->are_equal(lhs, rhs));
+            EXPECT_TRUE(Symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
 
     // clear up all the tracking info
     for (auto& dimension : dimensions)
-        LabelTable::reset_tracking_info(dimension);
+        dimension.set_symbol(nullptr);
 
-    // checking labels are unique
+    // checking labels are nullified
     for (const auto& dimension : dimensions)
-        EXPECT_EQ(dimension.get_label(), no_label);
+        EXPECT_EQ(dimension.get_symbol(), nullptr);
 }

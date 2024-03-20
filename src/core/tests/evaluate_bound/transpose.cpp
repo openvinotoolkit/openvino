@@ -65,8 +65,8 @@ protected:
     std::shared_ptr<Transpose> transpose;
     std::shared_ptr<Parameter> arg, order;
 
-    TensorLabel labels;
-    TensorLabelVector out_labels = TensorLabelVector(Transpose::OUT_COUNT);
+    TensorSymbol symbols;
+    TensorSymbolVector out_symbols = TensorSymbolVector(Transpose::OUT_COUNT);
 };
 
 INSTANTIATE_TEST_SUITE_P(evaluate_bound,
@@ -133,41 +133,37 @@ TEST_P(TransposeEvalBoundTest, evaluate_upper_but_order_has_no_bounds_set) {
     ASSERT_FALSE(transpose->evaluate_upper(result));
 }
 
-TEST_P(TransposeEvalBoundTest, evaluate_label_but_empty_label_set) {
+TEST_P(TransposeEvalBoundTest, evaluate_symbol_but_empty_symbol_set) {
     exp_result = TensorVector{Tensor(label_dtype, exp_result.front().get_shape())};
 
-    labels.resize(shape_size(shape), 0);
-    arg->get_default_output().get_tensor().set_value_label(labels);
+    symbols.resize(shape_size(shape), nullptr);
+    arg->get_default_output().get_tensor().set_value_symbol(symbols);
 
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
-    ASSERT_FALSE(transpose->evaluate_label(out_labels));
+    ASSERT_FALSE(transpose->evaluate_symbol(out_symbols));
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_label_but_order_has_no_bound_set) {
     exp_result = TensorVector{Tensor(label_dtype, exp_result.front().get_shape())};
 
-    std::generate_n(std::back_inserter(labels), shape_size(shape), SeqGen<label_t>(30));
-    arg->get_default_output().get_tensor().set_value_label(labels);
+    symbols.resize(shape_size(shape), std::make_shared<ov::Symbol>());
+    arg->get_default_output().get_tensor().set_value_symbol(symbols);
 
-    ASSERT_FALSE(transpose->evaluate_label(out_labels));
+    ASSERT_FALSE(transpose->evaluate_symbol(out_symbols));
 }
 
 TEST_P(TransposeEvalBoundTest, evaluate_label) {
     exp_result = TensorVector{Tensor(label_dtype, exp_result.front().get_shape())};
-
-    std::generate_n(std::back_inserter(labels), shape_size(shape), SeqGen<label_t>(5));
-    arg->get_default_output().get_tensor().set_value_label(labels);
+    symbols.resize(shape_size(shape), std::make_shared<ov::Symbol>());
+    arg->get_default_output().get_tensor().set_value_symbol(symbols);
 
     node_set_lower_and_upper(order.get(), axes_v_tensor, axes_v_tensor);
 
-    auto inputs = TensorVector{Tensor(label_dtype, shape, labels.data()),
+    auto inputs = TensorVector{Tensor(label_dtype, shape, symbols.data()),
                                Tensor(dtype, Shape{axes_order.size()}, axes_order.data())};
 
     auto exp_eval_result = transpose->evaluate(exp_result, inputs);
 
-    ASSERT_EQ(transpose->evaluate_label(out_labels), exp_eval_result);
-    ASSERT_THAT(
-        out_labels[Transpose::ARG_T],
-        ElementsAreArray(exp_result[Transpose::ARG_T].data<label_t>(), exp_result[Transpose::ARG_T].get_size()));
+    ASSERT_EQ(transpose->evaluate_symbol(out_symbols), exp_eval_result);
 }

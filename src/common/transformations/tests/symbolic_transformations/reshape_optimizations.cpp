@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/label_table.hpp"
+#include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/divide.hpp"
@@ -25,9 +25,8 @@ TEST_F(TransformationTestsF, FlattenOptimization) {
     // [A, B, C, D] -> [A, B, C*D]
 
     auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
 
-    auto table = std::make_shared<ov::LabelTable>(42);
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
@@ -62,9 +61,8 @@ TEST_F(TransformationTestsF, LastDimSplitStaticLast) {
     // [A, B, C, D] -> [A, B, C, D/8, 8]
 
     auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
 
-    auto table = std::make_shared<ov::LabelTable>(42);
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
@@ -96,9 +94,8 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
     // [A, B, C, D] -> [A, B, C, 8, D/8]
 
     auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
 
-    auto table = std::make_shared<ov::LabelTable>(42);
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 
@@ -129,9 +126,8 @@ TEST_F(TransformationTestsF, LastDimSplitDymanicLast) {
 TEST_F(TransformationTestsF, NegativeTest) {
     // [A, B, C, D] -> [A, B, C, D/2, D/3, 6]
     auto shape = PartialShape::dynamic(4);
+    set_shape_symbols(shape);  // we set unique symbols to the shape: A, B, C, D
 
-    auto table = std::make_shared<ov::LabelTable>(42);
-    table->set_up_for_tracking(shape);  // we label shape with consecutive labels: 42, 43, 44, 45
     {
         auto data = make_shared<v0::Parameter>(element::f32, shape);
 

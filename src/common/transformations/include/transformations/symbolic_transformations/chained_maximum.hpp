@@ -15,7 +15,7 @@ class TRANSFORMATIONS_API ChainedMaximumOptimization;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Optimizes graphs based on value labels / symbols
+ * @brief Optimizes graphs based on value symbols
  *      Maximum(Maximum(A, B), B) -> Maximum(A, B)
  *      Maximum(Maximum(A, B), A) -> Maximum(A, B)
  */

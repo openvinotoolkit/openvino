@@ -673,7 +673,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
             if (shape.size()) {
                 for (size_t s = 0; s < shape.size(); s++) {
-                    if (shape[s].get_label() != ov::no_label) {
+                    if (shape[s].get_symbol() != nullptr) {
                         // batched dim for the input
                         auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id

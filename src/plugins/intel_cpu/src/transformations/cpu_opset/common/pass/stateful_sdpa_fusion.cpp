@@ -35,8 +35,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto cur_k = any_input();
     auto cur_v = any_input();
 
-    auto axis_seq_len = Symbol("axis_seq_len");
-    auto axis_beam = Symbol("axis_beam");
+    auto axis_seq_len = ov::gen_pattern::Symbol("axis_seq_len");
+    auto axis_beam = ov::gen_pattern::Symbol("axis_beam");
 
     // past_kv can be BHLS/LBHS
     auto past_k = makePattern<opset6::ReadValue>({});

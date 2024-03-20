@@ -6,26 +6,11 @@
 
 #include <openvino/core/model.hpp>
 
-#include "openvino/core/label_table.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-namespace {
-std::shared_ptr<ov::LabelTable> get_table(const ov::RTMap& rt_info) {
-    const auto& type = ov::SymbolicInfo::get_type_info_static();
-    if (!rt_info.count(type))
-        return nullptr;
-    return rt_info.at(type).as<ov::SymbolicInfo>().get_table();
-}
-}  // namespace
-
-void ov::set_up_symbolic_info(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::LabelTable>& table) {
-    auto& rt_info = model->get_rt_info();
-    rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true, table);
-}
-
-void ov::set_up_symbolic_info(const ov::Output<ov::Node>& output, const std::shared_ptr<ov::LabelTable>& table) {
+void ov::set_up_symbolic_info(const ov::Output<ov::Node>& output) {
     auto& rt_info = output.get_tensor().get_rt_info();
-    rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true, table);
+    rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true);
 }
 
 bool ov::skip_invalidation(const ov::descriptor::Tensor& tensor) {
@@ -34,30 +19,20 @@ bool ov::skip_invalidation(const ov::descriptor::Tensor& tensor) {
     return rt_info.count(type) && rt_info.at(type).as<ov::SymbolicInfo>().get_skip_invalidation();
 }
 
-std::shared_ptr<ov::LabelTable> ov::table_of_equivalence(const ov::descriptor::Tensor& tensor) {
-    const auto& rt_info = tensor.get_rt_info();
-    return get_table(rt_info);
-}
-
-std::shared_ptr<ov::LabelTable> ov::table_of_equivalence(const std::shared_ptr<ov::Model>& model) {
-    const auto& rt_info = model->get_rt_info();
-    return get_table(rt_info);
-}
-
-void ov::populate_tensor_with_missing_labels(ov::descriptor::Tensor& tensor) {
-    if (auto table = ov::table_of_equivalence(tensor)) {
-        auto label_values = tensor.get_value_label();
-        if (label_values.empty()) {
-            const auto& pshape = tensor.get_partial_shape();
-            if (pshape.is_dynamic())
-                return;
-            label_values.resize(ov::shape_size(pshape.to_shape()), ov::no_label);
-        }
-        for (auto& label : label_values)
-            if (label == ov::no_label)
-                label = table->get_next_label();
-        tensor.set_value_label(label_values);
+void ov::populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor) {
+    if (!tensor.get_rt_info().count(ov::SymbolicInfo::get_type_info_static()))
+        return;
+    auto symbol_values = tensor.get_value_symbol();
+    if (symbol_values.empty()) {
+        const auto& pshape = tensor.get_partial_shape();
+        if (pshape.is_dynamic())
+            return;
+        symbol_values.resize(ov::shape_size(pshape.to_shape()), nullptr);
     }
+    for (auto& symbol : symbol_values)
+        if (symbol == nullptr)
+            symbol = std::make_shared<Symbol>();
+    tensor.set_value_symbol(symbol_values);
 }
 
 void ov::remove_symbolic_info(const std::shared_ptr<ov::Model>& model, bool outermost_model) {

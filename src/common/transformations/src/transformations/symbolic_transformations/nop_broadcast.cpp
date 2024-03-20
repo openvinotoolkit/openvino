@@ -48,9 +48,9 @@ ov::pass::NopBroadcast::NopBroadcast() {
         auto data = vm.at(data_label);
         auto shape = vm.at(shape_label);
 
-        ov::TensorLabel data_labels, shape_labels;
-        if (!get_labels(data.get_partial_shape(), data_labels) || !get_labels(shape, shape_labels) ||
-            !are_unique_and_equal_labels(data_labels, shape_labels))
+        ov::TensorSymbol data_symbols, shape_symbols;
+        if (!get_symbols(data.get_partial_shape(), data_symbols) || !get_symbols(shape, shape_symbols) ||
+            !are_unique_and_equal_symbols(data_symbols, shape_symbols))
             return false;
         return ov::replace_output_update_name(m.get_match_root(), data);
     };

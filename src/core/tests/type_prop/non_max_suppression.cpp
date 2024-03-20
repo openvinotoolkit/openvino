@@ -130,11 +130,11 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, num_boxes_lt_max_out_boxes) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({1, 3}));
 }
 
-TYPED_TEST_P(NMSNonDynamicOutputTest, interval_shapes_boxes_and_scores_with_labels) {
+TYPED_TEST_P(NMSNonDynamicOutputTest, interval_shapes_boxes_and_scores_with_symbols) {
     auto boxes_shape = PartialShape{{1, 2}, {2, 5}, {0, 4}};
     auto scores_shape = PartialShape{{0, 2}, {1, 2}, {0, 6}};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -146,12 +146,12 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, interval_shapes_boxes_and_scores_with_labe
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 3}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSNonDynamicOutputTest, interval_boxes_scores_dynamic_rank) {
     auto boxes_shape = PartialShape{{1, 2}, {2, 5}, {0, 4}};
-    set_shape_labels(boxes_shape, 10);
+    set_shape_symbols(boxes_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
@@ -163,7 +163,7 @@ TYPED_TEST_P(NMSNonDynamicOutputTest, interval_boxes_scores_dynamic_rank) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::i64);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 3}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSNonDynamicOutputTest, dynamic_rank_boxes_and_scores) {
@@ -184,7 +184,7 @@ REGISTER_TYPED_TEST_SUITE_P(NMSNonDynamicOutputTest,
                             static_boxes_and_scores_default_others,
                             num_boxes_gt_max_out_boxes,
                             num_boxes_lt_max_out_boxes,
-                            interval_shapes_boxes_and_scores_with_labels,
+                            interval_shapes_boxes_and_scores_with_symbols,
                             interval_boxes_scores_dynamic_rank,
                             dynamic_rank_boxes_and_scores);
 using NMSNonDynamicOutputTypes =
@@ -279,8 +279,8 @@ TYPED_TEST_P(NMSDynamicOutputTest, boxes_scores_static_other_defaults) {
 TYPED_TEST_P(NMSDynamicOutputTest, num_boxes_gt_max_out_boxes) {
     auto boxes_shape = PartialShape{2, 7, 4};
     auto scores_shape = PartialShape{2, 5, 7};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -298,9 +298,9 @@ TYPED_TEST_P(NMSDynamicOutputTest, num_boxes_gt_max_out_boxes) {
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({{0, 30}, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({{0, 30}, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSDynamicOutputTest, num_boxes_lt_max_out_boxes) {
@@ -341,11 +341,11 @@ TYPED_TEST_P(NMSDynamicOutputTest, max_out_boxes_is_zero) {
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
 }
 
-TYPED_TEST_P(NMSDynamicOutputTest, interval_shapes_labels) {
+TYPED_TEST_P(NMSDynamicOutputTest, interval_shapes_symbols) {
     auto boxes_shape = PartialShape{{0, 2}, {0, 7}, 4};
     auto scores_shape = PartialShape{{0, 2}, {0, 5}, {1, 7}};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -363,16 +363,16 @@ TYPED_TEST_P(NMSDynamicOutputTest, interval_shapes_labels) {
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({{0, 70}, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSDynamicOutputTest, num_box_dynamic_dim_max_boxes_per_class_as_const) {
     auto boxes_shape = PartialShape{2, -1, 4};
     auto scores_shape = PartialShape{2, {0, 5}, {1, 7}};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -386,9 +386,9 @@ TYPED_TEST_P(NMSDynamicOutputTest, num_box_dynamic_dim_max_boxes_per_class_as_co
                 ElementsAre(Property("Indicies shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
                             Property("Scores shape", &Output<Node>::get_partial_shape, PartialShape({-1, 3})),
                             Property("Outputs shape", &Output<Node>::get_partial_shape, PartialShape({1}))));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(2)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(2)), Each(nullptr));
 }
 
 TYPED_TEST_P(NMSDynamicOutputTest, output_shape_i32) {
@@ -477,7 +477,7 @@ REGISTER_TYPED_TEST_SUITE_P(NMSDynamicOutputTest,
                             num_boxes_gt_max_out_boxes,
                             num_boxes_lt_max_out_boxes,
                             max_out_boxes_is_zero,
-                            interval_shapes_labels,
+                            interval_shapes_symbols,
                             num_box_dynamic_dim_max_boxes_per_class_as_const,
                             output_shape_i32,
                             dynamic_boxes_and_scores,

@@ -48,7 +48,7 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
         if (shape.is_dynamic())
             return NetworkBatchAbility::NO;
         // check the batch dim: either 0th (and the original batch size of 1) or none
-        if (shape.size() && shape[0].has_label()) {
+        if (shape.size() && shape[0].has_symbol()) {
             const auto& static_shape = input->get_shape();
             if (static_shape[0] != 1)
                 return NetworkBatchAbility::NO;
@@ -57,7 +57,7 @@ NetworkBatchAbility is_model_batchable(const std::shared_ptr<const ov::Model>& m
         } else {
             // if the 0-th dim is not for the batch, then we support only the case when NONE dimension is batch
             for (size_t s = 1; s < shape.size(); s++)
-                if (shape[s].has_label())
+                if (shape[s].has_symbol())
                     return NetworkBatchAbility::NO;
         }
     }

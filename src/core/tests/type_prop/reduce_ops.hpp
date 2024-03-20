@@ -254,13 +254,13 @@ TYPED_TEST_P(ReduceTest, reduce_dynamic_shape_data) {
     ASSERT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
 }
 
-TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const) {
+TYPED_TEST_P(ReduceTest, dynamic_interval_symboled_shape_data_axes_const) {
     using namespace testing;
 
     PartialShape data_ps{-1, -1, 1, 1, 6, 16, {-1, 8}, {-1, 18}, {4, -1}, {14, -1}, {3, 9}, {13, 19}};
     element::Type data_et = element::dynamic;
 
-    set_shape_labels(data_ps, 10);
+    auto symbols = set_shape_symbols(data_ps);
 
     Shape axes_ps{6};
     element::Type axes_et = element::i64;
@@ -273,16 +273,17 @@ TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const) {
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
     EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
-    EXPECT_THAT(get_shape_labels(reduce_op->get_output_partial_shape(0)), ElementsAre(10, 12, 14, 16, 18, 20));
+    EXPECT_THAT(get_shape_symbols(reduce_op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[2], symbols[4], symbols[6], symbols[8], symbols[10]));
 }
 
-TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const_keep_dims) {
+TYPED_TEST_P(ReduceTest, dynamic_interval_symboled_shape_data_axes_const_keep_dims) {
     using namespace testing;
 
     PartialShape data_ps{-1, -1, 1, 1, 6, 16, {-1, 8}, {-1, 18}, {4, -1}, {14, -1}, {3, 9}, {13, 19}};
     element::Type data_et = element::dynamic;
 
-    set_shape_labels(data_ps, 10);
+    auto symbols = set_shape_symbols(data_ps);
 
     Shape axes_ps{6};
     element::Type axes_et = element::i64;
@@ -295,19 +296,19 @@ TYPED_TEST_P(ReduceTest, dynamic_interval_labeled_shape_data_axes_const_keep_dim
     const ReduceParams params{data_ps, data_et, axes_ps, axes, axes_et, keep_dims};
     auto reduce_op = makeReduceOp<TypeParam>(params);
     EXPECT_EQ(reduce_op->get_output_partial_shape(0), out_ps);
-    EXPECT_THAT(get_shape_labels(reduce_op->get_output_partial_shape(0)),
-                ElementsAre(10,
-                            ov::no_label,
-                            12,
-                            ov::no_label,
-                            14,
-                            ov::no_label,
-                            16,
-                            ov::no_label,
-                            18,
-                            ov::no_label,
-                            20,
-                            ov::no_label));
+    EXPECT_THAT(get_shape_symbols(reduce_op->get_output_partial_shape(0)),
+                ElementsAre(symbols[0],
+                            nullptr,
+                            symbols[2],
+                            nullptr,
+                            symbols[4],
+                            nullptr,
+                            symbols[6],
+                            nullptr,
+                            symbols[8],
+                            nullptr,
+                            symbols[10],
+                            nullptr));
 }
 
 TYPED_TEST_P(ReduceTest, reduce_invalid_axis_out_of_range) {
@@ -386,8 +387,8 @@ REGISTER_TYPED_TEST_SUITE_P(ReduceTest,
                             reduce_dynamic_shape_reduced_axes_static_keep_dims,
                             reduce_dynamic_shape_reduced_axes_not_static,
                             reduce_dynamic_shape_reduced_axes_not_static_keep_dims,
-                            dynamic_interval_labeled_shape_data_axes_const_keep_dims,
-                            dynamic_interval_labeled_shape_data_axes_const,
+                            dynamic_interval_symboled_shape_data_axes_const_keep_dims,
+                            dynamic_interval_symboled_shape_data_axes_const,
                             reduce_invalid_axis_out_of_range,
                             reduce_invalid_axes_shape,
                             reduce_invalid_axes_et);

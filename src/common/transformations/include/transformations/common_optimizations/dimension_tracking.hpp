@@ -10,7 +10,8 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-using P2Btype = std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::unordered_set<ov::label_t>>;
+using P2Btype =
+    std::unordered_map<std::shared_ptr<ov::opset1::Parameter>, std::unordered_set<std::shared_ptr<ov::Symbol>>>;
 
 namespace ov {
 namespace pass {
@@ -37,17 +38,17 @@ namespace ov {
 namespace batch_util {
 void mark_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                 P2Btype& map,
-                const std::unordered_set<label_t>& batches);
+                const std::unordered_set<std::shared_ptr<Symbol>>& batches);
 void mark_no_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter, P2Btype& map);
 void mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                                    const std::shared_ptr<ov::Node>& result,
                                    P2Btype& map);
-void mark_with_unique_dimension_labels(const std::shared_ptr<Model>& m, const std::shared_ptr<ov::LabelTable>& dt);
+void mark_with_unique_dimension_symbols(const std::shared_ptr<Model>& m);
 void restore_original_dimensions(
     const std::shared_ptr<ov::Model>& model,
     const std::map<std::shared_ptr<ov::opset1::Parameter>, ov::PartialShape>& parameter_to_shape,
     bool leave_batch_dynamic = true,
-    bool clear_labels = false);
+    bool clear_symbols = false);
 bool check_batch_tracks_through_all_the_nodes(const std::shared_ptr<ov::Model>& m);
 P2Btype find_batch(const std::shared_ptr<ov::Model>& m);
 bool detach_detection_output(const std::shared_ptr<ov::Model>& f);

@@ -11,9 +11,9 @@
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/interval.hpp"
+#include "openvino/core/symbol.hpp"
 
 namespace ov {
-class LabelTable;
 /// \brief Alias for dimension label type.
 using label_t = uint32_t;
 /// \brief Special label value indicate no label set.
@@ -181,34 +181,27 @@ public:
     friend void swap(Dimension& a, Dimension& b) {
         using std::swap;
         swap(a.m_dimension, b.m_dimension);
-        swap(a.m_label, b.m_label);
-        swap(a.m_label_table, b.m_label_table);
+        swap(a.m_symbol, b.m_symbol);
     }
 
     /// \brief String representation of Dimension
     std::string to_string() const;
 
-    /// Label-related methods of ov::Dimension class
+    /// Methods of ov::Dimension class
 
-    /// \brief Indicates if meaningful label was set to the Dimension
-    bool has_label() const;
-    /// \brief Returns label of the Dimension
-    ov::label_t get_label() const;
-    /// \brief Sets label value to the Dimension
-    void set_label(const ov::label_t& label);
-    /// \brief Sets Label Table to the Dimension
-    void set_label_table(const std::shared_ptr<LabelTable>& table);
-    /// \brief Returns Label Table
-    std::shared_ptr<LabelTable> get_label_table() const;
+    /// \brief Indicates if meaningful symbol was set to the Dimension
+    bool has_symbol() const;
+    /// \brief Returns symbol of the Dimension
+    std::shared_ptr<ov::Symbol> get_symbol() const;
+    /// \brief Sets symbol of the Dimension
+    void set_symbol(const std::shared_ptr<ov::Symbol>& s);
 
 private:
     Dimension(const Interval& interval) : m_dimension(interval) {}
 
     // The actual numerical value of the dimension.
     Interval m_dimension{};
-
-    label_t m_label{ov::no_label};
-    std::shared_ptr<LabelTable> m_label_table = nullptr;
+    std::shared_ptr<Symbol> m_symbol = nullptr;
 };
 
 /// \brief Insert a human-readable representation of a dimension into an output stream.

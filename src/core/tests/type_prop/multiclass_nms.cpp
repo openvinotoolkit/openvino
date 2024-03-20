@@ -210,8 +210,8 @@ TYPED_TEST(type_prop, multiclass_nms_default_ctor) {
 TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_dynamic) {
     auto boxes_shape = PartialShape{5, 2, 4};
     auto scores_shape = PartialShape{5, 3, 2};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
+    auto symbols = set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -221,9 +221,9 @@ TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_dynamic) {
     EXPECT_EQ(nms->get_output_partial_shape(0), (PartialShape{{0, 30}, 6}));
     EXPECT_EQ(nms->get_output_partial_shape(1), (PartialShape{{0, 30}, 1}));
     EXPECT_EQ(nms->get_output_partial_shape(2), (PartialShape{5}));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(2)), ElementsAre(10));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(2)), ElementsAre(symbols[0]));
 }
 
 TYPED_TEST(type_prop, multiclass_nms_output_shape_1dim_max_out) {
@@ -340,9 +340,9 @@ TEST(type_prop2, multiclass_nms_interval_shapes_and_labels) {
     auto boxes_shape = PartialShape{2, 7, 4};
     auto scores_shape = PartialShape{2, 7};
     auto roisnum_shape = PartialShape{4};
-    set_shape_labels(boxes_shape, 10);
-    set_shape_labels(scores_shape, 20);
-    set_shape_labels(roisnum_shape, 30);
+    set_shape_symbols(boxes_shape);
+    set_shape_symbols(scores_shape);
+    auto symbols = set_shape_symbols(roisnum_shape);
 
     const auto boxes = make_shared<op::v0::Parameter>(element::f32, boxes_shape);
     const auto scores = make_shared<op::v0::Parameter>(element::f32, scores_shape);
@@ -357,9 +357,9 @@ TEST(type_prop2, multiclass_nms_interval_shapes_and_labels) {
     EXPECT_EQ(nms->get_output_partial_shape(0), PartialShape({{0, 56}, 6}));
     EXPECT_EQ(nms->get_output_partial_shape(1), PartialShape({{0, 56}, 1}));
     EXPECT_EQ(nms->get_output_partial_shape(2), PartialShape({4}));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(0)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(1)), Each(no_label));
-    EXPECT_THAT(get_shape_labels(nms->get_output_partial_shape(2)), ElementsAre(30));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(0)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(1)), Each(nullptr));
+    EXPECT_THAT(get_shape_symbols(nms->get_output_partial_shape(2)), ElementsAre(symbols[0]));
 }
 
 TEST(type_prop2, multiclass_nms_static_shapes) {
