@@ -54,6 +54,9 @@ OutputVector translate_ones_like_op(const NodeContext& node) {
 
     // create a tensor of zeros of shape with extra dimension
     Output<Node> ones_like = make_shared<v3::Broadcast>(one_const, shape_of);
+    // remove extra dimension by squeezing
+    auto zero_dim_ind = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    ones_like = make_shared<v0::Squeeze>(ones_like, zero_dim_ind);
     set_node_name(node.get_name(), ones_like.get_node_shared_ptr());
     return {ones_like};
 }
