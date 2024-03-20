@@ -1,8 +1,8 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fully_connected_kernel_bf_tiled.h"
+#include "fully_connected_kernel_bf_tiled_dyn_quan.h"
 
 #include <vector>
 #include <functional>
@@ -12,7 +12,7 @@ static constexpr size_t simd = 16;
 
 namespace kernel_selector {
 
-FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled") {
+FullyConnected_bf_tiled_dyn_quan::FullyConnected_bf_tiled_dyn_quan() : FullyConnectedKernelBase("fully_connected_gpu_bf_tiled_dyn_quan") {
     for (unsigned tile_b = 1; tile_b <= 32; ++tile_b)
     for (unsigned tile_ofm = 1; tile_ofm <= 4; tile_ofm *= 2)
     for (unsigned tile_ifm = 1; tile_ifm <= 2; tile_ifm *= 2)
@@ -31,7 +31,7 @@ FullyConnected_bf_tiled::FullyConnected_bf_tiled() : FullyConnectedKernelBase("f
     }
 }
 
-ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
+ParamsKey FullyConnected_bf_tiled_dyn_quan::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -59,14 +59,14 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     return k;
 }
 
-DeviceFeaturesKey FullyConnected_bf_tiled::get_required_device_features_key(const Params& params) const {
+DeviceFeaturesKey FullyConnected_bf_tiled_dyn_quan::get_required_device_features_key(const Params& params) const {
     auto k = get_common_subgroups_device_features_key(params);
     k.requires_subgroup_shuffle();
 
     return k;
 }
 
-bool FullyConnected_bf_tiled::Validate(const Params& params) const {
+bool FullyConnected_bf_tiled_dyn_quan::Validate(const Params& params) const {
     if (!Parent::Validate(params))
         return false;
 
@@ -101,6 +101,8 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
             return false;
     }
 
+    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan::Validate : " << input.to_string() << std::endl;
+
     // We don't support 4d output
     if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx) {
         if (input.X().v > 1)
@@ -118,7 +120,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
 namespace {
 
 struct TuneParamsSelector {
-    using tune_params = FullyConnected_bf_tiled::tune_params;
+    using tune_params = FullyConnected_bf_tiled_dyn_quan::tune_params;
     using functional_case = std::function<tune_params(const fully_connected_params&)>;
 
     TuneParamsSelector(const fully_connected_params& params) : params(params), selected(false) {}
@@ -177,14 +179,13 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     if (tparams.tile_ofm * simd > 64)
         return false;
 
-    if (tparams.kernel_type == FullyConnected_bf_tiled::KernelType::SLM) {
-        bool is_i4_u4 = (params.weights.GetDType() == WeightsType::INT4 || params.weights.GetDType() == WeightsType::UINT4);
+    if (tparams.kernel_type == FullyConnected_bf_tiled_dyn_quan::KernelType::SLM) {
         const auto required_batch_alignment = 64;
         if (!params.is_shape_agnostic && (!IsAligned(output_b, required_batch_alignment) || output_b < 256))
             return false;
 
         const auto required_tile_b = 8;
-        if ((tparams.tile_b != required_tile_b) && !is_i4_u4)
+        if (tparams.tile_b != required_tile_b)
             return false;
 
         const auto required_tile_ofm = 2;
@@ -220,8 +221,8 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
 
 }  // namespace
 
-FullyConnected_bf_tiled::tune_params
-FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
+FullyConnected_bf_tiled_dyn_quan::tune_params
+FullyConnected_bf_tiled_dyn_quan::GetAutoTuneParams(const fully_connected_params& params, KernelType preferred_kernel_type, int idx) const {
     if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
@@ -249,10 +250,6 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
         } else {
             // Try to use SLM kernels if possible
             if (preferred_kernel_type != KernelType::DEFAULT) {
-                if (params.is_shape_agnostic) {
-                    selector.Case(tune_params(16, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
-                            .Case(tune_params(16, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
-                }
                 selector.Case(tune_params(8, 2, 2, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM))
                         .Case(tune_params(8, 2, 1, 4, 1, 1, EXE_MODE_DEFAULT, KernelType::SLM));
             }
@@ -321,8 +318,8 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
     return selector.Default(tune_params(1, 1, 1, 1, 1, 1, EXE_MODE_DEFAULT));
 }
 
-FullyConnected_bf_tiled::DispatchData
-FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int autoTuneIndex, int kernel_number) const {
+FullyConnected_bf_tiled_dyn_quan::DispatchData
+FullyConnected_bf_tiled_dyn_quan::SetDefault(const fully_connected_params& params, int autoTuneIndex, int kernel_number) const {
     auto dispatchData = Parent::SetDefault(params);
 
     // Use KernelType::ANY by default, in case of shape-agnostic kernel, choose kernel type based
@@ -356,9 +353,9 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = can_use_slm ? lws_batches : 1;
 
-    // std::cout << ">> FullyConnected_bf_tiled GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
+    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan GWS [0,1,2] : " << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", "
     //             << dispatchData.gws[2] << std::endl;
-    // std::cout << ">> FullyConnected_bf_tiled LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
+    // std::cout << ">> FullyConnected_bf_tiled_dyn_quan LWS [0,1,2] : " << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", "
     //             << dispatchData.lws[2] << std::endl;
 
     dispatchData.tile_m = tparams.tile_b;
@@ -372,7 +369,7 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
     return dispatchData;
 }
 
-KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
+KernelsPriority FullyConnected_bf_tiled_dyn_quan::GetKernelsPriority(const Params& params) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t output_b = fc_params.outputs[0].Batch().v;
@@ -385,10 +382,18 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
     else if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F16)
         estimated_time = FORCE_PRIORITY_4;
 
+    if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v == 3136 &&
+        fc_params.outputs[0].Y().v == 27392 && fc_params.outputs[0].Batch().v == 3136)
+        estimated_time = FORCE_PRIORITY_1;
+
+    // if (fc_params.inputs[0].Y().v == 4096 && fc_params.inputs[0].Batch().v == 1 &&
+    //     fc_params.outputs[0].Y().v == 27392 && fc_params.outputs[0].Batch().v == 1)
+    //     estimated_time = FORCE_PRIORITY_1;
+
     return estimated_time;
 }
 
-JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+JitConstants FullyConnected_bf_tiled_dyn_quan::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     size_t tile_k_ofm = dispatchData.tile_nk * dispatchData.tile_n;
     size_t tile_k_ofm_packed = tile_k_ofm;
@@ -399,12 +404,13 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
         jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", weights_dt, tile_k_ofm));
         const size_t scale_group_size = params.weights.IFM().v / params.decompression_scale.Feature().v;
+        // info : FILTER_IFM_NUM == 4096, DECOMPRESSION_SCALE_FEATURE_NUM == 128
         // Do not use SCALE_POST_OP for SLM kernel, since it demonstrates worse performance
         if (scale_group_size % simd == 0/* && !dispatchData.use_slm*/) {
             jit.AddConstant(MakeJitConstant("DECOMPRESSION_SCALE_POST_OP", 1));
-            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP ON" << std::endl;
         } else {
-            // std::cout << ">> FullyConnected_bf_tiled : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
+            // std::cout << ">> FullyConnected_bf_tiled_dyn_quan : DECOMPRESSION_SCALE_POST_OP OFF" << std::endl;
         }
     }
 
@@ -510,7 +516,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     return jit;
 }
 
-void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
+void FullyConnected_bf_tiled_dyn_quan::GetUpdateDispatchDataFunc(KernelData& kd) const {
     if (kd.kernels.size() == 1) {
         Parent::GetUpdateDispatchDataFunc(kd);
     } else {
@@ -544,7 +550,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
     }
 }
 
-KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
+KernelsData FullyConnected_bf_tiled_dyn_quan::GetTunedKernelsDataByIndex(const Params &params,
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
@@ -593,7 +599,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     return kernels_data;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params) const {
+KernelsData FullyConnected_bf_tiled_dyn_quan::GetKernelsDataForAutoTune(const Params& params) const {
     KernelsData res = {};
     for (size_t idx = 0; idx < auto_tune_params.size(); ++idx) {
         KernelsData kds = GetTunedKernelsDataByIndex(params, static_cast<int>(idx));
@@ -606,7 +612,7 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
     return res;
 }
 
-KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const {
+KernelsData FullyConnected_bf_tiled_dyn_quan::GetKernelsData(const Params& params) const {
     KernelsData res = {};
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetAutoTuneParams(fc_params);

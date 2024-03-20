@@ -200,14 +200,14 @@ public:
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {
-    implementation_map<fully_connected>::add(impl_types::ocl,
-                                             shape_types::dynamic_shape,
-                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-    });
+    // implementation_map<fully_connected>::add(impl_types::ocl,
+    //                                          shape_types::dynamic_shape,
+    //                                          typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
+    //     std::make_tuple(data_types::f32, format::bfyx),
+    //     std::make_tuple(data_types::f16, format::bfyx),
+    //     std::make_tuple(data_types::u8, format::bfyx),
+    //     std::make_tuple(data_types::i8, format::bfyx),
+    // });
     implementation_map<fully_connected>::add(impl_types::ocl,
                                              shape_types::static_shape,
                                              typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
