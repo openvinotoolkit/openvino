@@ -5,6 +5,7 @@
 #include "openvino/runtime/properties.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace ov::test;
 
@@ -24,7 +25,7 @@ public:
         ASSERT_TRUE(inferRequest);
     }
 
-    void reset_state() {
+    virtual void reset_state() {
         inferRequest.reset_state();
     }
 
@@ -33,6 +34,8 @@ public:
         for (size_t i = 0; i < size; ++i) {
             const float expected_val = expected_res[i];
             const float actual_val = actual_res[i];
+            std::cout << expected_val << std::endl;
+            std::cout << actual_val << std::endl;
             if (0.f == expected_val) {
                 ASSERT_TRUE(abs(actual_val) < rel_diff_threshold);
             } else {
@@ -645,7 +648,7 @@ public:
         auto body_add_2 = std::make_shared<ov::op::v1::Add>(body_add_1, body_read_value_1);
 
         auto body_result_1 = std::make_shared<ov::op::v0::Result>(body_add_2);
-        auto body_assign = std::make_shared<ov::op::v6::Assign>(body_result_1, inner_variable);
+        auto body_assign = std::make_shared<ov::op::v6::Assign>(body_add_2, inner_variable);
         auto body_condition = std::make_shared<ov::op::v0::Constant>(element::boolean, Shape{1}, true);
 
         auto body = std::make_shared<ov::Model>(OutputVector{body_condition, body_result_1},
@@ -683,6 +686,13 @@ public:
                 ov::ResultVector({outer_result}),
                 ov::SinkVector({outer_assign}),
                 ov::ParameterVector({outer_param}));
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::Serialize>("ser.xml", "ser.bin");
+        manager.run_passes(function);
+
+        ov::pass::Manager manager2;
+        manager2.register_pass<ov::pass::Serialize>("ser_loop.xml", "ser_loop.bin");
+        manager2.run_passes(loop->get_function());
     }
 
     static const std::vector<float>& get_inputs() {
@@ -690,30 +700,51 @@ public:
         return input_vals;
     }
 
+    struct State {
+        std::vector<float> init_value;
+        std::vector<float> current_value;
+        bool reset = true;
+    };
+
     struct StatesValues {
-        std::vector<float> outer_state;
-        std::vector<float> inner_state;
+        State outer_state;
+        State inner_state;
     };
 
     static std::vector<float> calc_refs(const std::vector<float>& param_values, StatesValues& states) {
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
+        auto& outer_state = states.outer_state;
+        auto& inner_state = states.inner_state;
 
         for (int num_iter = 0; num_iter < 3; ++num_iter) {
-            for (int i = 0; i < num_elements; ++i) {
-                result[i] = param_values[i] + states.outer_state[i] + states.inner_state[i];
-                states.inner_state[i] = result[i];
+            for (size_t i = 0; i < num_elements; ++i) {
+                auto outer_state_val = outer_state.reset ? outer_state.init_value[i] : outer_state.current_value[i];
+                auto inner_state_val = inner_state.reset ? inner_state.init_value[i] : inner_state.current_value[i];
+                result[i] = param_values[i] + outer_state_val + inner_state_val;
+                inner_state.current_value[i] = result[i];
+                inner_state.reset = false;
             }
         }
 
-        for (int i = 0; i < num_elements; ++i) {
-            states.outer_state[i] = result[i] + 1;
+        for (size_t i = 0; i < num_elements; ++i) {
+            outer_state.current_value[i] = result[i] + 1;
         }
+        outer_state.reset = false;
         return result;
     }
 
     void run_test() {
-        StatesValues state_values = {std::vector<float>{2.f}, std::vector<float>{0.f}};
+        // init ref values for States
+        if (state_values.inner_state.reset) {
+            state_values.inner_state.init_value = std::vector<float>{0.f};
+            state_values.inner_state.current_value = std::vector<float>{0.f};
+        }
+
+        if (state_values.outer_state.reset) {
+            state_values.outer_state.init_value = std::vector<float>{2.f};
+            state_values.outer_state.current_value = std::vector<float>{0.f};
+        }
 
         auto model_states = inferRequest.query_state();
         ASSERT_FALSE(model_states.empty());
@@ -744,33 +775,58 @@ public:
             ASSERT_TRUE(outputTensor1);
 
             inferRequest.infer();
-            auto result1 = calc_refs(input_vals, state_values);
-            ASSERT_EQ(result1.size(), outputTensor1.get_shape()[0]);
-
-            auto actual_res1 = outputTensor1.data<ov::element_type_traits<testPrc>::value_type>();
-            float_compare(result1.data(), actual_res1, result1.size());
+            auto ref_result = calc_refs(input_vals, state_values);
 
             auto states = inferRequest.query_state();
-            ASSERT_FALSE(states.empty());
+            EXPECT_EQ(states.size(), 2);
 
-            /*auto mstate = states.front().get_state();
-            ASSERT_TRUE(mstate);
-            ASSERT_EQ(mstate.get_shape()[1], vec_state.size());
-            auto actual_state = mstate.data<ov::element_type_traits<testPrc>::value_type>();
+            std::map<std::string, VariableState> name_to_state;
+            for (const auto& state : states) {
+                name_to_state[state.get_name()] = state;
+            }
 
-            float_compare(vec_state.data(), actual_state, vec_state.size());
+            const auto& actual_inner_state = name_to_state.at("inner_variable").get_state();
+            const auto& actual_outer_state = name_to_state.at("outer_variable").get_state();
 
-            states.front().set_state(outputTensor1);
-            vec_state = result1;*/
+            EXPECT_EQ(state_values.inner_state.current_value.size(), actual_inner_state.get_size());
+            EXPECT_EQ(state_values.outer_state.current_value.size(), actual_outer_state.get_size());
+
+            float_compare(state_values.inner_state.current_value.data(),
+                          actual_inner_state.data<ov::element_type_traits<testPrc>::value_type>(),
+                          state_values.inner_state.current_value.size());
+
+            float_compare(state_values.outer_state.current_value.data(),
+                          actual_outer_state.data<ov::element_type_traits<testPrc>::value_type>(),
+                          state_values.outer_state.current_value.size());
+
+            ASSERT_EQ(ref_result.size(), outputTensor1.get_shape()[0]);
+
+            auto actual_res = outputTensor1.data<ov::element_type_traits<testPrc>::value_type>();
+            float_compare(ref_result.data(), actual_res, ref_result.size());
         }
     }
+
+    void reset_state() override {
+        inferRequest.reset_state();
+        state_values.outer_state.reset = true;
+        state_values.inner_state.reset = true;
+    }
+
+private:
+    StatesValues state_values;
 };
 
 TEST_P(StatefulModelStateInLoopBody, smoke_Run_StatefulModelStateInLoopBody) {
+    int num_infers = 3;
+
     prepare();
-    run_test();
+    for (int i = 0; i < num_infers; ++i) {
+        run_test();
+    }
     reset_state();
-    run_test();
+    for (int i = 0; i < num_infers; ++i) {
+        run_test();
+    }
 }
 
 
@@ -908,13 +964,13 @@ public:
         std::vector<float> result(num_elements);
 
         for (int num_iter = 0; num_iter < 3; ++num_iter) {
-            for (int i = 0; i < num_elements; ++i) {
+            for (size_t i = 0; i < num_elements; ++i) {
                 result[i] = param_values[i] + states.outer_state[i] + states.inner_state[i];
                 states.inner_state[i] = result[i];
             }
         }
 
-        for (int i = 0; i < num_elements; ++i) {
+        for (size_t i = 0; i < num_elements; ++i) {
             states.outer_state[i] = result[i] + 1;
         }
         return result;
@@ -1259,7 +1315,7 @@ public:
         auto num_elements = param_values.size();
         std::vector<float> result(num_elements);
 
-        for (int i = 0; i < num_elements; ++i) {
+        for (size_t i = 0; i < num_elements; ++i) {
             result[i] = states.state_1[i] + states.state_2[i] + states.state_1[i];
         }
         return result;

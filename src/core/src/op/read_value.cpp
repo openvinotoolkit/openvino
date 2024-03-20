@@ -150,6 +150,7 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
+    std::cout << "USE CONTEXT " << use_context << std::endl;
     auto& output = outputs[0];
     Tensor input;
     if (use_context) {
