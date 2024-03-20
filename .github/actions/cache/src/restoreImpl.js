@@ -14,7 +14,11 @@ async function restore() {
     const cacheRemotePath = core.getInput('cache_path', { required: true })
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
-    var keysRestore = core.getInput('restore-keys', { required: false })
+    var keysRestore = core
+      .getInput('restore-keys', { required: false })
+      .split('\n')
+      .map(s => s.replace(/^!\s+/, '!').trim())
+      .filter(x => x !== '')
 
     core.debug(`cache_path: ${cacheRemotePath}`)
     core.debug(`cache_path: ${cacheLocalPath}`)
