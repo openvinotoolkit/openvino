@@ -1,13 +1,15 @@
-const { log } = require('console')
+const core = require('@actions/core')
 const fs = require('fs')
 
 const cache_pattern = new RegExp('^(.*[.]cache)$')
 
 async function getSortedCacheFiles(path) {
-  log(`!!!Path: ${path}!!!`)
-  const files = await fs.promises.readdir(path)
+  if (!fs.existsSync(path)) {
+    core.warning(`${path} doesn't exist`)
+    return []
+  }
 
-  log(files)
+  const files = await fs.promises.readdir(path)
   filesSorded = files
     .filter(fileName => cache_pattern.test(fileName))
     .map(fileName => ({
@@ -16,7 +18,8 @@ async function getSortedCacheFiles(path) {
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
-  log(
+
+  core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
       time: fs.statSync(`${path}/${fileName}`).atime.getTime()

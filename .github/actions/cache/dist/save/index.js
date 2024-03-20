@@ -33118,7 +33118,6 @@ const core = __nccwpck_require__(2186)
 const tar = __nccwpck_require__(4674)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
-const { log, error } = __nccwpck_require__(6206)
 
 /**
  * The main function for the action.
@@ -33130,12 +33129,12 @@ async function save() {
     const toCachePath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
 
-    log(cachePath)
-    log(toCachePath)
-    log(key)
+    core.debug(`cache_path: ${cachePath}`)
+    core.debug(`path: ${toCachePath}`)
+    core.debug(`key: ${key}`)
 
     if (!key) {
-      core.warning(`Key is not specified.`)
+      core.warning(`Key ${key} is not specified.`)
       return
     }
 
@@ -33153,7 +33152,7 @@ async function save() {
     )
 
     fs.copyFileSync(tarName, tarPath)
-    log(`${tarName} was copied to ${tarPath}`)
+    core.info(`${tarName} was copied to ${tarPath}`)
     core.setOutput('cache-file', tarName)
     core.setOutput('cache-hit', true)
   } catch (error) {

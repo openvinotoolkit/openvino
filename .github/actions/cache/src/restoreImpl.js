@@ -1,5 +1,4 @@
 const core = require('@actions/core')
-const { log, error } = require('console')
 const fs = require('fs')
 const path = require('path')
 const tar = require('tar')
@@ -16,9 +15,9 @@ async function restore() {
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
 
-    log(cacheRemotePath)
-    log(cacheLocalPath)
-    log(key)
+    core.debug(`cache_path: ${cacheRemotePath}`)
+    core.debug(`cache_path: ${cacheLocalPath}`)
+    core.debug(`key: ${key}`)
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Looking for ${key} in ${cacheRemotePath}`)
@@ -34,7 +33,7 @@ async function restore() {
         path.join(cacheRemotePath, cacheFile),
         path.join(cacheLocalPath, cacheFile)
       )
-      log(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
+      core.info(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
 
       // extract
       tar.x({
@@ -42,10 +41,13 @@ async function restore() {
         cwd: cacheLocalPath,
         sync: true
       })
-
+      core.info(`Found cache file: ${cacheFile}`)
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)
     } else {
+      core.warning(
+        `Could not found any suatable cache files in ${cacheRemotePath} with key ${key}`
+      )
       core.setOutput('cache-file', '')
       core.setOutput('cache-hit', false)
     }

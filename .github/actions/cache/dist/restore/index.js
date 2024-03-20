@@ -33114,16 +33114,18 @@ exports["default"] = _default;
 /***/ 2121:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const { log } = __nccwpck_require__(6206)
+const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 
 const cache_pattern = new RegExp('^(.*[.]cache)$')
 
 async function getSortedCacheFiles(path) {
-  log(`!!!Path: ${path}!!!`)
-  const files = await fs.promises.readdir(path)
+  if (!fs.existsSync(path)) {
+    core.warning(`${path} doesn't exist`)
+    return []
+  }
 
-  log(files)
+  const files = await fs.promises.readdir(path)
   filesSorded = files
     .filter(fileName => cache_pattern.test(fileName))
     .map(fileName => ({
@@ -33132,7 +33134,8 @@ async function getSortedCacheFiles(path) {
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
-  log(
+
+  core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
       time: fs.statSync(`${path}/${fileName}`).atime.getTime()
@@ -33152,7 +33155,6 @@ module.exports = {
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const core = __nccwpck_require__(2186)
-const { log, error } = __nccwpck_require__(6206)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
 const tar = __nccwpck_require__(4674)
@@ -33169,9 +33171,9 @@ async function restore() {
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
 
-    log(cacheRemotePath)
-    log(cacheLocalPath)
-    log(key)
+    core.debug(`cache_path: ${cacheRemotePath}`)
+    core.debug(`cache_path: ${cacheLocalPath}`)
+    core.debug(`key: ${key}`)
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Looking for ${key} in ${cacheRemotePath}`)
@@ -33187,7 +33189,7 @@ async function restore() {
         path.join(cacheRemotePath, cacheFile),
         path.join(cacheLocalPath, cacheFile)
       )
-      log(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
+      core.info(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
 
       // extract
       tar.x({
@@ -33195,10 +33197,13 @@ async function restore() {
         cwd: cacheLocalPath,
         sync: true
       })
-
+      core.info(`Found cache file: ${cacheFile}`)
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)
     } else {
+      core.warning(
+        `Could not found any suatable cache files in ${cacheRemotePath} with key ${key}`
+      )
       core.setOutput('cache-file', '')
       core.setOutput('cache-hit', false)
     }

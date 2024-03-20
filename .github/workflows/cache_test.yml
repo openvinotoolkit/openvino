@@ -50,7 +50,7 @@ jobs:
         with:
           cache_path: ${{ env.CACHE_REMOTE }}
           path: ${{ env.CACHE_LOCAL }}
-          key: "test"
+          key: ${{ runner.os }}-${{ runner.arch }}-test-cache-${{ github.sha }}
 
       - name: Print Output
         run: |
