@@ -289,7 +289,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.model_distribution_policy,
             "MODEL_DISTRIBUTION_POLICY",
-            (({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),),
+            (
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
+                ({hints.ModelDistributionPolicy.NONE}, {hints.ModelDistributionPolicy.NONE}),
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE}),
+            ),
         ),
         (
             hints.enable_hyper_threading,
