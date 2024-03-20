@@ -35,7 +35,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     int get_rois_input_second_dim_size() const override {
-        return 6;
+        return 5;
     }
 
     bool get_clockwise_mode() const {
