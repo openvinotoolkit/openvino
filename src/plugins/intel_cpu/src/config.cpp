@@ -24,22 +24,6 @@ namespace intel_cpu {
 using namespace ov::threading;
 using namespace dnnl::impl::cpu::x64;
 
-std::vector<std::string> parse_multiple_parameters(const std::string& inputs, const char separator) {
-    std::vector<std::string> parameters;
-    std::string::size_type pos = 0;
-    std::string::size_type endpos = 0;
-    while ((endpos = inputs.find(separator, pos)) != std::string::npos) {
-        auto substr = inputs.substr(pos, endpos - pos);
-        if (!substr.empty())
-            parameters.push_back(substr);
-        pos = endpos + 1;
-    }
-    auto substr = inputs.substr(pos, inputs.length() - pos);
-    if (!substr.empty())
-        parameters.push_back(substr);
-    return parameters;
-}
-
 Config::Config() {
     // this is default mode
 #if defined(__APPLE__) || defined(_WIN32)
@@ -206,30 +190,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::hint::SchedulingCoreType::PCORE_ONLY,
                                '/',
                                ov::hint::SchedulingCoreType::ECORE_ONLY);
-            }
-        } else if (key == ov::hint::model_distribution_policy.name()) {
-            auto error_info = [&]() {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               "for property key ",
-                               ov::hint::model_distribution_policy.name(),
-                               ". CPU plugin only support {",
-                               ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
-                               '}/{',
-                               ov::hint::ModelDistributionPolicy::NONE,
-                               '}');
-            };
-
-            try {
-                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
-                    if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) &&
-                        (row != ov::hint::ModelDistributionPolicy::NONE)) {
-                        error_info();
-                    }
-                }
-                modelDistributionPolicy = val.as<std::set<ov::hint::ModelDistributionPolicy>>();
-            } catch (ov::Exception&) {
-                error_info();
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {

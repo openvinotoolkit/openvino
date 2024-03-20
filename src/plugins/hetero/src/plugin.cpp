@@ -115,7 +115,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
     //  WARNING: Here is devices with user set priority
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
     bool hetero_query_model_by_device = false;
-    if (full_config.hetero_query_model_by_device) {
+    if (full_config.modelDistributionPolicy.count(ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) != 0) {
         hetero_query_model_by_device = get_device_memory_map(device_names, device_mem_map);
     }
 
@@ -257,7 +257,7 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::priorities, ov::hetero::hetero_query_model_by_device};
+        std::vector<ov::PropertyName> rw_properties{ov::device::priorities, ov::hint::model_distribution_policy};
         return rw_properties;
     };
 

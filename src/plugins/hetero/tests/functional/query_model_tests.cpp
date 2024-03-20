@@ -119,13 +119,15 @@ TEST_F(HeteroTests, query_model_by_three_device) {
     const std::string dev_name0 = "MOCKGPU.2";
     const std::string dev_name1 = "MOCKGPU.1";
     const std::string dev_name2 = "MOCKGPU.0";
+    std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
-    const auto supported_ops = core.query_model(model,
-                                                "HETERO",
-                                                {ov::device::priorities(dev_name0 + "," + dev_name1 + "," + dev_name2),
-                                                 {"HETERO_QUERY_MODEL_BY_DEVICE", "YES"}});
+    const auto supported_ops =
+        core.query_model(model,
+                         "HETERO",
+                         {ov::device::priorities(dev_name0 + "," + dev_name1 + "," + dev_name2),
+                          ov::hint::model_distribution_policy(model_policy)});
     std::map<std::string, std::string> expect_result = {{"input", "MOCKGPU.2"},
                                                         {"const_val1", "MOCKGPU.2"},
                                                         {"const_val2", "MOCKGPU.2"},
@@ -146,13 +148,16 @@ TEST_F(HeteroTests, query_model_by_three_device) {
 TEST_F(HeteroTests, query_model_by_two_device) {
     const std::string dev_name0 = "MOCKGPU.2";
     const std::string dev_name1 = "MOCKGPU.0";
+    std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
+
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
-    const auto supported_ops = core.query_model(
-        model,
-        "HETERO",
-        {ov::device::priorities(dev_name0 + "," + dev_name1), {"HETERO_QUERY_MODEL_BY_DEVICE", "YES"}});
+    const auto supported_ops =
+        core.query_model(model,
+                         "HETERO",
+                         {ov::device::priorities(dev_name0 + "," + dev_name1),
+                          ov::hint::model_distribution_policy(model_policy)});
     std::map<std::string, std::string> expect_result = {{"input", "MOCKGPU.2"},
                                                         {"const_val1", "MOCKGPU.2"},
                                                         {"const_val2", "MOCKGPU.2"},

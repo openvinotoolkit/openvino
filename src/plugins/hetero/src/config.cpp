@@ -21,8 +21,26 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 
         if (ov::device::priorities == key) {
             device_priorities = value.as<std::string>();
-        } else if (ov::hetero::hetero_query_model_by_device == key) {
-            hetero_query_model_by_device = value.as<bool>();
+        } else if (ov::hint::model_distribution_policy == key) {
+            auto error_info = [&]() {
+                OPENVINO_THROW("Wrong value ",
+                               value.as<std::string>(),
+                               "for property key ",
+                               ov::hint::model_distribution_policy.name(),
+                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL/NONE}");
+            };
+            try {
+                for (auto& row : value.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                    if ((row != ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) &&
+                        (row != ov::hint::ModelDistributionPolicy::NONE)) {
+                        error_info();
+                    }
+                }
+                modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
+            } catch (ov::Exception&) {
+                std::cout << "value: " << value.as<std::string>() << std::endl;
+                error_info();
+            }
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -34,8 +52,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
 ov::Any Configuration::get(const std::string& name) const {
     if (name == ov::device::priorities) {
         return {device_priorities};
-    } else if (name == ov::hetero::hetero_query_model_by_device) {
-        return {hetero_query_model_by_device};
+    } else if (name == ov::hint::model_distribution_policy) {
+        return {modelDistributionPolicy};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
@@ -47,8 +65,7 @@ std::vector<ov::PropertyName> Configuration::get_supported() const {
 }
 
 ov::AnyMap Configuration::get_hetero_properties() const {
-    return {{ov::device::priorities.name(), device_priorities},
-            {ov::hetero::hetero_query_model_by_device.name(), hetero_query_model_by_device}};
+    return {{ov::device::priorities.name(), device_priorities}};
 }
 
 ov::AnyMap Configuration::get_device_properties() const {

@@ -47,7 +47,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::num_requests.name()),
         RW_property(ov::hint::enable_cpu_pinning.name()),
         RW_property(ov::hint::scheduling_core_type.name()),
-        RW_property(ov::hint::model_distribution_policy.name()),
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),
@@ -106,28 +105,6 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigInferenceNumThreads) {
     ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
-}
-
-TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigModelDistributionPolicy) {
-    ov::Core ie;
-    std::set<ov::hint::ModelDistributionPolicy> value = {ov::hint::ModelDistributionPolicy::NONE};
-    std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
-
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
-    ASSERT_EQ(model_policy, value);
-
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE};
-
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
-    ASSERT_EQ(model_policy, value);
-
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE, ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
-
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
-    ASSERT_EQ(model_policy, value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {

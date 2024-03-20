@@ -402,6 +402,7 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_C
 enum class ModelDistributionPolicy {
     NONE = 0,             // Run one model on single socket/device without parallelism.
     TENSOR_PARALLEL = 1,  // Split one node or subgraph into parts and run one part per socket/device in parallel.
+    PIPELINE_PARALLEL = 2,// Split subgraph into parts and run one part per device in parallel.
 };
 
 /** @cond INTERNAL */
@@ -411,6 +412,8 @@ inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy&
         return os << "NONE";
     case ModelDistributionPolicy::TENSOR_PARALLEL:
         return os << "TENSOR_PARALLEL";
+    case ModelDistributionPolicy::PIPELINE_PARALLEL:
+        return os << "PIPELINE_PARALLEL";
     default:
         OPENVINO_THROW("Unsupported model distribution policy!");
     }
@@ -423,6 +426,8 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
         stream_mode = ModelDistributionPolicy::NONE;
     } else if (str == "TENSOR_PARALLEL") {
         stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
+    } else if (str == "PIPELINE_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::PIPELINE_PARALLEL;
     } else {
         OPENVINO_THROW("Unsupported model distribution policy: ", str);
     }
@@ -436,8 +441,9 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
  *
  * Developer can use this property to select model distribution policy for CPU inference with multiple sockets
  * platform or GPU inference with multiple GPU devices.
- * -- TENSOR_PARALLEL : Split one node or subgraph into parts and run one part per socket/device in parallel.
- * -- NONE            : Run one model on single socket/device without parallelism.
+ * -- TENSOR_PARALLEL  : Split one node or subgraph into parts and run one part per socket/device in parallel.
+ * -- PIPELINE_PARALLEL: Split subgraph into parts and run one part per device in parallel.
+ * -- NONE             : Run one model on single socket/device without parallelism.
  *
  * The following code is an example to split node into two parts run one part per socket on dual sockets platform.
  *
