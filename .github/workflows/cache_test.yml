@@ -51,7 +51,7 @@ jobs:
           cache_path: ${{ env.CACHE_REMOTE }}
           path: ${{ env.CACHE_LOCAL }}
           key: ${{ runner.os }}-${{ runner.arch }}-test-cache-${{ github.sha }}
-          restore_keys: |
+          restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-test-cache
 
       - name: Print Output
