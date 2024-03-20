@@ -66,7 +66,6 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             bool reshape_special_zero;
             std::shared_ptr<Node> multiply_node;
             if (with_reshape) {
-                return false; // reshape pattern will affect the INT4 precison. so don't split in this pattern for now.
                 auto reshape_pattern = reshape_node->get_input_node_shared_ptr(1);
                 auto reshape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_pattern);
                 if (!reshape_pattern || !reshape_const) {
