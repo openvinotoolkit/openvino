@@ -104,13 +104,13 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
         tuning_data.simd_size = 16;
-        tuning_data.tile_n_size = tuning_data.simd_size;
+//        tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
-        if (k_size == 128) // && also not support indirected input yet && FUSED_OPS_CAN_USE_PRELOAD is not supported && TILE_K == SIMD
-            // no dynamic padding
-            tuning_data.tile_n_size = 32;
+//        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
+//        if (k_size == 128) // && also not support indirected input yet && FUSED_OPS_CAN_USE_PRELOAD is not supported && TILE_K == SIMD
+        // no dynamic padding
+        tuning_data.tile_n_size = 32;
     }
 
     GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
@@ -149,12 +149,21 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         const std::string not_divisible_n = "(" + leftover_n + "!=0)";
         const std::string not_divisible_k = "(" + leftover_k + "!=0)";
         const std::string full_iteration_k = "(" + k_size + "/" + std::to_string(tuning_data.tile_k_size) + ")";
+
         bool tile_k_may_have_leftover = false;
         if (k_size.find("shape_info") == std::string::npos) {
             tile_k_may_have_leftover = ((std::stoi(k_size) % tuning_data.tile_k_size) != 0);
         } else {
             tile_k_may_have_leftover = true;
         }
+
+        bool tile_n_may_have_leftover = false;
+        if (n_size.find("shape_info") == std::string::npos) {
+            tile_n_may_have_leftover = ((std::stoi(n_size) % tuning_data.tile_n_size) != 0);
+        } else {
+            tile_n_may_have_leftover = true;
+        }
+
         jit.AddConstants({
             MakeJitConstant("M", m_size),
             MakeJitConstant("K", k_size),
@@ -168,8 +177,9 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("K_FULL_ITERATIONS", full_iteration_k),
             MakeJitConstant("TILE_M_NOT_DIVISIBLE", not_divisible_m),
             MakeJitConstant("TILE_K_NOT_DIVISIBLE", tile_k_may_have_leftover),
-            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k), // if tile_k is constant no need to add this
-            MakeJitConstant("TILE_N_NOT_DIVISIBLE", not_divisible_n),
+            MakeJitConstant("TILE_K_NOT_DIVISIBLE_CALC", not_divisible_k),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE", tile_n_may_have_leftover),
+            MakeJitConstant("TILE_N_NOT_DIVISIBLE_CALC", not_divisible_n),
             MakeJitConstant("TILE_M_LEFTOVER", leftover_m),
             MakeJitConstant("TILE_K_LEFTOVER", leftover_k),
             MakeJitConstant("TILE_N_LEFTOVER", leftover_n),

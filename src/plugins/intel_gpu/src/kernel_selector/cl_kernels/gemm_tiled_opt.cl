@@ -359,7 +359,11 @@ KERNEL(gemm_tiled_opt)(
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
             A_FLOATN a_read = input0[a_idx];
         #else
-            A_FLOATN a_read = TILE_K_NOT_DIVISIBLE ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+            #if TILE_K_NOT_DIVISIBLE
+                A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
+            #else
+                A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
+            #endif
         #endif
     #else // IS_DYNAMIC
         #if INDIRECT_INPUT0
@@ -382,8 +386,12 @@ KERNEL(gemm_tiled_opt)(
                 #if IS_DYNAMIC && B_VEC_SIZE > 1
                     A_FLOATN a_read_tmp = sub_group_broadcast(a_read, simd_local_id);
                     // TODO : support B_VEC_SIZE > 1 ?
+                    #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
                     MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp = {b_tile[0][simd_local_id], b_tile[1][simd_local_id]};
                     c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile_tmp, c_tile[dot_id]);
+                    #else
+                    c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile[simd_local_id], c_tile[dot_id]);
+                    #endif
                 #else
                     c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
                 #endif
@@ -635,6 +643,7 @@ KERNEL(gemm_tiled_opt)(
         #endif // HAS_FUSED_OPS
         }
     #else
+        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid;
         #ifdef BIAS_TERM
         ACCUMULATOR_TYPE_VEC dequantized = (ACCUMULATOR_TYPE_VEC)(ALPHA) * c_tile[write_id] + TO_ACCUMULATOR_TYPE(BETA) * c_ptr[sglid];
         #else // BIAS_TERM
@@ -642,8 +651,6 @@ KERNEL(gemm_tiled_opt)(
         #endif // BIAS_TERM
         #if HAS_FUSED_OPS
         FUSED_OPS_VEC;
-        #endif // HAS_FUSED_OPS
-        OUTPUT_TYPE* d_ptr_tmp = d_ptr + sglid;
         // TODO : support vec > 2
         if (b_raw_global_id < N) {
             *d_ptr_tmp = dequantized_out_0[0];
@@ -651,6 +658,16 @@ KERNEL(gemm_tiled_opt)(
         if (b_raw_global_id + SIMD_WIDTH < N) {
             *(d_ptr_tmp + SIMD_WIDTH) = dequantized_out_0[1];
         }
+        #else
+        if (b_raw_global_id < N) {
+            *d_ptr_tmp = dequantized[0];
+        }
+        if (b_raw_global_id + SIMD_WIDTH < N) {
+            *(d_ptr_tmp + SIMD_WIDTH) = dequantized[1];
+        }
+
+        #endif // HAS_FUSED_OPS
+
     #endif // B_VEC_SIZE == 1
 #else // IS_DYNAMIC
     #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
