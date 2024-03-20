@@ -165,6 +165,7 @@ Table of Contents
 * :doc:`Reshape <../operation-specs/shape/reshape-1>`
 * :doc:`Result <../operation-specs/infrastructure/result-1>`
 * :doc:`ReverseSequence <../operation-specs/movement/reverse-sequence-1>`
+* :doc:`RMSNorm <../operation-specs/normalization/rms-norm-14>`
 * :doc:`RNNCell <../operation-specs/sequence/rnn-cell-3>`
 * :doc:`RNNSequence <../operation-specs/sequence/rnn-sequence-5>`
 * :doc:`ROIAlign <../operation-specs/detection/roi-align-9>`
@@ -205,4 +206,3 @@ Table of Contents
 * :doc:`Unique <../operation-specs/movement/unique-10>`
 * :doc:`Unsqueeze <../operation-specs/shape/unsqueeze-1>`
 * :doc:`VariadicSplit <../operation-specs/movement/variadic-split-1>`
-

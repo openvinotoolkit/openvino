@@ -183,6 +183,7 @@ Operation Specifications
    Result-1 <operation-specs/infrastructure/result-1>
    Reverse-1 <operation-specs/movement/reverse-1>
    ReverseSequence-1 <operation-specs/movement/reverse-sequence-1>
+   RMSNorm-14 <operation-specs/normalization/rms-norm-14>
    RNNCell-3 <operation-specs/sequence/rnn-cell-3>
    RNNSequence-5 <operation-specs/sequence/rnn-sequence-5>
    ROIAlign-3 <operation-specs/detection/roi-align-3>
@@ -229,4 +230,3 @@ Operation Specifications
    Unique-10 <operation-specs/movement/unique-10>
    Unsqueeze-1 <operation-specs/shape/unsqueeze-1>
    VariadicSplit-1 <operation-specs/movement/variadic-split-1>
-
