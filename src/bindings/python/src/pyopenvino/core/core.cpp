@@ -211,14 +211,14 @@ void regclass_Core(py::module m) {
         "compile_model",
         [](ov::Core& self,
            const py::object& model_buffer,
-	   const py::object& weight_buffer,
+           const py::object& weight_buffer,
            const std::string& device_name,
            const std::map<std::string, py::object>& properties) {
             std::stringstream _stream;
             _stream << model_buffer.cast<std::string>();
 
             py::buffer_info info;
-	    if (!py::isinstance<py::none>(weight_buffer)) {
+            if (!py::isinstance<py::none>(weight_buffer)) {
                 auto p = weight_buffer.cast<py::bytes>();
                 info = py::buffer(p).request();
             }
@@ -231,10 +231,10 @@ void regclass_Core(py::module m) {
             }
             auto _properties = Common::utils::properties_to_any_map(properties);
             py::gil_scoped_release release;
-	    return self.compile_model(_stream.str(), tensor, device_name, _properties);
+            return self.compile_model(_stream.str(), tensor, device_name, _properties);
         },
         py::arg("model_buffer"),
-	py::arg("weight_buffer"),
+        py::arg("weight_buffer"),
         py::arg("device_name"),
         py::arg("properties"),
         R"(

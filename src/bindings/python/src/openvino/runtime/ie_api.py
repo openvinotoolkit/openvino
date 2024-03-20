@@ -550,9 +550,8 @@ class Core(CoreBase):
             )
 
         return CompiledModel(
-            super().compile_model(model_buffer, weight_buffer,  device_name, {} if config is None else config),
+            super().compile_model(model_buffer, weight_buffer, device_name, {} if config is None else config),
         )
-
 
     def import_model(
         self,
