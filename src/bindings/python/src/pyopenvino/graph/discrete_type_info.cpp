@@ -18,6 +18,20 @@ void regclass_graph_DiscreteTypeInfo(py::module m) {
     py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m, "DiscreteTypeInfo");
     discrete_type_info.doc() = "openvino.runtime.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
+    discrete_type_info.def(py::init([](const std::string& type, const std::string& version_id) {
+            // FIXME: Certain memory leak here!
+            // TODO: Hold these two string somehow
+            std::cerr << "[  DEBUG  ] Constructing DiscreteTypeInfo with a hack\n";
+            std::cerr << "[ WARNING ] There will be memory leak\n";
+            auto p_name = new std::string(type);
+            auto p_version_id = new std::string(version_id);
+            return ov::DiscreteTypeInfo(p_name->c_str(), p_version_id->c_str());
+        }),
+        py::arg("type"),
+        py::arg("version_id"),
+        "doc"
+    );
+
     // operator overloading
     discrete_type_info.def(py::self < py::self);
     discrete_type_info.def(py::self <= py::self);
