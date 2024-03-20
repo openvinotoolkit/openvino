@@ -74,7 +74,6 @@ void AvgPool::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes.front());
 }
 
-
 std::shared_ptr<Node> AvgPool::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v14_AvgPool_clone_with_new_inputs);
     check_new_args_count(this, new_args);

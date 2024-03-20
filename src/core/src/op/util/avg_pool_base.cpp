@@ -67,8 +67,8 @@ void AvgPoolBase::set_kernel(const Shape& kernel) {
 
 const Strides& AvgPoolBase::get_strides() const {
     return m_strides;
-
 }
+
 void AvgPoolBase::set_strides(const Strides& strides) {
     m_strides = strides;
 }
