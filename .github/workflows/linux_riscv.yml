@@ -90,6 +90,7 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
+          max-cache-size: 3
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
