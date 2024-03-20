@@ -100,27 +100,23 @@ OutputVector translate_index_copy_(const NodeContext& context) {
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto index = context.get_input(2);
-    auto tensor = context.get_input(3);
+    auto tensor = context.get_input(3);  // [4, 2, 5]
     auto dim_scalar = context.const_input<int>(1);
 
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto const_1 = v0::Constant::create(element::i32, Shape{}, {1});
     auto const_neg_1 = v0::Constant::create(element::i32, Shape{}, {-1});
 
-    auto tensor_shape = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));  // [4, 2, 5]
-    Output<Node> tensor_rank = context.mark_node(std::make_shared<v3::ShapeOf>(tensor_shape, element::i32));  // [3]
-    tensor_rank = context.mark_node(std::make_shared<v8::Gather>(tensor_rank, const_0, const_0));             // 3
+    Output<Node> tensor_rank = std::get<1>(get_shape_rank(context, tensor, true));
     auto tensor_rank_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(tensor_rank, dim));
-    Output<Node> positive_dim = context.mark_node(std::make_shared<v1::Add>(dim, tensor_rank_correct_type));
-    positive_dim = context.mark_node(std::make_shared<v1::Mod>(positive_dim, tensor_rank_correct_type));
+    auto positive_dim = normalize_axis(context, dim, tensor_rank_correct_type);
     Output<Node> positive_dim_plus1 = context.mark_node(std::make_shared<v1::Add>(positive_dim, const_1));
 
     // get the correct index
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));  // [4, 3, 5]
     auto selected_dim = context.mark_node(std::make_shared<v8::Gather>(input_shape, positive_dim, const_0));  // 3
     auto selected_dim_correct_type = context.mark_node(std::make_shared<v1::ConvertLike>(selected_dim, index));
-    Output<Node> correct_index = context.mark_node(std::make_shared<v1::Add>(index, selected_dim_correct_type));
-    correct_index = context.mark_node(std::make_shared<v1::Mod>(correct_index, selected_dim_correct_type));
+    auto correct_index = normalize_axis(context, index, selected_dim_correct_type);
     auto unsqueezed_index =
         context.mark_node(std::make_shared<v0::Unsqueeze>(correct_index, const_neg_1));  // [[1], [0]]
 
