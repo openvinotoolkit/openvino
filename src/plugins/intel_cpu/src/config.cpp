@@ -362,13 +362,9 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     // when both execution_mode and inference_precision are specified
     if (!inferencePrecisionSetExplicitly) {
         if (executionMode == ov::hint::ExecutionMode::PERFORMANCE) {
-            inferencePrecision = ov::element::f32;
-#if defined(OV_CPU_ARM_ENABLE_FP16)
-            inferencePrecision = ov::element::f16;
-#else
-            if (mayiuse(avx512_core_bf16))
-                inferencePrecision = ov::element::bf16;
-#endif
+            inferencePrecision = hasHardwareSupport(ov::element::f16) ? ov::element::f16 : ov::element::f32;
+        if (mayiuse(avx512_core_bf16))
+            inferencePrecision = ov::element::bf16;
         } else {
             inferencePrecision = ov::element::f32;
         }

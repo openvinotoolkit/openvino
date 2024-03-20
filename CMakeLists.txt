@@ -50,7 +50,6 @@ if(ENABLE_COVERAGE)
 endif()
 
 # resolving dependencies for the project
-set(CMAKE_VERBOSE_MAKEFILE ON)
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
