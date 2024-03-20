@@ -81,57 +81,26 @@ ov::hetero::Plugin::DeviceProperties ov::hetero::Plugin::get_properties_per_devi
     return device_properties;
 }
 
-void ov::hetero::Plugin::update_device_priorities(std::vector<std::string>& device_names,
-                                                  std::map<std::string, size_t>& device_mem_map) const {
-    std::vector<std::string> CPU;
-    std::vector<std::string> dGPU;
-    std::vector<std::string> iGPU;
-    std::vector<std::string> Others;
-    auto sort_by_mem = [&](std::string device_a, std::string device_b) {
-        if (device_mem_map.find(device_a) != device_mem_map.end() &&
-            device_mem_map.find(device_b) != device_mem_map.end())
-            return device_mem_map[device_a] > device_mem_map[device_b];
-        else
-            return true;
-    };
-
+bool ov::hetero::Plugin::get_device_memory_map(const std::vector<std::string>& device_names,
+                                               std::map<std::string, size_t>& device_mem_map) const {
     for (const auto& device_name : device_names) {
         if (device_name.find("CPU") != std::string::npos) {
-            CPU.emplace_back(device_name);
-            // Assuming the CPU has enough memory, so just mark here
-            device_mem_map["CPU"] = 0;
+            // Assuming the CPU has enough memory
+            device_mem_map["CPU"] = -1;
         } else if (device_name.find("GPU") != std::string::npos) {
-            std::string device_type;
-            try {
-                device_type = get_core()->get_property(device_name, ov::device::type.name(), {}).as<std::string>();
-            } catch (const ov::Exception&) {
-            }
-            if (device_type == "integrated") {
-                iGPU.emplace_back(device_name);
-            } else if (device_type == "discrete") {
-                dGPU.emplace_back(device_name);
-            } else {
-                Others.emplace_back(device_name);
-            }
             try {
                 size_t device_mem = get_core()->get_property(device_name, ov::intel_gpu::device_total_mem_size);
                 device_mem_map[device_name] = device_mem;
                 device_mem_map["all_gpu_left"] += device_mem;
             } catch (const ov::Exception&) {
+                return false;
             }
         } else {
-            Others.emplace_back(device_name);
+            // Need to get the device memory here
+            return false;
         }
     }
-    // Sort devices of the same type according to the memory size
-    std::sort(dGPU.begin(), dGPU.end(), sort_by_mem);
-    std::sort(iGPU.begin(), iGPU.end(), sort_by_mem);
-    // Priority of sorted device: dGPU > iGPU > 3rd part devices > CPU
-    device_names.clear();
-    device_names.insert(device_names.end(), dGPU.begin(), dGPU.end());
-    device_names.insert(device_names.end(), iGPU.begin(), iGPU.end());
-    device_names.insert(device_names.end(), Others.begin(), Others.end());
-    device_names.insert(device_names.end(), CPU.begin(), CPU.end());
+    return true;
 }
 
 std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plugin::query_model_update(
@@ -145,8 +114,9 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
 
     //  WARNING: Here is devices with user set priority
     auto device_names = ov::DeviceIDParser::get_hetero_devices(full_config.device_priorities);
+    bool hetero_query_model_by_device = false;
     if (full_config.hetero_query_model_by_device) {
-        update_device_priorities(device_names, device_mem_map);
+        hetero_query_model_by_device = get_device_memory_map(device_names, device_mem_map);
     }
 
     auto update_supported_ops = [](ov::SupportedOpsMap& final_results, const ov::SupportedOpsMap& device_results) {
@@ -224,7 +194,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         const auto& default_device = (!allow_exception || !fallback_device) ? get_device_name() : "";
         auto& device_config = properties_per_device.at(device_name);
         if (!has_subgraph_ops(model)) {
-            if (full_config.hetero_query_model_by_device)
+            if (hetero_query_model_by_device)
                 update_config(device_config, model, device_name, fallback_device);
             query_results[device_name] = get_core()->query_model(model, device_name, device_config);
             update_supported_ops(supported_ops_temp, query_results[device_name]);
@@ -246,7 +216,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             for (const auto& op : temp_model->get_ordered_ops()) {
                 if (const auto& subgraph = ov::as_type_ptr<ov::hetero::op::DeviceSubgraph>(op)) {
                     if (subgraph->get_affinity() == "HETERO-TEMP") {
-                        if (full_config.hetero_query_model_by_device)
+                        if (hetero_query_model_by_device)
                             update_config(device_config, subgraph->get_function(), device_name, fallback_device);
                         query_results[device_name] =
                             get_core()->query_model(subgraph->get_function(), device_name, device_config);

@@ -116,9 +116,9 @@ TEST_F(HeteroTests, query_model_on_independent_parameter) {
 }
 
 TEST_F(HeteroTests, query_model_by_three_device) {
-    const std::string dev_name0 = "MOCKGPU.0";
+    const std::string dev_name0 = "MOCKGPU.2";
     const std::string dev_name1 = "MOCKGPU.1";
-    const std::string dev_name2 = "MOCKGPU.2";
+    const std::string dev_name2 = "MOCKGPU.0";
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
@@ -144,8 +144,8 @@ TEST_F(HeteroTests, query_model_by_three_device) {
 }
 
 TEST_F(HeteroTests, query_model_by_two_device) {
-    const std::string dev_name0 = "MOCKGPU.0";
-    const std::string dev_name1 = "MOCKGPU.2";
+    const std::string dev_name0 = "MOCKGPU.2";
+    const std::string dev_name1 = "MOCKGPU.0";
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
