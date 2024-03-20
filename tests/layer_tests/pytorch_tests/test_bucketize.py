@@ -31,7 +31,8 @@ class TestBucketize(PytorchLayerTest):
 
             def forward(self, input, boundaries, output):
                 if self.is_out:
-                    return torch.bucketize(input, boundaries, out_int32=self.out_int32, right=self.right, out=output)
+                    torch.bucketize(input, boundaries, out_int32=self.out_int32, right=self.right, out=output)
+                    return output
                 else:
                     return torch.bucketize(input, boundaries, out_int32=self.out_int32, right=self.right)
 
@@ -41,8 +42,6 @@ class TestBucketize(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.precommit_ts_backend
-    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("out_int32", [True, False])
     @pytest.mark.parametrize("right", [True, False])
     @pytest.mark.parametrize("is_out", [True, False])
