@@ -2,6 +2,7 @@ const core = require('@actions/core')
 const fs = require('fs')
 const path = require('path')
 const tar = require('tar')
+const os = require('os')
 
 const { getSortedCacheFiles } = require('./cache')
 
@@ -43,22 +44,25 @@ async function restore() {
     }
 
     if (cacheFile) {
-      // copy file to local fs
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'))
+      // copy file to temp dir
+      fs.copyFileSync(
+        path.join(cacheRemotePath, cacheFile),
+        path.join(tempDir, cacheFile)
+      )
+      core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`)
+
+      // extract
       if (!fs.existsSync(cacheLocalPath)) {
         fs.mkdirSync(cacheLocalPath)
       }
-      fs.copyFileSync(
-        path.join(cacheRemotePath, cacheFile),
-        path.join(cacheLocalPath, cacheFile)
-      )
-      core.info(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
-
-      // extract
+      core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`)
       tar.x({
         file: path.join(cacheLocalPath, cacheFile),
         cwd: cacheLocalPath,
         sync: true
       })
+      core.info(`Cache extracted to ${cacheLocalPath}`)
 
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)

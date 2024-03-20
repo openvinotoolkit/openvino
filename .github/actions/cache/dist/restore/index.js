@@ -33158,6 +33158,7 @@ const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
 const tar = __nccwpck_require__(4674)
+const os = __nccwpck_require__(2037)
 
 const { getSortedCacheFiles } = __nccwpck_require__(2121)
 
@@ -33199,22 +33200,25 @@ async function restore() {
     }
 
     if (cacheFile) {
-      // copy file to local fs
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'))
+      // copy file to temp dir
+      fs.copyFileSync(
+        path.join(cacheRemotePath, cacheFile),
+        path.join(tempDir, cacheFile)
+      )
+      core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`)
+
+      // extract
       if (!fs.existsSync(cacheLocalPath)) {
         fs.mkdirSync(cacheLocalPath)
       }
-      fs.copyFileSync(
-        path.join(cacheRemotePath, cacheFile),
-        path.join(cacheLocalPath, cacheFile)
-      )
-      core.info(`${cacheFile} was copied to ${cacheLocalPath}/${cacheFile}`)
-
-      // extract
+      core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`)
       tar.x({
         file: path.join(cacheLocalPath, cacheFile),
         cwd: cacheLocalPath,
         sync: true
       })
+      core.info(`Cache extracted to ${cacheLocalPath}`)
 
       core.setOutput('cache-file', cacheFile)
       core.setOutput('cache-hit', true)
