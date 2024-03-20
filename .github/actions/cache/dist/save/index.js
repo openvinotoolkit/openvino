@@ -33125,11 +33125,11 @@ const path = __nccwpck_require__(1017)
  */
 async function save() {
   try {
-    const cacheRemotePath = core.getInput('cache_path', { required: true })
+    const cacheRemotePath = core.getInput('cache-path', { required: true })
     const toCachePath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
 
-    core.debug(`cache_path: ${cacheRemotePath}`)
+    core.debug(`cache-path: ${cacheRemotePath}`)
     core.debug(`path: ${toCachePath}`)
     core.debug(`key: ${key}`)
 

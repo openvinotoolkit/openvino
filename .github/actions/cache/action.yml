@@ -1,10 +1,10 @@
-name: 'local cache'
-description: 'cache to the local file system'
+name: 'cache'
+description: 'Cache to the local file system'
 author: 'Mikhail Ryzhov'
 
 inputs:
-  cache_path:
-    description: 'A local path where to search and saeve caches'
+  cache-path:
+    description: 'A local path where to search and save caches'
     required: true
   path:
     description:

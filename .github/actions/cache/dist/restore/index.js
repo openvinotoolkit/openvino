@@ -33167,7 +33167,7 @@ const { getSortedCacheFiles } = __nccwpck_require__(2121)
  */
 async function restore() {
   try {
-    const cacheRemotePath = core.getInput('cache_path', { required: true })
+    const cacheRemotePath = core.getInput('cache-path', { required: true })
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
     var keysRestore = core
@@ -33176,8 +33176,8 @@ async function restore() {
       .map(s => s.replace(/^!\s+/, '!').trim())
       .filter(x => x !== '')
 
-    core.debug(`cache_path: ${cacheRemotePath}`)
-    core.debug(`cache_path: ${cacheLocalPath}`)
+    core.debug(`cache-path: ${cacheRemotePath}`)
+    core.debug(`path: ${cacheLocalPath}`)
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
