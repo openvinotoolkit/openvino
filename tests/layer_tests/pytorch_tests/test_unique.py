@@ -23,7 +23,13 @@ class TestUnique2(PytorchLayerTest):
                 self.return_counts = return_counts
 
             def forward(self, x):
-                return self.op(x, self.sorted, self.return_inverse, self.return_counts)
+                result, inverse, counts = self.op(x, self.sorted, self.return_inverse, self.return_counts)
+                results = (result, )
+                if self.return_inverse:
+                    results += (inverse, )
+                if self.return_counts:
+                    results += (counts, )
+                return results
 
         ref_net = None
         model_class, op = (aten_unique2, "aten::_unique2")
