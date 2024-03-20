@@ -213,20 +213,21 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::model_distribution_policy.name(),
-                               ". CPU plugin only support ",
+                               ". CPU plugin only support {",
                                ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
-                               '/',
-                               ov::hint::ModelDistributionPolicy::NONE);
+                               '}/{',
+                               ov::hint::ModelDistributionPolicy::NONE,
+                               '}');
             };
 
             try {
-                for (auto& row : val.as<std::set>()) {
-                    if ((row.as<ov::hint::ModelDistributionPolicy>() != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) &&
-                        (row.as<ov::hint::ModelDistributionPolicy>() != ov::hint::ModelDistributionPolicy::NONE)) {
+                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                    if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) &&
+                        (row != ov::hint::ModelDistributionPolicy::NONE)) {
                         error_info();
                     }
                 }
-                modelDistributionPolicy = val.as<std::set>();
+                modelDistributionPolicy = val.as<std::set<ov::hint::ModelDistributionPolicy>>();
             } catch (ov::Exception&) {
                 error_info();
             }

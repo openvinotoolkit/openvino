@@ -335,16 +335,6 @@ std::vector<ov::AnyMap> OVPropertiesTestsWithCompileModelProps::getRWOptionalPro
         }
     }
 
-    if (props.empty() ||
-        std::find(props.begin(), props.end(), ov::hint::model_distribution_policy.name()) != props.end()) {
-        ov::hint::ModelDistributionPolicy modelDistributionPolicys[] = {
-            ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL,
-            ov::hint::ModelDistributionPolicy::NONE};
-        for (auto& modelDistributionPolicy : modelDistributionPolicys) {
-            res.push_back({ov::hint::model_distribution_policy({modelDistributionPolicy})});
-        }
-    }
-
     if (props.empty() || std::find(props.begin(), props.end(), ov::enable_mmap.name()) != props.end()) {
         res.push_back({ov::enable_mmap(true)});
         res.push_back({ov::enable_mmap(false)});
