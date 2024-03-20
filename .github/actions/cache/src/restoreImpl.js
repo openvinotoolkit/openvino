@@ -4,7 +4,7 @@ const path = require('path')
 const tar = require('tar')
 const os = require('os')
 
-const { getSortedCacheFiles } = require('./cache')
+const { getSortedCacheFiles, humanReadableFileSize } = require('./utils')
 
 /**
  * The main function for the action.
@@ -38,7 +38,9 @@ async function restore() {
       if (files.length) {
         cacheFile = files[0]
         cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
-        core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
+        core.info(
+          `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
+        )
         break
       }
     }

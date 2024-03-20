@@ -33111,46 +33111,6 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 2121:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const core = __nccwpck_require__(2186)
-const fs = __nccwpck_require__(7147)
-
-async function getSortedCacheFiles(path, key = '') {
-  if (!fs.existsSync(path)) {
-    core.warning(`${path} doesn't exist`)
-    return []
-  }
-
-  const cache_pattern = new RegExp(`^(${key}.*[.]cache)$`)
-
-  const files = await fs.promises.readdir(path)
-  filesSorded = files
-    .filter(fileName => cache_pattern.test(fileName))
-    .map(fileName => ({
-      name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
-    }))
-    .sort((a, b) => b.time - a.time)
-    .map(file => file.name)
-
-  core.debug(
-    filesSorded.map(fileName => ({
-      name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
-    }))
-  )
-  return filesSorded
-}
-
-module.exports = {
-  getSortedCacheFiles
-}
-
-
-/***/ }),
-
 /***/ 5286:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -33160,7 +33120,7 @@ const path = __nccwpck_require__(1017)
 const tar = __nccwpck_require__(4674)
 const os = __nccwpck_require__(2037)
 
-const { getSortedCacheFiles } = __nccwpck_require__(2121)
+const { getSortedCacheFiles, humanReadableFileSize } = __nccwpck_require__(1608)
 
 /**
  * The main function for the action.
@@ -33194,7 +33154,9 @@ async function restore() {
       if (files.length) {
         cacheFile = files[0]
         cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
-        core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
+        core.info(
+          `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
+        )
         break
       }
     }
@@ -33237,6 +33199,59 @@ async function restore() {
 
 module.exports = {
   restore
+}
+
+
+/***/ }),
+
+/***/ 1608:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(2186)
+const fs = __nccwpck_require__(7147)
+
+async function getSortedCacheFiles(path, key = '') {
+  if (!fs.existsSync(path)) {
+    core.warning(`${path} doesn't exist`)
+    return []
+  }
+
+  const cache_pattern = new RegExp(`^(${key}.*[.]cache)$`)
+
+  const files = await fs.promises.readdir(path)
+  filesSorded = files
+    .filter(fileName => cache_pattern.test(fileName))
+    .map(fileName => ({
+      name: fileName,
+      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
+    }))
+    .sort((a, b) => b.time - a.time)
+    .map(file => file.name)
+
+  core.debug(
+    filesSorded.map(fileName => ({
+      name: fileName,
+      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+    }))
+  )
+  return filesSorded
+}
+
+function humanReadableFileSize(sizeInBytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let index = 0
+
+  while (sizeInBytes >= 1024 && index < units.length - 1) {
+    sizeInBytes /= 1024
+    index++
+  }
+
+  return sizeInBytes.toFixed(2) + ' ' + units[index]
+}
+
+module.exports = {
+  getSortedCacheFiles,
+  humanReadableFileSize
 }
 
 
