@@ -950,8 +950,6 @@ using RTMap = AnyMap;
 
 using AnyVector = std::vector<ov::Any>;
 
-using AnySet = std::set<ov::Any>;
-
 /** @cond INTERNAL */
 inline static void PrintTo(const Any& any, std::ostream* os) {
     any.print(*os);
