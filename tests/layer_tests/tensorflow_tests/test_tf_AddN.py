@@ -86,10 +86,10 @@ class TestComplexAddN(CommonTFLayerTest):
     def create_complex_addn_net(self, input_shapes):
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
-            param_real_1 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_real_1')
-            param_imag_1 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_imag_1')
-            param_real_2 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_real_2')
-            param_imag_2 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_imag_2')
+            param_real_1 = tf.compat.v1.placeholder(np.float32, input_shapes[0], 'param_real_1')
+            param_imag_1 = tf.compat.v1.placeholder(np.float32, input_shapes[1], 'param_imag_1')
+            param_real_2 = tf.compat.v1.placeholder(np.float32, input_shapes[2], 'param_real_2')
+            param_imag_2 = tf.compat.v1.placeholder(np.float32, input_shapes[3], 'param_imag_2')
             complex_1 = tf.raw_ops.Complex(real=param_real_1, imag=param_imag_1)
             complex_2 = tf.raw_ops.Complex(real=param_real_2, imag=param_imag_2)
             tf.raw_ops.AddN(inputs=[complex_1, complex_2], name='complex_AddN')
