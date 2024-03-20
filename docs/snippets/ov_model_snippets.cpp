@@ -329,6 +329,6 @@ ov::copy_runtime_info({a, b, c}, {e, f});
 void get_element_type_example() {
 auto ov_input = ov::pass::pattern::any_input();
  // ! [get_element_type]
- ov_input->get_element_type()
+ ov_input->get_element_type();
  // ! [get_element_type]
 }
