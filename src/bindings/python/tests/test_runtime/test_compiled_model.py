@@ -242,3 +242,16 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     del model
     # check compiled and infer request can work properly after core object is destroyed
     compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+
+def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
+    core = Core()
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    model = get_relu_model()
+    serialize(model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = f.read()
+    with open(xml_path, "r") as f:
+        xml = f.read()
+
+    compiled = core.compile_model(model_buffer=xml, weight_buffer=weights, device_name="CPU", config={})
+    compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
