@@ -515,6 +515,45 @@ class Core(CoreBase):
             super().compile_model(model, device_name, {} if config is None else config),
         )
 
+    def compile_model(
+        self,
+        model_buffer: str,
+        weight_buffer: bytes,
+        device_name: Optional[str] = None,
+        config: Optional[dict] = None,
+    ) -> CompiledModel:
+        """Creates a compiled model.
+
+        Creates a compiled model from a model xml buffer and weight buffer in memory
+        This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
+        especially for cases when caching is enabled and cached model is available.
+        If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
+        Users can create as many compiled models as they need, and use them simultaneously
+        (up to the limitation of the hardware resources).
+
+        :param model_buffer: A string buffer of IR xml in memory
+        :type model_buffer: str
+        :param weight_buffer: A byte buffer of IR weights in memory
+        :type weight_buffer: bytes
+        :param device_name: Optional. Name of the device to load the model to. If not specified,
+                            the default OpenVINO device will be selected by AUTO plugin.
+        :type device_name: str
+        :param config: Optional dict of pairs:
+                       (property name, property value) relevant only for this load operation.
+        :type config: dict, optional
+        :return: A compiled model.
+        :rtype: openvino.runtime.CompiledModel
+        """
+        if device_name is None:
+            return CompiledModel(
+                super().compile_model(model_buffer, weight_buffer, {} if config is None else config),
+            )
+
+        return CompiledModel(
+            super().compile_model(model_buffer, weight_buffer,  device_name, {} if config is None else config),
+        )
+
+
     def import_model(
         self,
         model_stream: bytes,
