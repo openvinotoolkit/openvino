@@ -90,7 +90,7 @@ void PoolingLayerTest::SetUp() {
 
 
 std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj) {
-    maxPoolV8SpecificParams pool_params;
+    maxPoolSpecificParams pool_params;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::string target_device;
@@ -131,7 +131,7 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void MaxPoolingV8LayerTest::SetUp() {
-    maxPoolV8SpecificParams pool_params;
+    maxPoolSpecificParams pool_params;
     ov::element::Type model_type;
     std::vector<InputShape> shapes;
     std::tie(pool_params, model_type, shapes, targetDevice) = this->GetParam();

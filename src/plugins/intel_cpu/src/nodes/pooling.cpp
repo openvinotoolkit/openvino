@@ -144,10 +144,6 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 }  // namespace 
 
-//template <class TOp>
-//static bool Pooling::isCeilTorchSupported(const TOp& op) {
-//    return op.get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
-//}
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
@@ -159,11 +155,6 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
         } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op)) {
             errorMessage = "MaxPool and AvgPool from opset1 and MaxPool from opset8 are supported";
             return false;
-        //} else if (!ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v14::AvgPool>(op)) {
-        //    if (!Pooling::isCeilTorchSupported(op)) {
-        //        errorMessage = "CEIL_TORCH rounding type is not supported in opsets lower than opset14";
-        //        return false;
-        //    }
         }
     } catch (...) {
         return false;
