@@ -159,7 +159,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
-            install_dir=${ARM_COMPUTE_BINARY_DIR}/install)
+            install_dir=install)
     endif()
 
     if(ARM_COMPUTE_SCONS_JOBS)
