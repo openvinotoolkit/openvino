@@ -147,9 +147,8 @@ Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
         reportError(info.Env(), "getSize() does not accept any arguments.");
         return info.Env().Null();
     }
-    size_t size = _tensor.get_size();
 
-    double jsSize = static_cast<double>(size);
+    const auto size = static_cast<double>(_tensor.get_size());
 
-    return Napi::Number::New(info.Env(), jsSize);
+    return Napi::Number::New(info.Env(), size);
 }
