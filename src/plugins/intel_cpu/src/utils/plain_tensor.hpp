@@ -119,19 +119,16 @@ struct PlainTensor {
         return m_strides[i];
     }
 
+    size_t stride_bytes(int i) const {
+        assert(i >= 0 && static_cast<typename std::make_unsigned<decltype(i)>::type>(i) < m_rank);
+        return m_strides[i] * m_element_size;
+    }
+
     template<typename T>
     std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);
         for (size_t i = 0; i < m_rank; i++)
             strides[i] = static_cast<T>(m_strides[i]);
-        return strides;
-    }
-
-    template<typename T>
-    std::vector<T> get_byte_strides() const {
-        std::vector<T> strides(m_rank);
-        for (size_t i = 0; i < m_rank; i++)
-            strides[i] = static_cast<T>(m_strides[i] * m_element_size);
         return strides;
     }
 

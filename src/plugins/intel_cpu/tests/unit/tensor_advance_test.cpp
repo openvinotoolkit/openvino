@@ -57,11 +57,11 @@ TEST_P(TensorAdvanceTest, ForEachConstInput) {
     std::array<PlainTensor, 2> arr_memptr = {PlainTensor(out_memptr), PlainTensor(a_memptr)};
 
      int64_t index_dim_size = _shape[_squashed_axis];
-     int64_t out_dim_stride = arr_memptr[0].get_byte_strides<int64_t>()[_squashed_axis];
-     int64_t in_dim_stride = arr_memptr[1].get_byte_strides<int64_t>()[_squashed_axis];
+     int64_t out_dim_stride = static_cast<int64_t>(arr_memptr[0].stride_bytes(_squashed_axis));
+     int64_t in_dim_stride = static_cast<int64_t>(arr_memptr[1].stride_bytes(_squashed_axis));
      int64_t updates_rank = _shape.size();
 
-    auto my_loop = [&](char** data, const size_t* strides, size_t n) {
+    auto my_loop = [&](char** data, const size_t* strides, const size_t n) {
         if (_squashed_axis == updates_rank - 1) {
             auto* out_data = data[0];
             auto* in_data = data[1];
@@ -93,12 +93,12 @@ TEST_P(TensorAdvanceTest, ForEachConstInput) {
     if (penv) num_threads = std::atoi(penv);
     std::cout << "=============== num_threads=" << num_threads << std::endl;
 
+    TensorAdvance<2> iter(squashed_shape, arr_memptr);
     ov::parallel_nt(num_threads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         ov::splitter(ov::shape_size(squashed_shape), nthr, ithr, start, end);
         if (start>=ov::shape_size(squashed_shape)) return;
-        TensorAdvance iter(squashed_shape, _squashed_axis, start, end);
-        iter.run<2>(my_loop, arr_memptr);
+        iter.run(my_loop, start, end);
     });
 
     std::copy(std::begin(out), std::end(out), std::ostream_iterator<int>(std::cout, " "));
