@@ -3,10 +3,9 @@
 
 import numpy as np
 import pytest
-
+import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
 
-import logging
 
 # Testing operation AddN
 # Documentation: https://www.tensorflow.org/api_docs/python/tf/raw_ops/AddN
@@ -30,7 +29,6 @@ class TestAddN(CommonTFLayerTest):
 
         if len(input_shapes) == 1 and not use_legacy_frontend:
             pytest.xfail(reason="96687")
-        import tensorflow as tf
 
         tf.compat.v1.reset_default_graph()
 
@@ -64,5 +62,51 @@ class TestAddN(CommonTFLayerTest):
                                       use_legacy_frontend):
         self._test(*self.create_addn_placeholder_const_net(**params, ir_version=ir_version,
                                                           use_legacy_frontend=use_legacy_frontend),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
+
+class TestComplexAddN(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        rng = np.random.default_rng()
+        assert 'param_imag_1:0' in inputs_info
+        assert 'param_real_1:0' in inputs_info
+        assert 'param_real_2:0' in inputs_info
+        assert 'param_imag_2:0' in inputs_info
+        param_real_shape_1 = inputs_info['param_real_1:0']
+        param_imag_shape_1 = inputs_info['param_imag_1:0']
+        param_real_shape_2 = inputs_info['param_real_2:0']
+        param_imag_shape_2 = inputs_info['param_imag_2:0']
+        inputs_data = {}
+        inputs_data['param_real_1:0'] = 4 * rng.random(param_real_shape_1).astype(np.float32) - 2
+        inputs_data['param_imag_1:0'] = 4 * rng.random(param_imag_shape_1).astype(np.float32) - 2
+        inputs_data['param_real_2:0'] = 4 * rng.random(param_real_shape_2).astype(np.float32) - 2
+        inputs_data['param_imag_2:0'] = 4 * rng.random(param_imag_shape_2).astype(np.float32) - 2
+        return inputs_data
+
+    def create_complex_addn_net(self, input_shapes):
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            param_real_1 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_real_1')
+            param_imag_1 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_imag_1')
+            param_real_2 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_real_2')
+            param_imag_2 = tf.compat.v1.placeholder(np.float32, input_shapes, 'param_imag_2')
+            complex_1 = tf.raw_ops.Complex(real=param_real_1, imag=param_imag_1)
+            complex_2 = tf.raw_ops.Complex(real=param_real_2, imag=param_imag_2)
+            tf.raw_ops.AddN(inputs=[complex_1, complex_2], name='complex_AddN')
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+        return tf_net, None
+
+    test_data = [
+        dict(input_shapes=[[1], [1], [1], [1]]),
+        dict(input_shapes=[[2, 3], [2, 3], [2, 3], [2, 3]]),
+        dict(input_shapes=[[3, 4, 5], [3, 4, 5], [3, 4, 5], [3, 4, 5]]),
+    ]
+
+    @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.nightly
+    def test_complex_addn(self, params, ie_device, precision, ir_version, temp_dir,
+                          use_legacy_frontend):
+        self._test(*self.create_complex_addn_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
