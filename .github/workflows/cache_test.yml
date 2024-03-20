@@ -24,6 +24,10 @@ jobs:
         - /mount:/mount
     env:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
+      CACHE_REMOTE: /mount/caches/gha_test_cache
+      CACHE_LOCAL: /__w/cache
+      CACHE_TMP: /__w/tmp/test_cache
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,23 +36,23 @@ jobs:
 
       - name: Test preconditions
         run: |
-          mkdir -p /__w/tmp/test_cache
-          echo test > /__w/tmp/test_cache/file.txt
-          mkdir -p /mount/gha_test_cache
-          pushd /__w/tmp/test_cache
-            tar -czvf /mount/gha_test_cache/test_cache_$(date '+%Y%m%d%S').cache *
+          mkdir -p ${CACHE_TMP}
+          echo test > ${CACHE_TMP}/file.txt
+          mkdir -p ${CACHE_REMOTE}
+          pushd ${CACHE_TMP}
+            tar -czvf ${CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
           popd
-          ls -la /mount/gha_test_cache
+          ls -la ${${CACHE_REMOTE}}
 
       - name: Test Local Action
         id: test-action
         uses: ./openvino/.github/actions/cache
         with:
-          cache_path: /mount/gha_test_cache
-          path: /__w/cache
+          cache_path: ${{ env.CACHE_REMOTE }}
+          path: ${{ env.CACHE_LOCAL }}
           key: "test"
 
       - name: Print Output
         run: |
-          ls -la /__w/cache
+          ls -la ${CACHE_LOCAL}
           echo "${{ steps.test-action.outputs.cache-file }}"
