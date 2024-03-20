@@ -34,9 +34,6 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    template <class TOp>
-    static bool isCeilTorchSupported(const TOp&);
-
 protected:
     AttrPtr initPrimitiveAttr() override;
 
