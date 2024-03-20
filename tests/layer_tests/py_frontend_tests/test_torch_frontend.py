@@ -291,16 +291,16 @@ def test_framework_map_macros():
         "Parameter", "ReluCustom", "Result"]
 
 
+class CosModel(torch.nn.Module):
+    def __init__(self):
+            super(CosModel, self).__init__()
+
+    def forward(self, x):
+            return torch.cos(x.to(torch.float32))
+
 def test_op_extension():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend.pytorch import OpExtension
-
-    class CosModel(torch.nn.Module):
-        def __init__(self):
-            super(CosModel, self).__init__()
-
-        def forward(self, x):
-            return torch.cos(x.to(torch.float32))
 
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
@@ -327,13 +327,6 @@ def test_op_extension_generic():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
     from openvino.frontend import OpExtension
 
-    class CosModel(torch.nn.Module):
-        def __init__(self):
-            super(CosModel, self).__init__()
-
-        def forward(self, x):
-            return torch.cos(x.to(torch.float32))
-
     model = CosModel()
     decoder = TorchScriptPythonDecoder(get_scripted_model(model))
 
@@ -353,6 +346,49 @@ def test_op_extension_generic():
     assert converted_model
     assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
         "Parameter", "Convert", "Sin", "Result"]
+
+
+def test_module_extension():
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    from openvino.frontend.pytorch import ModuleExtension
+    from openvino import convert_model
+
+    class ModelWithModule(torch.nn.Module):
+        def __init__(self):
+            super(ModelWithModule, self).__init__()
+            self.cos_module = CosModel()
+
+        def forward(self, x):
+            return self.cos_module(x)
+
+    model = ModelWithModule()
+    decoder = TorchScriptPythonDecoder(model)
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Convert", "Cos", "Result"]
+    
+    converted_model = convert_model(model, example_input=(torch.randn(100),), extension=[ModuleExtension(CosModel, "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+    converted_model = convert_model(model, example_input=(torch.randn(100),), extension=[ModuleExtension(model.cos_module, "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
+
+    converted_model = convert_model(model, example_input=(torch.randn(100),), extension=[ModuleExtension("cos_module", "aten::sin")])
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == [
+        "Parameter", "Sin", "Result"]
 
 
 def test_pytorch_telemetry():
@@ -547,7 +583,7 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
     assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)
 
 
-class TestModel1(torch.nn.Module):
+class ModelTest1(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.pool = torch.nn.AdaptiveAvgPool2d(1)
@@ -559,8 +595,7 @@ class TestModel1(torch.nn.Module):
 def test_output_dict_names():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
-    input = torch.ones((1, 3, 224, 224))
-    model = TestModel1()
+    model = ModelTest1()
     decoder = TorchScriptPythonDecoder(
         model, example_input=(torch.randn(1, 3, 224, 224),))
     fe_manager = FrontEndManager()
@@ -570,7 +605,7 @@ def test_output_dict_names():
     assert om.outputs[0].any_name == "x1" and om.outputs[1].any_name == "x2", "Output dict names are not expected"
 
 
-class TestModel2(torch.nn.Module):
+class ModelTest2(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.pool = torch.nn.AdaptiveAvgPool2d(1)
@@ -582,8 +617,7 @@ class TestModel2(torch.nn.Module):
 def test_output_tuple_names():
     from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 
-    input = torch.ones((1, 3, 224, 224))
-    model = TestModel2()
+    model = ModelTest2()
     decoder = TorchScriptPythonDecoder(
         model, example_input=(torch.randn(1, 3, 224, 224),))
     fe_manager = FrontEndManager()
