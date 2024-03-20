@@ -17,6 +17,7 @@ inputs:
     description:
       'An ordered list of keys to use for restoring stale cache if no cache hit
       occurred for key. Note `cache-hit` returns false in this case.'
+    default: ''
     required: false
   fail-on-cache-miss:
     description: 'Fail the workflow if cache entry is not found'
@@ -32,6 +33,12 @@ inputs:
     description:
       'Run the post step to save the cache even if another step before fails'
     default: 'false'
+    required: false
+  max-cache-size:
+    description:
+      'Maximum cache storage sizr in Gb. Least recently used caches will be
+      automatically evicted to limit the total cache storage'
+    default: '10'
     required: false
 
 outputs:

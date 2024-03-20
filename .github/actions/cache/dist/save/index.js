@@ -33118,7 +33118,11 @@ const core = __nccwpck_require__(2186)
 const tar = __nccwpck_require__(4674)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
-
+const {
+  getSortedCacheFiles,
+  humanReadableFileSize,
+  calculateTotalSize
+} = __nccwpck_require__(1608)
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -33167,8 +33171,135 @@ async function save() {
   }
 }
 
+// Function to remove old files if their combined size exceeds 50 GB
+async function cleanUp() {
+  try {
+    const cacheRemotePath = core.getInput('cache-path', { required: true })
+    const key = core.getInput('key', { required: true })
+    const keysRestore = core
+      .getInput('restore-keys', { required: false })
+      .split('\n')
+      .map(s => s.replace(/^!\s+/, '!').trim())
+      .filter(x => x !== '')
+    const maxCacheSize = core.getInput('max-cache-size', { required: false })
+
+    core.debug(`cache-path: ${cacheRemotePath}`)
+    core.debug(`key: ${key}`)
+    core.debug(`restore-keys: ${keysRestore}`)
+
+    var keyPattern = key
+    if (keysRestore && keysRestore.length) {
+      keyPattern = keysRestore.join('|')
+    }
+
+    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
+    let totalSize = await calculateTotalSize(cacheRemotePath, files)
+    let maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
+
+    if (totalSize > maxCacheSizeInBytes) {
+      core.info(
+        `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+      )
+      for (let i = files.length - 1; i >= 0; i--) {
+        var file = files[i]
+        const filePath = path.join(directory, file)
+        const fileStats = await stat(filePath)
+
+        if (fileStats.isFile() && fileStats.ctime < oneWeekAgo) {
+          console.log(`Removing file: ${filePath}`)
+          await unlink(filePath)
+          totalSize -= fileStats.size
+        }
+
+        if (totalSize <= maxCacheSizeInBytes) {
+          // Check if total size
+          break // Exit loop if total size is within limit
+        }
+      }
+      core.info('Old cache files removed successfully')
+    } else {
+      core.info(
+        `The cache storage size ${humanReadableFileSize(totalSize)} less then allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+      )
+    }
+  } catch (error) {
+    core.error('Error removing old cache files')
+    core.setFailed(error.message)
+  }
+}
+
 module.exports = {
-  save
+  save,
+  cleanUp
+}
+
+
+/***/ }),
+
+/***/ 1608:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(2186)
+const fs = __nccwpck_require__(7147)
+
+async function getSortedCacheFiles(path, key = '') {
+  if (!fs.existsSync(path)) {
+    core.warning(`${path} doesn't exist`)
+    return []
+  }
+
+  const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
+
+  const files = await fs.promises.readdir(path)
+  filesSorded = files
+    .filter(fileName => cache_pattern.test(fileName))
+    .map(fileName => ({
+      name: fileName,
+      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
+    }))
+    .sort((a, b) => b.time - a.time)
+    .map(file => file.name)
+
+  core.debug(
+    filesSorded.map(fileName => ({
+      name: fileName,
+      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
+    }))
+  )
+  return filesSorded
+}
+
+function humanReadableFileSize(sizeInBytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let id = 0
+
+  while (sizeInBytes >= 1024 && id < units.length - 1) {
+    sizeInBytes /= 1024
+    id++
+  }
+
+  return sizeInBytes.toFixed(2) + ' ' + units[id]
+}
+
+// Function to calculate the total size of files in bytes
+async function calculateTotalSize(dir, files) {
+  let totalSize = 0
+
+  for (const file of files) {
+    const filePath = path.join(dir, file)
+    const fileStats = await stat(filePath)
+
+    if (fileStats.isFile()) {
+      totalSize += fileStats.size
+    }
+  }
+  return totalSize
+}
+
+module.exports = {
+  getSortedCacheFiles,
+  humanReadableFileSize,
+  calculateTotalSize
 }
 
 
@@ -35072,9 +35203,10 @@ module.exports = parseParams
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
-const { save } = __nccwpck_require__(1364)
+const { save, cleanUp } = __nccwpck_require__(1364)
 
 save()
+cleanUp()
 
 })();
 

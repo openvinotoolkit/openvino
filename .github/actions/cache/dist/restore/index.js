@@ -33216,7 +33216,7 @@ async function getSortedCacheFiles(path, key = '') {
     return []
   }
 
-  const cache_pattern = new RegExp(`^(${key}.*[.]cache)$`)
+  const cache_pattern = new RegExp(`^((${key}).*[.]cache)$`)
 
   const files = await fs.promises.readdir(path)
   filesSorded = files
@@ -33231,7 +33231,7 @@ async function getSortedCacheFiles(path, key = '') {
   core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
+      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
     }))
   )
   return filesSorded
@@ -33239,19 +33239,35 @@ async function getSortedCacheFiles(path, key = '') {
 
 function humanReadableFileSize(sizeInBytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  let index = 0
+  let id = 0
 
-  while (sizeInBytes >= 1024 && index < units.length - 1) {
+  while (sizeInBytes >= 1024 && id < units.length - 1) {
     sizeInBytes /= 1024
-    index++
+    id++
   }
 
-  return sizeInBytes.toFixed(2) + ' ' + units[index]
+  return sizeInBytes.toFixed(2) + ' ' + units[id]
+}
+
+// Function to calculate the total size of files in bytes
+async function calculateTotalSize(dir, files) {
+  let totalSize = 0
+
+  for (const file of files) {
+    const filePath = path.join(dir, file)
+    const fileStats = await stat(filePath)
+
+    if (fileStats.isFile()) {
+      totalSize += fileStats.size
+    }
+  }
+  return totalSize
 }
 
 module.exports = {
   getSortedCacheFiles,
-  humanReadableFileSize
+  humanReadableFileSize,
+  calculateTotalSize
 }
 
 
