@@ -20,7 +20,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_bucketize(const NodeContext& context) {
-    num_inputs_check(context, 4, 5);
+    num_inputs_check(context, 2, 5);
     auto input = context.get_input(0);
     auto boundaries = context.get_input(1);
 
