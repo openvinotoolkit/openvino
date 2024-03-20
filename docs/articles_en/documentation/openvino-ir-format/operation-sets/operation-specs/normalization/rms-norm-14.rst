@@ -41,7 +41,7 @@ RMS
 
 * *compute_type*
 
-  * **Description**: the precision for internal computation, before scaling
+  * **Description**: The precision for internal computation, before scaling.
   * **Range of values**: Supported floating point type: "f32", "f16", ...
   * **Type**: ``string``
   * **Default value**: "undefined" (the same as the input type)
