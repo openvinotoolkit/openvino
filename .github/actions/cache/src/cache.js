@@ -1,13 +1,13 @@
 const core = require('@actions/core')
 const fs = require('fs')
 
-const cache_pattern = new RegExp('^(.*[.]cache)$')
-
-async function getSortedCacheFiles(path) {
+async function getSortedCacheFiles(path, key = '') {
   if (!fs.existsSync(path)) {
     core.warning(`${path} doesn't exist`)
     return []
   }
+
+  const cache_pattern = new RegExp(`^(${key}.*[.]cache)$`)
 
   const files = await fs.promises.readdir(path)
   filesSorded = files

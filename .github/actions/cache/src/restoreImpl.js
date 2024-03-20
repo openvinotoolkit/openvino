@@ -14,19 +14,30 @@ async function restore() {
     const cacheRemotePath = core.getInput('cache_path', { required: true })
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
+    const keysRestore = core.getInput('restore_keys', { required: false })
 
     core.debug(`cache_path: ${cacheRemotePath}`)
     core.debug(`cache_path: ${cacheLocalPath}`)
     core.debug(`key: ${key}`)
+    core.debug(`restore_keys: ${keysRestore}`)
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    core.debug(`Looking for ${key} in ${cacheRemotePath}`)
-    files = getSortedCacheFiles(cacheRemotePath)
-    if (files.length) {
-      cacheFile = files[0]
-      cacheSize = fs.statSync(cacheFile).size
-      core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
+    if (!keysRestore || !keysRestore.length) {
+      keysRestore = [key]
+    }
 
+    cacheFile = ''
+    for (var i = 0; i < keysRestore.length; i++) {
+      core.debug(`Looking for ${keysRestore[i]} in ${cacheRemotePath}`)
+      files = await getSortedCacheFiles(cacheRemotePath, keysRestore[i])
+      if (files.length) {
+        cacheFile = files[0]
+        cacheSize = fs.statSync(cacheFile).size
+        core.info(`Found cache file: ${cacheFile}, size: ${cacheSize}`)
+        break
+      }
+    }
+
+    if (cacheFile) {
       // copy file to local fs
       if (!fs.existsSync(cacheLocalPath)) {
         fs.mkdirSync(cacheLocalPath)
@@ -48,7 +59,7 @@ async function restore() {
       core.setOutput('cache-hit', true)
     } else {
       core.warning(
-        `Could not found any suatable cache files in ${cacheRemotePath} with key ${key}`
+        `Could not found any suitable cache files in ${cacheRemotePath} with key ${key}`
       )
       core.setOutput('cache-file', '')
       core.setOutput('cache-hit', false)

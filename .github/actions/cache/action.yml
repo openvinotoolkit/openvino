@@ -13,6 +13,11 @@ inputs:
   key:
     description: 'An explicit key for restoring and saving the cache'
     required: true
+  restore-keys:
+    description:
+      'An ordered list of keys to use for restoring stale cache if no cache hit
+      occurred for key. Note `cache-hit` returns false in this case.'
+    required: false
   fail-on-cache-miss:
     description: 'Fail the workflow if cache entry is not found'
     default: 'false'
