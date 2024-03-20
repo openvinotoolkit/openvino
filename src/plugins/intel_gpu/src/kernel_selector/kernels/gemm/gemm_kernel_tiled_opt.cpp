@@ -107,6 +107,10 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
+        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
+        if (k_size == 128) // && also not support indirected input yet && FUSED_OPS_CAN_USE_PRELOAD is not supported && TILE_K == SIMD
+            // no dynamic padding
+            tuning_data.tile_n_size = 32;
     }
 
     GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
