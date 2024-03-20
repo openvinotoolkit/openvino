@@ -33,6 +33,7 @@ OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
 OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
+OP_CONVERTER(translate_approximate_equal_op);
 OP_CONVERTER(translate_adjust_contrast_op);
 OP_CONVERTER(translate_arg_max_op);
 OP_CONVERTER(translate_arg_min_op);
