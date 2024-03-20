@@ -215,11 +215,6 @@ KERNEL(gemm_tiled_opt)(
 #if TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
     MAKE_VECTOR_TYPE(INPUT0_TYPE, SIMD_WIDTH) a_tile;
 #endif // TRANSPOSE_INPUT0 != TRANSPOSE_X_LAST
-//#if TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
-//    B_FLOATN b_tile[TILE_K];
-//#else // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
-//    MAKE_VECTOR_TYPE(INPUT1_TYPE, SIMD_WIDTH) b_tile;
-//#endif // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
     B_FLOATN c_tile[TILE_M];
 
     unroll_for (uint i = 0; i < TILE_M; i++) {
@@ -233,7 +228,9 @@ KERNEL(gemm_tiled_opt)(
     #else // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
         MAKE_VECTOR_TYPE(INPUT1_TYPE, SIMD_WIDTH) b_tile;
     #endif // TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST
-        // Loading B tile
+
+    // Loading B tile
+#if (TRANSPOSE_INPUT1 != TRANSPOSE_Y_LAST)
         unroll_for (uint b_load_id = 0; b_load_id < TILE_K; b_load_id++) {
 #if INDIRECT_INPUT1
             uint b_load_offset = (k * TILE_K) + b_load_id;
@@ -312,8 +309,8 @@ KERNEL(gemm_tiled_opt)(
             }
     #endif // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
 #endif // IS_DYNAMIC
-        } // Loading B tile end
-#if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
+    } // Loading B tile end
+#else if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
     #if INDIRECT_INPUT1
         if (do_indirect_load)
         {
