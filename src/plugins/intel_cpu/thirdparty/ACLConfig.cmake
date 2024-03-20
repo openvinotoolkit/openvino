@@ -98,7 +98,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     #
 
     set(ARM_COMPUTE_SOURCE_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/ComputeLibrary")
-    set(ARM_COMPUTE_BINARY_DIR "${CMAKE_BINARY_DIR}/ComputeLibrary")
+    #set(ARM_COMPUTE_BINARY_DIR "${CMAKE_BINARY_DIR}/ComputeLibrary")
 
     message(STATUS "Configure to build ${ARM_COMPUTE_SOURCE_DIR}")
 
@@ -160,7 +160,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     if(NOT MSVC64)
         list(APPEND ARM_COMPUTE_OPTIONS
-            build_dir=${ARM_COMPUTE_BINARY_DIR}
             install_dir=${ARM_COMPUTE_BINARY_DIR}/install)
     endif()
 
@@ -333,8 +332,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(arm_compute build/arm_compute-static.lib)
         set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
     else()
-        set(arm_compute ${ARM_COMPUTE_BINARY_DIR}/libarm_compute-static.a)
-        set(arm_compute_full_path "${arm_compute}")
+        set(arm_compute build/libarm_compute-static.a)
+        set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
     endif()
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
