@@ -266,6 +266,7 @@ OP_CONVERTER(translate_group_norm_fx);
 OP_CONVERTER(translate_index_fx);
 OP_CONVERTER(translate_layer_norm_fx);
 OP_CONVERTER(translate_leaky_relu_fx);
+OP_CONVERTER(translate_log_sigmoid_fx);
 OP_CONVERTER(translate_log_softmax_fx);
 OP_CONVERTER(translate_max_dim_fx);
 OP_CONVERTER(translate_max_poolnd_fx);
@@ -834,7 +835,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.lift_fresh_copy.default", op::skip_node},
         {"aten.linalg_vector_norm.default", op::translate_linalg_vector_norm},
         {"aten.log.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Log>},
-        {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid},
+        {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid_fx},
         {"aten.log10.default", op::translate_log10},
         {"aten.log1p.default", op::translate_log1p},
         {"aten.log2.default", op::translate_log2},
