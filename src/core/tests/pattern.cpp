@@ -573,7 +573,7 @@ TEST(pattern, optional_testing) {
 }
 
 TEST(pattern, optional_one_node) {
-    Shape shape {};
+    Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
     auto model_abs = std::make_shared<op::v0::Abs>(model_input);
@@ -583,7 +583,7 @@ TEST(pattern, optional_one_node) {
     ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_relu));
     ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Abs>(), model_relu));
 
-    ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_relu));
+    ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_abs));
 
     ASSERT_TRUE(tm.match(ov::pass::pattern::optional<op::v0::Parameter>(), model_input));
     ASSERT_FALSE(tm.match(ov::pass::pattern::optional<op::v0::Relu>(), model_input));
