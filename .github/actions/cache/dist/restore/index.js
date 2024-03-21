@@ -33148,7 +33148,7 @@ async function restore() {
     }
 
     core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
-    files = await getSortedCacheFiles(cacheRemotePath, keyR)
+    files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
 
     if (files.length) {
       cacheFile = files[0]
