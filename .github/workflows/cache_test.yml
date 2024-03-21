@@ -14,19 +14,23 @@ concurrency:
 
 jobs:
   Build:
+    # defaults:
+    #   run:
+    #     shell: bash
+    # runs-on: aks-linux-4-cores-16gb
+    # container:
+    #   image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    #   volumes:
+    #     - /mount:/mount
     defaults:
       run:
-        shell: bash
-    runs-on: aks-linux-4-cores-16gb
-    container:
-      image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
-      volumes:
-        - /mount:/mount
+        shell: pwsh
+    runs-on: aks-win-16-cores-32gb-test
     env:
-      OPENVINO_REPO: /__w/openvino/openvino/openvino
-      CACHE_REMOTE: /mount/caches/gha_test_cache
-      CACHE_LOCAL: /__w/cache
-      CACHE_TMP: /__w/tmp/test_cache
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      CACHE_REMOTE: "C:\\mount\\caches\\ccache\\test-cache"
+      CACHE_LOCAL: "C:\\temp\\cache"
+      CACHE_TMP: "C:\\temp\\cache_tmp"
 
     steps:
       - name: Checkout
