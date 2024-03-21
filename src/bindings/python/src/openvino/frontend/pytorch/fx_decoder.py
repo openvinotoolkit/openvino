@@ -66,9 +66,10 @@ class TorchFXPythonDecoder (Decoder):
                         self.input_types.append(OVAny(DecoderType.List(
                             TorchFXPythonDecoder.get_type_for_value(arg))))
                 else:
-                    new_inputs.append(self._inputs[i])
+                    v = self._inputs[i]
+                    new_inputs.append(v)
                     self.input_types.append(
-                        TorchFXPythonDecoder.get_type_for_value(self._inputs[i]))
+                        TorchFXPythonDecoder.get_type_for_value(v[0] if isinstance(v, tuple) else self._nodes[v]))
             self._inputs = new_inputs
 
     def inputs(self):
@@ -108,12 +109,9 @@ class TorchFXPythonDecoder (Decoder):
         elif isinstance(arg, bool):
             return make_constant(OVType.boolean, Shape([]), [arg])
         elif isinstance(arg, int):
-            arg = maybe_convert_max_int(arg)
-            return make_constant(OVType.i32, Shape(
-                []), [arg])  # TODO: i32? why not i64?
+            return make_constant(OVType.i64, Shape([]), [arg])
         elif isinstance(arg, float):
-            return make_constant(OVType.f32, Shape(
-                []), [arg])  # TODO: f32? why not f64?
+            return make_constant(OVType.f32, Shape([]), [arg])
         return None
 
     def inlined_input(self, index):
@@ -190,10 +188,9 @@ class TorchFXPythonDecoder (Decoder):
                     if str(pt_type) in pt_to_ov_type_map:
                         ov_type = pt_to_ov_type_map[str(pt_type)]
                         return OVAny(ov_type)
-            else:
-                return OVAny(OVType.dynamic)
+            return OVAny(OVType.dynamic)
         elif isinstance(value, int):
-            return OVAny(OVType.i32)
+            return OVAny(OVType.i64)
         elif isinstance(value, float):
             return OVAny(OVType.f32)
         elif isinstance(value, bool):
@@ -372,7 +369,7 @@ class TorchFXPythonDecoder (Decoder):
             if isinstance(ivalue, float):
                 return make_constant(OVType.f32, Shape([]), [ivalue]).outputs()
             if isinstance(ivalue, int):
-                return make_constant(OVType.i32, Shape([]), [ivalue]).outputs()
+                return make_constant(OVType.i64, Shape([]), [ivalue]).outputs()
             if isinstance(ivalue, bool):
                 return make_constant(OVType.boolean, Shape([]), [ivalue]).outputs()
 
@@ -441,8 +438,7 @@ class TorchFXPythonDecoder (Decoder):
                     constant = make_constant(OVType.boolean, Shape([]), [arg])
                 elif isinstance(arg, int):
                     arg = maybe_convert_max_int(arg)
-                    constant = make_constant(OVType.i32, Shape(
-                        []), [arg])  # TODO: i32? why not i64?
+                    constant = make_constant(OVType.i64, Shape([]), [arg])
                 elif isinstance(arg, float):
                     constant = make_constant(OVType.f32, Shape(
                         []), [arg])  # TODO: f32? why not f64?
