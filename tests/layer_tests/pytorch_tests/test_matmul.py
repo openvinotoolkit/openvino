@@ -5,9 +5,9 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 class TestMatMulOperation(PytorchLayerTest):
     def _prepare_input(self, matrix, vector):
-        matrix_input = torch.tensor(matrix, dtype=torch.float32)
-        vector_input = torch.tensor(vector, dtype=torch.float32)
-        return [matrix_input, vector_input]
+        matrix_input = np.array(matrix, dtype=np.float32)
+        vector_input = np.array(vector, dtype=np.float32)
+        return matrix_input, vector_input
 
     def create_model(self, matrix, vector):
         class CustomMatMulOperation(torch.nn.Module):
