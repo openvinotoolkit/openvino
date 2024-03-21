@@ -15,7 +15,7 @@ async function restore() {
     const cacheRemotePath = core.getInput('cache-path', { required: true })
     const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
-    var keysRestore = core
+    const keysRestore = core
       .getInput('restore-keys', { required: false })
       .split('\n')
       .map(s => s.replace(/^!\s+/, '!').trim())
@@ -26,26 +26,21 @@ async function restore() {
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
-    if (!keysRestore || !keysRestore.length) {
-      keysRestore = [key]
+    var keyPattern = key
+    if (keysRestore && keysRestore.length) {
+      keyPattern = keysRestore.join('|')
     }
 
-    cacheFile = ''
-    for (var i = 0; i < keysRestore.length; i++) {
-      var keyR = keysRestore[i]
-      core.info(`Looking for ${keyR} in ${cacheRemotePath}`)
-      files = await getSortedCacheFiles(cacheRemotePath, keyR)
-      if (files.length) {
-        cacheFile = files[0]
-        cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
-        core.info(
-          `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
-        )
-        break
-      }
-    }
+    core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
+    files = await getSortedCacheFiles(cacheRemotePath, keyR)
 
-    if (cacheFile) {
+    if (files.length) {
+      cacheFile = files[0]
+      cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
+      core.info(
+        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
+      )
+
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'))
       // copy file to temp dir
       fs.copyFileSync(
@@ -76,7 +71,6 @@ async function restore() {
       core.setOutput('cache-hit', false)
     }
   } catch (error) {
-    // Fail the workflow run if an error occurs
     core.setFailed(error.message)
   }
 }
