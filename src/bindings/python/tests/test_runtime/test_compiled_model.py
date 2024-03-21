@@ -243,6 +243,7 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     # check compiled and infer request can work properly after core object is destroyed
     compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
 
+
 def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
@@ -253,5 +254,5 @@ def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
     with open(xml_path, "r") as f:
         xml = f.read()
 
-    compiled = core.compile_model(model_buffer=xml, weight_buffer=weights, device_name="CPU", config={})
+    compiled = core.compile_model(model=xml, weight=weights, device_name=device)
     compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
