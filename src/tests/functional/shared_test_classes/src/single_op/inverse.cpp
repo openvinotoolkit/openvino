@@ -126,7 +126,6 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
     //     ov::test::utils::compare(t1, t2);
     // }
     ov::test::utils::compare(t1, t2);
-
 }
 }  // namespace test
 }  // namespace ov
