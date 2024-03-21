@@ -597,11 +597,12 @@ void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
     //do nothing
 }
 
-#define MPOL_DEFAULT     0
-#define MPOL_BIND        2
-#define MPOL_MF_STRICT  (1<<0)
-#define MPOL_MF_MOVE     (1 << 1)
-#define __NR_mbind 237
+#if defined(__linux__)
+#    define MPOL_DEFAULT   0
+#    define MPOL_BIND      2
+#    define MPOL_MF_STRICT (1 << 0)
+#    define MPOL_MF_MOVE   (1 << 1)
+#    define __NR_mbind     237
 long mbind(void* start,
            unsigned long len,
            int mode,
@@ -610,28 +611,34 @@ long mbind(void* start,
            unsigned flags) {
     return syscall(__NR_mbind, (long)start, len, mode, (long)nmask, maxnode, flags);
 }
+#endif
+
+#if defined(__linux__)
 bool mbind_move(void* data, size_t size, int targetNode) {
     auto pagesize = getpagesize();
     auto page_count = (size + pagesize - 1) / pagesize;
-    char* pages = reinterpret_cast<char*>(
-        (((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
+    char* pages = reinterpret_cast<char*>((((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
     unsigned long mask = 0;
     unsigned flags = 0;
     if (targetNode < 0) {
-      // restore default policy
-      mask = -1;
-      flags = 0;
+        // restore default policy
+        mask = -1;
+        flags = 0;
     } else {
-      mask = 1ul << targetNode;
-      flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
+        mask = 1ul << targetNode;
+        flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
-    auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask,
-                    sizeof(mask) * 8, flags);
+    auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);
     if (rc < 0) {
-      perror("mbind failed");
+        perror("mbind failed");
     }
     return true;
 }
+#else
+bool mbind_move(void* data, size_t size, int targetNode) {
+    return false;
+}
+#endif
 
 bool mbind_move(const MemoryCPtr mem, int numaNodeID) {
     void* data = mem->getData();
