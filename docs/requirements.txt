@@ -20,7 +20,7 @@ mistune==2.0.3
 myst-parser==0.18.1
 packaging==23.0
 pluggy==0.13.1
-pydata-sphinx-theme==0.7.2
+pydata-sphinx-theme==0.14.3
 Pygments==2.15.1
 pyparsing==3.0.9
 pytest==6.2.5
@@ -33,10 +33,10 @@ requests==2.31.0
 six==1.15.0
 snowballstemmer==2.1.0
 soupsieve==2.2.1
-sphinx==4.5.0
-sphinx-copybutton==0.5.1
-sphinx-design==0.3.0
-sphinx-inline-tabs==2021.8.17b10
+sphinx==7.2.6
+sphinx-copybutton==0.5.2
+sphinx-design==0.5.0
+sphinx-inline-tabs==2023.4.21
 sphinx-panels==0.6.0
 sphinx-sitemap==2.2.0
 sphinxcontrib-applehelp==1.0.2

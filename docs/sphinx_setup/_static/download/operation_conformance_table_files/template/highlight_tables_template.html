@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link rel="stylesheet" href="template/style.css" />
+    <title>{% block title %}highlight_table{% endblock %}</title>
+</head>
+<body>
+    {% block content%}
+        <h1 class="ml-3 mt-3">Conformance Highlights</h1>
+        {% if report_tag != "" or report_version != "" %}
+            <h3 class="ml-3 mt-3">Tag: {{report_tag}} | Version: {{report_version}}</h3>
+        {% endif %}
+        {% if current_commit != "" %}
+            <h3 class="ml-3 mt-3">Current state: {{current_commit}}</h3>
+        {% endif %}
+        {% if prev_commit != "" %}
+            <h3 class="ml-3 mt-3">Previous state: {{prev_commit}}</h3>
+        {% endif %}
+        {% if ops_info|length == 0 and api_info|length == 0 %}
+            <h3 style="text-align: center;" class="mt-10">Unfortunately report is empty. Data for analysis wasn't found.</h3>
+        {% else %}
+            {% for test_mode in expected_test_mode %}
+                <h3 class="ml-3" style="margin-top: 30px;">
+                    {% if expected_test_mode|length > 1 %}
+                        <span class="mr-3">&#9679</span>{{ test_mode }}
+                    {% endif %}
+                </h3>
+                <table class="table table-hover table-bordered" style="margin-left: auto; margin-right: auto; width: 98%; font-size: 12px;">
+                    <thead>
+                        <tr>
+                            <th class="diagonal"><span class="th-devices">Devices</span><span class="th-sw-plugin">Statistic</span></th>
+                            {% for device in devices %}
+                                <th colspan="2" class="table-dark" style="text-align: center; vertical-align: middle !important;">{{ device }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody style="text-align: center;">
+                        <tr>
+                            <td class="table-primary" style="text-align: left; width: 20%;">Total ops pass (total pass)/(all ops amount):</td>
+                            {% for device in devices %}
+                                {% if device in ops_info[test_mode] %}
+                                    <td colspan="2" title="{{ops_info[test_mode][device]['title']}}">
+                                        <!-- 10(+3)/(205)(-10) -->
+                                        <span>{{ ops_info[test_mode][device]['totalPass'] }}</span>
+                                        {% if ops_info[test_mode][device]['diffTotalPass'] > 0 %}
+                                            (<span class="text-success font-weight-bold">+{{ ops_info[test_mode][device]['diffTotalPass'] }}</span>)
+                                        {% elif ops_info[test_mode][device]['diffTotalPass'] < 0 %}
+                                            (<span class="text-danger font-weight-bold">{{ ops_info[test_mode][device]['diffTotalPass'] }}</span>)
+                                        {% endif %}
+                                        /<span>{{ ops_info[test_mode][device]['totalAmount'] }}</span>
+                                        {% if ops_info[test_mode][device]['diffTotalAmount'] > 0 %}
+                                            (<span class="text-success font-weight-bold">+{{ ops_info[test_mode][device]['diffTotalAmount'] }}</span>)
+                                        {% elif ops_info[test_mode][device]['diffTotalAmount'] < 0 %}
+                                            (<span class="text-danger font-weight-bold">{{ ops_info[test_mode][device]['diffTotalAmount'] }}</span>)
+                                        {% endif %}
+                                    </td>
+                                {% else %}
+                                    <td colspan="2" title="Opset conformanace wasn't run on {{device}}">
+                                        NOT RUN
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <td class="table-primary" style="text-align: left; width: 20%;">Passrate:</td>
+                            {% for device in devices %}
+                                {% if device in general_pass_rate[test_mode] %}
+                                    <td title="{{general_pass_rate[test_mode][device]['title']}}">
+                                        <span>Total:</span>
+                                        {{ general_pass_rate[test_mode][device]['current'] }}
+                                        {% if general_pass_rate[test_mode][device]['diff'] > 0 %}
+                                            (<span class="text-success font-weight-bold" >+{{ general_pass_rate[test_mode][device]['diff'] }}</span>)
+                                        {% elif general_pass_rate[test_mode][device]['diff'] < 0 %}
+                                            (<span class="text-danger font-weight-bold">{{ general_pass_rate[test_mode][device]['diff'] }}</span>)
+                                        {% endif %}
+                                        %
+                                    </td>
+                                    <td title="{{general_pass_rate[test_mode][device]['rel_title']}}">
+                                        <span>Rel:</span>
+                                        {{ general_pass_rate[test_mode][device]['rel_current'] }}
+                                        {% if general_pass_rate[test_mode][device]['rel_diff'] > 0 %}
+                                            (<span class="text-success font-weight-bold">+{{ general_pass_rate[test_mode][device]['rel_diff'] }}</span>)
+                                        {% elif general_pass_rate[test_mode][device]['rel_diff'] < 0 %}
+                                            (<span class="text-danger font-weight-bold">{{ general_pass_rate[test_mode][device]['rel_diff'] }}</span>)
+                                        {% endif %}
+                                        %
+                                    </td>
+                                {% else %}
+                                    <td colspan="2" title="Opset conformanace wasn't run on {{device}}">NOT RUN</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            {% endfor %}
+            {% if api_info.keys()|length > 0 %}
+                <h3 class="ml-3" style="margin-top: 30px;"><span class="mr-3">&#9679</span> API </h3>
+                    <table class="table table-hover table-bordered" style="margin-left: auto; margin-right: auto; width: 98%; font-size: 12px;">
+                        <thead>
+                            <tr>
+                                <th class="table-dark" style="text-align: left; vertical-align: middle !important;">Entity</th>
+                                <th class="diagonal"><span class="th-devices">Devices</span><span class="th-sw-plugin">Plugins</span></th>
+                                {% for device in devices %}
+                                    <th class="table-dark" colspan="2" style="text-align: center; vertical-align: middle !important;">{{ device }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody style="text-align: center;">
+                            {% for test_type in api_info %}
+                                <td class="table-primary" style="text-align: left;" rowspan="{{ api_info[test_type].keys()|length + 1 }}" style="vertical-align: middle !important;">{{ test_type }}</td>
+                                {% for sw_plugin in sw_plugins %}
+                                    <tr>
+                                        <td style="text-align: left;">{{sw_plugin}}</td>
+                                        {% for device in devices %}
+                                            {% if device in api_info[test_type][sw_plugin] %}
+                                                <td title="{{api_info[test_type][sw_plugin][device]['title']}}">
+                                                    <span>Total:</span>
+                                                    <span>{{ api_info[test_type][sw_plugin][device]['passrate'] }}</span>
+                                                    {% if api_info[test_type][sw_plugin][device]['diff'] > 0 %}
+                                                        (<span class="text-success font-weight-bold">+{{ api_info[test_type][sw_plugin][device]['diff'] }}</span>)
+                                                    {% elif api_info[test_type][sw_plugin][device]['diff'] < 0 %}
+                                                        (<span class="text-danger font-weight-bold">{{ api_info[test_type][sw_plugin][device]['diff'] }}</span>)
+                                                    {% endif %}
+                                                    %
+                                                </td>
+                                                <td title="{{api_info[test_type][sw_plugin][device]['rel_title']}}">
+                                                    <span>Rel:</span>
+                                                    <span>{{ api_info[test_type][sw_plugin][device]['rel_passrate'] }}</span>
+                                                    {% if api_info[test_type][sw_plugin][device]['rel_diff'] > 0 %}
+                                                        (<span class="text-success font-weight-bold">+{{ api_info[test_type][sw_plugin][device]['rel_diff'] }}</span>)
+                                                    {% elif api_info[test_type][sw_plugin][device]['rel_diff'] < 0 %}
+                                                        (<span class="text-danger font-weight-bold">{{ api_info[test_type][sw_plugin][device]['rel_diff'] }}</span>)
+                                                    {% endif %}
+                                                    %
+                                                </td>
+                                            {% else %}
+                                                <td colspan="2" style="text-align: center;" title="API conformanace wasn't run on {{device}} {{sw_plugin}}">NOT RUN</td>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}    
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+            {% endif %}
+        {% endif %}
+    {% endblock %}
+</body>
+</html>

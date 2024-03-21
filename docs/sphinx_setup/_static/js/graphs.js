@@ -1,29 +1,34 @@
 // =================== GENERAL OUTPUT CONFIG =========================
 
 const chartDisclaimers = {
-    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of November 2023.',
-    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of November 2023.'
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of May 2023.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of May 2023.'
 }
 
 const OVdefaultSelections = {
     platformTypes: {name: 'ietype', data: ['core']},
     platforms: {name: 'platform',
         data: [
-            'Intel® Core™ i5-10500TE ',
-            'Intel® Core™ i7-1185G7 CPU',
-            'Intel® Core™ i9-10900TE ',
+            'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i9-13900K CPU-only',
+            'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-13600K CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10900TE CPU-only',
+            'Intel® Core™  i7-1165G7 CPU-only'
         ]
     },
     platformFilters: {name: 'coretype', data: ['CPU']},
     models: {name: 'networkmodel',
         data: [
-            'bert-base-cased',
-            'yolo_v3_tiny',
-            'yolo_v8n',
+            'bert-large-uncased-whole-word-masking-squad-0001 ',
+            'mobilenet-ssd ',
             'resnet-50',
+            'yolo_v3_tiny'
         ]
     },
-    parameters: {name: 'kpi', data: ['Throughput','Latency']},
+    parameters: {name: 'kpi', data: ['Throughput']},
     pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
 
@@ -117,11 +122,9 @@ class ExcelData {
         this.release = csvdataline[1];
         this.ieType = csvdataline[2];
         this.platformName = csvdataline[3];
-        this.throughputInt4 = csvdataline[22];
         this.throughputInt8 = csvdataline[4];
         this.throughputFP16 = csvdataline[5];
         this.throughputFP32 = csvdataline[6];
-        this.throughputBF16 = csvdataline[24];
         this.value = csvdataline[7];
         this.efficiency = csvdataline[8];
         this.price = csvdataline[9];
@@ -130,14 +133,11 @@ class ExcelData {
         this.pricePerSocket = csvdataline[12];
         this.tdpPerSocket = csvdataline[13];
         this.latency = csvdataline[14];
-        this.latency16 = csvdataline[19];
-        this.latency32 = csvdataline[20];
-        this.latency4 = csvdataline[21];
-        this.latencyBF16 = csvdataline[23];
-        this.throughputUnit = csvdataline[15];
-        this.valueUnit = csvdataline[16];
-        this.efficiencyUnit = csvdataline[17];
-        this.latencyUnit = csvdataline[18];
+
+        this.throughputUnit = csvdataline[15]
+        this.valueUnit = csvdataline[16]
+        this.efficiencyUnit = csvdataline[17]
+        this.latencyUnit = csvdataline[18]
     }
 }
 
@@ -149,6 +149,7 @@ class OVMSExcelData extends ExcelData {
         this.throughputInt8 = csvdataline[4];
         this.throughputOVMSFP32 = csvdataline[7];
         this.throughputFP32 = csvdataline[6];
+
         this.throughputUnit = csvdataline[8]
     }
 }
@@ -167,30 +168,20 @@ class GraphData {
             {
                 'ovmsint8': excelData.throughputOVMSInt8,
                 'ovmsfp32': excelData.throughputOVMSFP32,
-                'int4': excelData.throughputInt4,
                 'int8': excelData.throughputInt8,
                 'fp16': excelData.throughputFP16,
-                'fp32': excelData.throughputFP32,
-                'bf16': excelData.throughputBF16
+                'fp32': excelData.throughputFP32
             },
             excelData.value,
             excelData.efficiency,
-            {
-                'ovmsint8': excelData.throughputOVMSInt8,
-                'ovmsfp32': excelData.throughputOVMSFP32,
-                'int4': excelData.latency4,
-                'int8': excelData.latency,
-                'fp16': excelData.latency16,
-                'fp32': excelData.latency32,
-                'bf16': excelData.latencyBF16
-            },);
-        
+            excelData.latency);
         this.price = excelData.price;
         this.tdp = excelData.tdp;
         this.sockets = excelData.sockets;
         this.pricePerSocket = excelData.pricePerSocket;
         this.tdpPerSocket = excelData.tdpPerSocket;
         this.latency = excelData.latency;
+
         this.throughputUnit = excelData.throughputUnit;
         this.valueUnit = excelData.valueUnit;
         this.efficiencyUnit = excelData.efficiencyUnit;
@@ -200,11 +191,11 @@ class GraphData {
 
 
 class KPI {
-    constructor(precisions, value, efficiency, latencies) {
+    constructor(precisions, value, efficiency, latency) {
         this.throughput = precisions;
         this.value = value;
         this.efficiency = efficiency;
-        this.latency = latencies;
+        this.latency = latency;
     }
 }
 
@@ -230,12 +221,12 @@ class Modal {
     static getKpisLabels(version) {
         if (version == 'ovms')
             return ['Throughput'];
-        return ['Throughput', 'Latency', 'Value', 'Efficiency'];
+        return ['Throughput', 'Value', 'Efficiency', 'Latency'];
     }
     static getPrecisionsLabels(version) {
         if (version == 'ovms')
             return ['OV-INT8 (reference)', 'INT8', 'OV-FP32 (reference)', 'FP32'];
-        return ['INT4', 'INT8', 'FP16', 'FP32', 'BF16'];
+        return ['INT8', 'FP16', 'FP32'];
     }
     static getCoreTypes(labels) {
         return labels.map((label) => {
@@ -258,40 +249,16 @@ class Modal {
                     return 'ovmsint8';
                 case 'OV-FP32 (reference)':
                     return 'ovmsfp32';
-                case 'INT4':
-                    return 'int4';
                 case 'INT8':
                     return 'int8';
                 case 'FP16':
                     return 'fp16';
                 case 'FP32':
                     return 'fp32';
-                case 'BF16':
-                    return 'bf16';
                 default:
                     return '';
             }
         });
-    }
-    static getUnitDescription(unit) {
-            switch (unit) {
-                case 'msec.':
-                    return '(lower is better)';
-                case 'msec/token':
-                    return '(lower is better)';
-                case 'Generating time, sec.':
-                    return '(lower is better)';
-                case 'msec/token/TDP':
-                    return '(lower is better)';
-                case 'FPS':
-                    return '(higher is better)';
-                case 'FPS/$':
-                    return '(higher is better)';
-                case 'FPS/TDP':
-                    return '(higher is better)';
-                default:
-                    return '';
-            }
     }
 }
 
@@ -336,7 +303,6 @@ class Graph {
                 return [];
         }
     }
-    
 
     // this returns an object that is used to ender the chart
     static getGraphConfig(kpi, units, precisions) {
@@ -344,73 +310,48 @@ class Graph {
             case 'throughput':
                 return {
                     chartTitle: 'Throughput',
+                    chartSubtitle: '(higher is better)',
                     iconClass: 'throughput-icon',
-                    unit: units.throughputUnit,
-                    datasets: precisions.map((precision) => this.getPrecisionThroughputConfig(precision, units.throughputUnit)),
+                    datasets: precisions.map((precision) => this.getPrecisionConfig(precision, units.throughputUnit)),
                 };
             case 'latency':
                 return {
                     chartTitle: 'Latency',
+                    chartSubtitle: '(lower is better)',
                     iconClass: 'latency-icon',
-                    unit: units.latencyUnit,
-                    datasets: precisions.map((precision) => this.getPrecisionLatencyConfig(precision, units.latencyUnit)),
+                    datasets: [{ data: null, color: '#8F5DA2', label: `${units.latencyUnit}` }],
                 };
             case 'value':
                 return {
                     chartTitle: 'Value',
+                    chartSubtitle: '(higher is better)',
                     iconClass: 'value-icon',
-                    unit: units.valueUnit,
-                    datasets: [{ data: null, color: '#8BAE46', label: `Value` }],
+                    datasets: [{ data: null, color: '#8BAE46', label: `${units.valueUnit} (INT8)` }],
                 };
             case 'efficiency':
                 return {
                     chartTitle: 'Efficiency',
+                    chartSubtitle: '(higher is better)',
                     iconClass: 'efficiency-icon',
-                    unit: units.efficiencyUnit,
-                    datasets: [{ data: null, color: '#E96115', label: `Efficiency` }],
+                    datasets: [{ data: null, color: '#E96115', label: `${units.efficiencyUnit} (INT8)` }],
                 };
             default:
                 return {};
         }
     }
 
-    static getPrecisionThroughputConfig(precision, unit) {
+    static getPrecisionConfig(precision, unit) {
         switch (precision) {
             case 'ovmsint8':
                 return { data: null, color: '#FF8F51', label: `${unit} (OV Ref. INT8)` };
             case 'ovmsfp32':
                 return { data: null, color: '#B24501', label: `${unit} (OV Ref. FP32)` };
-            case 'int4':
-                return { data: null, color: '#5bd0f0', label: `INT4` };
             case 'int8':
-                return { data: null, color: '#00C7FD', label: `INT8` };
+                return { data: null, color: '#00C7FD', label: `${unit} (INT8)` };
             case 'fp16':
-                return { data: null, color: '#009fca', label: `FP16` };
+                return { data: null, color: '#009fca', label: `${unit} (FP16)` };
             case 'fp32':
-                return { data: null, color: '#007797', label: `FP32` };
-            case 'bf16':
-                return { data: null, color: '#00536a', label: `BF16` };
-            default:
-                return {};
-        }
-    }
-
-    static getPrecisionLatencyConfig(precision, unit) {
-        switch (precision) {
-            case 'ovmsint8':
-                return { data: null, color: '#FF8F51', label: `${unit} (OV Ref. INT8)` };
-            case 'ovmsfp32':
-                return { data: null, color: '#B24501', label: `${unit} (OV Ref. FP32)` };
-            case 'int4':
-                return { data: null, color: '#c197d1', label: `INT4` };
-            case 'int8':
-                return { data: null, color: '#b274ca', label: `INT8` };
-            case 'fp16':
-                return { data: null, color: '#8424a9', label: `FP16` };
-            case 'fp32':
-                return { data: null, color: '#5b037d', label: `FP32` };
-            case 'bf16':
-                return { data: null, color: '#37014c', label: `BF16` };
+                return { data: null, color: '#007797', label: `${unit} (FP32)` };
             default:
                 return {};
         }
@@ -448,16 +389,17 @@ $(document).ready(function () {
 
     function clickBuildGraphs(graph, networkModels, ietype, platforms, kpis, precisions) {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
+
         $('.modal-footer').show();
         $('#modal-display-graphs').show();
-        $('.edit-settings-btn').off('click').on('click', (event) => {
+        $('.edit-settings-btn').on('click', (event) => {
             $('#modal-configure-graphs').show();
             $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
             $('.chart-placeholder').empty();
         });
 
-        $('.graph-chart-title-header').off('click').on('click', (event) => {
+        $('.graph-chart-title-header').on('click', (event) => {
             var parent = event.target.parentElement;
 
             if ($(parent).children('.chart-wrap,.empty-chart-container').is(":visible")) {
@@ -481,9 +423,9 @@ $(document).ready(function () {
     function showModal(version) {
         $('body').css('overflow', 'hidden');
 
-        let dataPath = '../_static/benchmarks_files/OV-benchmark-data.csv';
+        let dataPath = '_static/benchmarks_files/OV-benchmark-data.csv';
         if (version == 'ovms')
-            dataPath = '../_static/benchmarks_files/OVMS-benchmark-data.csv';
+            dataPath = '_static/benchmarks_files/OVMS-benchmark-data.csv';
         Papa.parse(dataPath, {
             download: true,
             complete: (result) => renderModal(result, version)
@@ -548,7 +490,7 @@ $(document).ready(function () {
         var networkModels = Graph.getNetworkModels(graph.data);
         var ieTypes = Graph.getIeTypes(graph.data);
 
-        fetch('../_static/html/modal.html').then((response) => response.text()).then((text) => {
+        fetch('_static/html/modal.html').then((response) => response.text()).then((text) => {
 
             // generate and configure modal container
             var modal = $('<div>');
@@ -616,7 +558,7 @@ $(document).ready(function () {
     
     function validateThroughputSelection() {
         const precisions = $('.precisions-column').find('input')
-        if (getSelectedKpis().includes('Throughput') || getSelectedKpis().includes('Latency')) {
+        if (getSelectedKpis().includes('Throughput')) {
             precisions.prop('disabled', false);
         }
         else {
@@ -767,10 +709,10 @@ $(document).ready(function () {
       if (!listContainer) {
         listContainer = document.createElement('ul');
         listContainer.style.display = 'flex';
-        listContainer.style.flexDirection = 'row';
+        listContainer.style.flexDirection = 'column';
         listContainer.style.margin = 0;
         listContainer.style.padding = 0;
-        listContainer.style.paddingLeft = '0px';
+        listContainer.style.paddingLeft = '10px';
 
         legendContainer.appendChild(listContainer);
       }
@@ -781,9 +723,8 @@ $(document).ready(function () {
     const htmlLegendPlugin = {
       id: 'htmlLegend',
       afterUpdate(chart, args, options) {
-
         const ul = getOrCreateLegendList(chart, chart.options.plugins.htmlLegend.containerID);
-        
+
         // Remove old legend items
         while (ul.firstChild) {
           ul.firstChild.remove();
@@ -791,12 +732,13 @@ $(document).ready(function () {
 
         // Reuse the built-in legendItems generator
         const items = chart.legend.legendItems;
+
         items.forEach(item => {
           const li = document.createElement('li');
           li.style.alignItems = 'center';
-          li.style.display = 'block';
-          li.style.flexDirection = 'column';
-          li.style.marginLeft = '4px';
+          li.style.display = 'flex';
+          li.style.flexDirection = 'row';
+          li.style.marginLeft = '10px';
 
           li.onclick = () => {
             const {type} = chart.config;
@@ -815,17 +757,17 @@ $(document).ready(function () {
           boxSpan.style.borderColor = item.strokeStyle;
           boxSpan.style.borderWidth = item.lineWidth + 'px';
           boxSpan.style.display = 'inline-block';
-          boxSpan.style.height = '10px';
-          boxSpan.style.marginRight = '4px';
+          boxSpan.style.height = '12px';
+          boxSpan.style.marginRight = '10px';
           boxSpan.style.width = '30px';
 
           // Text
           const textContainer = document.createElement('p');
-          textContainer.style.color = '#666';
+          textContainer.style.color = item.fontColor;
           textContainer.style.margin = 0;
           textContainer.style.padding = 0;
-          textContainer.style.fontSize = '0.6rem';
-          textContainer.style.marginLeft = '3px';
+        //   textContainer.style.fontFamily = 'Roboto';
+          textContainer.style.fontSize = '0.8rem';
           textContainer.style.textDecoration = item.hidden ? 'line-through' : '';
 
           const text = document.createTextNode(item.text);
@@ -838,39 +780,40 @@ $(document).ready(function () {
       }
     };
 
+    // ====================================================
+
     function getChartOptions(title, containerId) {
         return {
             responsive: true,
-            indexAxis: 'y',
             maintainAspectRatio: false,
+            legend: {display: false},
             title: {
                 display: false,
                 text: title
             },
             scales: {
-                x: {
+                xAxes: [{
                     ticks: {
                         beginAtZero: true
                     }
-                },
-                y: {
+                }],
+                yAxes: [{
                     ticks: {
-                        display: false,
+                        display: false, //this will remove only the label
                         beginAtZero: true
                     }
-                  }
+                }]
             },
             plugins: {
-                legend: {
-                    display: false
-                },
                 htmlLegend: {
+                // ID of the container to put the legend in
                     containerID: containerId,
                 }
             }
         }
     }
 
+    // params: string[], Datasets[]
     function getChartDataNew(labels, datasets) {
         return {
             labels: labels,
@@ -880,7 +823,7 @@ $(document).ready(function () {
                     data: item.data,
                     backgroundColor: item.color,
                     borderColor: 'rgba(170,170,170,0)',
-                    barThickness: 10
+                    barThickness: 12
                 }
             })
         }
@@ -889,7 +832,7 @@ $(document).ready(function () {
     function renderData(graph, networkModels, ietype, platforms, kpis, precisions) {
 
         $('.chart-placeholder').empty();
-        $('.modal-footer').empty();
+        $('.modal-disclaimer-box').empty();
         const display = new ChartDisplay(getChartsDisplayMode(kpis.length), kpis.length);
 
         networkModels.forEach((networkModel) => {
@@ -920,10 +863,6 @@ $(document).ready(function () {
             }
         })
        
-        if(kpis.includes('Value') || kpis.includes('Efficiency')){
-            $('.modal-footer').append($('<div class="modal-line-divider"></div>'))
-        }
-        $('.modal-footer').append($('<div class="modal-footer-content"><div class="modal-disclaimer-box"></div></div>'))
         for (let kpi of kpis) {
             if (chartDisclaimers[kpi])
                 $('.modal-disclaimer-box').append($('<p>').text(chartDisclaimers[kpi]))
@@ -944,14 +883,15 @@ $(document).ready(function () {
         chartWrap.addClass('chart-wrap');
         chartContainer.append(chartWrap);
         var labels = Graph.getPlatformNames(model);
+
         var graphConfigs = kpis.map((str) => {
             var kpi = str.toLowerCase();
-            var groupUnit = model[0];
-            if (kpi === 'throughput' || kpi === 'latency') {
-                var kpiData = Graph.getDatabyKPI(model, kpi);
+            var groupUnit = model[0]
+            if (kpi === 'throughput') {
+                var throughputData = Graph.getDatabyKPI(model, kpi);
                 var config = Graph.getGraphConfig(kpi, groupUnit, precisions);
                 precisions.forEach((prec, index) => {
-                    config.datasets[index].data = kpiData.map(tData => tData[prec]);
+                    config.datasets[index].data = throughputData.map(tData => tData[prec]);
                 });
                 return config;
                 // return removeEmptyLabel(config);
@@ -960,7 +900,6 @@ $(document).ready(function () {
             config.datasets[0].data = Graph.getDatabyKPI(model, kpi);
             return config;
         });
-
 
         // get the client platform labels and create labels for all the graphs
         var labelsContainer = $('<div>');
@@ -984,8 +923,8 @@ $(document).ready(function () {
             var columnHeader = $('<div class="chart-header">');
             columnHeader.append($('<div class="title">' + graphConfig.chartTitle + '</div>'));
             columnHeader.append($('<div class="title">' + Graph.getGraphPlatformText(ietype) + '</div>'));
-            columnHeader.append($('<div class="subtitle">' + graphConfig.unit + ' ' + Modal.getUnitDescription(graphConfig.unit) + '</div>'));
-
+            columnHeader.append($('<div class="subtitle">' + graphConfig.chartSubtitle + '</div>'));
+            
             columnHeaderContainer.append(columnHeader);
             chartGraphsContainer.append(graphItem);
             var graphClass = $('<div>');
@@ -1017,27 +956,13 @@ $(document).ready(function () {
         setChartsDisplayDirection(display.mode);
         adjustHeaderIcons(display.mode);
     }
-    function removeEmptyLabel(config, indexes) {
-        var indexes = [];
-        config.datasets.forEach((item, index) =>{
-            if(item.data[0] == '') {
-                indexes.push(index);
-            }
-        })
-        var sorted = indexes.sort(function(a, b){return b-a});
-        
-        sorted.forEach((index)=>{
-            config.datasets.splice(index,1);
-        })
-        return config;
-    }
 
     function processMetricNew(labels, datasets, chartTitle, container, widthClass, id) {
         // ratio for consistent chart label height
         var heightRatio = (30 + (labels.length * 55));
         var chart = $('<div>');
         const containerId = `legend-container-${id}`;
-        const legend = $(`<div id="${containerId}">`);   
+        const legend = $(`<div id="${containerId}">`);
         legend.addClass('graph-legend-container');
         chart.addClass('chart');
         chart.addClass(widthClass);
@@ -1050,7 +975,7 @@ $(document).ready(function () {
         context.canvas.height = heightRatio;
         window.setTimeout(() => {
             new Chart(context, {
-            type: 'bar',
+            type: 'horizontalBar',
             data: getChartDataNew(labels, datasets),
             options: getChartOptions(chartTitle, containerId),
             plugins: [htmlLegendPlugin]
