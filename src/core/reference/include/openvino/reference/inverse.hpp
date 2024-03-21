@@ -18,7 +18,7 @@ template <typename T>
 void lu_decomposition(const T* input,
                       std::vector<T>& L,
                       std::vector<T>& U,
-                      std::vector<T>& P,
+                      std::vector<size_t>& P,
                       bool& sign,
                       size_t b,
                       size_t n,
@@ -31,7 +31,7 @@ void lu_decomposition(const T* input,
 
     for (size_t i = 0; i < n; ++i) {
         L[i * n + i] = T{1};
-        P[i] = static_cast<T>(i);
+        P[i] = i;
     }
 
     for (size_t k = 0; k < n; ++k) {
@@ -75,7 +75,7 @@ template <typename T>
 void lu_solve(T* output,
               std::vector<T>& L,
               std::vector<T>& U,
-              std::vector<T>& P,
+              std::vector<size_t>& P,
               size_t b,
               size_t n,
               size_t n_squared) {
@@ -151,7 +151,7 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
 
     std::vector<T> L(n_squared);
     std::vector<T> U(n_squared);
-    std::vector<T> P(n);
+    std::vector<size_t> P(n);
 
     for (size_t b = 0; b < batch_size; ++b) {
         bool sign = true;

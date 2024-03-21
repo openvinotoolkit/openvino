@@ -105,7 +105,7 @@ void Inverse::inverse() {
 
     std::vector<T> L(m_side_squared);
     std::vector<T> U(m_side_squared);
-    std::vector<T> P(m_side);
+    std::vector<size_t> P(m_side);
 
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
@@ -125,7 +125,7 @@ template <typename T>
 void Inverse::lu_decomposition(const T* data,
                                std::vector<T>& L,
                                std::vector<T>& U,
-                               std::vector<T>& P,
+                               std::vector<size_t>& P,
                                bool& sign,
                                size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
@@ -136,7 +136,7 @@ void Inverse::lu_decomposition(const T* data,
 
     parallel_for(m_side, [&](size_t i) {
         L[i * m_side + i] = T{1};
-        P[i] = static_cast<T>(i);
+        P[i] = i;
     });
 
     for (size_t k = 0; k < m_side; ++k) {
@@ -180,7 +180,7 @@ void Inverse::lu_decomposition(const T* data,
 }
 
 template <typename T>
-void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<T>& P, size_t b) {
+void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<size_t>& P, size_t b) {
     parallel_for(m_side, [&](size_t column) {
         std::vector<T> X(m_side, T{0});
         std::vector<T> Y(m_side, T{0});
