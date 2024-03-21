@@ -59,30 +59,7 @@ public:
         } else {
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
-<<<<<<< HEAD
-
-        params.set_dynamic_shape_offsets();
-        if ((primitive->indirect_a || primitive->indirect_b) && !indirect) {
-            // Need to adjust regular gemm kernel offset to skip beam table input
-            for (auto& fd : params.fused_ops) {
-                if (!fd.has_outer_dep())
-                    continue;
-                auto& fused_op_inputs = fd.tensors;
-                for (auto& fused_input : fused_op_inputs) {
-                    if (fused_input.is_dynamic())
-                        fused_input.SetDynamicShapeOffset(fused_input.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
-                }
-            }
-            for (auto& out : params.outputs) {
-                if (out.is_dynamic()) {
-                    out.SetDynamicShapeOffset(out.get_dynamic_shape_offset() + kernel_selector::DataTensor::max_rank());
-                }
-            }
-        }
         return params;
-=======
-        return {params, optional_params};
->>>>>>> parent of d247233fb1 ([GPU] Added indirect KV Cache and Gemm (#22726))
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
@@ -106,37 +83,9 @@ public:
         return static_canonicalize_shapes(impl_params);
     }
 
-<<<<<<< HEAD
-    static std::unique_ptr<primitive_impl> create(const typed_program_node<gemm>& arg, const kernel_impl_params& impl_param) {
-        std::vector<kernel_selector::kernel_data> kernels_data;
-        auto& kernel_selector = kernel_selector_t::Instance();
-        auto params = static_canonicalize_shapes(impl_param);
-
-        auto default_kernel_params = get_kernel_params(params, params.is_dynamic(), false);
-        default_kernel_params.is_shape_agnostic = params.is_dynamic();
-        kernels_data.push_back(kernel_selector.get_best_kernel(default_kernel_params));
-        const auto desc = params.typed_desc<gemm>();
-        if (desc->indirect_a || desc->indirect_b) {
-            auto indirect_kernel_params = get_kernel_params(params, params.is_dynamic(), true);
-            indirect_kernel_params.is_shape_agnostic = params.is_dynamic();
-            kernels_data.push_back(kernel_selector.get_best_kernel(indirect_kernel_params));
-        }
-        return cldnn::make_unique<gemm_impl>(kernels_data);
-    }
-
-    void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true, false);
-        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
-
-        if (_kernels_data.size() == 2) {
-            auto kernel_params = get_kernel_params(impl_param, true, true);
-            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
-        }
-=======
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
->>>>>>> parent of d247233fb1 ([GPU] Added indirect KV Cache and Gemm (#22726))
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
