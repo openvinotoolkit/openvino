@@ -61,9 +61,6 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
         dispatchData.lws[0] = td.simd_size;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
-
-        GPU_DEBUG_LOG << params.layerID << ": gws: [" << dispatchData.gws[0] << ", " << dispatchData.gws[1] << ", " << dispatchData.gws[2] << "], "
-                        << " lws: [" << dispatchData.lws[0] << ", " << dispatchData.lws[1] << ", " << dispatchData.lws[2] << "] " << std::endl;
     }
     return dispatchData;
 }
