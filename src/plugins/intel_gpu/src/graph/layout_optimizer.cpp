@@ -895,12 +895,25 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
-    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
-        return false;
-
     auto fc_prim = node.get_primitive();
-    // onednn impl doesn't support compressed weights for now
-    if (fc_prim->compressed_weights)
+
+    if (fc_prim->compressed_weights) {
+        auto weights_dt = node.weights().get_output_layout().data_type;
+        if (ov::element::Type(weights_dt).bitwidth() != 8)
+            return false;
+
+        if (fc_prim->decompression_zero_point_scalar.has_value())
+            return false;
+
+        if (!fc_prim->decompression_zero_point.empty()) {
+            auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
+            auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
+            if (weights_dt != decompression_zp_dt)
+                return false;
+        }
+    }
+
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
     auto output_layout = node.get_output_layout();
@@ -1332,8 +1345,16 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
-                              node.as<gemm>().get_input_layout(1).data_type;
+        data_types wei_dt;
+        if (is_fc) {
+            const auto& fc_node = node.as<fully_connected>();
+            const auto fc_prim = fc_node.get_primitive();
+            wei_dt = fc_node.weights().get_output_layout(false).data_type;
+            if (fc_prim->compressed_weights && ov::element::Type(wei_dt).bitwidth() == 8)
+                return true;
+        } else {
+            wei_dt = node.as<gemm>().get_input_layout(1).data_type;
+        }
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
         auto input_fmt = node.get_input_layout(0).format;
