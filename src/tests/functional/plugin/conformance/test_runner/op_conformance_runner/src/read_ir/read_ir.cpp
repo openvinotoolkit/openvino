@@ -120,6 +120,26 @@ uint64_t clip(uint64_t n, uint64_t lower, uint64_t upper) {
     return std::max(lower, std::min(n, upper));
 }
 
+std::pair<double, double> find_const_ranges(std::map<std::string, ov::conformance::InputInfo> input_info, const std::shared_ptr<const ov::Model>& function) {
+    double min = std::numeric_limits<double>::lowest();
+    double max = std::numeric_limits<double>::max();
+    for (const auto& param : function->get_parameters()) {
+        auto in_info = input_info.find(param->get_friendly_name())->second;
+        if (!in_info.is_const) {
+            continue;
+        }
+        if (min < in_info.ranges.min) {
+            min = in_info.ranges.min;
+        }
+        if (max > in_info.ranges.max) {
+            max = in_info.ranges.max;
+        }
+    }
+
+    std::cout << " RESULTS: MIN " << min << " MAX " << max << std::endl;
+    return std::pair<double, double>(min, max);
+}
+
 void ReadIRTest::SetUp() {
     std::pair<std::string, std::string> model_pair;
     targetDevice = ov::test::utils::target_device;
@@ -132,6 +152,7 @@ void ReadIRTest::SetUp() {
         auto input_info = meta_info.get_input_info();
         rel_influence_coef = meta_info.get_graph_priority();
 
+        std::pair<double, double> ranges = find_const_ranges(input_info, function);
         auto inputMap = utils::getInputMap();
         std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameter_to_remove;
         for (const auto& param : function->get_parameters()) {
@@ -139,7 +160,16 @@ void ReadIRTest::SetUp() {
             if (!in_info.is_const) {
                 continue;
             }
-            ov::test::utils::set_const_ranges(in_info.ranges.min, in_info.ranges.max);
+            double min = ranges.first;
+            double max = ranges.second;
+            if ((max - min) <= 5e-1) {
+                min = in_info.ranges.min;
+                max = in_info.ranges.max;
+            }
+
+            std::cout << " REAL: MIN " << min << " MAX " << max << std::endl;
+
+            ov::test::utils::set_const_ranges(min, max);
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
