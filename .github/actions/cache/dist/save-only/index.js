@@ -35224,11 +35224,11 @@ const { cleanUp } = __nccwpck_require__(895)
 const saveAlways = core.getInput('save-always', { required: false })
 const cleanUpAlways = core.getInput('cleanup-always', { required: false })
 
-if (saveAlways) {
+if (saveAlways === 'true') {
   save()
 }
 
-if (cleanUpAlways) {
+if (cleanUpAlways === 'true') {
   cleanUp()
 }
 

@@ -5,10 +5,10 @@ const { cleanUp } = require('./cleanupImpl')
 const saveAlways = core.getInput('save-always', { required: false })
 const cleanUpAlways = core.getInput('cleanup-always', { required: false })
 
-if (saveAlways) {
+if (saveAlways === 'true') {
   save()
 }
 
-if (cleanUpAlways) {
+if (cleanUpAlways === 'true') {
   cleanUp()
 }
