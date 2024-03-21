@@ -6,11 +6,48 @@
 #include "node/include/addon.hpp"
 #include "node/include/async_reader.hpp"
 #include "node/include/compiled_model.hpp"
-#include "node/include/core_set_property_args.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
+
+void validate_set_property_args(const Napi::CallbackInfo& info) {
+    const size_t args_length = info.Length();
+    const bool is_device_specified = info[0].IsString();
+    const bool has_params_obj = info[is_device_specified ? 1 : 0];
+
+    if (!has_params_obj)
+        throw std::runtime_error("Properties parameter must be an object");
+
+    if (args_length > (is_device_specified ? 2 : 1))
+        throw std::runtime_error("setProperty applies 1 or 2 arguments only");
+}
+
+std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::CallbackInfo& info) {
+    validate_set_property_args(info);
+
+    std::string device_name;
+    ov::AnyMap properties;
+
+    const size_t args_length = info.Length();
+
+    if (args_length > 1)
+        device_name = info[0].ToString();
+
+    const size_t parameters_position_index = device_name.empty() ? 0 : 1;
+    Napi::Object parameters = info[parameters_position_index].ToObject();
+    const auto& keys = parameters.GetPropertyNames();
+
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        auto property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+
+        ov::Any any_value = js_to_any(info, parameters.Get(property_name));
+
+        properties.insert(std::make_pair(property_name, any_value));
+    }
+
+    return std::make_tuple(properties, device_name);
+}
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), _core{} {}
 
@@ -21,7 +58,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("readModel", &CoreWrap::read_model_async),
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),                        
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("setProperty", &CoreWrap::set_property),
@@ -260,12 +297,14 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
     try {
-        CoreSetPropertyArgs args = CoreSetPropertyArgs(info);
+        auto args = try_get_set_property_parameters(info);
+        ov::AnyMap properties = std::get<0>(args);
+        std::string device_name = std::get<1>(args);
 
-        if (args.device_name.empty()) {
-            _core.set_property(args.parameters);
+        if (device_name.empty()) {
+            _core.set_property(properties);
         } else {
-            _core.set_property(args.device_name, args.parameters);
+            _core.set_property(device_name, properties);
         }
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
