@@ -1,14 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/avg_pool.hpp"
-#include "openvino/op/broadcast.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/avg_pool.hpp" // Changed to AvgPool
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -18,58 +25,83 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_avg_poolnd(const NodeContext& context) {
-    num_inputs_check(context, 2, 7);
-    auto input = context.get_input(0);
-    auto kernel = context.const_input<Shape>(1);
+OutputVector translate_avg_pool_base(const NodeContext& context, const Output& input,
+                                     const Shape& kernel, const Strides& strides = Strides{},
+                                     const Shape& pads = Shape{}, const Strides& dilations = Strides{},
+                                     RoundingType rounding_type = RoundingType::FLOOR,
+                                     int pooling_dims = 2) {
+    num_inputs_check(context, 3, 6); // Ensure correct number of inputs
+    auto kernel_shape = context.const_input<Shape>(1); // Extract kernel shape
     Strides strides;
     if (!context.input_is_none(2)) {
-        strides = context.const_input<Strides>(2);
+        strides = context.const_input<Strides>(2); // Extract strides if provided
     }
-    if (context.input_is_none(2) || strides.size() == 0) {
-        // In case strides are not provided default is kernel
+    const bool use_kernel = context.input_is_none(2) || (strides.size() == 0);
+    if (use_kernel) {
+        // In case strides are not provided, default is kernel
         strides = kernel;
     }
     Shape pads;
-    bool count_include_pad = true;
     if (context.input_is_none(3)) {
-        count_include_pad = false;
-        pads = Shape(kernel.size(), 0);
+        pads = Shape(kernel.size(), 0); // Default padding if not provided
     } else {
-        pads = context.const_input<Shape>(3);  // pytorch supports only symmetric padding
+        pads = context.const_input<Shape>(3); // Extract padding if provided
     }
-    ov::op::RoundingType rounding_type = ov::op::RoundingType::FLOOR;
-    if (!(context.input_is_none(4))) {
-        rounding_type = context.const_input<bool>(4) ? ov::op::RoundingType::CEIL : ov::op::RoundingType::FLOOR;
+    Strides dilations;
+    if (!context.input_is_none(4)) {
+        dilations = context.const_input<Strides>(4); // Extract dilations if provided
     }
-    if (!(context.input_is_none(5))) {
-        count_include_pad = context.const_input<bool>(5);
-    }
-    PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
-                                "Translation for aten::avg_pool2d do not support divisor_override input.");
-    // Although ov::AvgPool provides exclude_pad=false,
-    // The corner case of Average Pooling with ceil_mode on
-    // PyTorch allows sliding window go off bound, which leads to this accommodation.
-    // More detail on https://github.com/pytorch/pytorch/issues/57178
-    if (count_include_pad) {
-        auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
-        zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input));
-        auto zero_i32 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        Output<Node> rank;
-        std::tie(std::ignore, rank) = get_shape_rank(context, input);
-        auto pad_values = context.get_input(3);
-        auto pads_len = context.mark_node(v0::Constant::create(element::i32, Shape{}, {pads.size()}));
-        auto pads_diff = context.mark_node(std::make_shared<v1::Subtract>(rank, pads_len));
-        auto pads_remaining = context.mark_node(std::make_shared<v3::Broadcast>(zero_i32, pads_diff));
-        auto padding = context.mark_node(
-            std::make_shared<v0::Concat>(OutputVector{std::move(pads_remaining), std::move(pad_values)}, 0));
-        input = context.mark_node(std::make_shared<v1::Pad>(input, padding, padding, zero, ov::op::PadMode::CONSTANT));
-        pads = Shape(pads.size(), 0);
+    RoundingType rounding_type;
+    if (context.input_is_none(5)) {
+        rounding_type = RoundingType::FLOOR; // Default rounding type
+    } else {
+        rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL : RoundingType::FLOOR; // Rounding type based on input
     }
 
-    return {context.mark_node(
-        std::make_shared<v1::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type))};
-};
+    // Call average pooling operation with extracted parameters
+    auto res = context.mark_node(std::make_shared<v8::AvgPool>(input, // Changed to AvgPool
+                                                               strides,
+                                                               dilations,
+                                                               pads,
+                                                               pads,
+                                                               kernel,
+                                                               rounding_type,
+                                                               PadType::EXPLICIT,
+                                                               element::i64,
+                                                               pooling_dims));
+    if (context.get_output_size() == 2) {
+        auto out1 = res->output(0);
+        auto out2 = res->output(1);
+        return {std::move(out1), std::move(out2)};
+    } else {
+        return {res};
+    }
+}
+
+OutputVector translate_avg_pool1d(const NodeContext& context) {
+    const auto kernel_shape = Shape{context.const_input(1).to_vector<int64_t>()};
+    return translate_avg_pool_base(context, context.const_input(0), kernel_shape, {}, {}, {}, RoundingType::FLOOR, 1); // Pooling dimension set for 1D
+}
+
+OutputVector translate_avg_pool2d(const NodeContext& context) {
+    const auto kernel_shape = Shape{context.const_input(1).to_vector<int64_t>()};
+    const auto input_size = context.const_input(0).sizes();
+    const int64_t num_dims = input_size.size();
+    
+    Strides strides, pads, dilations;
+    if (num_dims > 3) {
+        strides = Strides{context.const_input(5).to_vector<int64_t>()};
+        pads = Strides{context.const_input(3).to_vector<int64_t>()};
+        dilations = Strides{context.const_input(4).to_vector<int64_t>()};
+    }
+    
+    return translate_avg_pool_base(context, context.const_input(0), kernel_shape, strides, pads, dilations, RoundingType::FLOOR, 2); // Pooling dimension set for 2D
+}
+
+OutputVector translate_avg_pool3d(const NodeContext& context) {
+    const auto kernel_shape = Shape{context.const_input(1).to_vector<int64_t>()};
+    return translate_avg_pool_base(context, context.const_input(0), kernel_shape, {}, {}, {}, RoundingType::FLOOR, 3); // Pooling dimension set for 3D
+}
 
 }  // namespace op
 }  // namespace pytorch
