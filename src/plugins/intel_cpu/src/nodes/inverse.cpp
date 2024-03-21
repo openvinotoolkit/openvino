@@ -90,7 +90,7 @@ void Inverse::execute(dnnl::stream strm) {
               this,
               m_input_precision,
               OV_CASE(ov::element::bf16, bfloat16_t),
-              OV_CASE(ov::element::f16, ov::float16),
+              OV_CASE(ov::element::f16, short),
               OV_CASE(ov::element::f32, float))
 }
 
