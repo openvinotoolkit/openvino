@@ -191,8 +191,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         stream_info[NUMBER_OF_STREAMS] = n_streams;
         current_socket_id = input_current_socket_id == -1 ? get_current_socket_id() : input_current_socket_id;
         if (input_threads > 0) {
-            if (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::NONE) !=
-                hint_model_distribution_policy.end()) {
+            if (hint_model_distribution_policy.size() == 0) {
                 for (auto& row : proc_socket_table) {
                     if (current_socket_id == row[PROC_SOCKET_ID]) {
                         n_threads_per_stream = std::min(input_threads, row[ALL_PROC]);
@@ -230,8 +229,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             } else {
                 n_threads_per_stream = proc_type_table[0][ALL_PROC];
             }
-        } else if (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::NONE) !=
-                   hint_model_distribution_policy.end()) {
+        } else if (hint_model_distribution_policy.size() == 0) {
             for (auto& row : proc_socket_table) {
                 if (row[PROC_SOCKET_ID] == current_socket_id) {
                     n_threads_per_stream = std::max(n_threads_per_stream, row[ALL_PROC]);

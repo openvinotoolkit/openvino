@@ -82,7 +82,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 ov::Any value = val.as<std::string>();
                 auto streams_value = value.as<ov::streams::Num>();
                 if (streams_value == ov::streams::NUMA) {
-                    modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::NONE};
+                    modelDistributionPolicy = {};
                     hintPerfMode = ov::hint::PerformanceMode::LATENCY;
                     changedHintPerfMode = true;
                 } else if (streams_value == ov::streams::AUTO) {
