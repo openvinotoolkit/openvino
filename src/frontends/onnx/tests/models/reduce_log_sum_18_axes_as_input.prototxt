@@ -56,10 +56,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 4
           }
           dim {
-            dim_value: 4
+            dim_value: 1
           }
         }
       }
