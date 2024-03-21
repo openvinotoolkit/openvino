@@ -254,15 +254,19 @@ Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
     std::string device_name;
 
-    if (!(info[0].IsString() || (args_length == 2 && info[0].IsString() && info[1].IsString())))
-        throw std::runtime_error("Invalid arguments of get_property function");
+    if (!(info[0].IsString() || (args_length == 2 && info[0].IsString() && info[1].IsString()))) {
+        reportError(info.Env(), "Invalid arguments of get_property function");
+
+        return info.Env().Undefined();
+    }
 
     if (args_length == 2)
         device_name = info[0].ToString();
 
     std::string property_name = info[args_length > 1 ? 1 : 0].ToString();
 
-    ov::Any value = device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
+    ov::Any value =
+        device_name.empty() ? _core.get_property(property_name) : _core.get_property(device_name, property_name);
 
     return any_to_js(info, value);
 }
