@@ -42,10 +42,10 @@ void InverseLayerTest::SetUp() {
 
     init_input_shapes(input_shape);
 
-    if (element_type == ov::element::bf16) {
-        rel_threshold = 1.2f;
-        abs_threshold = 1.0f;
-    }
+    // if (element_type == ov::element::bf16) {
+    //     rel_threshold = 1.2f;
+    //     abs_threshold = 1.0f;
+    // }
 
     const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape[0].first);
     data->set_friendly_name("data");
