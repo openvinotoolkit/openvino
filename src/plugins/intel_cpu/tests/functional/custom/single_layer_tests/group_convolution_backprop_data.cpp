@@ -303,16 +303,16 @@ TEST_P(GroupDeconvolutionLayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-std::vector<CPUSpecificParams> filterCPUInfoForDevice_BF16(std::vector<CPUSpecificParams> allParams) {
+std::vector<CPUSpecificParams> filterCPUInfoForDevice_AMX_BF16(std::vector<CPUSpecificParams> allParams) {
     std::vector<CPUSpecificParams> specificParams;
-    bool with_bf16 = ov::with_cpu_x86_bfloat16();
+    bool with_amx_bf16 = ov::with_cpu_x86_avx512_core_amx_bf16();
     std::copy_if(allParams.begin(),
                  allParams.end(),
                  std::back_inserter(specificParams),
-                 [with_bf16](const CPUSpecificParams& item) {
+                 [with_amx_bf16](const CPUSpecificParams& item) {
                      const auto& selected = std::get<3>(item);
                      // when no bf16 hardware amx will not work
-                     if (!with_bf16 && selected.find("amx") != std::string::npos) {
+                     if (!with_amx_bf16 && selected.find("amx") != std::string::npos) {
                          return false;
                      }
                      return true;
@@ -600,8 +600,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_2D_AMX_BF16,
                                             ::testing::ValuesIn(nspc_2D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice_BF16({conv_avx512_2D_nspc_brgconv,
-                                                                                             conv_avx512_2D_nspc_brgconv_amx})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_2D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -696,7 +695,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupDeconv_3D_nspc_BF16,
                                             ::testing::ValuesIn(nspc_3D_inputs_smoke),
                                             ::testing::Values(ElementType::f32),
                                             ::testing::Values(emptyFusingSpec),
-                                            ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D_nspc_brgconv_amx, conv_avx512_3D_nspc_brgconv})),
+                                            ::testing::ValuesIn(filterCPUInfoForDevice_AMX_BF16({conv_avx512_3D_nspc_brgconv_amx})),
                                             ::testing::Values(cpu_bf16_plugin_config)),
                          GroupDeconvolutionLayerCPUTest::getTestCaseName);
 
