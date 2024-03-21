@@ -33111,31 +33111,34 @@ exports["default"] = _default;
 
 /***/ }),
 
-/***/ 895:
+/***/ 5286:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const core = __nccwpck_require__(2186)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
-const {
-  getSortedCacheFiles,
-  humanReadableFileSize,
-  calculateTotalSize
-} = __nccwpck_require__(1608)
+const tar = __nccwpck_require__(4674)
+const os = __nccwpck_require__(2037)
 
-// Function to remove old files if their combined size exceeds 50 GB
-async function cleanUp() {
+const { getSortedCacheFiles, humanReadableFileSize } = __nccwpck_require__(1608)
+
+/**
+ * The main function for the action.
+ * @returns {Promise<void>} Resolves when the action is complete.
+ */
+async function restore() {
   try {
     const cacheRemotePath = core.getInput('cache-path', { required: true })
+    const cacheLocalPath = core.getInput('path', { required: true })
     const key = core.getInput('key', { required: true })
     const keysRestore = core
       .getInput('restore-keys', { required: false })
       .split('\n')
       .map(s => s.replace(/^!\s+/, '!').trim())
       .filter(x => x !== '')
-    const maxCacheSize = core.getInput('max-cache-size', { required: false })
 
     core.debug(`cache-path: ${cacheRemotePath}`)
+    core.debug(`path: ${cacheLocalPath}`)
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
 
@@ -33144,106 +33147,52 @@ async function cleanUp() {
       keyPattern = keysRestore.join('|')
     }
 
-    const files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
-    let totalSize = await calculateTotalSize(cacheRemotePath, files)
-    let maxCacheSizeInBytes = maxCacheSize * 1024 * 1024 * 1024
+    core.info(`Looking for ${keyPattern} in ${cacheRemotePath}`)
+    files = await getSortedCacheFiles(cacheRemotePath, keyPattern)
 
-    if (totalSize > maxCacheSizeInBytes) {
+    if (files.length) {
+      cacheFile = files[0]
+      cacheSize = fs.statSync(path.join(cacheRemotePath, cacheFile)).size
       core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} exceeds allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
+        `Found cache file: ${cacheFile}, size: ${humanReadableFileSize(cacheSize)}`
       )
-      for (let i = files.length - 1; i >= 0; i--) {
-        var file = files[i]
-        const filePath = path.join(cacheRemotePath, file)
-        const fileStats = fs.statSync(filePath)
 
-        if (fileStats.isFile()) {
-          core.info(`Removing file: ${filePath}`)
-          fs.unlinkSync(filePath)
-          totalSize -= fileStats.size
-        }
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cache-'))
+      // copy file to temp dir
+      fs.copyFileSync(
+        path.join(cacheRemotePath, cacheFile),
+        path.join(tempDir, cacheFile)
+      )
+      core.info(`${cacheFile} was copied to ${tempDir}/${cacheFile}`)
 
-        if (totalSize <= maxCacheSizeInBytes) {
-          // Check if total size
-          break // Exit loop if total size is within limit
-        }
+      // extract
+      if (!fs.existsSync(cacheLocalPath)) {
+        fs.mkdirSync(cacheLocalPath)
       }
-      core.info('Old cache files removed successfully')
-    } else {
-      core.info(
-        `The cache storage size ${humanReadableFileSize(totalSize)} less then allowed size ${humanReadableFileSize(maxCacheSizeInBytes)}`
-      )
-    }
-  } catch (error) {
-    core.setFailed('Error removing old cache files.' + error.message)
-  }
-}
-
-module.exports = {
-  cleanUp
-}
-
-
-/***/ }),
-
-/***/ 1364:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
-
-const core = __nccwpck_require__(2186)
-const tar = __nccwpck_require__(4674)
-const fs = __nccwpck_require__(7147)
-const path = __nccwpck_require__(1017)
-
-/**
- * The main function for the action.
- * @returns {Promise<void>} Resolves when the action is complete.
- */
-async function save() {
-  try {
-    const cacheRemotePath = core.getInput('cache-path', { required: true })
-    const toCachePath = core.getInput('path', { required: true })
-    const key = core.getInput('key', { required: true })
-
-    core.debug(`cache-path: ${cacheRemotePath}`)
-    core.debug(`path: ${toCachePath}`)
-    core.debug(`key: ${key}`)
-
-    if (!key) {
-      core.warning(`Key ${key} is not specified.`)
-      return
-    }
-
-    var tarName = `${key}.cache`
-    var tarPath = path.join(cacheRemotePath, tarName)
-
-    if (fs.existsSync(tarPath)) {
-      core.warning(`Cache file ${tarName} already exists`)
-      return
-    }
-
-    core.info(`Preparing cache archive ${tarName}`)
-    tar.c(
-      {
-        gzip: true,
-        file: tarName,
-        cwd: toCachePath,
+      core.info(`Extracting ${cacheFile} to ${cacheLocalPath}`)
+      tar.x({
+        file: path.join(tempDir, cacheFile),
+        cwd: cacheLocalPath,
         sync: true
-      },
-      ['.']
-    )
-    core.info('Copying cache...')
-    fs.copyFileSync(tarName, tarPath)
-    core.info(`${tarName} was copied to ${tarPath}`)
+      })
+      core.info(`Cache extracted to ${cacheLocalPath}`)
 
-    core.setOutput('cache-file', tarName)
-    core.setOutput('cache-hit', true)
+      core.setOutput('cache-file', cacheFile)
+      core.setOutput('cache-hit', true)
+    } else {
+      core.warning(
+        `Could not found any suitable cache files in ${cacheRemotePath} with key ${key}`
+      )
+      core.setOutput('cache-file', '')
+      core.setOutput('cache-hit', false)
+    }
   } catch (error) {
     core.setFailed(error.message)
   }
 }
 
 module.exports = {
-  save
+  restore
 }
 
 
@@ -35217,19 +35166,12 @@ module.exports = parseParams
 var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
-const { save } = __nccwpck_require__(1364)
-const { cleanUp } = __nccwpck_require__(895)
+/**
+ * The entrypoint for the action.
+ */
+const { restore } = __nccwpck_require__(5286)
 
-const saveAlways = core.getInput('save-always', { required: false })
-const cleanUpAlways = core.getInput('cleanup-always', { required: false })
-
-if (saveAlways) {
-  save()
-}
-
-if (cleanUpAlways) {
-  cleanUp()
-}
+restore()
 
 })();
 

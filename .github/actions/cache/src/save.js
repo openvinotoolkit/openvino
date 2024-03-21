@@ -1,5 +1,13 @@
 const { save } = require('./saveImpl')
 const { cleanUp } = require('./cleanupImpl')
 
-save()
-cleanUp()
+const saveAlways = core.getInput('save-always', { required: false })
+const cleanUpAlways = core.getInput('cleanup-always', { required: false })
+
+if (saveAlways) {
+  save()
+}
+
+if (cleanUpAlways) {
+  cleanUp()
+}

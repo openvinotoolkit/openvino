@@ -1,4 +1,4 @@
-name: 'cache'
+name: 'Cache'
 description: 'Cache to the local file system'
 author: 'Mikhail Ryzhov'
 
@@ -19,24 +19,20 @@ inputs:
       occurred for key. Note `cache-hit` returns false in this case.'
     default: ''
     required: false
-  fail-on-cache-miss:
-    description: 'Fail the workflow if cache entry is not found'
-    default: 'false'
-    required: false
-  lookup-only:
-    description:
-      'Check if a cache entry exists for the given input(s) (key, restore-keys)
-      without downloading the cache'
-    default: 'false'
-    required: false
   save-always:
     description:
       'Run the post step to save the cache even if another step before fails'
     default: 'false'
     required: false
+  cleanup-always:
+    description:
+      'Run the post cleanup step to remove old cache files even if another step
+      before fails'
+    default: 'false'
+    required: false
   max-cache-size:
     description:
-      'Maximum cache storage sizr in Gb. Least recently used caches will be
+      'Maximum cache storage size in Gb. Least recently used caches will be
       automatically evicted to limit the total cache storage'
     default: '10'
     required: false
@@ -52,4 +48,6 @@ runs:
   using: node20
   main: 'dist/restore/index.js'
   post: 'dist/save/index.js'
-  post-if: 'success() || github.event.inputs.save-always'
+  post-if:
+    'success() || github.event.inputs.save-always ||
+    github.event.inputs.cleanup-always'
