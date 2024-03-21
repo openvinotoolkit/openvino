@@ -51,7 +51,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (!core)
         OPENVINO_THROW("Unable to get API version. Core is unavailable");
 
-    ov::threading::IStreamsExecutor::Ptr stream_executor;
+    ov::threading::IStreamsExecutor::Ptr stream_executor = nullptr;
     if (cfg.exclusiveAsyncRequests) {
         // special case when all InferRequests are muxed into a single queue
         m_task_executor = m_plugin->get_executor_manager()->get_executor("CPU");
@@ -94,7 +94,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     // init sub stream threads of executor
     if (m_cfg.streamExecutorConfig.get_sub_stream_mode() ==
-        IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET) {
+            IStreamsExecutor::Config::SubStreamsMode::SUB_STREAMS_FOR_SOCKET &&
+        stream_executor != nullptr) {
         std::atomic<int> nodes_remain(m_cfg.streamExecutorConfig.get_sub_streams());
         stream_executor->run_sub_stream(
             [&]() {

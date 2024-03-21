@@ -37,7 +37,6 @@
 #include "utils/ngraph_utils.hpp"
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
-#include "utils/profiler.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 #if defined(OV_CPU_ARM_ENABLE_FP16)
@@ -1316,7 +1315,6 @@ public:
 
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
-    PROFILE(_prof0, std::string("Graph::InferDynamic_#") + std::to_string(infer_count));
 
     std::set<size_t> syncIndsWorkSet;
     for (const auto& nodeIndx : syncNodesInds) {
@@ -1337,7 +1335,6 @@ void Graph::InferDynamic(SyncInferRequest* request) {
 
     for (auto stopIndx : syncIndsWorkSet) {
         {
-            PROFILE(_prof, "updateNodes");
             updateNodes->run(stopIndx);
         }
         for (; inferCounter < stopIndx; ++inferCounter) {
@@ -1345,7 +1342,6 @@ void Graph::InferDynamic(SyncInferRequest* request) {
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
-            PROFILE(_prof, node->getTypeStr(), node->getName());
             if (request)
                 request->throw_if_canceled();
             ExecuteNode(node, stream);
@@ -1407,7 +1403,6 @@ void Graph::ParalleMtNuma(size_t num_nodes,
             splitter(num_nodes, num_nodes, socket_id, i0, i1);
             executor->run_sub_stream(
                 [socket_id, i0, i1, &func, &nodes_remain]() {
-                    PROFILE(_prof, std::to_string(i0));
                     for (size_t i = i0; i < i1; i++) {
                         func(socket_id, i);
                         nodes_remain--;
@@ -1419,7 +1414,6 @@ void Graph::ParalleMtNuma(size_t num_nodes,
         {
             size_t i0{0}, i1{0};
             splitter(num_nodes, num_nodes, static_cast<size_t>(0), i0, i1);
-            PROFILE(_prof, std::to_string(i0));
             for (size_t i = i0; i < i1; i++) {
                 func(0, i);
                 nodes_remain--;
@@ -1427,7 +1421,6 @@ void Graph::ParalleMtNuma(size_t num_nodes,
         }
 
         {
-            PROFILE(_prof, "wait");
             while (nodes_remain.load() > 0) {
         }
         }

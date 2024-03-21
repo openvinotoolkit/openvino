@@ -107,9 +107,10 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             auto split_dim_range = wgt_item->get_shape()[split_dim];
             auto convert_dim_range = convert_node1->get_shape()[split_dim];
             bool need_to_split_convert = split_dim_range == convert_dim_range;
+            auto weights = wgt_item->get_shape();
 
             // needn't to split fc when the dim is 0.
-            if (split_dim_range <= 1) {
+            if (split_dim_range <= 1 || weights[0] * weights[1] < 6600000) {
                 return false;
             }
 
