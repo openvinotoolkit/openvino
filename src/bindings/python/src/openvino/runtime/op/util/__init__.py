@@ -20,4 +20,13 @@ from openvino._pyopenvino.op.util import InvariantInputDescription
 from openvino._pyopenvino.op.util import SliceInputDescription
 from openvino._pyopenvino.op.util import ConcatOutputDescription
 from openvino._pyopenvino.op.util import BodyOutputDescription
-from openvino._pyopenvino.op.util import _PyOp as Op
+from openvino._pyopenvino.op.util import _PyOp
+
+# TODO: Move to a dedicated file
+class Op(_PyOp):
+    __ops_holder = []
+    def __init__(self):
+        super().__init__()
+        Op.__ops_holder.append(self)
+    def __del__(self):
+        Op.__ops_holder.remove(self)

@@ -14,25 +14,34 @@
 
 namespace py = pybind11;
 
-class PyDiscreteTypeInfo : public ov::DiscreteTypeInfo {
-    // Hold memory for name and version_id if a class object was initialized with std::string.
-    // If original ov::DiscreteTypeInfo ctors are used, these fields are not used.
-    // Need to hold them here when initialized from Python because original ov::DiscreteTypeInfo doesn't hold them.
-    const std::string str_name;
-    const std::string str_version_id;
-public:
-    PyDiscreteTypeInfo(const std::string& _name, const std::string& _version_id) : str_name(_name), str_version_id(_version_id) {
-        name = str_name.c_str();
-        version_id = str_version_id.c_str();
-    }
-};
-
 void regclass_graph_DiscreteTypeInfo(py::module m) {
-    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>, PyDiscreteTypeInfo> discrete_type_info(m, "DiscreteTypeInfo");
+    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m, "DiscreteTypeInfo");
     discrete_type_info.doc() = "openvino.runtime.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
     discrete_type_info.def(py::init([](const std::string& name, const std::string& version_id) {
-            return std::make_shared<PyDiscreteTypeInfo>(name, version_id);
+            char* name_raw = nullptr;
+            char* version_id_raw = nullptr;
+            ov::DiscreteTypeInfo* type_info = nullptr;
+            try {
+                name_raw = new char[name.length() + 1];
+                std::strcpy(name_raw, name.c_str());
+                version_id_raw =  new char[version_id.length() + 1];
+                std::strcpy(version_id_raw, version_id.c_str());
+                type_info = new ov::DiscreteTypeInfo(name_raw, version_id_raw);
+                return std::shared_ptr<ov::DiscreteTypeInfo>(
+                    type_info,
+                    [](ov::DiscreteTypeInfo* p) {
+                        delete [] p->version_id;
+                        delete [] p->name;
+                        delete p;
+                    }
+                );
+            } catch (...) {
+                delete type_info;
+                delete [] version_id_raw;
+                delete [] name_raw;
+                throw;
+            }
         }),
         py::arg("name"),
         py::arg("version_id")

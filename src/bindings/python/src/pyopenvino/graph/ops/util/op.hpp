@@ -23,6 +23,8 @@ public:
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
         //PYBIND11_OVERRIDE_PURE(bool, Op, visit_attributes, visitor);
+        // Requires binding for visitor
+        // Now works only for operations without attributes
         return true;
     }
 
