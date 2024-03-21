@@ -57,7 +57,7 @@ jobs:
           pushd ${env:CACHE_TMP}
             tar -czvf ${env:CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
           popd
-          ls -la ${env:CACHE_REMOTE}
+          ls ${env:CACHE_REMOTE}
 
       - name: Test Local Action
         id: test-action
