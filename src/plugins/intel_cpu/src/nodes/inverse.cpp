@@ -109,6 +109,7 @@ void Inverse::inverse() {
 
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
+
         lu_decomposition(data, L, U, P, sign, b);
 
         lu_solve(output, L, U, P, b);
@@ -128,7 +129,7 @@ void Inverse::lu_decomposition(const T* data,
                                bool& sign,
                                size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
-    size_t batch_idx = b * m_side_squared;
+    const auto batch_idx = b * m_side_squared;
 
     std::fill(L.begin(), L.end(), T{0});
     cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(T) * m_side_squared);
@@ -139,12 +140,10 @@ void Inverse::lu_decomposition(const T* data,
     });
 
     for (size_t k = 0; k < m_side; ++k) {
-        size_t pivot_row = k;
-        size_t k_idx = k * m_side;
-        size_t pivot_idx = pivot_row * m_side;
-
-        size_t remaining_columns = m_side - k;
-        size_t remaining_rows = remaining_columns - 1;
+        // Partial Pivoting
+        auto pivot_row = k;
+        auto pivot_idx = pivot_row * m_side;
+        const auto k_idx = k * m_side;
 
         // Find maximum value pivot - non-parallel
         for (size_t i = (k + 1) * m_side, j = k + 1; i < m_side_squared; i += m_side, ++j) {
@@ -164,15 +163,17 @@ void Inverse::lu_decomposition(const T* data,
             });
         }
 
+        const auto remaining_columns = m_side - k;
+        const auto remaining_rows = remaining_columns - 1;
+
         parallel_for(remaining_rows, [&](size_t i) {
-            size_t i_idx = (i + k + 1) * m_side;
+            const auto i_idx = (i + k + 1) * m_side;
             L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
         });
 
         parallel_for(remaining_rows * remaining_columns, [&](size_t i) {
-            size_t i_idx = (i / remaining_columns + k + 1) * m_side;
-            size_t j_idx = i % remaining_columns + k;
-
+            const auto i_idx = (i / remaining_columns + k + 1) * m_side;
+            const auto j_idx = i % remaining_columns + k;
             U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
         });
     }
@@ -184,18 +185,18 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
         std::vector<T> X(m_side, T{0});
         std::vector<T> Y(m_side, T{0});
 
-        // Forward substitution: Ly = Pb - not possible to be parallel
+        // Forward substitution: Ly = Pb
         for (size_t i = 0; i < m_side; ++i) {
             if (P[i] == column) {
                 Y[i] = T{1};
             }
-            size_t i_idx = i * m_side;
+            const auto i_idx = i * m_side;
             for (size_t j = 0; j < i; ++j) {
                 Y[i] = Y[i] - L[i_idx + j] * Y[j];
             }
         }
 
-        // Backward substitution: Ux = y - not possible to be parallel
+        // Backward substitution: Ux = y
         for (size_t i = 0; i < m_side; ++i) {
             size_t i_adj = m_side - i - 1;
             size_t i_idx = i_adj * m_side;
@@ -207,7 +208,7 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
         }
 
         // Substitute back to get result
-        size_t batch_column_idx = b * m_side_squared + column;
+        const auto batch_column_idx = b * m_side_squared + column;
         for (size_t row = 0; row < m_side; ++row) {
             output[batch_column_idx + row * m_side] = X[row];
         }
@@ -222,7 +223,7 @@ void Inverse::to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b) {
         determinant = determinant * U[i * m_side + i];
     }
 
-    size_t batch_idx = b * m_side_squared;
+    const auto batch_idx = b * m_side_squared;
     parallel_for(m_side_squared, [&](size_t i) {
         output[batch_idx + i] = output[batch_idx + i] * determinant;
     });

@@ -16,57 +16,69 @@ namespace internal {
 
 template <typename T>
 void lu_decomposition(const T* input,
-                      std::vector<std::vector<T>>& L,
-                      std::vector<std::vector<T>>& U,
+                      std::vector<T>& L,
+                      std::vector<T>& U,
                       std::vector<T>& P,
                       bool& sign,
                       size_t b,
-                      size_t n) {
+                      size_t n,
+                      size_t n_squared) {
     // Make L identity, U a copy of input and P a range(0, n)
-    const auto batch_idx = b * n * n;
-    for (size_t i = 0; i < n; ++i) {
-        P[i] = static_cast<T>(i);
-        L[i][i] = T{1};
+    const auto batch_idx = b * n_squared;
 
-        auto batch_i_idx = batch_idx + i * n;
-        for (size_t j = 0; j < n; ++j) {
-            U[i][j] = input[batch_i_idx + j];
-        }
+    std::fill(L.begin(), L.end(), T{0});
+    memcpy(&U[0], &input[batch_idx], sizeof(T) * n_squared);
+
+    for (size_t i = 0; i < n; ++i) {
+        L[i * n + i] = T{1};
+        P[i] = static_cast<T>(i);
     }
 
     for (size_t k = 0; k < n; ++k) {
         // Partial Pivoting
         auto pivot_row = k;
-        for (auto i = k + 1; i < n; ++i) {
-            if (std::abs(U[i][k]) > std::abs(U[pivot_row][k])) {
-                pivot_row = i;
+        auto pivot_idx = pivot_row * n;
+        const auto k_idx = k * n;
+
+        for (auto i = (k + 1) * n, j = k + 1; i < n_squared; i += n, ++j) {
+            if (std::abs(U[i + k]) > std::abs(U[pivot_idx + k])) {
+                pivot_row = j;
+                pivot_idx = pivot_row * n;
             }
         }
 
         if (pivot_row != k) {
             // Swap rows in L, U (A) and P
-            std::swap(U[k], U[pivot_row]);
-            std::swap(L[k], L[pivot_row]);
-            std::swap(P[k], P[pivot_row]);
             sign = !sign;
+            std::swap(P[k], P[pivot_row]);
+            std::swap_ranges(&U[k], &U[k] + n, U[pivot_idx]);
+            std::swap_ranges(&L[k], &L[k] + n, L[pivot_idx]);
         }
 
-        for (auto i = k + 1; i < n; ++i) {
-            L[i][k] = U[i][k] / U[k][k];
-            for (auto j = k; j < n; ++j) {
-                U[i][j] -= L[i][k] * U[k][j];
-            }
+        const auto remaining_columns = m_side - k;
+        const auto remaining_rows = remaining_columns - 1;
+
+        for (size_t i = 0; i < remaining_rows; ++i) {
+            const auto i_idx = (i + k + 1) * n;
+            L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
+        }
+
+        for (size_t i = 0; i < remaining_rows * remaining_columns; ++i) {
+            const auto i_idx = (i / remaining_columns + k + 1) * n;
+            const auto j_idx = i % remaining_columns + k;
+            U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
         }
     }
 }
 
 template <typename T>
 void lu_solve(T* output,
-              std::vector<std::vector<T>>& L,
-              std::vector<std::vector<T>>& U,
+              std::vector<T>& L,
+              std::vector<T>& U,
               std::vector<T>& P,
               size_t b,
-              size_t n) {
+              size_t n,
+              size_t n_squared) {
     std::vector<T> X(n);
     std::vector<T> Y(n);
 
@@ -79,21 +91,24 @@ void lu_solve(T* output,
             if (P[i] == column) {
                 Y[i] = T{1};
             }
+            const auto i_idx = i * n;
             for (size_t j = 0; j < i; ++j) {
-                Y[i] -= L[i][j] * Y[j];
+                Y[i] -= L[i_idx + j] * Y[j];
             }
         }
 
         // Backward substitution: Ux = y
-        for (int i = static_cast<int>(n - 1); i >= 0; --i) {
-            X[i] = Y[i];
-            for (size_t j = static_cast<size_t>(i) + 1; j < n; ++j) {
-                X[i] -= U[i][j] * X[j];
+        for (size_t i = 0; i < n; ++i) {
+            const auto i_adj = n - i - 1;
+            const auto i_idx = i_adj * n;
+            X[i_adj] = Y[i_adj];
+            for (size_t j = i_adj + 1; j < n; ++j) {
+                X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
             }
-            X[i] /= U[i][i];
+            X[i_adj] = X[i_adj] / U[i_idx + i_adj];
         }
 
-        size_t batch_column_idx = b * n * n + column;
+        const auto batch_column_idx = b * n_squared + column;
         for (size_t row = 0; row < n; ++row) {
             output[batch_column_idx + row * n] = X[row];
         }
@@ -101,16 +116,16 @@ void lu_solve(T* output,
 }
 
 template <typename T>
-void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, size_t n) {
+void to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b, size_t n, size_t n_squared) {
     T determinant = sign ? T{1} : T{-1};
 
     for (size_t i = 0; i < n; ++i) {
-        determinant *= U[i][i];
+        determinant *= U[i * n + i];
     }
 
-    const auto batch_idx = b * n * n;
-    for (auto idx = batch_idx; idx < batch_idx + n * n; ++idx) {
-        output[idx] *= determinant;
+    const auto batch_idx = b * n_squared;
+    for (size_t i = 0; i < n_squared; ++i) {
+        output[batch_idx + i] *= determinant;
     }
 }
 }  // namespace internal
@@ -127,21 +142,27 @@ void to_adjoint(T* output, std::vector<std::vector<T>>& U, bool sign, size_t b, 
 template <typename T>
 void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) {
     const size_t n = shape.back();
-    const auto total_elements = shape_size<Shape>(shape);
-    const auto batch_size = total_elements / n / n;
+    const auto n_squared = n * n;
+    size_t batch_size = 1;
+
+    for (size_t i = 0; i < shape.size() - 2; ++i) {
+        batch_size = batch_size * input_shape[i];
+    }
+
+    std::vector<T> L(n_squared);
+    std::vector<T> U(n_squared);
+    std::vector<T> P(n);
 
     for (size_t b = 0; b < batch_size; ++b) {
-        std::vector<std::vector<T>> L(n, std::vector<T>(n, T{0}));
-        std::vector<std::vector<T>> U(n, std::vector<T>(n, T{0}));
-        std::vector<T> P(n);
         bool sign = true;
 
-        internal::lu_decomposition(input, L, U, P, sign, b, n);
+        internal::lu_decomposition(input, L, U, P, sign, b, n, n_squared);
 
-        internal::lu_solve(output, L, U, P, b, n);
+        internal::lu_solve(output, L, U, P, b, n, n_squared);
 
         if (adjoint) {
-            internal::to_adjoint(output, U, sign, b, n);
+            // Multiply by det(A) = det(U)
+            internal::to_adjoint(output, U, sign, b, n, n_squared);
         }
     }
 }
