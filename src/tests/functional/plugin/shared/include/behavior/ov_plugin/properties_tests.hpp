@@ -104,7 +104,7 @@ public:
 using OVClassCompileModelWithCondidateDeviceListContainedMetaPluginTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVClassCompileModelDoNotReturnDefaultHintTest = OVClassSetDevicePriorityConfigPropsTest;
-
+using OVClassCompileModelAndCheckSecondaryPropertiesTest = OVClassSetDevicePriorityConfigPropsTest;
 using OVGetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceSetConfigTest = OVClassBaseTestP;
 using OVSpecificDeviceGetConfigTest = OVClassBaseTestP;
