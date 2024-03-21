@@ -4,10 +4,15 @@
 
 #include "openvino/op/unique.hpp"
 
+#include <memory>
+
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/unique.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -38,9 +43,12 @@ OutputVector translate_unique2(const NodeContext& context) {
 
     OutputVector result;
     auto outputs = context.mark_node(std::make_shared<v10::Unique>(x, sorted));
-    result.push_back(outputs->output(0));
+    auto unique_values = outputs->output(0);
+    result.push_back(unique_values);
     if (return_inverse) {
-        result.push_back(outputs->output(2));
+        auto x_shape = context.mark_node(std::make_shared<v0::ShapeOf>(x));
+        auto inverse = context.mark_node(std::make_shared<v1::Reshape>(outputs->output(2), x_shape, false));
+        result.push_back(inverse);
     } else {
         result.push_back(const_empty);
     }
