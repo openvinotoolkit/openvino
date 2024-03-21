@@ -598,76 +598,74 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
 }
 
 namespace {
-    struct TestParams {
-        TestParams() = default;
-        bool has_subtract = {};
-        ov::element::Type element_type = {};
-    };
+struct TestParams {
+    TestParams() = default;
+    bool has_subtract = {};
+    ov::element::Type element_type = {};
+};
 
-    auto build_model_DetectFakeQuantize = [](const TestParams&) -> std::shared_ptr<ov::Model> {
-        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-        auto input_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
-        auto input_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
-        auto output_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
-        auto output_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
-        auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high,
-                                                             output_low, output_high, 1);
-        return std::make_shared<ov::Model>(ov::NodeVector{fq}, ov::ParameterVector{input});
-    };
+auto build_model_DetectFakeQuantize = [](const TestParams&) -> std::shared_ptr<ov::Model> {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto input_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
+    auto input_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
+    auto output_low = ov::op::v0::Constant::create(element::u8, Shape{}, {1});
+    auto output_high = ov::op::v0::Constant::create(element::u8, Shape{}, {2});
+    auto fq = std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 1);
+    return std::make_shared<ov::Model>(ov::NodeVector{fq}, ov::ParameterVector{input});
+};
 
-    auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov::Model> {
-        auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
-        auto scale = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
-        auto convert = std::make_shared<ov::op::v13::FakeConvert>(input, scale);
-        return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
-    };
+auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov::Model> {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+    auto scale = ov::op::v0::Constant::create(element::f32, Shape{}, {1});
+    auto convert = std::make_shared<ov::op::v13::FakeConvert>(input, scale);
+    return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input});
+};
 
-    auto build_model_DetectCompressedWeights = [](const TestParams& params) -> std::shared_ptr<ov::Model> {
-        // FIXME: shapes and values
-        auto input = std::make_shared<op::v0::Parameter>(element::u8, Shape{2, 1});
+auto build_model_DetectCompressedWeights = [](const TestParams& params) -> std::shared_ptr<ov::Model> {
+    // FIXME: shapes and values
+    auto input = std::make_shared<op::v0::Parameter>(element::u8, Shape{2, 1});
 
-        auto weights = ov::op::v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
-        auto convert = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
+    auto weights = ov::op::v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
+    auto convert = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
 
-        std::shared_ptr<Node> tail_node = convert;
-        if (params.has_subtract) {
-            auto zero_point_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
-            auto zero_point = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
-            auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
-            tail_node = subtract;
-        }
-        auto multiply_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
-        auto multiply = std::make_shared<ov::op::v1::Multiply>(tail_node, multiply_const);
+    std::shared_ptr<Node> tail_node = convert;
+    if (params.has_subtract) {
+        auto zero_point_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+        auto zero_point = std::make_shared<ov::op::v0::Convert>(weights, element::u8);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(convert, zero_point);
+        tail_node = subtract;
+    }
+    auto multiply_const = ov::op::v0::Constant::create(element::u8, ov::Shape{1, 2}, {2});
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(tail_node, multiply_const);
 
-        auto out_multiply = std::make_shared<ov::op::v1::Multiply>(input, multiply);
-        return std::make_shared<ov::Model>(ov::NodeVector{out_multiply}, ov::ParameterVector{input});
-    };
+    auto out_multiply = std::make_shared<ov::op::v1::Multiply>(input, multiply);
+    return std::make_shared<ov::Model>(ov::NodeVector{out_multiply}, ov::ParameterVector{input});
+};
 
-    using ModelFactoryFunc = std::function<std::shared_ptr<Model> (const TestParams&)>;
+using ModelFactoryFunc = std::function<std::shared_ptr<Model>(const TestParams&)>;
 
-    struct ModelFactory {
-        ModelFactory(ModelFactoryFunc func, std::string func_name) : create(std::move(func)), name(std::move(func_name)) {}
-        ModelFactoryFunc create;
-        std::string name;
-    };
+struct ModelFactory {
+    ModelFactory(ModelFactoryFunc func, std::string func_name) : create(std::move(func)), name(std::move(func_name)) {}
+    ModelFactoryFunc create;
+    std::string name;
+};
 
-    using CheckModelOptimizedParam = std::tuple<ModelFactory,  // model factory
-            bool,  // has_subtract
-            ov::element::Type>;  // element_type
+using CheckModelOptimizedParam = std::tuple<ModelFactory,        // model factory
+                                            bool,                // has_subtract
+                                            ov::element::Type>;  // element_type
 
-    const std::vector<ov::element::Type> element_types = {ov::element::i4,
-                                    ov::element::u4,
-                                    ov::element::i8,
-                                    ov::element::u8,
-                                    ov::element::nf4,
-                                    ov::element::f8e4m3,
-                                    ov::element::f8e5m2};
-} // namespace
+const std::vector<ov::element::Type> element_types = {ov::element::i4,
+                                                      ov::element::u4,
+                                                      ov::element::i8,
+                                                      ov::element::u8,
+                                                      ov::element::nf4,
+                                                      ov::element::f8e4m3,
+                                                      ov::element::f8e5m2};
+}  // namespace
 
 class CheckModelOptimizedTestSuite : public testing::TestWithParam<CheckModelOptimizedParam> {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<CheckModelOptimizedParam>& obj) {
-
         auto model_factory = std::get<0>(obj.param);
         TestParams params;
         params.has_subtract = std::get<1>(obj.param);
