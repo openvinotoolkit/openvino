@@ -18,7 +18,7 @@ flowchart LR
         click onnx "https://github.com/onnx/onnx"
     end
 
-    mo{{Model Optimizer}}
+    mo{{Model Converter}}
     classDef mos fill:#B1D272, stroke: #8BAE46, color: #000022
     class mo mos
 

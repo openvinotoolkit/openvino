@@ -48,13 +48,9 @@ Check out the [Awesome OpenVINO](https://github.com/openvinotoolkit/awesome-open
 
 ## Documentation
 
-[**User documentation**](https://docs.openvino.ai/)
+[**User documentation**](https://docs.openvino.ai/) contains detailed information about OpenVINO and guides you from installation through optimizing and deploying models for your AI applications.
 
-Contains detailed information about OpenVINO and guides you from installation through optimizing and deploying models for your AI applications.
-
-[**Developer documentation**](./docs/dev/index.md)
-
-Focuses on how OpenVINO [components](./docs/dev/index.md#openvino-components) work and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
+[**Developer documentation**](./docs/dev/index.md) focuses on how OpenVINO [components](./docs/dev/index.md#openvino-components) work and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
 
 ## Contribution and Support
 
@@ -73,7 +69,7 @@ You can ask questions and get support on:
 * [Release Notes](https://docs.openvino.ai/2024/about-openvino/release-notes-openvino.html)
 * [OpenVINO Blog](https://blog.openvino.ai/)
 * [OpenVINO™ toolkit on Medium](https://medium.com/@openvino)
-* [Telemetry](https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html)
+
 
 ## License
 
