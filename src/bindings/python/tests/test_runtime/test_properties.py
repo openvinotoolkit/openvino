@@ -87,6 +87,12 @@ def test_properties_rw_base():
             ),
         ),
         (
+            hints.ModelDistributionPolicy,
+            (
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
+            ),
+        ),
+        (
             hints.ExecutionMode,
             (
                 (hints.ExecutionMode.PERFORMANCE, "ExecutionMode.PERFORMANCE", 1),
@@ -278,6 +284,13 @@ def test_properties_ro(ov_property_ro, expected_value):
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
+        ),
+        (
+            hints.model_distribution_policy,
+            "MODEL_DISTRIBUTION_POLICY",
+            (
+                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
+            ),
         ),
         (
             hints.enable_hyper_threading,
