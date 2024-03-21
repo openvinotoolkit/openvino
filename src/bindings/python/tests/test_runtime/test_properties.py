@@ -89,8 +89,7 @@ def test_properties_rw_base():
         (
             hints.ModelDistributionPolicy,
             (
-                (hints.ModelDistributionPolicy.NONE, "ModelDistributionPolicy.NONE", 0),
-                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 1),
+                (hints.ModelDistributionPolicy.TENSOR_PARALLEL, "ModelDistributionPolicy.TENSOR_PARALLEL", 0),
             ),
         ),
         (
@@ -291,9 +290,6 @@ def test_properties_ro(ov_property_ro, expected_value):
             "MODEL_DISTRIBUTION_POLICY",
             (
                 ({hints.ModelDistributionPolicy.TENSOR_PARALLEL}, {hints.ModelDistributionPolicy.TENSOR_PARALLEL}),
-                ({hints.ModelDistributionPolicy.NONE}, {hints.ModelDistributionPolicy.NONE}),
-                ({hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE},
-                 {hints.ModelDistributionPolicy.TENSOR_PARALLEL, hints.ModelDistributionPolicy.NONE}),
             ),
         ),
         (

@@ -110,20 +110,14 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigInferenceNumThreads) {
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigModelDistributionPolicy) {
     ov::Core ie;
-    std::set<ov::hint::ModelDistributionPolicy> value = {ov::hint::ModelDistributionPolicy::NONE};
+    std::set<ov::hint::ModelDistributionPolicy> value = {};
     std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
 
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE};
-
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
-    ASSERT_EQ(model_policy, value);
-
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE, ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    model_policy = {};
 
     ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
