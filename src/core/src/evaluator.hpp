@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 namespace ov {

@@ -18,7 +18,7 @@ class TRANSFORMATIONS_API TSShapeOfForward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSShapeOfForward transformation sinks Transpose through ShapeOf in the forward direction.
  *
  * It replaces:

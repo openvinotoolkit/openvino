@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "single_layer_tests/eltwise.hpp"
+#include "single_op_tests/eltwise.hpp"
 
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace ov::test::subgraph;
+using namespace ov::test;
 
 namespace {
 std::vector<std::vector<ov::Shape>> inShapesStatic = {

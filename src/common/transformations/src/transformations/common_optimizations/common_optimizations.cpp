@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
@@ -127,6 +128,15 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
 
+    // The transformations below have to be a part of MOC transformations.
+    // They delete StridedSlices which do nothing, just return the same data tensor to output.
+    // But in some plugins, deletion of these "useless" StridedSlices can cause functional issues.
+    // tickets: 135242, 135241
+    auto strided_slice_elimination = manager.register_pass<GraphRewrite>();
+    ADD_MATCHER(strided_slice_elimination, NopStridedSlice)
+    ADD_MATCHER(strided_slice_elimination, NopStridedSliceByShape)
+    strided_slice_elimination->set_name("ov::pass::StridedSliceElimination");
+
     // Enabling conversion of FP16 IR to legacy representation, each plugin have to disable it
     // after support for FP16 IR is implemented
     REGISTER_PASS(manager, ConvertCompressedOnlyToLegacy)
@@ -164,6 +174,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     ADD_MATCHER(decomp, ConvertDivide)
     ADD_MATCHER(decomp, ConvertDepthToSpace)
     ADD_MATCHER(decomp, ConvertSpaceToDepth)
+    ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     ADD_MATCHER(decomp, ConvertConvertLike)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, GroupNormalizationDecomposition)

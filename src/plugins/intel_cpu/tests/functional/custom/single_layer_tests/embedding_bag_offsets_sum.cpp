@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ typedef std::tuple<InputShape,           // input_shapes
 typedef std::tuple<embeddingBagOffsetsSumParams,
                    ElementType,  // embedding table
                    ElementType,  // indices
-                   LayerTestsUtils::TargetDevice>
+                   ov::test::TargetDevice>
     embeddingBagOffsetsSumLayerTestParamsSet;
 
 class EmbeddingBagOffsetsSumLayerCPUTest : public testing::WithParamInterface<embeddingBagOffsetsSumLayerTestParamsSet>,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,7 +39,6 @@ std::shared_ptr<Node> ReduceLogicalAnd::clone_with_new_inputs(const OutputVector
 
 bool ReduceLogicalAnd::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v1_ReduceLogicalAnd_evaluate);
-    OPENVINO_SUPPRESS_DEPRECATED_START
     OPENVINO_ASSERT(inputs.size() == 2);
     OPENVINO_ASSERT(outputs.size() == 1);
 

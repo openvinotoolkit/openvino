@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,12 @@
 
 #include "behavior/ov_infer_request/infer_consistency.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "openvino/op/batch_norm.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {

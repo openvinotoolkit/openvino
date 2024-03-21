@@ -7,7 +7,7 @@ Overview
 This tutorial will be divided in 2 parts: 1. Create a simple inference
 pipeline with a pre-trained model using the OpenVINO™ IR format. 2.
 Conduct `post-training
-quantization <https://docs.openvino.ai/2023.3/ptq_introduction.html>`__
+quantization <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training.html>`__
 on a pre-trained model using Hugging Face Optimum and benchmark
 performance.
 
@@ -130,14 +130,15 @@ OpenVINO support - HuggingFace Evaluate to benchmark results
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.2 which is incompatible.
-    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 4.25.2 which is incompatible.
+    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.3 which is incompatible.
+    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 4.25.3 which is incompatible.
+    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 4.25.3 which is incompatible.
     
 
 .. parsed-literal::
@@ -147,7 +148,7 @@ OpenVINO support - HuggingFace Evaluate to benchmark results
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.0 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     
 
 .. parsed-literal::
@@ -179,14 +180,19 @@ equivalent to ``AutoModelForSequenceClassification`` from Transformers
 
 .. parsed-literal::
 
-    2024-01-26 00:06:51.225761: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-26 00:06:51.259890: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 23:58:37.556667: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 23:58:37.590917: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-26 00:06:51.896752: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 23:58:38.099542: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+
+
+.. parsed-literal::
+
+    OpenVINO Tokenizer version is not compatible with OpenVINO version. Installed OpenVINO version: 2024.0.0,OpenVINO Tokenizers requires . OpenVINO Tokenizers models will not be added during export.
 
 
 .. parsed-literal::
@@ -196,7 +202,8 @@ equivalent to ``AutoModelForSequenceClassification`` from Transformers
 
 .. parsed-literal::
 
-    No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+      torch.utils._pytree._register_pytree_node(
 
 
 Setting up HuggingFace cache
@@ -279,13 +286,7 @@ Download resources
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export to ONNX.
-
-
-.. parsed-literal::
-
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/_utils.py:831: UserWarning: TypedStorage is deprecated. It will be removed in the future and UntypedStorage will be the only storage class. This should only matter to you if you are using storages directly.  To access UntypedStorage directly, use tensor.untyped_storage() instead of tensor.storage()
-      return self.fget.__get__(instance, owner)()
+    Framework not specified. Using pt to export the model.
 
 
 .. parsed-literal::
@@ -303,7 +304,7 @@ Download resources
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.1.2+cpu
+    Using framework PyTorch: 2.2.1+cpu
 
 
 .. parsed-literal::
@@ -328,12 +329,18 @@ Download resources
 
 .. parsed-literal::
 
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
     Compiling the model to AUTO ...
 
 
 .. parsed-literal::
 
-    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
+    Ressources cached locally at: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/notebooks/247-code-language-id/model/CodeBERTa-language-id
 
 
 Create inference pipeline
@@ -385,7 +392,7 @@ In this section, we will quantize a trained model. At a high-level, this
 process consists of using lower precision numbers in the model, which
 results in a smaller model size and faster inference at the cost of a
 potential marginal performance degradation. `Learn
-more <https://docs.openvino.ai/2023.3/ptq_introduction.html>`__.
+more <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training.html>`__.
 
 The HuggingFace Optimum library supports post-training quantization for
 OpenVINO. `Learn
@@ -484,7 +491,7 @@ NOTE: Uncomment the method below to download and use the full dataset
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1429: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1461: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
     You can avoid this message in future by passing the argument `trust_remote_code=True`.
     Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
       warnings.warn(
@@ -511,6 +518,21 @@ dataset to quantize and save the model
         calibration_dataset=calibration_sample,
         save_directory=QUANTIZED_MODEL_LOCAL_PATH,
     )
+
+
+.. parsed-literal::
+
+    The argument `quantization_config` is deprecated, and will be removed in optimum-intel v1.6.0, please use `ov_config` instead
+
+
+.. parsed-literal::
+
+    The support of `torch.nn.Module` will be deprecated in a future release of optimum-intel, please use the corresponding `OVModelForXxx` class to load you model.To convert a PyTorch model to OpenVINO, you can set `export=True` when loading your model as `OVModelForXxx.from_pretrained(..., export=True)`
+
+
+.. parsed-literal::
+
+    Passing the argument `library_name` to `get_supported_tasks_for_model_type` is required, but got library_name=None. Defaulting to `transformers`. An error will be raised in a future version of Optimum if `library_name` is not provided.
 
 
 .. parsed-literal::
@@ -819,7 +841,7 @@ dataset to quantize and save the model
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.1.2+cpu
+    Using framework PyTorch: 2.2.1+cpu
 
 
 .. parsed-literal::
@@ -830,6 +852,36 @@ dataset to quantize and save the model
 .. parsed-literal::
 
     	- use_cache -> False
+
+
+.. parsed-literal::
+
+    WARNING:nncf:You are setting `forward` on an NNCF-processed model object.
+    NNCF relies on custom-wrapping the `forward` call in order to function properly.
+    Arbitrary adjustments to the forward function on an NNCFNetwork object have undefined behavior.
+    If you need to replace the underlying forward function of the original model so that NNCF should be using that instead of the original forward function that NNCF saved during the compressed model creation, you can do this by calling:
+    model.nncf.set_original_unbound_forward(fn)
+    if `fn` has an unbound 0-th `self` argument, or
+    with model.nncf.temporary_bound_original_forward(fn): ...
+    if `fn` already had 0-th `self` argument bound or never had it in the first place.
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    WARNING:nncf:You are setting `forward` on an NNCF-processed model object.
+    NNCF relies on custom-wrapping the `forward` call in order to function properly.
+    Arbitrary adjustments to the forward function on an NNCFNetwork object have undefined behavior.
+    If you need to replace the underlying forward function of the original model so that NNCF should be using that instead of the original forward function that NNCF saved during the compressed model creation, you can do this by calling:
+    model.nncf.set_original_unbound_forward(fn)
+    if `fn` has an unbound 0-th `self` argument, or
+    with model.nncf.temporary_bound_original_forward(fn): ...
+    if `fn` already had 0-th `self` argument bound or never had it in the first place.
 
 
 .. parsed-literal::
@@ -902,7 +954,7 @@ NOTE: Uncomment the method below to download and use the full dataset
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1429: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/datasets/load.py:1461: FutureWarning: The repository for code_search_net contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/code_search_net
     You can avoid this message in future by passing the argument `trust_remote_code=True`.
     Passing `trust_remote_code=True` will be mandatory to load this dataset from the next major release of `datasets`.
       warnings.warn(
@@ -1008,16 +1060,16 @@ displayed.
         <tr>
           <th>base</th>
           <td>1.0</td>
-          <td>2.007112</td>
-          <td>59.787391</td>
-          <td>0.016726</td>
+          <td>2.230822</td>
+          <td>53.791827</td>
+          <td>0.018590</td>
         </tr>
         <tr>
           <th>quantized</th>
           <td>1.0</td>
-          <td>2.864346</td>
-          <td>41.894385</td>
-          <td>0.023870</td>
+          <td>2.871792</td>
+          <td>41.785751</td>
+          <td>0.023932</td>
         </tr>
       </tbody>
     </table>
@@ -1028,7 +1080,7 @@ displayed.
 Additional resources
 --------------------
 
- - `Grammatical Error Correction
+- `Grammatical Error Correction
 with
 OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/214-grammar-correction/214-grammar-correction.ipynb>`__
 - `Quantize a Hugging Face Question-Answering Model with

@@ -6,7 +6,7 @@ This notebook shows how to convert a MobileNetV3 model from
 on the `ImageNet <https://www.image-net.org>`__ dataset, to OpenVINO IR.
 It also shows how to perform classification inference on a sample image,
 using `OpenVINO
-Runtime <https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html>`__
+Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and compares the results of the
 `PaddlePaddle <https://github.com/PaddlePaddle/Paddle>`__ model with the
 IR model.
@@ -71,7 +71,7 @@ Imports
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     paddleclas 2.5.1 requires easydict, which is not installed.
-    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.7.4 which is incompatible.
+    paddleclas 2.5.1 requires faiss-cpu==1.7.1.post2, but you have faiss-cpu 1.8.0 which is incompatible.
     paddleclas 2.5.1 requires gast==0.3.3, but you have gast 0.4.0 which is incompatible.
     
 
@@ -94,15 +94,15 @@ Imports
 
 .. parsed-literal::
 
-    --2024-01-25 22:35:57--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
-    Resolving proxy-mu.intel.com (proxy-mu.intel.com)... 10.217.247.236
-    Connecting to proxy-mu.intel.com (proxy-mu.intel.com)|10.217.247.236|:911... connected.
+    --2024-03-12 22:20:41--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
+    Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 
 
 .. parsed-literal::
 
     404 Not Found
-    2024-01-25 22:35:57 ERROR 404: Not Found.
+    2024-03-12 22:20:41 ERROR 404: Not Found.
     
 
 
@@ -135,12 +135,12 @@ Imports
 
 .. parsed-literal::
 
-    2024-01-25 22:35:59 INFO: Loading faiss with AVX2 support.
+    2024-03-12 22:20:43 INFO: Loading faiss with AVX512 support.
 
 
 .. parsed-literal::
 
-    2024-01-25 22:35:59 INFO: Successfully loaded faiss with AVX2 support.
+    2024-03-12 22:20:43 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
@@ -224,7 +224,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/01/25 22:36:20] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/03/12 22:21:11] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
 
 
 .. parsed-literal::
@@ -294,7 +294,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-01-25 22:36:20 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-03-12 22:21:12 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -306,7 +306,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f72946bbac0>
+    <matplotlib.image.AxesImage at 0x7f1d380bd2b0>
 
 
 
@@ -341,7 +341,7 @@ accept path to PaddlePaddle model and returns OpenVINO Model class
 instance which represents this model. Obtained model is ready to use and
 loading on device using ``ov.compile_model`` or can be saved on disk
 using ``ov.save_model`` function. See the `Model Conversion
-Guide <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Guide <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 for more information about the Model Conversion API.
 
 .. code:: ipython3
@@ -399,7 +399,7 @@ information.
     # Load OpenVINO Runtime and OpenVINO IR model
     core = ov.Core()
     model = core.read_model(model_xml)
-    compiled_model = core.compile_model(model=model, device_name="CPU")
+    compiled_model = core.compile_model(model=model, device_name=device.value)
     
     # Get model output
     output_layer = compiled_model.output(0)
@@ -442,7 +442,7 @@ Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
 For a fair comparison, we include the time it takes to process the
 image. For more accurate benchmarking, use the `OpenVINO benchmark
-tool <https://docs.openvino.ai/2023.3/openvino_sample_benchmark_tool.html>`__.
+tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__.
 Note that many optimizations are possible to improve the performance.
 
 .. code:: ipython3
@@ -489,7 +489,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0073 seconds per image, FPS: 137.36
+    PaddlePaddle model on CPU: 0.0074 seconds per image, FPS: 134.43
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -553,7 +553,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0031 seconds per image, FPS: 322.19
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 353.76
     
     OpenVINO result:
     Labrador retriever, 0.74909
@@ -574,4 +574,4 @@ References
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle
-   support <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+   support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__

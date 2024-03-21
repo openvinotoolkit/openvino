@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/itt.hpp"
-#include "snippets/remarks.hpp"
-
-#include "snippets/pass/softmax_reshape_elimination.hpp"
-#include "snippets/snippets_isa.hpp"
-
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "validation_util.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/pass/softmax_reshape_elimination.hpp"
+#include "snippets/remarks.hpp"
+#include "snippets/snippets_isa.hpp"
 
 ov::snippets::pass::SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
     MATCHER_SCOPE(SoftmaxReshapeElimination);

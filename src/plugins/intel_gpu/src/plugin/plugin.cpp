@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -104,7 +104,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name();
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
@@ -125,7 +124,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
 
     GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
         auto path_base = debug_config->dump_graphs + "/" + cloned_model->get_name() + "_" +  "transformed_func";
-        ov::pass::Serialize(path_base + ".xml", path_base + ".bin").run_on_model(cloned_model);
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
     return cloned_model;
@@ -657,7 +655,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto cloned_model = model->clone();
 
     try {
-        std::set<std::pair<std::string, size_t>> batched_inputs;
+        std::set<std::pair<size_t, size_t>> batched_inputs;
 
         auto tmp_model = cloned_model->clone();
         ov::pass::Manager m;
@@ -677,11 +675,10 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             if (shape.size()) {
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (ov::DimensionTracker::get_label(shape[s])) {
-                        // batched dim for the input
-                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
-                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
+                        batched_inputs.insert(std::make_pair(input_id, s));
+                        GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
+                                      << " with index " << input_id
                                       << "[" << s << "]" << std::endl;
-                        batched_inputs.insert(std::make_pair(batched_input_id, s));
                     }
                 }
             }
@@ -693,9 +690,11 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         }
 
         try {
-            std::map<std::string, ov::PartialShape> shapes;
-            for (auto& param : cloned_model->get_parameters()) {
-                shapes[ov::op::util::get_ie_output_name(param->output(0))] = param->get_output_partial_shape(0);
+            std::map<size_t, ov::PartialShape> shapes;
+            const auto& params = cloned_model->get_parameters();
+            for (size_t input_id = 0; input_id < params.size(); input_id++) {
+                const auto& param = params[input_id];
+                shapes[input_id] = param->get_output_partial_shape(0);
             }
             for (const auto& input : batched_inputs)
                 shapes[input.first][input.second] = base_batch_size;

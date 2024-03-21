@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "layout.hpp"
 #include "openvino/core/except.hpp"
 
 #include <memory>
@@ -71,8 +70,5 @@ public:
 private:
     std::unique_ptr<T> storage = nullptr;
 };
-
-using optional_data_type = optional_value<data_types>;
-using optional_layout = optional_value<layout>;
 
 }  // namespace cldnn

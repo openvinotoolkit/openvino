@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassSeveralDevicesTest,
                          OVClassSeveralDevicesTestDefaultCore,
                          ::testing::Values(std::vector<std::string>({"GPU.0", "GPU.1"})));
 
-// IE Class Query network
+// OV Class Query network
 
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassQueryModelTest, OVClassQueryModelTest, ::testing::Values("GPU"));
 

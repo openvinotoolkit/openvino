@@ -136,8 +136,8 @@ Select the task for the model:
 
 
 
-Create and initialize quantization
-------------------------------------
+## Create and initialize quantization `⇑ <#0>`__ `back to top
+⬆️ <#table-of-contents>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the

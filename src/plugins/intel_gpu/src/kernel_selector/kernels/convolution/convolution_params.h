@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,13 +35,6 @@ struct convolution_params : public weight_bias_zero_point_params {
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// convolution_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct convolution_optional_params : weight_bias_optional_params {
-    convolution_optional_params() : weight_bias_optional_params(KernelType::CONVOLUTION) {}
 };
 
 }  // namespace kernel_selector

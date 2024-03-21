@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,12 +10,14 @@
 #include <vector>
 #include <cassert>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
+
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -235,6 +237,7 @@ bool ConvolutionBackpropDataTransformation::transform(TransformationContext &con
         ov::disable_constant_folding(onWeights);
     }
 
+    OPENVINO_DEBUG << "LPT: done: " << convolutionBackpropData;
     return true;
 }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,7 +132,7 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
         } else {
             // Once int/float mask type is supported in PyTorch,
             // remove this assert to allow for such masks in OV
-            FRONT_END_OP_CONVERSION_CHECK(1, "Non-boolean masks are not supported.");
+            PYTORCH_OP_CONVERSION_CHECK(1, "Non-boolean masks are not supported.");
             atten_mask = context.mark_node(std::make_shared<opset10::ConvertLike>(atten_mask, scaled_dot_product));
         }
 

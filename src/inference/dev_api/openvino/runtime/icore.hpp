@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,9 @@ namespace proxy {
 class Plugin;
 
 }
+
+class ICompiledModel;
+class IRemoteContext;
 
 /**
  * @interface ICore
@@ -169,8 +172,6 @@ public:
      * @return A shared pointer to a created remote context.
      */
     virtual ov::SoPtr<ov::IRemoteContext> create_context(const std::string& device_name, const AnyMap& args) const = 0;
-
-    virtual bool is_new_api() const = 0;
 
     /**
      * @brief Get a pointer to default shared context object for the specified device.

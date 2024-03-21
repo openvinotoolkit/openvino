@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_inst.h"
@@ -49,6 +49,17 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
         return input_shape_update;
     };
 
+    auto transpose_shape = [](const ov::Shape& shape, const std::vector<int64_t>& order) {
+        auto shape_transposed = ov::Shape(shape);
+        auto rank_diff = shape.size() - order.size();
+        for (size_t i = 0; i < order.size(); i++) {
+            size_t idx = static_cast<size_t>(order[i]);
+            shape_transposed[i + rank_diff] = shape[idx + rank_diff];
+        }
+
+        return shape_transposed;
+    };
+
     auto input0_shape_update = update_input_shape(input0_shape, input_rank, input0_order, true);
     auto input1_shape_update = update_input_shape(input1_shape, weight_rank, input1_order, false);
 
@@ -71,6 +82,9 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     size_t ones_to_add = 4 - std::min(output_shape.size(), static_cast<size_t>(4));
     output_shape.insert(output_shape.begin(), ones_to_add, 1);
+
+    if (prim->output_order.size() > 0)
+        output_shape = transpose_shape(output_shape, prim->output_order);
 
     auto output_type = input0_layout.data_type;
     if ((output_type == data_types::u8 || output_type == data_types::i8) && prim->output_data_types[0])
@@ -186,24 +200,31 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
 layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> primitive,
                                           const std::vector<layout>& input_layouts,
                                           const layout& output_layout) {
+    auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& transpose_order) {
+        ov::PartialShape transposed_pshape = pshape;
+        auto rank_diff = pshape.size() - transpose_order.size();
+        for (size_t i = 0; i < transpose_order.size(); ++i) {
+            size_t idx = static_cast<size_t>(transpose_order[i]);
+            transposed_pshape[i + rank_diff] = std::move(pshape[idx + rank_diff]);
+        }
+        return transposed_pshape;
+    };
+
     auto updated_output_layout = output_layout;
     auto output_rank = output_layout.get_partial_shape().size();
     if (output_rank < 4) {
-        auto input0_pshape = input_layouts[0].get_partial_shape();
-        auto input1_pshape = input_layouts[1].get_partial_shape();
+        ov::PartialShape transposed_input0_pshape = transpose_pshape(input_layouts[0].get_partial_shape(), primitive->input0_order);
+        ov::PartialShape transposed_input1_pshape = transpose_pshape(input_layouts[1].get_partial_shape(), primitive->input1_order);
 
-        auto input0_order = primitive->input0_order;
-        auto input1_order = primitive->input1_order;
+        auto M = (transposed_input0_pshape.size() > 1) ? transposed_input0_pshape[transposed_input0_pshape.size() - 2]
+                                                       : transposed_input0_pshape[0];
+        auto N = transposed_input1_pshape[transposed_input1_pshape.size() - 1];
 
-        auto m_idx = ((input0_order.size() > 1) ? input0_order[input0_order.size() - 2] : input0_order[0])
-                    + input0_pshape.size() - input0_order.size();
-        auto n_idx = input1_order[input1_order.size() - 1] + input1_pshape.size() - input1_order.size();
-        auto M = input0_pshape[m_idx];
-        auto N = input1_pshape[n_idx];
-
-        auto output_pshape = input_layouts[0].get_partial_shape();
+        auto output_pshape = transposed_input0_pshape;
         for (size_t i = 0; i != primitive->input_size(); ++i) {
-            auto input_pshape = input_layouts[i].get_partial_shape();
+            auto input_pshape = (i == 0) ? transposed_input0_pshape :
+                                (i == 1) ? transposed_input1_pshape :
+                                input_layouts[i].get_partial_shape();
             for (size_t j = 0; j != input_pshape.size(); ++j) {
                 ov::Dimension::merge(output_pshape[j], output_pshape[j], input_pshape[j]);
             }
@@ -216,6 +237,11 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
 
         output_pshape[get_spatial_idx(updated_output_layout.format, 0)] = std::move(N);
         output_pshape[get_spatial_idx(updated_output_layout.format, 1)] = std::move(M);
+
+        if (primitive->output_order.size() > 0) {
+            output_pshape = transpose_pshape(output_pshape, primitive->output_order);
+        }
+
         updated_output_layout.set_partial_shape(output_pshape);
     }
     return updated_output_layout;
@@ -228,16 +254,21 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     auto beta = desc->beta;
     auto transpose_input0 = desc->transpose_input0 ? " true" : "false";
     auto transpose_input1 = desc->transpose_input1 ? " true" : "false";
+    auto indirect_input0 = desc->indirect_a ? " true" : "false";
+    auto indirect_input1 = desc->indirect_b ? " true" : "false";
     std::stringstream primitive_description;
 
     json_composite gemm_info;
     for (size_t i = 0; i < node.get_inputs_count(); i++) {
         gemm_info.add("input_" + std::to_string(i), node.input(i).id());
     }
+    gemm_info.add("beam_table", (desc->beam_table.is_valid() ? desc->beam_table.pid : "N/A"));
     gemm_info.add("alpha", alpha);
     gemm_info.add("beta", beta);
     gemm_info.add("trasnpose_input0", transpose_input0);
     gemm_info.add("transpose_input1", transpose_input1);
+    gemm_info.add("indirect_input0", indirect_input0);
+    gemm_info.add("indirect_input1", indirect_input1);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

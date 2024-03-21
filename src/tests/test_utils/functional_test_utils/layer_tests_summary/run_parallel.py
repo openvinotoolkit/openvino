@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
 import sys
@@ -322,9 +322,10 @@ class TestParallelRunner:
         working_dir: os.path,
         cache_path: os.path,
         split_unit: str,
-        repeat_failed: int,
+        repeat_failed: bool,
         is_parallel_devices=False,
         excluded_tests=set(),
+        timeout=0
     ):
         self._exec_file_path = exec_file_path
         self._working_dir = working_dir
@@ -354,6 +355,9 @@ class TestParallelRunner:
         if HAS_PYTHON_API and is_parallel_devices:
             self._available_devices = get_available_devices(self._device)
         self._excluded_tests = excluded_tests
+        self._timeout = timeout if timeout > 0 else None
+        if self._timeout is None:
+            self._timeout = DEFAULT_TEST_TIMEOUT if self._split_unit == constants.TEST_UNIT_NAME else DEFAULT_SUITE_TIMEOUT
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f"{self._exec_file_path}"
@@ -664,8 +668,9 @@ class TestParallelRunner:
         return list(not_runned_tests), list(interapted_tests)
 
     def run(self):
-        if TaskManager.process_timeout == -1:
-            TaskManager.process_timeout = DEFAULT_PROCESS_TIMEOUT
+        # 15m for one test in one process
+        if TaskManager.process_timeout in (-1, DEFAULT_PROCESS_TIMEOUT):
+            TaskManager.process_timeout = self._timeout
         logger.info(f"Run test parallel is started. Worker num is {self._worker_num}")
         if len(self._available_devices) > 1:
             logger.info(
@@ -681,16 +686,9 @@ class TestParallelRunner:
         if test_filters:
             logger.info("Execute jobs taken from cache and runtime")
             worker_cnt += self.__execute_tests(test_filters, worker_cnt)
-        # 15m for one test in one process
-        if TaskManager.process_timeout in (-1, DEFAULT_PROCESS_TIMEOUT):
-            TaskManager.process_timeout = (
-                DEFAULT_SUITE_TIMEOUT
-                if self._split_unit == constants.SUITE_UNIT_NAME
-                else DEFAULT_TEST_TIMEOUT
-            )
 
         not_runned_tests, interapted_tests = self.__find_not_runned_tests()
-        if self._repeat_failed > 0:
+        if self._repeat_failed:
             if len(not_runned_tests) > 0:
                 logger.info(f"Execute not runned {len(not_runned_tests)} tests")
                 not_runned_test_filters = [
@@ -840,6 +838,7 @@ class TestParallelRunner:
                     dir = INTERAPTED_DIR
                     if __save_log(logs_dir, dir, test_name):
                         interapted_tests.add(test_name)
+                        fix_priority.append((ref_k or 0, test_name))
 
                 if self._split_unit == constants.SUITE_UNIT_NAME:
                     test_cnt_real = len(test_suites)
@@ -893,7 +892,9 @@ class TestParallelRunner:
                 csv_writer = csv.writer(csv_file, dialect="excel")
                 csv_writer.writerow(["Test Name", "Fix Priority"])
                 ir_hashes = []
+                failed_tests = set()
                 for priority, name in fix_priority:
+                    failed_tests.add(name)
                     csv_writer.writerow([name, priority])
                     if "IR=" in name:
                         ir_hash = name[name.find("IR=") + 3 : name.find("_Device=")]
@@ -901,6 +902,13 @@ class TestParallelRunner:
                             _, tail = os.path.split(ir_hash)
                             ir_hash, _ = os.path.splitext(tail)
                         ir_hashes.append(ir_hash)
+
+                if len(self._excluded_tests) > 0:
+                    diff = failed_tests.difference(self._excluded_tests)
+                    if len(diff) > 0:
+                        logger.error(f"Unexpected failures: {diff}")
+                        self._unexpected_failures = diff
+                        self.is_successful_run = False
 
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
                 # Find all irs for failed tests

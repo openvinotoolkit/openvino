@@ -1,12 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <cpu_memory.h>
-#include <memory_desc/cpu_blocked_memory_desc.h>
+#include <atomic>
 #include <thread>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 
 using namespace ov::intel_cpu;
 

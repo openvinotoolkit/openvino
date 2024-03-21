@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ class TRANSFORMATIONS_API ChainedMaximumOptimization;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Optimizes graphs based on value labels / symbols
  *      Maximum(Maximum(A, B), B) -> Maximum(A, B)
  *      Maximum(Maximum(A, B), A) -> Maximum(A, B)

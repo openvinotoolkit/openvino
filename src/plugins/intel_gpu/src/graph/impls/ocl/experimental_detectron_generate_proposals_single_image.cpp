@@ -15,8 +15,7 @@ struct experimental_detectron_generate_proposals_single_image_impl
     using parent = typed_primitive_impl_ocl<experimental_detectron_generate_proposals_single_image>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::experimental_detectron_generate_proposals_single_image_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::experimental_detectron_generate_proposals_single_image_params,
-                                      kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>;
+    using kernel_params_t = kernel_selector::experimental_detectron_generate_proposals_single_image_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::experimental_detectron_generate_proposals_single_image_impl)
 
@@ -43,8 +42,6 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<experimental_detectron_generate_proposals_single_image>();
         auto params = get_default_params<kernel_selector::experimental_detectron_generate_proposals_single_image_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::experimental_detectron_generate_proposals_single_image_optional_params>(impl_param.get_program());
 
         params.min_size = primitive->min_size;
         params.nms_threshold  = primitive->nms_threshold;
@@ -55,7 +52,7 @@ public:
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        return {params, optional_params};
+        return params;
     }
 };
 

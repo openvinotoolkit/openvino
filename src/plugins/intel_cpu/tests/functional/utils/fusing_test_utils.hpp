@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,14 @@
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "cpu_test_utils.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "ov_models/utils/data_utils.hpp"
+#include "common_test_utils/data_utils.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 
 using namespace ov::test;
 

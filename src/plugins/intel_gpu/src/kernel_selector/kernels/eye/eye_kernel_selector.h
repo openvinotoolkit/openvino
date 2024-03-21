@@ -17,7 +17,7 @@ public:
 
     eye_kernel_selector();
 
-    KernelsData GetBestKernels(const Params& params, const optional_params& options) const override;
+    KernelsData GetBestKernels(const Params& params) const override;
 };
 
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,13 +62,13 @@ bool PriorBoxClustered::needShapeInfer() const {
         return true;
     }
 
-    const auto& outputShape = memory->getShape().getStaticDims();
-    const int* in_data = memory->getDataAs<int>();
+    const auto& output_shape = memory->getShape().getStaticDims();
+    const int* in_data = getSrcDataAtPortAs<int>(0);
     const int h = in_data[0];
     const int w = in_data[1];
     const auto output = static_cast<size_t>(4 * h * w * number_of_priors);
 
-    return outputShape[1] != output;
+    return output_shape[1] != output;
 }
 
 bool PriorBoxClustered::needPrepareParams() const {

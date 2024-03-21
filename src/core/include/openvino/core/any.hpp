@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,10 +19,6 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/runtime_attribute.hpp"
-
-namespace InferenceEngine {
-class ExecutableNetwork;
-}  // namespace InferenceEngine
 
 namespace ov {
 class Plugin;
@@ -662,7 +658,6 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::proxy::CompiledModel;
     friend class ::ov::RemoteContext;

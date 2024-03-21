@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <common/blocked_desc_creator.h>
 #include <cpu_types.h>
 #include <edge.h>
 #include <gtest/gtest.h>
-#include <ie_common.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <memory_desc/dnnl_memory_desc.h>
 #include <node.h>

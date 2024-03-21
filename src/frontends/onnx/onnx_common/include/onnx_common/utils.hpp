@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <onnx/onnx_pb.h>
@@ -10,7 +10,9 @@ namespace ov {
 namespace frontend {
 namespace onnx {
 namespace common {
-using namespace ::ONNX_NAMESPACE;
+using ::ONNX_NAMESPACE::TensorProto_DataType;
+using ::ONNX_NAMESPACE::TensorShapeProto;
+
 /// \brief Retuns size of an ONNX data type in bytes.
 ///
 /// \param onnx_type Number assigned to an ONNX data type in the TensorProto_DataType enum.

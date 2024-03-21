@@ -39,8 +39,6 @@ TEST(type_prop, depth_to_space_input_interval_shape_default_block_size) {
     EXPECT_THAT(get_shape_labels(depth_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13, 14));
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-
 TEST(type_prop, depth_to_space_output_dynamicshape_block_first_5D_when_depth_is_dynamic) {
     auto A = make_shared<ov::op::v0::Parameter>(element::f32,
                                                 PartialShape{{2, 10}, {81, 82}, {3, 7}, {423, 3000}, {235, 1345}});

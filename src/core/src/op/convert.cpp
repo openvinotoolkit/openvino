@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,10 +6,10 @@
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/reference/convert.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

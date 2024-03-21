@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,7 +55,7 @@ OutputVector translate_as_tensor(const NodeContext& context) {
         return {context.mark_node(std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), 0))};
     } else {
         // Input is already a tensor
-        FRONT_END_OP_CONVERSION_CHECK(list_elems.size() == 1, "Input must be single tensor.");
+        PYTORCH_OP_CONVERSION_CHECK(list_elems.size() == 1, "Input must be single tensor.");
         return {list_elems[0]};
     }
 };

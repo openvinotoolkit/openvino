@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/deprecated.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/enum_mask.hpp"
 #include "openvino/core/enum_names.hpp"
@@ -50,6 +49,7 @@
 #include "openvino/core/preprocess/output_info.hpp"
 #include "openvino/core/preprocess/output_model_info.hpp"
 #include "openvino/core/preprocess/output_tensor_info.hpp"
+#include "openvino/core/preprocess/padding_mode.hpp"
 #include "openvino/core/preprocess/postprocess_steps.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/preprocess/preprocess_steps.hpp"

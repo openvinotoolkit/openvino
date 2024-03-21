@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -484,6 +484,7 @@ using OpExtension = ov::frontend::OpExtensionBase<ov::frontend::ConversionExtens
 #define MAKE_MAP_onnx(...)            MAKE_MAP_COMMON(onnx, __VA_ARGS__)
 #define MAKE_MAP_tensorflow(...)      MAKE_MAP_COMMON(tensorflow, __VA_ARGS__)
 #define MAKE_MAP_tensorflow_lite(...) MAKE_MAP_COMMON(tensorflow_lite, __VA_ARGS__)
+#define MAKE_MAP_pytorch(...)         MAKE_MAP_COMMON(pytorch, __VA_ARGS__)
 // make paddle OpExtension
 #define MAKE_MAP_paddle(...)                                                         \
     FRONTEND_EXPAND(GEN_VAR_PADDLE(__VA_ARGS__))                                     \

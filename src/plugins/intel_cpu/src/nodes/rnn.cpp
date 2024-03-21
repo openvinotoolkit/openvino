@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -516,6 +516,10 @@ void RNN::configurePortDataTypes() {
         // onednn doesn't have fp16 instance
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] = memory::data_type::f32; // required by oneDNN.
 
+    // OneDNN unsupported fp16 precision for this layer
+    if (cell_type == dnnl::algorithm::vanilla_augru && inDataTypes[aIdx] == memory::data_type::f16)
+        inDataTypes[aIdx] = memory::data_type::f32;
+
     if (outDataTypes[yIdx] == memory::data_type::bf16 && one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8))
         outDataTypes[yIdx] = memory::data_type::f32; // oneDNN does not support bf16 output precision for quantized rnn primitive yet
 }
@@ -852,7 +856,7 @@ void RNN::fillBiases(const int *gate_map) {
 
 void RNN::copyWeightsData() {
     /* Copy Weight data
-     * IE format:
+     * OV format:
      *   W - [gates, out_state_size, in_data_size]
      *   R - [gates, out_state_size, in_state_size]
      *   B - [gates, out_state_size]
@@ -865,10 +869,10 @@ void RNN::copyWeightsData() {
      *   Gate order
      *   ====== LSTM ======
      *   Caffe - IFOC, ONNX   - IOFC
-     *   IE    - FICO, onednn - IFCO
+     *   OV    - FICO, onednn - IFCO
      *
      *   ====== GRU ======
-     *   IE - URO, onednn - URO
+     *   OV - URO, onednn - URO
      */
     const int gate_map_lstm[] = {1, 0, 2, 3};  // FICO -> IFCO
     const int gate_map_gru[]  = {0, 1, 2, 3};

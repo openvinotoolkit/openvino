@@ -49,7 +49,6 @@ void EliminateFakeQuantizeTransformation::SetUp() {
 
 TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    abs_threshold = 2.3;
     run();
 
     EliminateFakeQuantizeTransformationTestValues testValues;

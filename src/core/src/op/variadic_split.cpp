@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,8 @@
 #include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/slice.hpp"
-#include "validation_util.hpp"
 #include "variadic_split_shape_inference.hpp"
 
 namespace ov {

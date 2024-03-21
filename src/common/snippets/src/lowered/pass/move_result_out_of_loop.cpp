@@ -51,8 +51,8 @@ bool MoveResultOutOfLoop::run(LinearIR& linear_ir) {
             continue;
         }
 
-        LinearIR::constExprIt loop_begin_pos, loop_end_pos;
-        loop_manager->get_loop_bounds(linear_ir, *(parent_loop_ids.cbegin()), loop_begin_pos, loop_end_pos);
+        const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, *(parent_loop_ids.cbegin()));
+        const auto loop_end_pos = loop_bounds.second;
         // If the Result isn't found after Outer LoopEnd, need to move it to there
         if (std::find(loop_end_pos, linear_ir.cend(), expr) == linear_ir.cend()) {
             expr_it = std::prev(expr_it);  // save iterator before moving

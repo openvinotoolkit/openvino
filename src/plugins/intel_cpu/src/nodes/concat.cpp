@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,9 @@ bool Concat::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         const auto concatOp = ov::as_type_ptr<const ov::op::v0::Concat>(op);
         if (!concatOp) {
             errorMessage = "Node is not an instance of the Concat operation.";
+            return false;
+        }
+        if (concatOp->get_output_element_type(0) == ov::element::string) {
             return false;
         }
     } catch (...) {

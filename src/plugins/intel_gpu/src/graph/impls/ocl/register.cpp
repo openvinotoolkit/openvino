@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "register.hpp"
@@ -79,6 +79,7 @@ void register_implementations() {
     REGISTER_OCL(space_to_depth);
     REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
+    REGISTER_OCL(swiglu);
     REGISTER_OCL(tile);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);

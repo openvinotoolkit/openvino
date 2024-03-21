@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,6 +81,8 @@ void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const double abs_threshold = std::numeric_limits<double>::max(),
              const double rel_threshold = std::numeric_limits<double>::max());
+
+void compare_str(const ov::Tensor& expected, const ov::Tensor& actual);
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

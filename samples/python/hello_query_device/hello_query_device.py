@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 import sys
@@ -9,7 +9,7 @@ import openvino as ov
 
 
 def param_to_string(parameters) -> str:
-    """Convert a list / tuple of parameters returned from IE to a string."""
+    """Convert a list / tuple of parameters returned from OV to a string."""
     if isinstance(parameters, (list, tuple)):
         return ', '.join([str(x) for x in parameters])
     else:

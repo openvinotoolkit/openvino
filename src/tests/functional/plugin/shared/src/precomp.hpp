@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,3 +30,4 @@
 #include <vector>
 
 #include "openvino/core/type/float16.hpp"
+#include "openvino/openvino.hpp"

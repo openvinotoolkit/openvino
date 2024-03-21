@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
 #include "pad_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 op::util::PadBase::PadBase(const Output<Node>& arg,

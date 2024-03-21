@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,7 +180,7 @@ TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq(loadFailedDevice)),
                           ::testing::Matcher<const ov::AnyMap&>(_)))
-        .WillByDefault(Throw(ov::Exception{"GeneralError"}));
+        .WillByDefault(ov::Throw("GeneralError"));
     if (loadFailedDevice != ov::test::utils::DEVICE_CPU) {
         EXPECT_CALL(*core,
                     compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),

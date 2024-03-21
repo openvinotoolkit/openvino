@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,6 +36,12 @@ public:
     std::vector<int64_t> get_input1_order() const { return m_order_b; }
     std::vector<int64_t> get_output_order() const { return m_order_c; }
     ov::element::Type get_output_type() const { return m_output_type; }
+
+    static std::vector<int64_t> default_order(size_t rank) {
+        std::vector<int64_t> order(rank);
+        std::iota(order.begin(), order.end(), 0);
+        return order;
+    }
 
 protected:
     std::vector<int64_t> m_order_a;

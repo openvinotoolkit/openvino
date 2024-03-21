@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 # #
-# # API 2.0
+# # OpenVINO API
 # # This __init__.py forces checking of runtime modules to propagate errors.
 # # It is not compared with init files from openvino-dev package.
 # #
@@ -23,7 +23,7 @@ from openvino import frontend as frontend
 from openvino import helpers as helpers
 from openvino import preprocess as preprocess
 from openvino import utils as utils
-from openvino.runtime import properties as properties
+from openvino import properties as properties
 
 # Import most important classes and functions from openvino.runtime
 from openvino.runtime import Model
@@ -49,6 +49,13 @@ from openvino.runtime import shutdown
 from openvino.runtime import tensor_from_file
 from openvino.runtime import save_model
 from openvino.runtime import layout_helpers
+
+from openvino._pyopenvino import RemoteContext
+from openvino._pyopenvino import RemoteTensor
+
+# libva related:
+from openvino._pyopenvino import VAContext
+from openvino._pyopenvino import VASurfaceTensor
 
 # Set version for openvino package
 from openvino.runtime import get_version

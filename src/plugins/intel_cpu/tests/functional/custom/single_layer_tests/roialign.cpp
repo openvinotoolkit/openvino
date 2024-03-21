@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ using ROIAlignSpecificParams =  std::tuple<
 using ROIAlignLayerTestParams = std::tuple<
         ROIAlignSpecificParams,
         ElementType,                    // Net precision
-        LayerTestsUtils::TargetDevice   // Device name
+        ov::test::TargetDevice   // Device name
 >;
 
 using ROIAlignLayerCPUTestParamsSet = std::tuple<

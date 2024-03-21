@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -37,7 +37,6 @@ ov_add_test_target(
         LINK_LIBRARIES
             common_test_utils
             openvino::reference
-            openvino::builders
             openvino::util
             openvino::shape_inference
             ${CMAKE_DL_LIBS}

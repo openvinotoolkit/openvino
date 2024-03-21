@@ -100,7 +100,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 .. code:: ipython3
 
     %pip install -q torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git" "openvino>=2023.1.0" "transformers>=4.33.0" "peft==0.6.2" onnx gradio --extra-index-url https://download.pytorch.org/whl/cpu
 
 Download and Convert Model
 --------------------------
@@ -231,7 +231,7 @@ by ``Pix2StructProcessor.decode``
 
 Let’s see the model in action. For testing the model, we will use a
 screenshot from `OpenVINO
-documentation <https://docs.openvino.ai/2023.3/get_started.html#openvino-advanced-features>`__
+documentation <https://docs.openvino.ai/2024/get-started.html#openvino-advanced-features>`__
 
 .. code:: ipython3
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -168,14 +168,13 @@ public:
     static InsertDequantizationResult moveDequantizationAfter(
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
+        const bool updateOutputPrecision,
         const bool moveSubtract,
         const std::vector<ov::element::Type>& defaultPrecisions = precision_set::get_int8_support());
 
     static InsertDequantizationResult moveDequantizationBefore(
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
         const bool moveSubtract);
 
     static std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> splitConstantsBeforeConcat(

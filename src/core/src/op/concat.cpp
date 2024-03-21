@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/reference/concat.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {
@@ -57,29 +57,30 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OPENVINO_ASSERT(outputs.size() == 1);
 
     const auto inputs_count = inputs.size();
-    std::vector<const char*> arg_bufs(inputs_count);
     std::vector<Shape> arg_shapes;
     std::vector<PartialShape> input_shapes;
+    std::vector<const char*> arg_bufs;
     arg_shapes.reserve(inputs_count);
     input_shapes.reserve(inputs_count);
+    arg_bufs.reserve(inputs_count);
 
-    auto arg_buf = arg_bufs.begin();
     for (auto& input : inputs) {
-        *arg_buf = static_cast<const char*>(input.data());
-        ++arg_buf;
         const auto& input_shape = input.get_shape();
         arg_shapes.emplace_back(input_shape);
         input_shapes.emplace_back(input_shape);
+        arg_bufs.emplace_back(static_cast<const char*>(input.data()));
     }
 
     const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
     outputs.front().set_shape(out_shape);
+    const auto elem_type = outputs.front().get_element_type();
     reference::concat(arg_bufs,
                       static_cast<char*>(outputs.front().data()),
                       arg_shapes,
                       out_shape,
-                      ov::util::normalize(get_axis(), out_shape.size()),
-                      outputs.front().get_element_type().size());
+                      ov::util::normalize(this->get_axis(), out_shape.size()),
+                      elem_type.size(),
+                      elem_type);
 
     return true;
 }

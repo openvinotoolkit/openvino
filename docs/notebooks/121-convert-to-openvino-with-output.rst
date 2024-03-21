@@ -30,12 +30,12 @@ Table of contents:
     # Required imports. Please execute this cell first.
     %pip install --upgrade pip
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu \
-    "openvino-dev>=2023.2.0" "requests" "tqdm" "transformers[onnx]>=4.21.1" "torch" "torchvision" "tensorflow_hub" "tensorflow"
+    "openvino-dev>=2024.0.0" "requests" "tqdm" "transformers[onnx]>=4.21.1" "torch" "torchvision" "tensorflow_hub" "tensorflow"
 
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (23.3.2)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.0)
 
 
 .. parsed-literal::
@@ -54,14 +54,15 @@ OpenVINO IR format
 
 
 OpenVINO `Intermediate Representation
-(IR) <https://docs.openvino.ai/2023.3/openvino_ir.html>`__ is the
-proprietary model format of OpenVINO. It is produced after converting a
-model with model conversion API. Model conversion API translates the
-frequently used deep learning operations to their respective similar
-representation in OpenVINO and tunes them with the associated weights
-and biases from the trained model. The resulting IR contains two files:
-an ``.xml`` file, containing information about network topology, and a
-``.bin`` file, containing the weights and biases binary data.
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+is the proprietary model format of OpenVINO. It is produced after
+converting a model with model conversion API. Model conversion API
+translates the frequently used deep learning operations to their
+respective similar representation in OpenVINO and tunes them with the
+associated weights and biases from the trained model. The resulting IR
+contains two files: an ``.xml`` file, containing information about
+network topology, and a ``.bin`` file, containing the weights and biases
+binary data.
 
 There are two ways to convert a model from the original framework format
 to OpenVINO IR: Python conversion API and OVC command-line tool. You can
@@ -73,7 +74,7 @@ These model formats can be read, compiled, and converted to OpenVINO IR,
 either automatically or explicitly.
 
 For more details, refer to `Model
-Preparation <https://docs.openvino.ai/2023.3/openvino_docs_model_processing_introduction.html>`__
+Preparation <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
 documentation.
 
 .. code:: ipython3
@@ -131,9 +132,7 @@ documentation.
                             output=out_1,out_2
       --extension EXTENSION
                             Paths or a comma-separated list of paths to libraries
-                            (.so or .dll) with extensions. To disable all
-                            extensions including those that are placed at the
-                            default location, pass an empty string.
+                            (.so or .dll) with extensions.
       --verbose             Print detailed information about conversion.
 
 
@@ -196,19 +195,19 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-01-25 23:11:32.267646: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-01-25 23:11:32.303561: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 22:50:34.001865: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 22:50:34.035988: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-01-25 23:11:32.956586: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 22:50:34.633732: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-598/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:246: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:246: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -504,7 +503,7 @@ inputs. Doing so at the model preparation stage, not at runtime, can be
 beneficial in terms of performance and memory consumption.
 
 For more information refer to `Setting Input
-Shapes <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Converting_Model.html>`__
+Shapes <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/setting-input-shapes.html>`__
 documentation.
 
 .. code:: ipython3
@@ -666,9 +665,9 @@ Convert Models from memory
 
 Model conversion API supports passing original framework Python object
 directly. More details can be found in
-`PyTorch <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_PyTorch.html>`__,
-`TensorFlow <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_TensorFlow.html>`__,
-`PaddlePaddle <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_Convert_Model_From_Paddle.html>`__
+`PyTorch <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-pytorch.html>`__,
+`TensorFlow <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-tensorflow.html>`__,
+`PaddlePaddle <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-paddle.html>`__
 frameworks conversion guides.
 
 .. code:: ipython3
@@ -699,12 +698,12 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-01-25 23:11:51.061555: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-01-25 23:11:51.061587: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-01-25 23:11:51.061592: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-01-25 23:11:51.061773: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-01-25 23:11:51.061789: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-01-25 23:11:51.061793: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-12 22:50:53.831014: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-12 22:50:53.831046: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-03-12 22:50:53.831051: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-03-12 22:50:53.831226: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-03-12 22:50:53.831242: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-03-12 22:50:53.831247: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Migration from Legacy conversion API
@@ -722,7 +721,7 @@ OVC or can be replaced with functionality from ``ov.PrePostProcessor``
 class. Refer to `Optimize Preprocessing
 notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/main/notebooks/118-optimize-preprocessing/118-optimize-preprocessing.ipynb>`__
 for more information about `Preprocessing
-API <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Preprocessing_Overview.html>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing.html>`__.
 Here is the migration guide from legacy model preprocessing to
 Preprocessing API.
 
@@ -736,7 +735,7 @@ for both inputs and outputs. Some preprocessing requires to set input
 layouts, for example, setting a batch, applying mean or scales, and
 reversing input channels (BGR<->RGB). For the layout syntax, check the
 `Layout API
-overview <https://docs.openvino.ai/2023.3/openvino_docs_OV_UG_Layout_Overview.html>`__.
+overview <https://docs.openvino.ai/2024/openvino-workflow/running-inference/optimize-inference/optimize-preprocessing/layout-api-overview.html>`__.
 To specify the layout, you can use the layout option followed by the
 layout value.
 
@@ -885,6 +884,6 @@ the new conversion API. Instead, we recommend performing the cut in the
 original framework. Examples of model cutting of TensorFlow protobuf,
 TensorFlow SavedModel, and ONNX formats with tools provided by the
 Tensorflow and ONNX frameworks can be found in `documentation
-guide <https://docs.openvino.ai/2023.3/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html#cutting-off-parts-of-a-model>`__.
+guide <https://docs.openvino.ai/2024/documentation/legacy-features/transition-legacy-conversion-api.html#cutting-off-parts-of-a-model>`__.
 For PyTorch, TensorFlow 2 Keras, and PaddlePaddle, we recommend changing
 the original model code to perform the model cut.
