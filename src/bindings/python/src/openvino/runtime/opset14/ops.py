@@ -77,7 +77,7 @@ def max_pool(
     kernel_shape: TensorShape,
     rounding_type: str = "floor",
     auto_pad: Optional[str] = None,
-    index_element_type: Optional[str] = "i64",
+    index_element_type: Optional[Union[str, Type]] = "i64",
     axis: Optional[int] = 0,
     name: Optional[str] = None,
 ) -> Node:
