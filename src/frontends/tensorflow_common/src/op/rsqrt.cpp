@@ -27,7 +27,7 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Rsqrt", "RSQRT"}, true);
     auto input = node.get_input(0);
 
-    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(tensor.get_node_shared_ptr());
+    auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark) {
         element::Type complex_part_type = complex_type_mark->get_complex_part_type();
         input = complex_type_mark->input_value(0);
@@ -67,9 +67,9 @@ OutputVector translate_rsqrt_op(const NodeContext& node) {
         auto rsqrt_real = make_shared<v1::Divide>(sqrt_real,
                                                   make_shared<v1::Add>(make_shared<v1::Power>(sqrt_real, const_two),
                                                                        make_shared<v1::Power>(sqrt_imag, const_two)));
-        auto rsqrt_imag = make_shared<v1::Negative>(
+        auto rsqrt_imag = make_shared<v0::Negative>(
             make_shared<v1::Divide>(sqrt_imag,
-                                    make_shared<v1::Add>(make_shared<v1::Power>(sqrt_real, const_two) +
+                                    make_shared<v1::Add>(make_shared<v1::Power>(sqrt_real, const_two),
                                                          make_shared<v1::Power>(sqrt_imag, const_two))));
 
         auto real_unsqueeze = make_shared<v0::Unsqueeze>(rsqrt_real, minus_one);
