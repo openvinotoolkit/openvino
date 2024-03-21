@@ -123,6 +123,10 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                     std::any_of(target_inputs.begin(), target_inputs.end(), [](const ov::Input<ov::Node>& target_inp) {
                         return ov::as_type<ov::op::v0::Result>(target_inp.get_node()) != nullptr;
                     })) {
+                    OPENVINO_SUPPRESS_DEPRECATED_START
+                    ov::descriptor::set_ov_tensor_legacy_name(insert_to.get_tensor(),
+                                                              ov::op::util::create_ie_output_name(ti_output));
+                    OPENVINO_SUPPRESS_DEPRECATED_END
                 }
             };
 
