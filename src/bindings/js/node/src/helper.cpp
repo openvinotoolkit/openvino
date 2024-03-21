@@ -509,7 +509,7 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
     } else if (value.IsBoolean()) {
         return ov::Any(value.ToBoolean());
     } else {
-        throw std::runtime_error("Cannot convert to ov::Any");
+        OPENVINO_THROW("Cannot convert to ov::Any");
     }
 }
 
