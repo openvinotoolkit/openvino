@@ -47,6 +47,15 @@ def clean_cache():
             pass
 
 
+def get_nightly_config_path(config_name):
+    dir_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tensorflow", "model_lists")
+    return os.path.join(dir_path, config_name)
+
+
+def get_local_config_path(config_name):
+    return os.path.join(os.path.dirname(__file__), config_name)
+
+
 class TestTFPerformanceModel(TestModelPerformance):
     def load_model(self, model_name, model_link):
         hub.load(model_link)
@@ -59,7 +68,7 @@ class TestTFPerformanceModel(TestModelPerformance):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             utils.get_models_list(os.path.join(os.path.dirname(__file__), "precommit_models")))
+                             utils.get_models_list(get_local_config_path("precommit_models")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
@@ -68,10 +77,8 @@ class TestTFPerformanceModel(TestModelPerformance):
         self.run(model_name, model_link, ie_device, get_tests_conf(TestType.PRECOMMIT))
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             utils.get_models_list_not_skipped(os.path.join(os.path.dirname(__file__),
-                                                                            "nightly_models"),
-                                                               os.path.join(os.path.dirname(__file__),
-                                                                            "nightly_models.skip")))
+                             utils.get_models_list_not_skipped(get_nightly_config_path("nightly_tf_hub"),
+                                                               get_local_config_path("nightly_models.skip")))
     @pytest.mark.nightly
     def test_convert_model_all_models(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip', "Incorrect test case: {}, {}".format(model_name, model_link)
