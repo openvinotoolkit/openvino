@@ -80,7 +80,7 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
         for (size_t i = 0; i < t1.get_shape()[0]; ++i) {
             for (size_t x = 0; x < t1.get_shape()[1]; ++x) {
                 for (size_t y = 0; y < t1.get_shape()[2]; ++y) {
-                    float val = ((float*)t1.data())[i * t1.get_shape()[0] + x * t1.get_shape()[1] + y];
+                    float val = reinterpret_cast<float*>(t1.data())[i * t1.get_shape()[0] + x * t1.get_shape()[1] + y];
                     std::cout << val << ' ';
                 }
                 std::cout << '\n';
@@ -90,7 +90,7 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
     } else if (t1.get_shape().size() == 2) {
         for (size_t x = 0; x < t1.get_shape()[0]; ++x) {
             for (size_t y = 0; y < t1.get_shape()[1]; ++y) {
-                float val = ((float*)t1.data())[x * t1.get_shape()[0] + y];
+                float val = reinterpret_cast<float*>(t1.data())[x * t1.get_shape()[0] + y];
                 std::cout << val << ' ';
             }
             std::cout << '\n';
@@ -102,7 +102,7 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
         for (size_t i = 0; i < t2.get_shape()[0]; ++i) {
             for (size_t x = 0; x < t2.get_shape()[1]; ++x) {
                 for (size_t y = 0; y < t2.get_shape()[2]; ++y) {
-                    float val = ((float*)t2.data())[i * t2.get_shape()[0] + x * t2.get_shape()[1] + y];
+                    float val = reinterpret_cast<float*>(t2.data())[i * t2.get_shape()[0] + x * t2.get_shape()[1] + y];
                     std::cout << val << ' ';
                 }
                 std::cout << '\n';
@@ -112,7 +112,7 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
     } else if (t2.get_shape().size() == 2) {
         for (size_t x = 0; x < t2.get_shape()[0]; ++x) {
             for (size_t y = 0; y < t2.get_shape()[1]; ++y) {
-                float val = ((float*)t2.data())[x * t2.get_shape()[0] + y];
+                float val = reinterpret_cast<float*>(t2.data())[x * t2.get_shape()[0] + y];
                 std::cout << val << ' ';
             }
             std::cout << '\n';
@@ -120,11 +120,13 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
         std::cout << '\n';
     }
 
-    if (expected[0].get_element_type() == ov::element::bf16) {
-        ov::test::utils::compare(t1, t2, 1.0f, 1.2f);
-    } else {
-        ov::test::utils::compare(t1, t2);
-    }
+    // if (expected[0].get_element_type() == ov::element::bf16) {
+    //     ov::test::utils::compare(t1, t2, 1.0f, 1.2f);
+    // } else {
+    //     ov::test::utils::compare(t1, t2);
+    // }
+    ov::test::utils::compare(t1, t2);
+
 }
 }  // namespace test
 }  // namespace ov
