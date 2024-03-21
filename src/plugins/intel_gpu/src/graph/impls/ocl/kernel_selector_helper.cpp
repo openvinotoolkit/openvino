@@ -782,13 +782,9 @@ bool is_supported_weights_layout(format l) {
         case format::bxfy:
         case format::yxfb:
         case format::yxio:
-        case format::os_yxi_osv16:
-        case format::o_is_yx_isv2:
         case format::o_is_yx_isv4:
         case format::o_is_yx_isv16:
-        case format::o_is_zyx_isv16:
         case format::os_iyx_osv16:
-        case format::os_is_yx_osv16_isv2:
         case format::os_is_yx_osv16_isv16:
         case format::os_iyx_osv32:
         case format::os_iyx_osv32__ai32:
@@ -800,45 +796,20 @@ bool is_supported_weights_layout(format l) {
         case format::winograd_6x3_s1_fused_weights:
         case format::image_2d_weights_winograd_6x3_s1_fbxyb:
         case format::image_2d_weights_winograd_6x3_s1_xfbyb:
-        case format::os_is_yx_osa4_isa8_osv8_isv2:
-        case format::os_is_zyx_osa4_isa8_osv8_isv2:
         case format::os_is_zyx_osa4_isa8_osv8_isv4:
-        case format::g_os_is_yx_isa8_osv8_isv2:
-        case format::g_os_is_yx_isa8_osv8_isv4:
-        case format::g_os_is_yx_osa2_isa8_osv8_isv2:
-        case format::g_os_is_yx_osa4_isa8_osv8_isv2:
-        case format::g_os_is_yx_osa4_isa8_osv8_isv4:
-        case format::g_os_is_zyx_osa4_isa8_osv8_isv4:
-        case format::g_os_is_zyx_osa4_isa8_osv8_isv2:
-        case format::g_os_is_yx_osv8_isv2:
-        case format::g_os_is_yx_osv8_isv4:
         case format::os_is_yx_osa4_isa8_osv8_isv4:
         case format::os_is_yx_isa8_osv8_isv4:
         case format::os_is_yx_isa8_osv16_isv4:
         case format::os_is_zyx_isa8_osv8_isv4:
         case format::os_is_zyx_isa8_osv16_isv4:
-        case format::os_is_yx_osv8_isv2:
-        case format::os_is_zyx_osv8_isv2:
         case format::os_is_yx_osv8_isv4:
-        case format::os_is_yx_osv4_isv16:
-        case format::os_is_yx_osv8_isv16:
-        case format::os_is_yx_osv4_isv2:
-        case format::os_is_yx_osv2_isv4:
-        case format::os_is_yx_osv2_isv16:
-        case format::os_is_yx_osv2_isv32:
-        case format::os_is_zyx_osv8_isv4:
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
-        case format::os_is_yx_isa8_osv8_isv4_swizzled_by_4:
-        case format::is_o_yx_isv32:
-        case format::is_o32_yx_isv32_swizzled_by_4:
-        case format::os_is_y_x8_osv8_isv4:
         case format::os_is_yx_osv16_isv4:
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
         case format::os_is_yx_osv32_isv4:
         case format::os_is_zyx_osv32_isv4:
         case format::os_is_yx_isv16_osv16:
-        case format::os_is_y_x8_osv8_isv4_swizzled_by_4:
         case format::bfzyx:
         case format::bfwzyx:
         case format::oizyx:
@@ -850,18 +821,10 @@ bool is_supported_weights_layout(format l) {
         case format::os_is_zyx_isv16_osv16:
         case format::is_os_zyx_isv16_osv16:
         case format::os_is_zyx_osv32_isv16:
-        case format::is_os_yx_osv8_isv4:
         case format::is_os_yx_isv16_osv16:
-        case format::is_os_yx_isv16_osv8:
-        case format::is_os_yx_isv16_osv4:
-        case format::is_os_yx_isv16_osv2:
         case format::i_yxs_os_yxsv2_osv16:
-        case format::is_os_yx_osa4_isa8_osv8_isv4:
         case format::iy_xs_os_xsv2_osv8__ao32:
         case format::iy_xs_os_xsv2_osv16__ao32:
-        case format::os_is_osv32_isv32_swizzled_by_4:
-        case format::os_is_zyx_isa8_osv16_isv2:
-        case format::os_is_yx_isa8_osv16_isv2:
         case format::os_is_zyx_isv8_osv16_isv2:
         case format::os_is_yx_isv8_osv16_isv2:
         case format::os_iyx_osv8:
@@ -873,70 +836,30 @@ bool is_supported_weights_layout(format l) {
         case format::g_os_iyx_osv8:
         case format::g_os_iyx_osv16:
         case format::g_os_iyx_osv32:
-        case format::gs_oiyx_gsv8:
-        case format::gs_oizyx_gsv8:
         case format::gs_oiyx_gsv16:
         case format::gs_oizyx_gsv16:
         case format::gs_oiyx_gsv32:
         case format::gs_oi_yxs_gsv4_yxsv4:
         case format::gs_oi_yxs_gsv16_yxsv4:
         case format::gs_oi_yxs_gsv32_yxsv4:
-        case format::gs_oizyx_gsv32:
         case format::gyxio:
         case format::gi_yxs_os_yxsv2_osv16:
         case format::giy_xs_os_xsv2_osv8__ao32:
         case format::g_is_os_zyx_isv16_osv16:
         case format::g_is_os_yx_isv16_osv16:
-        case format::g_os_is_zyx_isa8_osv8_isv2:
-        case format::g_os_is_zyx_isa8_osv8_isv4:
         case format::g_os_is_zyx_isv8_osv16_isv2:
         case format::g_os_is_yx_isv8_osv16_isv2:
         case format::g_os_is_zyx_isv16_osv16:
         case format::g_os_is_yx_osv16_isv4:
         case format::os_is_zyx_osv16_isv16:
         case format::g_os_is_zyx_osv16_isv16:
-        case format::os_is_yx_osa2_isa8_osv8_isv2:
-        case format::os_is_zyx_osa2_isa8_osv8_isv2:
-        case format::os_is_yx_osa2_isa8_osv16_isv4:
-        case format::g_os_is_yx_osa2_isa8_osv16_isv4:
-        case format::os_is_yx_osa2_isa8_osv16_isv2:
-        case format::g_os_is_yx_osa2_isa8_osv16_isv2:
         case format::g_os_zyx_is_osv16_isv4:
-        case format::g_os_zy_is_x_osv8_isv2:
-        case format::g_os_zy_is_x_osv8_isv4:
-        case format::g_os_zyx_is_osv8_isv2:
-        case format::g_os_zyx_is_osv8_isv4:
         case format::g_os_zyx_is_osv16_isv16:
         case format::g_os_zyx_is_osv16_isv32:
         case format::g_os_zyx_is_osv32_isv4:
         case format::g_os_zyx_is_osv32_isv16:
         case format::g_os_zyx_is_osv32_isv32:
-        case format::os_is_zyx_isa8_osv8_isv2:
-        case format::is_os_zyx_isa8_osv8_isv2:
-        case format::is_os_zyx_isa8_osv8_isv4:
-        case format::os_is_yx_isa8_osv8_isv2:
-        case format::is_os_yx_isa8_osv8_isv2:
-        case format::is_os_yx_isa8_osv8_isv4:
-        case format::is_os_yx_osa8_isv16_osv4:
-        case format::is_os_yx_isa2_osa8_isv8_osv2:
-        case format::is_os_yx_isa4_osa8_isv8_osv4:
-        case format::os_y_is_x_osv8_isv2:
-        case format::os_y_is_x_osv8_isv4:
-        case format::os_y_is_x_osv16_isv4:
-        case format::os_yx_is_osv8_isv2:
-        case format::os_yx_is_osv8_isv4:
-        case format::os_yx_is_osv16_isv2:
-        case format::os_zyx_is_osv8_isv2:
-        case format::os_zyx_is_osv8_isv4:
-        case format::os_zy_is_x_osv8_isv2:
-        case format::os_zy_is_x_osv8_isv4:
-        case format::g_os_yx_is_osv8_isv2:
-        case format::g_os_yx_is_osv8_isv4:
-        case format::g_os_yx_is_osv16_isv2:
-        case format::g_os_y_is_x_osv8_isv2:
-        case format::g_os_y_is_x_osv8_isv4:
         case format::g_os_is_yx_isv16_osv16:
-        case format::os_i_yxs_osv4_yxsv4:
             return true;
         default:
             return false;
