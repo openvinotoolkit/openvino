@@ -8,6 +8,7 @@
 #include "set_tpp_leading_dim.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -102,7 +103,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LinearIR::L
             //      Transposed shape = [2, 1, 49, 23]
             //      The leading dimension is equal to stride of shape[layout[3]] = 2 x 23
             case ExpressionPort::Type::Input :
-                return layout[layout.size() - 2]; // `1` in example
+                return snippets::utils::get_input_dim_idx(layout, 1); // `1` in example
             // Output shape is already transposed, we need to correctly write the data with original shape by the order
             // Example:
             //      Original transposed shape (shape) = [49, 2, 7, 39]
@@ -111,7 +112,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LinearIR::L
             //      Since we have non-planar layout, we have to find this before LD dim in transposed order.
             //      In layout 2nd idx is first element, it means, that the leading dimension is equal to stride of shape[0]
             case ExpressionPort::Type::Output :
-                return std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), layout.size() - 2)); // 0 in the example: shape[0] = 49
+                return snippets::utils::get_output_dim_idx(layout, 1); // 0 in the example: shape[0] = 49
             default:
                 OPENVINO_THROW("Unsupported Expression port type");
         }

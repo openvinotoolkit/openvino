@@ -67,6 +67,8 @@ inline void init_is_incremented(LoopPort& port, size_t loop_id) {
                 port.is_incremented = false;
                 return;
             }
+        } else {
+            OPENVINO_THROW("Unexpected LoopPort type");
         }
     }
 }
