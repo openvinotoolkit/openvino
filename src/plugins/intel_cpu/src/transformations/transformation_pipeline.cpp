@@ -108,7 +108,7 @@
 
 // CPU specific transformations
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
-#include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
+#include "transformations/snippets/common/pass/snippets_mark_skipped.hpp"
 #include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv.hpp"
 #include "transformations/cpu_opset/arm/pass/convert_group_conv1d.hpp"
@@ -828,7 +828,7 @@ void Transformations::MainSnippets(void) {
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (!ignoreCallback)
-        CPU_REGISTER_PASS_X64(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
+        CPU_REGISTER_PASS_COMMON(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
     if (inferencePrecision == ov::element::f32)
         CPU_REGISTER_PASS_ARM(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
@@ -933,8 +933,8 @@ void Transformations::MainSnippets(void) {
                     return false;
             }
 
-            return supported_element_types.count(t.get_element_type()) != 0 || is_input &&
-                   (t.get_element_type() == ov::element::i32 &&
+            return supported_element_types.count(t.get_element_type()) != 0 || (is_input &&
+                   t.get_element_type() == ov::element::i32 &&
                    (ov::is_type<const opset1::Transpose>(n) ||
                     ov::is_type<const opset1::Broadcast>(n) ||
                     ov::is_type<const opset1::ReduceMax>(n) ||
