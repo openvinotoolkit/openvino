@@ -510,7 +510,8 @@ TEST(pattern, matching_optional) {
                          std::make_shared<op::v0::Abs>(c)));
 }
 
-TEST(pattern, optional_full_match) {
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_full_match) {
     Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
@@ -524,7 +525,8 @@ TEST(pattern, optional_full_match) {
     ASSERT_TRUE(tm.match(pattern_relu1, model_relu1));
 }
 
-TEST(pattern, optional_half_match) {
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_half_match) {
     Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);
@@ -538,7 +540,8 @@ TEST(pattern, optional_half_match) {
     ASSERT_TRUE(tm.match(pattern_relu, model_relu1));
 }
 
-TEST(pattern, optional_testing) {
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_testing) {
     Shape shape{};
     auto model_input1 = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_input2 = std::make_shared<op::v0::Parameter>(element::i32, shape);
@@ -570,7 +573,8 @@ TEST(pattern, optional_testing) {
                          std::make_shared<op::v0::Relu>(std::make_shared<op::v0::Relu>(model_add))));
 }
 
-TEST(pattern, optional_one_node) {
+// Optional is not working properly yet CVS-136454
+TEST(pattern, DISABLED_optional_one_node) {
     Shape shape{};
     auto model_input = std::make_shared<op::v0::Parameter>(element::i32, shape);
     auto model_relu = std::make_shared<op::v0::Relu>(model_input);

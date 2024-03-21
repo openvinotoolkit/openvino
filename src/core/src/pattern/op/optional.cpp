@@ -43,7 +43,6 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     // Turn the Optional node into WrapType node to create a case where the Optional node is present
     ov::OutputVector input_values_to_optional = input_values();
     size_t num_input_values_to_optional = input_values_to_optional.size();
-    bool same_type = pattern_value.get_element_type() == graph_value.get_element_type();
     auto wrap_node = std::make_shared<WrapType>(optional_types, m_predicate, input_values_to_optional);
 
     // Either continue using the WrapType if there're no inputs to it or create an Or node,
@@ -53,9 +52,8 @@ bool ov::pass::pattern::op::Optional::match_value(Matcher* matcher,
     auto pattern = num_input_values_to_optional == 0 ? std::static_pointer_cast<Pattern>(wrap_node)
                                                      : std::static_pointer_cast<Pattern>(std::make_shared<Or>(
                                                            OutputVector{wrap_node, input_values_to_optional[0]}));
-    // bool check = (pattern_value.get_node_shared_ptr()->get_output_size() != 0 && num_input_values_to_optional == 0);
 
-    if (matcher->match_value(pattern, graph_value) || (same_type && num_input_values_to_optional == 0)) {
+    if (matcher->match_value(pattern, graph_value) || num_input_values_to_optional == 0) {
         auto& pattern_map = matcher->get_pattern_value_map();
         if (pattern_map.count(wrap_node)) {
             pattern_map[shared_from_this()] = graph_value;
