@@ -123,11 +123,10 @@ TEST_F(HeteroTests, query_model_by_three_device) {
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
-    const auto supported_ops =
-        core.query_model(model,
-                         "HETERO",
-                         {ov::device::priorities(dev_name0 + "," + dev_name1 + "," + dev_name2),
-                          ov::hint::model_distribution_policy(model_policy)});
+    const auto supported_ops = core.query_model(model,
+                                                "HETERO",
+                                                {ov::device::priorities(dev_name0 + "," + dev_name1 + "," + dev_name2),
+                                                 ov::hint::model_distribution_policy(model_policy)});
     std::map<std::string, std::string> expect_result = {{"input", "MOCKGPU.2"},
                                                         {"const_val1", "MOCKGPU.2"},
                                                         {"const_val2", "MOCKGPU.2"},
@@ -153,11 +152,10 @@ TEST_F(HeteroTests, query_model_by_two_device) {
     // This WA is needed because mock plugins are loaded one by one
     EXPECT_NO_THROW(core.get_available_devices());
     const auto model = create_model_with_multi_add();
-    const auto supported_ops =
-        core.query_model(model,
-                         "HETERO",
-                         {ov::device::priorities(dev_name0 + "," + dev_name1),
-                          ov::hint::model_distribution_policy(model_policy)});
+    const auto supported_ops = core.query_model(
+        model,
+        "HETERO",
+        {ov::device::priorities(dev_name0 + "," + dev_name1), ov::hint::model_distribution_policy(model_policy)});
     std::map<std::string, std::string> expect_result = {{"input", "MOCKGPU.2"},
                                                         {"const_val1", "MOCKGPU.2"},
                                                         {"const_val2", "MOCKGPU.2"},

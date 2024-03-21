@@ -141,17 +141,18 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
         if (ov::util::contains(supported_properties, ov::query_model_ratio)) {
             if (fallback_device) {
                 device_config[ov::query_model_ratio.name()] = 1.0f;
-            } else if (device_name.find("GPU") != std::string::npos) {
+            } else if (device_name.find("GPU") != std::string::npos &&
+                       device_mem_map.find(device_name) != device_mem_map.end()) {
                 size_t total_ops_size = 0;
                 for (auto&& op : model->get_ordered_ops()) {
                     if (ov::op::util::is_constant(op)) {
                         total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
                     }
                 }
-                // Estimate the memory size required for the model is 1.2 * total_ops_size
-                // 1. Check if current GPU device that can take the entire model
-                // 2. Check if all left GPU devices can take the entire model
-                if (device_mem_map.find(device_name) != device_mem_map.end()) {
+                if (full_config.parallel_policy == ov::hetero::ParallelPolicy::AUTO_SPLIT) {
+                    // Estimate the memory size required for the model is 1.2 * total_ops_size
+                    // 1. Check if current GPU device that can take the entire model
+                    // 2. Check if all left GPU devices can take the entire model
                     if (device_mem_map[device_name] >= 1.2 * total_ops_size) {
                         device_config[ov::query_model_ratio.name()] = 1.0f;
                     } else if (device_mem_map["all_gpu_left"] >= 1.2 * total_ops_size ||
@@ -168,6 +169,21 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
                         device_config[ov::query_model_ratio.name()] = model_ratio;
                     }
                     device_mem_map["all_gpu_left"] -= device_mem_map[device_name];
+                } else if (full_config.parallel_policy == ov::hetero::ParallelPolicy::MEMORY_FIRST) {
+                    if (device_mem_map[device_name] >= 1.2 * total_ops_size) {
+                        device_config[ov::query_model_ratio.name()] = 1.0f;
+                    } else {
+                        float model_ratio =
+                            static_cast<float>(device_mem_map[device_name] * 1.0 / (total_ops_size * 1.2));
+                        if (total_ops_size < device_mem_map[device_name]) {
+                            model_ratio = 1.0f;
+                        }
+                        device_config[ov::query_model_ratio.name()] = model_ratio;
+                    }
+                } else if (full_config.parallel_policy == ov::hetero::ParallelPolicy::MEMORY_RATIO) {
+                    float model_ratio =
+                        static_cast<float>(device_mem_map[device_name] * 1.0 / device_mem_map["all_gpu_left"]);
+                    device_config[ov::query_model_ratio.name()] = model_ratio;
                 }
             }
         }
@@ -257,7 +273,9 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::priorities, ov::hint::model_distribution_policy};
+        std::vector<ov::PropertyName> rw_properties{ov::device::priorities,
+                                                    ov::hint::model_distribution_policy,
+                                                    ov::hetero::parallel_policy};
         return rw_properties;
     };
 

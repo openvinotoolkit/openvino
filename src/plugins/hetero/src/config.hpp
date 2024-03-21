@@ -8,6 +8,7 @@
 #include <string>
 
 #include "openvino/runtime/properties.hpp"
+#include "properties.hpp"
 
 namespace ov {
 namespace hetero {
@@ -34,7 +35,11 @@ struct Configuration {
     bool dump_dot_files() const;
 
     std::string device_priorities;
+
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+
+    ov::hetero::ParallelPolicy parallel_policy = ov::hetero::ParallelPolicy::AUTO_SPLIT;
+
     ov::AnyMap device_properties;
 };
 }  // namespace hetero
