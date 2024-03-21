@@ -72,5 +72,11 @@ public:
     Napi::Value export_model(const Napi::CallbackInfo& info);
 
 private:
+    /** @brief Gets node of a compiled model specified in CallbackInfo. */
+    Napi::Value get_node(const Napi::CallbackInfo& info,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func)() const,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_tname)(const std::string&)const,
+                         const ov::Output<const ov::Node>& (ov::CompiledModel::*func_idx)(size_t) const);
+
     ov::CompiledModel _compiled_model;
 };
