@@ -51,7 +51,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int model_prefer_threads,
                                                      const int input_current_socket_id,
                                                      const std::string input_perf_hint,
-                                                     const std::vector<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
+                                                     const std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy,
                                                      const std::vector<std::vector<int>>& proc_type_table);
 /**
  * @brief      Get model_prefer_threads

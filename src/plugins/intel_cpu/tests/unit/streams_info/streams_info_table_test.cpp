@@ -22,7 +22,7 @@ struct StreamsCalculationTestCase {
     int model_prefer_threads;
     int input_socket_id;
     std::string input_perf_hint;
-    std::vector<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy;
+    std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> stream_info_table;
 };

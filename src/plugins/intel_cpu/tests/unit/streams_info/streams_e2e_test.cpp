@@ -28,7 +28,7 @@ struct StreamGenerateionTestCase {
     bool input_cpu_value;
     bool input_cpu_changed;
     ov::hint::PerformanceMode input_pm_hint;
-    std::vector<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy;
+    std::set<ov::hint::ModelDistributionPolicy> hint_llm_distribution_policy;
     std::vector<std::vector<int>> input_proc_type_table;
     ov::hint::SchedulingCoreType output_type;
     bool output_ht_value;
