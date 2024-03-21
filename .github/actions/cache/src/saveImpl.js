@@ -40,6 +40,12 @@ async function save() {
       },
       ['.']
     )
+
+    // remote cache directory may not be created yet
+    if (!fs.existsSync(cacheRemotePath)) {
+      fs.mkdirSync(cacheRemotePath)
+    }
+
     core.info('Copying cache...')
     fs.copyFileSync(tarName, tarPath)
     core.info(`${tarName} was copied to ${tarPath}`)
