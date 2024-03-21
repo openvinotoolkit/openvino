@@ -236,23 +236,18 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 
 Napi::Value CoreWrap::set_property(const Napi::CallbackInfo& info) {
     try {
-        CoreSetPropertyArgs* args;
-        args = new CoreSetPropertyArgs(info);
+        CoreSetPropertyArgs args = CoreSetPropertyArgs(info);
 
-        if (args->device_name.empty()) {
-            _core.set_property(args->parameters);
+        if (args.device_name.empty()) {
+            _core.set_property(args.parameters);
         } else {
-            _core.set_property(args->device_name, args->parameters);
+            _core.set_property(args.device_name, args.parameters);
         }
-
-        delete args;
-
-        return info.Env().Undefined();
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
-
-        return info.Env().Undefined();
     }
+
+    return info.Env().Undefined();
 }
 
 Napi::Value CoreWrap::get_property(const Napi::CallbackInfo& info) {
