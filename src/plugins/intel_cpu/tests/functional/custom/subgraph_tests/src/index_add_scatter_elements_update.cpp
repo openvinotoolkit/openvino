@@ -254,14 +254,6 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{8192, 4096}, {{{4096, 4096}, {0}}}},
 };
 
-inline std::vector<InputShape> static_shapes_to_test_representation(const std::vector<ov::Shape>& shapes) {
-    std::vector<InputShape> result;
-    for (const auto& staticShape : shapes) {
-        result.push_back({{}, {staticShape}});
-    }
-    return result;
-}
-
 inline std::vector<InputShape> partial_shapes_to_test_representation(
     const std::vector<ov::PartialShape>& shapes) {
     std::vector<InputShape> result;
