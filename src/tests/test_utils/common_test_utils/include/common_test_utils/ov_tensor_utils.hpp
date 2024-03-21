@@ -9,6 +9,25 @@
 namespace ov {
 namespace test {
 namespace utils {
+
+// todo: remove w/a to generate correct constant data (replace parameter to const) in conformance with defined range
+struct ConstRanges {
+    static double max, min;
+    static bool is_defined;
+
+    static void set(double _min, double _max) {
+        min = _min;
+        max = _max;
+        is_defined = true;
+    }
+
+    static void reset() {
+        min = std::numeric_limits<double>::max();
+        max = std::numeric_limits<double>::min();
+        is_defined = false;
+    }
+};
+
 struct InputGenerateData {
     double start_from = 0;
     uint32_t range = 10;
@@ -19,7 +38,18 @@ struct InputGenerateData {
         : start_from(_start_from),
           range(_range),
           resolution(_resolution),
-          seed(_seed){};
+          seed(_seed) {
+        if (ConstRanges::is_defined) {
+            auto min_orig = start_from;
+            auto max_orig = start_from + range * resolution;
+            auto min_ref = ConstRanges::min;
+            auto max_ref = ConstRanges::max;
+            if (min_orig < min_ref || min_orig == 0)
+                start_from = min_ref;
+            range =
+                (uint32_t)round((max_orig > max_ref || max_orig == 10 ? max_ref : max_orig - start_from) - start_from);
+        }
+    };
 };
 
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
