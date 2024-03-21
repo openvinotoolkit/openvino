@@ -10,6 +10,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -28,7 +32,12 @@ ClampFP16Output::ClampFP16Output() {
     auto in1 = any_input(as_value_predicate(class_other_than<v0::Constant>()));
     auto matmul_m = wrap_type<v0::MatMul>({in0, in1}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
     auto reshape_m = wrap_type<v1::Reshape>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
-    auto softmax_input_m = std::make_shared<Or>(ov::OutputVector{reshape_m, matmul_m});
+    auto add_m = wrap_type<v1::Add>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
+    auto multiply_m = wrap_type<v1::Multiply>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
+    auto subtract_m = wrap_type<v1::Subtract>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
+    auto divide_m = wrap_type<v1::Divide>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
+    auto eltwise_m = std::make_shared<Or>(ov::OutputVector{add_m, multiply_m, subtract_m, divide_m});
+    auto softmax_input_m = std::make_shared<Or>(ov::OutputVector{eltwise_m, reshape_m, matmul_m});
     auto softmax_m = wrap_type<v8::Softmax>({softmax_input_m}, type_matches(ov::element::f16));
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
