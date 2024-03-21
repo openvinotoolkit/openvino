@@ -72,5 +72,5 @@ jobs:
 
       - name: Print Output
         run: |
-          ls -la ${CACHE_LOCAL}
+          ls -l ${env:CACHE_LOCAL}
           echo "${{ steps.test-action.outputs.cache-file }}"
