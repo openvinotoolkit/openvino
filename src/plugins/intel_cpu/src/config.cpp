@@ -192,7 +192,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::model_distribution_policy.name(),
-                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL/NONE}");
+                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}");
             };
 
             try {
