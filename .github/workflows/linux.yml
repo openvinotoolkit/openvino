@@ -201,7 +201,7 @@ jobs:
         run: ccache --show-stats
 
       - name: Clean ccache
-        run: ccache --cleanup --evict-older-than 7200s
+        run: ccache --cleanup
 
       - name: Cmake install - OpenVINO
         run: |

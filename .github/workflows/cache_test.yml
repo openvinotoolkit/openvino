@@ -51,13 +51,10 @@ jobs:
 
       - name: Test preconditions(win)
         run: |
-          mkdir -p ${env:CACHE_TMP} -force
-          echo test > ${env:CACHE_TMP}/file.txt
-          mkdir -p ${env:CACHE_REMOTE} -force
-          pushd ${env:CACHE_TMP}
-            tar -czvf ${env:CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
-          popd
-          ls ${env:CACHE_REMOTE}
+          mkdir -p ${env:CACHE_LOCAL} -force
+          echo test  > ${env:CACHE_LOCAL}/file.txt
+          echo test2 > ${env:CACHE_LOCAL}/file2.txt
+          echo test3 > ${env:CACHE_LOCAL}/file3.txt
 
       - name: Test Local Action
         id: test-action
