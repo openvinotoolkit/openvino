@@ -12,6 +12,7 @@
 #endif
 
 #include "itt.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
@@ -121,8 +122,32 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
 
         auto ptr = static_cast<size_t*>(tensor.data());
         size_t size = tensor.get_size() / sizeof(size_t);
-        for (size_t i = 0; i < size; i++)
-            seed = hash_combine(seed, ptr[i]);
+
+        size_t block_size = 100000000;
+        size_t blocks_num = size / block_size;
+        std::vector<uint64_t> block_hashes(blocks_num + 1);
+
+        ov::parallel_for(blocks_num, [&](size_t block_idx) {
+            auto& block_hash = block_hashes[block_idx];
+            auto local_ptr = ptr + block_size * block_idx;
+            for (size_t i = 0; i < block_size; i++) {
+                block_hash = hash_combine(block_hash, local_ptr[i]);
+            }
+        });
+
+        {
+            auto& block_hash = block_hashes[blocks_num];
+            auto local_ptr = ptr + block_size * blocks_num;
+            auto elements_left = size - block_size * blocks_num;
+            for (size_t i = 0; i < elements_left; i++) {
+                block_hash = hash_combine(block_hash, local_ptr[i]);
+            }
+        }
+
+        for (auto hash : block_hashes) {
+            seed = hash_combine(seed, hash);
+        }
+
         auto size_done = size * sizeof(size_t);
         auto ptr_left = static_cast<uint8_t*>(tensor.data()) + size_done;
         size_t size_left = tensor.get_size() - size_done;
