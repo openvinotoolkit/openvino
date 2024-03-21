@@ -48,7 +48,7 @@ elseif(AARCH64)
             # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
             # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
             # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
-            # set(OV_CPU_AARCH64_USE_MULTI_ISA ON)
+            set(OV_CPU_AARCH64_USE_MULTI_ISA ON)
         endif()
         if(OV_CPU_AARCH64_USE_MULTI_ISA)
             # set v8a even we want fp16 kernels, because
