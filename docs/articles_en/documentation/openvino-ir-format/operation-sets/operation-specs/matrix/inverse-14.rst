@@ -23,7 +23,7 @@ The inverse matrix :math:`A^{-1}` of a square n-dimensional matrix :math:`A` is 
 
 where :math:`I` is the n-dimensional identity matrix.
 
-The inverse matrix exists if and only if the input matrix is invertible (satisfies any of the properties of the *Invertible Matrix Theorem*). In that case, the inverse exists, and is unique. However, if the matrix is not invertible, the operation may raise an exception or return an undefined result.
+The inverse matrix exists if and only if the input matrix is invertible (satisfies any of the properties of the *Invertible Matrix Theorem*). In that case, the inverse exists, and is unique. However, if the matrix is not invertible, the operation may raise an exception or return an undefined result. The operation may return slightly different results for the same input data on different devices due to parallelism and different data types implementations.
 
 This operation can be used to compute the adjugate matrix instead of the inverse.
 

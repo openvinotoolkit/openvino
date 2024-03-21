@@ -6,7 +6,6 @@
 
 #include "evaluate_node.hpp"
 #include "inverse_shape_inference.hpp"
-#include "openvino/reference/convert.hpp"
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const std::shared_ptr<ov::op::v14::Inverse>& op,
