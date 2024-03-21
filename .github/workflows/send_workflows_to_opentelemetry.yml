@@ -60,6 +60,7 @@ jobs:
           PGHOST: ${{ secrets.METRICS_DATABASE_HOST }}
           PGUSER: ${{ secrets.METRICS_DATABASE_USERNAME }}
           PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
+          PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
           PGPORT: 5432
         run: |
           python3 .github/scripts/collect_github_metrics.py \
