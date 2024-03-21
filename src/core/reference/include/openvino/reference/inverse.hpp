@@ -55,7 +55,7 @@ void lu_decomposition(const T* input,
             std::swap_ranges(&L[k], &L[k] + n, L[pivot_idx]);
         }
 
-        const auto remaining_columns = m_side - k;
+        const auto remaining_columns = n - k;
         const auto remaining_rows = remaining_columns - 1;
 
         for (size_t i = 0; i < remaining_rows; ++i) {
@@ -146,7 +146,7 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
     size_t batch_size = 1;
 
     for (size_t i = 0; i < shape.size() - 2; ++i) {
-        batch_size = batch_size * input_shape[i];
+        batch_size = batch_size * shape[i];
     }
 
     std::vector<T> L(n_squared);
