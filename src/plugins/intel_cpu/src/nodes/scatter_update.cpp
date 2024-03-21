@@ -13,8 +13,6 @@
 #include "openvino/opsets/opset12.hpp"
 #include "utils/plain_tensor.hpp"
 
-#include "../shape_inference/include/element_visitor.hpp"
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -576,57 +574,79 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     });
 }
 
-struct Caller : public element::NoAction<bool> {
-    using element::NoAction<bool>::visit;
-
-    template <element::Type_t DATA_ET, class DT = fundamental_type_for<DATA_ET>>
-    static result_type visit(ov::element::Type& indicesPrec, const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                            int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
-        using namespace ov::element;
-        return IF_TYPE_OF(scatter_el_update_idx_type,
-                          OV_PP_ET_LIST(i32),
-                          EvaluateByIndicesType,
-                          indicesPrec,
-                          dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, (DT*)0ul);
+template <typename DT, typename IT>
+void scatterElementsUpdate_target(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                        int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
+    switch (reduction_type) {
+    case ScatterUpdate::Reduction::NONE :
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, data_assign);
+        break;
+    case ScatterUpdate::Reduction::SUM :
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_add);
+        break;
+    case ScatterUpdate::Reduction::MAX :
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_maximum);
+        break;
+    case ScatterUpdate::Reduction::MIN :
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_minimum);
+        break;
+    case ScatterUpdate::Reduction::PROD:
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_multiply);
+        break;
+    case ScatterUpdate::Reduction::MEAN :
+        scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_mean);
+        break;
+    default :
+        OPENVINO_THROW("unsupported reduce");
+        break;
     }
+}
 
-private:
-    struct EvaluateByIndicesType : public element::NoAction<bool> {
-        using element::NoAction<bool>::visit;
+template<typename DT>
+void dispatch_IT(const ov::element::Type& indices_precision,
+                    const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                    int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
+    switch (indices_precision) {
+        case ov::element::i32:
+            scatterElementsUpdate_target<DT, int32_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::i64:
+            scatterElementsUpdate_target<DT, int64_t>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        default:
+            OPENVINO_THROW("Unsupported precision for indices ", indices_precision);
+            break;
+    }
+}
 
-        template <element::Type_t INDEX_ET, class DT, class IT = fundamental_type_for<INDEX_ET>>
-        static result_type visit(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                                int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, DT* dummy) {
-            switch (reduction_type) {
-            case ScatterUpdate::Reduction::NONE :
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, data_assign);
-                break;
-            case ScatterUpdate::Reduction::SUM :
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_add);
-                break;
-            case ScatterUpdate::Reduction::MAX :
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_maximum);
-                break;
-            case ScatterUpdate::Reduction::MIN :
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_minimum);
-                break;
-            case ScatterUpdate::Reduction::PROD:
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_multiply);
-                break;
-            case ScatterUpdate::Reduction::MEAN :
-                scatterElementsUpdate<DT, IT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type, reduce_mean);
-                break;
-            default :
-                OPENVINO_THROW("unsupported reduce");
-                break;
-            }
-            return true;
-        }
-    };
-};
+static inline
+void precision_dispatch(const ov::element::Type& data_precision, const ov::element::Type& indices_precision,
+                        const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                        int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
+    switch (data_precision) {
+        case ov::element::f32:
+            dispatch_IT<float>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::bf16:
+            dispatch_IT<ov::bfloat16>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::f16:
+            dispatch_IT<ov::float16>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        default:
+            OPENVINO_THROW("Unsupported precision for data and updates ", data_precision);
+            break;
+    }
+}
 
 };  // namespace scatter_elements_update
 
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
+                        int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
+    scatter_elements_update::precision_dispatch(dataPrec, indicesPrec,
+                                                dstMemPtr, indicesMemPtr, updateMemPtr,
+                                                axis, use_init_val, reduction_type);
+}
 
 void ScatterUpdate::execute(dnnl::stream strm) {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
@@ -756,12 +776,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            using namespace ov::element;
-            IF_TYPE_OF(scatter_el_update_data_type,
-                OV_PP_ET_LIST(f32, bf16, f16, i32),
-                scatter_elements_update::Caller,
-                dataPrec, indicesPrec,
-                dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            scatterElementsUpdate(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
             break;
         }
         default: {
