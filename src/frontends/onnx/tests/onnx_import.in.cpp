@@ -934,7 +934,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_log_sum_18_axes_as_input) {
     test_case.add_input<int64_t>({3});
 
     test_case.add_expected_output(Shape{1, 1, 4, 1},
-                                  std::vector<float>{2.19722458, 2.19722458, 2.48490665, 2.19722458});
+                                  std::vector<float>{2.19722458f, 2.19722458f, 2.48490665f, 2.19722458f});
 
     test_case.run();
 }
