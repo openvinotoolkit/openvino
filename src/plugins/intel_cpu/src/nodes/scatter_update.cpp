@@ -11,7 +11,6 @@
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset12.hpp"
-#include "utils/plain_tensor.hpp"
 
 #include <algorithm>
 #include <string>
@@ -348,7 +347,7 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
 struct TensorIterator {
     TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis) : m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis) {
         OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
-    };
+    }
 
     std::array<size_t, 2> startover(const size_t start, const std::vector<size_t>& dataBlockND, const std::vector<size_t>& indicesBlockND) {
         m_tensorIter.resize(m_squashed_shape.size(), 0);
@@ -498,13 +497,15 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     });
 }
 
+// We specialize ReduceMean to avoid spoil performance of other reduce methods, as otherwise condition branch
+// were used in loops.
 template <typename DataType, typename IndexType>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                             int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, ReduceMean& kernel_func) {
-    PlainTensor data_buf, indices_buf, updates_buf;
-    data_buf.reset(mem_data);
-    indices_buf.reset(mem_indices);
-    updates_buf.reset(mem_updates);
+    OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
+    DataType *dataPtr = mem_data->getDataAs<DataType>();
+    DataType *updatePtr = mem_updates->getDataAs<DataType>();
+    IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
@@ -519,56 +520,113 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
     VectorDims squashed_indices_shape(indices_shape);
     squashed_indices_shape[axis] = 1;
 
+    const std::vector<size_t> dataBlockND = getBlockND(data_shape);
+    const std::vector<size_t> indicesBlockND = getBlockND(indices_shape);
+
     // process serially along 'axis' dimension because of data dependency brought by duplicated value in indices
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
+        TensorIterator tensorItr(squashed_indices_shape, axis);
 
+        // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
+        // will not affect the particular reduction algorithms.
         if (!use_init_val) {
             const auto value = reduction_neutral_value<DataType>(reduction_type);
+            auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
             for (size_t worker = start; worker < end; worker++) {
-                VectorDims indices_coord(updates_rank, 0);
-                getCoordinate(indices_coord, worker, squashed_indices_shape);
-                std::vector<size_t> data_coord(indices_coord);
-
-                for (size_t i = 0; i < index_dim_size; i++) {
-                    indices_coord[axis] = i;
-                    IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                auto indices_offset = offsets[1];
+                for (size_t idx = 0; idx < index_dim_size; idx++) {
+                    IndexType idxValue = *(indicesPtr + indices_offset);
                     if (idxValue < 0) idxValue += data_dim_size;
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    data_coord[axis] = idxValue;
-                    data_buf.at<DataType, size_t>(data_coord) = value;
+                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
+                    *dst = value;
+                    indices_offset += indicesBlockND[axis + 1];
                 }
+
+                // increment
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
             }
         }
 
-        for (size_t worker = start; worker < end; worker++) {
-            VectorDims indices_coord(updates_rank, 0);
-            getCoordinate(indices_coord, worker, squashed_indices_shape);
-            std::vector<size_t> data_coord(indices_coord);
+        // Apply the Reduce function in an element-wise fashion. For better performance,
+        // when axis is the last dimension, we iterate along axis in the inner loop; otherwise we iterate axis
+        // in the outer loop.
+        auto offsets = tensorItr.startover(start, dataBlockND, indicesBlockND);
+        if (axis == static_cast<int>(updates_rank - 1)) {
+            for (size_t worker = start; worker < end; worker++) {
+                std::unordered_map<size_t, int64_t> mean_reduction_counters;  // (idxValue, num_sums) for current worker
 
-            std::unordered_map<size_t, int64_t> mean_reduction_counters;
+                auto indices_offset = offsets[1];
+                for (size_t idx = 0; idx < index_dim_size; idx++) {
+                    IndexType idxValue = *(indicesPtr + indices_offset);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
+                    auto src = updatePtr + indices_offset;
+                    kernel_func(dst, src);
+                    indices_offset += indicesBlockND[axis + 1];
 
-            // inner axis loop for better performance
-            for (size_t i = 0; i < index_dim_size; i++) {
-                indices_coord[axis] = i;
-                IndexType idxValue = indices_buf.at<IndexType, size_t>(indices_coord);
+                    mean_reduction_counters[idxValue] += 1;
+                }
+
+                // average
+                for (const auto& counter : mean_reduction_counters) {
+                    auto dst = dataPtr + (offsets[0] + counter.first * dataBlockND[axis + 1]);
+                    const auto N = counter.second + static_cast<int32_t>(use_init_val);
+                    *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
+                }
+
+                // increment
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+            }
+        } else {
+            // For better performance, the offsets of dst and indices are cached in the first iteration of outer loop, and reused
+            // in the remaining iterations.
+            std::unordered_map<DataType*, int64_t> mean_reduction_counters;     // (dst_addr, num_sums) for all workers
+
+            std::vector<size_t> dst_offsets(end-start+1, offsets[0]);  // one extra to avoid overflow at the last iteration of inner loop
+            std::vector<size_t> indices_offsets(end-start+1, offsets[1]);
+            size_t *ptr_dst_offset = &dst_offsets[0];
+            size_t *ptr_indices_offset = &indices_offsets[0];
+            for (size_t worker = start; worker < end; worker++) { // idx = 0
+                IndexType idxValue = *(indicesPtr + *ptr_indices_offset);
                 if (idxValue < 0) idxValue += data_dim_size;
                 ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                data_coord[axis] = idxValue;
-                DataType& dst = data_buf.at<DataType, size_t>(data_coord);
-                DataType src = updates_buf.at<DataType, size_t>(indices_coord);
+                auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
+                auto src = updatePtr + *ptr_indices_offset;
+                kernel_func(dst, src);
 
-                kernel_func(std::addressof(dst), &src);
+                mean_reduction_counters[dst] += 1;
 
-                mean_reduction_counters[idxValue] += 1;
+                // increment once for all
+                tensorItr.increment(offsets, dataBlockND, indicesBlockND);
+                *++ptr_dst_offset = offsets[0];
+                *++ptr_indices_offset = offsets[1];
+            }
+            for (size_t idx = 1; idx < index_dim_size; idx++) {
+                ptr_indices_offset = &indices_offsets[0];
+                ptr_dst_offset = &dst_offsets[0];
+                for (size_t worker = start; worker < end; worker++) {
+                    auto indices_offset = *ptr_indices_offset + idx * indicesBlockND[axis + 1];
+                    IndexType idxValue = *(indicesPtr + indices_offset);
+                    if (idxValue < 0) idxValue += data_dim_size;
+                    ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
+                    auto dst = dataPtr + (*ptr_dst_offset + idxValue * dataBlockND[axis + 1]);
+                    auto src = updatePtr + indices_offset;
+                    kernel_func(dst, src);
+                    mean_reduction_counters[dst] += 1;
+                    ptr_indices_offset++;
+                    ptr_dst_offset++;
+                }
             }
 
+            // average
             for (const auto& counter : mean_reduction_counters) {
-                data_coord[axis] = counter.first;
-                DataType& dst = data_buf.at<DataType, size_t>(data_coord);
+                auto dst = counter.first;
                 const auto N = counter.second + static_cast<int32_t>(use_init_val);
-                dst = static_cast<DataType>(static_cast<double>(dst) / N);
+                *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
             }
         }
     });
@@ -632,6 +690,9 @@ void precision_dispatch(const ov::element::Type& data_precision, const ov::eleme
             break;
         case ov::element::f16:
             dispatch_IT<ov::float16>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::i32:
+            dispatch_IT<int32_t>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
             break;
         default:
             OPENVINO_THROW("Unsupported precision for data and updates ", data_precision);
