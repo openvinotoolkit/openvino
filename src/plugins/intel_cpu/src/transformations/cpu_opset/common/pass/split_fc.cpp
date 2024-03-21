@@ -44,53 +44,36 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
         auto split_parts = [](int len, int n) {
             int average = len / n;
-            int remainder = len % n;
-            if (remainder == 0) {
-                std::vector<int> parts(n, average);
-                return parts;
-            } else {
-                std::vector<int> parts(n-1, average);
-                parts.emplace_back(remainder);
-                return parts;
-            }
+            std::vector<int> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
         };
+
+        // TODO: support transpose
+        if (ov::is_type<ov::op::v1::Transpose>(fc_weight_node)) {
+            return false;
+        }
 
         // 1. If the model is INT4 format, split the INT4 pattern for the FuseFCAndWeightsDecompression.
         // 2. If the model is NOT INT4 format, split the weight.
         std::vector<ov::Output<ov::Node>> wgt_node_vec(split_num);
-        if (ov::as_type_ptr<ov::op::v1::Multiply>(fc_weight_node) || ov::as_type_ptr<ov::op::v1::Reshape>(fc_weight_node)) {
+        if (ov::is_type<ov::op::v1::Multiply>(fc_weight_node) || ov::is_type<ov::op::v1::Reshape>(fc_weight_node)) {
             // INT4 model should consider two patterns, including with Reshape Node and without Reshape Node.
-            auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(fc_weight_node);
-            bool with_reshape = reshape_node != nullptr;
-            std::vector<int32_t> reshape_vec;
-            bool reshape_special_zero;
-            std::shared_ptr<Node> multiply_node;
-            if (with_reshape) {
-                auto reshape_pattern = reshape_node->get_input_node_shared_ptr(1);
-                auto reshape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_pattern);
-                if (!reshape_pattern || !reshape_const) {
-                    return false;
-                }
-                reshape_vec = reshape_const->cast_vector<int32_t>();
-                reshape_special_zero = reshape_node->get_special_zero();
-                multiply_node = reshape_node->get_input_node_shared_ptr(0);
-            } else {
-                multiply_node = fc_weight_node;
-            }
-
-            if (!ov::as_type_ptr<ov::op::v1::Multiply>(multiply_node)) {
+            const auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(fc_weight_node);
+            const auto multiply_node = reshape_node ? reshape_node->get_input_node_shared_ptr(0) : fc_weight_node;
+            if (!ov::is_type<ov::op::v1::Multiply>(multiply_node)) {
                 return false;
             }
             auto multiply_pattern = multiply_node->get_input_node_shared_ptr(1);
-            if (!multiply_pattern) {
+            if (!ov::is_type<ov::op::v0::Constant>(multiply_pattern)) {
                 return false;
             }
             auto subtract_node = multiply_node->get_input_node_shared_ptr(0);
-            if (!(ov::as_type_ptr<ov::op::v1::Subtract>(subtract_node))) {
+            if (!ov::is_type<ov::op::v1::Subtract>(subtract_node)) {
                 return false;
             }
             auto convert_node1 = subtract_node->get_input_node_shared_ptr(1);
-            if (!(ov::as_type_ptr<ov::op::v0::Convert>(convert_node1))) {
+            if (!ov::is_type<ov::op::v0::Convert>(convert_node1)) {
                 return false;
             }
             auto convert_node1_const = ov::as_type_ptr<ov::op::v0::Constant>(convert_node1->get_input_node_shared_ptr(0));
@@ -98,15 +81,17 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
                 return false;
             }
             auto convert_node0 = subtract_node->get_input_node_shared_ptr(0);
-            if (!(ov::as_type_ptr<ov::op::v0::Convert>(convert_node0))) {
+            if (!ov::is_type<ov::op::v0::Convert>(convert_node0)) {
                 return false;
             }
             auto wgt_item = convert_node0->get_input_node_shared_ptr(0);
             auto cvt_prec = convert_node0->get_element_type();
 
             auto split_dim_range = wgt_item->get_shape()[split_dim];
-            auto convert_dim_range = convert_node1->get_shape()[split_dim];
-            bool need_to_split_convert = split_dim_range == convert_dim_range;
+            const auto& convert_node1_shape = convert_node1->get_shape();
+            bool need_to_split_convert = ov::shape_size(convert_node1_shape) > 1 &&
+                                         split_dim < convert_node1_shape.size() &&
+                                         convert_node1_shape[split_dim] == split_dim_range;
             auto weights = wgt_item->get_shape();
 
             // needn't to split fc when the dim is 0.
@@ -118,19 +103,38 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             std::vector<std::vector<int32_t>> split_reshape_pattern_vec(split_num);
             auto fc_dim_vec = split_parts(split_dim_range, split_num);
             auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{static_cast<size_t>(split_num)}, fc_dim_vec);
-            auto split_wgts = std::make_shared<ov::op::v1::VariadicSplit>(wgt_item,
-                                                                          split_dim_node,
-                                                                          split_length);
-            auto split_muls = std::make_shared<ov::op::v1::VariadicSplit>(multiply_pattern,
-                                                                          split_dim_node,
-                                                                          split_length);
-            std::shared_ptr<Node> split_cvts;
+
+            auto split_constants = [&](const std::shared_ptr<ov::Node>& constant) {
+                static const std::set<ov::element::Type> unsupported_by_split_element_types{ov::element::u4, ov::element::i4, ov::element::nf4};
+                const auto& constant_precision = constant->get_output_element_type(0);
+                if (unsupported_by_split_element_types.count(constant_precision) == 0) {
+                    auto split = std::make_shared<ov::op::v1::VariadicSplit>(constant, split_dim_node, split_length);
+                    return split->outputs();
+                }
+
+                auto convert = std::make_shared<ov::op::v0::Convert>(constant, ov::element::f32);
+                auto split = std::make_shared<ov::op::v1::VariadicSplit>(convert, split_dim_node, split_length);
+                ov::OutputVector res(split->get_output_size());
+                for (size_t i = 0; i < split->get_output_size(); ++i) {
+                    res[i] = std::make_shared<ov::op::v0::Convert>(split->output(i), constant_precision);
+                }
+                return res;
+            };
+
+            auto split_wgts = split_constants(wgt_item);
+            auto split_muls = split_constants(multiply_pattern);
+            ov::OutputVector split_cvts;
             if (need_to_split_convert) {
-                split_cvts = std::make_shared<ov::op::v1::VariadicSplit>(convert_node1_const,
-                                                                         split_dim_node,
-                                                                         split_length);
+                split_cvts = split_constants(convert_node1_const);
             }
-            if (with_reshape) {
+
+            if (reshape_node) {
+                auto reshape_pattern = reshape_node->get_input_node_shared_ptr(1);
+                auto reshape_const = ov::as_type_ptr<ov::op::v0::Constant>(reshape_pattern);
+                if (!reshape_const) {
+                    return false;
+                }
+                const auto reshape_vec = reshape_const->cast_vector<int32_t>();
                 for (int i = 0; i < split_num; ++i) {
                     split_reshape_pattern_vec[i] = {fc_dim_vec[i], reshape_vec[1]};
                 }
@@ -138,26 +142,20 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             std::vector<ov::Output<ov::Node>> zp_const_vec(split_num);
             for (int i = 0; i < split_num; ++i) {
-                if (!need_to_split_convert) {
-                    zp_const_vec[i] = std::make_shared<ov::op::v0::Constant>(convert_node1_const->get_element_type(),
-                                                                              convert_node1_const->get_shape(),
-                                                                              convert_node1_const->get_data_ptr());
-                } else {
-                    zp_const_vec[i] = split_cvts->output(i);
-                }
+                zp_const_vec[i] = need_to_split_convert ? split_cvts[i] : convert_node1_const->clone_with_new_inputs({});
             }
 
             for (int i = 0; i < split_num; ++i) {
-                auto sub_parent0 = std::make_shared<ov::op::v0::Convert>(split_wgts->output(i), cvt_prec);
+                auto sub_parent0 = std::make_shared<ov::op::v0::Convert>(split_wgts[i], cvt_prec);
                 auto sub_parent1 = std::make_shared<ov::op::v0::Convert>(zp_const_vec[i], cvt_prec);
                 ov::pass::disable_constant_folding(sub_parent0);
                 ov::pass::disable_constant_folding(sub_parent1);
                 auto sub_node = std::make_shared<ov::op::v1::Subtract>(sub_parent0, sub_parent1);
 
-                auto mul_node = std::make_shared<ov::op::v1::Multiply>(sub_node, split_muls->output(i));
-                if (with_reshape) {
+                auto mul_node = std::make_shared<ov::op::v1::Multiply>(sub_node, split_muls[i]);
+                if (reshape_node) {
                     auto reshape_pattern = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{2}, split_reshape_pattern_vec[i]);
-                    wgt_node_vec[i] = std::make_shared<ov::op::v1::Reshape>(mul_node, reshape_pattern, reshape_special_zero);
+                    wgt_node_vec[i] = std::make_shared<ov::op::v1::Reshape>(mul_node, reshape_pattern, reshape_node->get_special_zero());
                 } else {
                     wgt_node_vec[i] = mul_node;
                 }
@@ -165,9 +163,6 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         } else {
             // get input
             auto wgt_item = fc_node->get_input_node_shared_ptr(1);
-            if (wgt_item->is_dynamic()) {
-                return false;
-            }
 
             // split weight
             auto split_dim_range = wgt_item->get_shape()[split_dim];
@@ -208,8 +203,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         if (concat_shape != out_shape) {
             return false;
         }
-        copy_runtime_info(fc_node, concat_node);
-        replace_node(fc_node, concat_node);
+        ov::replace_node_update_name(fc_node, concat_node);
         return true;
     };
 

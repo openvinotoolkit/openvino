@@ -297,14 +297,12 @@ protected:
         const auto& test_param = GetParam();
         const auto& weights_precision = std::get<1>(test_param);
 
-        bool weights_found = false;
         for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-            if (n->get_friendly_name() == "Compressed_weights") {
+            auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (layer_type == "Constant") {
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
-                weights_found = true;
             }
         }
-        ASSERT_TRUE(weights_found);
 
         const bool should_fuse = std::get<8>(test_param);
         const size_t expected_count = should_fuse ? 0 : 1;

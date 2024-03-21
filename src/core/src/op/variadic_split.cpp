@@ -36,10 +36,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     constexpr auto is_zero_dim = ov::cmp::Equal<size_t>(0);
 
     for (auto& output : outputs) {
-        auto out_shape = output.get_shape();
-        if (data_tensor.get_element_type() == ov::element::u4) {
-            out_shape[0] /= 2;
-        }
+        const auto& out_shape = output.get_shape();
         upper_bounds[axis] += out_shape[axis];
 
         if (std::none_of(out_shape.cbegin(), out_shape.cend(), is_zero_dim)) {
