@@ -560,8 +560,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
-        pass_config->disable<ov::pass::NopStridedSlice>();
-        pass_config->disable<ov::pass::NopStridedSliceByShape>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
