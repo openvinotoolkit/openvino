@@ -451,7 +451,10 @@ void InputModel::InputModelImpl::createTempConsts() {
             }
 
             if (tensor_ps.is_static()) {
-                shape[1] = 0;
+                // this tensorarray tensor originally could be scalar, then
+                // tensor_ps size would be 1 after unsqueeze.
+                auto idx = tensor_ps.size() > 1 ? 1 : 0;
+                shape[idx] = 0;
             }
 
             auto node = opset7::Constant::create(type, shape, {0});
