@@ -38,12 +38,6 @@ struct Config {
         Disable,
     };
 
-    enum class MaxThreadsPerStream {
-        AUTO,
-        PER_PLATFORM,
-        PER_SOCKET,
-    };
-
     enum class ModelType {
         CNN,
         Unknown
@@ -78,7 +72,7 @@ struct Config {
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::MaxThreadsPerStream hintMaxThreadsPerStream = Config::MaxThreadsPerStream::AUTO;
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::NONE};
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
