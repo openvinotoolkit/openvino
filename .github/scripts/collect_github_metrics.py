@@ -121,17 +121,9 @@ def main():
     #   theoretically the second attempt can be triggerred right after the completion of the first one
     #   or while the runner which executes this script is deploying
     #
-    # - Total duration of a workflow run equals "run.updated_at - run.run_started_at"
-    #
     # - Job's queued duration equals "job.started_at - job.created_at" if started_at > created_at.
     #   Otherwise the job should not be added to the database
-    total_duration_seconds = 0
-    if run.run_started_at > run.updated_at:
-        logger.error('Run %s has run_started date later than updated_at date. Cannot calculate the duration of the run', run_id)
-        raise SystemExit(1)
-    total_duration_timedelta = run.updated_at - run.run_started_at
-    total_duration_seconds = round(total_duration_timedelta.total_seconds())
-
+    total_duration_seconds = round(run.timing().run_duration_ms / 1000)
     workflow_data_query = f'''INSERT INTO workflow_runs(
     run_id, html_url, name,
     run_started_at, created_at, updated_at, triggering_actor_login, conclusion,
