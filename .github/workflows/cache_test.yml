@@ -51,9 +51,9 @@ jobs:
 
       - name: Test preconditions(win)
         run: |
-          mkdir -p ${env:CACHE_TMP}
+          mkdir -p ${env:CACHE_TMP} -force
           echo test > ${env:CACHE_TMP}/file.txt
-          mkdir -p ${env:CACHE_REMOTE}
+          mkdir -p ${env:CACHE_REMOTE} -force
           pushd ${env:CACHE_TMP}
             tar -czvf ${env:CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
           popd
