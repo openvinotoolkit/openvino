@@ -212,6 +212,9 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
     return {std::make_shared<v0::Log>(sum_node)};
 }
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
 }  // namespace set_18
 
 namespace set_20 {
