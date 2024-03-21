@@ -38,15 +38,26 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Test preconditions
+      # - name: Test preconditions(lin)
+      #   run: |
+      #     mkdir -p ${CACHE_TMP}
+      #     echo test > ${CACHE_TMP}/file.txt
+      #     mkdir -p ${CACHE_REMOTE}
+      #     pushd ${CACHE_TMP}
+      #       tar -czvf ${CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
+      #     popd
+      #     ls -la ${CACHE_REMOTE}
+
+
+      - name: Test preconditions(win)
         run: |
-          mkdir -p ${CACHE_TMP}
-          echo test > ${CACHE_TMP}/file.txt
-          mkdir -p ${CACHE_REMOTE}
-          pushd ${CACHE_TMP}
-            tar -czvf ${CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
+          mkdir -p ${env:CACHE_TMP}
+          echo test > ${env:CACHE_TMP}/file.txt
+          mkdir -p ${env:CACHE_REMOTE}
+          pushd ${env:CACHE_TMP}
+            tar -czvf ${env:CACHE_REMOTE}/test_cache_$(date '+%Y%m%d%S').cache *
           popd
-          ls -la ${CACHE_REMOTE}
+          ls -la ${env:CACHE_REMOTE}
 
       - name: Test Local Action
         id: test-action
