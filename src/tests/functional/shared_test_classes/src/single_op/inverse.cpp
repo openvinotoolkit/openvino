@@ -42,15 +42,17 @@ void InverseLayerTest::SetUp() {
 
     init_input_shapes(input_shape);
 
-    // if (element_type == ov::element::bf16) {
-    //     rel_threshold = 1.2f;
-    //     abs_threshold = 1.0f;
-    // }
-
     const auto data = std::make_shared<ov::op::v0::Parameter>(element_type, input_shape[0].first);
     data->set_friendly_name("data");
 
-    auto inverse = std::make_shared<ov::op::v14::Inverse>(data, adjoint);
+    std::shared_ptr<ov::Node> inverse;
+    if (element_type == ov::element::bf16) {
+        inverse = std::make_shared<ov::op::v0::Convert>(data, ov::element::f32);
+        inverse = std::make_shared<ov::op::v14::Inverse>(inverse, adjoint);
+        inverse = std::make_shared<ov::op::v0::Convert>(inverse, ov::element::bf16);
+    } else {
+        inverse = std::make_shared<ov::op::v14::Inverse>(data, adjoint);
+    }
 
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(inverse)};
     function = std::make_shared<ov::Model>(results, ParameterVector{data}, "InverseTestCPU");
@@ -64,9 +66,9 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& in_prc = func_input.get_element_type();
 
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = 1;
-    in_data.range = 20;
-    in_data.resolution = 1;
+    in_data.start_from = 10;
+    in_data.range = 5;
+    in_data.resolution = 3;
     in_data.seed = m_seed;
     auto tensor = ov::test::utils::create_and_fill_tensor(in_prc, targetInputStaticShapes[0], in_data);
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
@@ -120,11 +122,6 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
         std::cout << '\n';
     }
 
-    // if (expected[0].get_element_type() == ov::element::bf16) {
-    //     ov::test::utils::compare(t1, t2, 1.0f, 1.2f);
-    // } else {
-    //     ov::test::utils::compare(t1, t2);
-    // }
     ov::test::utils::compare(t1, t2);
 }
 }  // namespace test
