@@ -400,15 +400,14 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
 enum class ModelDistributionPolicy {
-    NONE = 0,             // Run one model on single socket/device without parallelism.
-    TENSOR_PARALLEL = 1,  // Split one node or subgraph into parts and run one part per socket/device in parallel.
+    TENSOR_PARALLEL = 0,  // Split tensor into several parts and disribute them between sockets/devices during model
+                          // compilation. At inference time sockets/devices process tensors in parallel and do
+                          // syncronization at the end ensuring mathematical correctness.
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy& stream_mode) {
     switch (stream_mode) {
-    case ModelDistributionPolicy::NONE:
-        return os << "NONE";
     case ModelDistributionPolicy::TENSOR_PARALLEL:
         return os << "TENSOR_PARALLEL";
     default:
@@ -419,9 +418,7 @@ inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy&
 inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& stream_mode) {
     std::string str;
     is >> str;
-    if (str == "NONE") {
-        stream_mode = ModelDistributionPolicy::NONE;
-    } else if (str == "TENSOR_PARALLEL") {
+    if (str == "TENSOR_PARALLEL") {
         stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
     } else {
         OPENVINO_THROW("Unsupported model distribution policy: ", str);
