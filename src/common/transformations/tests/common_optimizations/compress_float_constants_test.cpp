@@ -622,7 +622,6 @@ auto build_model_DetectFakeConvert = [](const TestParams&) -> std::shared_ptr<ov
 };
 
 auto build_model_DetectCompressedWeights = [](const TestParams& params) -> std::shared_ptr<ov::Model> {
-    // FIXME: shapes and values
     auto input = std::make_shared<op::v0::Parameter>(element::u8, Shape{2, 1});
 
     auto weights = ov::op::v0::Constant::create(params.element_type, ov::Shape{1, 2}, {2});
