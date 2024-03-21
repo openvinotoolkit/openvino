@@ -53,7 +53,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-test-cache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-test-cache
-            test-cache
+            test_cache
             ${{ runner.os }}-${{ runner.arch }}-test-cache
 
       - name: Print Output
