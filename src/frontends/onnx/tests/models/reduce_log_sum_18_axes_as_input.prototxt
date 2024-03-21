@@ -56,6 +56,9 @@ graph {
             dim_value: 1
           }
           dim {
+            dim_value: 1
+          }
+          dim {
             dim_value: 4
           }
         }
