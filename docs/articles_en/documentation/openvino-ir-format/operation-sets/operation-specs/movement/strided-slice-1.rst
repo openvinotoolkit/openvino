@@ -65,11 +65,11 @@ During the i-th slicing step:
 * If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to :math:`size(dim)` (:math:`0` if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10]` (assume :math:`len(array) = 10`) with :math:`array[0:]` (slice till the end, inclusive).
 * If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and :math:`stride[i]` **ARE IGNORED**, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...]`: :math:`shape(array) = [..., 1, ...]`.
 * If the :math:`shrink\_axis\_mask[i]` is set to one, the value of  :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the :math:`stride[i]` value **IS IGNORED**. The corresponding dimension is removed, with only a single element from that dimension remaining. Equivalent of selecting only a given element without preserving dimension (numpy equivalent of keepdims=False) :math:`array[..., 0, ...] -> array[..., ...]` (one less dimension).
-* If the :math:`ellipsis\_mask[i]` is set to one, the values of :math:`begin[i], end[i],` and :math:`stride[i]` **ARE IGNORED**, and a number of dimensions is skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in numpy :math:`array[0, ..., 0] (rank(array) = 10)` is the same as writing :math:`array[0, :, :, :, :, :, :, :, :, 0]`.
+* If the :math:`ellipsis\_mask[i]` is set to one, the values of :math:`begin[i], end[i],` and :math:`stride[i]` **ARE IGNORED**, and a number of dimensions is skipped. The exact number of dimensions skipped in the original input is :math:`rank(input) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in numpy :math:`array[0, ..., 0] (rank(array) = 10)` is the same as writing :math:`array[0, :, :, :, :, :, :, :, :, 0]`.
 
 .. note:: The i-th Slicing Step and Dimension Modification
 
-   The i-th slicing step does not necessarily correspond to the i-th dimension modification. Let i be the index of the slicing step, and j be the corresponding processed dimension.
+   The i-th slicing step does not necessarily correspond to the i-th dimension modification. Let i be the index of the slicing step and j be index of the corresponding processed dimension.
    For trivial cases:
 
    * Every time all of the masks are not set (set to 0), j is incremented by one.
@@ -79,7 +79,7 @@ During the i-th slicing step:
    However:
 
    * Every time :math:`new\_axis\_mask[i]` is set to one, j is not incremented.
-   * When the value of one occurs at :math:`ellipsis\_mask[i]`, j is incremented by :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`.
+   * When the value of one occurs at :math:`ellipsis\_mask[i]`, j is incremented by :math:`rank(input) - (M - sum(new\_axis\_mask) - 1)`.
 
 **Attributes**
 
