@@ -20,18 +20,18 @@ class TestMatMulOperation(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("matrix, vector, dtype, device", [
-        (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64, 'cpu'),
-        (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32, 'cpu'),
-        
+    @pytest.mark.parametrize("matrix, vector, dtype", [
+        (np.array([[1, 2], [3, 4]]), np.array([5, 6]), torch.float64),
+        (np.array([[0, 0], [0, 0]]), np.array([1, 2]), torch.float32),
+        (np.array([[1, 2, 3], [4, 5, 6]]), np.array([0, 1, 0]), torch.float64),
+        (np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]), np.array([2, 3, 4]), torch.float32),
     ])
-    def test_matmul_operation(self, matrix, vector, dtype, device, ie_device, precision, ir_version):
+    def test_matmul_operation(self, matrix, vector, dtype, ie_device, precision, ir_version):
         matrix_input = torch.tensor(matrix, dtype=torch.float32)
         vector_input = torch.tensor(vector, dtype=torch.float32)
 
-        
-        matrix_input = matrix_input.to(dtype=dtype, device=device)
-        vector_input = vector_input.to(dtype=dtype, device=device)
+        matrix_input = matrix_input.to(dtype=dtype)
+        vector_input = vector_input.to(dtype=dtype)
 
         self._test(
             *self.create_model(matrix_input, vector_input),
