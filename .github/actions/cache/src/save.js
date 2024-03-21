@@ -1,3 +1,4 @@
+const core = require('@actions/core')
 const { save } = require('./saveImpl')
 const { cleanUp } = require('./cleanupImpl')
 
