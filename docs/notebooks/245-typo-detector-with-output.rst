@@ -73,14 +73,6 @@ Table of contents:
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 4.25.2 which is incompatible.
-    tensorflow-metadata 1.14.0 requires protobuf<4.21,>=3.20.3, but you have protobuf 4.25.2 which is incompatible.
-    tf2onnx 1.16.1 requires protobuf~=3.20, but you have protobuf 4.25.2 which is incompatible.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -111,14 +103,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-02-10 00:22:01.461810: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-10 00:22:01.496463: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-12 23:57:16.557513: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-12 23:57:16.591185: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-02-10 00:22:02.086391: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-12 23:57:17.177770: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Methods
@@ -149,9 +141,9 @@ hardware.
 
 
 The Pytorch model is converted to `OpenVINO IR
-format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__. This
-method provides much more insight to how to set up a pipeline from model
-loading to model converting, compiling and running inference with
+format <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__.
+This method provides much more insight to how to set up a pipeline from
+model loading to model converting, compiling and running inference with
 OpenVINO, so that you could conveniently use OpenVINO to optimize and
 accelerate inference for other deep-learning models. The optimization of
 targeted hardware is also used here.
@@ -233,12 +225,17 @@ Import required model class
 
 .. parsed-literal::
 
+    OpenVINO Tokenizer version is not compatible with OpenVINO version. Installed OpenVINO version: 2024.0.0,OpenVINO Tokenizers requires . OpenVINO Tokenizers models will not be added during export.
+
+
+.. parsed-literal::
+
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
 
 
@@ -269,7 +266,7 @@ your model.
 
 .. parsed-literal::
 
-    Framework not specified. Using pt to export to ONNX.
+    Framework not specified. Using pt to export the model.
 
 
 .. parsed-literal::
@@ -280,7 +277,7 @@ your model.
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.0+cpu
+    Using framework PyTorch: 2.2.1+cpu
 
 
 .. parsed-literal::
@@ -295,7 +292,13 @@ your model.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-609/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:83: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4193: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+      warnings.warn(
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-632/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:82: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       op1 = operator(\*args, \*\*kwargs)
 
 
@@ -418,7 +421,7 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.15669655799865723
+    Time elapsed: 0.16592812538146973
 
 
 2. Converting the model to OpenVINO IR
@@ -656,5 +659,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.09725761413574219
+    Time elapsed: 0.09940457344055176
 

@@ -700,7 +700,6 @@ increasing calibration dataset size. For U-Net models, you can
 collect a more diverse dataset by using a smaller ``selection_prob``
 value, but this will increase the dataset collection time.
 
-
 Compare file sizes
 ^^^^^^^^^^^^^^^^^^
 
