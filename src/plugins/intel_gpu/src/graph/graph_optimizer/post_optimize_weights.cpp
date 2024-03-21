@@ -75,7 +75,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             bool can_be_fused = prev_node.is_type<reorder>() &&
                                 prev_node.as<reorder>().is_simple_reorder() &&
                                 prev_node.get_users().size() == 1 &&
-                                prev_node.get_dependencies().size() == 1;
+                                prev_node.get_dependencies().size() == 1 &&
+                                is_supported_weights_layout(prev_node.get_input_layout().format);
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
                 auto updated_input_layout = weights_reorder_params->get_input_layout();

@@ -23,8 +23,6 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     if (desc->output_shape.count() == 0) {
         if (desc->output_partial_shape.size() != 0) {
             return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
-        } else {
-            OPENVINO_THROW("[GPU] Output shape is not provided");
         }
     }
 
