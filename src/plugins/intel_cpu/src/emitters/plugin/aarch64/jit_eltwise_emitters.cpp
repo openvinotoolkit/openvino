@@ -500,23 +500,19 @@ jit_select_emitter::jit_select_emitter(dnnl::impl::cpu::aarch64::jit_generator *
                                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                        const std::shared_ptr<ov::Node>& node)
                                        : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
-    prepare_table();
 }
 jit_select_emitter::jit_select_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
                                        dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                        const ov::element::Type exec_prc)
                                        : jit_emitter(host, host_isa, exec_prc) {
-    prepare_table();
 }
 
 size_t jit_select_emitter::get_inputs_count() const { return 3; }
 
 size_t jit_select_emitter::get_aux_vecs_count() const { return 1; }
 
-size_t jit_select_emitter::get_aux_gprs_count() const { return 1; }
-
 std::set<std::vector<element::Type>> jit_select_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32, element::f32}};
 }
 
 void jit_select_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
@@ -538,15 +534,11 @@ void jit_select_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
     const TReg dst = TReg(out_vec_idxs[0]);
     const TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->ld1r(aux.s, table_val2("one"));
-    h->facge(aux.s, src1.s, aux.s);
+    h->eor(aux.b16, aux.b16, aux.b16);
+    h->fcmgt(aux.s, src1.s, aux.s);
 
     h->bsl(aux.b16, src2.b16, src3.b16);
     h->mov(dst.b16, aux.b16);
-}
-
-void jit_select_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
 }
 
 /// SUBTRACT ///
