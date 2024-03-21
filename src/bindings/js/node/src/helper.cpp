@@ -319,6 +319,42 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     return tensor;
 }
 
+/**
+ * @brief  Template function to convert C++ map into Javascript Object. Map key must be std::string.
+ * @tparam MapElementType C++ data type of map elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Object.
+ */
+template <typename MapElementType>
+Napi::Object cpp_map_to_js_object(const Napi::CallbackInfo& info, const std::map<std::string, MapElementType>& map) {
+    Napi::Object obj = Napi::Object::New(info.Env());
+
+    for (const auto& [k, v] : map) {
+        obj.Set(k, v);
+    }
+
+    return obj;
+}
+
+/**
+ * @brief  Template function to convert C++ vector type into Javascript Array
+ * @tparam SourceType C++ data type of vector elements.
+ * @param info Contains the environment in which to construct a JavaScript object.
+ * @return Napi::Array.
+ */
+template <typename SourceType>
+Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<SourceType>& vec) {
+    auto array = Napi::Array::New(info.Env(), vec.size());
+
+    uint32_t i = 0;
+    for (auto& property : vec) {
+        auto any = ov::Any(property);
+        array[i++] = any_to_js(info, any);
+    }
+
+    return array;
+}
+
 Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     // Check for std::string
     if (value.is<std::string>()) {
@@ -463,30 +499,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     }
 
     return info.Env().Undefined();
-}
-
-template <typename T>
-Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<T>& vec) {
-    auto array = Napi::Array::New(info.Env(), vec.size());
-
-    uint32_t i = 0;
-    for (auto& property : vec) {
-        auto any = ov::Any(property);
-        array[i++] = any_to_js(info, any);
-    }
-
-    return array;
-}
-
-template <typename T>
-Napi::Object cpp_map_to_js_object(const Napi::CallbackInfo& info, const std::map<std::string, T>& map) {
-    Napi::Object obj = Napi::Object::New(info.Env());
-
-    for (const auto& [k, v] : map){
-        obj.Set(k, v);
-    }
-
-    return obj;
 }
 
 ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
