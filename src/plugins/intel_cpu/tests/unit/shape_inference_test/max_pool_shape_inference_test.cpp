@@ -129,12 +129,7 @@ TEST_F(MaxPoolV14StaticShapeInferenceTest, ceil_torch_mode_2) {
 }
 
 template <class TOp>
-class MaxPoolCommonStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {
-protected:
-    void SetUp() override {
-        this->output_shapes.resize(2);
-    }
-};
+class MaxPoolCommonStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {};
 
 TYPED_TEST_SUITE_P(MaxPoolCommonStaticShapeInferenceTest);
 

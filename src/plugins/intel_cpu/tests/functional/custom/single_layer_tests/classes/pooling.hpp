@@ -40,10 +40,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj);
     std::string getPrimitiveTypeUtil() const {
         return CPUTestsBase::getPrimitiveType();
-    };
+    }
     void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
         SubgraphBaseTest::init_input_shapes(shapes);
-    };
+    }
 protected:
     void SetUp() override;
 };
@@ -54,10 +54,10 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolLayerCpuTestParamsSet>& obj);
     std::string getPrimitiveTypeUtil() const {
         return CPUTestsBase::getPrimitiveType();
-    };
+    }
     void init_input_shapes_util(const std::vector<ov::test::InputShape> &shapes) {
         SubgraphBaseTest::init_input_shapes(shapes);
-    };
+    }
 protected:
     void SetUp() override;
 };

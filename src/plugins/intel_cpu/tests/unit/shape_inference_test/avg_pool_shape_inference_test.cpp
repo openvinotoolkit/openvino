@@ -13,12 +13,7 @@ using namespace ov::intel_cpu;
 using namespace testing;
 
 template <class TOp>
-class AvgPoolCommonStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {
-protected:
-    void SetUp() override {
-        this->output_shapes.resize(1);
-    }
-};
+class AvgPoolCommonStaticShapeInferenceTest : public OpStaticShapeInferenceTest<TOp> {};
 
 TYPED_TEST_SUITE_P(AvgPoolCommonStaticShapeInferenceTest);
 
@@ -144,12 +139,7 @@ REGISTER_TYPED_TEST_SUITE_P(AvgPoolCommonStaticShapeInferenceTest,
 using AvgPoolOpTypes = Types<ov::op::v1::AvgPool, ov::op::v14::AvgPool>;
 INSTANTIATE_TYPED_TEST_SUITE_P(StaticShapeInferenceTest, AvgPoolCommonStaticShapeInferenceTest, AvgPoolOpTypes);
 
-class AvgPoolV14StaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v14::AvgPool> {
-protected:
-    void SetUp() override {
-        output_shapes.resize(1);
-    }
-};
+class AvgPoolV14StaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v14::AvgPool> {};
 
 TEST_F(AvgPoolV14StaticShapeInferenceTest, explicit_padding_ceil_torch) {
     const auto data = std::make_shared<op::v0::Parameter>(element::f64, PartialShape::dynamic());

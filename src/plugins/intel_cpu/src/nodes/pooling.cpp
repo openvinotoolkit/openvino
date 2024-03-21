@@ -174,46 +174,25 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         }
     };
 
-    if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+    if (auto maxPoolOpBase = ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)) {
         algorithm = Algorithm::PoolingMax;
         poolingAttrs.exclude_pad = false;
-        poolingAttrs.rounding = maxPoolOp_v14->get_rounding_type();
-        poolingAttrs.pad_type = maxPoolOp_v14->get_auto_pad();
+        poolingAttrs.rounding = maxPoolOpBase->get_rounding_type();
+        poolingAttrs.pad_type = maxPoolOpBase->get_auto_pad();
+        get_attributes(poolingAttrs.stride, maxPoolOpBase->get_strides());
+        get_attributes(poolingAttrs.kernel, maxPoolOpBase->get_kernel());
+        get_attributes(poolingAttrs.data_pad_begin, maxPoolOpBase->get_pads_begin());
+        get_attributes(poolingAttrs.data_pad_end, maxPoolOpBase->get_pads_end());
+        poolingAttrs.auto_pad = (poolingAttrs.pad_type == ov::op::PadType::SAME_LOWER || poolingAttrs.pad_type == ov::op::PadType::SAME_UPPER);
+    }
 
+    if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
         get_attributes(poolingAttrs.dilation, maxPoolOp_v14->get_dilations());
-        get_attributes(poolingAttrs.stride, maxPoolOp_v14->get_strides());
-        get_attributes(poolingAttrs.kernel, maxPoolOp_v14->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, maxPoolOp_v14->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, maxPoolOp_v14->get_pads_end());
-
-        poolingAttrs.auto_pad = (maxPoolOp_v14->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v14->get_auto_pad() == ov::op::PadType::SAME_UPPER);
     } else if (auto maxPoolOp_v8 = ov::as_type_ptr<const ov::op::v8::MaxPool>(op)) {
         isMaxPool8 = true;
-        algorithm = Algorithm::PoolingMax;
-        poolingAttrs.exclude_pad = false;
-        poolingAttrs.rounding = maxPoolOp_v8->get_rounding_type();
-        poolingAttrs.pad_type = maxPoolOp_v8->get_auto_pad();
-
         get_attributes(poolingAttrs.dilation, maxPoolOp_v8->get_dilations());
-        get_attributes(poolingAttrs.stride, maxPoolOp_v8->get_strides());
-        get_attributes(poolingAttrs.kernel, maxPoolOp_v8->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, maxPoolOp_v8->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, maxPoolOp_v8->get_pads_end());
-
-        poolingAttrs.auto_pad = (maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_UPPER);
     } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
-        algorithm = Algorithm::PoolingMax;
-        poolingAttrs.exclude_pad = false;
-        poolingAttrs.pad_type = maxPoolOp_v1->get_auto_pad();
-        poolingAttrs.rounding = maxPoolOp_v1->get_rounding_type();
-
-        get_attributes(poolingAttrs.stride, maxPoolOp_v1->get_strides());
-        get_attributes(poolingAttrs.kernel, maxPoolOp_v1->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, maxPoolOp_v1->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, maxPoolOp_v1->get_pads_end());
         poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-
-        poolingAttrs.auto_pad = (maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_UPPER);
     } else if (auto avgPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::AvgPool>(op)) {
         algorithm = Algorithm::PoolingAvg;
         poolingAttrs.exclude_pad = avgPoolOp_v1->get_exclude_pad();
