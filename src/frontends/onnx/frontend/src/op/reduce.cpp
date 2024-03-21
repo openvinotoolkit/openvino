@@ -8,6 +8,7 @@
 #include "identity.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/multiply.hpp"
@@ -94,6 +95,27 @@ const std::set<element::Type> supported_types_v1 =
     {element::u32, element::u64, element::i32, element::i64, element::f16, element::f32, element::f64};
 const std::set<element::Type> supported_types_v2 =
     {element::u32, element::u64, element::i32, element::i64, element::f16, element::f32, element::f64, element::bf16};
+const std::set<element::Type> supported_types_v3 = {element::u32,
+                                                    element::u64,
+                                                    element::i32,
+                                                    element::i64,
+                                                    element::f16,
+                                                    element::f32,
+                                                    element::f64,
+                                                    element::bf16,
+                                                    element::i8,
+                                                    element::u8};
+const std::set<element::Type> supported_types_v4 = {element::u32,
+                                                    element::u64,
+                                                    element::i32,
+                                                    element::i64,
+                                                    element::f16,
+                                                    element::f32,
+                                                    element::f64,
+                                                    element::bf16,
+                                                    element::i8,
+                                                    element::u8,
+                                                    element::boolean};
 
 template <typename OpType>
 std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
@@ -177,11 +199,33 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+}
 }  // namespace set_13
 
 namespace set_18 {
-// Placeholder
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
 }  // namespace set_18
+
+namespace set_20 {
+ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
+    auto data = node.get_ov_inputs().at(0);
+    if (data.get_element_type() != element::boolean) {
+        return {make_ov_reduction_op<v1::ReduceMax>(node, data, supported_types_v3, false)};
+    } else {
+        // Handling boolean as a uint8
+        return {std::make_shared<v0::Convert>(
+            make_ov_reduction_op<v1::ReduceMax>(node,
+                                                std::make_shared<ov::op::v0::Convert>(data, element::u8),
+                                                supported_types_v4,
+                                                false),
+            element::boolean)};
+    }
+}
+}  // namespace set_20
 }  // namespace op
 }  // namespace onnx
 }  // namespace frontend
