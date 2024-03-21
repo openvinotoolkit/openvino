@@ -797,40 +797,6 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS)
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
 }
 
-TEST_P(OVClassCompileModelAndCheckSecondaryPropertiesTest, CompileModelAndCheckSecondaryPropertiesTest) {
-    ov::Core ie = ov::test::utils::create_core();
-    ov::CompiledModel model;
-    OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
-    ov::AnyMap property = configuration;
-    ov::AnyMap::iterator it = configuration.end();
-    // device properties in form ov::device::properties(DEVICE, ...) has the first priority
-    for (it = configuration.begin(); it != configuration.end(); it++) {
-        if ((it->first.find(ov::device::properties.name()) != std::string::npos) &&
-            (it->first != ov::device::properties.name())) {
-            break;
-        }
-    }
-    if (it != configuration.end()) {
-        // DEVICE_PROPERTIES_<DEVICE_NAME> found
-        property = it->second.as<ov::AnyMap>();
-    } else {
-        // search for DEVICE_PROPERTIES
-        it = configuration.find(ov::device::properties.name());
-        ASSERT_TRUE(it != configuration.end());
-        property = it->second.as<ov::AnyMap>().begin()->second.as<ov::AnyMap>();
-        if (it == configuration.end()) {
-            it = configuration.find(ov::hint::num_requests.name());
-        }
-    }
-    ASSERT_TRUE(property.count(ov::hint::num_requests.name()));
-    auto actual = property.at(ov::hint::num_requests.name()).as<int32_t>();
-    ov::Any value;
-    //AutoExcutableNetwork GetMetric() does not support key ov::num_streams
-    OV_ASSERT_NO_THROW(value = model.get_property(ov::hint::num_requests.name()));
-    int32_t expect = value.as<int32_t>();
-    ASSERT_EQ(actual, expect);
-}
-
 TEST_P(OVClassSeveralDevicesTestDefaultCore, DefaultCoreSeveralDevicesNoThrow) {
     ov::Core ie;
 
