@@ -69,7 +69,7 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.parametrize("input_shape", [
         [115], [24, 30], [5, 4, 6], [3, 7, 1, 4], [16, 3, 32, 32]
     ])
-    @pytest.mark.parametrize("sorted", [True])
+    @pytest.mark.parametrize("sorted", [False, True])
     @pytest.mark.parametrize("return_inverse", [False, True])
     @pytest.mark.parametrize("return_counts", [False, True])
     @pytest.mark.nightly
