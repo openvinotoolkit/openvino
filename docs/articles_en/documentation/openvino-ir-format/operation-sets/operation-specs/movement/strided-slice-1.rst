@@ -19,13 +19,13 @@ StridedSlice
 The operation takes inputs with the following properties:
 
 * :math:`input` tensor to slice, with N dimensions.
-* :math:`begin, end, stride` inputs - 1D lists of integers of the same length M. **Stride input cannot contain any zeros.**
-* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` inputs - bitmasks, 1D lists of integers (0 or 1). :math:`ellipsis\_mask` can have up to one occurrence of the value 1. **Each mask can have a unique length. Masks' lengths can differ from the rank of the input shape.**
-* :math:`new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` are used to modify the output dimensionality of the data. If they are unused, N == M. Otherwise, N does not necessarily equal M.
+* :math:`begin, end, stride` - 1D lists of integers of the same length M. **Stride input cannot contain any zeros.**
+* :math:`begin\_mask, end\_mask, new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` - bitmasks, 1D lists of integers (0 or 1). :math:`ellipsis\_mask` can have up to one occurrence of the value 1. **Each mask can have a unique length. The length of the masks can differ from the rank of the input shape.**
+* :math:`new\_axis\_mask, shrink\_axis\_mask, ellipsis\_mask` modify the output dimensionality of the data. If they are unused, :math:`N == M`. Otherwise, N does not necessarily equal M.
 
 .. note:: Negative Values in Begin and End (Negative Values Adjusting)
 
-   Negative values in :math:`begin, end` (**NOT** :math:`stride`) represent indices starting from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
+   Negative values present in :math:`begin` or :math:`end` represent indices starting from the back, i.e., the value of -1 represents the last element of the input dimension. In practice, negative values are automatically incremented by the size of the dimension. For example, if :math:`data = [0, 1, 2, 3]`, :math:`size(data) = 4`, :math:`begin(i) = -1` for some i, this value will be modified to be :math:`begin(i) = -1 + 4 = 3`. Note that if :math:`begin(i) = -5` for some i, this value will be adjusted as follows: :math:`begin(i) -5 + 4 = -1`, which will trigger value clamping.
 
 The basic slicing operation accumulates output elements as follows:
 
@@ -35,7 +35,9 @@ The basic slicing operation accumulates output elements as follows:
 * At each step, the :math:`slicing\_index` is incremented by the value of :math:`stride[i]`. As long as the :math:`slicing\_index < end[i]`, the element corresponding to the :math:`slicing\_index` is added to the output.
 * Whenever :math:`slicing\_index >= end[i]`, the slicing stops, and the corresponding element is not added to the output.
 
-Notice that the basic slicing operation assumes N = M (that is, i-th slicing step corresponds to i-th dimension), as no masks are used.
+Notice that the basic slicing operation assumes :math:`N == M` (that is, i-th slicing step corresponds to i-th dimension), as no masks are used. 
+
+For the purposes of this specification, assume that :math:`dim` is the dimension corresponding to the i-th slicing step.
 
 .. note:: Indexing in Reverse (Slicing in Reverse)
 
@@ -55,13 +57,15 @@ Notice that the basic slicing operation assumes N = M (that is, i-th slicing ste
 
 The operation accepts multiple bitmasks in the form of integer arrays to modify the above behavior. **If the length of the bitmask is less than the length of the corresponding input, it is assumed that the bitmask is extended (padded at the end) with zeros. If the length of the bitmask is greater than necessary, the remaining values are ignored.**
 
+For examples of usage of each mask, please refer to the examples provided at the end of the document. 
+
 During the i-th slicing step:
 
-* If the :math:`begin\_mask[i]` is set to one, the value of :math:`begin[i]` is set to 0 (size(dim) - 1 if slicing in reverse). Equivalent of swapping left handside of Python slicing operation :math:`array[0:10]` with :math:`array[:10]` (slice from the start).
-* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to size(dim) (0 if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10]` (assume len(array) = 10) with :math:`array[0:]` (slice till the end, inclusive).
-* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and :math:`stride[i]` **ARE IGNORED**, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...] -> array[..., 1, ...]`.
+* If the :math:`begin\_mask[i]` is set to one, the value of :math:`begin[i]` is set to :math:`0`` (:math:`size(dim) - 1` if slicing in reverse). Equivalent of swapping left handside of Python slicing operation :math:`array[0:10]` with :math:`array[:10]` (slice from the start).
+* If the :math:`end\_mask[i]` is set to one, the value of :math:`end[i]` is set to :math:`size(dim)` (:math:`0` if slicing in reverse - note that this does not allow slicing inclusively with the first value). Equivalent of swapping right handside of Python slicing operation :math:`array[0:10]` (assume :math:`len(array) = 10`) with :math:`array[0:]` (slice till the end, inclusive).
+* If the :math:`new\_axis\_mask[i]` is set to one, the values of :math:`begin[i]`, :math:`end[i]`, and :math:`stride[i]` **ARE IGNORED**, and a new dimension with size 1 appears in the output. No slicing occurs at this step. Equivalent of inserting a new dimension into a matrix using numpy :math:`array[..., np.newaxis, ...]`: :math:`shape(array) = [..., 1, ...]`.
 * If the :math:`shrink\_axis\_mask[i]` is set to one, the value of  :math:`begin[i]` **MUST EQUAL** :math:`end[i]` (Note that this would normally result in a size 1 dimension), and the :math:`stride[i]` value **IS IGNORED**. The corresponding dimension is removed, with only a single element from that dimension remaining. Equivalent of selecting only a given element without preserving dimension (numpy equivalent of keepdims=False) :math:`array[..., 0, ...] -> array[..., ...]` (one less dimension).
-* If the :math:`ellipsis\_mask[i]` is set to one, the :math:`begin[i], end[i],` and :math:`stride[i]` **ARE IGNORED**, and a number of dimensions are skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in Python :math:`array[0, ..., 0], rank(array) = 10 == array[0, :, :, :, :, :, :, :, :, 0]` (equivalent operation).
+* If the :math:`ellipsis\_mask[i]` is set to one, the values of :math:`begin[i], end[i],` and :math:`stride[i]` **ARE IGNORED**, and a number of dimensions is skipped. The exact number of dimensions skipped in the original input is :math:`size(dim) - (M - sum(new\_axis\_mask) - 1)`. The corresponding dimension is treated as an ellipsis ('...'), or in other words, it is treated as multiple, sequential, and unaffected by slicing dimensions, that match the rest of the slicing operation. This allows for a concise and flexible way to perform slicing operations, effectively condensing the slicing parameters for dimensions marked with ellipsis into a single slice notation. For example, given a 10D input, and tasked to select the first element from the 1st and last dimension, normally one would have to write :math:`[0, :, :, :, :, :, :, :, :, :, 0]`, but with ellipsis, it is only necessary to write :math:`[0, ..., 0]`. Equivalent of Equivalent of using the '...' (ellipsis) opeartion in numpy :math:`array[0, ..., 0] (rank(array) = 10)` is the same as writing :math:`array[0, :, :, :, :, :, :, :, :, 0]`.
 
 .. note:: The i-th Slicing Step and Dimension Modification
 
@@ -122,13 +126,10 @@ During the i-th slicing step:
 **Inputs**:
 
 * **1**: ``data`` - input tensor to be sliced of type *T* and arbitrary shape. **Required.**
-
 * **2**: ``begin`` - 1D tensor of type *T_IND* with begin indexes for input tensor slicing. **Required.**
-    Out-of-bounds values are silently clamped. If ``begin_mask[i]`` is ``1`` , the value of ``begin[i]`` is ignored and the range of the appropriate dimension starts from ``0``. Negative values mean indexing starts from the end. For example, if ``data=[1,2,3]``, ``begin[0]=-1`` means ``begin[0]=3``.
-
+    Out-of-bounds values are silently clamped. If ``begin_mask[i]`` is ``1`` , the value of ``begin[i]`` is ignored and the range of the appropriate dimension starts from ``0``. Negative values mean indexing starts from the end.
 * **3**: ``end`` - 1D tensor of type *T_IND* with end indexes for input tensor slicing. **Required.**
-    Out-of-bounds values will be silently clamped. If ``end_mask[i]`` is ``1``, the value of ``end[i]`` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end. For example, if ``data=[1,2,3]``, ``end[0]=-1`` means ``end[0]=3``.
-
+    Out-of-bounds values will be silently clamped. If ``end_mask[i]`` is ``1``, the value of ``end[i]`` is ignored and the full range of the appropriate dimension is used instead. Negative values mean indexing starts from the end.
 * **4**: ``stride`` - 1D tensor of type *T_IND* with strides. If not provided, stride is assumed to be equal to 1. **Optional.**
 
 **Outputs**:
@@ -142,7 +143,7 @@ During the i-th slicing step:
 
 **Example**
 
-Basic example with different strides, standard slicing and in reverse. Equivalent of performing array[0:4, 1:4, 0:4:2, 1:4:2, 3:0:-1, 3:0:-2] on a 6D array.
+Basic example with different strides, standard slicing and in reverse. Equivalent of performing :math:`array[0:4, 1:4, 0:4:2, 1:4:2, 3:0:-1, 3:0:-2]` on a 6D array.
 
 .. code-block:: xml
    :force:
@@ -180,7 +181,7 @@ Basic example with different strides, standard slicing and in reverse. Equivalen
         </output>
     </layer>
 
-Example of clamping in standard and reverse slicing. Equivalent of performing array[2:3, 2:1:-1] on a 2D array.
+Example of clamping in standard and reverse slicing. Equivalent of performing :math:`array[2:3, 2:1:-1]` on a 2D array.
 
 .. code-block:: xml
    :force:
@@ -242,7 +243,7 @@ Example of negative slicing. Equivalent of performing array[0:2, 0:2, 0:-1] on a
         </output>
     </layer>
 
-Example of ``begin_mask`` & ``end_mask`` usage. Equivalent of performing array[1:, :, ::-1] on a 3D array.
+Example of ``begin_mask`` & ``end_mask`` usage. Equivalent of performing :math:`array[1:, :, ::-1]` on a 3D array.
 
 .. code-block:: xml
    :force:
@@ -274,7 +275,7 @@ Example of ``begin_mask`` & ``end_mask`` usage. Equivalent of performing array[1
         </output>
     </layer>
 
-Example of ``new_axis_mask`` usage. Equivalent of performing array[np.newaxis, 0:2, np.newaxis, 0:4] on a 2D array.
+Example of ``new_axis_mask`` usage. Equivalent of performing :math:`array[np.newaxis, 0:2, np.newaxis, 0:4]` on a 2D array.
 
 .. code-block:: xml
    :force:
@@ -306,7 +307,7 @@ Example of ``new_axis_mask`` usage. Equivalent of performing array[np.newaxis, 0
         </output>
     </layer>
 
-Example of ``shrink_axis_mask`` usage. Equivalent of performing array[0:1, 0, 0:384, 0:640, 0:8] on a 5D array.
+Example of ``shrink_axis_mask`` usage. Equivalent of performing :math:`array[0:1, 0, 0:384, 0:640, 0:8]` on a 5D array.
 
 .. code-block:: xml
    :force:
@@ -341,7 +342,7 @@ Example of ``shrink_axis_mask`` usage. Equivalent of performing array[0:1, 0, 0:
         </output>
     </layer>
 
-Example of ``ellipsis_mask`` usage. Equivalent of performing array[0:4, ..., 0:5] on a 10D array.
+Example of ``ellipsis_mask`` usage. Equivalent of performing :math:`array[0:4, ..., 0:5]` on a 10D array.
 
 .. code-block:: xml
    :force:
@@ -391,7 +392,7 @@ Example of ``ellipsis_mask`` usage. Equivalent of performing array[0:4, ..., 0:5
         </output>
     </layer>
 
-Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalent of performing array[2:, ..., np.newaxis, :10] on a 10D array.
+Example of ``ellipsis_mask`` usage with other masks of unequal length. Equivalent of performing :math:`array[2:, ..., np.newaxis, :10]` on a 10D array.
 
 .. code-block:: xml
    :force:
