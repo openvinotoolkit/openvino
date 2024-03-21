@@ -217,6 +217,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"Ngram", Type::Ngram},
         {"ScaledDotProductAttention", Type::ScaledDotProductAttention},
         {"ScaledDotProductAttentionWithKVCache", Type::ScaledDotProductAttention},
+        {"PagedAttentionExtension", Type::ScaledDotProductAttention},
         {"RoPE", Type::RoPE},
     };
     return type_to_name_tbl;

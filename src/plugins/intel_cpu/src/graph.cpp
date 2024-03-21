@@ -1680,6 +1680,10 @@ void Graph::EnforceInferencePrecision() {
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
+                // kvcache of PagedAttention should be written directly
+                if (node->getType() == Type::ScaledDotProductAttention && node->getOriginalInputsNumber() == 13 &&
+                    (inPort == 3 || inPort == 4))
+                    return true;
                 const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
                  * Element type conversion to bf16 is done automatically, if convolution follows up after Constant Inputs
