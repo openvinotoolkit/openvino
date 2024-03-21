@@ -375,8 +375,15 @@ struct TensorIterator {
                 break;
             } else {
                 m_tensorIter[j] = 0;
-                offsets[0] += dataBlockND[j];
-                offsets[1] += indicesBlockND[j];
+                size_t i = 0;
+                for (offsets[0] = 0, offsets[1] = 0; i < m_squashed_axis; ++i) {
+                    offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
+                    offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
+                }
+                for (i++; i < m_squashed_shape.size(); ++i) {
+                    offsets[0] += m_tensorIter[i] * dataBlockND[i + 1];
+                    offsets[1] += m_tensorIter[i] * indicesBlockND[i + 1];
+                }
             }
         }
     }
