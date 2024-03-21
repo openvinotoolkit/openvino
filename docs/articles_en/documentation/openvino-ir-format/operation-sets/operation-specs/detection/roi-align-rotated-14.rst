@@ -18,10 +18,17 @@ ROIAlignRotated
 
 *ROIAlignRotated* performs the following for each Region of Interest (ROI) for each input feature map:
 
-1. Multiply box coordinates with *spatial_scale* to produce box coordinates relative to the input feature map size based on *aligned_mode* attribute.
-2. Divide the box into bins according to the *sampling_ratio* attribute.
-3. Rotete the box according to given angle and direction(clockwise or counterclockwise).
-4. Apply bilinear interpolation with 4 points in each bin and apply average pooling to produce output feature map element.
+1. Multiply ROI box coordinates with *spatial_scale* to produce box coordinates relative to the input feature map size.
+2. Rotate ROI box according to given angle in radians and *clockwise_mode*.
+3. Divide the box into equal bins. One bin is mapped to single output feature map element.
+4. Inside every bin, calculate regularly spaced sample points, according to the *sampling_ratio* attribute.
+5. To calculate the value of single sample point, calculate further 4 points around each sample point to apply bilinear interpolation.
+6. calculate the average of all sample points in the bin to produce output feature map element.
+
+The 4 points used for bilinear interpolation are calculated as the closest integer coordinates to the sample point.
+As an example, if the sample point is [2.14, 3.56], then the 4 integer points are [2, 3], [2, 4], [3, 3], [3, 4].
+
+Each ROI box's center is shifted by [-0.5, -0.5] before pooling to achive better alignment with the closest integer cooridinates used for bilinear filtering.
 
 **Attributes**
 
@@ -41,21 +48,21 @@ ROIAlignRotated
 
 * *sampling_ratio*
 
-  * **Description**: *sampling_ratio* is the number of bins over height and width to use to calculate each output feature map element. If the value is equal to 0 then use adaptive number of elements over height and width: ``ceil(roi_height / pooled_h)`` and ``ceil(roi_width / pooled_w)`` respectively.
+  * **Description**: *sampling_ratio* describes the number of sampling points bins over height and width to use to calculate each output feature map element. If the value is greater than 0, then ``bin_points_h = sampling_ratio`` and ``bin_points_w = sampling_ratio``. If the value is equal to 0 then adaptive number of elements over height and width is used: ``bin_points_h = ceil(roi_height / pooled_h)`` and ``bin_points_w = ceil(roi_width / pooled_w)`` respectively. The total number of sampling points for a single bin is equal to ``bin_points_w * bin_points_h``.
   * **Range of values**: a non-negative integer
   * **Type**: ``int``
   * **Required**: *yes*
 
 * *spatial_scale*
 
-  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input spatial scale to the scale used when pooling.
+  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to that is applied to the ROI box(height, weight and center vector) before pooling.
   * **Range of values**: a positive floating-point number
   * **Type**: ``float``
   * **Required**: *yes*
 
 * *clockwise_mode*
 
-  * **Description**:  If True, the angle in each proposal represents a clockwise rotation, otherwise - counterclockwise rotation.
+  * **Description**:  If True, the angle for each ROI represents a clockwise rotation, otherwise - counterclockwise rotation.
   * **Type**: ``bool``
   * **Default value**: False  
   * **Required**: *no*
@@ -64,7 +71,7 @@ ROIAlignRotated
 
 * **1**: 4D input tensor of shape ``[N, C, H, W]`` with feature maps of type *T*. **Required.**
 
-* **2**: 2D input tensor of shape ``[NUM_ROIS, 5]`` describing box consisting of 5 element tuples: ``[center_x, center_y, width, height, angle]`` in relative coordinates of type *T*. The angle is always in radians.
+* **2**: 2D input tensor of shape ``[NUM_ROIS, 5]`` describing ROI box consisting of 5 element tuples: ``[center_x, center_y, width, height, angle]`` in relative coordinates of type *T*. The angle is always in radians.
   * **Required.**
 
 * **3**: 1D input tensor of shape ``[NUM_ROIS]`` with batch indices of type *IND_T*. **Required.**
