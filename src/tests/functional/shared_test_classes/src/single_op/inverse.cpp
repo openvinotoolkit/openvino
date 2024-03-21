@@ -64,9 +64,9 @@ void InverseLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInput
     const auto& in_prc = func_input.get_element_type();
 
     ov::test::utils::InputGenerateData in_data;
-    in_data.start_from = -5.0;
-    in_data.range = 10;
-    in_data.resolution = 0;
+    in_data.start_from = 1;
+    in_data.range = 20;
+    in_data.resolution = 1;
     in_data.seed = m_seed;
     auto tensor = ov::test::utils::create_and_fill_tensor(in_prc, targetInputStaticShapes[0], in_data);
     inputs.insert({func_input.get_node_shared_ptr(), tensor});
