@@ -27,12 +27,11 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                                value.as<std::string>(),
                                "for property key ",
                                ov::hint::model_distribution_policy.name(),
-                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL/NONE}");
+                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL}");
             };
             try {
                 for (auto& row : value.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
-                    if ((row != ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) &&
-                        (row != ov::hint::ModelDistributionPolicy::NONE)) {
+                    if (row != ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) {
                         error_info();
                     }
                 }

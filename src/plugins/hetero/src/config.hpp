@@ -34,7 +34,7 @@ struct Configuration {
     bool dump_dot_files() const;
 
     std::string device_priorities;
-    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {ov::hint::ModelDistributionPolicy::NONE};
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     ov::AnyMap device_properties;
 };
 }  // namespace hetero

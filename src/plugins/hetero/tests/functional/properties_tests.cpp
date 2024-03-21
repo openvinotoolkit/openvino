@@ -45,27 +45,15 @@ TEST_F(HeteroTests, set_property_device_priorities) {
     EXPECT_EQ("MOCK0,MOCK1", core.get_property("HETERO", ov::device::priorities));
 }
 
-// TEST_F(HeteroTests, set_property_ModelDistributionPolicy) {
-//     EXPECT_EQ(false, core.get_property("HETERO", ov::hint::model_distribution_policy));
-//     core.set_property("HETERO", ov::hint::model_distribution_policy(true));
-//     EXPECT_EQ(true, core.get_property("HETERO", ov::hint::model_distribution_policy));
-// }
-
 TEST_F(HeteroTests, set_property_ModelDistributionPolicy) {
-    std::set<ov::hint::ModelDistributionPolicy> value = {ov::hint::ModelDistributionPolicy::NONE};
+    std::set<ov::hint::ModelDistributionPolicy> value = {};
     std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
 
     ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
     ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE};
-
-    ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
-    ASSERT_EQ(model_policy, value);
-
-    model_policy = {ov::hint::ModelDistributionPolicy::NONE, ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
+    model_policy = {};
 
     ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
     ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
