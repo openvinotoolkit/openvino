@@ -14,22 +14,28 @@
 
 namespace py = pybind11;
 
+class PyDiscreteTypeInfo : public ov::DiscreteTypeInfo {
+    // Hold memory for name and version_id if a class object was initialized with std::string.
+    // If original ov::DiscreteTypeInfo ctors are used, these fields are not used.
+    // Need to hold them here when initialized from Python because original ov::DiscreteTypeInfo doesn't hold them.
+    const std::string str_name;
+    const std::string str_version_id;
+public:
+    PyDiscreteTypeInfo(const std::string& _name, const std::string& _version_id) : str_name(_name), str_version_id(_version_id) {
+        name = str_name.c_str();
+        version_id = str_version_id.c_str();
+    }
+};
+
 void regclass_graph_DiscreteTypeInfo(py::module m) {
-    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>> discrete_type_info(m, "DiscreteTypeInfo");
+    py::class_<ov::DiscreteTypeInfo, std::shared_ptr<ov::DiscreteTypeInfo>, PyDiscreteTypeInfo> discrete_type_info(m, "DiscreteTypeInfo");
     discrete_type_info.doc() = "openvino.runtime.DiscreteTypeInfo wraps ov::DiscreteTypeInfo";
 
-    discrete_type_info.def(py::init([](const std::string& type, const std::string& version_id) {
-            // FIXME: Certain memory leak here!
-            // TODO: Hold these two string somehow
-            std::cerr << "[  DEBUG  ] Constructing DiscreteTypeInfo with a hack\n";
-            std::cerr << "[ WARNING ] There will be memory leak\n";
-            auto p_name = new std::string(type);
-            auto p_version_id = new std::string(version_id);
-            return ov::DiscreteTypeInfo(p_name->c_str(), p_version_id->c_str());
+    discrete_type_info.def(py::init([](const std::string& name, const std::string& version_id) {
+            return std::make_shared<PyDiscreteTypeInfo>(name, version_id);
         }),
-        py::arg("type"),
-        py::arg("version_id"),
-        "doc"
+        py::arg("name"),
+        py::arg("version_id")
     );
 
     // operator overloading
