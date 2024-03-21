@@ -469,10 +469,11 @@ template <typename T>
 Napi::Array cpp_vector_to_js_array(const Napi::CallbackInfo& info, const std::vector<T>& vec) {
     auto array = Napi::Array::New(info.Env(), vec.size());
 
-    std::transform(vec.begin(), vec.end(), array.begin(), [](const auto& property){
+    uint32_t i = 0;
+    for (auto& property : vec) {
         auto any = ov::Any(property);
-        return any_to_js(info, any);
-    });
+        array[i++] = any_to_js(info, any);
+    }
 
     return array;
 }
