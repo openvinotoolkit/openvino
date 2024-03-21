@@ -47,6 +47,7 @@ class TestPow(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_pow(self, inplace, ie_device, precision, ir_version, test_input):
         if inplace and PytorchLayerTest.use_torch_export():
             pytest.skip(reason="export fails for inplace")
@@ -109,6 +110,7 @@ class TestPowMixedTypes(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
     def test_pow_mixed_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape

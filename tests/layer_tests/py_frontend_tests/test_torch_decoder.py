@@ -479,11 +479,11 @@ def test_pytorch_decoder_can_convert_empty_list():
     class aten_roll(torch.nn.Module):
         def __init__(self, shifts):
             super(aten_roll, self).__init__()
-            self.shits = shifts
+            self.shifts = shifts
 
         def forward(self, x):
             # roll has optional input dim, which is empty int list by default
-            return torch.roll(x, self.shits)
+            return torch.roll(x, self.shifts)
 
     model = get_scripted_model(aten_roll(1))
     consts = [n for n in model.inlined_graph.nodes() if n.kind() ==

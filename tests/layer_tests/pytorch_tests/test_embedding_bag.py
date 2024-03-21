@@ -42,6 +42,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize("per_sample_weights", [True, False])
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
@@ -86,6 +87,7 @@ class TestEmbeddingBag2d(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("indicies_size", [[1, 1], [2, 5], [3, 10], [4, 7]])
     @pytest.mark.parametrize("indicies_dtype", ["int", "int32"])
     @pytest.mark.parametrize("per_sample_weights", [True, False])

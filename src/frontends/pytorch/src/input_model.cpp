@@ -24,7 +24,7 @@ InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder) : m_m
     const auto& outputs = m_model_decoder->outputs();
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto out_place = std::make_shared<pytorch::Place>(*this, outputs[i]);
-        m_name_to_place.emplace(std::to_string(inputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
+        m_name_to_place.emplace(std::to_string(outputs[i]), std::dynamic_pointer_cast<frontend::Place>(out_place));
         for (const auto& name : out_place->get_names()) {
             m_name_to_place.emplace(name, std::dynamic_pointer_cast<frontend::Place>(out_place));
         }

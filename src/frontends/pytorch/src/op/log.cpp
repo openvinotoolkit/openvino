@@ -22,7 +22,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_log_sigmoid(const NodeContext& context) {
+std::shared_ptr<ov::Node> translate_log_sigmoid_common(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto op_vector = op::translate_1to1_match_1_inputs_with_fp32_type_alignment<v0::Sigmoid>(context);
     PYTORCH_OP_CONVERSION_CHECK(op_vector.size() == 1,
@@ -30,7 +30,16 @@ OutputVector translate_log_sigmoid(const NodeContext& context) {
                                 op_vector.size());
     auto sigmoid = op_vector[0];
     auto log = context.mark_node(std::make_shared<v0::Log>(sigmoid));
-    return {log};
+    return log;
+};
+
+OutputVector translate_log_sigmoid(const NodeContext& context) {
+    return {translate_log_sigmoid_common(context)};
+};
+
+OutputVector translate_log_sigmoid_fx(const NodeContext& context) {
+    auto log = translate_log_sigmoid_common(context);
+    return {context.mark_node(make_list_construct(log->outputs()))};
 };
 
 OutputVector translate_log2(const NodeContext& context) {
