@@ -52,6 +52,7 @@ GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& p
                             (GetOuputSize(params.output_order, output, 'X') * GetOuputSize(params.output_order, output, 'Y'));
         std::vector<size_t> global = { GetOuputSize(params.output_order, output, 'X'), GetOuputSize(params.output_order, output, 'Y'),
                                        total_batches };
+        GPU_DEBUG_TRACE_DETAIL << "Draft for global work item size: [" << global[0] << ", " << global[1] << ", " << global[2] << "], " << std::endl;
 
         dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
         dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
@@ -94,6 +95,11 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
             tuning_data.tile_k_size = tuning_data.simd_size;
             tuning_data.tile_m_size = tuning_data.simd_size;
         }
+        // Increasing tile_n_size has performance improvement when m_size and n_size are not shallow and n_size is aligned at 32.
+        if (m_size >= 128 && n_size >= 128 && (n_size % 32 == 0) && tuning_data.simd_size == 16 && params.fused_ops.empty())
+            tuning_data.tile_n_size = 32;
+
+        GPU_DEBUG_LOG << params.layerID << ": m_size: " << m_size << ", n_size: " << n_size << ", k_size: " << k_size << std::endl;
     } else {
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
@@ -102,6 +108,11 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
     }
+
+    GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
+                    << ", tile_n_size: " << tuning_data.tile_n_size
+                    << ", tile_k_size: " << tuning_data.tile_k_size
+                    << ", simd_size: " << tuning_data.simd_size << std::endl;
 
     return tuning_data;
 }
@@ -212,6 +223,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
         auto leftover_m = m_size % tuning_data.tile_m_size;
         auto leftover_n = n_size % tuning_data.tile_n_size;
         auto leftover_k = k_size % tuning_data.tile_k_size;
+        auto n_aligned_4byte = (n_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
+        auto k_aligned_4byte = (k_size * BytesPerElement(params.inputs[0].GetDType())) % 4 == 0;
 
         jit.AddConstants({
             MakeJitConstant("M", m_size),
@@ -219,6 +232,8 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
             MakeJitConstant("N", n_size),
             MakeJitConstant("K_PADDED_IN0", k_size),
             MakeJitConstant("N_PADDED", n_size),
+            MakeJitConstant("K_IS_ALIGNED_4BYTE", k_aligned_4byte),
+            MakeJitConstant("N_IS_ALIGNED_4BYTE", n_aligned_4byte),
             MakeJitConstant("SIMD_WIDTH", tuning_data.simd_size),
             MakeJitConstant("TILE_M", tuning_data.tile_m_size),
             MakeJitConstant("TILE_K", tuning_data.tile_k_size),
