@@ -11,8 +11,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
-
 enum class ScatterUpdateMode {
     ScatterUpdate,
     ScatterNDUpdate,
@@ -37,10 +35,7 @@ public:
     bool isExecutable() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    struct Config {
-        Reduction reduction_type;
-        bool use_init_val = true;
-    };
+    using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
 
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
@@ -51,7 +46,8 @@ private:
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
 
-    Config m_config;
+    Reduction reduction_type;
+    bool use_init_val = true;
 
     // if axis can be set other than default 0.
     bool axisRelaxed = false;
