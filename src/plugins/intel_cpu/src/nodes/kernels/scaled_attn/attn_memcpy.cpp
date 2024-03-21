@@ -86,11 +86,11 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
     parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
         auto block_idx = slot_mapping.ptr<int32_t>(b)[m];
         if (block_idx < 0) return;
-        attn_copy(past_k_output.ptr<T2>(block_idx, h, m, 0),
-                  k_input.ptr<T>(b, h, 0),
+        attn_copy(past_k_output.ptr<T2>(block_idx, h, 0),
+                  k_input.ptr<T>(b, h, m, 0),
                   S);
-        attn_copy(past_v_output.ptr<T2>(block_idx, h, m, 0),
-                  v_input.ptr<T>(b, h, 0),
+        attn_copy(past_v_output.ptr<T2>(block_idx, h, 0),
+                  v_input.ptr<T>(b, h, m, 0),
                   S);
     });
 }
