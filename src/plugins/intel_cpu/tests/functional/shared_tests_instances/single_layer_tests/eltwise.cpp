@@ -80,8 +80,7 @@ std::vector<EltwiseTypes> eltwise_op_types = {
         EltwiseTypes::FLOOR_MOD,
         EltwiseTypes::SQUARED_DIFF,
         EltwiseTypes::POWER,
-        EltwiseTypes::MOD,
-        EltwiseTypes::EQUAL_OP
+        EltwiseTypes::MOD
 };
 
 std::vector<EltwiseTypes> eltwise_op_types_dynamic = {
