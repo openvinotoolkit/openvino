@@ -51,8 +51,8 @@ void lu_decomposition(const T* input,
             // Swap rows in L, U (A) and P
             sign = !sign;
             std::swap(P[k], P[pivot_row]);
-            std::swap_ranges(&U[k], &U[k] + n, U[pivot_idx]);
-            std::swap_ranges(&L[k], &L[k] + n, L[pivot_idx]);
+            std::swap_ranges(&U[k_idx], &U[k_idx + n], &U[pivot_idx]);
+            std::swap_ranges(&L[k_idx], &L[k_idx + n], &L[pivot_idx]);
         }
 
         const auto remaining_columns = n - k;
