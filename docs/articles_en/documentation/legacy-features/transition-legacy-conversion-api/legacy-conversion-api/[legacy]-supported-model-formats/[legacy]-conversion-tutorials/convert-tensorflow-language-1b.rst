@@ -5,16 +5,16 @@ Converting a TensorFlow Language Model on One Billion Word Benchmark
 
 
 .. meta::
-   :description: Learn how to convert a TensorFlow Language 
-                 Model on One Billion Word Benchmark to the OpenVINO Intermediate 
+   :description: Learn how to convert a TensorFlow Language
+                 Model on One Billion Word Benchmark to the OpenVINO Intermediate
                  Representation.
 
 .. danger::
 
    The code described here has been **deprecated!** Do not use it to avoid working with a legacy solution. It will be kept for some time to ensure backwards compatibility, but **you should not use** it in contemporary applications.
 
-   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <tutorials>`.
-   
+   This guide describes a deprecated conversion method. The guide on the new and recommended method can be found in the :doc:`Python tutorials <../../../../../../learn-openvino/interactive-tutorials-python>`.
+
 Downloading a Pre-trained Language Model on One Billion Word Benchmark
 ######################################################################
 
@@ -92,7 +92,7 @@ Once you have downloaded the pretrained model files, you will have the ``lm_1b``
 
 
 
-.. image:: ./_static/images/lm_1b.svg
+.. image:: ./../../../../../../_static/images/lm_1b.svg
 
 The frozen model still has two variables: ``Variable`` and ``Variable_1``.
 It means that the model keeps training those variables at each inference.

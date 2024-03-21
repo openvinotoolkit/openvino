@@ -139,14 +139,14 @@ Import TensorFlow and Other Libraries
 
 .. parsed-literal::
 
-    2024-02-10 01:12:04.614496: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-02-10 01:12:04.649325: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-03-13 01:02:24.497427: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-03-13 01:02:24.532546: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
 
 
 .. parsed-literal::
 
-    2024-02-10 01:12:05.161353: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-03-13 01:02:25.044342: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Download and Explore the Dataset
@@ -289,12 +289,12 @@ Let’s use 80% of the images for training, and 20% for validation.
 
 .. parsed-literal::
 
-    2024-02-10 01:12:08.217732: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-02-10 01:12:08.217763: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-02-10 01:12:08.217767: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-02-10 01:12:08.217894: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-02-10 01:12:08.217909: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-02-10 01:12:08.217913: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-03-13 01:02:28.106945: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-03-13 01:02:28.106977: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-03-13 01:02:28.106982: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-03-13 01:02:28.107105: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-03-13 01:02:28.107122: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-03-13 01:02:28.107125: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. code:: ipython3
@@ -352,9 +352,9 @@ Here are the first 9 images from the training dataset.
 
 .. parsed-literal::
 
-    2024-02-10 01:12:08.550492: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
-    	 [[{{node Placeholder/_0}}]]
-    2024-02-10 01:12:08.550818: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    2024-03-13 01:02:28.449873: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
+    2024-03-13 01:02:28.450244: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
     	 [[{{node Placeholder/_0}}]]
 
 
@@ -382,9 +382,9 @@ over the dataset and retrieve batches of images:
 
 .. parsed-literal::
 
-    2024-02-10 01:12:09.380029: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2024-03-13 01:02:29.296083: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
-    2024-02-10 01:12:09.380404: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2024-03-13 01:02:29.296450: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -455,9 +455,9 @@ calling map:
 
 .. parsed-literal::
 
-    2024-02-10 01:12:09.568220: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
-    	 [[{{node Placeholder/_4}}]]
-    2024-02-10 01:12:09.568598: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    2024-03-13 01:02:29.513870: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    	 [[{{node Placeholder/_0}}]]
+    2024-03-13 01:02:29.514493: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
     	 [[{{node Placeholder/_4}}]]
 
 
@@ -652,10 +652,10 @@ augmentation to the same image several times:
 
 .. parsed-literal::
 
-    2024-02-10 01:12:10.342151: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    2024-03-13 01:02:30.494557: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
     	 [[{{node Placeholder/_0}}]]
-    2024-02-10 01:12:10.342455: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
-    	 [[{{node Placeholder/_0}}]]
+    2024-03-13 01:02:30.495526: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
 
 
 
@@ -740,14 +740,29 @@ Compile and Train the Model
      sequential_1 (Sequential)   (None, 180, 180, 3)       0
 
 
+
+
+
+
+
 .. parsed-literal::
 
      rescaling_2 (Rescaling)     (None, 180, 180, 3)       0
 
 
+
+
+
+
+
 .. parsed-literal::
 
      conv2d_3 (Conv2D)           (None, 180, 180, 16)      448
+
+
+
+
+
 
 
 .. parsed-literal::
@@ -761,9 +776,18 @@ Compile and Train the Model
 
 
 
+
+
+
+
 .. parsed-literal::
 
      conv2d_4 (Conv2D)           (None, 90, 90, 32)        4640
+
+
+
+
+
 
 
 .. parsed-literal::
@@ -776,9 +800,19 @@ Compile and Train the Model
      2D)
 
 
+
+
+
+
+
 .. parsed-literal::
 
      conv2d_5 (Conv2D)           (None, 45, 45, 64)        18496
+
+
+
+
+
 
 
 .. parsed-literal::
@@ -791,14 +825,28 @@ Compile and Train the Model
      2D)
 
 
+
+
+
+
+
 .. parsed-literal::
 
      dropout (Dropout)           (None, 22, 22, 64)        0
 
 
+
+
+
+
+
 .. parsed-literal::
 
      flatten_1 (Flatten)         (None, 30976)             0
+
+
+
+
 
 
 
@@ -808,9 +856,17 @@ Compile and Train the Model
 
 
 
+
+
+
+
 .. parsed-literal::
 
      outputs (Dense)             (None, 5)                 645
+
+
+
+
 
 
 
@@ -856,484 +912,484 @@ Compile and Train the Model
 
 .. parsed-literal::
 
-    2024-02-10 01:12:11.537227: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
+    2024-03-13 01:02:31.608332: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+    	 [[{{node Placeholder/_4}}]]
+    2024-03-13 01:02:31.608737: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [2936]
     	 [[{{node Placeholder/_0}}]]
-    2024-02-10 01:12:11.537529: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [2936]
+
+
+.. parsed-literal::
+
+
+ 1/92 [..............................] - ETA: 1:24 - loss: 1.6184 - accuracy: 0.1875
+
+.. parsed-literal::
+
+    
+ 2/92 [..............................] - ETA: 6s - loss: 2.2743 - accuracy: 0.2344
+
+.. parsed-literal::
+
+    
+ 3/92 [..............................] - ETA: 5s - loss: 2.2543 - accuracy: 0.2708
+
+.. parsed-literal::
+
+    
+ 4/92 [>.............................] - ETA: 5s - loss: 2.1636 - accuracy: 0.2344
+
+.. parsed-literal::
+
+    
+ 5/92 [>.............................] - ETA: 5s - loss: 2.0592 - accuracy: 0.2313
+
+.. parsed-literal::
+
+    
+ 6/92 [>.............................] - ETA: 5s - loss: 1.9847 - accuracy: 0.2188
+
+.. parsed-literal::
+
+    
+ 7/92 [=>............................] - ETA: 5s - loss: 1.9289 - accuracy: 0.2232
+
+.. parsed-literal::
+
+    
+ 8/92 [=>............................] - ETA: 5s - loss: 1.8900 - accuracy: 0.2109
+
+.. parsed-literal::
+
+    
+ 9/92 [=>............................] - ETA: 5s - loss: 1.8577 - accuracy: 0.2118
+
+.. parsed-literal::
+
+    
+10/92 [==>...........................] - ETA: 5s - loss: 1.8316 - accuracy: 0.2219
+
+.. parsed-literal::
+
+    
+11/92 [==>...........................] - ETA: 4s - loss: 1.8075 - accuracy: 0.2386
+
+.. parsed-literal::
+
+    
+12/92 [==>...........................] - ETA: 4s - loss: 1.7888 - accuracy: 0.2396
+
+.. parsed-literal::
+
+    
+13/92 [===>..........................] - ETA: 4s - loss: 1.7741 - accuracy: 0.2380
+
+.. parsed-literal::
+
+    
+14/92 [===>..........................] - ETA: 4s - loss: 1.7589 - accuracy: 0.2388
+
+.. parsed-literal::
+
+    
+15/92 [===>..........................] - ETA: 4s - loss: 1.7447 - accuracy: 0.2438
+
+.. parsed-literal::
+
+    
+16/92 [====>.........................] - ETA: 4s - loss: 1.7372 - accuracy: 0.2363
+
+.. parsed-literal::
+
+    
+17/92 [====>.........................] - ETA: 4s - loss: 1.7278 - accuracy: 0.2353
+
+.. parsed-literal::
+
+    
+18/92 [====>.........................] - ETA: 4s - loss: 1.7193 - accuracy: 0.2344
+
+.. parsed-literal::
+
+    
+19/92 [=====>........................] - ETA: 4s - loss: 1.7100 - accuracy: 0.2434
+
+.. parsed-literal::
+
+    
+20/92 [=====>........................] - ETA: 4s - loss: 1.7013 - accuracy: 0.2500
+
+.. parsed-literal::
+
+    
+21/92 [=====>........................] - ETA: 4s - loss: 1.6927 - accuracy: 0.2515
+
+.. parsed-literal::
+
+    
+22/92 [======>.......................] - ETA: 4s - loss: 1.6837 - accuracy: 0.2571
+
+.. parsed-literal::
+
+    
+23/92 [======>.......................] - ETA: 4s - loss: 1.6761 - accuracy: 0.2609
+
+.. parsed-literal::
+
+    
+24/92 [======>.......................] - ETA: 4s - loss: 1.6660 - accuracy: 0.2591
+
+.. parsed-literal::
+
+    
+25/92 [=======>......................] - ETA: 3s - loss: 1.6576 - accuracy: 0.2600
+
+.. parsed-literal::
+
+    
+26/92 [=======>......................] - ETA: 3s - loss: 1.6490 - accuracy: 0.2632
+
+.. parsed-literal::
+
+    
+27/92 [=======>......................] - ETA: 3s - loss: 1.6399 - accuracy: 0.2650
+
+.. parsed-literal::
+
+    
+28/92 [========>.....................] - ETA: 3s - loss: 1.6377 - accuracy: 0.2634
+
+.. parsed-literal::
+
+    
+29/92 [========>.....................] - ETA: 3s - loss: 1.6316 - accuracy: 0.2694
+
+.. parsed-literal::
+
+    
+30/92 [========>.....................] - ETA: 3s - loss: 1.6295 - accuracy: 0.2708
+
+.. parsed-literal::
+
+    
+31/92 [=========>....................] - ETA: 3s - loss: 1.6243 - accuracy: 0.2762
+
+.. parsed-literal::
+
+    
+32/92 [=========>....................] - ETA: 3s - loss: 1.6173 - accuracy: 0.2803
+
+.. parsed-literal::
+
+    
+33/92 [=========>....................] - ETA: 3s - loss: 1.6127 - accuracy: 0.2812
+
+.. parsed-literal::
+
+    
+34/92 [==========>...................] - ETA: 3s - loss: 1.6060 - accuracy: 0.2840
+
+.. parsed-literal::
+
+    
+35/92 [==========>...................] - ETA: 3s - loss: 1.5981 - accuracy: 0.2929
+
+.. parsed-literal::
+
+    
+36/92 [==========>...................] - ETA: 3s - loss: 1.5899 - accuracy: 0.2969
+
+.. parsed-literal::
+
+    
+37/92 [===========>..................] - ETA: 3s - loss: 1.5830 - accuracy: 0.3015
+
+.. parsed-literal::
+
+    
+38/92 [===========>..................] - ETA: 3s - loss: 1.5829 - accuracy: 0.3043
+
+.. parsed-literal::
+
+    
+39/92 [===========>..................] - ETA: 3s - loss: 1.5791 - accuracy: 0.3061
+
+.. parsed-literal::
+
+    
+40/92 [============>.................] - ETA: 3s - loss: 1.5691 - accuracy: 0.3086
+
+.. parsed-literal::
+
+    
+41/92 [============>.................] - ETA: 3s - loss: 1.5647 - accuracy: 0.3095
+
+.. parsed-literal::
+
+    
+42/92 [============>.................] - ETA: 2s - loss: 1.5574 - accuracy: 0.3110
+
+.. parsed-literal::
+
+    
+43/92 [=============>................] - ETA: 2s - loss: 1.5506 - accuracy: 0.3125
+
+.. parsed-literal::
+
+    
+44/92 [=============>................] - ETA: 2s - loss: 1.5488 - accuracy: 0.3146
+
+.. parsed-literal::
+
+    
+45/92 [=============>................] - ETA: 2s - loss: 1.5400 - accuracy: 0.3222
+
+.. parsed-literal::
+
+    
+46/92 [==============>...............] - ETA: 2s - loss: 1.5359 - accuracy: 0.3247
+
+.. parsed-literal::
+
+    
+47/92 [==============>...............] - ETA: 2s - loss: 1.5324 - accuracy: 0.3265
+
+.. parsed-literal::
+
+    
+48/92 [==============>...............] - ETA: 2s - loss: 1.5247 - accuracy: 0.3307
+
+.. parsed-literal::
+
+    
+49/92 [==============>...............] - ETA: 2s - loss: 1.5200 - accuracy: 0.3304
+
+.. parsed-literal::
+
+    
+50/92 [===============>..............] - ETA: 2s - loss: 1.5206 - accuracy: 0.3300
+
+.. parsed-literal::
+
+    
+51/92 [===============>..............] - ETA: 2s - loss: 1.5190 - accuracy: 0.3303
+
+.. parsed-literal::
+
+    
+52/92 [===============>..............] - ETA: 2s - loss: 1.5134 - accuracy: 0.3341
+
+.. parsed-literal::
+
+    
+53/92 [================>.............] - ETA: 2s - loss: 1.5079 - accuracy: 0.3361
+
+.. parsed-literal::
+
+    
+54/92 [================>.............] - ETA: 2s - loss: 1.5048 - accuracy: 0.3374
+
+.. parsed-literal::
+
+    
+55/92 [================>.............] - ETA: 2s - loss: 1.4971 - accuracy: 0.3398
+
+.. parsed-literal::
+
+    
+56/92 [=================>............] - ETA: 2s - loss: 1.4886 - accuracy: 0.3415
+
+.. parsed-literal::
+
+    
+57/92 [=================>............] - ETA: 2s - loss: 1.4843 - accuracy: 0.3464
+
+.. parsed-literal::
+
+    
+58/92 [=================>............] - ETA: 2s - loss: 1.4789 - accuracy: 0.3490
+
+.. parsed-literal::
+
+    
+59/92 [==================>...........] - ETA: 1s - loss: 1.4769 - accuracy: 0.3521
+
+.. parsed-literal::
+
+    
+60/92 [==================>...........] - ETA: 1s - loss: 1.4753 - accuracy: 0.3536
+
+.. parsed-literal::
+
+    
+61/92 [==================>...........] - ETA: 1s - loss: 1.4759 - accuracy: 0.3529
+
+.. parsed-literal::
+
+    
+62/92 [===================>..........] - ETA: 1s - loss: 1.4752 - accuracy: 0.3527
+
+.. parsed-literal::
+
+    
+63/92 [===================>..........] - ETA: 1s - loss: 1.4726 - accuracy: 0.3531
+
+.. parsed-literal::
+
+    
+64/92 [===================>..........] - ETA: 1s - loss: 1.4728 - accuracy: 0.3520
+
+.. parsed-literal::
+
+    
+65/92 [====================>.........] - ETA: 1s - loss: 1.4683 - accuracy: 0.3533
+
+.. parsed-literal::
+
+    
+66/92 [====================>.........] - ETA: 1s - loss: 1.4644 - accuracy: 0.3541
+
+.. parsed-literal::
+
+    
+67/92 [====================>.........] - ETA: 1s - loss: 1.4629 - accuracy: 0.3553
+
+.. parsed-literal::
+
+    
+68/92 [=====================>........] - ETA: 1s - loss: 1.4577 - accuracy: 0.3584
+
+.. parsed-literal::
+
+    
+69/92 [=====================>........] - ETA: 1s - loss: 1.4533 - accuracy: 0.3618
+
+.. parsed-literal::
+
+    
+70/92 [=====================>........] - ETA: 1s - loss: 1.4489 - accuracy: 0.3651
+
+.. parsed-literal::
+
+    
+71/92 [======================>.......] - ETA: 1s - loss: 1.4463 - accuracy: 0.3684
+
+.. parsed-literal::
+
+    
+72/92 [======================>.......] - ETA: 1s - loss: 1.4421 - accuracy: 0.3706
+
+.. parsed-literal::
+
+    
+73/92 [======================>.......] - ETA: 1s - loss: 1.4395 - accuracy: 0.3716
+
+.. parsed-literal::
+
+    
+74/92 [=======================>......] - ETA: 1s - loss: 1.4346 - accuracy: 0.3746
+
+.. parsed-literal::
+
+    
+75/92 [=======================>......] - ETA: 0s - loss: 1.4299 - accuracy: 0.3779
+
+.. parsed-literal::
+
+    
+76/92 [=======================>......] - ETA: 0s - loss: 1.4250 - accuracy: 0.3804
+
+.. parsed-literal::
+
+    
+77/92 [========================>.....] - ETA: 0s - loss: 1.4247 - accuracy: 0.3803
+
+.. parsed-literal::
+
+    
+78/92 [========================>.....] - ETA: 0s - loss: 1.4206 - accuracy: 0.3822
+
+.. parsed-literal::
+
+    
+79/92 [========================>.....] - ETA: 0s - loss: 1.4185 - accuracy: 0.3829
+
+.. parsed-literal::
+
+    
+80/92 [=========================>....] - ETA: 0s - loss: 1.4136 - accuracy: 0.3848
+
+.. parsed-literal::
+
+    
+81/92 [=========================>....] - ETA: 0s - loss: 1.4083 - accuracy: 0.3870
+
+.. parsed-literal::
+
+    
+82/92 [=========================>....] - ETA: 0s - loss: 1.4077 - accuracy: 0.3869
+
+.. parsed-literal::
+
+    
+83/92 [==========================>...] - ETA: 0s - loss: 1.4029 - accuracy: 0.3901
+
+.. parsed-literal::
+
+    
+84/92 [==========================>...] - ETA: 0s - loss: 1.3995 - accuracy: 0.3922
+
+.. parsed-literal::
+
+    
+85/92 [==========================>...] - ETA: 0s - loss: 1.3979 - accuracy: 0.3945
+
+.. parsed-literal::
+
+    
+86/92 [===========================>..] - ETA: 0s - loss: 1.3949 - accuracy: 0.3969
+
+.. parsed-literal::
+
+    
+87/92 [===========================>..] - ETA: 0s - loss: 1.3903 - accuracy: 0.3999
+
+.. parsed-literal::
+
+    
+88/92 [===========================>..] - ETA: 0s - loss: 1.3886 - accuracy: 0.4010
+
+.. parsed-literal::
+
+    
+89/92 [============================>.] - ETA: 0s - loss: 1.3860 - accuracy: 0.4004
+
+.. parsed-literal::
+
+    
+90/92 [============================>.] - ETA: 0s - loss: 1.3812 - accuracy: 0.4011
+
+.. parsed-literal::
+
+    
+91/92 [============================>.] - ETA: 0s - loss: 1.3783 - accuracy: 0.4029
+
+.. parsed-literal::
+
+    
+92/92 [==============================] - ETA: 0s - loss: 1.3797 - accuracy: 0.4026
+
+.. parsed-literal::
+
+    2024-03-13 01:02:37.888562: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
+    	 [[{{node Placeholder/_4}}]]
+    2024-03-13 01:02:37.888844: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_4' with dtype int32 and shape [734]
     	 [[{{node Placeholder/_4}}]]
 
 
 .. parsed-literal::
 
-
- 1/92 [..............................] - ETA: 1:26 - loss: 1.6124 - accuracy: 0.2500
-
-.. parsed-literal::
-
-    
- 2/92 [..............................] - ETA: 5s - loss: 2.0113 - accuracy: 0.2344
-
-.. parsed-literal::
-
     
- 3/92 [..............................] - ETA: 5s - loss: 2.0181 - accuracy: 0.1979
-
-.. parsed-literal::
-
-    
- 4/92 [>.............................] - ETA: 5s - loss: 1.9673 - accuracy: 0.1953
-
-.. parsed-literal::
-
-    
- 5/92 [>.............................] - ETA: 5s - loss: 1.8983 - accuracy: 0.2125
-
-.. parsed-literal::
-
-    
- 6/92 [>.............................] - ETA: 5s - loss: 1.8645 - accuracy: 0.2240
-
-.. parsed-literal::
-
-    
- 7/92 [=>............................] - ETA: 5s - loss: 1.8276 - accuracy: 0.2188
-
-.. parsed-literal::
-
-    
- 8/92 [=>............................] - ETA: 5s - loss: 1.8073 - accuracy: 0.2070
-
-.. parsed-literal::
-
-    
- 9/92 [=>............................] - ETA: 4s - loss: 1.7923 - accuracy: 0.1979
-
-.. parsed-literal::
-
-    
-10/92 [==>...........................] - ETA: 4s - loss: 1.7763 - accuracy: 0.1969
-
-.. parsed-literal::
-
-    
-11/92 [==>...........................] - ETA: 4s - loss: 1.7599 - accuracy: 0.1989
-
-.. parsed-literal::
-
-    
-12/92 [==>...........................] - ETA: 4s - loss: 1.7465 - accuracy: 0.1953
-
-.. parsed-literal::
-
-    
-13/92 [===>..........................] - ETA: 4s - loss: 1.7323 - accuracy: 0.1995
-
-.. parsed-literal::
-
-    
-14/92 [===>..........................] - ETA: 4s - loss: 1.7228 - accuracy: 0.1964
-
-.. parsed-literal::
-
-    
-15/92 [===>..........................] - ETA: 4s - loss: 1.7165 - accuracy: 0.1937
-
-.. parsed-literal::
-
-    
-16/92 [====>.........................] - ETA: 4s - loss: 1.7071 - accuracy: 0.2012
-
-.. parsed-literal::
-
-    
-17/92 [====>.........................] - ETA: 4s - loss: 1.6996 - accuracy: 0.2022
-
-.. parsed-literal::
-
-    
-18/92 [====>.........................] - ETA: 4s - loss: 1.6922 - accuracy: 0.2031
-
-.. parsed-literal::
-
-    
-19/92 [=====>........................] - ETA: 4s - loss: 1.6856 - accuracy: 0.2039
-
-.. parsed-literal::
-
-    
-20/92 [=====>........................] - ETA: 4s - loss: 1.6816 - accuracy: 0.2109
-
-.. parsed-literal::
-
-    
-21/92 [=====>........................] - ETA: 4s - loss: 1.6764 - accuracy: 0.2158
-
-.. parsed-literal::
-
-    
-22/92 [======>.......................] - ETA: 4s - loss: 1.6696 - accuracy: 0.2188
-
-.. parsed-literal::
-
-    
-23/92 [======>.......................] - ETA: 4s - loss: 1.6659 - accuracy: 0.2188
-
-.. parsed-literal::
-
-    
-24/92 [======>.......................] - ETA: 4s - loss: 1.6625 - accuracy: 0.2279
-
-.. parsed-literal::
-
-    
-25/92 [=======>......................] - ETA: 3s - loss: 1.6613 - accuracy: 0.2250
-
-.. parsed-literal::
-
-    
-26/92 [=======>......................] - ETA: 3s - loss: 1.6581 - accuracy: 0.2236
-
-.. parsed-literal::
-
-    
-27/92 [=======>......................] - ETA: 3s - loss: 1.6524 - accuracy: 0.2280
-
-.. parsed-literal::
-
-    
-28/92 [========>.....................] - ETA: 3s - loss: 1.6476 - accuracy: 0.2288
-
-.. parsed-literal::
-
-    
-29/92 [========>.....................] - ETA: 3s - loss: 1.6450 - accuracy: 0.2284
-
-.. parsed-literal::
-
-    
-30/92 [========>.....................] - ETA: 3s - loss: 1.6415 - accuracy: 0.2292
-
-.. parsed-literal::
-
-    
-31/92 [=========>....................] - ETA: 3s - loss: 1.6390 - accuracy: 0.2288
-
-.. parsed-literal::
-
-    
-32/92 [=========>....................] - ETA: 3s - loss: 1.6343 - accuracy: 0.2344
-
-.. parsed-literal::
-
-    
-33/92 [=========>....................] - ETA: 3s - loss: 1.6313 - accuracy: 0.2358
-
-.. parsed-literal::
-
-    
-34/92 [==========>...................] - ETA: 3s - loss: 1.6276 - accuracy: 0.2371
-
-.. parsed-literal::
-
-    
-35/92 [==========>...................] - ETA: 3s - loss: 1.6229 - accuracy: 0.2384
-
-.. parsed-literal::
-
-    
-36/92 [==========>...................] - ETA: 3s - loss: 1.6208 - accuracy: 0.2378
-
-.. parsed-literal::
-
-    
-37/92 [===========>..................] - ETA: 3s - loss: 1.6166 - accuracy: 0.2432
-
-.. parsed-literal::
-
-    
-38/92 [===========>..................] - ETA: 3s - loss: 1.6133 - accuracy: 0.2442
-
-.. parsed-literal::
-
-    
-39/92 [===========>..................] - ETA: 3s - loss: 1.6112 - accuracy: 0.2420
-
-.. parsed-literal::
-
-    
-40/92 [============>.................] - ETA: 3s - loss: 1.6055 - accuracy: 0.2453
-
-.. parsed-literal::
-
-    
-41/92 [============>.................] - ETA: 3s - loss: 1.6035 - accuracy: 0.2462
-
-.. parsed-literal::
-
-    
-42/92 [============>.................] - ETA: 2s - loss: 1.6018 - accuracy: 0.2448
-
-.. parsed-literal::
-
-    
-43/92 [=============>................] - ETA: 2s - loss: 1.5969 - accuracy: 0.2464
-
-.. parsed-literal::
-
-    
-44/92 [=============>................] - ETA: 2s - loss: 1.5921 - accuracy: 0.2507
-
-.. parsed-literal::
-
-    
-45/92 [=============>................] - ETA: 2s - loss: 1.5882 - accuracy: 0.2569
-
-.. parsed-literal::
-
-    
-46/92 [==============>...............] - ETA: 2s - loss: 1.5821 - accuracy: 0.2615
-
-.. parsed-literal::
-
-    
-47/92 [==============>...............] - ETA: 2s - loss: 1.5754 - accuracy: 0.2620
-
-.. parsed-literal::
-
-    
-48/92 [==============>...............] - ETA: 2s - loss: 1.5700 - accuracy: 0.2637
-
-.. parsed-literal::
-
-    
-49/92 [==============>...............] - ETA: 2s - loss: 1.5665 - accuracy: 0.2659
-
-.. parsed-literal::
-
-    
-50/92 [===============>..............] - ETA: 2s - loss: 1.5562 - accuracy: 0.2725
-
-.. parsed-literal::
-
-    
-51/92 [===============>..............] - ETA: 2s - loss: 1.5479 - accuracy: 0.2757
-
-.. parsed-literal::
-
-    
-52/92 [===============>..............] - ETA: 2s - loss: 1.5424 - accuracy: 0.2800
-
-.. parsed-literal::
-
-    
-53/92 [================>.............] - ETA: 2s - loss: 1.5411 - accuracy: 0.2789
-
-.. parsed-literal::
-
-    
-54/92 [================>.............] - ETA: 2s - loss: 1.5413 - accuracy: 0.2807
-
-.. parsed-literal::
-
-    
-55/92 [================>.............] - ETA: 2s - loss: 1.5364 - accuracy: 0.2847
-
-.. parsed-literal::
-
-    
-56/92 [=================>............] - ETA: 2s - loss: 1.5344 - accuracy: 0.2868
-
-.. parsed-literal::
-
-    
-57/92 [=================>............] - ETA: 2s - loss: 1.5273 - accuracy: 0.2906
-
-.. parsed-literal::
-
-    
-58/92 [=================>............] - ETA: 2s - loss: 1.5258 - accuracy: 0.2909
-
-.. parsed-literal::
-
-    
-59/92 [==================>...........] - ETA: 1s - loss: 1.5204 - accuracy: 0.2966
-
-.. parsed-literal::
-
-    
-60/92 [==================>...........] - ETA: 1s - loss: 1.5154 - accuracy: 0.3016
-
-.. parsed-literal::
-
-    
-61/92 [==================>...........] - ETA: 1s - loss: 1.5101 - accuracy: 0.3053
-
-.. parsed-literal::
-
-    
-62/92 [===================>..........] - ETA: 1s - loss: 1.5026 - accuracy: 0.3115
-
-.. parsed-literal::
-
-    
-63/92 [===================>..........] - ETA: 1s - loss: 1.4993 - accuracy: 0.3125
-
-.. parsed-literal::
-
-    
-64/92 [===================>..........] - ETA: 1s - loss: 1.4941 - accuracy: 0.3159
-
-.. parsed-literal::
-
-    
-65/92 [====================>.........] - ETA: 1s - loss: 1.4912 - accuracy: 0.3178
-
-.. parsed-literal::
-
-    
-66/92 [====================>.........] - ETA: 1s - loss: 1.4849 - accuracy: 0.3205
-
-.. parsed-literal::
-
-    
-67/92 [====================>.........] - ETA: 1s - loss: 1.4824 - accuracy: 0.3223
-
-.. parsed-literal::
-
-    
-68/92 [=====================>........] - ETA: 1s - loss: 1.4789 - accuracy: 0.3235
-
-.. parsed-literal::
-
-    
-69/92 [=====================>........] - ETA: 1s - loss: 1.4753 - accuracy: 0.3252
-
-.. parsed-literal::
-
-    
-70/92 [=====================>........] - ETA: 1s - loss: 1.4727 - accuracy: 0.3272
-
-.. parsed-literal::
-
-    
-71/92 [======================>.......] - ETA: 1s - loss: 1.4665 - accuracy: 0.3288
-
-.. parsed-literal::
-
-    
-72/92 [======================>.......] - ETA: 1s - loss: 1.4654 - accuracy: 0.3307
-
-.. parsed-literal::
-
-    
-73/92 [======================>.......] - ETA: 1s - loss: 1.4620 - accuracy: 0.3313
-
-.. parsed-literal::
-
-    
-74/92 [=======================>......] - ETA: 1s - loss: 1.4587 - accuracy: 0.3336
-
-.. parsed-literal::
-
-    
-75/92 [=======================>......] - ETA: 1s - loss: 1.4537 - accuracy: 0.3363
-
-.. parsed-literal::
-
-    
-76/92 [=======================>......] - ETA: 0s - loss: 1.4491 - accuracy: 0.3392
-
-.. parsed-literal::
-
-    
-77/92 [========================>.....] - ETA: 0s - loss: 1.4422 - accuracy: 0.3421
-
-.. parsed-literal::
-
-    
-78/92 [========================>.....] - ETA: 0s - loss: 1.4408 - accuracy: 0.3438
-
-.. parsed-literal::
-
-    
-79/92 [========================>.....] - ETA: 0s - loss: 1.4371 - accuracy: 0.3465
-
-.. parsed-literal::
-
-    
-80/92 [=========================>....] - ETA: 0s - loss: 1.4337 - accuracy: 0.3484
-
-.. parsed-literal::
-
-    
-81/92 [=========================>....] - ETA: 0s - loss: 1.4300 - accuracy: 0.3499
-
-.. parsed-literal::
-
-    
-82/92 [=========================>....] - ETA: 0s - loss: 1.4264 - accuracy: 0.3518
-
-.. parsed-literal::
-
-    
-83/92 [==========================>...] - ETA: 0s - loss: 1.4237 - accuracy: 0.3524
-
-.. parsed-literal::
-
-    
-84/92 [==========================>...] - ETA: 0s - loss: 1.4204 - accuracy: 0.3534
-
-.. parsed-literal::
-
-    
-85/92 [==========================>...] - ETA: 0s - loss: 1.4163 - accuracy: 0.3555
-
-.. parsed-literal::
-
-    
-86/92 [===========================>..] - ETA: 0s - loss: 1.4132 - accuracy: 0.3586
-
-.. parsed-literal::
-
-    
-87/92 [===========================>..] - ETA: 0s - loss: 1.4104 - accuracy: 0.3602
-
-.. parsed-literal::
-
-    
-88/92 [===========================>..] - ETA: 0s - loss: 1.4067 - accuracy: 0.3629
-
-.. parsed-literal::
-
-    
-89/92 [============================>.] - ETA: 0s - loss: 1.4013 - accuracy: 0.3655
-
-.. parsed-literal::
-
-    
-90/92 [============================>.] - ETA: 0s - loss: 1.3969 - accuracy: 0.3677
-
-.. parsed-literal::
-
-    
-91/92 [============================>.] - ETA: 0s - loss: 1.3957 - accuracy: 0.3678
-
-.. parsed-literal::
-
-    
-92/92 [==============================] - ETA: 0s - loss: 1.3942 - accuracy: 0.3682
-
-.. parsed-literal::
-
-    2024-02-10 01:12:17.857731: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
-    	 [[{{node Placeholder/_0}}]]
-    2024-02-10 01:12:17.858066: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'Placeholder/_0' with dtype string and shape [734]
-    	 [[{{node Placeholder/_0}}]]
-
-
-.. parsed-literal::
-
-    
-92/92 [==============================] - 7s 67ms/step - loss: 1.3942 - accuracy: 0.3682 - val_loss: 1.2278 - val_accuracy: 0.4864
+92/92 [==============================] - 7s 67ms/step - loss: 1.3797 - accuracy: 0.4026 - val_loss: 1.1118 - val_accuracy: 0.5763
 
 
 .. parsed-literal::
@@ -1344,462 +1400,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 1.1103 - accuracy: 0.5000
+ 1/92 [..............................] - ETA: 7s - loss: 0.9105 - accuracy: 0.5625
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 1.1211 - accuracy: 0.5781
+ 2/92 [..............................] - ETA: 5s - loss: 0.9593 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 1.1221 - accuracy: 0.5521
+ 3/92 [..............................] - ETA: 5s - loss: 0.9856 - accuracy: 0.5729
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 1.1369 - accuracy: 0.5469
+ 4/92 [>.............................] - ETA: 5s - loss: 1.0403 - accuracy: 0.5859
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 1.1210 - accuracy: 0.5312
+ 5/92 [>.............................] - ETA: 5s - loss: 1.0360 - accuracy: 0.5875
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 1.1376 - accuracy: 0.5260
+ 6/92 [>.............................] - ETA: 5s - loss: 1.0193 - accuracy: 0.6094
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 5s - loss: 1.0852 - accuracy: 0.5402
+ 7/92 [=>............................] - ETA: 5s - loss: 0.9867 - accuracy: 0.6295
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 1.0779 - accuracy: 0.5312
+ 8/92 [=>............................] - ETA: 4s - loss: 1.0265 - accuracy: 0.6094
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 1.1305 - accuracy: 0.5208
+ 9/92 [=>............................] - ETA: 4s - loss: 1.0582 - accuracy: 0.5903
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 1.1464 - accuracy: 0.5094
+10/92 [==>...........................] - ETA: 4s - loss: 1.0566 - accuracy: 0.5875
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 1.1565 - accuracy: 0.5028
+11/92 [==>...........................] - ETA: 4s - loss: 1.0390 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 1.1657 - accuracy: 0.5052
+12/92 [==>...........................] - ETA: 4s - loss: 1.0259 - accuracy: 0.6068
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 1.1414 - accuracy: 0.5114
+13/92 [===>..........................] - ETA: 4s - loss: 1.0263 - accuracy: 0.6010
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 1.1527 - accuracy: 0.5064
+14/92 [===>..........................] - ETA: 4s - loss: 1.0501 - accuracy: 0.5871
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 1.1726 - accuracy: 0.4980
+15/92 [===>..........................] - ETA: 4s - loss: 1.0419 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 1.1768 - accuracy: 0.4907
+16/92 [====>.........................] - ETA: 4s - loss: 1.0477 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 1.1829 - accuracy: 0.4894
+17/92 [====>.........................] - ETA: 4s - loss: 1.0513 - accuracy: 0.5882
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 1.1829 - accuracy: 0.4917
+18/92 [====>.........................] - ETA: 4s - loss: 1.0676 - accuracy: 0.5816
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 1.1813 - accuracy: 0.4968
+19/92 [=====>........................] - ETA: 4s - loss: 1.0657 - accuracy: 0.5839
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 1.1744 - accuracy: 0.5030
+20/92 [=====>........................] - ETA: 4s - loss: 1.0612 - accuracy: 0.5813
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 1.1793 - accuracy: 0.5000
+21/92 [=====>........................] - ETA: 4s - loss: 1.0648 - accuracy: 0.5833
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 3s - loss: 1.1772 - accuracy: 0.5014
+22/92 [======>.......................] - ETA: 4s - loss: 1.0619 - accuracy: 0.5852
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 1.1748 - accuracy: 0.5039
+23/92 [======>.......................] - ETA: 4s - loss: 1.0571 - accuracy: 0.5856
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 1.1731 - accuracy: 0.5038
+24/92 [======>.......................] - ETA: 3s - loss: 1.0605 - accuracy: 0.5833
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 1.1667 - accuracy: 0.5109
+25/92 [=======>......................] - ETA: 3s - loss: 1.0545 - accuracy: 0.5813
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 1.1709 - accuracy: 0.5093
+26/92 [=======>......................] - ETA: 3s - loss: 1.0681 - accuracy: 0.5745
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 1.1625 - accuracy: 0.5146
+27/92 [=======>......................] - ETA: 3s - loss: 1.0650 - accuracy: 0.5718
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 1.1613 - accuracy: 0.5152
+28/92 [========>.....................] - ETA: 3s - loss: 1.0666 - accuracy: 0.5714
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 1.1667 - accuracy: 0.5147
+29/92 [========>.....................] - ETA: 3s - loss: 1.0674 - accuracy: 0.5711
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 1.1620 - accuracy: 0.5193
+30/92 [========>.....................] - ETA: 3s - loss: 1.0589 - accuracy: 0.5760
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 1.1589 - accuracy: 0.5177
+31/92 [=========>....................] - ETA: 3s - loss: 1.0596 - accuracy: 0.5726
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 1.1593 - accuracy: 0.5181
+32/92 [=========>....................] - ETA: 3s - loss: 1.0527 - accuracy: 0.5781
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 1.1560 - accuracy: 0.5167
+33/92 [=========>....................] - ETA: 3s - loss: 1.0541 - accuracy: 0.5795
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 1.1544 - accuracy: 0.5162
+34/92 [==========>...................] - ETA: 3s - loss: 1.0645 - accuracy: 0.5754
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 1.1475 - accuracy: 0.5210
+35/92 [==========>...................] - ETA: 3s - loss: 1.0628 - accuracy: 0.5759
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 1.1431 - accuracy: 0.5213
+36/92 [==========>...................] - ETA: 3s - loss: 1.0694 - accuracy: 0.5755
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 1.1386 - accuracy: 0.5265
+37/92 [===========>..................] - ETA: 3s - loss: 1.0661 - accuracy: 0.5769
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 1.1383 - accuracy: 0.5282
+38/92 [===========>..................] - ETA: 3s - loss: 1.0729 - accuracy: 0.5757
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 1.1376 - accuracy: 0.5275
+39/92 [===========>..................] - ETA: 3s - loss: 1.0714 - accuracy: 0.5777
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 1.1386 - accuracy: 0.5268
+40/92 [============>.................] - ETA: 3s - loss: 1.0669 - accuracy: 0.5797
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 1.1374 - accuracy: 0.5262
+41/92 [============>.................] - ETA: 2s - loss: 1.0680 - accuracy: 0.5777
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 1.1333 - accuracy: 0.5278
+42/92 [============>.................] - ETA: 2s - loss: 1.0679 - accuracy: 0.5796
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 1.1271 - accuracy: 0.5293
+43/92 [=============>................] - ETA: 2s - loss: 1.0672 - accuracy: 0.5799
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 1.1306 - accuracy: 0.5258
+44/92 [=============>................] - ETA: 2s - loss: 1.0661 - accuracy: 0.5824
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 1.1306 - accuracy: 0.5246
+45/92 [=============>................] - ETA: 2s - loss: 1.0683 - accuracy: 0.5806
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 1.1274 - accuracy: 0.5261
+46/92 [==============>...............] - ETA: 2s - loss: 1.0705 - accuracy: 0.5781
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 1.1235 - accuracy: 0.5268
+47/92 [==============>...............] - ETA: 2s - loss: 1.0696 - accuracy: 0.5785
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 1.1230 - accuracy: 0.5282
+48/92 [==============>...............] - ETA: 2s - loss: 1.0685 - accuracy: 0.5781
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 1.1240 - accuracy: 0.5283
+49/92 [==============>...............] - ETA: 2s - loss: 1.0680 - accuracy: 0.5784
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 1.1228 - accuracy: 0.5302
+50/92 [===============>..............] - ETA: 2s - loss: 1.0653 - accuracy: 0.5794
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 1.1179 - accuracy: 0.5326
+51/92 [===============>..............] - ETA: 2s - loss: 1.0619 - accuracy: 0.5803
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 1.1113 - accuracy: 0.5367
+52/92 [===============>..............] - ETA: 2s - loss: 1.0605 - accuracy: 0.5793
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 1.1151 - accuracy: 0.5378
+53/92 [================>.............] - ETA: 2s - loss: 1.0614 - accuracy: 0.5784
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 1.1139 - accuracy: 0.5388
+54/92 [================>.............] - ETA: 2s - loss: 1.0619 - accuracy: 0.5799
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 1.1117 - accuracy: 0.5392
+55/92 [================>.............] - ETA: 2s - loss: 1.0602 - accuracy: 0.5818
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 1.1080 - accuracy: 0.5413
+56/92 [=================>............] - ETA: 2s - loss: 1.0626 - accuracy: 0.5809
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 1.1064 - accuracy: 0.5438
+57/92 [=================>............] - ETA: 2s - loss: 1.0606 - accuracy: 0.5811
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 1.1016 - accuracy: 0.5452
+58/92 [=================>............] - ETA: 1s - loss: 1.0610 - accuracy: 0.5803
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 1.1005 - accuracy: 0.5455
+59/92 [==================>...........] - ETA: 1s - loss: 1.0651 - accuracy: 0.5768
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 1.1002 - accuracy: 0.5448
+60/92 [==================>...........] - ETA: 1s - loss: 1.0656 - accuracy: 0.5766
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 1.0986 - accuracy: 0.5461
+61/92 [==================>...........] - ETA: 1s - loss: 1.0637 - accuracy: 0.5763
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 1.0959 - accuracy: 0.5483
+63/92 [===================>..........] - ETA: 1s - loss: 1.0669 - accuracy: 0.5762
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 1.0937 - accuracy: 0.5505
+64/92 [===================>..........] - ETA: 1s - loss: 1.0693 - accuracy: 0.5755
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 1.0917 - accuracy: 0.5502
+65/92 [====================>.........] - ETA: 1s - loss: 1.0669 - accuracy: 0.5777
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 1.0901 - accuracy: 0.5490
+66/92 [====================>.........] - ETA: 1s - loss: 1.0697 - accuracy: 0.5770
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 1.0901 - accuracy: 0.5501
+67/92 [====================>.........] - ETA: 1s - loss: 1.0703 - accuracy: 0.5758
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 1.0897 - accuracy: 0.5517
+68/92 [=====================>........] - ETA: 1s - loss: 1.0701 - accuracy: 0.5756
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 1.0857 - accuracy: 0.5523
+69/92 [=====================>........] - ETA: 1s - loss: 1.0717 - accuracy: 0.5745
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 1.0831 - accuracy: 0.5538
+70/92 [=====================>........] - ETA: 1s - loss: 1.0695 - accuracy: 0.5757
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 1.0809 - accuracy: 0.5548
+71/92 [======================>.......] - ETA: 1s - loss: 1.0663 - accuracy: 0.5777
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 1.0771 - accuracy: 0.5575
+72/92 [======================>.......] - ETA: 1s - loss: 1.0643 - accuracy: 0.5784
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 1.0745 - accuracy: 0.5597
+73/92 [======================>.......] - ETA: 1s - loss: 1.0641 - accuracy: 0.5786
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 1.0762 - accuracy: 0.5593
+74/92 [=======================>......] - ETA: 1s - loss: 1.0667 - accuracy: 0.5775
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 1.0742 - accuracy: 0.5594
+75/92 [=======================>......] - ETA: 0s - loss: 1.0668 - accuracy: 0.5786
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 1.0738 - accuracy: 0.5586
+76/92 [=======================>......] - ETA: 0s - loss: 1.0638 - accuracy: 0.5813
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 1.0748 - accuracy: 0.5574
+77/92 [========================>.....] - ETA: 0s - loss: 1.0649 - accuracy: 0.5794
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 1.0728 - accuracy: 0.5579
+78/92 [========================>.....] - ETA: 0s - loss: 1.0628 - accuracy: 0.5808
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 1.0742 - accuracy: 0.5595
+79/92 [========================>.....] - ETA: 0s - loss: 1.0628 - accuracy: 0.5813
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 1.0765 - accuracy: 0.5588
+80/92 [=========================>....] - ETA: 0s - loss: 1.0607 - accuracy: 0.5835
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 1.0769 - accuracy: 0.5600
+81/92 [=========================>....] - ETA: 0s - loss: 1.0591 - accuracy: 0.5832
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 1.0754 - accuracy: 0.5596
+82/92 [=========================>....] - ETA: 0s - loss: 1.0591 - accuracy: 0.5837
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 1.0743 - accuracy: 0.5597
+83/92 [==========================>...] - ETA: 0s - loss: 1.0640 - accuracy: 0.5812
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 1.0725 - accuracy: 0.5619
+84/92 [==========================>...] - ETA: 0s - loss: 1.0634 - accuracy: 0.5825
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 1.0725 - accuracy: 0.5608
+85/92 [==========================>...] - ETA: 0s - loss: 1.0626 - accuracy: 0.5833
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 1.0737 - accuracy: 0.5601
+86/92 [===========================>..] - ETA: 0s - loss: 1.0595 - accuracy: 0.5853
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 1.0731 - accuracy: 0.5602
+87/92 [===========================>..] - ETA: 0s - loss: 1.0590 - accuracy: 0.5857
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 1.0762 - accuracy: 0.5580
+88/92 [===========================>..] - ETA: 0s - loss: 1.0568 - accuracy: 0.5873
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 1.0749 - accuracy: 0.5588
+89/92 [============================>.] - ETA: 0s - loss: 1.0556 - accuracy: 0.5880
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 1.0765 - accuracy: 0.5578
+90/92 [============================>.] - ETA: 0s - loss: 1.0545 - accuracy: 0.5874
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 1.0753 - accuracy: 0.5579
+91/92 [============================>.] - ETA: 0s - loss: 1.0543 - accuracy: 0.5868
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 1.0742 - accuracy: 0.5589
+92/92 [==============================] - ETA: 0s - loss: 1.0518 - accuracy: 0.5882
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 1.0742 - accuracy: 0.5589 - val_loss: 1.0685 - val_accuracy: 0.5627
+92/92 [==============================] - 6s 64ms/step - loss: 1.0518 - accuracy: 0.5882 - val_loss: 0.9841 - val_accuracy: 0.5981
 
 
 .. parsed-literal::
@@ -1810,462 +1866,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.9481 - accuracy: 0.6250
+ 1/92 [..............................] - ETA: 7s - loss: 1.1521 - accuracy: 0.5312
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 1.0400 - accuracy: 0.5312
+ 2/92 [..............................] - ETA: 5s - loss: 1.0563 - accuracy: 0.5781
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 1.0083 - accuracy: 0.5833
+ 3/92 [..............................] - ETA: 5s - loss: 1.0220 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.9945 - accuracy: 0.6016
+ 4/92 [>.............................] - ETA: 5s - loss: 1.0244 - accuracy: 0.5859
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.9999 - accuracy: 0.5875
+ 5/92 [>.............................] - ETA: 5s - loss: 1.0256 - accuracy: 0.5813
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 4s - loss: 0.9974 - accuracy: 0.5833
+ 6/92 [>.............................] - ETA: 5s - loss: 0.9926 - accuracy: 0.5990
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.9819 - accuracy: 0.5982
+ 7/92 [=>............................] - ETA: 5s - loss: 0.9785 - accuracy: 0.6071
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.9862 - accuracy: 0.5938
+ 8/92 [=>............................] - ETA: 4s - loss: 0.9672 - accuracy: 0.6094
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.9919 - accuracy: 0.6007
+ 9/92 [=>............................] - ETA: 4s - loss: 0.9527 - accuracy: 0.6076
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.9875 - accuracy: 0.6062
+10/92 [==>...........................] - ETA: 4s - loss: 0.9405 - accuracy: 0.6156
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.9882 - accuracy: 0.6080
+11/92 [==>...........................] - ETA: 4s - loss: 0.9489 - accuracy: 0.6193
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.9726 - accuracy: 0.6120
+12/92 [==>...........................] - ETA: 4s - loss: 0.9709 - accuracy: 0.6094
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.9736 - accuracy: 0.6034
+13/92 [===>..........................] - ETA: 4s - loss: 0.9715 - accuracy: 0.6106
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.9760 - accuracy: 0.5982
+14/92 [===>..........................] - ETA: 4s - loss: 0.9619 - accuracy: 0.6138
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.9785 - accuracy: 0.5979
+15/92 [===>..........................] - ETA: 4s - loss: 0.9677 - accuracy: 0.6125
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.9527 - accuracy: 0.6172
+16/92 [====>.........................] - ETA: 4s - loss: 0.9741 - accuracy: 0.6074
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.9492 - accuracy: 0.6213
+17/92 [====>.........................] - ETA: 4s - loss: 0.9724 - accuracy: 0.6085
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.9475 - accuracy: 0.6215
+18/92 [====>.........................] - ETA: 4s - loss: 0.9591 - accuracy: 0.6146
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.9402 - accuracy: 0.6234
+19/92 [=====>........................] - ETA: 4s - loss: 0.9407 - accuracy: 0.6234
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.9313 - accuracy: 0.6281
+20/92 [=====>........................] - ETA: 4s - loss: 0.9417 - accuracy: 0.6281
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.9270 - accuracy: 0.6324
+21/92 [=====>........................] - ETA: 4s - loss: 0.9341 - accuracy: 0.6310
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.9411 - accuracy: 0.6264
+22/92 [======>.......................] - ETA: 4s - loss: 0.9311 - accuracy: 0.6335
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.9370 - accuracy: 0.6264
+23/92 [======>.......................] - ETA: 4s - loss: 0.9406 - accuracy: 0.6318
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.9346 - accuracy: 0.6276
+24/92 [======>.......................] - ETA: 3s - loss: 0.9421 - accuracy: 0.6341
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.9300 - accuracy: 0.6300
+25/92 [=======>......................] - ETA: 3s - loss: 0.9379 - accuracy: 0.6363
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.9249 - accuracy: 0.6298
+26/92 [=======>......................] - ETA: 3s - loss: 0.9524 - accuracy: 0.6274
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.9217 - accuracy: 0.6319
+27/92 [=======>......................] - ETA: 3s - loss: 0.9595 - accuracy: 0.6238
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.9224 - accuracy: 0.6283
+28/92 [========>.....................] - ETA: 3s - loss: 0.9559 - accuracy: 0.6261
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.9219 - accuracy: 0.6261
+29/92 [========>.....................] - ETA: 3s - loss: 0.9540 - accuracy: 0.6250
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.9185 - accuracy: 0.6250
+30/92 [========>.....................] - ETA: 3s - loss: 0.9505 - accuracy: 0.6250
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.9241 - accuracy: 0.6220
+31/92 [=========>....................] - ETA: 3s - loss: 0.9499 - accuracy: 0.6290
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.9325 - accuracy: 0.6182
+32/92 [=========>....................] - ETA: 3s - loss: 0.9488 - accuracy: 0.6309
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.9336 - accuracy: 0.6231
+33/92 [=========>....................] - ETA: 3s - loss: 0.9437 - accuracy: 0.6316
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.9345 - accuracy: 0.6241
+34/92 [==========>...................] - ETA: 3s - loss: 0.9398 - accuracy: 0.6324
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.9392 - accuracy: 0.6232
+35/92 [==========>...................] - ETA: 3s - loss: 0.9302 - accuracy: 0.6366
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.9411 - accuracy: 0.6224
+36/92 [==========>...................] - ETA: 3s - loss: 0.9310 - accuracy: 0.6328
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.9436 - accuracy: 0.6225
+37/92 [===========>..................] - ETA: 3s - loss: 0.9278 - accuracy: 0.6343
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.9506 - accuracy: 0.6201
+38/92 [===========>..................] - ETA: 3s - loss: 0.9292 - accuracy: 0.6324
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.9491 - accuracy: 0.6234
+39/92 [===========>..................] - ETA: 3s - loss: 0.9283 - accuracy: 0.6322
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.9481 - accuracy: 0.6227
+40/92 [============>.................] - ETA: 3s - loss: 0.9275 - accuracy: 0.6336
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.9429 - accuracy: 0.6250
+41/92 [============>.................] - ETA: 2s - loss: 0.9367 - accuracy: 0.6319
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.9385 - accuracy: 0.6272
+42/92 [============>.................] - ETA: 2s - loss: 0.9357 - accuracy: 0.6317
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.9361 - accuracy: 0.6279
+43/92 [=============>................] - ETA: 2s - loss: 0.9372 - accuracy: 0.6330
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.9339 - accuracy: 0.6271
+44/92 [=============>................] - ETA: 2s - loss: 0.9420 - accuracy: 0.6286
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.9319 - accuracy: 0.6278
+45/92 [=============>................] - ETA: 2s - loss: 0.9441 - accuracy: 0.6264
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.9336 - accuracy: 0.6277
+46/92 [==============>...............] - ETA: 2s - loss: 0.9472 - accuracy: 0.6264
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.9366 - accuracy: 0.6270
+47/92 [==============>...............] - ETA: 2s - loss: 0.9472 - accuracy: 0.6283
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.9346 - accuracy: 0.6263
+48/92 [==============>...............] - ETA: 2s - loss: 0.9445 - accuracy: 0.6289
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.9313 - accuracy: 0.6276
+49/92 [==============>...............] - ETA: 2s - loss: 0.9433 - accuracy: 0.6301
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.9317 - accuracy: 0.6263
+50/92 [===============>..............] - ETA: 2s - loss: 0.9481 - accuracy: 0.6300
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.9299 - accuracy: 0.6256
+51/92 [===============>..............] - ETA: 2s - loss: 0.9492 - accuracy: 0.6281
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.9252 - accuracy: 0.6274
+52/92 [===============>..............] - ETA: 2s - loss: 0.9519 - accuracy: 0.6268
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.9252 - accuracy: 0.6268
+53/92 [================>.............] - ETA: 2s - loss: 0.9495 - accuracy: 0.6291
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.9259 - accuracy: 0.6279
+54/92 [================>.............] - ETA: 2s - loss: 0.9574 - accuracy: 0.6238
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.9261 - accuracy: 0.6273
+55/92 [================>.............] - ETA: 2s - loss: 0.9581 - accuracy: 0.6227
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.9282 - accuracy: 0.6278
+56/92 [=================>............] - ETA: 2s - loss: 0.9565 - accuracy: 0.6228
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.9275 - accuracy: 0.6283
+57/92 [=================>............] - ETA: 2s - loss: 0.9548 - accuracy: 0.6239
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.9368 - accuracy: 0.6245
+58/92 [=================>............] - ETA: 1s - loss: 0.9557 - accuracy: 0.6245
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.9373 - accuracy: 0.6229
+59/92 [==================>...........] - ETA: 1s - loss: 0.9570 - accuracy: 0.6229
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.9358 - accuracy: 0.6234
+60/92 [==================>...........] - ETA: 1s - loss: 0.9561 - accuracy: 0.6245
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.9381 - accuracy: 0.6224
+61/92 [==================>...........] - ETA: 1s - loss: 0.9546 - accuracy: 0.6255
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.9375 - accuracy: 0.6235
+62/92 [===================>..........] - ETA: 1s - loss: 0.9585 - accuracy: 0.6225
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.9379 - accuracy: 0.6240
+63/92 [===================>..........] - ETA: 1s - loss: 0.9584 - accuracy: 0.6210
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.9418 - accuracy: 0.6230
+64/92 [===================>..........] - ETA: 1s - loss: 0.9548 - accuracy: 0.6230
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.9404 - accuracy: 0.6221
+65/92 [====================>.........] - ETA: 1s - loss: 0.9520 - accuracy: 0.6231
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.9375 - accuracy: 0.6245
+66/92 [====================>.........] - ETA: 1s - loss: 0.9485 - accuracy: 0.6255
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.9395 - accuracy: 0.6227
+67/92 [====================>.........] - ETA: 1s - loss: 0.9491 - accuracy: 0.6264
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.9382 - accuracy: 0.6232
+68/92 [=====================>........] - ETA: 1s - loss: 0.9464 - accuracy: 0.6273
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.9388 - accuracy: 0.6236
+69/92 [=====================>........] - ETA: 1s - loss: 0.9452 - accuracy: 0.6291
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.9366 - accuracy: 0.6246
+70/92 [=====================>........] - ETA: 1s - loss: 0.9460 - accuracy: 0.6299
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.9352 - accuracy: 0.6250
+71/92 [======================>.......] - ETA: 1s - loss: 0.9446 - accuracy: 0.6307
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.9365 - accuracy: 0.6233
+72/92 [======================>.......] - ETA: 1s - loss: 0.9407 - accuracy: 0.6324
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.9340 - accuracy: 0.6250
+73/92 [======================>.......] - ETA: 1s - loss: 0.9405 - accuracy: 0.6327
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.9335 - accuracy: 0.6258
+74/92 [=======================>......] - ETA: 1s - loss: 0.9419 - accuracy: 0.6322
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.9347 - accuracy: 0.6254
+75/92 [=======================>......] - ETA: 0s - loss: 0.9417 - accuracy: 0.6317
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.9330 - accuracy: 0.6262
+76/92 [=======================>......] - ETA: 0s - loss: 0.9425 - accuracy: 0.6332
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.9301 - accuracy: 0.6291
+77/92 [========================>.....] - ETA: 0s - loss: 0.9392 - accuracy: 0.6339
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.9306 - accuracy: 0.6290
+79/92 [========================>.....] - ETA: 0s - loss: 0.9406 - accuracy: 0.6341
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.9272 - accuracy: 0.6313
+80/92 [=========================>....] - ETA: 0s - loss: 0.9403 - accuracy: 0.6356
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.9265 - accuracy: 0.6316
+81/92 [=========================>....] - ETA: 0s - loss: 0.9384 - accuracy: 0.6354
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.9277 - accuracy: 0.6307
+82/92 [=========================>....] - ETA: 0s - loss: 0.9377 - accuracy: 0.6369
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.9297 - accuracy: 0.6295
+83/92 [==========================>...] - ETA: 0s - loss: 0.9376 - accuracy: 0.6371
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.9302 - accuracy: 0.6299
+84/92 [==========================>...] - ETA: 0s - loss: 0.9396 - accuracy: 0.6377
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.9299 - accuracy: 0.6309
+85/92 [==========================>...] - ETA: 0s - loss: 0.9436 - accuracy: 0.6350
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.9320 - accuracy: 0.6301
+86/92 [===========================>..] - ETA: 0s - loss: 0.9425 - accuracy: 0.6356
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.9358 - accuracy: 0.6279
+87/92 [===========================>..] - ETA: 0s - loss: 0.9419 - accuracy: 0.6358
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.9352 - accuracy: 0.6289
+88/92 [===========================>..] - ETA: 0s - loss: 0.9404 - accuracy: 0.6364
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.9329 - accuracy: 0.6292
+89/92 [============================>.] - ETA: 0s - loss: 0.9380 - accuracy: 0.6380
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.9313 - accuracy: 0.6295
+90/92 [============================>.] - ETA: 0s - loss: 0.9362 - accuracy: 0.6382
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.9285 - accuracy: 0.6309
+91/92 [============================>.] - ETA: 0s - loss: 0.9391 - accuracy: 0.6371
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.9316 - accuracy: 0.6291
+92/92 [==============================] - ETA: 0s - loss: 0.9395 - accuracy: 0.6362
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.9316 - accuracy: 0.6291 - val_loss: 0.8948 - val_accuracy: 0.6540
+92/92 [==============================] - 6s 64ms/step - loss: 0.9395 - accuracy: 0.6362 - val_loss: 0.9104 - val_accuracy: 0.6226
 
 
 .. parsed-literal::
@@ -2276,462 +2332,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 6s - loss: 0.9437 - accuracy: 0.6250
+ 1/92 [..............................] - ETA: 7s - loss: 0.8301 - accuracy: 0.6250
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.9400 - accuracy: 0.6406
+ 2/92 [..............................] - ETA: 5s - loss: 0.8889 - accuracy: 0.6719
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 1.0213 - accuracy: 0.6146
+ 3/92 [..............................] - ETA: 5s - loss: 0.8489 - accuracy: 0.6667
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 1.0144 - accuracy: 0.6016
+ 4/92 [>.............................] - ETA: 5s - loss: 0.9063 - accuracy: 0.6562
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.9660 - accuracy: 0.6250
+ 5/92 [>.............................] - ETA: 5s - loss: 0.9087 - accuracy: 0.6750
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.9476 - accuracy: 0.6510
+ 6/92 [>.............................] - ETA: 4s - loss: 0.9049 - accuracy: 0.6667
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.9413 - accuracy: 0.6518
+ 7/92 [=>............................] - ETA: 4s - loss: 0.9044 - accuracy: 0.6652
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.9381 - accuracy: 0.6484
+ 8/92 [=>............................] - ETA: 4s - loss: 0.8891 - accuracy: 0.6680
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.9303 - accuracy: 0.6389
+ 9/92 [=>............................] - ETA: 4s - loss: 0.8748 - accuracy: 0.6736
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.9133 - accuracy: 0.6469
+10/92 [==>...........................] - ETA: 4s - loss: 0.8838 - accuracy: 0.6750
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.9262 - accuracy: 0.6420
+11/92 [==>...........................] - ETA: 4s - loss: 0.8795 - accuracy: 0.6761
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.9131 - accuracy: 0.6458
+12/92 [==>...........................] - ETA: 4s - loss: 0.8821 - accuracy: 0.6719
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.9015 - accuracy: 0.6538
+13/92 [===>..........................] - ETA: 4s - loss: 0.8807 - accuracy: 0.6779
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.8883 - accuracy: 0.6585
+14/92 [===>..........................] - ETA: 4s - loss: 0.8823 - accuracy: 0.6808
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.8822 - accuracy: 0.6562
+15/92 [===>..........................] - ETA: 4s - loss: 0.8780 - accuracy: 0.6833
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.8838 - accuracy: 0.6602
+16/92 [====>.........................] - ETA: 4s - loss: 0.8646 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.9114 - accuracy: 0.6489
+17/92 [====>.........................] - ETA: 4s - loss: 0.8655 - accuracy: 0.6912
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.9011 - accuracy: 0.6510
+18/92 [====>.........................] - ETA: 4s - loss: 0.8688 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.8960 - accuracy: 0.6530
+19/92 [=====>........................] - ETA: 4s - loss: 0.8594 - accuracy: 0.6891
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.8969 - accuracy: 0.6516
+20/92 [=====>........................] - ETA: 4s - loss: 0.8546 - accuracy: 0.6891
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.8903 - accuracy: 0.6503
+21/92 [=====>........................] - ETA: 4s - loss: 0.8565 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.8889 - accuracy: 0.6477
+22/92 [======>.......................] - ETA: 4s - loss: 0.8586 - accuracy: 0.6832
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.8916 - accuracy: 0.6467
+23/92 [======>.......................] - ETA: 4s - loss: 0.8535 - accuracy: 0.6821
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.8925 - accuracy: 0.6471
+24/92 [======>.......................] - ETA: 4s - loss: 0.8458 - accuracy: 0.6862
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.8842 - accuracy: 0.6513
+25/92 [=======>......................] - ETA: 3s - loss: 0.8491 - accuracy: 0.6837
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.8855 - accuracy: 0.6502
+26/92 [=======>......................] - ETA: 3s - loss: 0.8537 - accuracy: 0.6803
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.8771 - accuracy: 0.6539
+27/92 [=======>......................] - ETA: 3s - loss: 0.8588 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.8767 - accuracy: 0.6518
+28/92 [========>.....................] - ETA: 3s - loss: 0.8589 - accuracy: 0.6797
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.8698 - accuracy: 0.6541
+29/92 [========>.....................] - ETA: 3s - loss: 0.8469 - accuracy: 0.6832
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.8710 - accuracy: 0.6542
+30/92 [========>.....................] - ETA: 3s - loss: 0.8618 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.8748 - accuracy: 0.6532
+31/92 [=========>....................] - ETA: 3s - loss: 0.8629 - accuracy: 0.6754
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.8705 - accuracy: 0.6543
+32/92 [=========>....................] - ETA: 3s - loss: 0.8558 - accuracy: 0.6748
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.8692 - accuracy: 0.6562
+33/92 [=========>....................] - ETA: 3s - loss: 0.8503 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.8665 - accuracy: 0.6599
+34/92 [==========>...................] - ETA: 3s - loss: 0.8537 - accuracy: 0.6765
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.8706 - accuracy: 0.6617
+35/92 [==========>...................] - ETA: 3s - loss: 0.8730 - accuracy: 0.6661
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.8676 - accuracy: 0.6624
+36/92 [==========>...................] - ETA: 3s - loss: 0.8816 - accuracy: 0.6667
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.8652 - accuracy: 0.6623
+37/92 [===========>..................] - ETA: 3s - loss: 0.8813 - accuracy: 0.6647
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.8623 - accuracy: 0.6629
+39/92 [===========>..................] - ETA: 3s - loss: 0.8844 - accuracy: 0.6605
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.8594 - accuracy: 0.6651
+40/92 [============>.................] - ETA: 3s - loss: 0.8790 - accuracy: 0.6619
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.8566 - accuracy: 0.6672
+41/92 [============>.................] - ETA: 2s - loss: 0.8801 - accuracy: 0.6603
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.8507 - accuracy: 0.6707
+42/92 [============>.................] - ETA: 2s - loss: 0.8767 - accuracy: 0.6617
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.8462 - accuracy: 0.6718
+43/92 [=============>................] - ETA: 2s - loss: 0.8735 - accuracy: 0.6630
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.8465 - accuracy: 0.6693
+44/92 [=============>................] - ETA: 2s - loss: 0.8766 - accuracy: 0.6621
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.8456 - accuracy: 0.6690
+45/92 [=============>................] - ETA: 2s - loss: 0.8854 - accuracy: 0.6585
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.8501 - accuracy: 0.6653
+46/92 [==============>...............] - ETA: 2s - loss: 0.8815 - accuracy: 0.6612
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.8534 - accuracy: 0.6651
+47/92 [==============>...............] - ETA: 2s - loss: 0.8805 - accuracy: 0.6584
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.8511 - accuracy: 0.6656
+48/92 [==============>...............] - ETA: 2s - loss: 0.8752 - accuracy: 0.6597
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.8530 - accuracy: 0.6654
+49/92 [==============>...............] - ETA: 2s - loss: 0.8762 - accuracy: 0.6609
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.8499 - accuracy: 0.6658
+50/92 [===============>..............] - ETA: 2s - loss: 0.8765 - accuracy: 0.6608
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.8518 - accuracy: 0.6644
+51/92 [===============>..............] - ETA: 2s - loss: 0.8728 - accuracy: 0.6638
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.8521 - accuracy: 0.6636
+52/92 [===============>..............] - ETA: 2s - loss: 0.8726 - accuracy: 0.6636
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.8538 - accuracy: 0.6629
+53/92 [================>.............] - ETA: 2s - loss: 0.8774 - accuracy: 0.6611
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.8603 - accuracy: 0.6605
+54/92 [================>.............] - ETA: 2s - loss: 0.8785 - accuracy: 0.6605
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.8678 - accuracy: 0.6592
+55/92 [================>.............] - ETA: 2s - loss: 0.8763 - accuracy: 0.6610
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.8674 - accuracy: 0.6592
+56/92 [=================>............] - ETA: 2s - loss: 0.8768 - accuracy: 0.6614
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.8660 - accuracy: 0.6591
+57/92 [=================>............] - ETA: 2s - loss: 0.8795 - accuracy: 0.6591
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.8648 - accuracy: 0.6607
+58/92 [=================>............] - ETA: 1s - loss: 0.8808 - accuracy: 0.6580
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.8631 - accuracy: 0.6617
+59/92 [==================>...........] - ETA: 1s - loss: 0.8781 - accuracy: 0.6585
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.8645 - accuracy: 0.6595
+60/92 [==================>...........] - ETA: 1s - loss: 0.8796 - accuracy: 0.6574
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.8637 - accuracy: 0.6600
+61/92 [==================>...........] - ETA: 1s - loss: 0.8845 - accuracy: 0.6574
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.8635 - accuracy: 0.6594
+62/92 [===================>..........] - ETA: 1s - loss: 0.8840 - accuracy: 0.6574
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.8610 - accuracy: 0.6599
+63/92 [===================>..........] - ETA: 1s - loss: 0.8821 - accuracy: 0.6584
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.8574 - accuracy: 0.6623
+64/92 [===================>..........] - ETA: 1s - loss: 0.8823 - accuracy: 0.6569
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.8597 - accuracy: 0.6612
+65/92 [====================>.........] - ETA: 1s - loss: 0.8862 - accuracy: 0.6549
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.8600 - accuracy: 0.6602
+66/92 [====================>.........] - ETA: 1s - loss: 0.8851 - accuracy: 0.6549
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.8582 - accuracy: 0.6606
+67/92 [====================>.........] - ETA: 1s - loss: 0.8861 - accuracy: 0.6540
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.8573 - accuracy: 0.6601
+68/92 [=====================>........] - ETA: 1s - loss: 0.8845 - accuracy: 0.6545
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.8575 - accuracy: 0.6600
+69/92 [=====================>........] - ETA: 1s - loss: 0.8839 - accuracy: 0.6536
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.8576 - accuracy: 0.6604
+70/92 [=====================>........] - ETA: 1s - loss: 0.8839 - accuracy: 0.6532
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.8571 - accuracy: 0.6617
+71/92 [======================>.......] - ETA: 1s - loss: 0.8829 - accuracy: 0.6546
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.8587 - accuracy: 0.6598
+72/92 [======================>.......] - ETA: 1s - loss: 0.8809 - accuracy: 0.6555
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.8593 - accuracy: 0.6598
+73/92 [======================>.......] - ETA: 1s - loss: 0.8842 - accuracy: 0.6538
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.8549 - accuracy: 0.6610
+74/92 [=======================>......] - ETA: 1s - loss: 0.8871 - accuracy: 0.6525
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.8569 - accuracy: 0.6610
+75/92 [=======================>......] - ETA: 0s - loss: 0.8866 - accuracy: 0.6534
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.8579 - accuracy: 0.6605
+76/92 [=======================>......] - ETA: 0s - loss: 0.8853 - accuracy: 0.6543
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.8619 - accuracy: 0.6584
+77/92 [========================>.....] - ETA: 0s - loss: 0.8851 - accuracy: 0.6551
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.8620 - accuracy: 0.6580
+78/92 [========================>.....] - ETA: 0s - loss: 0.8832 - accuracy: 0.6555
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.8613 - accuracy: 0.6583
+79/92 [========================>.....] - ETA: 0s - loss: 0.8857 - accuracy: 0.6548
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.8616 - accuracy: 0.6591
+80/92 [=========================>....] - ETA: 0s - loss: 0.8858 - accuracy: 0.6552
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.8579 - accuracy: 0.6602
+81/92 [=========================>....] - ETA: 0s - loss: 0.8850 - accuracy: 0.6560
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.8597 - accuracy: 0.6594
+82/92 [=========================>....] - ETA: 0s - loss: 0.8846 - accuracy: 0.6560
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.8589 - accuracy: 0.6597
+83/92 [==========================>...] - ETA: 0s - loss: 0.8838 - accuracy: 0.6556
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.8584 - accuracy: 0.6601
+84/92 [==========================>...] - ETA: 0s - loss: 0.8853 - accuracy: 0.6556
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.8609 - accuracy: 0.6578
+85/92 [==========================>...] - ETA: 0s - loss: 0.8843 - accuracy: 0.6556
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.8626 - accuracy: 0.6567
+86/92 [===========================>..] - ETA: 0s - loss: 0.8818 - accuracy: 0.6563
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.8617 - accuracy: 0.6574
+87/92 [===========================>..] - ETA: 0s - loss: 0.8787 - accuracy: 0.6585
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.8618 - accuracy: 0.6571
+88/92 [===========================>..] - ETA: 0s - loss: 0.8786 - accuracy: 0.6578
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.8622 - accuracy: 0.6553
+89/92 [============================>.] - ETA: 0s - loss: 0.8795 - accuracy: 0.6574
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.8624 - accuracy: 0.6542
+90/92 [============================>.] - ETA: 0s - loss: 0.8813 - accuracy: 0.6563
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.8621 - accuracy: 0.6553
+91/92 [============================>.] - ETA: 0s - loss: 0.8799 - accuracy: 0.6570
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.8626 - accuracy: 0.6550
+92/92 [==============================] - ETA: 0s - loss: 0.8800 - accuracy: 0.6570
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.8626 - accuracy: 0.6550 - val_loss: 0.8452 - val_accuracy: 0.6540
+92/92 [==============================] - 6s 64ms/step - loss: 0.8800 - accuracy: 0.6570 - val_loss: 0.9390 - val_accuracy: 0.6553
 
 
 .. parsed-literal::
@@ -2742,462 +2798,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.6427 - accuracy: 0.7188
+ 1/92 [..............................] - ETA: 7s - loss: 0.8812 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.6912 - accuracy: 0.7188
+ 2/92 [..............................] - ETA: 5s - loss: 0.9164 - accuracy: 0.6094
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.7137 - accuracy: 0.6875
+ 3/92 [..............................] - ETA: 5s - loss: 0.8794 - accuracy: 0.6250
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.7362 - accuracy: 0.6875
+ 4/92 [>.............................] - ETA: 5s - loss: 0.9695 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.7649 - accuracy: 0.6812
+ 5/92 [>.............................] - ETA: 5s - loss: 0.9142 - accuracy: 0.6187
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.8160 - accuracy: 0.6562
+ 6/92 [>.............................] - ETA: 5s - loss: 0.9198 - accuracy: 0.6406
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.8130 - accuracy: 0.6562
+ 7/92 [=>............................] - ETA: 5s - loss: 0.9138 - accuracy: 0.6562
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.7964 - accuracy: 0.6680
+ 8/92 [=>............................] - ETA: 4s - loss: 0.9124 - accuracy: 0.6406
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.8136 - accuracy: 0.6632
+ 9/92 [=>............................] - ETA: 4s - loss: 0.8889 - accuracy: 0.6562
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.8277 - accuracy: 0.6562
+10/92 [==>...........................] - ETA: 4s - loss: 0.8911 - accuracy: 0.6625
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.8489 - accuracy: 0.6477
+11/92 [==>...........................] - ETA: 4s - loss: 0.9110 - accuracy: 0.6506
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.8382 - accuracy: 0.6510
+12/92 [==>...........................] - ETA: 4s - loss: 0.9076 - accuracy: 0.6510
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.8242 - accuracy: 0.6611
+13/92 [===>..........................] - ETA: 4s - loss: 0.9137 - accuracy: 0.6490
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.8200 - accuracy: 0.6607
+14/92 [===>..........................] - ETA: 4s - loss: 0.9154 - accuracy: 0.6496
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.8231 - accuracy: 0.6562
+15/92 [===>..........................] - ETA: 4s - loss: 0.9019 - accuracy: 0.6562
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.8219 - accuracy: 0.6602
+16/92 [====>.........................] - ETA: 4s - loss: 0.9025 - accuracy: 0.6562
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.8155 - accuracy: 0.6654
+17/92 [====>.........................] - ETA: 4s - loss: 0.8931 - accuracy: 0.6581
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.8175 - accuracy: 0.6667
+18/92 [====>.........................] - ETA: 4s - loss: 0.8880 - accuracy: 0.6615
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.8136 - accuracy: 0.6727
+19/92 [=====>........................] - ETA: 4s - loss: 0.8759 - accuracy: 0.6645
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.8088 - accuracy: 0.6719
+20/92 [=====>........................] - ETA: 4s - loss: 0.8755 - accuracy: 0.6609
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.7999 - accuracy: 0.6771
+21/92 [=====>........................] - ETA: 4s - loss: 0.8677 - accuracy: 0.6622
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.8036 - accuracy: 0.6747
+22/92 [======>.......................] - ETA: 4s - loss: 0.8679 - accuracy: 0.6619
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.8034 - accuracy: 0.6780
+23/92 [======>.......................] - ETA: 4s - loss: 0.8670 - accuracy: 0.6590
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.8009 - accuracy: 0.6797
+24/92 [======>.......................] - ETA: 3s - loss: 0.8763 - accuracy: 0.6549
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.7954 - accuracy: 0.6837
+25/92 [=======>......................] - ETA: 3s - loss: 0.8764 - accuracy: 0.6550
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.7901 - accuracy: 0.6875
+26/92 [=======>......................] - ETA: 3s - loss: 0.8705 - accuracy: 0.6587
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.7908 - accuracy: 0.6852
+27/92 [=======>......................] - ETA: 3s - loss: 0.8718 - accuracy: 0.6609
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.7907 - accuracy: 0.6864
+28/92 [========>.....................] - ETA: 3s - loss: 0.8648 - accuracy: 0.6641
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.7913 - accuracy: 0.6864
+29/92 [========>.....................] - ETA: 3s - loss: 0.8630 - accuracy: 0.6670
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.7988 - accuracy: 0.6823
+30/92 [========>.....................] - ETA: 3s - loss: 0.8663 - accuracy: 0.6635
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.8004 - accuracy: 0.6804
+31/92 [=========>....................] - ETA: 3s - loss: 0.8637 - accuracy: 0.6623
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.8030 - accuracy: 0.6797
+32/92 [=========>....................] - ETA: 3s - loss: 0.8571 - accuracy: 0.6650
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.7989 - accuracy: 0.6809
+33/92 [=========>....................] - ETA: 3s - loss: 0.8529 - accuracy: 0.6657
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.8025 - accuracy: 0.6792
+34/92 [==========>...................] - ETA: 3s - loss: 0.8525 - accuracy: 0.6645
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.7999 - accuracy: 0.6786
+35/92 [==========>...................] - ETA: 3s - loss: 0.8567 - accuracy: 0.6625
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.7912 - accuracy: 0.6832
+36/92 [==========>...................] - ETA: 3s - loss: 0.8536 - accuracy: 0.6623
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.7929 - accuracy: 0.6833
+37/92 [===========>..................] - ETA: 3s - loss: 0.8573 - accuracy: 0.6605
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.7941 - accuracy: 0.6826
+38/92 [===========>..................] - ETA: 3s - loss: 0.8572 - accuracy: 0.6612
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.7943 - accuracy: 0.6843
+39/92 [===========>..................] - ETA: 3s - loss: 0.8635 - accuracy: 0.6587
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.8040 - accuracy: 0.6828
+40/92 [============>.................] - ETA: 3s - loss: 0.8663 - accuracy: 0.6570
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.8066 - accuracy: 0.6822
+41/92 [============>.................] - ETA: 2s - loss: 0.8664 - accuracy: 0.6578
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.8043 - accuracy: 0.6838
+42/92 [============>.................] - ETA: 2s - loss: 0.8603 - accuracy: 0.6615
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.8004 - accuracy: 0.6860
+43/92 [=============>................] - ETA: 2s - loss: 0.8584 - accuracy: 0.6606
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.7954 - accuracy: 0.6875
+44/92 [=============>................] - ETA: 2s - loss: 0.8597 - accuracy: 0.6619
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.7981 - accuracy: 0.6875
+45/92 [=============>................] - ETA: 2s - loss: 0.8649 - accuracy: 0.6597
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.7944 - accuracy: 0.6889
+46/92 [==============>...............] - ETA: 2s - loss: 0.8618 - accuracy: 0.6624
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.7967 - accuracy: 0.6875
+47/92 [==============>...............] - ETA: 2s - loss: 0.8613 - accuracy: 0.6642
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.7933 - accuracy: 0.6888
+48/92 [==============>...............] - ETA: 2s - loss: 0.8609 - accuracy: 0.6654
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.7877 - accuracy: 0.6913
+49/92 [==============>...............] - ETA: 2s - loss: 0.8622 - accuracy: 0.6633
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.7844 - accuracy: 0.6919
+50/92 [===============>..............] - ETA: 2s - loss: 0.8586 - accuracy: 0.6644
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.7897 - accuracy: 0.6893
+51/92 [===============>..............] - ETA: 2s - loss: 0.8583 - accuracy: 0.6642
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.7869 - accuracy: 0.6902
+52/92 [===============>..............] - ETA: 2s - loss: 0.8594 - accuracy: 0.6647
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.7861 - accuracy: 0.6913
+53/92 [================>.............] - ETA: 2s - loss: 0.8609 - accuracy: 0.6645
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.7849 - accuracy: 0.6912
+54/92 [================>.............] - ETA: 2s - loss: 0.8660 - accuracy: 0.6632
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.7852 - accuracy: 0.6917
+55/92 [================>.............] - ETA: 2s - loss: 0.8657 - accuracy: 0.6614
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.7868 - accuracy: 0.6916
+56/92 [=================>............] - ETA: 2s - loss: 0.8618 - accuracy: 0.6618
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.7890 - accuracy: 0.6916
+57/92 [=================>............] - ETA: 2s - loss: 0.8631 - accuracy: 0.6612
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.7928 - accuracy: 0.6910
+58/92 [=================>............] - ETA: 1s - loss: 0.8668 - accuracy: 0.6579
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.7903 - accuracy: 0.6930
+59/92 [==================>...........] - ETA: 1s - loss: 0.8626 - accuracy: 0.6589
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.7904 - accuracy: 0.6939
+60/92 [==================>...........] - ETA: 1s - loss: 0.8650 - accuracy: 0.6568
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.7863 - accuracy: 0.6969
+61/92 [==================>...........] - ETA: 1s - loss: 0.8623 - accuracy: 0.6593
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.7856 - accuracy: 0.6977
+62/92 [===================>..........] - ETA: 1s - loss: 0.8625 - accuracy: 0.6583
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.7854 - accuracy: 0.6971
+63/92 [===================>..........] - ETA: 1s - loss: 0.8627 - accuracy: 0.6582
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.7943 - accuracy: 0.6940
+64/92 [===================>..........] - ETA: 1s - loss: 0.8592 - accuracy: 0.6602
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.7963 - accuracy: 0.6939
+66/92 [====================>.........] - ETA: 1s - loss: 0.8576 - accuracy: 0.6611
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.8017 - accuracy: 0.6910
+67/92 [====================>.........] - ETA: 1s - loss: 0.8557 - accuracy: 0.6610
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.8011 - accuracy: 0.6923
+68/92 [=====================>........] - ETA: 1s - loss: 0.8520 - accuracy: 0.6637
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.8030 - accuracy: 0.6918
+69/92 [=====================>........] - ETA: 1s - loss: 0.8513 - accuracy: 0.6650
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.8016 - accuracy: 0.6913
+70/92 [=====================>........] - ETA: 1s - loss: 0.8522 - accuracy: 0.6644
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.8007 - accuracy: 0.6917
+71/92 [======================>.......] - ETA: 1s - loss: 0.8504 - accuracy: 0.6661
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.8018 - accuracy: 0.6908
+72/92 [======================>.......] - ETA: 1s - loss: 0.8502 - accuracy: 0.6668
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.8020 - accuracy: 0.6920
+73/92 [======================>.......] - ETA: 1s - loss: 0.8468 - accuracy: 0.6684
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.8055 - accuracy: 0.6903
+74/92 [=======================>......] - ETA: 1s - loss: 0.8451 - accuracy: 0.6691
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.8092 - accuracy: 0.6894
+75/92 [=======================>......] - ETA: 0s - loss: 0.8438 - accuracy: 0.6706
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.8083 - accuracy: 0.6914
+76/92 [=======================>......] - ETA: 0s - loss: 0.8427 - accuracy: 0.6704
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.8063 - accuracy: 0.6930
+77/92 [========================>.....] - ETA: 0s - loss: 0.8413 - accuracy: 0.6718
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.8076 - accuracy: 0.6929
+78/92 [========================>.....] - ETA: 0s - loss: 0.8387 - accuracy: 0.6728
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.8080 - accuracy: 0.6925
+79/92 [========================>.....] - ETA: 0s - loss: 0.8374 - accuracy: 0.6730
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.8081 - accuracy: 0.6932
+80/92 [=========================>....] - ETA: 0s - loss: 0.8359 - accuracy: 0.6728
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.8083 - accuracy: 0.6916
+81/92 [=========================>....] - ETA: 0s - loss: 0.8352 - accuracy: 0.6738
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.8071 - accuracy: 0.6919
+82/92 [=========================>....] - ETA: 0s - loss: 0.8345 - accuracy: 0.6743
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.8083 - accuracy: 0.6915
+83/92 [==========================>...] - ETA: 0s - loss: 0.8320 - accuracy: 0.6748
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.8077 - accuracy: 0.6914
+84/92 [==========================>...] - ETA: 0s - loss: 0.8285 - accuracy: 0.6757
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.8083 - accuracy: 0.6910
+85/92 [==========================>...] - ETA: 0s - loss: 0.8268 - accuracy: 0.6763
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.8087 - accuracy: 0.6902
+86/92 [===========================>..] - ETA: 0s - loss: 0.8247 - accuracy: 0.6764
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.8088 - accuracy: 0.6891
+87/92 [===========================>..] - ETA: 0s - loss: 0.8244 - accuracy: 0.6765
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.8067 - accuracy: 0.6898
+88/92 [===========================>..] - ETA: 0s - loss: 0.8236 - accuracy: 0.6763
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.8064 - accuracy: 0.6887
+89/92 [============================>.] - ETA: 0s - loss: 0.8236 - accuracy: 0.6764
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.8070 - accuracy: 0.6891
+90/92 [============================>.] - ETA: 0s - loss: 0.8291 - accuracy: 0.6748
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.8046 - accuracy: 0.6901
+91/92 [============================>.] - ETA: 0s - loss: 0.8322 - accuracy: 0.6739
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.8027 - accuracy: 0.6911
+92/92 [==============================] - ETA: 0s - loss: 0.8332 - accuracy: 0.6737
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.8027 - accuracy: 0.6911 - val_loss: 0.9385 - val_accuracy: 0.6540
+92/92 [==============================] - 6s 64ms/step - loss: 0.8332 - accuracy: 0.6737 - val_loss: 0.8496 - val_accuracy: 0.6744
 
 
 .. parsed-literal::
@@ -3208,462 +3264,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.8309 - accuracy: 0.6875
+ 1/92 [..............................] - ETA: 7s - loss: 0.6199 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.8032 - accuracy: 0.7031
+ 2/92 [..............................] - ETA: 5s - loss: 0.7833 - accuracy: 0.7344
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.8544 - accuracy: 0.6979
+ 3/92 [..............................] - ETA: 5s - loss: 0.8298 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.7712 - accuracy: 0.7422
+ 4/92 [>.............................] - ETA: 5s - loss: 0.8400 - accuracy: 0.7188
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.7464 - accuracy: 0.7375
+ 5/92 [>.............................] - ETA: 5s - loss: 0.8397 - accuracy: 0.7125
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.7709 - accuracy: 0.7396
+ 6/92 [>.............................] - ETA: 5s - loss: 0.8399 - accuracy: 0.7083
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.7587 - accuracy: 0.7411
+ 7/92 [=>............................] - ETA: 4s - loss: 0.8296 - accuracy: 0.7098
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.8016 - accuracy: 0.7227
+ 8/92 [=>............................] - ETA: 4s - loss: 0.8467 - accuracy: 0.7031
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.7806 - accuracy: 0.7153
+ 9/92 [=>............................] - ETA: 4s - loss: 0.8815 - accuracy: 0.6806
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.7750 - accuracy: 0.7188
+10/92 [==>...........................] - ETA: 4s - loss: 0.8850 - accuracy: 0.6719
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.7794 - accuracy: 0.7159
+11/92 [==>...........................] - ETA: 4s - loss: 0.8874 - accuracy: 0.6705
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.7689 - accuracy: 0.7161
+12/92 [==>...........................] - ETA: 4s - loss: 0.8762 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.7657 - accuracy: 0.7115
+13/92 [===>..........................] - ETA: 4s - loss: 0.8703 - accuracy: 0.6803
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.7456 - accuracy: 0.7165
+14/92 [===>..........................] - ETA: 4s - loss: 0.8811 - accuracy: 0.6808
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.7359 - accuracy: 0.7188
+15/92 [===>..........................] - ETA: 4s - loss: 0.8734 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.7275 - accuracy: 0.7207
+16/92 [====>.........................] - ETA: 4s - loss: 0.8746 - accuracy: 0.6816
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.7406 - accuracy: 0.7151
+17/92 [====>.........................] - ETA: 4s - loss: 0.8690 - accuracy: 0.6838
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.7406 - accuracy: 0.7135
+18/92 [====>.........................] - ETA: 4s - loss: 0.8626 - accuracy: 0.6892
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.7385 - accuracy: 0.7138
+19/92 [=====>........................] - ETA: 4s - loss: 0.8588 - accuracy: 0.6891
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.7366 - accuracy: 0.7141
+20/92 [=====>........................] - ETA: 4s - loss: 0.8482 - accuracy: 0.6906
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.7355 - accuracy: 0.7143
+21/92 [=====>........................] - ETA: 4s - loss: 0.8316 - accuracy: 0.6979
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.7315 - accuracy: 0.7145
+22/92 [======>.......................] - ETA: 4s - loss: 0.8284 - accuracy: 0.6974
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.7283 - accuracy: 0.7160
+23/92 [======>.......................] - ETA: 4s - loss: 0.8323 - accuracy: 0.6929
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.7425 - accuracy: 0.7070
+24/92 [======>.......................] - ETA: 3s - loss: 0.8270 - accuracy: 0.6953
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.7453 - accuracy: 0.7088
+25/92 [=======>......................] - ETA: 3s - loss: 0.8250 - accuracy: 0.6963
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.7423 - accuracy: 0.7151
+26/92 [=======>......................] - ETA: 3s - loss: 0.8211 - accuracy: 0.6959
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.7448 - accuracy: 0.7118
+27/92 [=======>......................] - ETA: 3s - loss: 0.8161 - accuracy: 0.6991
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.7458 - accuracy: 0.7121
+28/92 [========>.....................] - ETA: 3s - loss: 0.8185 - accuracy: 0.6975
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.7452 - accuracy: 0.7144
+29/92 [========>.....................] - ETA: 3s - loss: 0.8167 - accuracy: 0.6972
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.7466 - accuracy: 0.7135
+30/92 [========>.....................] - ETA: 3s - loss: 0.8212 - accuracy: 0.6958
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.7409 - accuracy: 0.7157
+31/92 [=========>....................] - ETA: 3s - loss: 0.8256 - accuracy: 0.6935
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.7407 - accuracy: 0.7168
+32/92 [=========>....................] - ETA: 3s - loss: 0.8234 - accuracy: 0.6943
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.7351 - accuracy: 0.7197
+33/92 [=========>....................] - ETA: 3s - loss: 0.8263 - accuracy: 0.6922
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.7291 - accuracy: 0.7215
+34/92 [==========>...................] - ETA: 3s - loss: 0.8224 - accuracy: 0.6921
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.7285 - accuracy: 0.7223
+35/92 [==========>...................] - ETA: 3s - loss: 0.8256 - accuracy: 0.6938
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.7361 - accuracy: 0.7188
+36/92 [==========>...................] - ETA: 3s - loss: 0.8271 - accuracy: 0.6918
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.7333 - accuracy: 0.7204
+37/92 [===========>..................] - ETA: 3s - loss: 0.8301 - accuracy: 0.6934
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.7315 - accuracy: 0.7204
+38/92 [===========>..................] - ETA: 3s - loss: 0.8221 - accuracy: 0.6974
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.7309 - accuracy: 0.7204
+39/92 [===========>..................] - ETA: 3s - loss: 0.8311 - accuracy: 0.6939
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.7319 - accuracy: 0.7211
+40/92 [============>.................] - ETA: 3s - loss: 0.8315 - accuracy: 0.6930
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.7360 - accuracy: 0.7180
+41/92 [============>.................] - ETA: 2s - loss: 0.8302 - accuracy: 0.6921
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.7382 - accuracy: 0.7173
+42/92 [============>.................] - ETA: 2s - loss: 0.8271 - accuracy: 0.6935
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.7401 - accuracy: 0.7151
+43/92 [=============>................] - ETA: 2s - loss: 0.8218 - accuracy: 0.6955
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.7342 - accuracy: 0.7180
+44/92 [=============>................] - ETA: 2s - loss: 0.8249 - accuracy: 0.6939
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.7370 - accuracy: 0.7174
+45/92 [=============>................] - ETA: 2s - loss: 0.8202 - accuracy: 0.6944
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.7370 - accuracy: 0.7174
+46/92 [==============>...............] - ETA: 2s - loss: 0.8188 - accuracy: 0.6943
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.7349 - accuracy: 0.7201
+47/92 [==============>...............] - ETA: 2s - loss: 0.8185 - accuracy: 0.6948
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.7335 - accuracy: 0.7181
+48/92 [==============>...............] - ETA: 2s - loss: 0.8134 - accuracy: 0.6960
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.7344 - accuracy: 0.7162
+49/92 [==============>...............] - ETA: 2s - loss: 0.8133 - accuracy: 0.6945
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.7317 - accuracy: 0.7163
+50/92 [===============>..............] - ETA: 2s - loss: 0.8111 - accuracy: 0.6956
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.7332 - accuracy: 0.7157
+51/92 [===============>..............] - ETA: 2s - loss: 0.8098 - accuracy: 0.6961
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.7387 - accuracy: 0.7133
+52/92 [===============>..............] - ETA: 2s - loss: 0.8141 - accuracy: 0.6929
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.7450 - accuracy: 0.7117
+53/92 [================>.............] - ETA: 2s - loss: 0.8125 - accuracy: 0.6940
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.7455 - accuracy: 0.7124
+54/92 [================>.............] - ETA: 2s - loss: 0.8133 - accuracy: 0.6939
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.7468 - accuracy: 0.7114
+55/92 [================>.............] - ETA: 2s - loss: 0.8159 - accuracy: 0.6926
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.7489 - accuracy: 0.7121
+56/92 [=================>............] - ETA: 2s - loss: 0.8124 - accuracy: 0.6942
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.7542 - accuracy: 0.7094
+57/92 [=================>............] - ETA: 2s - loss: 0.8129 - accuracy: 0.6946
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.7542 - accuracy: 0.7090
+58/92 [=================>............] - ETA: 1s - loss: 0.8087 - accuracy: 0.6967
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.7528 - accuracy: 0.7113
+59/92 [==================>...........] - ETA: 1s - loss: 0.8073 - accuracy: 0.6970
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.7565 - accuracy: 0.7088
+60/92 [==================>...........] - ETA: 1s - loss: 0.8078 - accuracy: 0.6953
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.7541 - accuracy: 0.7110
+61/92 [==================>...........] - ETA: 1s - loss: 0.8053 - accuracy: 0.6967
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.7551 - accuracy: 0.7097
+62/92 [===================>..........] - ETA: 1s - loss: 0.8042 - accuracy: 0.6981
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.7536 - accuracy: 0.7108
+64/92 [===================>..........] - ETA: 1s - loss: 0.8060 - accuracy: 0.6980
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.7494 - accuracy: 0.7128
+65/92 [====================>.........] - ETA: 1s - loss: 0.8099 - accuracy: 0.6969
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.7460 - accuracy: 0.7144
+66/92 [====================>.........] - ETA: 1s - loss: 0.8084 - accuracy: 0.6977
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.7464 - accuracy: 0.7140
+67/92 [====================>.........] - ETA: 1s - loss: 0.8075 - accuracy: 0.6980
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.7455 - accuracy: 0.7145
+68/92 [=====================>........] - ETA: 1s - loss: 0.8117 - accuracy: 0.6956
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.7467 - accuracy: 0.7136
+69/92 [=====================>........] - ETA: 1s - loss: 0.8098 - accuracy: 0.6964
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.7478 - accuracy: 0.7142
+70/92 [=====================>........] - ETA: 1s - loss: 0.8070 - accuracy: 0.6971
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.7466 - accuracy: 0.7155
+71/92 [======================>.......] - ETA: 1s - loss: 0.8074 - accuracy: 0.6961
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.7430 - accuracy: 0.7160
+72/92 [======================>.......] - ETA: 1s - loss: 0.8085 - accuracy: 0.6947
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.7404 - accuracy: 0.7169
+73/92 [======================>.......] - ETA: 1s - loss: 0.8054 - accuracy: 0.6954
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.7433 - accuracy: 0.7148
+74/92 [=======================>......] - ETA: 1s - loss: 0.8072 - accuracy: 0.6936
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.7427 - accuracy: 0.7153
+75/92 [=======================>......] - ETA: 0s - loss: 0.8059 - accuracy: 0.6948
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.7442 - accuracy: 0.7149
+76/92 [=======================>......] - ETA: 0s - loss: 0.8074 - accuracy: 0.6931
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.7437 - accuracy: 0.7146
+77/92 [========================>.....] - ETA: 0s - loss: 0.8065 - accuracy: 0.6938
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.7435 - accuracy: 0.7150
+78/92 [========================>.....] - ETA: 0s - loss: 0.8042 - accuracy: 0.6953
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.7461 - accuracy: 0.7151
+79/92 [========================>.....] - ETA: 0s - loss: 0.8038 - accuracy: 0.6960
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.7502 - accuracy: 0.7143
+80/92 [=========================>....] - ETA: 0s - loss: 0.8034 - accuracy: 0.6947
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.7494 - accuracy: 0.7148
+81/92 [=========================>....] - ETA: 0s - loss: 0.8033 - accuracy: 0.6943
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.7490 - accuracy: 0.7156
+82/92 [=========================>....] - ETA: 0s - loss: 0.8084 - accuracy: 0.6919
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.7489 - accuracy: 0.7156
+83/92 [==========================>...] - ETA: 0s - loss: 0.8063 - accuracy: 0.6926
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.7506 - accuracy: 0.7134
+84/92 [==========================>...] - ETA: 0s - loss: 0.8063 - accuracy: 0.6925
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.7490 - accuracy: 0.7146
+85/92 [==========================>...] - ETA: 0s - loss: 0.8048 - accuracy: 0.6936
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.7500 - accuracy: 0.7143
+86/92 [===========================>..] - ETA: 0s - loss: 0.8068 - accuracy: 0.6931
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.7500 - accuracy: 0.7143
+87/92 [===========================>..] - ETA: 0s - loss: 0.8051 - accuracy: 0.6945
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.7505 - accuracy: 0.7140
+88/92 [===========================>..] - ETA: 0s - loss: 0.8063 - accuracy: 0.6934
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.7555 - accuracy: 0.7116
+89/92 [============================>.] - ETA: 0s - loss: 0.8043 - accuracy: 0.6944
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.7560 - accuracy: 0.7117
+90/92 [============================>.] - ETA: 0s - loss: 0.8045 - accuracy: 0.6939
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.7572 - accuracy: 0.7111
+91/92 [============================>.] - ETA: 0s - loss: 0.8011 - accuracy: 0.6952
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.7571 - accuracy: 0.7115
+92/92 [==============================] - ETA: 0s - loss: 0.8013 - accuracy: 0.6952
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.7571 - accuracy: 0.7115 - val_loss: 0.7898 - val_accuracy: 0.6757
+92/92 [==============================] - 6s 64ms/step - loss: 0.8013 - accuracy: 0.6952 - val_loss: 0.7885 - val_accuracy: 0.6921
 
 
 .. parsed-literal::
@@ -3674,462 +3730,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 1.0297 - accuracy: 0.5312
+ 1/92 [..............................] - ETA: 7s - loss: 0.7625 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.9824 - accuracy: 0.6250
+ 2/92 [..............................] - ETA: 5s - loss: 0.8142 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.9507 - accuracy: 0.6250
+ 3/92 [..............................] - ETA: 5s - loss: 0.7949 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.8653 - accuracy: 0.6797
+ 4/92 [>.............................] - ETA: 5s - loss: 0.7718 - accuracy: 0.6719
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.8340 - accuracy: 0.6875
+ 5/92 [>.............................] - ETA: 5s - loss: 0.7636 - accuracy: 0.6687
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.7951 - accuracy: 0.7135
+ 6/92 [>.............................] - ETA: 4s - loss: 0.8231 - accuracy: 0.6458
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 5s - loss: 0.7668 - accuracy: 0.7321
+ 7/92 [=>............................] - ETA: 4s - loss: 0.8185 - accuracy: 0.6518
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.7473 - accuracy: 0.7383
+ 8/92 [=>............................] - ETA: 4s - loss: 0.8045 - accuracy: 0.6680
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.7561 - accuracy: 0.7257
+ 9/92 [=>............................] - ETA: 4s - loss: 0.7917 - accuracy: 0.6736
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.7352 - accuracy: 0.7344
+10/92 [==>...........................] - ETA: 4s - loss: 0.7723 - accuracy: 0.6750
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.7213 - accuracy: 0.7443
+11/92 [==>...........................] - ETA: 4s - loss: 0.7690 - accuracy: 0.6818
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.7234 - accuracy: 0.7396
+12/92 [==>...........................] - ETA: 4s - loss: 0.7872 - accuracy: 0.6797
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.7168 - accuracy: 0.7380
+13/92 [===>..........................] - ETA: 4s - loss: 0.7886 - accuracy: 0.6755
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.7381 - accuracy: 0.7344
+14/92 [===>..........................] - ETA: 4s - loss: 0.7963 - accuracy: 0.6741
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.7442 - accuracy: 0.7292
+15/92 [===>..........................] - ETA: 4s - loss: 0.7875 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.7399 - accuracy: 0.7305
+16/92 [====>.........................] - ETA: 4s - loss: 0.7746 - accuracy: 0.6777
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.7363 - accuracy: 0.7316
+17/92 [====>.........................] - ETA: 4s - loss: 0.7709 - accuracy: 0.6783
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.7337 - accuracy: 0.7292
+18/92 [====>.........................] - ETA: 4s - loss: 0.7652 - accuracy: 0.6858
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.7476 - accuracy: 0.7286
+19/92 [=====>........................] - ETA: 4s - loss: 0.7664 - accuracy: 0.6859
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.7442 - accuracy: 0.7297
+20/92 [=====>........................] - ETA: 4s - loss: 0.7756 - accuracy: 0.6828
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.7557 - accuracy: 0.7217
+21/92 [=====>........................] - ETA: 4s - loss: 0.7639 - accuracy: 0.6890
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.7469 - accuracy: 0.7244
+22/92 [======>.......................] - ETA: 4s - loss: 0.7706 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.7375 - accuracy: 0.7296
+23/92 [======>.......................] - ETA: 3s - loss: 0.7612 - accuracy: 0.6902
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.7313 - accuracy: 0.7318
+24/92 [======>.......................] - ETA: 3s - loss: 0.7561 - accuracy: 0.6927
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.7247 - accuracy: 0.7337
+25/92 [=======>......................] - ETA: 3s - loss: 0.7639 - accuracy: 0.6888
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.7243 - accuracy: 0.7344
+26/92 [=======>......................] - ETA: 3s - loss: 0.7809 - accuracy: 0.6791
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.7181 - accuracy: 0.7350
+27/92 [=======>......................] - ETA: 3s - loss: 0.7862 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.7166 - accuracy: 0.7333
+29/92 [========>.....................] - ETA: 3s - loss: 0.7785 - accuracy: 0.6793
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.7185 - accuracy: 0.7328
+30/92 [========>.....................] - ETA: 3s - loss: 0.7737 - accuracy: 0.6817
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.7122 - accuracy: 0.7354
+31/92 [=========>....................] - ETA: 3s - loss: 0.7615 - accuracy: 0.6890
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.7137 - accuracy: 0.7349
+32/92 [=========>....................] - ETA: 3s - loss: 0.7587 - accuracy: 0.6900
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.7101 - accuracy: 0.7363
+33/92 [=========>....................] - ETA: 3s - loss: 0.7596 - accuracy: 0.6880
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.7042 - accuracy: 0.7377
+34/92 [==========>...................] - ETA: 3s - loss: 0.7565 - accuracy: 0.6880
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.7058 - accuracy: 0.7362
+35/92 [==========>...................] - ETA: 3s - loss: 0.7545 - accuracy: 0.6888
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.7068 - accuracy: 0.7339
+36/92 [==========>...................] - ETA: 3s - loss: 0.7500 - accuracy: 0.6914
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.7114 - accuracy: 0.7318
+37/92 [===========>..................] - ETA: 3s - loss: 0.7499 - accuracy: 0.6922
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.7073 - accuracy: 0.7348
+38/92 [===========>..................] - ETA: 3s - loss: 0.7522 - accuracy: 0.6929
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.7022 - accuracy: 0.7360
+39/92 [===========>..................] - ETA: 3s - loss: 0.7490 - accuracy: 0.6944
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.7105 - accuracy: 0.7340
+40/92 [============>.................] - ETA: 3s - loss: 0.7522 - accuracy: 0.6950
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.7085 - accuracy: 0.7344
+41/92 [============>.................] - ETA: 2s - loss: 0.7488 - accuracy: 0.6933
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.7062 - accuracy: 0.7348
+42/92 [============>.................] - ETA: 2s - loss: 0.7466 - accuracy: 0.6961
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.7022 - accuracy: 0.7359
+43/92 [=============>................] - ETA: 2s - loss: 0.7524 - accuracy: 0.6930
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.7012 - accuracy: 0.7355
+44/92 [=============>................] - ETA: 2s - loss: 0.7599 - accuracy: 0.6893
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.7048 - accuracy: 0.7358
+45/92 [=============>................] - ETA: 2s - loss: 0.7605 - accuracy: 0.6899
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.7104 - accuracy: 0.7312
+46/92 [==============>...............] - ETA: 2s - loss: 0.7626 - accuracy: 0.6872
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.7085 - accuracy: 0.7303
+47/92 [==============>...............] - ETA: 2s - loss: 0.7634 - accuracy: 0.6872
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.7083 - accuracy: 0.7307
+48/92 [==============>...............] - ETA: 2s - loss: 0.7714 - accuracy: 0.6846
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.7098 - accuracy: 0.7298
+49/92 [==============>...............] - ETA: 2s - loss: 0.7746 - accuracy: 0.6827
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.7082 - accuracy: 0.7315
+50/92 [===============>..............] - ETA: 2s - loss: 0.7786 - accuracy: 0.6834
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.7100 - accuracy: 0.7319
+51/92 [===============>..............] - ETA: 2s - loss: 0.7776 - accuracy: 0.6841
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.7118 - accuracy: 0.7292
+52/92 [===============>..............] - ETA: 2s - loss: 0.7777 - accuracy: 0.6842
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.7132 - accuracy: 0.7290
+53/92 [================>.............] - ETA: 2s - loss: 0.7754 - accuracy: 0.6842
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.7155 - accuracy: 0.7270
+54/92 [================>.............] - ETA: 2s - loss: 0.7761 - accuracy: 0.6837
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.7165 - accuracy: 0.7274
+55/92 [================>.............] - ETA: 2s - loss: 0.7774 - accuracy: 0.6832
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.7120 - accuracy: 0.7312
+56/92 [=================>............] - ETA: 2s - loss: 0.7812 - accuracy: 0.6811
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.7100 - accuracy: 0.7321
+57/92 [=================>............] - ETA: 2s - loss: 0.7819 - accuracy: 0.6817
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.7080 - accuracy: 0.7330
+58/92 [=================>............] - ETA: 1s - loss: 0.7844 - accuracy: 0.6807
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.7078 - accuracy: 0.7322
+59/92 [==================>...........] - ETA: 1s - loss: 0.7844 - accuracy: 0.6809
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.7053 - accuracy: 0.7325
+60/92 [==================>...........] - ETA: 1s - loss: 0.7820 - accuracy: 0.6825
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.7040 - accuracy: 0.7323
+61/92 [==================>...........] - ETA: 1s - loss: 0.7807 - accuracy: 0.6831
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.7034 - accuracy: 0.7336
+62/92 [===================>..........] - ETA: 1s - loss: 0.7782 - accuracy: 0.6832
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.7052 - accuracy: 0.7329
+63/92 [===================>..........] - ETA: 1s - loss: 0.7790 - accuracy: 0.6843
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.7045 - accuracy: 0.7331
+64/92 [===================>..........] - ETA: 1s - loss: 0.7773 - accuracy: 0.6858
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.7029 - accuracy: 0.7329
+65/92 [====================>.........] - ETA: 1s - loss: 0.7760 - accuracy: 0.6873
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.7010 - accuracy: 0.7327
+66/92 [====================>.........] - ETA: 1s - loss: 0.7741 - accuracy: 0.6882
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.7028 - accuracy: 0.7320
+67/92 [====================>.........] - ETA: 1s - loss: 0.7741 - accuracy: 0.6868
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.6986 - accuracy: 0.7341
+68/92 [=====================>........] - ETA: 1s - loss: 0.7709 - accuracy: 0.6877
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.7025 - accuracy: 0.7335
+69/92 [=====================>........] - ETA: 1s - loss: 0.7695 - accuracy: 0.6895
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.7025 - accuracy: 0.7337
+70/92 [=====================>........] - ETA: 1s - loss: 0.7678 - accuracy: 0.6918
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.7004 - accuracy: 0.7339
+71/92 [======================>.......] - ETA: 1s - loss: 0.7654 - accuracy: 0.6930
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.7004 - accuracy: 0.7337
+72/92 [======================>.......] - ETA: 1s - loss: 0.7645 - accuracy: 0.6925
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.7039 - accuracy: 0.7326
+73/92 [======================>.......] - ETA: 1s - loss: 0.7624 - accuracy: 0.6937
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.7038 - accuracy: 0.7324
+74/92 [=======================>......] - ETA: 1s - loss: 0.7617 - accuracy: 0.6945
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.7075 - accuracy: 0.7314
+75/92 [=======================>......] - ETA: 0s - loss: 0.7631 - accuracy: 0.6940
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.7079 - accuracy: 0.7308
+76/92 [=======================>......] - ETA: 0s - loss: 0.7600 - accuracy: 0.6947
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.7064 - accuracy: 0.7315
+77/92 [========================>.....] - ETA: 0s - loss: 0.7557 - accuracy: 0.6963
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.7045 - accuracy: 0.7321
+78/92 [========================>.....] - ETA: 0s - loss: 0.7526 - accuracy: 0.6982
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.7033 - accuracy: 0.7324
+79/92 [========================>.....] - ETA: 0s - loss: 0.7559 - accuracy: 0.6976
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.7059 - accuracy: 0.7318
+80/92 [=========================>....] - ETA: 0s - loss: 0.7533 - accuracy: 0.6995
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.7084 - accuracy: 0.7305
+81/92 [=========================>....] - ETA: 0s - loss: 0.7518 - accuracy: 0.7009
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.7065 - accuracy: 0.7307
+82/92 [=========================>....] - ETA: 0s - loss: 0.7533 - accuracy: 0.7007
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.7112 - accuracy: 0.7287
+83/92 [==========================>...] - ETA: 0s - loss: 0.7527 - accuracy: 0.7005
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.7109 - accuracy: 0.7282
+84/92 [==========================>...] - ETA: 0s - loss: 0.7522 - accuracy: 0.7007
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.7080 - accuracy: 0.7301
+85/92 [==========================>...] - ETA: 0s - loss: 0.7542 - accuracy: 0.7006
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.7118 - accuracy: 0.7281
+86/92 [===========================>..] - ETA: 0s - loss: 0.7532 - accuracy: 0.7008
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.7095 - accuracy: 0.7287
+87/92 [===========================>..] - ETA: 0s - loss: 0.7522 - accuracy: 0.7014
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.7078 - accuracy: 0.7297
+88/92 [===========================>..] - ETA: 0s - loss: 0.7515 - accuracy: 0.7016
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.7082 - accuracy: 0.7299
+89/92 [============================>.] - ETA: 0s - loss: 0.7499 - accuracy: 0.7021
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.7092 - accuracy: 0.7295
+90/92 [============================>.] - ETA: 0s - loss: 0.7476 - accuracy: 0.7026
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.7118 - accuracy: 0.7276
+91/92 [============================>.] - ETA: 0s - loss: 0.7485 - accuracy: 0.7025
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.7101 - accuracy: 0.7279
+92/92 [==============================] - ETA: 0s - loss: 0.7487 - accuracy: 0.7027
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.7101 - accuracy: 0.7279 - val_loss: 0.7492 - val_accuracy: 0.7125
+92/92 [==============================] - 6s 64ms/step - loss: 0.7487 - accuracy: 0.7027 - val_loss: 0.7632 - val_accuracy: 0.7180
 
 
 .. parsed-literal::
@@ -4140,462 +4196,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.4827 - accuracy: 0.8438
+ 1/92 [..............................] - ETA: 7s - loss: 0.7172 - accuracy: 0.7188
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.5721 - accuracy: 0.7969
+ 2/92 [..............................] - ETA: 5s - loss: 0.6769 - accuracy: 0.7344
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.5558 - accuracy: 0.7812
+ 3/92 [..............................] - ETA: 5s - loss: 0.6460 - accuracy: 0.7396
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.5700 - accuracy: 0.7578
+ 4/92 [>.............................] - ETA: 5s - loss: 0.6215 - accuracy: 0.7344
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.5991 - accuracy: 0.7625
+ 5/92 [>.............................] - ETA: 5s - loss: 0.6422 - accuracy: 0.7312
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.6347 - accuracy: 0.7552
+ 6/92 [>.............................] - ETA: 5s - loss: 0.6388 - accuracy: 0.7448
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.6193 - accuracy: 0.7634
+ 7/92 [=>............................] - ETA: 4s - loss: 0.6498 - accuracy: 0.7411
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.6489 - accuracy: 0.7461
+ 8/92 [=>............................] - ETA: 4s - loss: 0.6860 - accuracy: 0.7148
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.6611 - accuracy: 0.7361
+ 9/92 [=>............................] - ETA: 4s - loss: 0.7119 - accuracy: 0.7083
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.6498 - accuracy: 0.7375
+10/92 [==>...........................] - ETA: 4s - loss: 0.7098 - accuracy: 0.7188
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.6517 - accuracy: 0.7330
+11/92 [==>...........................] - ETA: 4s - loss: 0.7116 - accuracy: 0.7216
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.6420 - accuracy: 0.7448
+12/92 [==>...........................] - ETA: 4s - loss: 0.7132 - accuracy: 0.7266
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.6429 - accuracy: 0.7476
+13/92 [===>..........................] - ETA: 4s - loss: 0.7007 - accuracy: 0.7260
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.6445 - accuracy: 0.7455
+14/92 [===>..........................] - ETA: 4s - loss: 0.7044 - accuracy: 0.7254
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.6421 - accuracy: 0.7437
+15/92 [===>..........................] - ETA: 4s - loss: 0.7288 - accuracy: 0.7188
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.6356 - accuracy: 0.7461
+16/92 [====>.........................] - ETA: 4s - loss: 0.7369 - accuracy: 0.7188
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.6272 - accuracy: 0.7500
+17/92 [====>.........................] - ETA: 4s - loss: 0.7261 - accuracy: 0.7261
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.6430 - accuracy: 0.7396
+18/92 [====>.........................] - ETA: 4s - loss: 0.7367 - accuracy: 0.7240
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.6390 - accuracy: 0.7434
+20/92 [=====>........................] - ETA: 4s - loss: 0.7338 - accuracy: 0.7231
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.6434 - accuracy: 0.7422
+21/92 [=====>........................] - ETA: 4s - loss: 0.7249 - accuracy: 0.7274
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.6388 - accuracy: 0.7470
+22/92 [======>.......................] - ETA: 4s - loss: 0.7204 - accuracy: 0.7299
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.6338 - accuracy: 0.7472
+23/92 [======>.......................] - ETA: 4s - loss: 0.7158 - accuracy: 0.7335
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.6420 - accuracy: 0.7418
+24/92 [======>.......................] - ETA: 3s - loss: 0.7139 - accuracy: 0.7368
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.6480 - accuracy: 0.7383
+25/92 [=======>......................] - ETA: 3s - loss: 0.7096 - accuracy: 0.7361
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.6484 - accuracy: 0.7425
+26/92 [=======>......................] - ETA: 3s - loss: 0.7115 - accuracy: 0.7354
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.6535 - accuracy: 0.7440
+27/92 [=======>......................] - ETA: 3s - loss: 0.7129 - accuracy: 0.7360
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.6577 - accuracy: 0.7407
+28/92 [========>.....................] - ETA: 3s - loss: 0.7124 - accuracy: 0.7365
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.6681 - accuracy: 0.7388
+29/92 [========>.....................] - ETA: 3s - loss: 0.7017 - accuracy: 0.7380
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.6671 - accuracy: 0.7414
+30/92 [========>.....................] - ETA: 3s - loss: 0.7011 - accuracy: 0.7374
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.6700 - accuracy: 0.7396
+31/92 [=========>....................] - ETA: 3s - loss: 0.7043 - accuracy: 0.7388
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.6742 - accuracy: 0.7389
+32/92 [=========>....................] - ETA: 3s - loss: 0.7160 - accuracy: 0.7352
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.6706 - accuracy: 0.7393
+33/92 [=========>....................] - ETA: 3s - loss: 0.7132 - accuracy: 0.7347
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.6776 - accuracy: 0.7367
+34/92 [==========>...................] - ETA: 3s - loss: 0.7126 - accuracy: 0.7352
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.6775 - accuracy: 0.7362
+35/92 [==========>...................] - ETA: 3s - loss: 0.7083 - accuracy: 0.7374
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.6801 - accuracy: 0.7366
+36/92 [==========>...................] - ETA: 3s - loss: 0.7061 - accuracy: 0.7378
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.6821 - accuracy: 0.7361
+37/92 [===========>..................] - ETA: 3s - loss: 0.7082 - accuracy: 0.7347
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.6873 - accuracy: 0.7356
+38/92 [===========>..................] - ETA: 3s - loss: 0.7058 - accuracy: 0.7334
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.6916 - accuracy: 0.7336
+39/92 [===========>..................] - ETA: 3s - loss: 0.6990 - accuracy: 0.7363
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.6910 - accuracy: 0.7324
+40/92 [============>.................] - ETA: 3s - loss: 0.7005 - accuracy: 0.7366
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.6938 - accuracy: 0.7305
+41/92 [============>.................] - ETA: 2s - loss: 0.7000 - accuracy: 0.7362
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.6958 - accuracy: 0.7294
+42/92 [============>.................] - ETA: 2s - loss: 0.7049 - accuracy: 0.7320
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.6957 - accuracy: 0.7307
+43/92 [=============>................] - ETA: 2s - loss: 0.7077 - accuracy: 0.7295
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.6969 - accuracy: 0.7289
+44/92 [=============>................] - ETA: 2s - loss: 0.7090 - accuracy: 0.7293
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.6972 - accuracy: 0.7301
+45/92 [=============>................] - ETA: 2s - loss: 0.7103 - accuracy: 0.7304
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.6984 - accuracy: 0.7292
+46/92 [==============>...............] - ETA: 2s - loss: 0.7073 - accuracy: 0.7309
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.6993 - accuracy: 0.7283
+47/92 [==============>...............] - ETA: 2s - loss: 0.7056 - accuracy: 0.7326
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.6983 - accuracy: 0.7287
+48/92 [==============>...............] - ETA: 2s - loss: 0.7036 - accuracy: 0.7336
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.6976 - accuracy: 0.7298
+49/92 [==============>...............] - ETA: 2s - loss: 0.7025 - accuracy: 0.7340
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.6959 - accuracy: 0.7321
+50/92 [===============>..............] - ETA: 2s - loss: 0.7066 - accuracy: 0.7324
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.6940 - accuracy: 0.7325
+51/92 [===============>..............] - ETA: 2s - loss: 0.7055 - accuracy: 0.7334
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.6960 - accuracy: 0.7298
+52/92 [===============>..............] - ETA: 2s - loss: 0.7037 - accuracy: 0.7337
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.6936 - accuracy: 0.7320
+53/92 [================>.............] - ETA: 2s - loss: 0.7035 - accuracy: 0.7340
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.6952 - accuracy: 0.7317
+54/92 [================>.............] - ETA: 2s - loss: 0.6989 - accuracy: 0.7355
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.6960 - accuracy: 0.7321
+55/92 [================>.............] - ETA: 2s - loss: 0.6984 - accuracy: 0.7357
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.6993 - accuracy: 0.7301
+56/92 [=================>............] - ETA: 2s - loss: 0.6962 - accuracy: 0.7365
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.6994 - accuracy: 0.7299
+57/92 [=================>............] - ETA: 2s - loss: 0.6983 - accuracy: 0.7357
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.7015 - accuracy: 0.7303
+58/92 [=================>............] - ETA: 1s - loss: 0.7028 - accuracy: 0.7316
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.7040 - accuracy: 0.7279
+59/92 [==================>...........] - ETA: 1s - loss: 0.7032 - accuracy: 0.7298
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.7009 - accuracy: 0.7293
+60/92 [==================>...........] - ETA: 1s - loss: 0.7020 - accuracy: 0.7306
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.6984 - accuracy: 0.7318
+61/92 [==================>...........] - ETA: 1s - loss: 0.6995 - accuracy: 0.7320
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.6969 - accuracy: 0.7321
+62/92 [===================>..........] - ETA: 1s - loss: 0.6997 - accuracy: 0.7308
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.7041 - accuracy: 0.7308
+63/92 [===================>..........] - ETA: 1s - loss: 0.6983 - accuracy: 0.7311
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.7038 - accuracy: 0.7326
+64/92 [===================>..........] - ETA: 1s - loss: 0.6967 - accuracy: 0.7324
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.7015 - accuracy: 0.7349
+65/92 [====================>.........] - ETA: 1s - loss: 0.6963 - accuracy: 0.7331
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.7055 - accuracy: 0.7327
+66/92 [====================>.........] - ETA: 1s - loss: 0.6936 - accuracy: 0.7338
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.7060 - accuracy: 0.7311
+67/92 [====================>.........] - ETA: 1s - loss: 0.6913 - accuracy: 0.7350
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.7073 - accuracy: 0.7304
+68/92 [=====================>........] - ETA: 1s - loss: 0.6887 - accuracy: 0.7357
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.7051 - accuracy: 0.7316
+69/92 [=====================>........] - ETA: 1s - loss: 0.6888 - accuracy: 0.7359
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.7052 - accuracy: 0.7310
+70/92 [=====================>........] - ETA: 1s - loss: 0.6861 - accuracy: 0.7370
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.7040 - accuracy: 0.7312
+71/92 [======================>.......] - ETA: 1s - loss: 0.6876 - accuracy: 0.7372
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.7014 - accuracy: 0.7315
+72/92 [======================>.......] - ETA: 1s - loss: 0.6856 - accuracy: 0.7382
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.6997 - accuracy: 0.7313
+73/92 [======================>.......] - ETA: 1s - loss: 0.6849 - accuracy: 0.7384
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.7002 - accuracy: 0.7320
+74/92 [=======================>......] - ETA: 1s - loss: 0.6884 - accuracy: 0.7377
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.7024 - accuracy: 0.7306
+75/92 [=======================>......] - ETA: 0s - loss: 0.6878 - accuracy: 0.7383
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.7007 - accuracy: 0.7304
+76/92 [=======================>......] - ETA: 0s - loss: 0.6862 - accuracy: 0.7389
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.6981 - accuracy: 0.7315
+77/92 [========================>.....] - ETA: 0s - loss: 0.6864 - accuracy: 0.7386
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.6973 - accuracy: 0.7309
+78/92 [========================>.....] - ETA: 0s - loss: 0.6870 - accuracy: 0.7371
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.6992 - accuracy: 0.7304
+79/92 [========================>.....] - ETA: 0s - loss: 0.6894 - accuracy: 0.7365
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.7035 - accuracy: 0.7282
+80/92 [=========================>....] - ETA: 0s - loss: 0.6936 - accuracy: 0.7359
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.7038 - accuracy: 0.7277
+81/92 [=========================>....] - ETA: 0s - loss: 0.6963 - accuracy: 0.7349
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.7013 - accuracy: 0.7296
+82/92 [=========================>....] - ETA: 0s - loss: 0.6976 - accuracy: 0.7339
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.7029 - accuracy: 0.7287
+83/92 [==========================>...] - ETA: 0s - loss: 0.6980 - accuracy: 0.7334
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.7047 - accuracy: 0.7282
+84/92 [==========================>...] - ETA: 0s - loss: 0.6979 - accuracy: 0.7332
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.7022 - accuracy: 0.7295
+85/92 [==========================>...] - ETA: 0s - loss: 0.6987 - accuracy: 0.7327
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.7017 - accuracy: 0.7298
+86/92 [===========================>..] - ETA: 0s - loss: 0.6967 - accuracy: 0.7340
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.7005 - accuracy: 0.7298
+87/92 [===========================>..] - ETA: 0s - loss: 0.6976 - accuracy: 0.7334
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.7001 - accuracy: 0.7293
+88/92 [===========================>..] - ETA: 0s - loss: 0.6974 - accuracy: 0.7343
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.6992 - accuracy: 0.7292
+89/92 [============================>.] - ETA: 0s - loss: 0.6991 - accuracy: 0.7338
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.7045 - accuracy: 0.7270
+90/92 [============================>.] - ETA: 0s - loss: 0.7016 - accuracy: 0.7319
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.7020 - accuracy: 0.7280
+91/92 [============================>.] - ETA: 0s - loss: 0.7019 - accuracy: 0.7311
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.7008 - accuracy: 0.7285
+92/92 [==============================] - ETA: 0s - loss: 0.7012 - accuracy: 0.7316
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.7008 - accuracy: 0.7285 - val_loss: 0.7422 - val_accuracy: 0.7139
+92/92 [==============================] - 6s 64ms/step - loss: 0.7012 - accuracy: 0.7316 - val_loss: 0.7702 - val_accuracy: 0.7153
 
 
 .. parsed-literal::
@@ -4606,462 +4662,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.5952 - accuracy: 0.8125
+ 1/92 [..............................] - ETA: 7s - loss: 0.7327 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.6358 - accuracy: 0.7656
+ 2/92 [..............................] - ETA: 5s - loss: 0.6516 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.6093 - accuracy: 0.7812
+ 3/92 [..............................] - ETA: 5s - loss: 0.7418 - accuracy: 0.7396
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.6300 - accuracy: 0.7812
+ 4/92 [>.............................] - ETA: 5s - loss: 0.7133 - accuracy: 0.7422
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.6096 - accuracy: 0.7875
+ 5/92 [>.............................] - ETA: 5s - loss: 0.6932 - accuracy: 0.7563
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 4s - loss: 0.6280 - accuracy: 0.7812
+ 6/92 [>.............................] - ETA: 5s - loss: 0.7019 - accuracy: 0.7292
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.6085 - accuracy: 0.7902
+ 7/92 [=>............................] - ETA: 4s - loss: 0.6774 - accuracy: 0.7366
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.5959 - accuracy: 0.7930
+ 8/92 [=>............................] - ETA: 4s - loss: 0.6611 - accuracy: 0.7422
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.6384 - accuracy: 0.7674
+ 9/92 [=>............................] - ETA: 4s - loss: 0.6545 - accuracy: 0.7569
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.6578 - accuracy: 0.7594
+10/92 [==>...........................] - ETA: 4s - loss: 0.6741 - accuracy: 0.7563
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.6381 - accuracy: 0.7557
+11/92 [==>...........................] - ETA: 4s - loss: 0.7102 - accuracy: 0.7443
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.6323 - accuracy: 0.7526
+12/92 [==>...........................] - ETA: 4s - loss: 0.7125 - accuracy: 0.7396
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.6182 - accuracy: 0.7620
+13/92 [===>..........................] - ETA: 4s - loss: 0.7043 - accuracy: 0.7428
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.6125 - accuracy: 0.7679
+14/92 [===>..........................] - ETA: 4s - loss: 0.7054 - accuracy: 0.7455
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.6359 - accuracy: 0.7604
+15/92 [===>..........................] - ETA: 4s - loss: 0.7136 - accuracy: 0.7417
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.6226 - accuracy: 0.7676
+16/92 [====>.........................] - ETA: 4s - loss: 0.6973 - accuracy: 0.7480
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.6165 - accuracy: 0.7665
+17/92 [====>.........................] - ETA: 4s - loss: 0.7043 - accuracy: 0.7482
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.6314 - accuracy: 0.7622
+18/92 [====>.........................] - ETA: 4s - loss: 0.6905 - accuracy: 0.7535
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.6526 - accuracy: 0.7549
+19/92 [=====>........................] - ETA: 4s - loss: 0.6920 - accuracy: 0.7516
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.6501 - accuracy: 0.7578
+20/92 [=====>........................] - ETA: 4s - loss: 0.6807 - accuracy: 0.7531
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.6442 - accuracy: 0.7574
+21/92 [=====>........................] - ETA: 4s - loss: 0.6729 - accuracy: 0.7545
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.6517 - accuracy: 0.7557
+22/92 [======>.......................] - ETA: 4s - loss: 0.6833 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.6544 - accuracy: 0.7554
+23/92 [======>.......................] - ETA: 4s - loss: 0.6871 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.6612 - accuracy: 0.7526
+24/92 [======>.......................] - ETA: 3s - loss: 0.6880 - accuracy: 0.7539
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.6606 - accuracy: 0.7538
+25/92 [=======>......................] - ETA: 3s - loss: 0.6813 - accuracy: 0.7563
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.6734 - accuracy: 0.7476
+26/92 [=======>......................] - ETA: 3s - loss: 0.6815 - accuracy: 0.7560
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.6781 - accuracy: 0.7465
+27/92 [=======>......................] - ETA: 3s - loss: 0.6813 - accuracy: 0.7558
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.6773 - accuracy: 0.7478
+28/92 [========>.....................] - ETA: 3s - loss: 0.6902 - accuracy: 0.7511
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.6764 - accuracy: 0.7468
+29/92 [========>.....................] - ETA: 3s - loss: 0.6940 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.6786 - accuracy: 0.7448
+30/92 [========>.....................] - ETA: 3s - loss: 0.6877 - accuracy: 0.7510
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.6748 - accuracy: 0.7470
+31/92 [=========>....................] - ETA: 3s - loss: 0.6805 - accuracy: 0.7540
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.6695 - accuracy: 0.7500
+32/92 [=========>....................] - ETA: 3s - loss: 0.6852 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.6737 - accuracy: 0.7500
+33/92 [=========>....................] - ETA: 3s - loss: 0.6852 - accuracy: 0.7491
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.6742 - accuracy: 0.7528
+34/92 [==========>...................] - ETA: 3s - loss: 0.6803 - accuracy: 0.7491
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.6742 - accuracy: 0.7527
+35/92 [==========>...................] - ETA: 3s - loss: 0.6842 - accuracy: 0.7473
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.6792 - accuracy: 0.7491
+36/92 [==========>...................] - ETA: 3s - loss: 0.6855 - accuracy: 0.7465
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.6797 - accuracy: 0.7492
+37/92 [===========>..................] - ETA: 3s - loss: 0.6893 - accuracy: 0.7432
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.6795 - accuracy: 0.7508
+38/92 [===========>..................] - ETA: 3s - loss: 0.6896 - accuracy: 0.7410
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.6798 - accuracy: 0.7524
+39/92 [===========>..................] - ETA: 3s - loss: 0.6872 - accuracy: 0.7412
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.6784 - accuracy: 0.7531
+40/92 [============>.................] - ETA: 3s - loss: 0.6829 - accuracy: 0.7437
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.6777 - accuracy: 0.7546
+41/92 [============>.................] - ETA: 2s - loss: 0.6822 - accuracy: 0.7454
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.6793 - accuracy: 0.7537
+42/92 [============>.................] - ETA: 2s - loss: 0.6821 - accuracy: 0.7455
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.6765 - accuracy: 0.7551
+43/92 [=============>................] - ETA: 2s - loss: 0.6765 - accuracy: 0.7485
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.6809 - accuracy: 0.7521
+44/92 [=============>................] - ETA: 2s - loss: 0.6732 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.6783 - accuracy: 0.7528
+45/92 [=============>................] - ETA: 2s - loss: 0.6690 - accuracy: 0.7535
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.6778 - accuracy: 0.7520
+46/92 [==============>...............] - ETA: 2s - loss: 0.6715 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.6757 - accuracy: 0.7527
+47/92 [==============>...............] - ETA: 2s - loss: 0.6701 - accuracy: 0.7520
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.6733 - accuracy: 0.7552
+48/92 [==============>...............] - ETA: 2s - loss: 0.6688 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.6682 - accuracy: 0.7570
+49/92 [==============>...............] - ETA: 2s - loss: 0.6664 - accuracy: 0.7551
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.6681 - accuracy: 0.7563
+50/92 [===============>..............] - ETA: 2s - loss: 0.6705 - accuracy: 0.7531
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.6729 - accuracy: 0.7543
+51/92 [===============>..............] - ETA: 2s - loss: 0.6677 - accuracy: 0.7537
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.6719 - accuracy: 0.7554
+52/92 [===============>..............] - ETA: 2s - loss: 0.6683 - accuracy: 0.7512
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.6718 - accuracy: 0.7559
+53/92 [================>.............] - ETA: 2s - loss: 0.6632 - accuracy: 0.7535
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.6663 - accuracy: 0.7581
+54/92 [================>.............] - ETA: 2s - loss: 0.6671 - accuracy: 0.7512
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.6645 - accuracy: 0.7574
+55/92 [================>.............] - ETA: 2s - loss: 0.6669 - accuracy: 0.7517
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.6582 - accuracy: 0.7600
+56/92 [=================>............] - ETA: 2s - loss: 0.6650 - accuracy: 0.7522
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.6585 - accuracy: 0.7599
+57/92 [=================>............] - ETA: 2s - loss: 0.6592 - accuracy: 0.7549
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.6641 - accuracy: 0.7586
+58/92 [=================>............] - ETA: 1s - loss: 0.6616 - accuracy: 0.7522
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.6662 - accuracy: 0.7590
+59/92 [==================>...........] - ETA: 1s - loss: 0.6631 - accuracy: 0.7526
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.6648 - accuracy: 0.7599
+60/92 [==================>...........] - ETA: 1s - loss: 0.6615 - accuracy: 0.7547
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.6666 - accuracy: 0.7592
+61/92 [==================>...........] - ETA: 1s - loss: 0.6653 - accuracy: 0.7536
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.6684 - accuracy: 0.7576
+62/92 [===================>..........] - ETA: 1s - loss: 0.6664 - accuracy: 0.7525
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.6665 - accuracy: 0.7594
+63/92 [===================>..........] - ETA: 1s - loss: 0.6658 - accuracy: 0.7520
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.6657 - accuracy: 0.7598
+64/92 [===================>..........] - ETA: 1s - loss: 0.6643 - accuracy: 0.7520
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.6704 - accuracy: 0.7582
+65/92 [====================>.........] - ETA: 1s - loss: 0.6618 - accuracy: 0.7543
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.6705 - accuracy: 0.7576
+66/92 [====================>.........] - ETA: 1s - loss: 0.6601 - accuracy: 0.7547
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.6678 - accuracy: 0.7579
+67/92 [====================>.........] - ETA: 1s - loss: 0.6585 - accuracy: 0.7551
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.6693 - accuracy: 0.7574
+68/92 [=====================>........] - ETA: 1s - loss: 0.6609 - accuracy: 0.7523
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.6673 - accuracy: 0.7586
+69/92 [=====================>........] - ETA: 1s - loss: 0.6676 - accuracy: 0.7486
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.6658 - accuracy: 0.7588
+71/92 [======================>.......] - ETA: 1s - loss: 0.6645 - accuracy: 0.7509
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.6684 - accuracy: 0.7583
+72/92 [======================>.......] - ETA: 1s - loss: 0.6621 - accuracy: 0.7522
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.6677 - accuracy: 0.7582
+73/92 [======================>.......] - ETA: 1s - loss: 0.6610 - accuracy: 0.7526
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.6661 - accuracy: 0.7581
+74/92 [=======================>......] - ETA: 1s - loss: 0.6592 - accuracy: 0.7530
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.6632 - accuracy: 0.7588
+75/92 [=======================>......] - ETA: 0s - loss: 0.6584 - accuracy: 0.7533
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.6618 - accuracy: 0.7591
+76/92 [=======================>......] - ETA: 0s - loss: 0.6593 - accuracy: 0.7541
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.6600 - accuracy: 0.7602
+77/92 [========================>.....] - ETA: 0s - loss: 0.6574 - accuracy: 0.7545
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.6619 - accuracy: 0.7592
+78/92 [========================>.....] - ETA: 0s - loss: 0.6558 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.6630 - accuracy: 0.7583
+79/92 [========================>.....] - ETA: 0s - loss: 0.6547 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.6628 - accuracy: 0.7586
+80/92 [=========================>....] - ETA: 0s - loss: 0.6563 - accuracy: 0.7551
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.6634 - accuracy: 0.7593
+81/92 [=========================>....] - ETA: 0s - loss: 0.6566 - accuracy: 0.7550
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.6638 - accuracy: 0.7592
+82/92 [=========================>....] - ETA: 0s - loss: 0.6598 - accuracy: 0.7550
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.6610 - accuracy: 0.7606
+83/92 [==========================>...] - ETA: 0s - loss: 0.6627 - accuracy: 0.7538
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.6593 - accuracy: 0.7616
+84/92 [==========================>...] - ETA: 0s - loss: 0.6615 - accuracy: 0.7537
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.6583 - accuracy: 0.7622
+85/92 [==========================>...] - ETA: 0s - loss: 0.6648 - accuracy: 0.7515
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.6555 - accuracy: 0.7635
+86/92 [===========================>..] - ETA: 0s - loss: 0.6672 - accuracy: 0.7489
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.6543 - accuracy: 0.7637
+87/92 [===========================>..] - ETA: 0s - loss: 0.6659 - accuracy: 0.7493
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.6534 - accuracy: 0.7639
+88/92 [===========================>..] - ETA: 0s - loss: 0.6646 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.6534 - accuracy: 0.7637
+89/92 [============================>.] - ETA: 0s - loss: 0.6653 - accuracy: 0.7489
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.6510 - accuracy: 0.7646
+90/92 [============================>.] - ETA: 0s - loss: 0.6656 - accuracy: 0.7479
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.6516 - accuracy: 0.7634
+91/92 [============================>.] - ETA: 0s - loss: 0.6670 - accuracy: 0.7483
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.6513 - accuracy: 0.7636
+92/92 [==============================] - ETA: 0s - loss: 0.6711 - accuracy: 0.7480
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.6513 - accuracy: 0.7636 - val_loss: 0.7100 - val_accuracy: 0.7166
+92/92 [==============================] - 6s 64ms/step - loss: 0.6711 - accuracy: 0.7480 - val_loss: 0.8020 - val_accuracy: 0.6962
 
 
 .. parsed-literal::
@@ -5072,462 +5128,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.6052 - accuracy: 0.7812
+ 1/92 [..............................] - ETA: 7s - loss: 0.9496 - accuracy: 0.6250
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.7084 - accuracy: 0.7344
+ 2/92 [..............................] - ETA: 5s - loss: 0.9003 - accuracy: 0.5938
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.7363 - accuracy: 0.7292
+ 3/92 [..............................] - ETA: 5s - loss: 0.7666 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.7406 - accuracy: 0.7031
+ 4/92 [>.............................] - ETA: 5s - loss: 0.7763 - accuracy: 0.6875
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.7162 - accuracy: 0.7125
+ 5/92 [>.............................] - ETA: 5s - loss: 0.7471 - accuracy: 0.7000
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.6760 - accuracy: 0.7344
+ 6/92 [>.............................] - ETA: 4s - loss: 0.7708 - accuracy: 0.6771
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 5s - loss: 0.6778 - accuracy: 0.7455
+ 7/92 [=>............................] - ETA: 4s - loss: 0.7444 - accuracy: 0.7009
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.6985 - accuracy: 0.7422
+ 8/92 [=>............................] - ETA: 4s - loss: 0.7261 - accuracy: 0.7109
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.6704 - accuracy: 0.7500
+ 9/92 [=>............................] - ETA: 4s - loss: 0.7338 - accuracy: 0.7014
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.6536 - accuracy: 0.7531
+10/92 [==>...........................] - ETA: 4s - loss: 0.7229 - accuracy: 0.7125
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.6671 - accuracy: 0.7415
+11/92 [==>...........................] - ETA: 4s - loss: 0.7093 - accuracy: 0.7244
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.6608 - accuracy: 0.7500
+12/92 [==>...........................] - ETA: 4s - loss: 0.7040 - accuracy: 0.7292
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.6551 - accuracy: 0.7500
+13/92 [===>..........................] - ETA: 4s - loss: 0.6978 - accuracy: 0.7284
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.6409 - accuracy: 0.7545
+14/92 [===>..........................] - ETA: 4s - loss: 0.6941 - accuracy: 0.7277
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.6365 - accuracy: 0.7563
+15/92 [===>..........................] - ETA: 4s - loss: 0.6810 - accuracy: 0.7354
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.6387 - accuracy: 0.7539
+16/92 [====>.........................] - ETA: 4s - loss: 0.6905 - accuracy: 0.7305
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.6240 - accuracy: 0.7592
+17/92 [====>.........................] - ETA: 4s - loss: 0.6876 - accuracy: 0.7261
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.6206 - accuracy: 0.7604
+18/92 [====>.........................] - ETA: 4s - loss: 0.6831 - accuracy: 0.7326
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.6151 - accuracy: 0.7615
+19/92 [=====>........................] - ETA: 4s - loss: 0.6771 - accuracy: 0.7368
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.6012 - accuracy: 0.7688
+20/92 [=====>........................] - ETA: 4s - loss: 0.6791 - accuracy: 0.7375
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.6084 - accuracy: 0.7604
+21/92 [=====>........................] - ETA: 4s - loss: 0.6655 - accuracy: 0.7470
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.6143 - accuracy: 0.7585
+22/92 [======>.......................] - ETA: 4s - loss: 0.6608 - accuracy: 0.7486
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 3s - loss: 0.6111 - accuracy: 0.7609
+23/92 [======>.......................] - ETA: 3s - loss: 0.6494 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.6047 - accuracy: 0.7643
+24/92 [======>.......................] - ETA: 3s - loss: 0.6466 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.6062 - accuracy: 0.7638
+25/92 [=======>......................] - ETA: 3s - loss: 0.6500 - accuracy: 0.7538
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.6128 - accuracy: 0.7620
+26/92 [=======>......................] - ETA: 3s - loss: 0.6396 - accuracy: 0.7572
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.6038 - accuracy: 0.7650
+27/92 [=======>......................] - ETA: 3s - loss: 0.6376 - accuracy: 0.7558
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.5998 - accuracy: 0.7667
+29/92 [========>.....................] - ETA: 3s - loss: 0.6443 - accuracy: 0.7533
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.6027 - accuracy: 0.7672
+30/92 [========>.....................] - ETA: 3s - loss: 0.6406 - accuracy: 0.7563
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.5977 - accuracy: 0.7698
+31/92 [=========>....................] - ETA: 3s - loss: 0.6387 - accuracy: 0.7561
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.5898 - accuracy: 0.7742
+32/92 [=========>....................] - ETA: 3s - loss: 0.6517 - accuracy: 0.7510
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.5843 - accuracy: 0.7764
+33/92 [=========>....................] - ETA: 3s - loss: 0.6472 - accuracy: 0.7529
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.5808 - accuracy: 0.7784
+34/92 [==========>...................] - ETA: 3s - loss: 0.6590 - accuracy: 0.7472
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.5807 - accuracy: 0.7785
+35/92 [==========>...................] - ETA: 3s - loss: 0.6533 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.5837 - accuracy: 0.7777
+36/92 [==========>...................] - ETA: 3s - loss: 0.6531 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.5817 - accuracy: 0.7769
+37/92 [===========>..................] - ETA: 3s - loss: 0.6553 - accuracy: 0.7509
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.5841 - accuracy: 0.7762
+38/92 [===========>..................] - ETA: 3s - loss: 0.6546 - accuracy: 0.7517
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.5874 - accuracy: 0.7747
+39/92 [===========>..................] - ETA: 3s - loss: 0.6583 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.5920 - accuracy: 0.7740
+40/92 [============>.................] - ETA: 3s - loss: 0.6534 - accuracy: 0.7516
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.5974 - accuracy: 0.7711
+41/92 [============>.................] - ETA: 2s - loss: 0.6557 - accuracy: 0.7492
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.5961 - accuracy: 0.7713
+42/92 [============>.................] - ETA: 2s - loss: 0.6575 - accuracy: 0.7485
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.5957 - accuracy: 0.7708
+43/92 [=============>................] - ETA: 2s - loss: 0.6557 - accuracy: 0.7493
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5937 - accuracy: 0.7718
+44/92 [=============>................] - ETA: 2s - loss: 0.6548 - accuracy: 0.7500
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5961 - accuracy: 0.7727
+45/92 [=============>................] - ETA: 2s - loss: 0.6536 - accuracy: 0.7521
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5961 - accuracy: 0.7715
+46/92 [==============>...............] - ETA: 2s - loss: 0.6548 - accuracy: 0.7514
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.5962 - accuracy: 0.7724
+47/92 [==============>...............] - ETA: 2s - loss: 0.6491 - accuracy: 0.7540
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.5937 - accuracy: 0.7733
+48/92 [==============>...............] - ETA: 2s - loss: 0.6510 - accuracy: 0.7533
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5960 - accuracy: 0.7715
+49/92 [==============>...............] - ETA: 2s - loss: 0.6537 - accuracy: 0.7526
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.5972 - accuracy: 0.7723
+50/92 [===============>..............] - ETA: 2s - loss: 0.6507 - accuracy: 0.7525
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.5950 - accuracy: 0.7719
+51/92 [===============>..............] - ETA: 2s - loss: 0.6462 - accuracy: 0.7549
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.5917 - accuracy: 0.7729
+52/92 [===============>..............] - ETA: 2s - loss: 0.6456 - accuracy: 0.7554
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.5941 - accuracy: 0.7731
+53/92 [================>.............] - ETA: 2s - loss: 0.6444 - accuracy: 0.7536
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.5972 - accuracy: 0.7721
+54/92 [================>.............] - ETA: 2s - loss: 0.6474 - accuracy: 0.7535
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.5983 - accuracy: 0.7705
+55/92 [================>.............] - ETA: 2s - loss: 0.6433 - accuracy: 0.7551
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.5951 - accuracy: 0.7724
+56/92 [=================>............] - ETA: 2s - loss: 0.6406 - accuracy: 0.7556
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.5926 - accuracy: 0.7737
+57/92 [=================>............] - ETA: 2s - loss: 0.6381 - accuracy: 0.7577
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.5937 - accuracy: 0.7727
+58/92 [=================>............] - ETA: 1s - loss: 0.6361 - accuracy: 0.7581
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.5921 - accuracy: 0.7729
+59/92 [==================>...........] - ETA: 1s - loss: 0.6355 - accuracy: 0.7601
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.5895 - accuracy: 0.7741
+60/92 [==================>...........] - ETA: 1s - loss: 0.6337 - accuracy: 0.7605
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.5880 - accuracy: 0.7747
+61/92 [==================>...........] - ETA: 1s - loss: 0.6314 - accuracy: 0.7603
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.5898 - accuracy: 0.7743
+62/92 [===================>..........] - ETA: 1s - loss: 0.6352 - accuracy: 0.7591
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.5955 - accuracy: 0.7734
+63/92 [===================>..........] - ETA: 1s - loss: 0.6361 - accuracy: 0.7575
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.5929 - accuracy: 0.7755
+64/92 [===================>..........] - ETA: 1s - loss: 0.6343 - accuracy: 0.7583
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.5930 - accuracy: 0.7761
+65/92 [====================>.........] - ETA: 1s - loss: 0.6303 - accuracy: 0.7597
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.5938 - accuracy: 0.7757
+66/92 [====================>.........] - ETA: 1s - loss: 0.6301 - accuracy: 0.7595
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.5978 - accuracy: 0.7734
+67/92 [====================>.........] - ETA: 1s - loss: 0.6309 - accuracy: 0.7589
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.5989 - accuracy: 0.7721
+68/92 [=====================>........] - ETA: 1s - loss: 0.6335 - accuracy: 0.7574
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.5998 - accuracy: 0.7714
+69/92 [=====================>........] - ETA: 1s - loss: 0.6331 - accuracy: 0.7573
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.6006 - accuracy: 0.7715
+70/92 [=====================>........] - ETA: 1s - loss: 0.6354 - accuracy: 0.7563
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.6049 - accuracy: 0.7694
+71/92 [======================>.......] - ETA: 1s - loss: 0.6353 - accuracy: 0.7562
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.6058 - accuracy: 0.7696
+72/92 [======================>.......] - ETA: 1s - loss: 0.6337 - accuracy: 0.7574
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.6072 - accuracy: 0.7685
+73/92 [======================>.......] - ETA: 1s - loss: 0.6341 - accuracy: 0.7569
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.6073 - accuracy: 0.7686
+74/92 [=======================>......] - ETA: 1s - loss: 0.6345 - accuracy: 0.7564
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.6071 - accuracy: 0.7684
+75/92 [=======================>......] - ETA: 0s - loss: 0.6398 - accuracy: 0.7529
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.6093 - accuracy: 0.7661
+76/92 [=======================>......] - ETA: 0s - loss: 0.6416 - accuracy: 0.7525
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.6097 - accuracy: 0.7667
+77/92 [========================>.....] - ETA: 0s - loss: 0.6396 - accuracy: 0.7541
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.6090 - accuracy: 0.7673
+78/92 [========================>.....] - ETA: 0s - loss: 0.6385 - accuracy: 0.7548
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.6091 - accuracy: 0.7679
+79/92 [========================>.....] - ETA: 0s - loss: 0.6400 - accuracy: 0.7544
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.6084 - accuracy: 0.7680
+80/92 [=========================>....] - ETA: 0s - loss: 0.6401 - accuracy: 0.7539
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.6114 - accuracy: 0.7659
+81/92 [=========================>....] - ETA: 0s - loss: 0.6398 - accuracy: 0.7539
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.6117 - accuracy: 0.7653
+82/92 [=========================>....] - ETA: 0s - loss: 0.6389 - accuracy: 0.7538
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.6108 - accuracy: 0.7655
+83/92 [==========================>...] - ETA: 0s - loss: 0.6372 - accuracy: 0.7545
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.6127 - accuracy: 0.7631
+84/92 [==========================>...] - ETA: 0s - loss: 0.6382 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.6124 - accuracy: 0.7644
+85/92 [==========================>...] - ETA: 0s - loss: 0.6419 - accuracy: 0.7541
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.6118 - accuracy: 0.7638
+86/92 [===========================>..] - ETA: 0s - loss: 0.6430 - accuracy: 0.7533
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.6130 - accuracy: 0.7633
+87/92 [===========================>..] - ETA: 0s - loss: 0.6418 - accuracy: 0.7536
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.6134 - accuracy: 0.7625
+88/92 [===========================>..] - ETA: 0s - loss: 0.6407 - accuracy: 0.7539
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.6146 - accuracy: 0.7616
+89/92 [============================>.] - ETA: 0s - loss: 0.6416 - accuracy: 0.7546
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.6157 - accuracy: 0.7608
+90/92 [============================>.] - ETA: 0s - loss: 0.6424 - accuracy: 0.7552
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.6157 - accuracy: 0.7617
+91/92 [============================>.] - ETA: 0s - loss: 0.6426 - accuracy: 0.7555
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.6144 - accuracy: 0.7616
+92/92 [==============================] - ETA: 0s - loss: 0.6408 - accuracy: 0.7554
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 65ms/step - loss: 0.6144 - accuracy: 0.7616 - val_loss: 0.7003 - val_accuracy: 0.7180
+92/92 [==============================] - 6s 63ms/step - loss: 0.6408 - accuracy: 0.7554 - val_loss: 0.7525 - val_accuracy: 0.7112
 
 
 .. parsed-literal::
@@ -5538,462 +5594,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.5609 - accuracy: 0.8438
+ 1/92 [..............................] - ETA: 7s - loss: 0.4288 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.6191 - accuracy: 0.8125
+ 2/92 [..............................] - ETA: 5s - loss: 0.5379 - accuracy: 0.7656
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.6127 - accuracy: 0.7917
+ 3/92 [..............................] - ETA: 5s - loss: 0.6520 - accuracy: 0.7083
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.5744 - accuracy: 0.8047
+ 4/92 [>.............................] - ETA: 5s - loss: 0.6468 - accuracy: 0.7266
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.5683 - accuracy: 0.8188
+ 5/92 [>.............................] - ETA: 5s - loss: 0.5931 - accuracy: 0.7625
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 4s - loss: 0.5502 - accuracy: 0.8125
+ 6/92 [>.............................] - ETA: 5s - loss: 0.6002 - accuracy: 0.7708
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.5450 - accuracy: 0.8170
+ 7/92 [=>............................] - ETA: 4s - loss: 0.5982 - accuracy: 0.7768
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.5383 - accuracy: 0.8164
+ 8/92 [=>............................] - ETA: 4s - loss: 0.6006 - accuracy: 0.7852
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.5373 - accuracy: 0.8125
+ 9/92 [=>............................] - ETA: 4s - loss: 0.5806 - accuracy: 0.7951
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.5662 - accuracy: 0.8000
+10/92 [==>...........................] - ETA: 4s - loss: 0.5907 - accuracy: 0.7844
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.5610 - accuracy: 0.8011
+11/92 [==>...........................] - ETA: 4s - loss: 0.5741 - accuracy: 0.7898
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.5628 - accuracy: 0.7969
+12/92 [==>...........................] - ETA: 4s - loss: 0.5914 - accuracy: 0.7786
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.5678 - accuracy: 0.7885
+13/92 [===>..........................] - ETA: 4s - loss: 0.5997 - accuracy: 0.7764
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.5793 - accuracy: 0.7857
+14/92 [===>..........................] - ETA: 4s - loss: 0.5910 - accuracy: 0.7746
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.5903 - accuracy: 0.7812
+15/92 [===>..........................] - ETA: 4s - loss: 0.5887 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.5735 - accuracy: 0.7871
+16/92 [====>.........................] - ETA: 4s - loss: 0.5754 - accuracy: 0.7891
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.5678 - accuracy: 0.7941
+17/92 [====>.........................] - ETA: 4s - loss: 0.5765 - accuracy: 0.7868
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.5694 - accuracy: 0.7951
+18/92 [====>.........................] - ETA: 4s - loss: 0.5621 - accuracy: 0.7917
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.5696 - accuracy: 0.7911
+19/92 [=====>........................] - ETA: 4s - loss: 0.5564 - accuracy: 0.7944
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.5765 - accuracy: 0.7875
+20/92 [=====>........................] - ETA: 4s - loss: 0.5581 - accuracy: 0.7906
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.5767 - accuracy: 0.7887
+21/92 [=====>........................] - ETA: 4s - loss: 0.5506 - accuracy: 0.7946
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.5683 - accuracy: 0.7912
+22/92 [======>.......................] - ETA: 4s - loss: 0.5530 - accuracy: 0.7940
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 3s - loss: 0.5697 - accuracy: 0.7894
+23/92 [======>.......................] - ETA: 3s - loss: 0.5548 - accuracy: 0.7935
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.5762 - accuracy: 0.7852
+24/92 [======>.......................] - ETA: 3s - loss: 0.5654 - accuracy: 0.7852
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.5817 - accuracy: 0.7812
+25/92 [=======>......................] - ETA: 3s - loss: 0.5796 - accuracy: 0.7800
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.5912 - accuracy: 0.7800
+26/92 [=======>......................] - ETA: 3s - loss: 0.5784 - accuracy: 0.7776
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.5881 - accuracy: 0.7836
+27/92 [=======>......................] - ETA: 3s - loss: 0.5750 - accuracy: 0.7778
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.5812 - accuracy: 0.7859
+28/92 [========>.....................] - ETA: 3s - loss: 0.5857 - accuracy: 0.7723
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.5884 - accuracy: 0.7847
+29/92 [========>.....................] - ETA: 3s - loss: 0.5865 - accuracy: 0.7737
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.5870 - accuracy: 0.7856
+30/92 [========>.....................] - ETA: 3s - loss: 0.5927 - accuracy: 0.7688
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.5873 - accuracy: 0.7844
+31/92 [=========>....................] - ETA: 3s - loss: 0.5894 - accuracy: 0.7692
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.5851 - accuracy: 0.7853
+32/92 [=========>....................] - ETA: 3s - loss: 0.5873 - accuracy: 0.7695
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.5834 - accuracy: 0.7833
+33/92 [=========>....................] - ETA: 3s - loss: 0.5872 - accuracy: 0.7689
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.5811 - accuracy: 0.7851
+34/92 [==========>...................] - ETA: 3s - loss: 0.5840 - accuracy: 0.7702
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.5825 - accuracy: 0.7841
+35/92 [==========>...................] - ETA: 3s - loss: 0.5864 - accuracy: 0.7688
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.5817 - accuracy: 0.7840
+36/92 [==========>...................] - ETA: 3s - loss: 0.5859 - accuracy: 0.7682
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.5770 - accuracy: 0.7864
+37/92 [===========>..................] - ETA: 3s - loss: 0.5904 - accuracy: 0.7652
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.5761 - accuracy: 0.7879
+38/92 [===========>..................] - ETA: 3s - loss: 0.5938 - accuracy: 0.7640
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 2s - loss: 0.5797 - accuracy: 0.7862
+39/92 [===========>..................] - ETA: 3s - loss: 0.5931 - accuracy: 0.7636
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.5812 - accuracy: 0.7860
+41/92 [============>.................] - ETA: 2s - loss: 0.5935 - accuracy: 0.7630
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.5845 - accuracy: 0.7837
+42/92 [============>.................] - ETA: 2s - loss: 0.5924 - accuracy: 0.7657
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5830 - accuracy: 0.7844
+43/92 [=============>................] - ETA: 2s - loss: 0.5920 - accuracy: 0.7675
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5943 - accuracy: 0.7800
+44/92 [=============>................] - ETA: 2s - loss: 0.5865 - accuracy: 0.7707
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5970 - accuracy: 0.7800
+45/92 [=============>................] - ETA: 2s - loss: 0.5830 - accuracy: 0.7737
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.6007 - accuracy: 0.7773
+46/92 [==============>...............] - ETA: 2s - loss: 0.5833 - accuracy: 0.7753
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.6019 - accuracy: 0.7781
+47/92 [==============>...............] - ETA: 2s - loss: 0.5803 - accuracy: 0.7754
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5988 - accuracy: 0.7801
+48/92 [==============>...............] - ETA: 2s - loss: 0.5783 - accuracy: 0.7762
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.6033 - accuracy: 0.7776
+49/92 [==============>...............] - ETA: 2s - loss: 0.5784 - accuracy: 0.7763
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.6090 - accuracy: 0.7770
+50/92 [===============>..............] - ETA: 2s - loss: 0.5813 - accuracy: 0.7758
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.6071 - accuracy: 0.7777
+51/92 [===============>..............] - ETA: 2s - loss: 0.5816 - accuracy: 0.7746
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.6072 - accuracy: 0.7760
+52/92 [===============>..............] - ETA: 2s - loss: 0.5823 - accuracy: 0.7748
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.6075 - accuracy: 0.7749
+53/92 [================>.............] - ETA: 2s - loss: 0.5830 - accuracy: 0.7749
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.6071 - accuracy: 0.7750
+54/92 [================>.............] - ETA: 2s - loss: 0.5879 - accuracy: 0.7733
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.6111 - accuracy: 0.7728
+55/92 [================>.............] - ETA: 2s - loss: 0.5928 - accuracy: 0.7728
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.6106 - accuracy: 0.7735
+56/92 [=================>............] - ETA: 2s - loss: 0.5927 - accuracy: 0.7724
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.6089 - accuracy: 0.7742
+57/92 [=================>............] - ETA: 2s - loss: 0.5908 - accuracy: 0.7731
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.6079 - accuracy: 0.7744
+58/92 [=================>............] - ETA: 1s - loss: 0.5892 - accuracy: 0.7727
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.6050 - accuracy: 0.7766
+59/92 [==================>...........] - ETA: 1s - loss: 0.5875 - accuracy: 0.7734
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.6046 - accuracy: 0.7762
+60/92 [==================>...........] - ETA: 1s - loss: 0.5894 - accuracy: 0.7730
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.6085 - accuracy: 0.7752
+61/92 [==================>...........] - ETA: 1s - loss: 0.5912 - accuracy: 0.7716
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.6054 - accuracy: 0.7763
+62/92 [===================>..........] - ETA: 1s - loss: 0.5880 - accuracy: 0.7723
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.6062 - accuracy: 0.7754
+63/92 [===================>..........] - ETA: 1s - loss: 0.5862 - accuracy: 0.7719
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.6037 - accuracy: 0.7775
+64/92 [===================>..........] - ETA: 1s - loss: 0.5880 - accuracy: 0.7711
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.6036 - accuracy: 0.7770
+65/92 [====================>.........] - ETA: 1s - loss: 0.5874 - accuracy: 0.7722
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.6023 - accuracy: 0.7776
+66/92 [====================>.........] - ETA: 1s - loss: 0.5865 - accuracy: 0.7723
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.6014 - accuracy: 0.7776
+67/92 [====================>.........] - ETA: 1s - loss: 0.5869 - accuracy: 0.7720
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.5986 - accuracy: 0.7781
+68/92 [=====================>........] - ETA: 1s - loss: 0.5846 - accuracy: 0.7726
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.5991 - accuracy: 0.7773
+69/92 [=====================>........] - ETA: 1s - loss: 0.5852 - accuracy: 0.7723
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.5972 - accuracy: 0.7778
+70/92 [=====================>........] - ETA: 1s - loss: 0.5853 - accuracy: 0.7720
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.5990 - accuracy: 0.7761
+71/92 [======================>.......] - ETA: 1s - loss: 0.5856 - accuracy: 0.7725
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.5993 - accuracy: 0.7761
+72/92 [======================>.......] - ETA: 1s - loss: 0.5948 - accuracy: 0.7687
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.5993 - accuracy: 0.7758
+73/92 [======================>.......] - ETA: 1s - loss: 0.5983 - accuracy: 0.7676
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.5950 - accuracy: 0.7767
+74/92 [=======================>......] - ETA: 1s - loss: 0.5987 - accuracy: 0.7669
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.5950 - accuracy: 0.7755
+75/92 [=======================>......] - ETA: 0s - loss: 0.5982 - accuracy: 0.7671
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.5929 - accuracy: 0.7764
+76/92 [=======================>......] - ETA: 0s - loss: 0.5964 - accuracy: 0.7677
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.5914 - accuracy: 0.7769
+77/92 [========================>.....] - ETA: 0s - loss: 0.5961 - accuracy: 0.7687
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.5930 - accuracy: 0.7765
+78/92 [========================>.....] - ETA: 0s - loss: 0.5969 - accuracy: 0.7681
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.5929 - accuracy: 0.7754
+79/92 [========================>.....] - ETA: 0s - loss: 0.6019 - accuracy: 0.7675
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.5919 - accuracy: 0.7759
+80/92 [=========================>....] - ETA: 0s - loss: 0.6002 - accuracy: 0.7684
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.5910 - accuracy: 0.7759
+81/92 [=========================>....] - ETA: 0s - loss: 0.5994 - accuracy: 0.7697
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.5926 - accuracy: 0.7752
+82/92 [=========================>....] - ETA: 0s - loss: 0.6019 - accuracy: 0.7695
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.5900 - accuracy: 0.7764
+83/92 [==========================>...] - ETA: 0s - loss: 0.6030 - accuracy: 0.7685
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.5929 - accuracy: 0.7754
+84/92 [==========================>...] - ETA: 0s - loss: 0.6032 - accuracy: 0.7679
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.5931 - accuracy: 0.7758
+85/92 [==========================>...] - ETA: 0s - loss: 0.6072 - accuracy: 0.7662
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.5959 - accuracy: 0.7751
+86/92 [===========================>..] - ETA: 0s - loss: 0.6082 - accuracy: 0.7657
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.5965 - accuracy: 0.7749
+87/92 [===========================>..] - ETA: 0s - loss: 0.6130 - accuracy: 0.7630
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.5951 - accuracy: 0.7760
+88/92 [===========================>..] - ETA: 0s - loss: 0.6125 - accuracy: 0.7632
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.5932 - accuracy: 0.7768
+89/92 [============================>.] - ETA: 0s - loss: 0.6117 - accuracy: 0.7641
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.5922 - accuracy: 0.7775
+90/92 [============================>.] - ETA: 0s - loss: 0.6107 - accuracy: 0.7643
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.5940 - accuracy: 0.7769
+91/92 [============================>.] - ETA: 0s - loss: 0.6086 - accuracy: 0.7645
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.5958 - accuracy: 0.7755
+92/92 [==============================] - ETA: 0s - loss: 0.6071 - accuracy: 0.7657
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.5958 - accuracy: 0.7755 - val_loss: 0.6917 - val_accuracy: 0.7343
+92/92 [==============================] - 6s 64ms/step - loss: 0.6071 - accuracy: 0.7657 - val_loss: 0.6969 - val_accuracy: 0.7316
 
 
 .. parsed-literal::
@@ -6004,462 +6060,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.5158 - accuracy: 0.8438
+ 1/92 [..............................] - ETA: 6s - loss: 0.4407 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.4748 - accuracy: 0.8594
+ 2/92 [..............................] - ETA: 5s - loss: 0.4792 - accuracy: 0.8281
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.4990 - accuracy: 0.8542
+ 3/92 [..............................] - ETA: 5s - loss: 0.4696 - accuracy: 0.8229
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.5068 - accuracy: 0.8438
+ 4/92 [>.............................] - ETA: 5s - loss: 0.4918 - accuracy: 0.8047
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.4829 - accuracy: 0.8500
+ 5/92 [>.............................] - ETA: 5s - loss: 0.5115 - accuracy: 0.8000
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.4823 - accuracy: 0.8438
+ 6/92 [>.............................] - ETA: 5s - loss: 0.5140 - accuracy: 0.8021
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.4679 - accuracy: 0.8482
+ 7/92 [=>............................] - ETA: 4s - loss: 0.5059 - accuracy: 0.8036
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.4979 - accuracy: 0.8320
+ 8/92 [=>............................] - ETA: 4s - loss: 0.5174 - accuracy: 0.8086
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.5087 - accuracy: 0.8299
+ 9/92 [=>............................] - ETA: 4s - loss: 0.4993 - accuracy: 0.8160
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.5058 - accuracy: 0.8313
+10/92 [==>...........................] - ETA: 4s - loss: 0.5029 - accuracy: 0.8188
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.5191 - accuracy: 0.8210
+11/92 [==>...........................] - ETA: 4s - loss: 0.5025 - accuracy: 0.8210
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.5316 - accuracy: 0.8125
+12/92 [==>...........................] - ETA: 4s - loss: 0.5059 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.5217 - accuracy: 0.8125
+13/92 [===>..........................] - ETA: 4s - loss: 0.5044 - accuracy: 0.8101
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.5414 - accuracy: 0.8036
+14/92 [===>..........................] - ETA: 4s - loss: 0.5114 - accuracy: 0.8080
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.5347 - accuracy: 0.8083
+15/92 [===>..........................] - ETA: 4s - loss: 0.5230 - accuracy: 0.8021
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.5313 - accuracy: 0.8086
+16/92 [====>.........................] - ETA: 4s - loss: 0.5226 - accuracy: 0.7988
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.5244 - accuracy: 0.8088
+17/92 [====>.........................] - ETA: 4s - loss: 0.5257 - accuracy: 0.7960
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.5229 - accuracy: 0.8090
+18/92 [====>.........................] - ETA: 4s - loss: 0.5255 - accuracy: 0.7951
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.5354 - accuracy: 0.7993
+19/92 [=====>........................] - ETA: 4s - loss: 0.5267 - accuracy: 0.7944
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.5348 - accuracy: 0.8000
+20/92 [=====>........................] - ETA: 4s - loss: 0.5281 - accuracy: 0.7937
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.5396 - accuracy: 0.7946
+21/92 [=====>........................] - ETA: 4s - loss: 0.5360 - accuracy: 0.7917
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.5375 - accuracy: 0.7926
+22/92 [======>.......................] - ETA: 4s - loss: 0.5355 - accuracy: 0.7940
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.5355 - accuracy: 0.7962
+23/92 [======>.......................] - ETA: 4s - loss: 0.5374 - accuracy: 0.7908
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.5312 - accuracy: 0.7982
+24/92 [======>.......................] - ETA: 3s - loss: 0.5475 - accuracy: 0.7878
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.5287 - accuracy: 0.7975
+25/92 [=======>......................] - ETA: 3s - loss: 0.5563 - accuracy: 0.7875
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.5257 - accuracy: 0.7981
+26/92 [=======>......................] - ETA: 3s - loss: 0.5524 - accuracy: 0.7897
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.5265 - accuracy: 0.7986
+27/92 [=======>......................] - ETA: 3s - loss: 0.5504 - accuracy: 0.7905
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.5345 - accuracy: 0.7980
+28/92 [========>.....................] - ETA: 3s - loss: 0.5477 - accuracy: 0.7924
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.5298 - accuracy: 0.7973
+29/92 [========>.....................] - ETA: 3s - loss: 0.5441 - accuracy: 0.7931
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.5337 - accuracy: 0.7978
+30/92 [========>.....................] - ETA: 3s - loss: 0.5505 - accuracy: 0.7885
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.5332 - accuracy: 0.7963
+31/92 [=========>....................] - ETA: 3s - loss: 0.5585 - accuracy: 0.7853
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.5406 - accuracy: 0.7920
+32/92 [=========>....................] - ETA: 3s - loss: 0.5641 - accuracy: 0.7832
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.5398 - accuracy: 0.7944
+33/92 [=========>....................] - ETA: 3s - loss: 0.5631 - accuracy: 0.7831
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.5319 - accuracy: 0.7986
+34/92 [==========>...................] - ETA: 3s - loss: 0.5656 - accuracy: 0.7831
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.5308 - accuracy: 0.7990
+35/92 [==========>...................] - ETA: 3s - loss: 0.5645 - accuracy: 0.7830
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.5460 - accuracy: 0.7976
+36/92 [==========>...................] - ETA: 3s - loss: 0.5611 - accuracy: 0.7830
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.5438 - accuracy: 0.7972
+37/92 [===========>..................] - ETA: 3s - loss: 0.5690 - accuracy: 0.7796
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.5420 - accuracy: 0.7984
+38/92 [===========>..................] - ETA: 3s - loss: 0.5690 - accuracy: 0.7804
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.5416 - accuracy: 0.7980
+39/92 [===========>..................] - ETA: 3s - loss: 0.5674 - accuracy: 0.7788
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.5411 - accuracy: 0.7983
+40/92 [============>.................] - ETA: 3s - loss: 0.5766 - accuracy: 0.7750
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.5440 - accuracy: 0.7964
+41/92 [============>.................] - ETA: 2s - loss: 0.5767 - accuracy: 0.7721
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5429 - accuracy: 0.7982
+42/92 [============>.................] - ETA: 2s - loss: 0.5762 - accuracy: 0.7731
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5435 - accuracy: 0.7993
+43/92 [=============>................] - ETA: 2s - loss: 0.5790 - accuracy: 0.7703
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5461 - accuracy: 0.7982
+44/92 [=============>................] - ETA: 2s - loss: 0.5790 - accuracy: 0.7713
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.5474 - accuracy: 0.7992
+45/92 [=============>................] - ETA: 2s - loss: 0.5772 - accuracy: 0.7722
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.5516 - accuracy: 0.7981
+46/92 [==============>...............] - ETA: 2s - loss: 0.5747 - accuracy: 0.7745
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5529 - accuracy: 0.7971
+47/92 [==============>...............] - ETA: 2s - loss: 0.5772 - accuracy: 0.7733
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.5537 - accuracy: 0.7962
+48/92 [==============>...............] - ETA: 2s - loss: 0.5753 - accuracy: 0.7747
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.5525 - accuracy: 0.7971
+49/92 [==============>...............] - ETA: 2s - loss: 0.5834 - accuracy: 0.7710
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.5512 - accuracy: 0.7962
+50/92 [===============>..............] - ETA: 2s - loss: 0.5847 - accuracy: 0.7700
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.5524 - accuracy: 0.7947
+51/92 [===============>..............] - ETA: 2s - loss: 0.5822 - accuracy: 0.7727
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.5529 - accuracy: 0.7956
+52/92 [===============>..............] - ETA: 2s - loss: 0.5826 - accuracy: 0.7728
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.5568 - accuracy: 0.7924
+53/92 [================>.............] - ETA: 2s - loss: 0.5850 - accuracy: 0.7712
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.5531 - accuracy: 0.7945
+54/92 [================>.............] - ETA: 2s - loss: 0.5859 - accuracy: 0.7703
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.5524 - accuracy: 0.7943
+55/92 [================>.............] - ETA: 2s - loss: 0.5846 - accuracy: 0.7710
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.5604 - accuracy: 0.7902
+56/92 [=================>............] - ETA: 2s - loss: 0.5853 - accuracy: 0.7695
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.5582 - accuracy: 0.7911
+57/92 [=================>............] - ETA: 2s - loss: 0.5860 - accuracy: 0.7692
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.5608 - accuracy: 0.7915
+58/92 [=================>............] - ETA: 1s - loss: 0.5864 - accuracy: 0.7683
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.5603 - accuracy: 0.7924
+59/92 [==================>...........] - ETA: 1s - loss: 0.5843 - accuracy: 0.7691
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.5640 - accuracy: 0.7912
+60/92 [==================>...........] - ETA: 1s - loss: 0.5904 - accuracy: 0.7672
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.5657 - accuracy: 0.7900
+61/92 [==================>...........] - ETA: 1s - loss: 0.5940 - accuracy: 0.7659
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.5675 - accuracy: 0.7893
+62/92 [===================>..........] - ETA: 1s - loss: 0.5946 - accuracy: 0.7661
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.5684 - accuracy: 0.7892
+64/92 [===================>..........] - ETA: 1s - loss: 0.5941 - accuracy: 0.7662
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.5670 - accuracy: 0.7891
+65/92 [====================>.........] - ETA: 1s - loss: 0.5945 - accuracy: 0.7669
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.5671 - accuracy: 0.7880
+66/92 [====================>.........] - ETA: 1s - loss: 0.5928 - accuracy: 0.7671
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.5679 - accuracy: 0.7870
+67/92 [====================>.........] - ETA: 1s - loss: 0.5914 - accuracy: 0.7669
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.5679 - accuracy: 0.7874
+68/92 [=====================>........] - ETA: 1s - loss: 0.5956 - accuracy: 0.7648
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.5674 - accuracy: 0.7868
+69/92 [=====================>........] - ETA: 1s - loss: 0.5948 - accuracy: 0.7655
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.5682 - accuracy: 0.7872
+70/92 [=====================>........] - ETA: 1s - loss: 0.5943 - accuracy: 0.7657
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.5684 - accuracy: 0.7862
+71/92 [======================>.......] - ETA: 1s - loss: 0.5981 - accuracy: 0.7650
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.5679 - accuracy: 0.7861
+72/92 [======================>.......] - ETA: 1s - loss: 0.5964 - accuracy: 0.7652
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.5695 - accuracy: 0.7848
+73/92 [======================>.......] - ETA: 1s - loss: 0.5972 - accuracy: 0.7655
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.5699 - accuracy: 0.7852
+74/92 [=======================>......] - ETA: 1s - loss: 0.5965 - accuracy: 0.7653
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.5709 - accuracy: 0.7834
+75/92 [=======================>......] - ETA: 0s - loss: 0.5957 - accuracy: 0.7663
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.5713 - accuracy: 0.7826
+76/92 [=======================>......] - ETA: 0s - loss: 0.5946 - accuracy: 0.7673
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.5702 - accuracy: 0.7834
+77/92 [========================>.....] - ETA: 0s - loss: 0.5946 - accuracy: 0.7683
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.5696 - accuracy: 0.7838
+78/92 [========================>.....] - ETA: 0s - loss: 0.5945 - accuracy: 0.7681
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.5722 - accuracy: 0.7833
+79/92 [========================>.....] - ETA: 0s - loss: 0.5910 - accuracy: 0.7702
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.5749 - accuracy: 0.7817
+80/92 [=========================>....] - ETA: 0s - loss: 0.5894 - accuracy: 0.7708
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.5762 - accuracy: 0.7817
+81/92 [=========================>....] - ETA: 0s - loss: 0.5895 - accuracy: 0.7721
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.5755 - accuracy: 0.7829
+82/92 [=========================>....] - ETA: 0s - loss: 0.5885 - accuracy: 0.7722
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.5726 - accuracy: 0.7847
+83/92 [==========================>...] - ETA: 0s - loss: 0.5864 - accuracy: 0.7730
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.5699 - accuracy: 0.7854
+84/92 [==========================>...] - ETA: 0s - loss: 0.5844 - accuracy: 0.7743
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.5690 - accuracy: 0.7850
+85/92 [==========================>...] - ETA: 0s - loss: 0.5862 - accuracy: 0.7729
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.5712 - accuracy: 0.7839
+86/92 [===========================>..] - ETA: 0s - loss: 0.5881 - accuracy: 0.7715
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.5746 - accuracy: 0.7828
+87/92 [===========================>..] - ETA: 0s - loss: 0.5890 - accuracy: 0.7705
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.5740 - accuracy: 0.7828
+88/92 [===========================>..] - ETA: 0s - loss: 0.5906 - accuracy: 0.7699
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.5743 - accuracy: 0.7827
+89/92 [============================>.] - ETA: 0s - loss: 0.5901 - accuracy: 0.7708
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.5750 - accuracy: 0.7824
+90/92 [============================>.] - ETA: 0s - loss: 0.5904 - accuracy: 0.7702
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.5774 - accuracy: 0.7820
+91/92 [============================>.] - ETA: 0s - loss: 0.5886 - accuracy: 0.7710
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.5758 - accuracy: 0.7827
+92/92 [==============================] - ETA: 0s - loss: 0.5875 - accuracy: 0.7721
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.5758 - accuracy: 0.7827 - val_loss: 0.6737 - val_accuracy: 0.7425
+92/92 [==============================] - 6s 64ms/step - loss: 0.5875 - accuracy: 0.7721 - val_loss: 0.7032 - val_accuracy: 0.7384
 
 
 .. parsed-literal::
@@ -6470,462 +6526,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.4396 - accuracy: 0.8125
+ 1/92 [..............................] - ETA: 7s - loss: 0.3616 - accuracy: 0.9062
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.4462 - accuracy: 0.8125
+ 2/92 [..............................] - ETA: 5s - loss: 0.4409 - accuracy: 0.8750
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.4262 - accuracy: 0.8229
+ 3/92 [..............................] - ETA: 5s - loss: 0.4413 - accuracy: 0.8750
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.4356 - accuracy: 0.8203
+ 4/92 [>.............................] - ETA: 5s - loss: 0.5168 - accuracy: 0.8438
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.4686 - accuracy: 0.8062
+ 5/92 [>.............................] - ETA: 5s - loss: 0.5532 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 4s - loss: 0.4781 - accuracy: 0.8021
+ 6/92 [>.............................] - ETA: 5s - loss: 0.5588 - accuracy: 0.7969
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.4812 - accuracy: 0.8036
+ 7/92 [=>............................] - ETA: 4s - loss: 0.5653 - accuracy: 0.7946
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.4844 - accuracy: 0.8047
+ 8/92 [=>............................] - ETA: 4s - loss: 0.5709 - accuracy: 0.7969
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.5125 - accuracy: 0.7917
+ 9/92 [=>............................] - ETA: 4s - loss: 0.6174 - accuracy: 0.7743
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.5056 - accuracy: 0.7906
+10/92 [==>...........................] - ETA: 4s - loss: 0.5993 - accuracy: 0.7875
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.5237 - accuracy: 0.7869
+11/92 [==>...........................] - ETA: 4s - loss: 0.5979 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.5073 - accuracy: 0.7995
+12/92 [==>...........................] - ETA: 4s - loss: 0.5813 - accuracy: 0.7891
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.5007 - accuracy: 0.8029
+13/92 [===>..........................] - ETA: 4s - loss: 0.5770 - accuracy: 0.7933
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.5219 - accuracy: 0.7902
+14/92 [===>..........................] - ETA: 4s - loss: 0.5728 - accuracy: 0.7924
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.5231 - accuracy: 0.7958
+15/92 [===>..........................] - ETA: 4s - loss: 0.5796 - accuracy: 0.7833
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.5311 - accuracy: 0.7988
+16/92 [====>.........................] - ETA: 4s - loss: 0.5670 - accuracy: 0.7852
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.5357 - accuracy: 0.7960
+17/92 [====>.........................] - ETA: 4s - loss: 0.5622 - accuracy: 0.7849
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.5235 - accuracy: 0.8003
+18/92 [====>.........................] - ETA: 4s - loss: 0.5590 - accuracy: 0.7847
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.5218 - accuracy: 0.7991
+19/92 [=====>........................] - ETA: 4s - loss: 0.5540 - accuracy: 0.7878
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.5102 - accuracy: 0.8042
+20/92 [=====>........................] - ETA: 4s - loss: 0.5541 - accuracy: 0.7875
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.5218 - accuracy: 0.8003
+21/92 [=====>........................] - ETA: 4s - loss: 0.5493 - accuracy: 0.7902
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 3s - loss: 0.5211 - accuracy: 0.8022
+22/92 [======>.......................] - ETA: 4s - loss: 0.5467 - accuracy: 0.7869
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.5188 - accuracy: 0.8039
+23/92 [======>.......................] - ETA: 4s - loss: 0.5461 - accuracy: 0.7894
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.5143 - accuracy: 0.8068
+24/92 [======>.......................] - ETA: 3s - loss: 0.5429 - accuracy: 0.7930
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.5156 - accuracy: 0.8070
+25/92 [=======>......................] - ETA: 3s - loss: 0.5391 - accuracy: 0.7962
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.5277 - accuracy: 0.8002
+26/92 [=======>......................] - ETA: 3s - loss: 0.5366 - accuracy: 0.7945
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.5307 - accuracy: 0.7984
+27/92 [=======>......................] - ETA: 3s - loss: 0.5330 - accuracy: 0.7975
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.5394 - accuracy: 0.7957
+28/92 [========>.....................] - ETA: 3s - loss: 0.5354 - accuracy: 0.7958
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.5341 - accuracy: 0.7983
+29/92 [========>.....................] - ETA: 3s - loss: 0.5403 - accuracy: 0.7920
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.5317 - accuracy: 0.7978
+30/92 [========>.....................] - ETA: 3s - loss: 0.5424 - accuracy: 0.7917
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.5310 - accuracy: 0.7972
+31/92 [=========>....................] - ETA: 3s - loss: 0.5444 - accuracy: 0.7923
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.5332 - accuracy: 0.7968
+32/92 [=========>....................] - ETA: 3s - loss: 0.5420 - accuracy: 0.7930
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.5486 - accuracy: 0.7880
+33/92 [=========>....................] - ETA: 3s - loss: 0.5413 - accuracy: 0.7936
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.5522 - accuracy: 0.7896
+34/92 [==========>...................] - ETA: 3s - loss: 0.5392 - accuracy: 0.7941
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.5504 - accuracy: 0.7920
+35/92 [==========>...................] - ETA: 3s - loss: 0.5409 - accuracy: 0.7937
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.5485 - accuracy: 0.7951
+36/92 [==========>...................] - ETA: 3s - loss: 0.5409 - accuracy: 0.7943
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.5474 - accuracy: 0.7955
+37/92 [===========>..................] - ETA: 3s - loss: 0.5421 - accuracy: 0.7956
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.5452 - accuracy: 0.7976
+38/92 [===========>..................] - ETA: 3s - loss: 0.5464 - accuracy: 0.7944
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 2s - loss: 0.5448 - accuracy: 0.7980
+39/92 [===========>..................] - ETA: 3s - loss: 0.5520 - accuracy: 0.7909
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.5430 - accuracy: 0.7991
+40/92 [============>.................] - ETA: 3s - loss: 0.5568 - accuracy: 0.7867
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.5441 - accuracy: 0.7957
+41/92 [============>.................] - ETA: 2s - loss: 0.5623 - accuracy: 0.7828
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5452 - accuracy: 0.7939
+42/92 [============>.................] - ETA: 2s - loss: 0.5603 - accuracy: 0.7850
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5462 - accuracy: 0.7936
+43/92 [=============>................] - ETA: 2s - loss: 0.5618 - accuracy: 0.7842
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5492 - accuracy: 0.7919
+44/92 [=============>................] - ETA: 2s - loss: 0.5662 - accuracy: 0.7827
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.5471 - accuracy: 0.7923
+45/92 [=============>................] - ETA: 2s - loss: 0.5643 - accuracy: 0.7840
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.5492 - accuracy: 0.7914
+46/92 [==============>...............] - ETA: 2s - loss: 0.5687 - accuracy: 0.7826
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5489 - accuracy: 0.7906
+48/92 [==============>...............] - ETA: 2s - loss: 0.5722 - accuracy: 0.7840
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.5501 - accuracy: 0.7904
+49/92 [==============>...............] - ETA: 2s - loss: 0.5726 - accuracy: 0.7840
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.5509 - accuracy: 0.7883
+50/92 [===============>..............] - ETA: 2s - loss: 0.5729 - accuracy: 0.7839
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.5542 - accuracy: 0.7869
+51/92 [===============>..............] - ETA: 2s - loss: 0.5721 - accuracy: 0.7833
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.5537 - accuracy: 0.7874
+52/92 [===============>..............] - ETA: 2s - loss: 0.5763 - accuracy: 0.7820
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.5512 - accuracy: 0.7885
+53/92 [================>.............] - ETA: 2s - loss: 0.5782 - accuracy: 0.7814
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.5559 - accuracy: 0.7878
+54/92 [================>.............] - ETA: 2s - loss: 0.5750 - accuracy: 0.7831
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.5574 - accuracy: 0.7882
+55/92 [================>.............] - ETA: 2s - loss: 0.5739 - accuracy: 0.7837
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.5546 - accuracy: 0.7898
+56/92 [=================>............] - ETA: 2s - loss: 0.5775 - accuracy: 0.7831
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.5586 - accuracy: 0.7880
+57/92 [=================>............] - ETA: 2s - loss: 0.5768 - accuracy: 0.7830
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.5582 - accuracy: 0.7873
+58/92 [=================>............] - ETA: 1s - loss: 0.5750 - accuracy: 0.7841
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.5607 - accuracy: 0.7862
+59/92 [==================>...........] - ETA: 1s - loss: 0.5743 - accuracy: 0.7840
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.5620 - accuracy: 0.7861
+60/92 [==================>...........] - ETA: 1s - loss: 0.5729 - accuracy: 0.7856
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.5641 - accuracy: 0.7845
+61/92 [==================>...........] - ETA: 1s - loss: 0.5686 - accuracy: 0.7876
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.5626 - accuracy: 0.7854
+62/92 [===================>..........] - ETA: 1s - loss: 0.5710 - accuracy: 0.7874
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.5606 - accuracy: 0.7874
+63/92 [===================>..........] - ETA: 1s - loss: 0.5717 - accuracy: 0.7869
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.5580 - accuracy: 0.7877
+64/92 [===================>..........] - ETA: 1s - loss: 0.5701 - accuracy: 0.7877
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.5549 - accuracy: 0.7891
+65/92 [====================>.........] - ETA: 1s - loss: 0.5698 - accuracy: 0.7876
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.5561 - accuracy: 0.7866
+66/92 [====================>.........] - ETA: 1s - loss: 0.5658 - accuracy: 0.7899
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.5561 - accuracy: 0.7865
+67/92 [====================>.........] - ETA: 1s - loss: 0.5665 - accuracy: 0.7898
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.5565 - accuracy: 0.7864
+68/92 [=====================>........] - ETA: 1s - loss: 0.5672 - accuracy: 0.7897
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.5549 - accuracy: 0.7882
+69/92 [=====================>........] - ETA: 1s - loss: 0.5672 - accuracy: 0.7900
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.5530 - accuracy: 0.7890
+70/92 [=====================>........] - ETA: 1s - loss: 0.5653 - accuracy: 0.7903
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.5503 - accuracy: 0.7902
+71/92 [======================>.......] - ETA: 1s - loss: 0.5679 - accuracy: 0.7893
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.5483 - accuracy: 0.7914
+72/92 [======================>.......] - ETA: 1s - loss: 0.5667 - accuracy: 0.7892
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.5492 - accuracy: 0.7912
+73/92 [======================>.......] - ETA: 1s - loss: 0.5643 - accuracy: 0.7908
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.5528 - accuracy: 0.7898
+74/92 [=======================>......] - ETA: 1s - loss: 0.5644 - accuracy: 0.7907
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.5583 - accuracy: 0.7897
+75/92 [=======================>......] - ETA: 0s - loss: 0.5694 - accuracy: 0.7880
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.5578 - accuracy: 0.7896
+76/92 [=======================>......] - ETA: 0s - loss: 0.5691 - accuracy: 0.7875
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.5585 - accuracy: 0.7895
+77/92 [========================>.....] - ETA: 0s - loss: 0.5663 - accuracy: 0.7887
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.5557 - accuracy: 0.7910
+78/92 [========================>.....] - ETA: 0s - loss: 0.5676 - accuracy: 0.7866
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.5546 - accuracy: 0.7913
+79/92 [========================>.....] - ETA: 0s - loss: 0.5672 - accuracy: 0.7869
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.5538 - accuracy: 0.7915
+80/92 [=========================>....] - ETA: 0s - loss: 0.5638 - accuracy: 0.7884
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.5527 - accuracy: 0.7918
+81/92 [=========================>....] - ETA: 0s - loss: 0.5651 - accuracy: 0.7872
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.5529 - accuracy: 0.7913
+82/92 [=========================>....] - ETA: 0s - loss: 0.5663 - accuracy: 0.7871
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.5508 - accuracy: 0.7923
+83/92 [==========================>...] - ETA: 0s - loss: 0.5657 - accuracy: 0.7874
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.5517 - accuracy: 0.7918
+84/92 [==========================>...] - ETA: 0s - loss: 0.5643 - accuracy: 0.7881
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.5550 - accuracy: 0.7917
+85/92 [==========================>...] - ETA: 0s - loss: 0.5631 - accuracy: 0.7883
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.5556 - accuracy: 0.7912
+86/92 [===========================>..] - ETA: 0s - loss: 0.5607 - accuracy: 0.7894
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.5538 - accuracy: 0.7921
+87/92 [===========================>..] - ETA: 0s - loss: 0.5604 - accuracy: 0.7893
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.5527 - accuracy: 0.7931
+88/92 [===========================>..] - ETA: 0s - loss: 0.5636 - accuracy: 0.7892
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.5515 - accuracy: 0.7937
+89/92 [============================>.] - ETA: 0s - loss: 0.5628 - accuracy: 0.7901
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.5509 - accuracy: 0.7942
+90/92 [============================>.] - ETA: 0s - loss: 0.5636 - accuracy: 0.7907
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.5499 - accuracy: 0.7948
+91/92 [============================>.] - ETA: 0s - loss: 0.5645 - accuracy: 0.7906
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.5491 - accuracy: 0.7939
+92/92 [==============================] - ETA: 0s - loss: 0.5650 - accuracy: 0.7899
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.5491 - accuracy: 0.7939 - val_loss: 0.6629 - val_accuracy: 0.7493
+92/92 [==============================] - 6s 64ms/step - loss: 0.5650 - accuracy: 0.7899 - val_loss: 0.6865 - val_accuracy: 0.7384
 
 
 .. parsed-literal::
@@ -6936,462 +6992,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 8s - loss: 0.4716 - accuracy: 0.7812
+ 1/92 [..............................] - ETA: 6s - loss: 0.5964 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.5226 - accuracy: 0.8125
+ 2/92 [..............................] - ETA: 5s - loss: 0.5740 - accuracy: 0.7656
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.5847 - accuracy: 0.7604
+ 3/92 [..............................] - ETA: 5s - loss: 0.5757 - accuracy: 0.7604
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.5652 - accuracy: 0.7578
+ 4/92 [>.............................] - ETA: 5s - loss: 0.5654 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.5379 - accuracy: 0.7688
+ 5/92 [>.............................] - ETA: 5s - loss: 0.5495 - accuracy: 0.8000
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.5409 - accuracy: 0.7708
+ 6/92 [>.............................] - ETA: 4s - loss: 0.5494 - accuracy: 0.8021
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.5271 - accuracy: 0.7902
+ 7/92 [=>............................] - ETA: 4s - loss: 0.5713 - accuracy: 0.7857
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.5225 - accuracy: 0.7930
+ 8/92 [=>............................] - ETA: 4s - loss: 0.5753 - accuracy: 0.7930
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.4996 - accuracy: 0.8056
+ 9/92 [=>............................] - ETA: 4s - loss: 0.5722 - accuracy: 0.7882
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.5121 - accuracy: 0.7969
+10/92 [==>...........................] - ETA: 4s - loss: 0.5584 - accuracy: 0.8000
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.5245 - accuracy: 0.7926
+11/92 [==>...........................] - ETA: 4s - loss: 0.5542 - accuracy: 0.8040
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.5377 - accuracy: 0.7812
+12/92 [==>...........................] - ETA: 4s - loss: 0.5490 - accuracy: 0.8073
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.5415 - accuracy: 0.7788
+13/92 [===>..........................] - ETA: 4s - loss: 0.5517 - accuracy: 0.8101
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.5262 - accuracy: 0.7835
+14/92 [===>..........................] - ETA: 4s - loss: 0.5408 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.5100 - accuracy: 0.7917
+15/92 [===>..........................] - ETA: 4s - loss: 0.5433 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.5001 - accuracy: 0.7988
+16/92 [====>.........................] - ETA: 4s - loss: 0.5399 - accuracy: 0.8125
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.4880 - accuracy: 0.8088
+17/92 [====>.........................] - ETA: 4s - loss: 0.5283 - accuracy: 0.8143
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.4818 - accuracy: 0.8108
+18/92 [====>.........................] - ETA: 4s - loss: 0.5167 - accuracy: 0.8194
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.5005 - accuracy: 0.8043
+19/92 [=====>........................] - ETA: 4s - loss: 0.5163 - accuracy: 0.8174
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.5034 - accuracy: 0.8000
+20/92 [=====>........................] - ETA: 4s - loss: 0.5131 - accuracy: 0.8203
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.5092 - accuracy: 0.7976
+21/92 [=====>........................] - ETA: 4s - loss: 0.5171 - accuracy: 0.8170
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.5218 - accuracy: 0.7940
+22/92 [======>.......................] - ETA: 4s - loss: 0.5165 - accuracy: 0.8168
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.5222 - accuracy: 0.7908
+23/92 [======>.......................] - ETA: 4s - loss: 0.5095 - accuracy: 0.8166
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.5202 - accuracy: 0.7930
+24/92 [======>.......................] - ETA: 3s - loss: 0.5024 - accuracy: 0.8164
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.5256 - accuracy: 0.7925
+25/92 [=======>......................] - ETA: 3s - loss: 0.5024 - accuracy: 0.8175
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.5329 - accuracy: 0.7921
+26/92 [=======>......................] - ETA: 3s - loss: 0.5048 - accuracy: 0.8173
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.5374 - accuracy: 0.7917
+27/92 [=======>......................] - ETA: 3s - loss: 0.4967 - accuracy: 0.8218
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.5278 - accuracy: 0.7969
+28/92 [========>.....................] - ETA: 3s - loss: 0.4993 - accuracy: 0.8203
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.5416 - accuracy: 0.7931
+29/92 [========>.....................] - ETA: 3s - loss: 0.5085 - accuracy: 0.8179
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.5388 - accuracy: 0.7948
+30/92 [========>.....................] - ETA: 3s - loss: 0.5115 - accuracy: 0.8167
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.5455 - accuracy: 0.7913
+31/92 [=========>....................] - ETA: 3s - loss: 0.5066 - accuracy: 0.8196
 
 .. parsed-literal::
 
     
-32/92 [=========>....................] - ETA: 3s - loss: 0.5467 - accuracy: 0.7900
+32/92 [=========>....................] - ETA: 3s - loss: 0.5124 - accuracy: 0.8174
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.5513 - accuracy: 0.7888
+33/92 [=========>....................] - ETA: 3s - loss: 0.5149 - accuracy: 0.8134
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.5546 - accuracy: 0.7886
+34/92 [==========>...................] - ETA: 3s - loss: 0.5102 - accuracy: 0.8143
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.5517 - accuracy: 0.7902
+35/92 [==========>...................] - ETA: 3s - loss: 0.5071 - accuracy: 0.8161
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.5480 - accuracy: 0.7908
+36/92 [==========>...................] - ETA: 3s - loss: 0.5083 - accuracy: 0.8168
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.5459 - accuracy: 0.7922
+37/92 [===========>..................] - ETA: 3s - loss: 0.5078 - accuracy: 0.8159
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.5450 - accuracy: 0.7936
+38/92 [===========>..................] - ETA: 3s - loss: 0.5065 - accuracy: 0.8150
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.5391 - accuracy: 0.7965
+39/92 [===========>..................] - ETA: 3s - loss: 0.5074 - accuracy: 0.8133
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 3s - loss: 0.5383 - accuracy: 0.7961
+40/92 [============>.................] - ETA: 3s - loss: 0.5130 - accuracy: 0.8102
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.5348 - accuracy: 0.7973
+41/92 [============>.................] - ETA: 2s - loss: 0.5113 - accuracy: 0.8110
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.5337 - accuracy: 0.7976
+42/92 [============>.................] - ETA: 2s - loss: 0.5091 - accuracy: 0.8118
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5316 - accuracy: 0.7994
+43/92 [=============>................] - ETA: 2s - loss: 0.5025 - accuracy: 0.8154
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5287 - accuracy: 0.7997
+44/92 [=============>................] - ETA: 2s - loss: 0.4998 - accuracy: 0.8168
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5271 - accuracy: 0.8028
+45/92 [=============>................] - ETA: 2s - loss: 0.5032 - accuracy: 0.8160
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.5250 - accuracy: 0.8030
+46/92 [==============>...............] - ETA: 2s - loss: 0.5006 - accuracy: 0.8173
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.5255 - accuracy: 0.8039
+47/92 [==============>...............] - ETA: 2s - loss: 0.4978 - accuracy: 0.8178
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5265 - accuracy: 0.8034
+48/92 [==============>...............] - ETA: 2s - loss: 0.5000 - accuracy: 0.8151
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.5259 - accuracy: 0.8029
+49/92 [==============>...............] - ETA: 2s - loss: 0.5077 - accuracy: 0.8119
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.5263 - accuracy: 0.8031
+50/92 [===============>..............] - ETA: 2s - loss: 0.5054 - accuracy: 0.8119
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.5260 - accuracy: 0.8027
+51/92 [===============>..............] - ETA: 2s - loss: 0.5055 - accuracy: 0.8119
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.5245 - accuracy: 0.8041
+52/92 [===============>..............] - ETA: 2s - loss: 0.5013 - accuracy: 0.8131
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.5264 - accuracy: 0.8042
+53/92 [================>.............] - ETA: 2s - loss: 0.5074 - accuracy: 0.8096
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.5256 - accuracy: 0.8050
+54/92 [================>.............] - ETA: 2s - loss: 0.5076 - accuracy: 0.8108
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.5227 - accuracy: 0.8057
+55/92 [================>.............] - ETA: 2s - loss: 0.5025 - accuracy: 0.8131
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.5253 - accuracy: 0.8041
+56/92 [=================>............] - ETA: 2s - loss: 0.5015 - accuracy: 0.8142
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.5265 - accuracy: 0.8026
+57/92 [=================>............] - ETA: 2s - loss: 0.5071 - accuracy: 0.8114
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.5269 - accuracy: 0.8028
+58/92 [=================>............] - ETA: 1s - loss: 0.5062 - accuracy: 0.8109
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.5235 - accuracy: 0.8040
+59/92 [==================>...........] - ETA: 1s - loss: 0.5082 - accuracy: 0.8099
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.5222 - accuracy: 0.8031
+60/92 [==================>...........] - ETA: 1s - loss: 0.5128 - accuracy: 0.8083
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.5280 - accuracy: 0.8007
+61/92 [==================>...........] - ETA: 1s - loss: 0.5145 - accuracy: 0.8079
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.5321 - accuracy: 0.7984
+62/92 [===================>..........] - ETA: 1s - loss: 0.5156 - accuracy: 0.8075
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.5292 - accuracy: 0.7991
+63/92 [===================>..........] - ETA: 1s - loss: 0.5146 - accuracy: 0.8085
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.5326 - accuracy: 0.7988
+64/92 [===================>..........] - ETA: 1s - loss: 0.5137 - accuracy: 0.8081
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.5359 - accuracy: 0.7971
+65/92 [====================>.........] - ETA: 1s - loss: 0.5141 - accuracy: 0.8072
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.5367 - accuracy: 0.7968
+66/92 [====================>.........] - ETA: 1s - loss: 0.5159 - accuracy: 0.8068
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.5342 - accuracy: 0.7980
+67/92 [====================>.........] - ETA: 1s - loss: 0.5163 - accuracy: 0.8060
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.5342 - accuracy: 0.7977
+68/92 [=====================>........] - ETA: 1s - loss: 0.5170 - accuracy: 0.8033
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.5368 - accuracy: 0.7975
+69/92 [=====================>........] - ETA: 1s - loss: 0.5140 - accuracy: 0.8043
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.5370 - accuracy: 0.7977
+70/92 [=====================>........] - ETA: 1s - loss: 0.5126 - accuracy: 0.8049
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.5361 - accuracy: 0.7979
+71/92 [======================>.......] - ETA: 1s - loss: 0.5156 - accuracy: 0.8024
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.5350 - accuracy: 0.7990
+72/92 [======================>.......] - ETA: 1s - loss: 0.5149 - accuracy: 0.8021
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.5390 - accuracy: 0.7979
+73/92 [======================>.......] - ETA: 1s - loss: 0.5143 - accuracy: 0.8027
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.5402 - accuracy: 0.7972
+74/92 [=======================>......] - ETA: 1s - loss: 0.5171 - accuracy: 0.8007
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.5415 - accuracy: 0.7966
+75/92 [=======================>......] - ETA: 0s - loss: 0.5207 - accuracy: 0.7987
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.5416 - accuracy: 0.7964
+76/92 [=======================>......] - ETA: 0s - loss: 0.5188 - accuracy: 0.7998
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.5412 - accuracy: 0.7962
+77/92 [========================>.....] - ETA: 0s - loss: 0.5171 - accuracy: 0.8007
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.5435 - accuracy: 0.7948
+78/92 [========================>.....] - ETA: 0s - loss: 0.5175 - accuracy: 0.8005
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.5452 - accuracy: 0.7935
+79/92 [========================>.....] - ETA: 0s - loss: 0.5181 - accuracy: 0.8002
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.5493 - accuracy: 0.7918
+80/92 [=========================>....] - ETA: 0s - loss: 0.5183 - accuracy: 0.8000
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.5472 - accuracy: 0.7928
+81/92 [=========================>....] - ETA: 0s - loss: 0.5224 - accuracy: 0.7986
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.5474 - accuracy: 0.7923
+83/92 [==========================>...] - ETA: 0s - loss: 0.5184 - accuracy: 0.8006
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.5458 - accuracy: 0.7933
+84/92 [==========================>...] - ETA: 0s - loss: 0.5171 - accuracy: 0.8015
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.5452 - accuracy: 0.7931
+85/92 [==========================>...] - ETA: 0s - loss: 0.5180 - accuracy: 0.8020
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.5448 - accuracy: 0.7930
+86/92 [===========================>..] - ETA: 0s - loss: 0.5204 - accuracy: 0.8014
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.5434 - accuracy: 0.7939
+87/92 [===========================>..] - ETA: 0s - loss: 0.5185 - accuracy: 0.8022
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.5425 - accuracy: 0.7945
+88/92 [===========================>..] - ETA: 0s - loss: 0.5177 - accuracy: 0.8027
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.5434 - accuracy: 0.7937
+89/92 [============================>.] - ETA: 0s - loss: 0.5209 - accuracy: 0.8018
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.5470 - accuracy: 0.7925
+90/92 [============================>.] - ETA: 0s - loss: 0.5180 - accuracy: 0.8029
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.5459 - accuracy: 0.7941
+91/92 [============================>.] - ETA: 0s - loss: 0.5165 - accuracy: 0.8034
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.5434 - accuracy: 0.7950
+92/92 [==============================] - ETA: 0s - loss: 0.5172 - accuracy: 0.8031
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.5434 - accuracy: 0.7950 - val_loss: 0.7003 - val_accuracy: 0.7357
+92/92 [==============================] - 6s 64ms/step - loss: 0.5172 - accuracy: 0.8031 - val_loss: 0.7685 - val_accuracy: 0.7207
 
 
 .. parsed-literal::
@@ -7402,462 +7458,462 @@ Compile and Train the Model
 .. parsed-literal::
 
 
- 1/92 [..............................] - ETA: 7s - loss: 0.3981 - accuracy: 0.8750
+ 1/92 [..............................] - ETA: 7s - loss: 0.3400 - accuracy: 0.8438
 
 .. parsed-literal::
 
     
- 2/92 [..............................] - ETA: 5s - loss: 0.4149 - accuracy: 0.8438
+ 2/92 [..............................] - ETA: 5s - loss: 0.5200 - accuracy: 0.7812
 
 .. parsed-literal::
 
     
- 3/92 [..............................] - ETA: 5s - loss: 0.5013 - accuracy: 0.8125
+ 3/92 [..............................] - ETA: 5s - loss: 0.4460 - accuracy: 0.8229
 
 .. parsed-literal::
 
     
- 4/92 [>.............................] - ETA: 5s - loss: 0.4675 - accuracy: 0.8281
+ 4/92 [>.............................] - ETA: 5s - loss: 0.4709 - accuracy: 0.8281
 
 .. parsed-literal::
 
     
- 5/92 [>.............................] - ETA: 5s - loss: 0.4681 - accuracy: 0.8188
+ 5/92 [>.............................] - ETA: 5s - loss: 0.5184 - accuracy: 0.7937
 
 .. parsed-literal::
 
     
- 6/92 [>.............................] - ETA: 5s - loss: 0.4709 - accuracy: 0.8229
+ 6/92 [>.............................] - ETA: 4s - loss: 0.5586 - accuracy: 0.7760
 
 .. parsed-literal::
 
     
- 7/92 [=>............................] - ETA: 4s - loss: 0.4701 - accuracy: 0.8214
+ 7/92 [=>............................] - ETA: 4s - loss: 0.5329 - accuracy: 0.7902
 
 .. parsed-literal::
 
     
- 8/92 [=>............................] - ETA: 4s - loss: 0.4571 - accuracy: 0.8281
+ 8/92 [=>............................] - ETA: 4s - loss: 0.5370 - accuracy: 0.7930
 
 .. parsed-literal::
 
     
- 9/92 [=>............................] - ETA: 4s - loss: 0.4488 - accuracy: 0.8368
+ 9/92 [=>............................] - ETA: 4s - loss: 0.5265 - accuracy: 0.7951
 
 .. parsed-literal::
 
     
-10/92 [==>...........................] - ETA: 4s - loss: 0.4419 - accuracy: 0.8406
+10/92 [==>...........................] - ETA: 4s - loss: 0.5387 - accuracy: 0.7844
 
 .. parsed-literal::
 
     
-11/92 [==>...........................] - ETA: 4s - loss: 0.4333 - accuracy: 0.8438
+11/92 [==>...........................] - ETA: 4s - loss: 0.5586 - accuracy: 0.7784
 
 .. parsed-literal::
 
     
-12/92 [==>...........................] - ETA: 4s - loss: 0.4277 - accuracy: 0.8464
+12/92 [==>...........................] - ETA: 4s - loss: 0.5551 - accuracy: 0.7839
 
 .. parsed-literal::
 
     
-13/92 [===>..........................] - ETA: 4s - loss: 0.4366 - accuracy: 0.8462
+13/92 [===>..........................] - ETA: 4s - loss: 0.5399 - accuracy: 0.7909
 
 .. parsed-literal::
 
     
-14/92 [===>..........................] - ETA: 4s - loss: 0.4465 - accuracy: 0.8393
+14/92 [===>..........................] - ETA: 4s - loss: 0.5232 - accuracy: 0.7969
 
 .. parsed-literal::
 
     
-15/92 [===>..........................] - ETA: 4s - loss: 0.4502 - accuracy: 0.8354
+15/92 [===>..........................] - ETA: 4s - loss: 0.5354 - accuracy: 0.7917
 
 .. parsed-literal::
 
     
-16/92 [====>.........................] - ETA: 4s - loss: 0.4574 - accuracy: 0.8301
+16/92 [====>.........................] - ETA: 4s - loss: 0.5393 - accuracy: 0.7852
 
 .. parsed-literal::
 
     
-17/92 [====>.........................] - ETA: 4s - loss: 0.4492 - accuracy: 0.8364
+17/92 [====>.........................] - ETA: 4s - loss: 0.5327 - accuracy: 0.7904
 
 .. parsed-literal::
 
     
-18/92 [====>.........................] - ETA: 4s - loss: 0.4515 - accuracy: 0.8299
+18/92 [====>.........................] - ETA: 4s - loss: 0.5186 - accuracy: 0.7986
 
 .. parsed-literal::
 
     
-19/92 [=====>........................] - ETA: 4s - loss: 0.4427 - accuracy: 0.8306
+19/92 [=====>........................] - ETA: 4s - loss: 0.5108 - accuracy: 0.8026
 
 .. parsed-literal::
 
     
-20/92 [=====>........................] - ETA: 4s - loss: 0.4537 - accuracy: 0.8266
+20/92 [=====>........................] - ETA: 4s - loss: 0.5105 - accuracy: 0.8047
 
 .. parsed-literal::
 
     
-21/92 [=====>........................] - ETA: 4s - loss: 0.4501 - accuracy: 0.8274
+21/92 [=====>........................] - ETA: 4s - loss: 0.5022 - accuracy: 0.8110
 
 .. parsed-literal::
 
     
-22/92 [======>.......................] - ETA: 4s - loss: 0.4552 - accuracy: 0.8253
+22/92 [======>.......................] - ETA: 4s - loss: 0.5011 - accuracy: 0.8111
 
 .. parsed-literal::
 
     
-23/92 [======>.......................] - ETA: 4s - loss: 0.4613 - accuracy: 0.8207
+24/92 [======>.......................] - ETA: 3s - loss: 0.4977 - accuracy: 0.8118
 
 .. parsed-literal::
 
     
-24/92 [======>.......................] - ETA: 3s - loss: 0.4597 - accuracy: 0.8229
+25/92 [=======>......................] - ETA: 3s - loss: 0.5022 - accuracy: 0.8093
 
 .. parsed-literal::
 
     
-25/92 [=======>......................] - ETA: 3s - loss: 0.4571 - accuracy: 0.8250
+26/92 [=======>......................] - ETA: 3s - loss: 0.4976 - accuracy: 0.8107
 
 .. parsed-literal::
 
     
-26/92 [=======>......................] - ETA: 3s - loss: 0.4539 - accuracy: 0.8269
+27/92 [=======>......................] - ETA: 3s - loss: 0.5001 - accuracy: 0.8119
 
 .. parsed-literal::
 
     
-27/92 [=======>......................] - ETA: 3s - loss: 0.4631 - accuracy: 0.8252
+28/92 [========>.....................] - ETA: 3s - loss: 0.4987 - accuracy: 0.8119
 
 .. parsed-literal::
 
     
-28/92 [========>.....................] - ETA: 3s - loss: 0.4597 - accuracy: 0.8270
+29/92 [========>.....................] - ETA: 3s - loss: 0.4996 - accuracy: 0.8098
 
 .. parsed-literal::
 
     
-29/92 [========>.....................] - ETA: 3s - loss: 0.4645 - accuracy: 0.8244
+30/92 [========>.....................] - ETA: 3s - loss: 0.5062 - accuracy: 0.8088
 
 .. parsed-literal::
 
     
-30/92 [========>.....................] - ETA: 3s - loss: 0.4748 - accuracy: 0.8229
+31/92 [=========>....................] - ETA: 3s - loss: 0.5003 - accuracy: 0.8110
 
 .. parsed-literal::
 
     
-31/92 [=========>....................] - ETA: 3s - loss: 0.4794 - accuracy: 0.8206
+32/92 [=========>....................] - ETA: 3s - loss: 0.4968 - accuracy: 0.8120
 
 .. parsed-literal::
 
     
-33/92 [=========>....................] - ETA: 3s - loss: 0.4802 - accuracy: 0.8206
+33/92 [=========>....................] - ETA: 3s - loss: 0.4972 - accuracy: 0.8120
 
 .. parsed-literal::
 
     
-34/92 [==========>...................] - ETA: 3s - loss: 0.4806 - accuracy: 0.8204
+34/92 [==========>...................] - ETA: 3s - loss: 0.5130 - accuracy: 0.8065
 
 .. parsed-literal::
 
     
-35/92 [==========>...................] - ETA: 3s - loss: 0.4783 - accuracy: 0.8210
+35/92 [==========>...................] - ETA: 3s - loss: 0.5042 - accuracy: 0.8103
 
 .. parsed-literal::
 
     
-36/92 [==========>...................] - ETA: 3s - loss: 0.4816 - accuracy: 0.8199
+36/92 [==========>...................] - ETA: 3s - loss: 0.5037 - accuracy: 0.8086
 
 .. parsed-literal::
 
     
-37/92 [===========>..................] - ETA: 3s - loss: 0.4810 - accuracy: 0.8189
+37/92 [===========>..................] - ETA: 3s - loss: 0.5029 - accuracy: 0.8087
 
 .. parsed-literal::
 
     
-38/92 [===========>..................] - ETA: 3s - loss: 0.4834 - accuracy: 0.8179
+38/92 [===========>..................] - ETA: 3s - loss: 0.5110 - accuracy: 0.8063
 
 .. parsed-literal::
 
     
-39/92 [===========>..................] - ETA: 3s - loss: 0.4872 - accuracy: 0.8177
+39/92 [===========>..................] - ETA: 3s - loss: 0.5150 - accuracy: 0.8032
 
 .. parsed-literal::
 
     
-40/92 [============>.................] - ETA: 2s - loss: 0.4897 - accuracy: 0.8160
+40/92 [============>.................] - ETA: 2s - loss: 0.5086 - accuracy: 0.8050
 
 .. parsed-literal::
 
     
-41/92 [============>.................] - ETA: 2s - loss: 0.4889 - accuracy: 0.8160
+41/92 [============>.................] - ETA: 2s - loss: 0.5060 - accuracy: 0.8052
 
 .. parsed-literal::
 
     
-42/92 [============>.................] - ETA: 2s - loss: 0.4955 - accuracy: 0.8129
+42/92 [============>.................] - ETA: 2s - loss: 0.5078 - accuracy: 0.8046
 
 .. parsed-literal::
 
     
-43/92 [=============>................] - ETA: 2s - loss: 0.5023 - accuracy: 0.8099
+43/92 [=============>................] - ETA: 2s - loss: 0.5087 - accuracy: 0.8041
 
 .. parsed-literal::
 
     
-44/92 [=============>................] - ETA: 2s - loss: 0.5021 - accuracy: 0.8107
+44/92 [=============>................] - ETA: 2s - loss: 0.5077 - accuracy: 0.8043
 
 .. parsed-literal::
 
     
-45/92 [=============>................] - ETA: 2s - loss: 0.5024 - accuracy: 0.8101
+45/92 [=============>................] - ETA: 2s - loss: 0.5100 - accuracy: 0.8038
 
 .. parsed-literal::
 
     
-46/92 [==============>...............] - ETA: 2s - loss: 0.5017 - accuracy: 0.8101
+46/92 [==============>...............] - ETA: 2s - loss: 0.5142 - accuracy: 0.8012
 
 .. parsed-literal::
 
     
-47/92 [==============>...............] - ETA: 2s - loss: 0.5044 - accuracy: 0.8102
+47/92 [==============>...............] - ETA: 2s - loss: 0.5095 - accuracy: 0.8021
 
 .. parsed-literal::
 
     
-48/92 [==============>...............] - ETA: 2s - loss: 0.5106 - accuracy: 0.8069
+48/92 [==============>...............] - ETA: 2s - loss: 0.5086 - accuracy: 0.8037
 
 .. parsed-literal::
 
     
-49/92 [==============>...............] - ETA: 2s - loss: 0.5094 - accuracy: 0.8064
+49/92 [==============>...............] - ETA: 2s - loss: 0.5117 - accuracy: 0.8019
 
 .. parsed-literal::
 
     
-50/92 [===============>..............] - ETA: 2s - loss: 0.5061 - accuracy: 0.8090
+50/92 [===============>..............] - ETA: 2s - loss: 0.5146 - accuracy: 0.8003
 
 .. parsed-literal::
 
     
-51/92 [===============>..............] - ETA: 2s - loss: 0.5033 - accuracy: 0.8103
+51/92 [===============>..............] - ETA: 2s - loss: 0.5168 - accuracy: 0.8005
 
 .. parsed-literal::
 
     
-52/92 [===============>..............] - ETA: 2s - loss: 0.5022 - accuracy: 0.8116
+52/92 [===============>..............] - ETA: 2s - loss: 0.5155 - accuracy: 0.8001
 
 .. parsed-literal::
 
     
-53/92 [================>.............] - ETA: 2s - loss: 0.5020 - accuracy: 0.8116
+53/92 [================>.............] - ETA: 2s - loss: 0.5158 - accuracy: 0.8004
 
 .. parsed-literal::
 
     
-54/92 [================>.............] - ETA: 2s - loss: 0.5025 - accuracy: 0.8105
+54/92 [================>.............] - ETA: 2s - loss: 0.5139 - accuracy: 0.8012
 
 .. parsed-literal::
 
     
-55/92 [================>.............] - ETA: 2s - loss: 0.5012 - accuracy: 0.8122
+55/92 [================>.............] - ETA: 2s - loss: 0.5207 - accuracy: 0.7997
 
 .. parsed-literal::
 
     
-56/92 [=================>............] - ETA: 2s - loss: 0.5013 - accuracy: 0.8122
+56/92 [=================>............] - ETA: 2s - loss: 0.5199 - accuracy: 0.8016
 
 .. parsed-literal::
 
     
-57/92 [=================>............] - ETA: 2s - loss: 0.5014 - accuracy: 0.8128
+57/92 [=================>............] - ETA: 2s - loss: 0.5180 - accuracy: 0.8034
 
 .. parsed-literal::
 
     
-58/92 [=================>............] - ETA: 1s - loss: 0.4985 - accuracy: 0.8144
+58/92 [=================>............] - ETA: 1s - loss: 0.5204 - accuracy: 0.8014
 
 .. parsed-literal::
 
     
-59/92 [==================>...........] - ETA: 1s - loss: 0.4989 - accuracy: 0.8138
+59/92 [==================>...........] - ETA: 1s - loss: 0.5194 - accuracy: 0.8016
 
 .. parsed-literal::
 
     
-60/92 [==================>...........] - ETA: 1s - loss: 0.5007 - accuracy: 0.8117
+60/92 [==================>...........] - ETA: 1s - loss: 0.5176 - accuracy: 0.8023
 
 .. parsed-literal::
 
     
-61/92 [==================>...........] - ETA: 1s - loss: 0.5011 - accuracy: 0.8107
+61/92 [==================>...........] - ETA: 1s - loss: 0.5157 - accuracy: 0.8030
 
 .. parsed-literal::
 
     
-62/92 [===================>..........] - ETA: 1s - loss: 0.4986 - accuracy: 0.8122
+62/92 [===================>..........] - ETA: 1s - loss: 0.5148 - accuracy: 0.8036
 
 .. parsed-literal::
 
     
-63/92 [===================>..........] - ETA: 1s - loss: 0.4991 - accuracy: 0.8123
+63/92 [===================>..........] - ETA: 1s - loss: 0.5116 - accuracy: 0.8058
 
 .. parsed-literal::
 
     
-64/92 [===================>..........] - ETA: 1s - loss: 0.4975 - accuracy: 0.8137
+64/92 [===================>..........] - ETA: 1s - loss: 0.5100 - accuracy: 0.8069
 
 .. parsed-literal::
 
     
-65/92 [====================>.........] - ETA: 1s - loss: 0.4949 - accuracy: 0.8156
+65/92 [====================>.........] - ETA: 1s - loss: 0.5105 - accuracy: 0.8060
 
 .. parsed-literal::
 
     
-66/92 [====================>.........] - ETA: 1s - loss: 0.4949 - accuracy: 0.8156
+66/92 [====================>.........] - ETA: 1s - loss: 0.5124 - accuracy: 0.8023
 
 .. parsed-literal::
 
     
-67/92 [====================>.........] - ETA: 1s - loss: 0.4917 - accuracy: 0.8165
+67/92 [====================>.........] - ETA: 1s - loss: 0.5127 - accuracy: 0.8034
 
 .. parsed-literal::
 
     
-68/92 [=====================>........] - ETA: 1s - loss: 0.4898 - accuracy: 0.8178
+68/92 [=====================>........] - ETA: 1s - loss: 0.5081 - accuracy: 0.8044
 
 .. parsed-literal::
 
     
-69/92 [=====================>........] - ETA: 1s - loss: 0.4893 - accuracy: 0.8177
+69/92 [=====================>........] - ETA: 1s - loss: 0.5059 - accuracy: 0.8055
 
 .. parsed-literal::
 
     
-70/92 [=====================>........] - ETA: 1s - loss: 0.4878 - accuracy: 0.8185
+70/92 [=====================>........] - ETA: 1s - loss: 0.5087 - accuracy: 0.8024
 
 .. parsed-literal::
 
     
-71/92 [======================>.......] - ETA: 1s - loss: 0.4858 - accuracy: 0.8193
+71/92 [======================>.......] - ETA: 1s - loss: 0.5087 - accuracy: 0.8030
 
 .. parsed-literal::
 
     
-72/92 [======================>.......] - ETA: 1s - loss: 0.4848 - accuracy: 0.8193
+72/92 [======================>.......] - ETA: 1s - loss: 0.5055 - accuracy: 0.8049
 
 .. parsed-literal::
 
     
-73/92 [======================>.......] - ETA: 1s - loss: 0.4851 - accuracy: 0.8183
+73/92 [======================>.......] - ETA: 1s - loss: 0.5050 - accuracy: 0.8050
 
 .. parsed-literal::
 
     
-74/92 [=======================>......] - ETA: 1s - loss: 0.4869 - accuracy: 0.8174
+74/92 [=======================>......] - ETA: 1s - loss: 0.5085 - accuracy: 0.8025
 
 .. parsed-literal::
 
     
-75/92 [=======================>......] - ETA: 0s - loss: 0.4863 - accuracy: 0.8165
+75/92 [=======================>......] - ETA: 0s - loss: 0.5105 - accuracy: 0.8014
 
 .. parsed-literal::
 
     
-76/92 [=======================>......] - ETA: 0s - loss: 0.4874 - accuracy: 0.8156
+76/92 [=======================>......] - ETA: 0s - loss: 0.5090 - accuracy: 0.8020
 
 .. parsed-literal::
 
     
-77/92 [========================>.....] - ETA: 0s - loss: 0.4895 - accuracy: 0.8156
+77/92 [========================>.....] - ETA: 0s - loss: 0.5121 - accuracy: 0.8013
 
 .. parsed-literal::
 
     
-78/92 [========================>.....] - ETA: 0s - loss: 0.4899 - accuracy: 0.8159
+78/92 [========================>.....] - ETA: 0s - loss: 0.5111 - accuracy: 0.8010
 
 .. parsed-literal::
 
     
-79/92 [========================>.....] - ETA: 0s - loss: 0.4896 - accuracy: 0.8159
+79/92 [========================>.....] - ETA: 0s - loss: 0.5103 - accuracy: 0.8016
 
 .. parsed-literal::
 
     
-80/92 [=========================>....] - ETA: 0s - loss: 0.4900 - accuracy: 0.8154
+80/92 [=========================>....] - ETA: 0s - loss: 0.5117 - accuracy: 0.7998
 
 .. parsed-literal::
 
     
-81/92 [=========================>....] - ETA: 0s - loss: 0.4929 - accuracy: 0.8135
+81/92 [=========================>....] - ETA: 0s - loss: 0.5111 - accuracy: 0.7995
 
 .. parsed-literal::
 
     
-82/92 [=========================>....] - ETA: 0s - loss: 0.4921 - accuracy: 0.8131
+82/92 [=========================>....] - ETA: 0s - loss: 0.5085 - accuracy: 0.8012
 
 .. parsed-literal::
 
     
-83/92 [==========================>...] - ETA: 0s - loss: 0.4925 - accuracy: 0.8134
+83/92 [==========================>...] - ETA: 0s - loss: 0.5101 - accuracy: 0.8002
 
 .. parsed-literal::
 
     
-84/92 [==========================>...] - ETA: 0s - loss: 0.4912 - accuracy: 0.8131
+84/92 [==========================>...] - ETA: 0s - loss: 0.5108 - accuracy: 0.8004
 
 .. parsed-literal::
 
     
-85/92 [==========================>...] - ETA: 0s - loss: 0.4906 - accuracy: 0.8142
+85/92 [==========================>...] - ETA: 0s - loss: 0.5135 - accuracy: 0.7994
 
 .. parsed-literal::
 
     
-86/92 [===========================>..] - ETA: 0s - loss: 0.4939 - accuracy: 0.8120
+86/92 [===========================>..] - ETA: 0s - loss: 0.5154 - accuracy: 0.7992
 
 .. parsed-literal::
 
     
-87/92 [===========================>..] - ETA: 0s - loss: 0.4967 - accuracy: 0.8102
+87/92 [===========================>..] - ETA: 0s - loss: 0.5170 - accuracy: 0.7986
 
 .. parsed-literal::
 
     
-88/92 [===========================>..] - ETA: 0s - loss: 0.4958 - accuracy: 0.8109
+88/92 [===========================>..] - ETA: 0s - loss: 0.5180 - accuracy: 0.7988
 
 .. parsed-literal::
 
     
-89/92 [============================>.] - ETA: 0s - loss: 0.4973 - accuracy: 0.8095
+89/92 [============================>.] - ETA: 0s - loss: 0.5165 - accuracy: 0.7996
 
 .. parsed-literal::
 
     
-90/92 [============================>.] - ETA: 0s - loss: 0.5005 - accuracy: 0.8085
+90/92 [============================>.] - ETA: 0s - loss: 0.5162 - accuracy: 0.8005
 
 .. parsed-literal::
 
     
-91/92 [============================>.] - ETA: 0s - loss: 0.5006 - accuracy: 0.8089
+91/92 [============================>.] - ETA: 0s - loss: 0.5184 - accuracy: 0.7992
 
 .. parsed-literal::
 
     
-92/92 [==============================] - ETA: 0s - loss: 0.5029 - accuracy: 0.8079
+92/92 [==============================] - ETA: 0s - loss: 0.5179 - accuracy: 0.7994
 
 .. parsed-literal::
 
     
-92/92 [==============================] - 6s 64ms/step - loss: 0.5029 - accuracy: 0.8079 - val_loss: 0.6990 - val_accuracy: 0.7411
+92/92 [==============================] - 6s 64ms/step - loss: 0.5179 - accuracy: 0.7994 - val_loss: 0.7059 - val_accuracy: 0.7357
 
 
 Visualize Training Results
@@ -7905,7 +7961,7 @@ Predict on New Data
 Finally, let us use the model to classify an image that was not included
 in the training or validation sets.
 
-   **NOTE**: Data augmentation and Dropout layers are inactive at
+   **Note**: Data augmentation and Dropout layers are inactive at
    inference time.
 
 .. code:: ipython3
@@ -7936,12 +7992,12 @@ in the training or validation sets.
 .. parsed-literal::
 
     
-    1/1 [==============================] - 0s 83ms/step
+1/1 [==============================] - 0s 99ms/step
 
 
 .. parsed-literal::
 
-    This image most likely belongs to sunflowers with a 99.80 percent confidence.
+    This image most likely belongs to sunflowers with a 96.93 percent confidence.
 
 
 Save the TensorFlow Model
@@ -7960,53 +8016,53 @@ Save the TensorFlow Model
 
 .. parsed-literal::
 
-    2024-02-10 01:13:41.810110: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.596956: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
     	 [[{{node random_flip_input}}]]
-    2024-02-10 01:13:41.894772: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.681918: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:41.904859: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.691876: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'random_flip_input' with dtype float and shape [?,180,180,3]
     	 [[{{node random_flip_input}}]]
-    2024-02-10 01:13:41.916513: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.702720: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:41.923535: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.709631: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:41.930525: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.716729: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:41.941500: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.728191: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:41.979801: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.769744: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
     	 [[{{node sequential_1_input}}]]
 
 
 .. parsed-literal::
 
-    2024-02-10 01:13:42.047000: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.859999: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.067363: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.880443: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'sequential_1_input' with dtype float and shape [?,180,180,3]
     	 [[{{node sequential_1_input}}]]
-    2024-02-10 01:13:42.106717: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    2024-03-13 01:04:01.919461: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.133121: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:01.944149: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.206690: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
-    	 [[{{node inputs}}]]
-
-
-.. parsed-literal::
-
-    2024-02-10 01:13:42.348773: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
-    	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.485746: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
-    	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.519497: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
-    	 [[{{node inputs}}]]
-    2024-02-10 01:13:42.547013: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:02.016302: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
 
 
 .. parsed-literal::
 
-    2024-02-10 01:13:42.593572: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    2024-03-13 01:04:02.156624: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2024-03-13 01:04:02.294259: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,22,22,64]
+    	 [[{{node inputs}}]]
+    2024-03-13 01:04:02.328020: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+    2024-03-13 01:04:02.355628: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
+    	 [[{{node inputs}}]]
+
+
+.. parsed-literal::
+
+    2024-03-13 01:04:02.402015: I tensorflow/core/common_runtime/executor.cc:1197] [/device:CPU:0] (DEBUG INFO) Executor start aborting (this does not indicate an error and you can ignore this message): INVALID_ARGUMENT: You must feed a value for placeholder tensor 'inputs' with dtype float and shape [?,180,180,3]
     	 [[{{node inputs}}]]
     WARNING:absl:Found untraced functions such as _jit_compiled_convolution_op, _jit_compiled_convolution_op, _jit_compiled_convolution_op, _update_step_xla while saving (showing 4 of 4). These functions will not be directly callable after loading.
 
@@ -8142,7 +8198,7 @@ Run the Inference Step
     'output/A_Close_Up_Photo_of_a_Dandelion.jpg' already exists.
     (1, 180, 180, 3)
     [1,180,180,3]
-    This image most likely belongs to dandelion with a 98.49 percent confidence.
+    This image most likely belongs to dandelion with a 95.08 percent confidence.
 
 
 
@@ -8159,6 +8215,6 @@ that model to OpenVINO’s IR format, and how to do inference on the
 converted model. For faster inference speed, you can quantize the IR
 model. To see how to quantize this model with OpenVINO’s `Post-training
 Quantization with NNCF
-Tool <https://docs.openvino.ai/nightly/basic_quantization_flow.html>`__,
+Tool <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/quantizing-models-post-training/basic-quantization-flow.html>`__,
 check out the `Post-Training Quantization with TensorFlow Classification
 Model <301-tensorflow-training-openvino-nncf-with-output.html>`__ notebook.

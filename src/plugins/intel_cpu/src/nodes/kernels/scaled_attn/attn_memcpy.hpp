@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -19,6 +19,12 @@ void attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
                 const ov::intel_cpu::PlainTensor& v_input,
                 const ov::intel_cpu::PlainTensor& past_k_output,
                 const ov::intel_cpu::PlainTensor& past_v_output);
+
+void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
+                       const ov::intel_cpu::PlainTensor& v_input,
+                       const ov::intel_cpu::PlainTensor& past_k_output,
+                       const ov::intel_cpu::PlainTensor& past_v_output,
+                       const ov::intel_cpu::PlainTensor& slot_mapping);
 
 }  // namespace XARCH
 }  // namespace Cpu

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -166,8 +166,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Swish", CreatorFunction(translate_unary_op<v4::Swish>)},
 
         // note: BinaryOp translator declaration for each op must to be added in binary_op.cpp file
-        {"Add", CreatorFunction(translate_binary_op<v1::Add>)},
-        {"AddV2", CreatorFunction(translate_binary_op<v1::Add>)},
+        {"Add", CreatorFunction(translate_addv2_op)},
+        {"AddV2", CreatorFunction(translate_addv2_op)},
         {"Atan2", CreatorFunction(translate_atan2_op)},
         {"BitwiseAnd", CreatorFunction(translate_binary_op<v13::BitwiseAnd>)},
         {"BitwiseOr", CreatorFunction(translate_binary_op<v13::BitwiseOr>)},
@@ -218,6 +218,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"BroadcastTo", CreatorFunction(translate_broadcast_to_op)},
         {"Bucketize", CreatorFunction(translate_bucketize_op)},
         {"BiasAdd", CreatorFunction(translate_bias_add_op)},
+        {"Bincount", CreatorFunction(translate_bincount_op)},
         {"Cast", CreatorFunction(translate_cast_op)},
         {"CheckNumerics", CreatorFunction(translate_identity_op)},
         {"CheckNumericsV2", CreatorFunction(translate_identity_op)},
@@ -421,6 +422,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignVariableOp", CreatorFunction(translate_assignvariable_op)},
         {"AssignAddVariableOp", CreatorFunction(translate_add_variable_op)},
         {"AssignSubVariableOp", CreatorFunction(translate_sub_variable_op)},
+        {"ApproximateEqual", CreatorFunction(translate_approximate_equal_op)},
         {"IsVariableInitialized", CreatorFunction(translate_varisinitialized_op)},
         {"MergeV2Checkpoints", CreatorFunction(translate_identity_op)},
         {"ReadVariableOp", CreatorFunction(translate_readvariable_op)},

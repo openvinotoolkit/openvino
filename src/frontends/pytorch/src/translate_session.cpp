@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -155,7 +155,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
                                           context.get_op_type(),
-                                          " outputs greater then number of converted outputs.");
+                                          " outputs greater than number of converted outputs, which are",
+                                          fw_outputs.size(),
+                                          " and ",
+                                          converted_outputs.size(),
+                                          " respectively.");
 
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
