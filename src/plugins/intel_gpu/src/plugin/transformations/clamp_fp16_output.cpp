@@ -33,10 +33,8 @@ ClampFP16Output::ClampFP16Output() {
     auto matmul_m = wrap_type<v0::MatMul>({in0, in1}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
     auto reshape_m = wrap_type<v1::Reshape>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
     auto add_m = wrap_type<v1::Add>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
-    auto multiply_m = wrap_type<v1::Multiply>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
-    auto subtract_m = wrap_type<v1::Subtract>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
-    auto divide_m = wrap_type<v1::Divide>({matmul_m, any_input()}, all_of({type_matches(ov::element::f16), consumers_count(1)}));
-    auto eltwise_m = std::make_shared<Or>(ov::OutputVector{add_m, multiply_m, subtract_m, divide_m});
+    auto eltwise_m = wrap_type<v1::Divide, v1::Add, v1::Multiply, v1::Subtract>({matmul_m, any_input()},
+                                                                                all_of({type_matches(ov::element::f16), consumers_count(1)}));
     auto softmax_input_m = std::make_shared<Or>(ov::OutputVector{eltwise_m, reshape_m, matmul_m});
     auto softmax_m = wrap_type<v8::Softmax>({softmax_input_m}, type_matches(ov::element::f16));
 
