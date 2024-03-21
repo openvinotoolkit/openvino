@@ -86,7 +86,7 @@ async function cleanUp() {
       )
       for (let i = files.length - 1; i >= 0; i--) {
         var file = files[i]
-        const filePath = path.join(directory, file)
+        const filePath = path.join(cacheRemotePath, file)
         const fileStats = fs.statSync(filePath)
 
         if (fileStats.isFile() && fileStats.ctime < oneWeekAgo) {
