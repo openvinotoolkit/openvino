@@ -560,8 +560,23 @@ class GenericPattern : public ov::pass::pattern::op::Pattern {
 public:
     OPENVINO_RTTI("GenericPattern");
 
-    explicit GenericPattern(const OutputVector& args = {}, const detail::AttrMap& attrs = {})
+    std::string signature;
+
+    explicit GenericPattern(const DiscreteTypeInfo* p_type_info, const OutputVector& args = {}, const detail::AttrMap& attrs = {})
         : ov::pass::pattern::op::Pattern(args) {
+        static int global_id = 0;
+        auto id = global_id++;
+        std::stringstream ss;
+        ss << "P" << id << "<" << p_type_info->get_version() << "::" << p_type_info->name << ">";
+        ss << "(";
+        const char* sep = "";
+        for (auto& i : args) {
+            ss << sep << i.get_node()->get_friendly_name();
+            sep = ",";
+        }
+        ss << ")";
+        signature = ss.str();
+        set_friendly_name(std::string("P") + std::to_string(id));
         set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
         m_attrs = attrs;
     }
@@ -574,19 +589,31 @@ public:
     bool match_value(ov::pass::pattern::Matcher* matcher,
                      const Output<Node>& pattern_value,
                      const Output<Node>& graph_value) override {
+        static std::string level;
         // strictly requires pattern & graph value to come from output port with same index,
         // this is absolute necessary when pattern contains split node connections.
-        if (pattern_value.get_index() != graph_value.get_index())
+        if (pattern_value.get_index() != graph_value.get_index()) {
+            _VERBOSE_LOG(level, pattern_value.get_index(), "!=", graph_value.get_index());
             return false;
-        if (m_predicate(graph_value)) {
-            auto& pattern_map = matcher->get_pattern_value_map();
-            pattern_map[shared_from_this()] = graph_value;
-            matcher->add_node(graph_value);
-            return (get_input_size() == 0
-                        ? true
-                        : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
         }
-        return false;
+        if (!m_predicate(graph_value)) {
+            return false;
+        }
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        matcher->add_node(graph_value);
+        if (get_input_size() == 0)
+            return true;
+
+        level.push_back('\t');
+        bool ret = matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr());
+        level.pop_back();
+        if (!ret) {
+            _VERBOSE_LOG(level, "X", signature, " != ", graph_value);
+        } else {
+            _VERBOSE_LOG(level, "_", signature, " == ", graph_value);
+        }
+        return ret;
     }
 
     detail::AttrMap& get_attrs() {
@@ -948,22 +975,10 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
     // pattern nodes are better for pattern matching because
     //  - it can be generic/incomplete, so normal OP node is not working properly
     //  - it has predicate to correctly decide which branch to take (in Or pattern)
-    auto pattern_node = std::make_shared<detail::GenericPattern>(args, attrmap);
+    auto pattern_node = std::make_shared<detail::GenericPattern>(p_type_info, args, attrmap);
 
-    if (friendly_name) {
+    if (friendly_name)
         pattern_node->set_friendly_name(friendly_name);
-    } else {
-        std::stringstream ss;
-        ss << p_type_info->get_version() << "::" << p_type_info->name;
-        ss << "(";
-        const char* sep = "";
-        for (auto& i : args) {
-            ss << sep << i.get_node()->get_name();
-            sep = ",";
-        }
-        ss << ")";
-        pattern_node->set_friendly_name(ss.str());
-    }
 
     auto* pnode = pattern_node.get();
     pnode->set_predicate([p_type_info, vt, pnode, friendly_name, attrmap](const Output<Node>& value) {
@@ -992,7 +1007,6 @@ std::shared_ptr<Node> makePattern(const std::vector<detail::PatternNode>& inputs
             }
         }
 
-        _VERBOSE_LOG(" matched makePattern ", pnode->get_friendly_name(), " == ", value);
         return true;
     });
 

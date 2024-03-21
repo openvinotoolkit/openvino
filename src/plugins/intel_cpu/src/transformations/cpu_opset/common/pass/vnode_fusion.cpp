@@ -175,7 +175,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         makePattern<ov::opset1::Select>({mul_LogicalAnd, -FLT_MAX, causal_mask_boolean_1},
                                         {{"auto_broadcast", "numpy"}});              //  tensor_array<f32[?,1,8192,?]>
     auto copy__ShapeOf = makePattern<ov::opset1::ShapeOf>({causal_mask_boolean_1});  //  tensor_array<i32[4]>
-    auto Constant_47319 = makeConst(ov::element::u8, ov::Shape({}), 0);
+    auto Constant_47319 = makeConst(ov::element::u8, ov::Shape({}), {0});
     auto copy__Broadcast =
         makePattern<ov::opset1::Broadcast>({masked_fill_Select, copy__ShapeOf, Constant_47319},
                                            {{"mode", "numpy"}});  //  tensor_array<f32[?,1,8192,..8192]>
