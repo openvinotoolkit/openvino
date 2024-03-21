@@ -34,7 +34,6 @@ SyncInferRequest::SyncInferRequest(std::shared_ptr<const CompiledModel> compiled
     const auto& outputs = get_outputs();
     for (std::size_t output_index = 0; output_index < outputs.size(); output_index++) {
         m_output_ports_map[output_index] = outputs[output_index];
-        std::cout << "Add m_output_ports_map: " << output_index << " node: " << outputs[output_index] << std::endl;
     }
     create_infer_request();
 }
@@ -53,7 +52,6 @@ void SyncInferRequest::create_infer_request() {
         init_tensor(it.first, ov::ISyncInferRequest::FoundPort::Type::INPUT);
     }
     for (const auto& it : m_output_ports_map) {
-        std::cout << "init output tensor: " << it.first << ", node: " << it.second << std::endl;
         init_tensor(it.first, ov::ISyncInferRequest::FoundPort::Type::OUTPUT);
     }
 
@@ -521,7 +519,6 @@ void SyncInferRequest::init_tensor(const std::size_t& port_index, const ov::ISyn
 
             const bool isDynamic = shape.is_dynamic();
             tensor = ov::ISyncInferRequest::get_tensor(port);
-            std::cout << "name: " << port_index << ", port_shape: " << port_shape << ", graph_shape: " << ", shape: " << shape << std::endl;
 
             if (!tensor) {
                 ov::Shape tensor_shape;
