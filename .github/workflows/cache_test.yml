@@ -48,6 +48,8 @@ jobs:
         id: test-action
         uses: ./openvino/.github/actions/cache
         with:
+          save-always: true
+          cleanup-always: true
           cache-path: ${{ env.CACHE_REMOTE }}
           path: ${{ env.CACHE_LOCAL }}
           key: ${{ runner.os }}-${{ runner.arch }}-test-cache-${{ github.sha }}
