@@ -79,9 +79,6 @@ private:
                                const dnnl::engine& engine,
                                bool constWeight);
     };
-    // have to hold reference (shared_ptr) to forward convolution primitive_desc
-    // since backward one uses the reference to it as a hint
-    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;
@@ -116,8 +113,7 @@ private:
 
     std::string errorPrefix;
 
-    //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
-    void createIOWeightBlob();
+    void createWeiBlobAsIO();
     void updateIOWeightBlob();
     bool weightIsConst = false;
 };
