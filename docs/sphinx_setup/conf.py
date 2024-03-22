@@ -103,7 +103,7 @@ html_theme_options = {
     "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
-    # "footer_items": ["footer_info"],
+    "footer_items": ["footer_info"],
     "show_prev_next": False,
 }
 
