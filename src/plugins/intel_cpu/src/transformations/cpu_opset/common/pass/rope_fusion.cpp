@@ -770,7 +770,7 @@ ov::intel_cpu::RoPEShareCosSin::RoPEShareCosSin() {
     std::vector<std::shared_ptr<Node>> inputs = {makePattern(), makePattern()};
     auto const_inv_freq = makePattern<opset1::Constant>({}, {});
 
-    auto Constant_58774 = makeConst(element::u8, ov::Shape({}), 0);
+    auto Constant_58774 = makeConst(element::u8, ov::Shape({}), {0});
     auto Broadcast_58775 = makePattern<opset1::Broadcast>({{1.000000f}, inputs[0], Constant_58774},
                                                           {{"mode", "numpy"}});  //  tensor_array<f32[?,?,?]>
     auto expand_Broadcast =
