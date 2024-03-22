@@ -4,16 +4,16 @@ from pathlib import Path
 import argparse
 import logging
 
-def create_mapping(output_dir: Path):
+def create_mapping(output_dir: Path, doc_dir_name: str):
     mapping = {}
     output_dir = output_dir.resolve()
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    directory = os.path.abspath(os.path.join(script_dir, '..', 'articles_en'))
+    directory = os.path.abspath(os.path.join(script_dir, '..', doc_dir_name))
     for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith('.rst'):
                 file_path = os.path.join(root, file)
-                file_path = os.path.relpath(file_path, start=os.path.join(directory, '..', '..', '..'))
+                file_path = os.path.relpath(file_path, start=os.path.join(directory, '..', '..'))
                 file_path = file_path.replace('\\', '/').replace('OpenVINO', 'openvino').replace(' ', '-')
                 file_name_without_extension = os.path.basename(os.path.splitext(file_path)[0])
                 mapping[file_name_without_extension] = file_path
@@ -38,9 +38,11 @@ def connect_jsons(output_dir: Path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir', type=Path, help='Path to the output folder')
+    parser.add_argument('doc_dir_name', type=Path, help='Path to the documentation folder')
     args = parser.parse_args()
     output_dir = args.output_dir
-    create_mapping(output_dir)
+    doc_dir_name = args.doc_dir_name
+    create_mapping(output_dir, doc_dir_name)
     connect_jsons(output_dir)
 
 
