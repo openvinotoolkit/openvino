@@ -116,6 +116,9 @@ void InverseLayerTest::compare(const std::vector<ov::Tensor>& expected, const st
     }
 
     ov::test::utils::compare(t1, t2);
+    std::ostringstream out_stream;
+    out_stream << "Manual crash ";
+    throw std::runtime_error(out_stream.str());
 }
 }  // namespace test
 }  // namespace ov
