@@ -144,6 +144,46 @@ void paged_attn_memcpy(const ov::intel_cpu::PlainTensor& k_input,
     }
 }
 
+void attn_memcpy2d_kernel(void* src,
+                          void* dst,
+                          ov::element::Type src_type,
+                          ov::element::Type dst_type,
+                          size_t src_stride,
+                          size_t dst_stride,
+                          size_t width,
+                          size_t height) {
+    if (src_type == dst_type) {
+        auto src_u8 = reinterpret_cast<uint8_t*>(src);
+        auto dst_u8 = reinterpret_cast<uint8_t*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            std::memcpy(dst_u8, src_u8, width * src_type.size());
+            dst_u8 += dst_stride * src_type.size();
+            src_u8 += src_stride * src_type.size();
+        }
+    } else if (src_type == ov::element::f32 && dst_type == ov::element::bf16) {
+        auto src_f = reinterpret_cast<float*>(src);
+        auto dst_f = reinterpret_cast<ov::bfloat16*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            attn_copy<ov::bfloat16, float>(dst_f, src_f, width);
+            dst_f += dst_stride;
+            src_f += src_stride;
+        }
+    } else if (src_type == ov::element::f32 && dst_type == ov::element::f16) {
+        auto src_f = reinterpret_cast<float*>(src);
+        auto dst_f = reinterpret_cast<ov::float16*>(dst);
+
+        for (size_t j = 0; j < height; j++) {
+            attn_copy<ov::float16, float>(dst_f, src_f, width);
+            dst_f += dst_stride;
+            src_f += src_stride;
+        }
+    } else {
+        OPENVINO_THROW("unsupport src type: ", src_type, ", dst type: ", dst_type, " in attn_memcpy2d_kernel");
+    }
+}
+
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
