@@ -399,6 +399,52 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
+enum class ModelDistributionPolicy {
+    TENSOR_PARALLEL = 0,  // Split tensor into several parts and distribute them between sockets/devices during model
+                          // compilation. At inference time sockets/devices process tensors in parallel and do
+                          // syncronization at the end ensuring mathematical correctness.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy& stream_mode) {
+    switch (stream_mode) {
+    case ModelDistributionPolicy::TENSOR_PARALLEL:
+        return os << "TENSOR_PARALLEL";
+    default:
+        OPENVINO_THROW("Unsupported model distribution policy!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& stream_mode) {
+    std::string str;
+    is >> str;
+    if (str == "TENSOR_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
+    } else {
+        OPENVINO_THROW("Unsupported model distribution policy: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines model distribution policy for inference with multiple sockets/devices.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * This property can be used to select model distribution policy between execution units (e.g. between CPU sockets/NUMA
+ * nodes or between different GPUs).
+ * -- TENSOR_PARALLEL : Split tensor into several parts and distribute them between sockets/devices during model
+ *                      compilation. At inference time sockets/devices process tensors in parallel and do syncronization
+ *                      at the end ensuring mathematical correctness.
+ *
+ * The following code is an example how TENSOR_PARALLEL model disrtibution policy might be enabled.
+ *
+ * @code
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}));
+ * @endcode
+ */
+static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
+
 /**
  * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
