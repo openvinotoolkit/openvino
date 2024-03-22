@@ -36,33 +36,54 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 4 || op->get_output_size() != 1)
-        THROW_ERROR("has incorrect number of input/output edges!");
+    if ((op->get_input_size() != 4u && op->get_input_size() != 5u) || op->get_output_size() != 1u)
+        THROW_ERROR("has incorrect number of input/output[",
+                    op->get_input_size(),
+                    ",",
+                    op->get_output_size(),
+                    "] edges!");
 }
 
 void GatherCompression::initSupportedPrimitiveDescriptors() {
+    std::cout << "--->2:GatherCompression::initSupportedPrimitiveDescriptors() --->\n";
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(GATHER_DATA);
-    if (!(dataPrecision == ov::element::u4 || dataPrecision == ov::element::u8)) {
-        THROW_ERROR(" has unsupported 'data' input precision: ", dataPrecision);
-    }
-    ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
-    if (zpPrecision != ov::element::f32) {
-        THROW_ERROR(" has unsupported 'zp' input precision: ", zpPrecision);
-    }
-    ov::element::Type scalePrecision = getOriginalInputPrecisionAtPort(GATHER_SCALE);
-    if (scalePrecision != ov::element::f32) {
-        THROW_ERROR(" has unsupported 'scale' input precision: ", scalePrecision);
+    if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
+        THROW_ERROR("has unsupported 'data' input precision: ", dataPrecision);
     }
 
-    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
-                          {LayoutType::ncsp, zpPrecision},
-                          {LayoutType::ncsp, scalePrecision},
-                          {LayoutType::ncsp, ov::element::i32}},
-                         {{LayoutType::ncsp, ov::element::f32}},
-                         ref_any);
+    ov::element::Type scalePrecision = getOriginalInputPrecisionAtPort(GATHER_SCALE);
+    if (scalePrecision != ov::element::f32) {
+        THROW_ERROR("has unsupported 'scale' input precision: ", scalePrecision);
+    }
+
+    ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
+    if (!one_of(outPrecision, ov::element::f32, ov::element::f16)) {
+        THROW_ERROR("has unsupported out precision: ", outPrecision);
+    }
+
+    if (getOriginalInputsNumber() == 5u) {
+        ov::element::Type zpPrecision = getOriginalInputPrecisionAtPort(GATHER_ZP);
+        if (zpPrecision != ov::element::f32) {
+            THROW_ERROR("has unsupported 'zp' input precision: ", zpPrecision);
+        }
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, scalePrecision},
+                              {LayoutType::ncsp, zpPrecision}},
+                             {{LayoutType::ncsp, outPrecision}},
+                             ref_any);
+    } else {
+        addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, scalePrecision}},
+                             {{LayoutType::ncsp, outPrecision}},
+                             ref_any);
+    }
 }
 
 bool GatherCompression::needPrepareParams() const {
@@ -77,8 +98,15 @@ void GatherCompression::executeDynamicImpl(dnnl::stream strm) {
     execReference();
 }
 
+template <typename OUT_PRECISION>
 void GatherCompression::execReferenceU4() {
-    DEBUG_LOG(getName(), "execReferenceU4");
+    std::cout << "--->5:GatherCompression::execReferenceU4()" << std::endl;
+}
+
+template <typename OUT_PRECISION>
+void GatherCompression::execReferenceI4() {
+    std::cout << "--->5:GatherCompression::execReferenceI4()" << std::endl;
+    DEBUG_LOG(getName(), "execReference4bit");
     auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
     const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
@@ -135,28 +163,46 @@ void GatherCompression::execReferenceU4() {
     });
 }
 
-void GatherCompression::execReferenceU8() {
-    DEBUG_LOG(getName(), "execReferenceU8");
+template <typename IN_PRECISION, typename OUT_PRECISION>
+void GatherCompression::execReference8bit() {
+    DEBUG_LOG(getName(), "execReference8bit");
+    std::cout << "--->4:GatherCompression::execReference8bit()\n";
+#define PRINT(X) std::cout << #X << " = " << X << std::endl
+
     auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
     auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
+    const auto* psrc = srcMemPtr->getDataAs<IN_PRECISION>();
     const auto* pidx = idxMemPtr->getDataAs<int32_t>();
 
-    bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
-    const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
+    bool have_zp = getOriginalInputsNumber() > 4u;
+    bool one_dim_zp = have_zp ? (getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1) : true;
+
+    PRINT(one_dim_zp);
+
+    float_t* zp = nullptr;
+    float_t const_zp = 0.f;
+    zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    auto* pdst = getDstDataAtPortAs<float>(0);
+    auto* pdst = getDstDataAtPortAs<OUT_PRECISION>(0);
 
     const auto& idxDims = idxMemPtr->getStaticDims();
     const auto batch = idxDims[0];
     const auto seqLen = idxDims[1];
+
+    PRINT(batch);
+    PRINT(seqLen);
+    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getShape());
 
     auto axisDim = srcMemPtr->getStaticDims()[0];
     auto groupDim = srcMemPtr->getStaticDims().size() == 2 ? 1 : srcMemPtr->getStaticDims()[1];
     auto feaDim =
         srcMemPtr->getStaticDims().size() == 2 ? srcMemPtr->getStaticDims()[1] : srcMemPtr->getStaticDims()[2];
 
+    PRINT(axisDim);
+    PRINT(groupDim);
+    PRINT(feaDim);
 
+#if 0
     parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
         auto dstIdx = b * seqLen + s;
         auto ii = pidx[dstIdx];
@@ -170,28 +216,81 @@ void GatherCompression::execReferenceU8() {
         auto* src = psrc + ii * feaDim * groupDim;
         auto* dst = pdst + dstIdx * feaDim * groupDim;
 
-
         for (size_t g = 0; g < groupDim; g++) {
             auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
             auto& deq_scale = scale[ii * groupDim + g];
             for (size_t k = 0; k < feaDim; k++) {
-                dst[0] = (static_cast<float>(src[0]) - deq_zp) * deq_scale;
+                dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0]) - deq_zp) * deq_scale);
                 dst++;
                 src++;
             }
         }
     });
+#else
+    for (size_t b = 0; b < batch; b++) {
+        for (size_t s = 0; s < seqLen; s++) {
+            auto dstIdx = b * seqLen + s;
+            auto ii = pidx[dstIdx];
+            if (ii < 0) {
+                if (reverseIndexing)
+                    ii += axisDim;
+                else
+                    ii = axisDim;
+            }
+
+            auto* src = psrc + ii * feaDim * groupDim;
+            auto* dst = pdst + dstIdx * feaDim * groupDim;
+
+            for (size_t g = 0; g < groupDim; g++) {
+                auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
+                auto& deq_scale = scale[ii * groupDim + g];
+                for (size_t k = 0; k < feaDim; k++) {
+                    dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0])) * deq_scale);
+                    dst++;
+                    src++;
+                }
+            }
+        }
+    }
+#endif
 }
 
 void GatherCompression::execReference() {
-    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    if (srcMemPtr->getPrecision() == ov::element::u8) {
-        execReferenceU8();
-    } else if (srcMemPtr->getPrecision() == ov::element::u4) {
-        execReferenceU4();
-    } else {
-        THROW_ERROR("only support u4/u8 weights precision, don't support:", srcMemPtr->getPrecision());
+    auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
+    auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
+
+    if (out_precision == ov::element::f16) {
+        switch (in_precison) {
+        case ov::element::u8:
+            return execReference8bit<uint8_t, float16>();
+        case ov::element::i8:
+            return execReference8bit<int8_t, float16>();
+        case ov::element::u4:
+            return execReferenceU4<float16>();
+        case ov::element::i4:
+            return execReferenceI4<float16>();
+        default:
+            break;
+        }
+    } else if (out_precision == ov::element::f32) {
+        switch (in_precison) {
+        case ov::element::u8:
+            return execReference8bit<uint8_t, float>();
+        case ov::element::i8:
+            return execReference8bit<int8_t, float>();
+        case ov::element::u4:
+            return execReferenceU4<float>();
+        case ov::element::i4:
+            return execReferenceI4<float>();
+        default:
+            break;
+        }
     }
+
+    THROW_ERROR("only support in precision(u4/i4/u8/i8), out precision(f32/f16), in_precison=",
+                in_precison,
+                ", out_precision=",
+                out_precision);
 }
 
 bool GatherCompression::created() const {

@@ -123,6 +123,8 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
                                                                      gather_node->get_output_element_type(0));
         }
 
+        transformation_callback(new_gather_node);
+
         result_nodes.push_back(new_gather_node);
         new_gather_node->set_friendly_name(gather_node->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), result_nodes);

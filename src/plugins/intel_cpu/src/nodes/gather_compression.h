@@ -32,17 +32,22 @@ protected:
 
 private:
     void execReference();
-    void execReferenceU8();
+
+    template <typename IN_PRECISION, typename OUT_PRECISION>
+    void execReference8bit();
+
+    template <typename OUT_PRECISION>
     void execReferenceU4();
+    template <typename OUT_PRECISION>
+    void execReferenceI4();
 
     bool reverseIndexing = false;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;
     static constexpr size_t GATHER_AXIS = 2;
-    static constexpr size_t GATHER_BATCH_DIM = 3;
-    static constexpr size_t GATHER_SCALE = 4;
-    static constexpr size_t GATHER_ZP = 5;
+    static constexpr size_t GATHER_SCALE = 3;
+    static constexpr size_t GATHER_ZP = 4;
 };
 
 }   // namespace node

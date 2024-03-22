@@ -117,6 +117,7 @@ enum class Type {
     ScaledDotProductAttention,
     RoPE,
     GatherCompression,
+    GatherCompressed,
 };
 
 enum class Algorithm {
