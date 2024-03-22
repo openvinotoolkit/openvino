@@ -409,6 +409,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     } else if (name == ov::hint::scheduling_core_type) {
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
+    } else if (name == ov::hint::model_distribution_policy) {
+        const auto distribution_policy = engConfig.modelDistributionPolicy;
+        return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
         return decltype(ov::hint::enable_hyper_threading)::value_type(ht_value);
@@ -481,6 +484,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, const ov::AnyMap& optio
             RW_property(ov::hint::num_requests.name()),
             RW_property(ov::hint::enable_cpu_pinning.name()),
             RW_property(ov::hint::scheduling_core_type.name()),
+            RW_property(ov::hint::model_distribution_policy.name()),
             RW_property(ov::hint::enable_hyper_threading.name()),
             RW_property(ov::device::id.name()),
             RW_property(ov::intel_cpu::denormals_optimization.name()),

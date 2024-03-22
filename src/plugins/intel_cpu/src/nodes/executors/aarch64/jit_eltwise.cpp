@@ -21,11 +21,13 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseAdd,
                                      Algorithm::EltwiseClamp,
                                      Algorithm::EltwiseDivide,
+                                     Algorithm::EltwiseEqual,
                                      Algorithm::EltwiseMultiply,
                                      Algorithm::EltwiseMulAdd,
                                      Algorithm::EltwisePowerStatic,
                                      Algorithm::EltwisePrelu,
                                      Algorithm::EltwiseRelu,
+                                     Algorithm::EltwiseSelect,
                                      Algorithm::EltwiseSubtract);
     if (!is_supported) {
         return false;
