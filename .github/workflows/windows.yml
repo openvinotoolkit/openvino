@@ -153,7 +153,7 @@ jobs:
           max-cache-size: 5
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}-${{ matrix.it }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
@@ -245,27 +245,27 @@ jobs:
       # Upload build artifacts and logs
       #
 
-      - name: Upload openvino package
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.zip
-          if-no-files-found: 'error'
+      # - name: Upload openvino package
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_package.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.zip
-          if-no-files-found: 'error'
+      # - name: Upload openvino tests package
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_tests
+      #     path: ${{ env.BUILD_DIR }}/openvino_tests.zip
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino js package
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
-          if-no-files-found: 'error'
+      # - name: Upload openvino js package
+      #   if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_js_package
+      #     path: ${{ env.INSTALL_DIR_JS }}
+      #     if-no-files-found: 'error'
 
   Samples:
     needs: [ Build, Smart_CI ]

@@ -174,7 +174,7 @@ jobs:
           max-cache-size: 5
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}-${{ matrix.it }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
@@ -271,53 +271,53 @@ jobs:
       #
       # Upload build artifacts and logs
       #
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build_logs
-          path: ${{ env.SCCACHE_ERROR_LOG }}
-          if-no-files-found: 'ignore'
+      # - name: Upload build logs
+      #   uses: actions/upload-artifact@v4
+      #   if: always()
+      #   with:
+      #     name: build_logs
+      #     path: ${{ env.SCCACHE_ERROR_LOG }}
+      #     if-no-files-found: 'ignore'
 
-      - name: Upload openvino package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-          if-no-files-found: 'error'
+      # - name: Upload openvino package
+      #   if: ${{ always() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino js package
-        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_js_package
-          path: ${{ env.INSTALL_DIR_JS }}
-          if-no-files-found: 'error'
+      # - name: Upload openvino js package
+      #   if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_js_package
+      #     path: ${{ env.INSTALL_DIR_JS }}
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino developer package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_developer_package
-          path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
-          if-no-files-found: 'error'
+      # - name: Upload openvino developer package
+      #   if: ${{ always() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_developer_package
+      #     path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino debian packages
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_debian_packages
-          path: ${{ env.BUILD_DIR }}/*.deb
-          if-no-files-found: 'error'
+      # - name: Upload openvino debian packages
+      #   if: ${{ always() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_debian_packages
+      #     path: ${{ env.BUILD_DIR }}/*.deb
+      #     if-no-files-found: 'error'
 
-      - name: Upload openvino tests package
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-          if-no-files-found: 'error'
+      # - name: Upload openvino tests package
+      #   if: ${{ always() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: openvino_tests
+      #     path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+      #     if-no-files-found: 'error'
 
   Debian_Packages:
     name: Debian Packages

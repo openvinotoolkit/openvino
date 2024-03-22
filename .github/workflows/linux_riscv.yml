@@ -102,7 +102,7 @@ jobs:
           max-cache-size: 5
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}-${{ matrix.it }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-ccache
 
