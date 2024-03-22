@@ -290,7 +290,7 @@ class ReduceMaximum {
 public:
     template <typename DT>
     void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(*src_data) ? *src_data : std::max(*dst_data, *src_data);
+        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::max(*dst_data, *src_data);
     }
 };
 
@@ -298,7 +298,7 @@ class ReduceMinimum {
 public:
     template <typename DT>
     void operator() (DT* dst_data, const DT* src_data) const {
-        *dst_data = std::isnan(*src_data) ? *src_data : std::min(*dst_data, *src_data);
+        *dst_data = std::isnan(static_cast<float>(*src_data)) ? *src_data : std::min(*dst_data, *src_data);
     }
 };
 
