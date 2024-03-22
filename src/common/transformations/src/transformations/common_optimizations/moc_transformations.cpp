@@ -81,6 +81,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
@@ -90,7 +91,6 @@
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
-#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
