@@ -42,6 +42,7 @@ Operation Specifications
    Concat-1 <operation-specs/movement/concat-1>
    Constant-1 <operation-specs/infrastructure/constant-1>
    ConvertLike-1 <operation-specs/type/convert-like-1>
+   ConvertPromoteTypes-14 <operation-specs/type/convert-promote-types-14>
    Convert-1 <operation-specs/type/convert-1>
    ConvolutionBackpropData-1 <operation-specs/convolution/convolution-backprop-data-1>
    Convolution-1 <operation-specs/convolution/convolution-1>
@@ -229,4 +230,3 @@ Operation Specifications
    Unique-10 <operation-specs/movement/unique-10>
    Unsqueeze-1 <operation-specs/shape/unsqueeze-1>
    VariadicSplit-1 <operation-specs/movement/variadic-split-1>
-

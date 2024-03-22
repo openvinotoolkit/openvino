@@ -49,6 +49,7 @@ Table of Contents
 * :doc:`Constant <../operation-specs/infrastructure/constant-1>`
 * :doc:`Convert <../operation-specs/type/convert-1>`
 * :doc:`ConvertLike <../operation-specs/type/convert-like-1>`
+* :doc:`ConvertPromoteTypes <../operation-specs/type/convert-promote-types-14>`
 * :doc:`Convolution <../operation-specs/convolution/convolution-1>`
 * :doc:`ConvolutionBackpropData <../operation-specs/convolution/convolution-backprop-data-1>`
 * :doc:`Cos <../operation-specs/arithmetic/cos-1>`
@@ -205,4 +206,3 @@ Table of Contents
 * :doc:`Unique <../operation-specs/movement/unique-10>`
 * :doc:`Unsqueeze <../operation-specs/shape/unsqueeze-1>`
 * :doc:`VariadicSplit <../operation-specs/movement/variadic-split-1>`
-
