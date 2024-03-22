@@ -1111,6 +1111,7 @@ void ScaledDotProductAttention::execute(dnnl::stream strm) {
         presentv_input = inputs[ID_VCACHE];
     } else {
         if (m_config.config.fuse_concat) {
+            CPU_NODE_ASSERT(m_k_state && m_v_state, "has null input states");
             // initialization will be also completed in this func
             gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));
 
