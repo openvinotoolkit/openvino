@@ -27,7 +27,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
         const auto& primitive = impl_param.typed_desc<roll>();
         auto params = get_default_params<kernel_selector::roll_params>(impl_param);
 
-        if (primitive->shift.count() != 0) {
+        if ((primitive->raw_shift.empty()) && (primitive->raw_axes.empty())) {
             // Primitive created with static shape input
             params.shift = convert_dim_vector(primitive->shift);
         } else {
