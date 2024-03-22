@@ -66,6 +66,28 @@ private:
     void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<size_t>& P, size_t b);
 
     template <typename T>
+    void lu_decomposition_(const T* input,
+                           std::vector<T>& L,
+                           std::vector<T>& U,
+                           std::vector<size_t>& P,
+                           bool& sign,
+                           size_t b,
+                           size_t n,
+                           size_t n_squared);
+
+    template <typename T>
+    void lu_solve_(T* output,
+                   std::vector<T>& L,
+                   std::vector<T>& U,
+                   std::vector<size_t>& P,
+                   size_t b,
+                   size_t n,
+                   size_t n_squared);
+
+    template <typename T>
+    void to_adjoint_(T* output, std::vector<T>& U, bool sign, size_t b, size_t n, size_t n_squared);
+
+    template <typename T>
     struct InverseExecute {
         void operator()(Inverse* node) {
             node->inverse<T>();
