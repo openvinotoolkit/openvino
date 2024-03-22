@@ -263,10 +263,10 @@ KERNEL(gemm_tiled_opt)(
                         b_tile[b_load_id][0] = b_ptr[sglid];
                         b_tile[b_load_id][1] = b_ptr[sglid + 16];
                     } else {
-                        BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     }
                 #else
-                    BLOCK_READ_B(b_ptr, 0);
+                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                 #endif
             #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_ptr += input1_offset;
@@ -489,10 +489,10 @@ KERNEL(gemm_tiled_opt)(
                         b_tile[b_load_id][0] = b_ptr[sglid];
                         b_tile[b_load_id][1] = b_ptr[sglid + 16];
                     } else {
-                        BLOCK_READ_B(b_ptr, 0);
+                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     }
                 #else
-                    BLOCK_READ_B(b_ptr, 0);
+                    b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                 #endif // TILE_N_NOT_DIVISIBLE
             #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_ptr += input1_offset;
