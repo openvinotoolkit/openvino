@@ -51,7 +51,6 @@ def test_scalars_dispatcher_old(device, data_type, input_shape, is_shared):
     assert result.data == expected.data
 
 
-@pytest.mark.parametrize("device", ["CPU", "GPU"])
 def test_scalars_dispacher_dynamic_input(device):
 
     input_shape = PartialShape([-1])
