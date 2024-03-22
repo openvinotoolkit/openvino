@@ -453,6 +453,14 @@ const std::vector<InputShape>& inputShapesPlain2Blocked2d() {
             },
             {
                 //dynamic shape
+                { -1, 2, -1, {1, 200} },
+                { //target static shapes
+                    { 2, 2, 7, 7 },
+                    { 1, 2, 9, 9}
+                }
+            },
+            {
+                //dynamic shape
                 { -1, 3, -1, {1, 200} },
                 { //target static shapes
                     { 2, 3, 7, 7 },
