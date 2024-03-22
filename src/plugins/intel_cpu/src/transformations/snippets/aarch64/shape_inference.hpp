@@ -12,7 +12,7 @@ namespace snippets {
 /**
  * \brief Shape infer factory that can create shape-infer instances for cpu-specific operations
  */
-class CPUShapeInferSnippetsFactory : public IShapeInferSnippetsFactory{
+class CPUShapeInferSnippetsFactory : public IShapeInferSnippetsFactory {
     /** \brief Factory makers registry which can be specialized for key and value. */
     static const TRegistry specific_ops_registry;
 
