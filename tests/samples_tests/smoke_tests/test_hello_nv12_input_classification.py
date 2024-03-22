@@ -55,9 +55,6 @@ def _check_output(self, param, cache):
             if '215' not in top1:
                 is_ok = False
                 log.error('Expected class 215, Detected class {}'.format(top1))
-                log.error('Output {}'.format(stdout))
             break
-    if is_ok == False:
-        log.error('Output {}'.format(stdout))
     assert is_ok, 'Wrong top1 class'
     log.info('Accuracy passed')

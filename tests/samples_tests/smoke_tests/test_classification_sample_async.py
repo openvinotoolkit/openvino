@@ -64,11 +64,8 @@ def _check_output(self, param, expected_result, cache):
             top1 = re.sub(r"\D", "", top1)
             if expected_result not in top1:
                 is_ok = False
-                log.error("Detected class {}".format(top1))
-                log.error("Output {}".format(stdout))
+                log.info("Detected class {}".format(top1))
             break
     assert is_ok != 0, "Accuracy check didn't passed, probably format of output has changes"
-    if is_ok == 0:
-        log.error("Output {}".format(stdout))
     assert is_ok, "Wrong top1 class"
     log.info('Accuracy passed')
