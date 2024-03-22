@@ -53,7 +53,7 @@ void Inverse::getSupportedDescriptors() {
 
 void Inverse::initSupportedPrimitiveDescriptors() {
     m_input_precision = getOriginalInputPrecisionAtPort(INPUT_PORT);
-    if (!one_of(m_input_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (!one_of(m_input_precision, ov::element::f32)) {
         m_input_precision = ov::element::f32;
     }
 
@@ -85,52 +85,21 @@ bool Inverse::created() const {
 }
 
 void Inverse::execute(dnnl::stream strm) {
-    OV_SWITCH(intel_cpu,
-              InverseExecute,
-              this,
-              m_input_precision,
-              OV_CASE(ov::element::bf16, bfloat16_t),
-              OV_CASE(ov::element::f16, short),
-              OV_CASE(ov::element::f32, float))
+    inverse();
 }
 
 void Inverse::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-template <typename T>
 void Inverse::inverse() {
-    const auto* data = getSrcDataAtPortAs<const T>(INPUT_PORT);
-    auto* output = getDstDataAtPortAs<T>(OUTPUT_PORT);
+    const auto* data = getSrcDataAtPortAs<const float>(INPUT_PORT);
+    auto* output = getDstDataAtPortAs<float>(OUTPUT_PORT);
 
-    std::cout << "In CPU:\n";
-    if (m_batches_count != 1) {
-        for (size_t i = 0; i < m_batches_count; ++i) {
-            for (size_t x = 0; x < m_side; ++x) {
-                for (size_t y = 0; y < m_side; ++y) {
-                    const auto val = data[i * m_batches_count + x * m_side + y];
-                    std::cout << val << ' ';
-                }
-                std::cout << '\n';
-            }
-            std::cout << '\n';
-        }
-    } else {
-        for (size_t x = 0; x < m_side; ++x) {
-            for (size_t y = 0; y < m_side; ++y) {
-                const auto val = data[x * m_side + y];
-                std::cout << val << ' ';
-            }
-            std::cout << '\n';
-        }
-        std::cout << '\n';
-    }
-
-    std::vector<T> L(m_side_squared);
-    std::vector<T> U(m_side_squared);
+    std::vector<float> L(m_side_squared);
+    std::vector<float> U(m_side_squared);
     std::vector<size_t> P(m_side);
 
-#ifdef INVERSE_PARALLEL
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
 
@@ -139,41 +108,25 @@ void Inverse::inverse() {
         lu_solve(output, L, U, P, b);
 
         if (m_adjoint) {
-            // Multiply by det(A) = det(U)
             to_adjoint(output, U, sign, b);
         }
     }
-#else
-    for (size_t b = 0; b < m_batches_count; ++b) {
-        bool sign = true;
-
-        lu_decomposition_(data, L, U, P, sign, b, m_side, m_side_squared);
-
-        lu_solve_(output, L, U, P, b, m_side, m_side_squared);
-
-        if (m_adjoint) {
-            // Multiply by det(A) = det(U)
-            to_adjoint_(output, U, sign, b, m_side, m_side_squared);
-        }
-    }
-#endif
 }
 
-template <typename T>
-void Inverse::lu_decomposition(const T* data,
-                               std::vector<T>& L,
-                               std::vector<T>& U,
+void Inverse::lu_decomposition(const float* data,
+                               std::vector<float>& L,
+                               std::vector<float>& U,
                                std::vector<size_t>& P,
                                bool& sign,
                                size_t b) {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
 
-    std::fill(L.begin(), L.end(), T{0});
-    cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(T) * m_side_squared);
+    std::fill(L.begin(), L.end(), 0.0f);
+    cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
 
     parallel_for(m_side, [&](size_t i) {
-        L[i * m_side + i] = T{1};
+        L[i * m_side + i] = 1.0f;
         P[i] = i;
     });
 
@@ -217,16 +170,15 @@ void Inverse::lu_decomposition(const T* data,
     }
 }
 
-template <typename T>
-void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<size_t>& P, size_t b) {
+void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) {
     parallel_for(m_side, [&](size_t column) {
-        std::vector<T> X(m_side, T{0});
-        std::vector<T> Y(m_side, T{0});
+        std::vector<float> X(m_side, 0.0f);
+        std::vector<float> Y(m_side, 0.0f);
 
         // Forward substitution: Ly = Pb
         for (size_t i = 0; i < m_side; ++i) {
             if (P[i] == column) {
-                Y[i] = T{1};
+                Y[i] = 1.0f;
             }
             const auto i_idx = i * m_side;
             for (size_t j = 0; j < i; ++j) {
@@ -253,9 +205,8 @@ void Inverse::lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vec
     });
 }
 
-template <typename T>
-void Inverse::to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b) {
-    T determinant = sign ? T{1} : T{-1};
+void Inverse::to_adjoint(float* output, std::vector<float>& U, bool sign, size_t b) {
+    auto determinant = sign ? 1.0f : -1.0f;
 
     for (size_t i = 0; i < m_side; ++i) {
         determinant = determinant * U[i * m_side + i];
@@ -265,121 +216,6 @@ void Inverse::to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b) {
     parallel_for(m_side_squared, [&](size_t i) {
         output[batch_idx + i] = output[batch_idx + i] * determinant;
     });
-}
-
-template <typename T>
-void Inverse::lu_decomposition_(const T* input,
-                                std::vector<T>& L,
-                                std::vector<T>& U,
-                                std::vector<size_t>& P,
-                                bool& sign,
-                                size_t b,
-                                size_t n,
-                                size_t n_squared) {
-    // Make L identity, U a copy of input and P a range(0, n)
-    const auto batch_idx = b * n_squared;
-
-    std::fill(L.begin(), L.end(), T{0});
-    memcpy(&U[0], &input[batch_idx], sizeof(T) * n_squared);
-
-    for (size_t i = 0; i < n; ++i) {
-        L[i * n + i] = T{1};
-        P[i] = i;
-    }
-
-    for (size_t k = 0; k < n; ++k) {
-        // Partial Pivoting
-        auto pivot_row = k;
-        auto pivot_idx = pivot_row * n;
-        const auto k_idx = k * n;
-
-        for (auto i = (k + 1) * n, j = k + 1; i < n_squared; i += n, ++j) {
-            if (std::abs(U[i + k]) > std::abs(U[pivot_idx + k])) {
-                pivot_row = j;
-                pivot_idx = pivot_row * n;
-            }
-        }
-
-        if (pivot_row != k) {
-            // Swap rows in L, U (A) and P
-            sign = !sign;
-            std::swap(P[k], P[pivot_row]);
-            std::swap_ranges(&U[k_idx], &U[k_idx + n], &U[pivot_idx]);
-            std::swap_ranges(&L[k_idx], &L[k_idx + n], &L[pivot_idx]);
-        }
-
-        const auto remaining_columns = n - k;
-        const auto remaining_rows = remaining_columns - 1;
-
-        for (size_t i = 0; i < remaining_rows; ++i) {
-            const auto i_idx = (i + k + 1) * n;
-            L[i_idx + k] = U[i_idx + k] / U[k_idx + k];
-        }
-
-        for (size_t i = 0; i < remaining_rows * remaining_columns; ++i) {
-            const auto i_idx = (i / remaining_columns + k + 1) * n;
-            const auto j_idx = i % remaining_columns + k;
-            U[i_idx + j_idx] = U[i_idx + j_idx] - L[i_idx + k] * U[k_idx + j_idx];
-        }
-    }
-}
-
-template <typename T>
-void Inverse::lu_solve_(T* output,
-                        std::vector<T>& L,
-                        std::vector<T>& U,
-                        std::vector<size_t>& P,
-                        size_t b,
-                        size_t n,
-                        size_t n_squared) {
-    std::vector<T> X(n);
-    std::vector<T> Y(n);
-
-    for (size_t column = 0; column < n; ++column) {
-        std::fill(X.begin(), X.end(), T{0});
-        std::fill(Y.begin(), Y.end(), T{0});
-
-        // Forward substitution: Ly = Pb
-        for (size_t i = 0; i < n; ++i) {
-            if (P[i] == column) {
-                Y[i] = T{1};
-            }
-            const auto i_idx = i * n;
-            for (size_t j = 0; j < i; ++j) {
-                Y[i] = Y[i] - L[i_idx + j] * Y[j];
-            }
-        }
-
-        // Backward substitution: Ux = y
-        for (size_t i = 0; i < n; ++i) {
-            const auto i_adj = n - i - 1;
-            const auto i_idx = i_adj * n;
-            X[i_adj] = Y[i_adj];
-            for (size_t j = i_adj + 1; j < n; ++j) {
-                X[i_adj] = X[i_adj] - U[i_idx + j] * X[j];
-            }
-            X[i_adj] = X[i_adj] / U[i_idx + i_adj];
-        }
-
-        const auto batch_column_idx = b * n_squared + column;
-        for (size_t row = 0; row < n; ++row) {
-            output[batch_column_idx + row * n] = X[row];
-        }
-    }
-}
-
-template <typename T>
-void Inverse::to_adjoint_(T* output, std::vector<T>& U, bool sign, size_t b, size_t n, size_t n_squared) {
-    T determinant = sign ? T{1} : T{-1};
-
-    for (size_t i = 0; i < n; ++i) {
-        determinant = determinant * U[i * n + i];
-    }
-
-    const auto batch_idx = b * n_squared;
-    for (size_t i = 0; i < n_squared; ++i) {
-        output[batch_idx + i] = output[batch_idx + i] * determinant;
-    }
 }
 
 }  // namespace node

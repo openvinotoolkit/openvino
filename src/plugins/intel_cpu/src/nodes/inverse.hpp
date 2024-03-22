@@ -48,44 +48,18 @@ private:
     size_t m_batches_count = 0;
 
     // Helper functions
-    template <typename T>
     void inverse();
 
-    template <typename T>
-    void lu_decomposition(const T* data,
-                          std::vector<T>& L,
-                          std::vector<T>& U,
+    void lu_decomposition(const float* data,
+                          std::vector<float>& L,
+                          std::vector<float>& U,
                           std::vector<size_t>& P,
                           bool& sign,
                           size_t b);
 
-    template <typename T>
-    void to_adjoint(T* output, std::vector<T>& U, bool sign, size_t b);
+    void to_adjoint(float* output, std::vector<float>& U, bool sign, size_t b);
 
-    template <typename T>
-    void lu_solve(T* output, std::vector<T>& L, std::vector<T>& U, std::vector<size_t>& P, size_t b);
-
-    template <typename T>
-    void lu_decomposition_(const T* input,
-                           std::vector<T>& L,
-                           std::vector<T>& U,
-                           std::vector<size_t>& P,
-                           bool& sign,
-                           size_t b,
-                           size_t n,
-                           size_t n_squared);
-
-    template <typename T>
-    void lu_solve_(T* output,
-                   std::vector<T>& L,
-                   std::vector<T>& U,
-                   std::vector<size_t>& P,
-                   size_t b,
-                   size_t n,
-                   size_t n_squared);
-
-    template <typename T>
-    void to_adjoint_(T* output, std::vector<T>& U, bool sign, size_t b, size_t n, size_t n_squared);
+    void lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b);
 
     template <typename T>
     struct InverseExecute {
