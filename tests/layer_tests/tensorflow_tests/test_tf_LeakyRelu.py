@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -36,7 +36,7 @@ class TestLeakyRelu(CommonTFLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_leaky_relu_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                              use_new_frontend):
+                              use_legacy_frontend):
         self._test(*self.create_leaky_relu_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend)
+                   use_legacy_frontend=use_legacy_frontend)

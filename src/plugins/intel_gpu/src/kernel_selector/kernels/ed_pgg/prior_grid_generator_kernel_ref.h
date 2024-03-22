@@ -23,14 +23,6 @@ struct experimental_detectron_prior_grid_generator_params : public base_params {
 };
 
 /**
- * ExperimentalDetectronPriorGridGenerator reference kernel optional parameters
- */
-struct experimental_detectron_prior_grid_generator_optional_params : optional_params {
-    experimental_detectron_prior_grid_generator_optional_params()
-        : optional_params{KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR} {}
-};
-
-/**
  * Reference kernel for ExperimentalDetectronPriorGridGenerator
  */
 class ExperimentalDetectronPriorGridGeneratorKernelRef : public KernelBaseOpenCL {
@@ -39,13 +31,13 @@ public:
         : KernelBaseOpenCL{"experimental_detectron_prior_grid_generator_ref"} {}
 
 private:
-    KernelsData GetKernelsData(const Params &params, const optional_params &options) const override;
+    KernelsData GetKernelsData(const Params &params) const override;
 
-    KernelsPriority GetKernelsPriority(const Params &params, const optional_params &options) const override;
+    KernelsPriority GetKernelsPriority(const Params &params) const override;
 
     ParamsKey GetSupportedKey() const override;
 
-    bool Validate(const Params &p, const optional_params &o) const override;
+    bool Validate(const Params &p) const override;
 
     JitConstants GetJitConstants(const experimental_detectron_prior_grid_generator_params &params) const;
 };

@@ -41,10 +41,10 @@ class TestKerasEmbedding(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_emb_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_new_frontend):
+                               use_legacy_frontend):
         self._test(*self.create_keras_emb_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_mask_zero_false = [
         dict(input_names=["x"], input_shapes=[[5, 16]], input_type=tf.float32, input_dim=256,
@@ -61,7 +61,7 @@ class TestKerasEmbedding(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_emb_without_zero_mask_float32(self, params, ie_device, precision, ir_version,
-                                                 temp_dir, use_new_frontend):
+                                                 temp_dir, use_legacy_frontend):
         self._test(*self.create_keras_emb_net(**params, ir_version=ir_version),
                    ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
-                   use_new_frontend=use_new_frontend, **params)
+                   use_legacy_frontend=use_legacy_frontend, **params)

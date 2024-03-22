@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -895,12 +895,25 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 
 
 static bool is_node_for_onednn(fully_connected_node const& node) {
-    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
-        return false;
-
     auto fc_prim = node.get_primitive();
-    // onednn impl doesn't support compressed weights for now
-    if (fc_prim->compressed_weights)
+
+    if (fc_prim->compressed_weights) {
+        auto weights_dt = node.weights().get_output_layout().data_type;
+        if (ov::element::Type(weights_dt).bitwidth() != 8)
+            return false;
+
+        if (fc_prim->decompression_zero_point_scalar.has_value())
+            return false;
+
+        if (!fc_prim->decompression_zero_point.empty()) {
+            auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
+            auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
+            if (weights_dt != decompression_zp_dt)
+                return false;
+        }
+    }
+
+    if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
     auto output_layout = node.get_output_layout();
@@ -1332,8 +1345,16 @@ bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
         return onednn_check_data_types_for_deconvolution(in_dt, wei_dt, out_dt);
     } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         bool is_fc = node.is_type<fully_connected>();
-        auto wei_dt = is_fc ? node.as<fully_connected>().weights().get_output_layout(false).data_type :
-                              node.as<gemm>().get_input_layout(1).data_type;
+        data_types wei_dt;
+        if (is_fc) {
+            const auto& fc_node = node.as<fully_connected>();
+            const auto fc_prim = fc_node.get_primitive();
+            wei_dt = fc_node.weights().get_output_layout(false).data_type;
+            if (fc_prim->compressed_weights && ov::element::Type(wei_dt).bitwidth() == 8)
+                return true;
+        } else {
+            wei_dt = node.as<gemm>().get_input_layout(1).data_type;
+        }
         return onednn_check_data_types_for_fc_gemm(in_dt, wei_dt, out_dt);
     } else if (node.is_type<reorder>()) {
         auto input_fmt = node.get_input_layout(0).format;
@@ -1377,7 +1398,7 @@ bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
         bool no_batch_padding = true;
         auto out_fmt = node.get_output_layout().format;
         if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
-            format::traits(input_layout.format)._order[0] != 0 || format::traits(out_fmt)._order[0] != 0) {
+            input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
             for (size_t i = 0; i < in_padding.lower_size().batch.size(); ++i) {
                 no_batch_padding &= (in_padding.lower_size().batch[i] == 0);
             }
@@ -1566,6 +1587,10 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
 
         auto input_fmt = input_layout.format;
         auto output_fmt = output_layout.format;
+
+        if (output_fmt == format::custom) {
+            return impl_types::onednn;
+        }
 
         preferred_impl = impl_types::onednn;
 
@@ -1836,13 +1861,19 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
-
-        if (!allow_new_shape_infer && node.is_type<fully_connected>()) {
-            auto& fc_node = node.as<fully_connected>();
-            auto input_layout = fc_node.get_input_layout();
-            if (input_layout.format.dimension() > 4) {
-                expected = format::bfyx;
-                node.set_preferred_input_fmt(0, format::bfyx);
+        if (node.is_type<fully_connected>()) {
+            if (allow_new_shape_infer) {
+                // Plain input format is enforced because no available shape agnostic kernel supporting blocked format.
+                // The condition will be relaxed once more shape agnostic kernels for other formats are enabled (e.g., fsv->bfyx FC optimized kernel(i8)))
+                expected = format::get_default_format(node.get_input_layout(0).get_rank());
+                node.set_preferred_input_fmt(0, expected);
+            } else {
+                auto& fc_node = node.as<fully_connected>();
+                auto input_layout = fc_node.get_input_layout();
+                if (input_layout.format.dimension() > 4) {
+                    expected = format::bfyx;
+                    node.set_preferred_input_fmt(0, format::bfyx);
+                }
             }
         }
     } else if (node.is_type<gather>()) {

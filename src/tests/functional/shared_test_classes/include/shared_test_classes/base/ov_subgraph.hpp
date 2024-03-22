@@ -1,14 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "functional_test_utils/summary/op_summary.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/convert_precision.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 
 namespace ov {
 namespace test {

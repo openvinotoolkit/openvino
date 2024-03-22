@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@ public:
     GatherCompressed(const ov::Output<Node> &data,
                      const ov::Output<Node> &indices,
                      const ov::Output<Node> &axis,
+                     const int64_t batch_dims,
                      const ov::Output<Node> &decompression_scale,
                      const ov::Output<Node> &decompression_zero_point,
                      const ov::element::Type output_type = ov::element::undefined);
@@ -27,6 +28,7 @@ public:
     GatherCompressed(const ov::Output<Node> &data,
                      const ov::Output<Node> &indices,
                      const ov::Output<Node> &axis,
+                     const int64_t batch_dims,
                      const ov::Output<Node> &decompression_scale,
                      const ov::element::Type output_type = ov::element::undefined);
 

@@ -18,8 +18,7 @@ project(OpenVINOPython DESCRIPTION "OpenVINO Runtime Python bindings")
 #
 
 if(NOT DEFINED OpenVINO_SOURCE_DIR)
-    find_package(OpenVINODeveloperPackage REQUIRED
-                 PATHS "${InferenceEngineDeveloperPackage_DIR}")
+    find_package(OpenVINODeveloperPackage REQUIRED)
 
     # we assume that OpenVINODeveloperPackage is generated in OpenVINO build tree
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
@@ -287,7 +286,7 @@ macro(ov_define_setup_py_dependencies)
         "${OpenVINO_SOURCE_DIR}/LICENSE"
         "${OpenVINO_SOURCE_DIR}/licensing/onednn_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/licensing/runtime-third-party-programs.txt"
-        "${OpenVINO_SOURCE_DIR}/licensing/tbb_third-party-programs.txt"
+        "${OpenVINO_SOURCE_DIR}/licensing/onetbb_third-party-programs.txt"
         "${OpenVINO_SOURCE_DIR}/docs/dev/pypi_publish/pypi-openvino-rt.md")
 
     if(wheel_pre_release)

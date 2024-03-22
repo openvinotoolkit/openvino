@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import re
@@ -291,7 +291,7 @@ def fe_input_user_data_repack(
     if freeze_placeholder:
         # in case freezing via freeze_placeholder_with_value option, _input_shapes can miss some frozen places
         for input_name in freeze_placeholder:
-            if input_name in _input_names:
+            if input_name in _input_names or input_name + ":0" in _input_names:
                 continue
             node = decode_name_with_port(
                 input_model, input_name, framework, IOType.Input

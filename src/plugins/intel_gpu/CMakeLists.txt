@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -7,6 +7,10 @@ if (NOT ENABLE_INTEL_GPU)
 endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
+
+if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
+endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)

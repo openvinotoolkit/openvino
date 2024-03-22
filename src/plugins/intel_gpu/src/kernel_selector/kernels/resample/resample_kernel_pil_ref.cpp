@@ -344,7 +344,7 @@ JitConstants ResampleKernelPilRef::GetJitConstantsForKernel(KernelId id, const r
     return jit_constants;
 }
 
-KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params, const optional_params &options) const {
+KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     const resample_params& resample_parameters = static_cast<const resample_params&>(params);
     KernelData kd = KernelData::Default<resample_params>(params, GetKernelsNum(resample_parameters));
     kd.internalBufferDataType = Datatype::F32;
@@ -357,7 +357,7 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params, const opt
             (id == eCalcVerticalCoefficients || id == eResampleVertical))
             continue;
         auto& kernel = kd.kernels[i++];
-        const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, options, i);
+        const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, i);
         auto jitConstants = GetJitConstantsForKernel(id, resample_parameters);
         const auto jit = CreateJit(kernelName, jitConstants, entryPoint);
         const auto dispatchData = SetDefaultForKernel(id, resample_parameters);

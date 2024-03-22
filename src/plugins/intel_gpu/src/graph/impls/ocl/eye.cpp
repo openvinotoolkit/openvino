@@ -15,7 +15,7 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
     using parent = typed_primitive_impl_ocl<eye>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::eye_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::eye_params, kernel_selector::eye_optional_params>;
+    using kernel_params_t = kernel_selector::eye_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::eye_impl)
 
@@ -26,11 +26,10 @@ struct eye_impl : typed_primitive_impl_ocl<eye> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<eye>();
         auto params = get_default_params<kernel_selector::eye_params>(impl_param);
-        auto op_params = get_default_optional_params<kernel_selector::eye_optional_params>(impl_param.get_program());
 
         params.diagonal_index = primitive->shift;
 
-        return {params, {}};
+        return params;
     }
 };
 

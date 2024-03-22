@@ -47,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RW_property(ov::hint::num_requests.name()),
         RW_property(ov::hint::enable_cpu_pinning.name()),
         RW_property(ov::hint::scheduling_core_type.name()),
+        RW_property(ov::hint::model_distribution_policy.name()),
         RW_property(ov::hint::enable_hyper_threading.name()),
         RW_property(ov::device::id.name()),
         RW_property(ov::intel_cpu::denormals_optimization.name()),
@@ -107,6 +108,22 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigInferenceNumThreads) {
     ASSERT_EQ(num_threads, value);
 }
 
+TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigModelDistributionPolicy) {
+    ov::Core ie;
+    std::set<ov::hint::ModelDistributionPolicy> value = {};
+    std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
+    ASSERT_EQ(model_policy, value);
+
+    model_policy = {};
+
+    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
+    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
+    ASSERT_EQ(model_policy, value);
+}
+
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
     ov::Core ie;
     int32_t value = 0;
@@ -133,19 +150,17 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ov::Core ie;
-    ov::Affinity value = ov::Affinity::NONE;
 
-#if (defined(__APPLE__) || defined(_WIN32))
-    auto numaNodes = ov::get_available_numa_nodes();
-    auto coreTypes = ov::get_available_cores_types();
+#if defined(__APPLE__)
+    ov::Affinity value = ov::Affinity::CORE;
     auto defaultBindThreadParameter = ov::Affinity::NONE;
-    if (coreTypes.size() > 1) {
-        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
-    } else if (numaNodes.size() > 1) {
-        defaultBindThreadParameter = ov::Affinity::NUMA;
-    }
 #else
+    ov::Affinity value = ov::Affinity::NUMA;
+#    if defined(_WIN32)
+    auto defaultBindThreadParameter = ov::Affinity::NONE;
+#    else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+#    endif
     auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
@@ -154,10 +169,15 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
 
-    const ov::Affinity affinity = defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
+    const ov::Affinity affinity =
+        defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+#if defined(__APPLE__)
+    ASSERT_EQ(ov::Affinity::NUMA, value);
+#else
     ASSERT_EQ(affinity, value);
+#endif
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
@@ -167,12 +187,20 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+#if defined(__APPLE__)
+    ASSERT_EQ(false, value);
+#else
     ASSERT_EQ(true, value);
+#endif
 
     affinity = ov::Affinity::HYBRID_AWARE;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
     ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+#if defined(__APPLE__)
+    ASSERT_EQ(false, value);
+#else
     ASSERT_EQ(true, value);
+#endif
 
     affinity = ov::Affinity::NUMA;
     ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));

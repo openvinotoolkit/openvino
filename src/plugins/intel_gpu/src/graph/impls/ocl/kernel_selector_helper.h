@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,20 +152,6 @@ params_t get_weight_bias_zero_point_default_params(const kernel_impl_params& par
     params_t params;
     set_weight_bias_zero_point_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
     return params;
-}
-
-void set_optional_params(const program& program, kernel_selector::optional_params& params);
-
-template <typename optional_params_t>
-inline optional_params_t get_default_optional_params(const program& program) {
-    optional_params_t params;
-    set_optional_params(program, params);
-    return params;
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
-    return get_default_optional_params<optional_params_t>(program);
 }
 
 inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) {
