@@ -124,13 +124,13 @@ void Inverse::inverse() {
     for (size_t b = 0; b < m_batches_count; ++b) {
         bool sign = true;
 
-        internal::lu_decomposition(data, L, U, P, sign, b, m_side, m_side_squared);
+        lu_decomposition_(data, L, U, P, sign, b, m_side, m_side_squared);
 
-        internal::lu_solve(output, L, U, P, b, m_side, m_side_squared);
+        lu_solve_(output, L, U, P, b, m_side, m_side_squared);
 
-        if (adjoint) {
+        if (m_adjoint) {
             // Multiply by det(A) = det(U)
-            internal::to_adjoint(output, U, sign, b, m_side, m_side_squared);
+            to_adjoint_(output, U, sign, b, m_side, m_side_squared);
         }
     }
 #endif
@@ -323,7 +323,7 @@ void Inverse::lu_solve_(T* output,
             }
             const auto i_idx = i * n;
             for (size_t j = 0; j < i; ++j) {
-                Y[i] -= L[i_idx + j] * Y[j];
+                Y[i] = Y[i] - L[i_idx + j] * Y[j];
             }
         }
 
@@ -350,12 +350,12 @@ void Inverse::to_adjoint_(T* output, std::vector<T>& U, bool sign, size_t b, siz
     T determinant = sign ? T{1} : T{-1};
 
     for (size_t i = 0; i < n; ++i) {
-        determinant *= U[i * n + i];
+        determinant = determinant * U[i * n + i];
     }
 
     const auto batch_idx = b * n_squared;
     for (size_t i = 0; i < n_squared; ++i) {
-        output[batch_idx + i] *= determinant;
+        output[batch_idx + i] = output[batch_idx + i] * determinant;
     }
 }
 
