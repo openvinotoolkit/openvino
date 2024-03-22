@@ -16,6 +16,8 @@
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {
@@ -66,6 +68,8 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
     passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertMaxPool14ToMaxPool8>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertAvgPool14ToAvgPool1>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Register any other transformations
