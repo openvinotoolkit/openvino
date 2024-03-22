@@ -146,9 +146,10 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op)) {
+        // if it's not MaxPoolV1
+        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
-                errorMessage = "MaxPool from opset8 is supported only with one output";
+                errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
         } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op)) {
@@ -187,9 +188,10 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
     }
 
     if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+        isNotMaxPool1 = true;
         get_attributes(poolingAttrs.dilation, maxPoolOp_v14->get_dilations());
     } else if (auto maxPoolOp_v8 = ov::as_type_ptr<const ov::op::v8::MaxPool>(op)) {
-        isMaxPool8 = true;
+        isNotMaxPool1 = true;
         get_attributes(poolingAttrs.dilation, maxPoolOp_v8->get_dilations());
     } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
         poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
@@ -647,7 +649,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         }
 
         // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-        if (isMaxPool8) {
+        if (isNotMaxPool1) {
             const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
             const auto outputPrecision = outConfs.front().getMemDesc()->getPrecision();
             auto desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(1));
