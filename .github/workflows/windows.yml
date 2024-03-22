@@ -123,8 +123,9 @@ jobs:
       - name: Download and install ccache
         run: |
           Invoke-WebRequest -Uri 'https://github.com/ccache/ccache/releases/download/v4.9.1/ccache-4.9.1-windows-x86_64.zip' -OutFile 'ccache.zip'
-          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\ccache'
-          $env:Path += ";C:\ccache"
+          Expand-Archive -Path 'ccache.zip' -DestinationPath 'C:\temp\ccache'
+          Move-Item -Path 'C:\temp\ccache\*' -Destination 'C:\ccache'
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\ccache"
           ccache --version
 
       - name: Install build dependencies
