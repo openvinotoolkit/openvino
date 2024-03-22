@@ -38,13 +38,13 @@ TEST(TransformationTests, ApplySymbolEquivalence_Concat) {
     const auto& pshape_3 = concat->get_output_partial_shape(0);
 
     for (size_t i = 0; i < 3; ++i) {
-        EXPECT_TRUE(Symbol::are_equal(pshape_1[i].get_symbol(), pshape_2[i].get_symbol()));
-        EXPECT_TRUE(Symbol::are_equal(pshape_2[i].get_symbol(), pshape_3[i].get_symbol()));
-        EXPECT_TRUE(Symbol::are_equal(pshape_1[i].get_symbol(), pshape_3[i].get_symbol()));
+        EXPECT_TRUE(symbol::are_equal(pshape_1[i].get_symbol(), pshape_2[i].get_symbol()));
+        EXPECT_TRUE(symbol::are_equal(pshape_2[i].get_symbol(), pshape_3[i].get_symbol()));
+        EXPECT_TRUE(symbol::are_equal(pshape_1[i].get_symbol(), pshape_3[i].get_symbol()));
     }
-    EXPECT_FALSE(Symbol::are_equal(pshape_1[3].get_symbol(), pshape_2[3].get_symbol()));
-    EXPECT_FALSE(Symbol::are_equal(pshape_2[3].get_symbol(), pshape_3[3].get_symbol()));
-    EXPECT_FALSE(Symbol::are_equal(pshape_1[3].get_symbol(), pshape_3[3].get_symbol()));
+    EXPECT_FALSE(symbol::are_equal(pshape_1[3].get_symbol(), pshape_2[3].get_symbol()));
+    EXPECT_FALSE(symbol::are_equal(pshape_2[3].get_symbol(), pshape_3[3].get_symbol()));
+    EXPECT_FALSE(symbol::are_equal(pshape_1[3].get_symbol(), pshape_3[3].get_symbol()));
 }
 
 TEST_F(TransformationTestsF, ApplySymbolEquivalence_Concat_Values) {

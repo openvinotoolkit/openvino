@@ -83,7 +83,7 @@ struct Product<T, typename std::enable_if<std::is_same<T, Dimension>::value>::ty
         // dimensions compare to remove same from product calculation
         auto dim_full_eq = [](const T& lhs, const T& rhs) -> bool {
             bool symbols_equal_or_both_null =
-                Symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()) || (!lhs.has_symbol() && !rhs.has_symbol());
+                ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()) || (!lhs.has_symbol() && !rhs.has_symbol());
             return (lhs == rhs) && symbols_equal_or_both_null && (lhs.is_static() || lhs.has_symbol());
         };
 

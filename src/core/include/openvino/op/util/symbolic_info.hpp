@@ -12,32 +12,26 @@
 
 namespace ov {
 
-OPENVINO_API void set_up_symbolic_info(const ov::Output<ov::Node>& output);
-
-OPENVINO_API void populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor);
+OPENVINO_API void skip_invalidation(const ov::Output<ov::Node>& output);
 
 OPENVINO_API bool skip_invalidation(const ov::descriptor::Tensor& tensor);
 
-OPENVINO_API void remove_symbolic_info(const std::shared_ptr<ov::Model>& model, bool outermost_model = true);
+OPENVINO_API void remove_skip_invalidation_rti(const std::shared_ptr<ov::Model>& model, bool outermost_model = true);
+
+OPENVINO_API void populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor);
 
 /**
  * @ingroup ov_runtime_attr_api
- * @brief SymbolicInfo class represents runtime info attribute that instructs ov::Output objects to skip invalidation of
- * partial values and symbols during partial value propagation.
+ * @brief SkipInvalidation class represents runtime info attribute that instructs ov::Output objects to skip
+ * invalidation of partial values and symbols during partial value propagation.
  */
-class OPENVINO_API SymbolicInfo : public RuntimeAttribute {
+class OPENVINO_API SkipInvalidation : public RuntimeAttribute {
 public:
-    OPENVINO_RTTI("SymbolicInfo", "0");
-    explicit SymbolicInfo(bool skip_invalidation) : m_skip_invalidation{skip_invalidation} {};
+    OPENVINO_RTTI("SkipInvalidation", "0");
+    SkipInvalidation() = default;
     bool is_copyable() const override {
         return false;
     }
-    bool get_skip_invalidation() const {
-        return m_skip_invalidation;
-    }
-
-private:
-    bool m_skip_invalidation;
 };
 
 }  // namespace ov

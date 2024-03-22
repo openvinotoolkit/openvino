@@ -194,7 +194,7 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
                 continue;
             for (const auto& dim : shape)
                 if (auto symbol = dim.get_symbol()) {
-                    const auto& root = symbol->root();
+                    const auto& root = ov::symbol::ancestor_of(symbol);
                     if (symbol_to_number.count(root))
                         continue;
                     symbol_to_number[root] = n++;
@@ -202,7 +202,7 @@ static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
             const auto& value_symbols = output.get_tensor().get_value_symbol();
             for (const auto& value_symbol : value_symbols)
                 if (value_symbol) {
-                    const auto& root = value_symbol->root();
+                    const auto& root = ov::symbol::ancestor_of(value_symbol);
                     if (symbol_to_number.count(root))
                         continue;
                     symbol_to_number[root] = n++;
@@ -344,7 +344,7 @@ static std::string pretty_partial_shape(
                 str << ",";
             }
             if (const auto& symbol = d.get_symbol()) {
-                const auto& root = symbol->root();
+                const auto& root = ov::symbol::ancestor_of(symbol);
                 if (symbol_map.count(root))
                     str << "<" << symbol_map.at(root) << ">";
                 else
@@ -478,7 +478,7 @@ static std::string pretty_symbol_value(const ov::TensorSymbol& symbols,
     std::vector<size_t> mapped_symbols;
     for (const auto& symbol : symbols) {
         if (symbol) {
-            const auto& root = symbol->root();
+            const auto& root = ov::symbol::ancestor_of(symbol);
             if (symbol_map.count(root)) {
                 mapped_symbols.push_back(symbol_map.at(root));
                 continue;

@@ -586,7 +586,7 @@ void symbols_to_integer_and_key(const TensorSymbolVector& symbols,
         for (const auto& symbol : container) {
             if (symbol == nullptr)
                 continue;
-            const auto& root = symbol->root();
+            const auto& root = symbol::ancestor_of(symbol);
             if (key_for_encoding.find(root) == key_for_encoding.end()) {
                 x += 1;
                 key_for_encoding[root] = x;
@@ -599,7 +599,7 @@ void symbols_to_integer_and_key(const TensorSymbolVector& symbols,
         integer_representations[i].resize(symbols[i].size());
         for (size_t j = 0; j < symbols[i].size(); ++j) {
             const auto& symbol = symbols[i][j];
-            const auto& root = (symbol ? symbol->root() : nullptr);
+            const auto& root = (symbol ? symbol::ancestor_of(symbol) : nullptr);
             integer_representations[i][j] = key_for_encoding[root];
         }
     }

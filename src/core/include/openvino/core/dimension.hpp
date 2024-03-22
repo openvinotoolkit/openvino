@@ -14,11 +14,6 @@
 #include "openvino/core/symbol.hpp"
 
 namespace ov {
-/// \brief Alias for dimension label type.
-using label_t = uint32_t;
-/// \brief Special label value indicate no label set.
-constexpr label_t no_label = 0;
-
 /// \brief Class representing a dimension, which may be dynamic (undetermined until runtime),
 ///        in a shape or shape-like object.
 ///
@@ -186,8 +181,6 @@ public:
 
     /// \brief String representation of Dimension
     std::string to_string() const;
-
-    /// Methods of ov::Dimension class
 
     /// \brief Indicates if meaningful symbol was set to the Dimension
     bool has_symbol() const;

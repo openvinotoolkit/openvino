@@ -627,7 +627,7 @@ TYPED_TEST_P(BitwiseOperator, symbols_different_interval_batch_without_one_equiv
     PartialShape expected_shape = {{2, 4}, 3, 224, 224};
     TensorSymbol expected_symbols{A, nullptr, nullptr, nullptr};
 
-    EXPECT_TRUE(Symbol::are_equal(dim_0_lhs.get_symbol(), dim_0_rhs.get_symbol()));
+    EXPECT_TRUE(symbol::are_equal(dim_0_lhs.get_symbol(), dim_0_rhs.get_symbol()));
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_symbols(out_shape), expected_symbols);

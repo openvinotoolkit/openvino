@@ -33,7 +33,7 @@ namespace {
 std::shared_ptr<ov::Symbol> merge_symbols(std::shared_ptr<ov::Symbol> lhs,
                                           std::shared_ptr<ov::Symbol> rhs,
                                           bool merge_unequal = true) {
-    if (ov::Symbol::are_equal(lhs, rhs) || rhs == nullptr)
+    if (ov::symbol::are_equal(lhs, rhs) || rhs == nullptr)
         return lhs;
     else if (merge_unequal || lhs == nullptr)
         return rhs;
@@ -196,9 +196,7 @@ bool Dimension::merge(Dimension& dst, const Dimension& d1, const Dimension& d2) 
     } else {
         dst = Dimension(result_interval);
     }
-
-    if (d1.m_symbol && d2.m_symbol)
-        d1.m_symbol->set_equal(d2.m_symbol);
+    ov::symbol::set_equal(d1.m_symbol, d2.m_symbol);
     dst.m_symbol = merge_symbols(d1.m_symbol, d2.m_symbol);
     return true;
 }

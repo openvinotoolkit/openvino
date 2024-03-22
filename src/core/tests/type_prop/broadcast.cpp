@@ -47,7 +47,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_dynamic_value_propagation) {
     auto bc = make_shared<TypeParam>(param, target_shape);
     ASSERT_EQ(bc->get_element_type(), ov::element::f32);
     ASSERT_EQ(bc->get_shape(), (ov::Shape{3, 5}));
-    ASSERT_TRUE(ov::Symbol::are_equal(bc->get_output_partial_shape(0)[0].get_symbol(), A));
+    ASSERT_TRUE(ov::symbol::are_equal(bc->get_output_partial_shape(0)[0].get_symbol(), A));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy) {

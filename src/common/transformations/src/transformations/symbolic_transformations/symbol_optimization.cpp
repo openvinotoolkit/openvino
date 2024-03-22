@@ -20,7 +20,7 @@
 namespace {
 void update_symbol(std::shared_ptr<ov::Symbol>& symbol) {
     if (symbol != nullptr)
-        symbol = symbol->root();
+        symbol = ov::symbol::ancestor_of(symbol);
 }
 
 void apply_table_of_equivalence_on_model(const std::shared_ptr<ov::Model>& m) {
@@ -72,7 +72,7 @@ int64_t get_idx_of_symbol_in_source(const ov::Output<ov::Node>& source, const st
         return idx;
     for (int64_t i = 0; i < rank.get_length(); ++i) {
         auto s = pshape[i].get_symbol();
-        if (s != nullptr && s->is_equal_to(symbol)) {
+        if (ov::symbol::are_equal(s, symbol)) {
             idx = i;
             break;
         }

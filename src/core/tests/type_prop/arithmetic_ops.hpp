@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_test_utils/type_prop.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 using namespace ov;
@@ -696,9 +697,9 @@ TYPED_TEST_P(ArithmeticOperator, symbols_different_interval_batch_without_one_eq
     ov::PartialShape expected_shape = {ov::Dimension(2, 4), 3, 224, 224};
 
     EXPECT_EQ(out_shape, expected_shape);
-    EXPECT_TRUE(ov::Symbol::are_equal(out_shape[0].get_symbol(), A));
-    EXPECT_TRUE(ov::Symbol::are_equal(out_shape[0].get_symbol(), B));
-    EXPECT_TRUE(ov::Symbol::are_equal(A, B));
+    EXPECT_TRUE(ov::symbol::are_equal(out_shape[0].get_symbol(), A));
+    EXPECT_TRUE(ov::symbol::are_equal(out_shape[0].get_symbol(), B));
+    EXPECT_TRUE(ov::symbol::are_equal(A, B));
 }
 
 TYPED_TEST_P(ArithmeticOperator, symbols_different_fully_dynamic_batch_broadcast_numpy) {

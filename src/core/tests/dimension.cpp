@@ -5,6 +5,7 @@
 #include "common_test_utils/type_prop.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/symbol.hpp"
 
 using namespace std;
 using namespace ov;
@@ -135,19 +136,19 @@ TEST(dimension, dimension_equality) {
             if (&lhs == &rhs)
                 continue;
             EXPECT_NE(lhs.get_symbol(), rhs.get_symbol());
-            EXPECT_FALSE(Symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
+            EXPECT_FALSE(ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
         }
     }
 
-    Symbol::set_equal(dimensions[0].get_symbol(), dimensions[1].get_symbol());  // A == B
-    Symbol::set_equal(dimensions[3].get_symbol(), dimensions[4].get_symbol());  // D == E
-    Symbol::set_equal(dimensions[2].get_symbol(), dimensions[3].get_symbol());  // C == D
-    Symbol::set_equal(dimensions[1].get_symbol(), dimensions[2].get_symbol());  // B == C
+    ov::symbol::set_equal(dimensions[0].get_symbol(), dimensions[1].get_symbol());  // A == B
+    ov::symbol::set_equal(dimensions[3].get_symbol(), dimensions[4].get_symbol());  // D == E
+    ov::symbol::set_equal(dimensions[2].get_symbol(), dimensions[3].get_symbol());  // C == D
+    ov::symbol::set_equal(dimensions[1].get_symbol(), dimensions[2].get_symbol());  // B == C
 
     // expected to see A == B == C == D == E
     for (const auto& lhs : dimensions)
         for (const auto& rhs : dimensions)
-            EXPECT_TRUE(Symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
+            EXPECT_TRUE(ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol()));
 
     // clear up all the tracking info
     for (auto& dimension : dimensions)

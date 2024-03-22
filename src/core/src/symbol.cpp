@@ -4,59 +4,32 @@
 
 #include "openvino/core/symbol.hpp"
 
-#include <algorithm>
-
-ov::Symbol::Symbol(ov::Symbol& s) : Symbol() {
-    parent = s.get_parent();
-}
-
-void ov::Symbol::set_equal(const std::shared_ptr<Symbol>& other) {
-    auto x = root(), y = other->root();
-    if (x == y)
-        return;  // already set as equal
-    if (x->rank() < y->rank())
-        std::swap(x, y);
-    y->parent = x;
-}
-
-bool ov::Symbol::is_equal_to(const std::shared_ptr<Symbol>& other) {
-    return root() == other->root();
-}
-
-size_t ov::Symbol::rank() {
-    size_t rank = 0;
-    std::shared_ptr<ov::Symbol> x = shared_from_this();
-    while (x->get_parent().get() != x.get()) {
-        x = x->get_parent();
-        ++rank;
+std::shared_ptr<ov::Symbol> ov::symbol::ancestor_of(const std::shared_ptr<Symbol>& symbol) {
+    auto x = symbol;
+    while (x->parent().get() != x.get()) {
+        x->m_parent = x->parent()->parent();
+        x = x->parent();
     }
-    return rank;
+    return x;
 }
 
-std::shared_ptr<ov::Symbol> ov::Symbol::get_parent() {
-    if (!parent)
-        parent = shared_from_this();
-    return parent;
-}
-
-std::shared_ptr<ov::Symbol> ov::Symbol::root() {
-    ov::Symbol* x = this;
-    while (x->get_parent().get() != x) {
-        x->parent = x->get_parent()->get_parent();
-        x = x->get_parent().get();
-    }
-    return x->shared_from_this();
-}
-
-bool ov::Symbol::are_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
+bool ov::symbol::are_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
     if (lhs == nullptr || rhs == nullptr)
         return false;
-    return lhs->is_equal_to(rhs);
+    return ov::symbol::ancestor_of(lhs).get() == ov::symbol::ancestor_of(rhs).get();
 }
 
-bool ov::Symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
+void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared_ptr<Symbol>& rhs) {
     if (lhs == nullptr || rhs == nullptr)
-        return false;
-    lhs->set_equal(rhs);
-    return true;
+        return;
+    auto lhs_root = ov::symbol::ancestor_of(lhs), rhs_root = ov::symbol::ancestor_of(rhs);
+    if (lhs_root.get() == rhs_root.get())
+        return;  // already are equal
+    lhs->m_parent = rhs;
+}
+
+std::shared_ptr<ov::Symbol> ov::Symbol::parent() {
+    if (!m_parent)
+        m_parent = shared_from_this();
+    return m_parent;
 }

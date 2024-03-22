@@ -8,19 +8,16 @@
 
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-void ov::set_up_symbolic_info(const ov::Output<ov::Node>& output) {
-    auto& rt_info = output.get_tensor().get_rt_info();
-    rt_info[ov::SymbolicInfo::get_type_info_static()] = ov::SymbolicInfo(true);
+void ov::skip_invalidation(const ov::Output<ov::Node>& output) {
+    output.get_tensor().get_rt_info()[ov::SkipInvalidation::get_type_info_static()] = nullptr;
 }
 
 bool ov::skip_invalidation(const ov::descriptor::Tensor& tensor) {
-    const auto& rt_info = tensor.get_rt_info();
-    const auto& type = ov::SymbolicInfo::get_type_info_static();
-    return rt_info.count(type) && rt_info.at(type).as<ov::SymbolicInfo>().get_skip_invalidation();
+    return tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static());
 }
 
 void ov::populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor) {
-    if (!tensor.get_rt_info().count(ov::SymbolicInfo::get_type_info_static()))
+    if (!tensor.get_rt_info().count(ov::SkipInvalidation::get_type_info_static()))
         return;
     auto symbol_values = tensor.get_value_symbol();
     if (symbol_values.empty()) {
@@ -35,16 +32,13 @@ void ov::populate_tensor_with_missing_symbols(ov::descriptor::Tensor& tensor) {
     tensor.set_value_symbol(symbol_values);
 }
 
-void ov::remove_symbolic_info(const std::shared_ptr<ov::Model>& model, bool outermost_model) {
-    const auto& type = ov::SymbolicInfo::get_type_info_static();
-    auto& model_rt_info = model->get_rt_info();
-    if (model_rt_info.count(type))
-        model_rt_info.erase(type);
+void ov::remove_skip_invalidation_rti(const std::shared_ptr<ov::Model>& model, bool outermost_model) {
+    const auto& type = ov::SkipInvalidation::get_type_info_static();
     for (const auto& op : model->get_ops()) {
         if (auto multi_subgraph_op = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op))
             for (const auto& sub_graph : multi_subgraph_op->get_functions())
                 if (sub_graph)
-                    remove_symbolic_info(sub_graph, false);
+                    remove_skip_invalidation_rti(sub_graph, false);
         for (auto& output : op->outputs()) {
             auto& rt_info = output.get_tensor().get_rt_info();
             if (rt_info.count(type))

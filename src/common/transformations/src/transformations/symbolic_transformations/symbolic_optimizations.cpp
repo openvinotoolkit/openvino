@@ -95,7 +95,7 @@ bool ov::pass::SymbolicPropagation::run_on_model(const std::shared_ptr<ov::Model
         // since we disable invalidation with the following two lines, we have to invalidate manually here
         op->invalidate_values();
         for (auto& output : op->outputs())
-            ov::set_up_symbolic_info(output);
+            ov::skip_invalidation(output);
         op->revalidate_and_infer_types();
         // Recursively apply transformation for sub-graph based operations
         ov::op::util::process_subgraph(*this, op);
@@ -197,6 +197,6 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
     m_manager->run_passes(m);
-    ov::remove_symbolic_info(m);
+    ov::remove_skip_invalidation_rti(m);
     return true;
 }

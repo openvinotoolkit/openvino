@@ -27,7 +27,7 @@ bool ov::symbol::util::are_unique_and_equal_symbols(const ov::TensorSymbol& lhs,
     if (rhs.size() != lhs.size() || rhs.empty())
         return false;
     for (size_t i = 0; i < lhs.size(); ++i)
-        if (lhs[i] == nullptr || rhs[i] == nullptr || !lhs[i]->is_equal_to(rhs[i]))
+        if (!symbol::are_equal(lhs[i], rhs[i]))
             return false;
     return true;
 }
@@ -35,9 +35,5 @@ bool ov::symbol::util::are_unique_and_equal_symbols(const ov::TensorSymbol& lhs,
 bool ov::symbol::util::dims_are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     if (lhs.is_static() && lhs == rhs)
         return true;
-    auto lhs_symbol = lhs.get_symbol();
-    auto rhs_symbol = rhs.get_symbol();
-    if (lhs_symbol == nullptr || rhs_symbol == nullptr)
-        return false;
-    return lhs_symbol->is_equal_to(rhs_symbol);
+    return symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
 }

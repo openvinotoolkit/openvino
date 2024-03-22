@@ -99,17 +99,17 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
             }
             // save symbol of cropped_shape and check it against first dimension of tokens shape
             cropped_shape_symbol = pattern_map.at(cropped_shape_m).get_tensor().get_value_symbol()[0];
-            if (!Symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol))
+            if (!symbol::are_equal(tokens_shape[0].get_symbol(), cropped_shape_symbol))
                 return false;
         }
 
         auto cropped_shape_symbol_match = [cropped_shape_symbol](ov::Output<ov::Node> output) -> bool {
             const auto& symbols = output.get_tensor().get_value_symbol();
-            return ov::pass::pattern::rank_equals(1)(output) && !symbols.empty() && Symbol::are_equal(symbols[0], cropped_shape_symbol);
+            return ov::pass::pattern::rank_equals(1)(output) && !symbols.empty() && ov::symbol::are_equal(symbols[0], cropped_shape_symbol);
         };
 
         auto tokens_symbol_match = [tokens_match, cropped_shape_symbol](ov::Output<ov::Node> output) -> bool {
-            return tokens_match(output) && Symbol::are_equal(output.get_partial_shape()[0].get_symbol(), cropped_shape_symbol);
+            return tokens_match(output) && symbol::are_equal(output.get_partial_shape()[0].get_symbol(), cropped_shape_symbol);
         };
 
         ov::Output<ov::Node> indices;
