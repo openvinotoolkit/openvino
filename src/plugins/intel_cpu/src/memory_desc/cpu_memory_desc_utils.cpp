@@ -27,7 +27,7 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
-    } else if (MemoryDescType::Undef == desc->getType()) {
+    } else if (MemoryDescType::Empty == desc->getType()) {
         return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
     } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
@@ -106,7 +106,7 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
     return std::make_shared<EmptyMemoryDesc>();
 }
 
-std::shared_ptr<Memory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
     return std::make_shared<Memory>(context->getEngine(), makeEmptyDesc(), nullptr);
 }
 

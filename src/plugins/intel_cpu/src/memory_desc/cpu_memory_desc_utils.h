@@ -22,7 +22,6 @@ class CpuBlockedMemoryDesc;
 class EmptyMemoryDesc;
 class IMemory;
 class Memory;
-// class GraphContext;
 
 class MemoryDescUtils {
 public:
@@ -72,7 +71,7 @@ public:
     * @return empty memory descriptor
     */
     static std::shared_ptr<MemoryDesc> makeEmptyDesc();
-    static std::shared_ptr<Memory> makeEmptyMemory(const GraphContext::CPtr context);
+    static std::shared_ptr<IMemory> makeEmptyMemory(const GraphContext::CPtr context);
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim
