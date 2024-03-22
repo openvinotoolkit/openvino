@@ -216,19 +216,19 @@ void roi_align(const T* feature_maps,
                         T pre_sample_x = x1 + static_cast<T>(x_bin_ind) * bin_width +
                                          sample_distance_x * (static_cast<T>(x_sample_ind) + static_cast<T>(0.5f));
 
-                        if (pre_sample_x < -1.0 || pre_sample_x > static_cast<T>(feature_map_width) ||
-                            pre_sample_y < -1.0 || pre_sample_y > static_cast<T>(feature_map_height)) {
-                            // For this sample we save 4x point (0,0) with weight 0
-                            pooling_points.insert(pooling_points.end(), 4, {0, 0});
-                            pooling_weights.insert(pooling_weights.end(), 4, T{0});
-                            continue;
-                        }
-
                         // Transform pre_sample_x and pre_sample_ y
                         auto transformed = roi_policy.Transform({pre_sample_x, pre_sample_y});
 
                         T sample_x = transformed.x;
                         T sample_y = transformed.y;
+
+                        if (sample_x < -1.0 || sample_x > static_cast<T>(feature_map_width) ||
+                            sample_y < -1.0 || sample_y > static_cast<T>(feature_map_height)) {
+                            // For this sample we save 4x point (0,0) with weight 0
+                            pooling_points.insert(pooling_points.end(), 4, {0, 0});
+                            pooling_weights.insert(pooling_weights.end(), 4, T{0});
+                            continue;
+                        }
 
                         sample_x = std::max(sample_x, T{0});
                         sample_y = std::max(sample_y, T{0});
