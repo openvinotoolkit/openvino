@@ -14,7 +14,7 @@ from openvino.runtime.opset4.ops import asinh
 from openvino.runtime.opset6.ops import assign
 from openvino.runtime.opset1.ops import atan
 from openvino.runtime.opset4.ops import atanh
-from openvino.runtime.opset1.ops import avg_pool
+from openvino.runtime.opset14.ops import avg_pool
 from openvino.runtime.opset5.ops import batch_norm_inference
 from openvino.runtime.opset2.ops import batch_to_space
 from openvino.runtime.opset1.ops import binary_convolution
@@ -103,7 +103,7 @@ from openvino.runtime.opset4.ops import lstm_cell
 from openvino.runtime.opset5.ops import lstm_sequence
 from openvino.runtime.opset1.ops import matmul
 from openvino.runtime.opset8.ops import matrix_nms
-from openvino.runtime.opset8.ops import max_pool
+from openvino.runtime.opset14.ops import max_pool
 from openvino.runtime.opset1.ops import maximum
 from openvino.runtime.opset1.ops import minimum
 from openvino.runtime.opset4.ops import mish
