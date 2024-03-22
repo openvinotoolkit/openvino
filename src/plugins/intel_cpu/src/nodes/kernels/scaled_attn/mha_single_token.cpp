@@ -18,6 +18,7 @@
 #include "mha_single_token.hpp"
 #include "common.hpp"
 #include "softmax_kernel.hpp"
+#include "utils/profiler.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -624,6 +625,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                              const ov::intel_cpu::PlainTensor& past_k_scale_zp,
                              const ov::intel_cpu::PlainTensor& past_v_scale_zp,
                              ov::intel_cpu::PlainTensor& head_sum) {
+    PROFILE(_attn, "t1_qk");
     ov::intel_cpu::PlainTensor causal_mask;
     bool select_nfltmax_at_0 = false;
     auto B = query.size(0);
@@ -728,6 +730,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         });
     }
 
+    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_softmax");
     if (is_pagedattn) {
         parallel_for3d_dynamic(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             auto cur_kv_len = static_cast<size_t>(context_lens.ptr<int32_t>()[b]);
@@ -776,6 +779,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         });
     }
 
+    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_kv");
     // attn_w * V
     buf_attn_score.resize<float>({static_cast<size_t>(nthr), B, q_len, H, S});
     // buf_attn_w {B, H, q_len, kv_len}
@@ -850,6 +854,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         });
     }
 
+    _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
     parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto* temp = buf_attn_score.ptr<float>(0, b, pq, h);
         size_t temp_stride = buf_attn_score.stride(0);
