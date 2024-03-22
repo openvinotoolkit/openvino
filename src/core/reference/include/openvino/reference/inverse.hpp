@@ -145,6 +145,29 @@ void inverse(const T* input, T* output, const Shape& shape, const bool adjoint) 
     const auto n_squared = n * n;
     size_t batch_size = 1;
 
+    std::cout << "In Ref:\n";
+    if (shape.size() == 3) {
+        for (size_t i = 0; i < shape[0]; ++i) {
+            for (size_t x = 0; x < shape[1]; ++x) {
+                for (size_t y = 0; y < shape[2]; ++y) {
+                    const auto val = input[i * shape[0] + x * shape[1] + y];
+                    std::cout << val << ' ';
+                }
+                std::cout << '\n';
+            }
+            std::cout << '\n';
+        }
+    } else if (shape.size() == 2) {
+        for (size_t x = 0; x < shape[0]; ++x) {
+            for (size_t y = 0; y < shape[1]; ++y) {
+                const auto val = input[x * shape[0] + y];
+                std::cout << val << ' ';
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+    }
+
     for (size_t i = 0; i < shape.size() - 2; ++i) {
         batch_size = batch_size * shape[i];
     }

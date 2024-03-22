@@ -103,6 +103,29 @@ void Inverse::inverse() {
     const auto* data = getSrcDataAtPortAs<const T>(INPUT_PORT);
     auto* output = getDstDataAtPortAs<T>(OUTPUT_PORT);
 
+    std::cout << "In CPU:\n";
+    if (m_batches_count != 1) {
+        for (size_t i = 0; i < m_batches_count; ++i) {
+            for (size_t x = 0; x < m_side; ++x) {
+                for (size_t y = 0; y < m_side; ++y) {
+                    const auto val = data[i * m_batches_count + x * m_side + y];
+                    std::cout << val << ' ';
+                }
+                std::cout << '\n';
+            }
+            std::cout << '\n';
+        }
+    } else {
+        for (size_t x = 0; x < m_side; ++x) {
+            for (size_t y = 0; y < m_side; ++y) {
+                const auto val = data[x * m_side + y];
+                std::cout << val << ' ';
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+    }
+
     std::vector<T> L(m_side_squared);
     std::vector<T> U(m_side_squared);
     std::vector<size_t> P(m_side);
