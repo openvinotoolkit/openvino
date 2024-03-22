@@ -21,7 +21,6 @@ OutputVector translate_gelu_op(const NodeContext& node) {
     // update these lines for best translation
     auto approximate = node.get_attribute<GeluApproximationMode>("approximate");
     auto res = make_shared<v7::Gelu>(x, approximate);
-    //
 
     set_node_name(node.get_name(), res);
     return res->outputs();
