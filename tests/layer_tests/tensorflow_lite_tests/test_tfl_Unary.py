@@ -19,6 +19,8 @@ test_ops = [
     {'op_name': 'ELU', 'op_func': tf.nn.elu},
     {'op_name': 'EXP', 'op_func': tf.math.exp, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'FLOOR', 'op_func': tf.math.floor},
+    {'op_name': '', 'op_func': partial(tf.nn.gelu, approximate=True), 'output_name_suffix' : '/Tanh'},
+#    {'op_name': '', 'op_func': partial(tf.nn.gelu, approximate=False), 'output_name_suffix' : '/Erf'},
     {'op_name': 'LEAKY_RELU', 'op_func': partial(tf.nn.leaky_relu, alpha=-0.5)},
     {'op_name': 'LOG', 'op_func': tf.math.log, 'kwargs_to_prepare_input': 'positive'},
     {'op_name': 'LOG_SOFTMAX', 'op_func': partial(tf.nn.log_softmax, axis=-1)},
@@ -58,12 +60,15 @@ class TestTFLiteUnaryLayerTest(TFLiteLayerTest):
     def make_model(self, params):
         assert len(set(params.keys()).intersection({'op_name', 'op_func', 'shape'})) == 3, \
             'Unexpected parameters for test: ' + ','.join(params.keys())
-        self.allowed_ops = [params['op_name']]
+        if params['op_name'] != '':
+            self.allowed_ops = [params['op_name']]
         tf.compat.v1.reset_default_graph()
         with tf.compat.v1.Session() as sess:
             place_holder = tf.compat.v1.placeholder(params.get('dtype', tf.float32), params['shape'],
                                                     name=self.inputs[0])
             params['op_func'](place_holder, name=self.outputs[0])
+            if params['op_name'] == '':
+                self.outputs[0] = self.outputs[0] + params['output_name_suffix']
             net = sess.graph_def
         return net
 
