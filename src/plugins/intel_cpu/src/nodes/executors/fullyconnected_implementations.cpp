@@ -50,9 +50,9 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_bf16, _f16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
-    // int8 inner_product does not support f16 output
-    {{_u8 | _i8, _i8, _any, _f16},                            pt(bypass(), bypass(), bypass(), just<f32>())},
-    {{_u8 | _i8, _i8, _any, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(), bypass())},
+    // int8 inner_product does not support f16 output and bias
+    {{_u8 | _i8, _i8, _any, _f16},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
+    {{_u8 | _i8, _i8, _any, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), use<3>(), bypass())},
     // compresses int weights (@todo more strict requrements for output precision?)
     {{_f32 | _bf16, _u8 | _nf4 | _u4 | _i4, _any, _any},      pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
