@@ -33,19 +33,6 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 }
             }
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
-        } else if (ov::hetero::parallel_policy == key) {
-            auto policy = value.as<ov::hetero::ParallelPolicy>();
-            if ((policy != ov::hetero::ParallelPolicy::AUTO_SPLIT) &&
-                (policy != ov::hetero::ParallelPolicy::MEMORY_FIRST) &&
-                (policy != ov::hetero::ParallelPolicy::MEMORY_RATIO)) {
-                OPENVINO_THROW(
-                    "Wrong value ",
-                    value.as<std::string>(),
-                    "for property key ",
-                    ov::hetero::parallel_policy.name(),
-                    ". HETERO plugin only support ov::hetero::ParallelPolicy::AUTO_SPLIT/MEMORY_FIRST/MEMORY_RATIO");
-            }
-            parallel_policy = policy;
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -59,8 +46,6 @@ ov::Any Configuration::get(const std::string& name) const {
         return {device_priorities};
     } else if (name == ov::hint::model_distribution_policy) {
         return {modelDistributionPolicy};
-    } else if (name == ov::hetero::parallel_policy) {
-        return {parallel_policy};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }
@@ -73,7 +58,6 @@ std::vector<ov::PropertyName> Configuration::get_supported() const {
 
 ov::AnyMap Configuration::get_hetero_properties() const {
     return {{ov::device::priorities.name(), device_priorities},
-            {ov::hetero::parallel_policy.name(), parallel_policy},
             {ov::hint::model_distribution_policy.name(), modelDistributionPolicy}};
 }
 

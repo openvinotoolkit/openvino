@@ -38,8 +38,6 @@ struct Configuration {
 
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
 
-    ov::hetero::ParallelPolicy parallel_policy = ov::hetero::ParallelPolicy::AUTO_SPLIT;
-
     ov::AnyMap device_properties;
 };
 }  // namespace hetero
