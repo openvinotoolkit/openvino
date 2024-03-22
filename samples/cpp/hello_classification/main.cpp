@@ -90,9 +90,13 @@ int tmain(int argc, tchar* argv[]) {
 
         // 6) Apply preprocessing modifying the original 'model'
         model = ppp.build();
+        std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
 
+    // ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
         // -------- Step 5. Loading a model to the device --------
-        ov::CompiledModel compiled_model = core.compile_model(model, device_name);
+        ov::CompiledModel compiled_model = core.compile_model(model, device_name, ov::hint::model_distribution_policy(model_policy));
+
+        
 
         // -------- Step 6. Create an infer request --------
         ov::InferRequest infer_request = compiled_model.create_infer_request();

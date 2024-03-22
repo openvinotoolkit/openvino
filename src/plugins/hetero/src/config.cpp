@@ -26,8 +26,8 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
                 if (row != ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL) {
                     OPENVINO_THROW(
                         "Wrong value ",
-                        value.as<std::string>(),
-                        "for property key ",
+                        row,
+                        " for property key ",
                         ov::hint::model_distribution_policy.name(),
                         ". HETERO plugin only support {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL}");
                 }
