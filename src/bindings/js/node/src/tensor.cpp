@@ -140,15 +140,11 @@ Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }
 
-
-
 Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
     if (info.Length() > 0) {
         reportError(info.Env(), "getSize() does not accept any arguments.");
         return info.Env().Null();
     }
-
     const auto size = static_cast<double>(_tensor.get_size());
-
     return Napi::Number::New(info.Env(), size);
 }

@@ -155,7 +155,6 @@ describe('Tensor getSize', () => {
   });
 });
 
-
 describe('Tensor getSize for various shapes', () => {
   it('calculates size correctly for a common image data shape [3, 224, 224]', () => {
     const shape = [3, 224, 224];

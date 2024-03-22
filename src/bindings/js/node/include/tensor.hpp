@@ -54,7 +54,6 @@ public:
    /**@return Napi::Number containing tensor size as total number of elements.*/
     Napi::Value get_size(const Napi::CallbackInfo& info);
 
-
 private:
     ov::Tensor _tensor;
 };
