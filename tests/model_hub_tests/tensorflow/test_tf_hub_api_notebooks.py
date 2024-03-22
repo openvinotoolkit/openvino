@@ -5,6 +5,7 @@ import pytest
 import tensorflow as tf
 import tensorflow_hub as hub
 from models_hub_common.test_convert_model import TestConvertModel
+
 from utils import get_input_info
 
 
