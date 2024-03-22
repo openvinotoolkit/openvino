@@ -123,8 +123,8 @@ std::string ModelCache::compute_hash(const std::string& modelStr,
         auto ptr = static_cast<size_t*>(tensor.data());
         size_t size = tensor.get_size() / sizeof(size_t);
 
-        // 1MB block size in size_t
-        const size_t block_size = 1000000 / sizeof(size_t);
+        // 10MB block size in size_t
+        const size_t block_size = 10000000 / sizeof(size_t);
         size_t blocks_num = size / block_size;
         std::vector<uint64_t> block_hashes(blocks_num + 1, 0);
 
