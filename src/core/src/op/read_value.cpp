@@ -150,7 +150,6 @@ bool ReadValue::evaluate(TensorVector& outputs,
     const auto& var_value = variable_values.find(m_variable);
 
     const auto use_context = var_value != variable_values.end() && !var_value->second->get_reset();
-    std::cout << "USE CONTEXT " << use_context << std::endl;
     auto& output = outputs[0];
     Tensor input;
     if (use_context) {
@@ -163,8 +162,8 @@ bool ReadValue::evaluate(TensorVector& outputs,
             OPENVINO_ASSERT(var_info.data_shape.is_static() && var_info.data_type.is_static());
             const auto& shape = var_info.data_shape.get_shape();
             const auto& type = var_info.data_type;
-            std::vector<char> zeros(var_info.data_type.size() * shape_size(shape));
-            input = ov::Tensor(type, shape, zeros.data());
+            input = ov::Tensor(type, shape);
+            memset(input.data(), 0, type.size() * shape_size(shape));
         }
     }
     output.set_shape(input.get_shape());
