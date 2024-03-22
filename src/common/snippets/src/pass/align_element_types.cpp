@@ -29,7 +29,7 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     for (size_t i = 0; i < m_output_precisions.size(); i++) {
         const auto needed_out_type = m_output_precisions[i];
         if (results[i]->get_input_element_type(0) != needed_out_type) {
-            std::shared_ptr<ov::Node> consumer = op::Subgraph::get_last_shape_infer_op(results[i], false);
+            std::shared_ptr<ov::Node> consumer = op::Subgraph::get_last_parent_shape_infer_op(results[i]);
             auto parent_output = consumer->get_input_source_output(0);
 
             // Snippets supports Transpose only after Parameter or before Result nodes
@@ -78,7 +78,7 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
 
             // Note: shape infer ops is designed for shape-inference purposes only.
             // It does not process any data (nor does it emit any code), so it doesn't require Convert operations
-            auto first_child = op::Subgraph::get_last_shape_infer_op(parameter, true);
+            auto first_child = op::Subgraph::get_last_child_shape_infer_op(parameter);
             auto parent_output = first_child->output(0);
             auto consumer_inputs = parent_output.get_target_inputs();
 

@@ -73,6 +73,7 @@ protected:
             epsilon);
         const ov::ResultVector results{std::make_shared<ov::op::v0::Result>(groupNormalization)};
 
+        abs_threshold = 1e-5;
         // TODO: This workaround is needed as there is no full support for f16 type in the reference implementation
         if (ngPrc == element::Type_t::f16) {
             abs_threshold = 0.007;

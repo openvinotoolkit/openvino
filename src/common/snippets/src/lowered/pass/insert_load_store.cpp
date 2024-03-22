@@ -36,7 +36,7 @@ size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
 
 bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     std::shared_ptr<Expression> data_expr = *data_expr_it;
-    data_expr = LinearIR::get_last_shape_infer_expr(data_expr, true);
+    data_expr = LinearIR::get_last_child_shape_infer_expr(data_expr);
     const auto& data_ngraph_output = data_expr->get_node()->output(0);
     bool was_inserted = false;
     const auto& data_out = data_expr->get_output_port_connector(0);
@@ -57,7 +57,7 @@ bool InsertLoadStore::insert_load(LinearIR& linear_ir, const LinearIR::constExpr
 
 bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExprIt& data_expr_it) {
     auto data_expr = *data_expr_it;
-    data_expr = LinearIR::get_last_shape_infer_expr(data_expr, false);
+    data_expr = LinearIR::get_last_parent_shape_infer_expr(data_expr);
 
     const auto& parent_output = data_expr->get_input_port_connector(0)->get_source();
     const auto& parent_expr = parent_output.get_expr();
