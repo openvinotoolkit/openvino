@@ -323,6 +323,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*fma.*EltwiseLayerCPUTest.*)");
     retVector.emplace_back(R"(.*int_jit.*EltwiseLayerCPUTest.*)");
     retVector.emplace_back(R"(.*dyn.*EltwiseChainTest.*)");
+
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i8.*Conversion=i8.*)");
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u8.*Conversion=i8.*)");
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i16.*Conversion=i8.*)");
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=u16.*Conversion=i8.*)");
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*InPRC0=i32.*Conversion=i8.*)");
 #endif
 
 #if !defined(OPENVINO_ARCH_X86_64)

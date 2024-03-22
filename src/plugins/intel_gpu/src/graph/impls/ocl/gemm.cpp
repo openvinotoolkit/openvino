@@ -33,6 +33,12 @@ struct gemm_impl : multi_stage_primitive<gemm> {
         return make_unique<gemm_impl>(*this);
     }
 
+    gemm_impl() = default;
+
+    gemm_impl(const std::vector<kernel_selector::kernel_data>& kd) : parent(kd) {
+        this->can_reuse_memory = true;
+    }
+
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
         if (is_dynamic()) {
