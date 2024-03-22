@@ -252,13 +252,23 @@ KERNEL(gemm_tiled_opt)(
                 b_tile[b_load_id] = b_raw_global_id >= N ? 0 : input1[b_idx];
             }
             else
-            #endif
+            #endif // INDIRECT_INPUT1
             {
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
-            #endif
+                // TODO
+                #if TILE_N_NOT_DIVISIBLE
+                    if (TILE_N_NOT_DIVISIBLE_CALC) {
+                        b_tile[b_load_id][0] = b_ptr[sglid];
+                        b_tile[b_load_id][1] = b_ptr[sglid + 16];
+                    } else {
+                        BLOCK_READ_B(b_ptr, 0);
+                    }
+                #else
+                    BLOCK_READ_B(b_ptr, 0);
+                #endif
+            #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_ptr += input1_offset;
             }
         #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == TRANSPOSE_X_LAST
@@ -346,8 +356,7 @@ KERNEL(gemm_tiled_opt)(
 #endif // TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
 
         // Loading A tile and tile C calculation
-#if IS_DYNAMIC
-    // software pipelining
+#if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && !HAS_DYNAMIC_N_PADDING && TRANSPOSE_INPUT0 == TRANSPOSE_X_LAST
     #if TILE_K_NOT_DIVISIBLE
             A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
     #else
@@ -365,12 +374,6 @@ KERNEL(gemm_tiled_opt)(
             // block reads (4 bytes), so use scattered read
             uint a_idx = FUNC_CALL(get_input0_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, w, z, (y + dot_id), (k * TILE_K + sglid));
             A_FLOATN a_read = input0[a_idx];
-        #else
-//            #if TILE_K_NOT_DIVISIBLE
-//                A_FLOATN a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
-//            #else
-//                A_FLOATN a_read = BLOCK_READ_A(a_ptr, 0);
-//            #endif
         #endif
     #else // IS_DYNAMIC
         #if INDIRECT_INPUT0
@@ -405,7 +408,8 @@ KERNEL(gemm_tiled_opt)(
     #endif // TILE_K > SIMD_WIDTH
                 }
             }
-    #if IS_DYNAMIC
+    #if IS_DYNAMIC && !INDIRECT_INPUT0 && !HAS_DYNAMIC_K_PADDING && !HAS_DYNAMIC_N_PADDING
+        // Read A for next dot_id
         #if TILE_K_NOT_DIVISIBLE
             a_read = TILE_K_NOT_DIVISIBLE_CALC ? a_ptr[sglid] : BLOCK_READ_A(a_ptr, 0);
         #else
@@ -474,13 +478,23 @@ KERNEL(gemm_tiled_opt)(
                     b_tile[b_load_id] = b_raw_global_id >= N ? 0 : input1[b_idx];
                 }
                 else
-            #endif
+            #endif // INDIRECT_INPUT1
                 {
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                    b_tile[b_load_id] = TILE_N_NOT_DIVISIBLE ? (b_raw_global_id > N - 1 ? 0 : b_ptr[sglid]) : BLOCK_READ_B(b_ptr, 0);
-            #endif
+                #if TILE_N_NOT_DIVISIBLE
+                    //TODO
+                    if (TILE_N_NOT_DIVISIBLE_CALC) {
+                        b_tile[b_load_id][0] = b_ptr[sglid];
+                        b_tile[b_load_id][1] = b_ptr[sglid + 16];
+                    } else {
+                        BLOCK_READ_B(b_ptr, 0);
+                    }
+                #else
+                    BLOCK_READ_B(b_ptr, 0);
+                #endif // TILE_N_NOT_DIVISIBLE
+            #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_ptr += input1_offset;
                 }
         #elif TRANSPOSE_INPUT1 == TRANSPOSE_OTHER // TRANSPOSE_INPUT1 == 0
@@ -539,13 +553,17 @@ KERNEL(gemm_tiled_opt)(
             INPUT0_TYPE a_read = input0[a_idx];
 
             unroll_for (uint simd_id = 0; simd_id < TILE_K_LEFTOVER; simd_id++) {
-                #if B_VEC_SIZE > 1
+            #if B_VEC_SIZE > 1
                 A_FLOATN a_read_tmp = sub_group_broadcast(a_read, simd_id);
+                #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
                 MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp = {b_tile[0][simd_id], b_tile[1][simd_id]};
                 c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile_tmp, c_tile[dot_id]);
                 #else
-                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+                c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile[simd_id], c_tile[dot_id]);
                 #endif
+            #else
+                c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_id)), b_tile[simd_id], c_tile[dot_id]);
+            #endif
             }
         } // Loading leftovers of the matrix A and tile C calculation end
     }

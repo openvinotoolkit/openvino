@@ -110,7 +110,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
 //        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
 //        if (k_size == 128) // && also not support indirected input yet && FUSED_OPS_CAN_USE_PRELOAD is not supported && TILE_K == SIMD
         // no dynamic padding
-        if (!params.transpose_input0)
+        if (!params.transpose_input0 && !params.inputs[0].X().pad.is_dynamic && !params.inputs[1].Y().pad.is_dynamic && !params.inputs[1].X().pad.is_dynamic)
             tuning_data.tile_n_size = 32;
         else
             tuning_data.tile_n_size = 16;
