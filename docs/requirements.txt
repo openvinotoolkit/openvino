@@ -48,3 +48,4 @@ toml==0.10.2
 urllib3==1.26.18
 zipp==3.4.1
 docs/openvino_custom_sphinx_sitemap
+docs/openvino_sphinx_theme
