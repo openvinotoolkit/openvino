@@ -602,7 +602,9 @@ void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
 #    define MPOL_BIND      2
 #    define MPOL_MF_STRICT (1 << 0)
 #    define MPOL_MF_MOVE   (1 << 1)
-#    define __NR_mbind     237
+#if !defined(__NR_mbind) && defined(__x86_64__)
+#    define __NR_mbind 237
+#endif
 long mbind(void* start,
            unsigned long len,
            int mode,
