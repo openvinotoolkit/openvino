@@ -38,7 +38,6 @@ struct OPENVINO_API DiscreteTypeInfo {
     DiscreteTypeInfo(const DiscreteTypeInfo&) = default;
     DiscreteTypeInfo(DiscreteTypeInfo&&) = default;
     DiscreteTypeInfo& operator=(const DiscreteTypeInfo&) = default;
-    
     explicit constexpr DiscreteTypeInfo(const char* _name,
                                         const char* _version_id,
                                         const DiscreteTypeInfo* _parent = nullptr)
