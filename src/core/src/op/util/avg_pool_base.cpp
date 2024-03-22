@@ -17,7 +17,7 @@ AvgPoolBase::AvgPoolBase(const Output<Node>& arg,
                          const Shape& kernel,
                          bool exclude_pad,
                          RoundingType rounding_type,
-                         PadType auto_pad)
+                         const PadType& auto_pad)
     : Op{{arg}},
       m_kernel{kernel},
       m_strides{strides},
