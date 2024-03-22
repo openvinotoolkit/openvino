@@ -1205,7 +1205,7 @@ TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
     }
 }
 
-static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t y, const int64_t x) {
+static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t y, const int64_t x, const uint64_t axis) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
     auto config = get_test_default_config(engine);
@@ -1222,7 +1222,7 @@ static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t
     std::string softmax_id = "softmax";
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
-    topology.add(softmax(softmax_id, input_info("input"), 3));
+    topology.add(softmax(softmax_id, input_info("input"), axis));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
 
@@ -1240,15 +1240,15 @@ static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t
     ASSERT_NE(output, nullptr);
 
     std::vector<ov::float16> output_ref(buf_size);
-    ov::reference::softmax<ov::float16>(input_data.data(), output_ref.data(), input_layout_static.get_shape(), ov::AxisSet{3});
+    ov::reference::softmax<ov::float16>(input_data.data(), output_ref.data(), input_layout_static.get_shape(), ov::AxisSet{axis});
     ASSERT_NE(output, nullptr);
     const float threshold_fp16 = 1e-1;
     cldnn::mem_lock<ov::float16> output_ptr(output, get_test_stream());
     for (size_t idx = 0; idx < static_cast<size_t>(buf_size); idx++) {
-         ASSERT_NEAR(float(output_ptr[idx]), float(output_ref[idx]), threshold_fp16) << std::fixed << setprecision(8) << output_ptr[idx] << " vs " << output_ref[idx];
+        ASSERT_NEAR(float(output_ptr[idx]), float(output_ref[idx]), threshold_fp16) << idx << ", " << std::fixed << setprecision(8) << output_ptr[idx] << " vs " << output_ref[idx];
     }
 }
 
-TEST(softmax_gpu_bfyx_f16, opt_softmax_bf) {
-    run_softmax_bfyx_opt(1, 2, 2, 267);
+TEST(softmax_gpu_bfyx_f16, opt_softmax_bf_axis_3) {
+    run_softmax_bfyx_opt(1, 2, 2, 3083, 3);
 }
