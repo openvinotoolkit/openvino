@@ -17,7 +17,7 @@ namespace intel_cpu {
 class EmptyMemoryDesc : public MemoryDesc {
 public:
     EmptyMemoryDesc():
-        MemoryDesc(Shape{0}, Undef)
+        MemoryDesc(Shape{0}, Empty)
     {}
 
     MemoryDescPtr clone() const override {
@@ -25,7 +25,7 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override {
-        return everyone_is(this->getType(), rhs.getType(), Undef);
+        return everyone_is(this->getType(), rhs.getType(), Empty);
     };
 
     ov::element::Type getPrecision() const override {

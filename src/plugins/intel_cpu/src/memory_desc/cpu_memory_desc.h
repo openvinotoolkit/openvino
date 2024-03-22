@@ -34,8 +34,8 @@ enum MemoryDescType {
     Undef = 0,
     Blocked = 1,
     Dnnl = 1 << 1,
-
-    DnnlBlocked = Blocked | Dnnl
+    DnnlBlocked = Blocked | Dnnl,
+    Empty = 1 << 2,
 };
 
 enum class LayoutType : unsigned {
@@ -132,7 +132,7 @@ public:
     }
 
     bool empty() const {
-        return type == Undef;
+        return type == Empty;
     }
 
     template <typename T,
