@@ -29,8 +29,6 @@ protected:
 
     void generate_inputs(const std::vector<ov::Shape>& target_shapes) override;
 
-    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
-
 private:
     int32_t m_seed;
 };

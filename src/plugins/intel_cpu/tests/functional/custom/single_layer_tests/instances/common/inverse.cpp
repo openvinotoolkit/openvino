@@ -9,7 +9,7 @@ namespace {
 using ov::test::InverseLayerTest;
 
 const std::vector<std::vector<ov::test::InputShape>> input_shapes = {
-    {{{10, 4, 4}, {{10, 4, 4}}}},
+    {{{5, 4, 4}, {{5, 4, 4}}}},
     {{{20, 3, 3}, {{20, 3, 3}}}},
     {{{ov::Dimension{1, 70}, -1}, {{3, 3}, {5, 5}, {4, 4}}}},
     {{{-1, ov::Dimension{1, 70}, -1}, {{3, 3, 3}, {4, 4, 4}, {5, 5, 5}}}}};
