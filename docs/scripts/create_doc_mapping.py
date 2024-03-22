@@ -36,11 +36,10 @@ def connect_jsons(output_dir: Path):
 
 
 def main():
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('output_dir', type=Path, help='Path to the output folder')
-    # args = parser.parse_args()
-    # output_dir = args.output_dir
-    output_dir = Path(r'C:\Users\bbielawx\OneDrive - Intel Corporation\Desktop\OpenVINO\build')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('output_dir', type=Path, help='Path to the output folder')
+    args = parser.parse_args()
+    output_dir = args.output_dir
     create_mapping(output_dir)
     connect_jsons(output_dir)
 
