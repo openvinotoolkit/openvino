@@ -107,23 +107,23 @@ template <typename OUT_PRECISION>
 void GatherCompression::execReferenceI4() {
     std::cout << "--->5:GatherCompression::execReferenceI4()" << std::endl;
     DEBUG_LOG(getName(), "execReference4bit");
-    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = srcMemPtr->getDataAs<uint8_t>();
-    const auto* pidx = idxMemPtr->getDataAs<int32_t>();
+    auto data_mem_ptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto ind_mem_ptr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    const auto* psrc = data_mem_ptr->getDataAs<uint8_t>();
+    const auto* pidx = ind_mem_ptr->getDataAs<int32_t>();
 
     bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
     const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
     auto* pdst = getDstDataAtPortAs<float>(0);
 
-    const auto& idxDims = idxMemPtr->getStaticDims();
+    const auto& idxDims = ind_mem_ptr->getStaticDims();
     const auto batch = idxDims[0];
     const auto seqLen = idxDims[1];
 
-    auto axisDim = srcMemPtr->getStaticDims()[0];
-    auto groupDim = srcMemPtr->getStaticDims().size() == 2 ? 1 : srcMemPtr->getStaticDims()[1];
-    auto feaDim = srcMemPtr->getStaticDims().size() == 2 ? srcMemPtr->getStaticDims()[1] : srcMemPtr->getStaticDims()[2];
+    auto axisDim = data_mem_ptr->getStaticDims()[0];
+    auto groupDim = data_mem_ptr->getStaticDims().size() == 2 ? 1 : data_mem_ptr->getStaticDims()[1];
+    auto feaDim = data_mem_ptr->getStaticDims().size() == 2 ? data_mem_ptr->getStaticDims()[1] : data_mem_ptr->getStaticDims()[2];
 
     parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
         auto dstIdx = b * seqLen + s;
@@ -163,21 +163,51 @@ void GatherCompression::execReferenceI4() {
     });
 }
 
+std::string shape2str(ov::intel_cpu::Shape shape) {
+    std::string str = "[";
+    for (auto s : shape.getStaticDims()) {
+        str += std::to_string(s) + ",";
+    }
+    return str + "]";
+}
+
 template <typename IN_PRECISION, typename OUT_PRECISION>
 void GatherCompression::execReference8bit() {
     DEBUG_LOG(getName(), "execReference8bit");
     std::cout << "--->4:GatherCompression::execReference8bit()\n";
 #define PRINT(X) std::cout << #X << " = " << X << std::endl
 
-    auto srcMemPtr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto idxMemPtr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = srcMemPtr->getDataAs<IN_PRECISION>();
-    const auto* pidx = idxMemPtr->getDataAs<int32_t>();
+    auto data_mem_ptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    auto ind_mem_ptr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    auto scale_mem_ptr = getParentEdgeAt(GATHER_SCALE)->getMemoryPtr();
+    const auto* psrc = data_mem_ptr->getDataAs<IN_PRECISION>();
+    PRINT(ind_mem_ptr->getPrecision());
+    PRINT(getChildEdgeAt(0)->getMemoryPtr()->getPrecision());
+    PRINT(shape2str(getChildEdgeAt(0)->getMemoryPtr()->getShape()));
+    const auto* pidx = ind_mem_ptr->getDataAs<int32_t>();
 
     bool have_zp = getOriginalInputsNumber() > 4u;
-    bool one_dim_zp = have_zp ? (getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1) : true;
+    auto check_one_dim = [](MemoryPtr mem_ptr, bool& is_const_scale) {
+        const auto& shape = mem_ptr->getStaticDims();
+        if (shape.size() == 1 && shape[0] == 1) {
+            is_const_scale = true;
+            return true;
+        } else if (shape.size() == 3 && shape[1] != 1) {
+            return false;
+        }
+        return true;
+    };
+    bool is_const_zp = false;
+    bool one_dim_zp = have_zp ? check_one_dim(getParentEdgeAt(GATHER_ZP)->getMemoryPtr(), is_const_zp) : true;
+    bool is_const_scale = false;
+    bool one_dim_scale = check_one_dim(scale_mem_ptr, is_const_scale);
 
+    PRINT(have_zp);
+    PRINT(is_const_zp);
     PRINT(one_dim_zp);
+
+    PRINT(is_const_scale);
+    PRINT(one_dim_scale);
 
     float_t* zp = nullptr;
     float_t const_zp = 0.f;
@@ -185,19 +215,22 @@ void GatherCompression::execReference8bit() {
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
     auto* pdst = getDstDataAtPortAs<OUT_PRECISION>(0);
 
-    const auto& idxDims = idxMemPtr->getStaticDims();
+    const auto& idxDims = ind_mem_ptr->getStaticDims();
     const auto batch = idxDims[0];
     const auto seqLen = idxDims[1];
 
     PRINT(batch);
     PRINT(seqLen);
-    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getShape());
+    if (have_zp)
+        PRINT(shape2str(getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape()));
+    PRINT(shape2str(scale_mem_ptr->getShape()));
 
-    auto axisDim = srcMemPtr->getStaticDims()[0];
-    auto groupDim = srcMemPtr->getStaticDims().size() == 2 ? 1 : srcMemPtr->getStaticDims()[1];
+    auto axisDim = data_mem_ptr->getStaticDims()[0];
+    auto groupDim = data_mem_ptr->getStaticDims().size() == 2 ? 1 : data_mem_ptr->getStaticDims()[1];
     auto feaDim =
-        srcMemPtr->getStaticDims().size() == 2 ? srcMemPtr->getStaticDims()[1] : srcMemPtr->getStaticDims()[2];
+        data_mem_ptr->getStaticDims().size() == 2 ? data_mem_ptr->getStaticDims()[1] : data_mem_ptr->getStaticDims()[2];
 
+    PRINT(shape2str(data_mem_ptr->getShape()));
     PRINT(axisDim);
     PRINT(groupDim);
     PRINT(feaDim);
@@ -242,10 +275,10 @@ void GatherCompression::execReference8bit() {
             auto* dst = pdst + dstIdx * feaDim * groupDim;
 
             for (size_t g = 0; g < groupDim; g++) {
-                auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
-                auto& deq_scale = scale[ii * groupDim + g];
+                auto& deq_zp = one_dim_zp ? (have_zp ? zp[ii] : zp[0]) : zp[ii * groupDim + g];
+                auto& deq_scale = one_dim_scale ? scale[ii] : scale[ii * groupDim + g];
                 for (size_t k = 0; k < feaDim; k++) {
-                    dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0])) * deq_scale);
+                    // dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0]) - deq_zp) * deq_scale);
                     dst++;
                     src++;
                 }

@@ -41,7 +41,7 @@ private:
     template <typename OUT_PRECISION>
     void execReferenceI4();
 
-    bool reverseIndexing = false;
+    bool reverseIndexing = true;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;

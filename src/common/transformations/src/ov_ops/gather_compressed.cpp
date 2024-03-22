@@ -73,6 +73,10 @@ void GatherCompressed::validate_and_infer_types() {
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
+    std::cout << "get_input_partial_shape(0)=" << get_input_partial_shape(0) << std::endl;
+    std::cout << "get_input_partial_shape(1)=" << get_input_partial_shape(1) << std::endl;
+    std::cout << "get_input_partial_shape(2)=" << get_input_partial_shape(2) << std::endl;
+    std::cout << "out_shapes[0]=" << out_shapes[0] << std::endl;
 }
 
 bool GatherCompressed::visit_attributes(ov::AttributeVisitor& visitor) {
