@@ -46,7 +46,7 @@ void AllocateBuffers::set_buffer_offset(const ExpressionPtr& buffer_expr, const 
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
-    auto last_shape_infer = ov::snippets::lowered::LinearIR::get_last_shape_infer_expr(buffer_expr, true);
+    auto last_shape_infer = ov::snippets::lowered::LinearIR::get_last_child_shape_infer_expr(buffer_expr);
     const auto& buffer_out = last_shape_infer->get_output_port_connector(0);
     for (const auto& child_expr_input : buffer_out->get_consumers()) {
         const auto& child_expr = child_expr_input.get_expr();

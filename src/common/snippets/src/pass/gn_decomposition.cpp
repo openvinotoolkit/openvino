@@ -38,23 +38,18 @@ GNDecomposition::GNDecomposition() {
 
         ////////////collapse to reduce lastDim to avoid nested loop overhead(e.g. reduce tails in inner loop)///////////
         // reshape [N, C, spatial] to [N, group, 1, (C / group) * spatial]
-        const auto orig_shape = group_norm_node->get_input_partial_shape(0);
-        size_t orig_rank = orig_shape.rank().get_length();
+        const auto orig_shape = group_norm_node->get_input_partial_shape(0).to_shape();
+        size_t orig_rank = orig_shape.size();
         size_t group_rank = 4;
-        std::vector<Dimension> group_dims(group_rank);
-        group_dims[0] = orig_shape[0];
-        group_dims[1] = Dimension(num_groups);
-        group_dims[2] = Dimension(1);
-        group_dims[3] = Dimension(orig_shape[1] / num_groups);
-        Dimension spatial_dim = 1;
+        size_t c_in_group = orig_shape[1] / num_groups;
+        size_t spatial_dim = 1;
         for (size_t i = 2; i < orig_rank; ++i) {
             spatial_dim = spatial_dim * orig_shape[i];
         }
-        group_dims[3] = group_dims[3] * spatial_dim;
-        ov::PartialShape group_shape(group_dims);
-        std::shared_ptr<ov::op::Op> reshaped_node_orig = std::make_shared<ov::snippets::op::Reshape>(data, group_shape);
+        ov::Shape group_shape = {orig_shape[0], num_groups, 1ul, c_in_group * spatial_dim};
+        std::shared_ptr<ov::Node> reshaped_node_orig = std::make_shared<ov::snippets::op::Reshape>(data, group_shape);
 
-        std::shared_ptr<ov::op::Op> reshaped_node1 = reshaped_node_orig;
+        std::shared_ptr<ov::Node> reshaped_node1 = reshaped_node_orig;
         if (data.get_element_type() != element::f32) {
             reshaped_node1 = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
         }
@@ -63,19 +58,18 @@ GNDecomposition::GNDecomposition() {
         op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
 
         // reduceMean
-        auto group_shape_static = group_shape.to_shape();
-        float group_size_inv = 1.0f / static_cast<float>(group_shape_static[3]);
+        float group_size_inv = 1.0f / static_cast<float>(group_shape[3]);
         const auto group_size_inv_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
         const auto reduce_mean = std::make_shared<ov::op::v1::Multiply>(reduce_sum, group_size_inv_node);
 
         // x - mean
-        std::shared_ptr<ov::op::Op> reshaped_node2 = reshaped_node_orig;
+        std::shared_ptr<ov::Node> reshaped_node2 = reshaped_node_orig;
         if (data.get_element_type() != element::f32) {
             reshaped_node2 = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
         }
         auto sub_mean = std::make_shared<ov::op::v1::Subtract>(reshaped_node2, reduce_mean);
         // (x - mean) ^ 2
-        auto sqr_const = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<int64_t>{2});
+        auto sqr_const = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{2});
         auto sqr = std::make_shared<ov::op::v1::Power>(sub_mean, sqr_const);
         // reduceSum((x - mean) ^ 2)
         auto sqr_reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(sqr, group_rank - 1);
@@ -93,24 +87,16 @@ GNDecomposition::GNDecomposition() {
         auto mvn = std::make_shared<ov::op::v1::Multiply>(sub_mean, variance_inv);
 
         // reshape mvn from [N, group, 1, (C / group) * spatial] to [N, group, C / group, spatial]
-        std::vector<Dimension> group_channel_dims(group_rank);
-        group_channel_dims[0] = group_dims[0];
-        group_channel_dims[1] = group_dims[1];
-        group_channel_dims[2] = Dimension(orig_shape[1] / num_groups);
-        group_channel_dims[3] = spatial_dim;
-        ov::PartialShape group_channel_shape(group_channel_dims);
+        ov::Shape group_channel_shape = {orig_shape[0], num_groups, c_in_group, spatial_dim};
         const auto mvn_reshaped = std::make_shared<ov::snippets::op::Reshape>(mvn, group_channel_shape);
 
         // reshape scale and bias to [1, group, C / group, 1]
-        std::vector<Dimension> scale_bias_dims(group_rank, Dimension(1));
-        scale_bias_dims[1] = group_channel_dims[1];
-        scale_bias_dims[2] = group_channel_dims[2];
-        ov::PartialShape scale_bias_shape(scale_bias_dims);
-        std::shared_ptr<ov::op::Op> reshape_scale = std::make_shared<ov::snippets::op::Reshape>(scale, scale_bias_shape);
+        ov::Shape scale_bias_shape = {1ul, num_groups, c_in_group, 1ul};
+        std::shared_ptr<ov::Node> reshape_scale = std::make_shared<ov::snippets::op::Reshape>(scale, scale_bias_shape);
         if (scale.get_element_type() != element::f32) {
             reshape_scale = std::make_shared<ov::snippets::op::ConvertSaturation>(reshape_scale, element::f32);
         }
-        std::shared_ptr<ov::op::Op> reshape_bias = std::make_shared<ov::snippets::op::Reshape>(bias, scale_bias_shape);
+        std::shared_ptr<ov::Node> reshape_bias = std::make_shared<ov::snippets::op::Reshape>(bias, scale_bias_shape);
         if (bias.get_element_type() != element::f32) {
             reshape_bias = std::make_shared<ov::snippets::op::ConvertSaturation>(reshape_bias, element::f32);
         }
@@ -120,7 +106,7 @@ GNDecomposition::GNDecomposition() {
         auto biased_node = std::make_shared<ov::op::v1::Add>(scaled_node, reshape_bias);
 
         auto result_prec = group_norm_node->get_output_element_type(0);
-        std::shared_ptr<ov::op::Op> biased_node_convert = biased_node;
+        std::shared_ptr<ov::Node> biased_node_convert = biased_node;
         if (result_prec != element::f32) {
             biased_node_convert = std::make_shared<ov::snippets::op::ConvertSaturation>(biased_node, result_prec);
         }
