@@ -184,12 +184,26 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::scheduling_core_type.name(),
-                               ". Expected only ",
-                               ov::hint::SchedulingCoreType::ANY_CORE,
-                               '/',
-                               ov::hint::SchedulingCoreType::PCORE_ONLY,
-                               '/',
-                               ov::hint::SchedulingCoreType::ECORE_ONLY);
+                               ". Expected only ov::hint::SchedulingCoreType::ANY_CORE/PCORE_ONLY/ECORE_ONLY");
+            }
+        } else if (key == ov::hint::model_distribution_policy.name()) {
+            auto error_info = [&]() {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::hint::model_distribution_policy.name(),
+                               ". CPU plugin only support {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}");
+            };
+
+            try {
+                for (auto& row : val.as<std::set<ov::hint::ModelDistributionPolicy>>()) {
+                    if ((row != ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL)) {
+                        error_info();
+                    }
+                }
+                modelDistributionPolicy = val.as<std::set<ov::hint::ModelDistributionPolicy>>();
+            } catch (ov::Exception&) {
+                error_info();
             }
         } else if (key == ov::hint::enable_hyper_threading.name()) {
             try {

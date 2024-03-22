@@ -90,6 +90,17 @@ OutputVector translate_div_fx(const NodeContext& context) {
     return translate_div_common(context, x, y, rounding_mode, false);
 };
 
+OutputVector translate_div_fx_(const NodeContext& context) {
+    num_inputs_check(context, 2, 2);
+    auto x = context.get_input(0);
+    auto y = context.get_input(1);
+    std::string rounding_mode = "";
+    if (context.has_attribute("rounding_mode")) {
+        rounding_mode = context.get_attribute<std::string>("rounding_mode");
+    }
+    return translate_div_common(context, x, y, rounding_mode, true);
+};
+
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
