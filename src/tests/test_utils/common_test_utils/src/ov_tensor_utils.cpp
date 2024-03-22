@@ -12,6 +12,11 @@
 namespace ov {
 namespace test {
 namespace utils {
+
+double ConstRanges::max = std::numeric_limits<double>::min();
+double ConstRanges::min = std::numeric_limits<double>::max();
+bool ConstRanges::is_defined = false;
+
 ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const InputGenerateData& inGenData) {
