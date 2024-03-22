@@ -211,9 +211,7 @@ struct Read<std::vector<T, A>, typename std::enable_if<std::is_default_construct
 };
 
 template <typename K, typename C, typename A>
-struct Read<
-    std::set<K, C, A>,
-    typename std::enable_if<std::is_default_constructible<K>::value>::type> {
+struct Read<std::set<K, C, A>, typename std::enable_if<std::is_default_constructible<K>::value>::type> {
     void operator()(std::istream& is, std::set<K, C, A>& set) const {
         while (is.good()) {
             std::string str;
