@@ -279,7 +279,7 @@ void util::DictAttributeSerializer::on_adapter(const std::string& name, ov::Valu
         m_attributes[name.c_str()] = _adapter->get()->get_info().variable_id;
     } else if (auto _adapter = dynamic_cast<ov::AttributeAdapter<ov::PartialShape>*>(&adapter)) {
         auto partial_shape = _adapter->get();
-        std::vector<int> shape;
+        std::vector<ov::Dimension::value_type> shape;
         for (const auto& dim : partial_shape) {
             shape.push_back(dim.is_dynamic() ? -1 : dim.get_length());
         }
