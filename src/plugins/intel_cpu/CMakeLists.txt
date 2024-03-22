@@ -30,6 +30,16 @@ elseif(OV_COMPILER_IS_CLANG)
     endif()
 endif()
 
+if (AARCH64 AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
+    # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
+    # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
+    # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
+    set(OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT ON)
+else()
+    set(OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT OFF)
+endif()
+set(OV_CPU_AARCH64_USE_MULTI_ISA ${OV_CPU_AARCH64_USE_MULTI_ISA_DEFAULT} CACHE BOOL "Build multi-ISA ACL")
+
 set(OV_CPU_ARM_TARGET_GENERIC_ARCHS armv8a
                                     armv8.2-a
                                     armv8.6-a armv8.6-a-sve armv8.6-a-sve2 armv8.6-a-sve2-sme2
@@ -44,12 +54,6 @@ elseif(AARCH64)
     if(APPLE)
         set(OV_CPU_ARM_TARGET_ARCH_DEFAULT arm64-v8.2-a)
     else()
-        if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 10.2)
-            # according to https://github.com/ARM-software/ComputeLibrary/issues/1053#issuecomment-1846903707 comment
-            # the 'multi_isa=1' below enables FP32, FP16 and SVE / SVE2 kernels
-            # But: arm_sve.h header is not available on gcc older 10.2 (let's test it), so we have to check it
-            set(OV_CPU_AARCH64_USE_MULTI_ISA ON)
-        endif()
         if(OV_CPU_AARCH64_USE_MULTI_ISA)
             # set v8a even we want fp16 kernels, because
             # we use multi_isa=1 in ACLConfig.cmake to enable both fp16 and fp32 kernels
