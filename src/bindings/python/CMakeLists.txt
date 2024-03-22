@@ -39,6 +39,7 @@ endif()
 # Settings for FindPython3.cmake
 #
 
+
 if(NOT DEFINED Python3_USE_STATIC_LIBS)
     set(Python3_USE_STATIC_LIBS OFF)
 endif()
@@ -152,7 +153,8 @@ endif()
 set(wheel_reqs "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt")
 ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINOPython_SOURCE_DIR}/wheel/requirements-dev.txt"
                       RESULT_VAR ENABLE_WHEEL_DEFAULT
-                      MESSAGE_MODE WARNING)
+                      MESSAGE_MODE WARNING
+                      PDM_PROJECT "${OpenVINOPython_SOURCE_DIR}/pyproject.toml")
 
 if(LINUX)
     find_host_program(patchelf_program
@@ -365,8 +367,12 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(tests/mock/mock_py_frontend)
     add_subdirectory(tests/mock/pyngraph_fe_mock_api)
-    install(FILES constraints.txt
-            DESTINATION tests/bindings/python
+    install(FILES pyproject.toml
+            DESTINATION tests/pyopenvino
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+    install(FILES ${OpenVINO_SOURCE_DIR}/layer-tests.pdm.lock
+            DESTINATION tests/layer_tests
             COMPONENT tests
             EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt

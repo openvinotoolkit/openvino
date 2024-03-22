@@ -1,6 +1,7 @@
 import pkg_resources
 import re
 import os
+import sys
 
 
 def check_python_requirements(requirements_path: str) -> None:
@@ -50,3 +51,29 @@ def check_python_requirements(requirements_path: str) -> None:
     else:
         requirements = raw_requirements
     pkg_resources.require(requirements)
+
+
+def check_python_requirements_pdm(toml_path: str):
+    from pdm.environments import PythonEnvironment as Environment
+    from pdm.project import Project
+    from pdm.core import Core
+    from pdm.cli.commands.venv.utils import get_venv_with_name
+
+    def are_dependencies_installed(dependencies_to_check, installed_dependencies):
+        for key in dependencies_to_check:
+            print(key, key in installed_dependencies)
+        return all(key in installed_dependencies for key in dependencies_to_check)
+
+    directory = os.path.dirname(toml_path)
+
+    core = Core()
+    project = Project(core=core, root_path=directory)
+
+    venv = get_venv_with_name(project, "for-build")
+    environment = Environment(project, python=str(venv.interpreter))
+
+    dependencies_to_check = project.get_dependencies(group="build").keys()
+    installed_packages = environment.get_working_set() #returns ChainMap
+
+    # print(environment.get_working_set())
+    return sys.exit(0 if are_dependencies_installed(dependencies_to_check, installed_packages) else 1)
