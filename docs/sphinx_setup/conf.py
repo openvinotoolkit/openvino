@@ -7,16 +7,14 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 import os
-import sys
 import json
 import shutil
 from sphinx.util import logging
-from sphinx.application import Sphinx
 from json import JSONDecodeError
 from sphinx.ext.autodoc import ClassDocumenter
 
 project = 'OpenVINO™'
-copyright = '2023, Intel®'
+copyright = '2024, Intel®'
 author = 'Intel®'
 
 language = 'en'
@@ -103,7 +101,7 @@ html_theme_options = {
     "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
-    "footer_items": ["footer_info"],
+    # "footer_items": ["footer_info"],
     "show_prev_next": False,
 }
 
@@ -116,8 +114,9 @@ html_sidebars = {
 html_context = {
     'current_language': 'English',
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
-    'doxygen_mapping_file': r'C:\Users\bbielawx\OneDrive - Intel Corporation\Desktop\OpenVINO\build\mapping.json',
+    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
     'doxygen_snippet_root': snippet_root,
+    'default_mode': 'light'
 }
 
 repositories = {
@@ -155,7 +154,6 @@ repositories = {
 
 try:
     doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
-    doxygen_mapping_file = r'C:\Users\bbielawx\OneDrive - Intel Corporation\Desktop\OpenVINO\build\mapping.json'
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
