@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vnode_fusion.hpp"
+#include "big_pattern_fusion.hpp"
 
 #include <cstdint>
 #include <limits>
@@ -16,7 +16,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/common/op/vnode.hpp"
+#include "transformations/cpu_opset/common/op/big_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/gen_pattern.hpp"
 
@@ -82,7 +82,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     MATCHER_SCOPE(CausalMaskPreprocess);
 
     auto const_triu = makePattern<ov::opset1::Constant>({}, {});
-    auto attention_mask = makePattern("i64[?,?]");
+    auto attention_mask = makePattern("i32[?,?]");
     auto batch_size = makePattern("i32[1]");
     auto cache_positions = makePattern("i32[?]");
     auto kvLen = makePattern("i32[1]");
@@ -119,9 +119,8 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     auto SliceAssign_201_Reshape =
         makePattern<ov::opset1::Reshape>({SliceAssign_201_Range, {-1, 1, max_seq_len, max_seq_len}},
                                          {{"special_zero", true}});  //  tensor_array<i32[?,1,8192,8192]>
-    auto Convert_48852 =
-        makePattern<ov::opset1::Convert>({attention_mask}, {{"destination_type", "i32"}});  //  tensor_array<i32[?,?]>
-    auto ShapeOf_49034 = makePattern<ov::opset1::ShapeOf>({Convert_48852});                 //  tensor_array<i32[2]>
+
+    auto ShapeOf_49034 = makePattern<ov::opset1::ShapeOf>({attention_mask});                 //  tensor_array<i32[2]>
     auto Gather_41642 =
         makePattern<ov::opset8::Gather>({ShapeOf_49034, {1}, 0}, {{"batch_dims", 0}});  //  tensor_array<i32[1]>
     auto ScatterUpdate_93502 =
@@ -155,7 +154,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         makePattern<ov::opset1::Equal>({causal_mask_boolean_1, Constant_107278},
                                        {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,8192,..8192]>
     auto unsqueeze_Unsqueeze_1 =
-        makePattern<ov::opset1::Unsqueeze>({Convert_48852, {1, 2}});  //  tensor_array<i32[?,1,1,?]>
+        makePattern<ov::opset1::Unsqueeze>({attention_mask, {1, 2}});  //  tensor_array<i32[?,1,1,?]>
     auto eq_Convert = makePattern<ov::opset1::Convert>({unsqueeze_Unsqueeze_1},
                                                        {{"destination_type", "f32"}});  //  tensor_array<f32[?,1,1,?]>
     auto Constant_107279 = makeConst(ov::element::f32,
@@ -207,7 +206,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
         if (!validator) {
             return false;
         }
-        ov::intel_cpu::VNode::Config config;
+        ov::intel_cpu::BigPatternNode::Config config;
         config.type = "CausalMaskPreprocess";
 
         auto triu =
@@ -245,7 +244,7 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
             pattern_map.find(cache_positions)->second,
             pattern_map.find(kvLen)->second,
         };
-        auto replacement = std::make_shared<ov::intel_cpu::VNode>(inputs, config);
+        auto replacement = std::make_shared<ov::intel_cpu::BigPatternNode>(inputs, config);
         ov::replace_node(root, replacement);
         return true;
     };
@@ -254,6 +253,6 @@ CausalMaskPreprocess::CausalMaskPreprocess() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::VNodeFusion::VNodeFusion() {
+ov::intel_cpu::BigPatternFusion::BigPatternFusion() {
     add_matcher<CausalMaskPreprocess>();
 }

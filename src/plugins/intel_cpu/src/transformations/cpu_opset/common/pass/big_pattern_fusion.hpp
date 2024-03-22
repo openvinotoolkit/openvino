@@ -9,10 +9,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class VNodeFusion : public ov::pass::GraphRewrite {
+class BigPatternFusion : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_RTTI("VNodeFusion", "0");
-    VNodeFusion();
+    OPENVINO_RTTI("BigPatternFusion", "0");
+    BigPatternFusion();
 };
 
 }  // namespace intel_cpu

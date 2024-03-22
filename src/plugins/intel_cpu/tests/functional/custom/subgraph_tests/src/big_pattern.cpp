@@ -2,29 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <cmath>
-#include <openvino/core/model.hpp>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <openvino/opsets/opset1.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/pass/manager.hpp>
-#include <ov_ops/type_relaxed.hpp>
-#include <transformations/cpu_opset/common/op/vnode.hpp>
-#include <transformations/cpu_opset/common/pass/vnode_fusion.hpp>
+#include <openvino/opsets/opset8.hpp>
+#include <string>
+#include <tuple>
 
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "ov_ops/type_relaxed.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/cpu_test_utils.hpp"
+#include "utils/fusing_test_utils.hpp"
 #include "utils/gen_pattern.hpp"
-#include "utils/print_model.hpp"
 
-using namespace testing;
-using namespace ov::intel_cpu;
+using namespace CPUTestUtils;
 using namespace ov::gen_pattern;
+using namespace ov;
 
-static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const size_t batch,
-                                                            const int q_length,
-                                                            const int kv_length,
-                                                            const int max_seq_len) {
+namespace ov {
+namespace test {
+
+static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const int max_seq_len) {
     std::vector<int32_t> triu(max_seq_len * max_seq_len, 1);
     auto* ptr = triu.data();
     for (int y = 0; y < max_seq_len; y++, ptr += max_seq_len) {
@@ -34,17 +32,13 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const size_t batch,
     auto const_triu = makeConst(ov::element::i32,
                                 ov::Shape({1, 1, static_cast<size_t>(max_seq_len), static_cast<size_t>(max_seq_len)}),
                                 triu);
-    auto attention_mask =
-        std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::Shape{batch, static_cast<size_t>(kv_length)});
+    auto attention_mask = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{-1, -1});
     auto batch_size = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
-    auto cache_positions =
-        std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(q_length)});
-    auto kvLen = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
+    auto cache_positions = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    auto kvLen = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::PartialShape{1});
 
     auto ShapeOf_i32 = [](std::shared_ptr<ov::Node> data) {
-        return makeOP<ov::op::TypeRelaxed<ov::opset1::ShapeOf>>(
-            {data},
-            {{"type_relax", true}, {"input_data_types", {}}, {"output_data_types", {ov::element::i32}}});
+        return makeOP<ov::opset3::ShapeOf>({data}, {{"output_type", "i32"}});
     };
 
     auto ListConstruct_Concat =
@@ -74,9 +68,7 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const size_t batch,
     auto SliceAssign_201_Reshape =
         makeOP<ov::opset1::Reshape>({SliceAssign_201_Range, {-1, 1, max_seq_len, max_seq_len}},
                                     {{"special_zero", true}});  //  tensor_array<i32[?,1,8192,8192]>
-    auto Convert_48852 =
-        makeOP<ov::opset1::Convert>({attention_mask}, {{"destination_type", "i32"}});  //  tensor_array<i32[?,?]>
-    auto ShapeOf_49034 = ShapeOf_i32(Convert_48852);                                   //  tensor_array<i32[2]>
+    auto ShapeOf_49034 = ShapeOf_i32(attention_mask);           //  tensor_array<i32[2]>
     auto Gather_41642 =
         makeOP<ov::opset8::Gather>({ShapeOf_49034, {1}, 0}, {{"batch_dims", 0}});  //  tensor_array<i32[1]>
     auto ScatterUpdate_93502 =
@@ -107,7 +99,8 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const size_t batch,
                                      {0.000000f});
     auto eq_Equal = makeOP<ov::opset1::Equal>({causal_mask_boolean_1, Constant_107278},
                                               {{"auto_broadcast", "numpy"}});  //  tensor_array<u8[?,1,8192,..8192]>
-    auto unsqueeze_Unsqueeze_1 = makeOP<ov::opset1::Unsqueeze>({Convert_48852, {1, 2}});  //  tensor_array<i32[?,1,1,?]>
+    auto unsqueeze_Unsqueeze_1 =
+        makeOP<ov::opset1::Unsqueeze>({attention_mask, {1, 2}});  //  tensor_array<i32[?,1,1,?]>
     auto eq_Convert = makeOP<ov::opset1::Convert>({unsqueeze_Unsqueeze_1},
                                                   {{"destination_type", "f32"}});  //  tensor_array<f32[?,1,1,?]>
     auto Constant_107279 = makeConst(ov::element::f32,
@@ -155,30 +148,71 @@ static std::shared_ptr<ov::Model> buildCausalMaskPreprocess(const size_t batch,
                                        ov::ParameterVector{attention_mask, batch_size, cache_positions, kvLen});
 }
 
-TEST_F(TransformationTestsF, ConvertToCausalMaskPreprocess) {
-    disable_rt_info_check();
-    disable_result_friendly_names_check();
-    const int batch = 2;
-    const int qLen = 16;
-    const int kvLen = 16;
-    const size_t max_seq_len = 2048;
-
-    model = buildCausalMaskPreprocess(batch, qLen, kvLen, max_seq_len);
-    manager.register_pass<VNodeFusion>();
-
-    {
-        auto attention_mask =
-            std::make_shared<ov::opset1::Parameter>(ov::element::i64, ov::Shape{batch, static_cast<size_t>(kvLen)});
-        auto batch_size = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
-        auto cache_positions =
-            std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(qLen)});
-        auto kvLen = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
-
-        auto result = makeOP<VNode>({attention_mask, batch_size, cache_positions, kvLen},
-                                    {{"config.type", "CausalMaskPreprocess"}});
-
-        model_ref =
-            std::make_shared<ov::Model>(ov::NodeVector{result},
-                                        ov::ParameterVector{attention_mask, batch_size, cache_positions, kvLen});
+class BigPatternCausalMaskPreprocess : public SubgraphBaseTest {
+public:
+    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1) {
+        auto tensor = ov::Tensor(ov::element::i32, shape);
+        auto* ptr = static_cast<int32_t*>(tensor.data());
+        for (size_t i = 0; i < tensor.get_size(); i++) {
+            ptr[i] = start;
+            start += step;
+        }
+        return tensor;
     }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        const auto& funcInputs = function->inputs();
+
+        auto& sp_attention_mask = targetInputStaticShapes[0];
+        auto& sp_cache_positions = targetInputStaticShapes[2];
+        auto batch = sp_attention_mask[0];
+        auto kvLen = sp_attention_mask[1];
+        auto qLen = sp_cache_positions[0];
+
+        ov::test::utils::InputGenerateData in_data;
+        in_data.start_from = -1;
+        in_data.range = 2;
+        in_data.resolution = 32768;
+        ov::Tensor t_attention_mask = ov::Tensor(ov::element::i32, sp_attention_mask);
+        auto* ptr = static_cast<int32_t*>(t_attention_mask.data());
+        for (size_t n = 0; n < batch; n++, ptr += kvLen) {
+            for (size_t i = n*4; i < kvLen; i++) {
+                ptr[i] = 1;
+            }
+        }
+        ov::Tensor t_batch_size = create_i32_tensor(ov::Shape({1}), batch, 0);
+        ov::Tensor t_cache_positions = create_i32_tensor(ov::Shape({qLen}), 0, 1);
+        ov::Tensor t_kvLen = create_i32_tensor(ov::Shape({1}), kvLen, 0);
+
+        inputs.clear();
+        inputs.insert({funcInputs[0].get_node_shared_ptr(), t_attention_mask});
+        inputs.insert({funcInputs[1].get_node_shared_ptr(), t_batch_size});
+        inputs.insert({funcInputs[2].get_node_shared_ptr(), t_cache_positions});
+        inputs.insert({funcInputs[3].get_node_shared_ptr(), t_kvLen});
+    }
+
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        const size_t batch = 2;
+        const size_t qLen = 16;
+        const size_t kvLen = 16;
+        const size_t max_seq_len = 2048;
+
+        InputShape sp_attention_mask = {{-1, -1}, {{batch, kvLen}}};
+        InputShape sp_batch_size = {{1}, {{1}}};
+        InputShape sp_cache_positions = {{-1}, {{qLen}}};
+        InputShape sp_kvLen = {{1}, {{1}}};
+        init_input_shapes({sp_attention_mask, sp_batch_size, sp_cache_positions, sp_kvLen});
+        function = buildCausalMaskPreprocess(max_seq_len);
+    }
+};
+
+TEST_F(BigPatternCausalMaskPreprocess, smoke_CompareWithRefs) {
+    run();
+    CheckNumberOfNodesWithType(compiledModel, "BigPattern", 1);
 }
+
+}  // namespace test
+}  // namespace ov

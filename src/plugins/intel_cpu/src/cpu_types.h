@@ -116,7 +116,7 @@ enum class Type {
     Ngram,
     ScaledDotProductAttention,
     RoPE,
-    VNode,
+    BigPattern,
 };
 
 enum class Algorithm {

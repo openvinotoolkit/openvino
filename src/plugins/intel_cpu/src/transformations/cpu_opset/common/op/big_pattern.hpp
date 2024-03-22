@@ -9,17 +9,17 @@
 namespace ov {
 namespace intel_cpu {
 
-class VNode : public ov::op::Op {
+class BigPatternNode : public ov::op::Op {
 public:
-    OPENVINO_OP("VNode", "cpu_plugin_opset");
+    OPENVINO_OP("BigPattern", "cpu_plugin_opset");
 
-    VNode() = default;
+    BigPatternNode() = default;
 
     struct Config {
         std::string type;
     };
 
-    VNode(const OutputVector& args, const Config& cfg);
+    BigPatternNode(const OutputVector& args, const Config& cfg);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

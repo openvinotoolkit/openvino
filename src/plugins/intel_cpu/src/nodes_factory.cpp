@@ -96,7 +96,7 @@
 #include "nodes/topk.h"
 #include "nodes/transpose.h"
 #include "nodes/unique.hpp"
-#include "nodes/vnode.h"
+#include "nodes/big_pattern.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -184,7 +184,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
-    INTEL_CPU_NODE(intel_cpu::node::VNode, Type::VNode);
+    INTEL_CPU_NODE(BigPattern, Type::BigPattern);
     INTEL_CPU_NODE(Interpolate, Type::Interpolate);
     INTEL_CPU_NODE(Inverse, Type::Inverse);
     INTEL_CPU_NODE(RandomUniform, Type::RandomUniform);

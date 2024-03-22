@@ -19,7 +19,6 @@
 #include "itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/cpu_opset/common/op/rope.hpp"
-#include "transformations/cpu_opset/common/op/vnode.hpp"
 #include "utils/gen_pattern.hpp"
 
 using namespace ov::gen_pattern;

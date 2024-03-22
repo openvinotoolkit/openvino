@@ -5,19 +5,19 @@
 #pragma once
 
 #include "node.h"
-#include "transformations/cpu_opset/common/op/vnode.hpp"
+#include "transformations/cpu_opset/common/op/big_pattern.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class VNode : public Node {
+class BigPattern : public Node {
 public:
-    VNode(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    BigPattern(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {}
     bool created() const override {
-        return getType() == Type::VNode;
+        return getType() == Type::BigPattern;
     }
     bool needPrepareParams() const override {
         return false;
@@ -33,11 +33,11 @@ private:
     struct Executor {
         virtual void execute(dnnl::stream strm,
                              intel_cpu::Node * pnode,
-                             const intel_cpu::VNode::Config& config) = 0;
+                             const intel_cpu::BigPatternNode::Config& config) = 0;
     };
     template <typename T>
-    struct VNodeExecutorCausalMaskPreprocess;
-    intel_cpu::VNode::Config m_config;
+    struct ExecutorCausalMaskPreprocess;
+    intel_cpu::BigPatternNode::Config m_config;
     std::shared_ptr<Executor> m_executor;
 };
 
