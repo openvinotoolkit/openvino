@@ -830,6 +830,7 @@ void Transformations::MainSnippets(void) {
     if (!ignoreCallback)
         CPU_REGISTER_PASS_COMMON(snippetsManager, SnippetsMarkSkipped, inferencePrecision != ov::element::f32);
     CPU_REGISTER_PASS_X64(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
+    // [126738] Remove precision constraint when Convert emitters are implemented on arm platform
     if (inferencePrecision == ov::element::f32)
         CPU_REGISTER_PASS_ARM(snippetsManager, snippets::pass::SnippetsTokenization, tokenization_config);
 

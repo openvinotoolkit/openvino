@@ -31,12 +31,12 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     : jit_emitter(h, isa), reg_runtime_params_idx(Operand::X0) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Invoked with invalid op argument");
-    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region.empty(), "Invoked with empty body");
+    OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "Invoked with empty body");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
     num_inputs = 0;
     num_outputs = 0;
-    const auto& io_exprs = body.get_IO_ops();
+    const auto& io_exprs = body->get_IO_ops();
     for (const auto& expr : io_exprs) {
         switch (expr->get_type()) {
             case snippets::lowered::IOExpression::io_type::INPUT: {
@@ -53,7 +53,7 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
         mem_access_exprs.push_back(expr);
     }
     std::set<size_t> unique_buffers;
-    for (const auto& expr : body) {
+    for (const auto& expr : *body.get()) {
         if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
             const auto buffer_id = buffer->get_id();
             if (unique_buffers.count(buffer_id) == 0) {
@@ -166,7 +166,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(data_ptr_regs);
-    for (const auto& expression : body) {
+    for (const auto& expression : *body.get()) {
         const auto reg_info = expression->get_reg_info();
         auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
         auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
@@ -182,11 +182,11 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::aarch64::j
     : jit_kernel_emitter(h, isa, expr), reg_indexes_idx(Operand::X1) {
     const auto kernel = ov::as_type_ptr<snippets::op::KernelStatic>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(kernel != nullptr, "Expectes KernelStatic expression");
-    master_shape = body.get_master_shape();
+    master_shape = body->get_master_shape();
     io_shapes.reserve(num_inputs + num_outputs);
     io_data_layouts.reserve(num_inputs + num_outputs);
     io_data_sizes.reserve(num_inputs + num_outputs);
-    const auto& io_exprs = body.get_IO_ops();
+    const auto& io_exprs = body->get_IO_ops();
     for (const auto& expr : io_exprs) {
         snippets::lowered::PortDescriptorPtr desc = nullptr;
         element::Type etype;

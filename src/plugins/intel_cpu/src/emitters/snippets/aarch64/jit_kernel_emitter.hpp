@@ -66,7 +66,7 @@ protected:
 
     const size_t reg_runtime_params_idx{0};
 
-    snippets::lowered::LinearIR body;
+    std::shared_ptr<snippets::lowered::LinearIR> body;
 
 #ifdef SNIPPETS_DEBUG_CAPS
     friend std::string init_info_jit_kernel_emitter(const jit_kernel_emitter *emitter);

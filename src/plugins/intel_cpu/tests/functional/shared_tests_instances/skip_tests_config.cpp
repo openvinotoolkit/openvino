@@ -385,6 +385,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     // int8 / code-generation specific
     retVector.emplace_back(R"(smoke_LPT.*)");
+    // smoke_Snippets test cases are not supported on arm platforms, except for smoke_Snippets_Eltwise
     retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise).*)");
     // arm snippets doesn't support sve_128 that required by dnnl injector jit_uni_eltwise_injector_f32 yet
     retVector.emplace_back(R"(smoke_Snippets_Eltwise_TwoResults.*)");

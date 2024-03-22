@@ -13,9 +13,6 @@ namespace ov {
 namespace intel_cpu {
 
 #define SNIPPETS_MAX_SNIPPETS_DIMS 12
-#define SNIPPETS_MAX_HARNESS_DIMS 5
-#define SNIPPETS_MAX_TILE_RANK 2
-#define SNIPPETS_DYNAMIC_MASTER_SHAPE_RANK 6
 
 #define GET_OFF(field) offsetof(jit_snippets_call_args, field)
 #define GET_OFF_LOOP_ARGS(field) offsetof(jit_snippets_call_args::loop_args_t, field)
