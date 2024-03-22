@@ -163,7 +163,7 @@ StreamsCalculationTestCase _2sockets_104cores_latency_platform_3 = {
      {52, 26, 0, 26, 1, 0},
      {52, 26, 0, 26, 2, 1},
      {52, 26, 0, 26, 3, 1}},
-    {{1, ALL_PROC, 208, -1, -1},
+    {{1, ALL_PROC, 104, -1, 0},
      {0, MAIN_CORE_PROC, 26, 0, 0},
      {0, MAIN_CORE_PROC, 26, 1, 0},
      {0, HYPER_THREADING_PROC, 26, 0, 0},

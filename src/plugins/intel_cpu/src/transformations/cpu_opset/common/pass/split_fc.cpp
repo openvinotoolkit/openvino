@@ -166,9 +166,10 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             // split weight
             auto split_dim_range = wgt_item->get_shape()[split_dim];
+            const auto& wgt_shape = wgt_item->get_shape();
 
             // needn't to split fc when the dim is 0.
-            if (split_dim_range <= 1) {
+            if (split_dim_range <= 1 || ov::shape_size(wgt_shape) < 6600000) {
                 return false;
             }
 
