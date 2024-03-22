@@ -443,7 +443,7 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
  *                      at the end ensuring mathematical correctness.
  * -- PIPELINE_PARALLEL: Split subgraph into parts and run one part per device in parallel.
  *
- * The following code is an example how TENSOR_PARALLEL model distribution policy might be enabled.
+ * The following code is an example how TENSOR_PARALLEL model disrtibution policy might be enabled.
  *
  * @code
  * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}));
