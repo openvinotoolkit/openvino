@@ -55,9 +55,12 @@ Table of contents:
       conversion <#prepare-helpers-for-model-conversion>`__
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-      -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
-      -  `Compress Model weights to 4 and 8 bits using NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
-      -  `Convert model to OpenVINO IR format <#convert-model-to-openvino-ir-format>`__
+      -  `Instantiate PyTorch model
+          <#instantiate-pytorch-model-uparrow#table-of-content>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF
+          <#compress-model-weights-to-4-and-8-bits-using-nncf-uparrow#table-of-content>`__
+      -  `Convert model to OpenVINO IR format
+          <#convert-model-to-openvino-ir-format-uparrow#table-of-content>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -112,7 +115,7 @@ Install required dependencies
 .. code:: ipython3
 
     import sys
-
+    
     %pip install -q "torch>=2.1.0" "torchvision" "torchaudio" --index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" "nncf>=2.7.0"  "sentencepiece" "tokenizers>=0.12.1" "transformers>=4.37.2" "gradio" "einops"
 
@@ -120,7 +123,7 @@ Install required dependencies
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
+    
     [notice] A new release of pip is available: 23.3.2 -> 24.0
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
@@ -129,12 +132,12 @@ Install required dependencies
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     repo_dir = Path("LLaVA")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/haotian-liu/LLaVA.git
-
+    
     sys.path.insert(0, str(repo_dir.resolve()))
 
 Build model tokenizer and image processor
@@ -157,9 +160,9 @@ instruction.
 
     from transformers import AutoTokenizer, AutoConfig, CLIPImageProcessor
     from llava.model.language_model.llava_mpt import LlavaMptForCausalLM
-
+    
     model_id = "liuhaotian/LLaVA-Lightning-MPT-7B-preview"
-
+    
     config = AutoConfig.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     image_processor = CLIPImageProcessor.from_pretrained(config.mm_vision_tower)
@@ -178,7 +181,7 @@ instruction.
         DEFAULT_IM_END_TOKEN,
         DEFAULT_IMAGE_TOKEN
     )
-
+    
     mm_use_im_start_end = getattr(config, "mm_use_im_start_end", False)
     mm_use_im_patch_token = getattr(config, "mm_use_im_patch_token", True)
     if mm_use_im_patch_token:
@@ -187,7 +190,7 @@ instruction.
         tokenizer.add_tokens(
             [DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN], special_tokens=True
         )
-
+    
     if hasattr(config, "max_sequence_length"):
         context_len = config.max_sequence_length
     else:
@@ -244,7 +247,7 @@ The code below prepares function for converting LLaVA model to OpenVINO
 Intermediate Representation format. It splits model on parts described
 above, prepare example inputs for each part and convert each part using
 `OpenVINO Model Conversion
-API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-in-python-convert-model>`__.
+API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html#convert-a-model-with-python-convert-model>`__.
 ``ov.convert_model`` function accepts PyTorch model instance and returns
 ``ov.Model`` object that represent model in OpenVINO format. It is ready
 to use for loading on device using ``ov.compile_model`` or can be saved
@@ -260,19 +263,19 @@ on disk using ``ov.save_model``.
     import nncf
     from typing import Optional, Tuple, List
     import torch.nn.functional as F
-
+    
     warnings.filterwarnings('ignore')
-
-
+    
+    
     class ModelWrapper(torch.nn.Module):
         """
         Model wrapper class for export for spliting original forward logic on preparing multimodal data and inference using it.
-        That allows us to sperate image encoder and token embeddings model from general flow.
+        That allows us to sperate image encoder and token embeddings model from general flow. 
         """
         def __init__(self, model):
             super().__init__()
             self.model = model
-
+    
         def forward(
             self,
             input_ids: torch.LongTensor = None,
@@ -294,19 +297,19 @@ on disk using ``ov.save_model``.
                 outputs.last_hidden_state.to(self.model.transformer.wte.weight.device),
                 self.model.transformer.wte.weight.to(outputs.last_hidden_state.dtype),
             )
-
+    
             return (logits, tuple(outputs.past_key_values))
-
-
+    
+        
     def patch_model_forward(model):
         """
-        Helper function for patching model forward for model with past.
-        It makes model more convinient for export to TorchScript format avoiding limitation
+        Helper function for patching model forward for model with past. 
+        It makes model more convinient for export to TorchScript format avoiding limitation 
         that list of tensors can not be correctly traced as model input
         """
-
+        
         orig_forward = model.forward
-
+    
         @wraps(orig_forward)
         def ts_patched_forward(
             input_ids: torch.Tensor,
@@ -316,11 +319,11 @@ on disk using ``ov.save_model``.
             pkv_list = list(past_key_values)
             outs = orig_forward(input_ids=input_ids, past_key_values=pkv_list, attention_mask=attention_mask,)
             return outs
-
+    
         model.forward = ts_patched_forward
         return model
-
-
+    
+    
     def flattenize_inputs(inputs):
         """
         Helper function for making nested inputs flattens
@@ -334,8 +337,8 @@ on disk using ``ov.save_model``.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-
-
+    
+    
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -343,14 +346,14 @@ on disk using ``ov.save_model``.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-
+    
     def postprocess_converted_model(ov_model, example_input=None, input_names=None, output_names=None, dynamic_shapes=None):
         """
         Helper function for appling postprocessing on converted model with updating input names, shapes and output names
         acording to requested specification
         """
         flatten_example_inputs = flattenize_inputs(example_input) if example_input else []
-
+        
         if input_names:
             for inp_name, m_input, input_data in zip(input_names, ov_model.inputs, flatten_example_inputs):
                 input_node = m_input.get_node()
@@ -362,20 +365,20 @@ on disk using ``ov.save_model``.
                         shape[k] = -1
                 input_node.set_partial_shape(ov.PartialShape(shape))
                 m_input.get_tensor().set_names({inp_name})
-
+        
         if output_names:
             for out, out_name in zip(ov_model.outputs, output_names):
                 out.get_tensor().set_names({out_name})
         ov_model.validate_nodes_and_infer_types()
         return ov_model
-
-
+    
+    
     def convert_llava_mpt(pt_model: torch.nn.Module, model_path: Path,
                           image_encoder_wc_parameters: Optional[dict] = None,
                           llava_wc_parameters: Optional[dict] = None):
         """
         LLaVA MPT model conversion function
-
+    
         Params:
           pt_model: PyTorch model
           model_path: path for saving model
@@ -403,7 +406,7 @@ on disk using ``ov.save_model``.
             del ov_model
             gc.collect()
             print("Image Encoder model successfully converted")
-
+    
         if not token_embedding_model_path.exists():
             model.forward = model.get_model().embed_tokens
             ov_model = ov.convert_model(
@@ -414,7 +417,7 @@ on disk using ``ov.save_model``.
             del ov_model
             gc.collect()
             print("Token Embedding model successfully converted")
-
+    
         if first_stage_model_path.exists() and second_stage_model_path.exists():
             print("LLaVA model successfully converted")
             del pt_model
@@ -433,7 +436,7 @@ on disk using ``ov.save_model``.
             dynamic_shapes[inputs[-1]] = {2: "past_sequence + sequence"}
             dynamic_shapes[inputs[-2]] = {2: "past_sequence + sequence"}
             outputs.extend([f"present.{idx}.key", f"present.{idx}.value"])
-
+    
         inputs.extend(["attention_mask"])
         if not first_stage_model_path.exists():
             ov_model = ov.convert_model(
@@ -447,8 +450,8 @@ on disk using ``ov.save_model``.
             cleanup_torchscript_cache()
             del ov_model
             gc.collect()
-
-
+                
+    
         if not second_stage_model_path.exists():
             model_wrap = patch_model_forward(model_wrap)
             example_input_second_stage = {
@@ -458,10 +461,10 @@ on disk using ``ov.save_model``.
             }
             ov_model = ov.convert_model(model_wrap, example_input=example_input_second_stage)
             ov_model = postprocess_converted_model(
-                ov_model,
-                example_input=example_input_second_stage.values(),
-                input_names=inputs,
-                output_names=outputs,
+                ov_model, 
+                example_input=example_input_second_stage.values(), 
+                input_names=inputs, 
+                output_names=outputs, 
                 dynamic_shapes=dynamic_shapes
             )
             if llava_wc_parameters is not None:
@@ -492,7 +495,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model
+Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -503,7 +506,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF
+Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -544,9 +547,9 @@ prediction quality.
 More details about weights compression, can be found in `OpenVINO
 documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__.
 
-   **NOTE**: There is no speedup for INT4 compressed models on dGPU.
+   **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format
+Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -560,14 +563,14 @@ compression instead of INT8 weight compression.
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     compression_mode = widgets.Dropdown(
         options=['INT4', 'INT8'],
         value='INT4',
         description='Compression mode:',
         disabled=False,
     )
-
+    
     compression_mode
 
 
@@ -587,7 +590,7 @@ compression instead of INT8 weight compression.
     else:
         compressed_model_dir = Path("llava-mpt/INT8_compressed_weights")
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-
+    
     if not compressed_model_dir.exists():
         compressed_model_dir.mkdir(exist_ok=True, parents=True)
         config.save_pretrained(compressed_model_dir)
@@ -595,10 +598,10 @@ compression instead of INT8 weight compression.
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
             vision_tower.load_model()
-
+    
         if mm_use_im_start_end:
             model.resize_token_embeddings(len(tokenizer))
-
+    
         model.eval()
         with torch.no_grad():
             convert_llava_mpt(model, compressed_model_dir,
@@ -633,7 +636,9 @@ compression instead of INT8 weight compression.
 
 
 
+.. raw:: html
 
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -659,7 +664,9 @@ compression instead of INT8 weight compression.
 
 
 
+.. raw:: html
 
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -691,7 +698,9 @@ compression instead of INT8 weight compression.
 
 
 
+.. raw:: html
 
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -715,7 +724,9 @@ compression instead of INT8 weight compression.
 
 
 
+.. raw:: html
 
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -747,7 +758,9 @@ compression instead of INT8 weight compression.
 
 
 
+.. raw:: html
 
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
@@ -784,8 +797,8 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
     from transformers import AutoConfig
     import numpy as np
     import torch
-
-
+    
+    
     class OVLlavaMPTForCausalLM(GenerationMixin):
         def __init__(self, core, model_dir, device):
             self.image_encoder = core.compile_model(model_dir / "image_encoder.xml", device)
@@ -813,11 +826,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.main_input_name = "input_ids"
             self.device = torch.device("cpu")
             self.num_pkv = 2
-
+    
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-
+    
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -830,7 +843,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             return self.forward(
                 input_ids, images, attention_mask, prefix_mask, past_key_values
             )
-
+    
         def forward(
             self,
             input_ids: torch.LongTensor,
@@ -855,32 +868,32 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 )
                 # Add the past_key_values to the decoder inputs
                 inputs = dict(zip(self.key_value_input_names, past_key_values))
-
+    
             else:
                 return self.forward_with_image(input_ids, images, attention_mask)
             inputs["input_ids"] = np.array(input_ids)
-
+    
             if "attention_mask" in self.input_names:
                 inputs["attention_mask"] = np.array(attention_mask)
-
+    
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-
+    
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
-
+    
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(
                 self.request.get_tensor(key).data for key in self.key_value_output_names
             )
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-
+    
             past_key_values = tuple(
                 past_key_values[i : i + self.num_pkv]
                 for i in range(0, len(past_key_values), self.num_pkv)
             )
             return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
-
+    
         def forward_with_image(self, input_ids, images, attention_mask):
             """First step inference method, that resolves multimodal data"""
             input_embed, attention_mask = self.prepare_multimodal_input(
@@ -893,13 +906,13 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             return CausalLMOutputWithPast(
                 logits=torch.from_numpy(logits), past_key_values=pkv
             )
-
+    
         def prepare_multimodal_input(self, input_ids, images, attention_mask):
             """Preprocessing function for embedding multimodal data"""
             image_features = []
             if images is not None:
                 image_features = self.image_encoder(images)[0]
-
+    
             new_input_embeds = []
             cur_image_idx = 0
             for batch_idx, cur_input_ids in enumerate(input_ids):
@@ -945,10 +958,10 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 cur_new_input_embeds = [torch.from_numpy(x) for x in cur_new_input_embeds]
                 cur_new_input_embeds = torch.cat(cur_new_input_embeds, dim=0)
                 new_input_embeds.append(cur_new_input_embeds)
-
+    
             if any(x.shape != new_input_embeds[0].shape for x in new_input_embeds):
                 max_len = max(x.shape[0] for x in new_input_embeds)
-
+    
                 new_input_embeds_align = []
                 for cur_new_embed in new_input_embeds:
                     cur_new_embed = torch.cat(
@@ -963,7 +976,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     )
                     new_input_embeds_align.append(cur_new_embed)
                 new_input_embeds = torch.stack(new_input_embeds_align, dim=0)
-
+    
                 if attention_mask is not None:
                     new_attention_mask = []
                     for cur_attention_mask, cur_new_labels, cur_new_labels_align in zip(
@@ -986,7 +999,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     assert attention_mask.shape == new_labels.shape
             else:
                 new_input_embeds = torch.stack(new_input_embeds, dim=0)
-
+    
                 if attention_mask is not None:
                     new_attn_mask_pad_left = torch.full(
                         (attention_mask.shape[0], new_input_embeds.shape[1] - input_ids.shape[1],), True,
@@ -994,12 +1007,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     )
                     attention_mask = torch.cat((new_attn_mask_pad_left, attention_mask), dim=1)
                     assert attention_mask.shape == new_input_embeds.shape[:2]
-
+    
             return new_input_embeds, attention_mask
-
+    
         def prepare_inputs_for_generation(self, input_ids, past_key_values=None, **kwargs):
             """
-            This function is used during running GenerationMixin.generate for preparing model specific inputs for
+            This function is used during running GenerationMixin.generate for preparing model specific inputs for 
             each generation step
             """
             past_len = 0
@@ -1021,7 +1034,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 "past_key_values": past_key_values,
                 "images": kwargs.get("images", None),
             }
-
+    
         def _reorder_cache(
             self, past_key_values: Tuple[Tuple[torch.Tensor]], beam_idx: torch.Tensor
         ) -> Tuple[Tuple[torch.Tensor]]:
@@ -1030,7 +1043,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             [`~PreTrainedModel.beam_sample`] is called.
             This is required to match `past_key_values` with the correct beam_idx at every generation step.
             """
-
+    
             # from transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel._reorder_cache
             return tuple(
                 tuple(np.take(past_state, beam_idx, 0) for past_state in layer_past)
@@ -1052,21 +1065,21 @@ Select inference device
 
 Select device from dropdown list for running inference using OpenVINO.
 
-   **NOTE**: There is no speedup for INT4 compressed models on dGPU.
+   **Note**: There is no speedup for INT4 compressed models on dGPU.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     core = ov.Core()
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -1101,8 +1114,8 @@ PyTorch implementation we will use PyTorch tensors as input.
     import requests
     from PIL import Image
     from io import BytesIO
-
-
+    
+    
     def load_image(image_file):
         if image_file.startswith("http") or image_file.startswith("https"):
             response = requests.get(image_file)
@@ -1110,13 +1123,13 @@ PyTorch implementation we will use PyTorch tensors as input.
         else:
             image = Image.open(image_file).convert("RGB")
         return image
-
-
+    
+    
     image_file = "https://llava-vl.github.io/static/images/view.jpg"
-
+    
     image = load_image(image_file)
     image_tensor = image_processor.preprocess(image, return_tensors="pt")["pixel_values"]
-
+    
     text_message = "What are the things I should be cautious about when I visit here?"
     print(f"Question: {text_message}")
     image
@@ -1159,21 +1172,21 @@ accumulating history of provided messages and images.
     from llava.constants import IMAGE_TOKEN_INDEX
     from transformers import TextStreamer
     from llava.conversation import conv_templates, SeparatorStyle
-
-    # Prepare
+    
+    # Prepare 
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     conv_mode = "mpt"
-
+    
     conv = conv_templates[conv_mode].copy()
     roles = ("user", "assistant")
-
+    
     if mm_use_im_start_end:
         inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + "\n" + text_message
     else:
         inp = DEFAULT_IMAGE_TOKEN + "\n" + text_message
     conv.append_message(conv.roles[0], inp)
     conv.append_message(conv.roles[1], None)
-
+    
     prompt = conv.get_prompt()
     input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0)
     stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
@@ -1181,7 +1194,7 @@ accumulating history of provided messages and images.
     stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
     print("Answer:")
-
+    
     output_ids = ov_model.generate(
         input_ids,
         images=image_tensor,
@@ -1210,25 +1223,25 @@ Interactive demo
     import gradio as gr
     from threading import Event, Thread
     from transformers import TextIteratorStreamer
-
+    
     title_markdown = ("""
     # 🌋 LLaVA: Large Language and Vision Assistant
     """)
-
+    
     tos_markdown = ("""
     ### Terms of use
     By using this service, users are required to agree to the following terms:
     The service is a research preview intended for non-commercial use only. It only provides limited safety measures and may generate offensive content. It must not be used for any illegal, harmful, violent, racist, or sexual purposes. The service may collect user dialogue data for future research.
     """)
-
+    
     conv = conv_templates[conv_mode].copy()
     conv.messages = []
-
-
+    
+    
     def clear_history(textbox, imagebox, chatbot):
         """
         callback function for clearing chat windows in interface on clear button click
-
+        
         Params:
           textbox: current textbox for user messages state
           imagebox: current imagebox state
@@ -1237,13 +1250,13 @@ Interactive demo
           empty textbox, imagebox and chatbot states
         """
         conv.messages = []
-
+        
         return None, None, None
-
+    
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-
+        
         Params:
           message: current message
           history: conversation history
@@ -1252,19 +1265,19 @@ Interactive demo
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-
+    
     def bot(image, history, temperature=0.2, top_p=0.7, max_new_tokens=1024):
         """
         callback function for running chatbot on submit button click
-
+        
         Params:
           history: conversation history
-          temperature:  parameter for control the level of creativity in AI-generated text.
+          temperature:  parameter for control the level of creativity in AI-generated text. 
                         By adjusting the `temperature`, you can influence the AI model's probability distribution, making the text more focused or diverse.
           top_p: parameter for control the range of tokens considered by the AI model based on their cumulative probability.
-
+        
         """
-
+        
         text = history[-1][0]
         if len(text) <= 0 and image is None:
             conv.skip_next = True
@@ -1278,7 +1291,7 @@ Interactive demo
         conv.append_message(conv.roles[0], text)
         conv.append_message(conv.roles[1], None)
         conv.skip_next = False
-
+    
         # Construct the input message string for the model by concatenating the current system message and conversation history
         prompt = conv.get_prompt()
         image = conv.get_images(return_pil=True)
@@ -1303,32 +1316,32 @@ Interactive demo
             use_cache=True,
             stopping_criteria=[stopping_criteria],
         )
-
+    
         stream_complete = Event()
-
+    
         def generate_and_signal_complete():
             """
             genration function for single thread
             """
             ov_model.generate(**generate_kwargs)
             stream_complete.set()
-
+    
         t1 = Thread(target=generate_and_signal_complete)
         t1.start()
-
+    
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
-            if not new_text:
+            if not new_text: 
                 continue
             partial_text += new_text
             conv.messages[-1][-1] = partial_text
             history[-1][1] = partial_text
             yield history
-
+    
     with gr.Blocks(title="LLaVA") as demo:
         gr.Markdown(title_markdown)
-
+    
         with gr.Row():
             with gr.Column():
                 imagebox = gr.Image(type="pil")
@@ -1336,7 +1349,7 @@ Interactive demo
                     temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.2, step=0.1, interactive=True, label="Temperature",)
                     top_p = gr.Slider(minimum=0.0, maximum=1.0, value=0.7, step=0.1, interactive=True, label="Top P",)
                     max_output_tokens = gr.Slider(minimum=0, maximum=1024, value=512, step=64, interactive=True, label="Max output tokens",)
-
+    
             with gr.Column(scale=3):
                 with gr.Column(scale=6):
                     chatbot = gr.Chatbot(height=400)
@@ -1347,10 +1360,10 @@ Interactive demo
                             submit_btn = gr.Button(value="Submit", visible=True)
                     with gr.Row(visible=True) as button_row:
                         clear_btn = gr.Button(value="🗑️  Clear history", interactive=True)
-
+    
         gr.Markdown(tos_markdown)
-
-
+    
+                
         submit_event = textbox.submit(
             fn=user,
             inputs=[textbox, chatbot],
@@ -1367,7 +1380,7 @@ Interactive demo
             outputs=[textbox, chatbot],
             queue=False,
         ).then(bot, [imagebox, chatbot, temperature, top_p, max_output_tokens], chatbot, queue=True)
-
+    
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/

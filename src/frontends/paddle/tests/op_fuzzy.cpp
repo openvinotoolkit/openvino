@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -490,6 +490,7 @@ static const std::vector<std::string> models{
     std::string("rnn_lstm_layer_2_bidirectional_seq_len_4/rnn_lstm_layer_2_bidirectional_seq_len_4.pdmodel"),
     std::string("roi_align_test"),
     std::string("roi_align_test2"),
+    std::string("round"),
     std::string("scale_bias_after_float32"),
     std::string("scale_bias_after_int32"),
     std::string("scale_bias_after_int64"),
@@ -505,6 +506,7 @@ static const std::vector<std::string> models{
     std::string("set_value5"),
     // std::string("set_value6"),
     // std::string("set_value7"),
+    // std::string("set_value8"),
     // std::string("set_value_dynamic1"),
     std::string("set_value_dynamic2"),
     std::string("shape"),

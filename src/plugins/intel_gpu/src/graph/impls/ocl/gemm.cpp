@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,6 +31,12 @@ struct gemm_impl : multi_stage_primitive<gemm> {
 
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<gemm_impl>(*this);
+    }
+
+    gemm_impl() = default;
+
+    gemm_impl(const std::vector<kernel_selector::kernel_data>& kd) : parent(kd) {
+        this->can_reuse_memory = true;
     }
 
     void load(BinaryInputBuffer& ib) override {
