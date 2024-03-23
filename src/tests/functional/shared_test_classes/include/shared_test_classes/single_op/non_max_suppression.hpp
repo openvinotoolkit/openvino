@@ -27,15 +27,17 @@ using NmsParams = std::tuple<InputShapeParams,  // Params using to create 1st an
                              float,             // Score threshold
                              float,             // Soft NMS sigma
                              ov::op::v5::NonMaxSuppression::BoxEncodingType,  // Box encoding
-                             bool,                                                // Sort result descending
+                             bool,                                            // Sort result descending
                              ov::element::Type,                               // Output type
-                             std::string>;                                        // Device name
+                             std::string>;                                    // Device name
 
 class NmsLayerTest : public testing::WithParamInterface<NmsParams>, virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsParams>& obj);
 protected:
     void SetUp() override;
+    void compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) override;
+    void CompareBBoxes(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual);
 };
 
 class Nms9LayerTest : public NmsLayerTest {
