@@ -313,14 +313,25 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
+        auto vec_load_type = LoadType::LT_ALIGNED_READ;
+        for (auto op : params.fused_ops) {
+            if (op.GetType() == FusedOpType::ELTWISE) {
+                auto vec_axis_dim = op.tensors[0].X().v;
+                // If vector axis of the eltwise input data is to be broadcasted we cannot use aligned load
+                if ((vec_axis_dim == 1 && op.tensors[0].LogicalSize() != 1) && (params.inputs[1].X().v != vec_axis_dim)) {
+                    vec_load_type = LoadType::LT_UNALIGNED;
+                }
+            }
+        }
         FusedOpsConfiguration conf_vec = { "_VEC", {"b", "f", "(y + write_id)", "x"},
                                            "dequantized",
                                            input_dt,
                                            b_vec_size,
-                                           LoadType::LT_ALIGNED_READ,
+                                           vec_load_type,
                                            BoundaryCheck::ENABLED,
                                            IndexType::TENSOR_COORD,
-                                           Tensor::DataChannelName::Y };
+                                           Tensor::DataChannelName::X };
+
         FusedOpsConfiguration conf_scalar = { "_SCALAR", {"b", "f", "(y + write_id)", "x"},
                                                "dequantized",
                                                input_dt,
@@ -328,7 +339,7 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
                                                LoadType::LT_UNALIGNED,
                                                BoundaryCheck::ENABLED,
                                                IndexType::TENSOR_COORD,
-                                               Tensor::DataChannelName::Y };
+                                               Tensor::DataChannelName::X };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf_vec, conf_scalar }));
     }
 
