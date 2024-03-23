@@ -86,7 +86,7 @@ OutputVector translate_atan2(const NodeContext& context) {
     if(!context.input_is_none(2) && context.get_input_size() == 3) {
         auto out_tensor = context.get_input(2);
         // dtype is inherited from out tensor in input
-    auto result_out = context.mark_node(std::make_shared<v1::ConvertLike>(result, out_tensor);
+    auto result_out = context.mark_node(std::make_shared<v1::ConvertLike>(result, out_tensor));
 
     return {result_out};
     }
