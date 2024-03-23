@@ -30,7 +30,7 @@ OutputVector translate_add_n_op(const NodeContext& node) {
             result = make_shared<v1::Add>(result, complex_type_mark_ind->input_value(0));
         }
         auto complex_add_n = make_shared<ComplexTypeMark>(result, complex_part_type);
-        set_node_name(node.get_name(), complex_add_n);
+        set_node_name(node.get_name(), result.get_node_shared_ptr());
         return {complex_add_n->output(0)};
     }
 
