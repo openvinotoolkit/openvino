@@ -9,10 +9,8 @@ import numpy as np
 from pytorch_layer_test_class import PytorchLayerTest
 
 class TestAtan2(PytorchLayerTest):
-    def _prepare_input(self, y, x, ref_dtype=None):
-        inputs = [np.array(y).astype(ref_dtype) - np.array(y).astype(ref_dtype), np.array(x).astype(ref_dtype) - np.array(x).astype(ref_dtype)]
-        if ref_dtype:
-            inputs.append(np.zeros(1).astype(ref_dtype))
+    def _prepare_input(self, y, x, dtype):
+        inputs = [np.array(y).astype(dtype), np.array(x).astype(dtype)]
         return inputs
 
     def create_model(self, dtype=None, use_out=False):
@@ -42,7 +40,7 @@ class TestAtan2(PytorchLayerTest):
         
         dtype = dtype_map.get(dtype)
 
-        if out_use:
+        if use_out:
             model_class = aten_atan2_out(dtype)
         else:
             model_class = aten_atan2()
@@ -56,10 +54,10 @@ class TestAtan2(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uint8"])
     @pytest.mark.parametrize(
-        "y, x", [(0, 1), (0, 0), (1, -5), (1, 10), (-1, -5), (-1, -5), (1.25, -5.5)]
+        "y, x", [(0, 1.5), (0, 0), (1.25, -5), (1, 10), (-1, -5.5), (-1, -5), (1.25, -5.5), (1.9, 2.9), [10, 9.9]]
     )
     @pytest.mark.parametrize("use_out", [False, True])
-    def test_linspace_with_out(self, dtype, use_out, y, x, ie_device, precision, ir_version):
+    def test_atan2_with_out(self, dtype, use_out, y, x, ie_device, precision, ir_version):
         self._test(
             *self.create_model(dtype=dtype, use_out=use_out),
             ie_device,
