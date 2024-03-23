@@ -106,10 +106,15 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.simd_size = 16;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        if (!params.transpose_input0 && !params.inputs[0].X().pad.is_dynamic && !params.inputs[1].Y().pad.is_dynamic && !params.inputs[1].X().pad.is_dynamic)
+        bool output_ndim_transposed = (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1));
+        if (!params.transpose_input0 && !params.inputs[0].X().pad.is_dynamic && !params.inputs[1].Y().pad.is_dynamic &&
+            !params.inputs[1].X().pad.is_dynamic && (!output_ndim_transposed || params.fused_ops.empty())) {
+            // Not supports dynamic padding / indirect gemm yet
+            // If output X dim (= N) is transposed, cannot read eltwise as aligned data
             tuning_data.tile_n_size = 32;
-        else
+        } else {
             tuning_data.tile_n_size = 16;
+        }
     }
 
     GPU_DEBUG_LOG << params.layerID << ": tile_m_size: " << tuning_data.tile_m_size
