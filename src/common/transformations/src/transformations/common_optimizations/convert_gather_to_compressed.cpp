@@ -37,10 +37,11 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto dicts_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<ov::op::v0::Convert>({dicts_m});
 
-    auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    // auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto sub_const_m = ov::pass::pattern::any_input(); // const or const+convert
     auto subtract_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
 
-    auto mul_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
+    auto mul_const_m = ov::pass::pattern::any_input(); // const or const+convert
     auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});
     auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({convert_m, mul_const_m});
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{mul_with_sub_m, mul_no_sub_m});
