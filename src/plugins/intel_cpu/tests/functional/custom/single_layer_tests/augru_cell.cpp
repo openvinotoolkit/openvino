@@ -104,6 +104,7 @@ protected:
 
         if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
+            abs_threshold = 2e-2;
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);
         }

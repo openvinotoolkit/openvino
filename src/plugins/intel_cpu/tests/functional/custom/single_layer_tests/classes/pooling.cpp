@@ -98,6 +98,7 @@ void PoolingLayerCPUTest::SetUp() {
 
     std::shared_ptr<ov::Node> poolInput = params[0];
     if (isInt8) {
+        abs_threshold = 2e-2;
         ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
         poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
     }

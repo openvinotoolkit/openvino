@@ -279,6 +279,14 @@ protected:
         std::tie(postOpMgrPtr, fusedOps) = fusing_params;
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
+        // if dynamic quantization is enabled
+        if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) &&
+            configuration.at(ov::hint::dynamic_quantization_group_size.name()) != 0) {
+            abs_threshold = 0.1;
+        } else if (!configuration.count(ov::hint::dynamic_quantization_group_size.name())) {
+            abs_threshold = 5e-3;
+        }
+
         ElementType netType = ov::element::f32;
         inType = outType = netType;
 

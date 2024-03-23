@@ -39,6 +39,7 @@ void TwoInputsAndOutputs::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    abs_threshold = 5e-7;
 }
 
 void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
@@ -50,6 +51,7 @@ void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+    abs_threshold = 5e-7;
 }
 
 TEST_P(TwoInputsAndOutputs, CompareWithRefImpl) {
