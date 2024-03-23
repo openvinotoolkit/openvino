@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/complex_type_mark.hpp"
 #include "openvino/op/reduce_l2.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
@@ -22,7 +23,7 @@ namespace op {
 
 template <typename T>
 OutputVector translate_direct_reduce_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Any", "All", "EuclideanNorm", "Max", "Mean", "Min", "Prod", "Sum"}, true);
+    default_op_checks(node, 2, {"Any", "All", "EuclideanNorm", "Max", "Mean", "Min", "Sum"});
     auto input = node.get_input(0);
     auto axis = node.get_input(1);
     auto keep_dims = node.get_attribute<bool>("keep_dims", false);
