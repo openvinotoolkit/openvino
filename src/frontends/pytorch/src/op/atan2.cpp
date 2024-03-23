@@ -88,7 +88,7 @@ OutputVector translate_atan2(const NodeContext& context) {
     // check whether out tensor is given
     if(!context.input_is_none(2) && context.get_input_size() == 3) {
         context.mutate_input(2, result);            
-        }
+    }
 
     // when out tensor is not in input
     return {result};
