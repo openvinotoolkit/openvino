@@ -48,11 +48,11 @@ OutputVector translate_prod_op(const NodeContext& node) {
         auto complex_result = make_shared<ComplexTypeMark>(prod_op, complex_type_input->get_complex_part_type());
         set_node_name(node.get_name(), prod_op);
         return {complex_result};
-    } else {
-        auto prod_op = make_shared<v1::ReduceProd>(input, axis, keep_dims);
-        set_node_name(node.get_name(), prod_op);
-        return {prod_op};
-    }
+    } 
+
+    auto prod_op = make_shared<v1::ReduceProd>(input, axis, keep_dims);
+    set_node_name(node.get_name(), prod_op);
+    return {prod_op};
 }
 
 template OutputVector translate_direct_reduce_op<v1::ReduceLogicalOr>(const NodeContext& node);
