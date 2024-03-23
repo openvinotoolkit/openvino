@@ -95,7 +95,7 @@ std::shared_ptr<ov::Node> GatherWeightsDecompression::init_compressed_weights_su
     }
     auto weights_tensor = ov::test::utils::create_and_fill_tensor(data_precision, original_data_shape);
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
-    weights->set_friendly_name("Compressed_weighs");
+    weights->set_friendly_name("Compressed_weights");
     auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, output_precision);
 
     std::shared_ptr<ov::Node> mul_parent = weights_convert;

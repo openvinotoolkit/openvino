@@ -18,7 +18,8 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& decompression_zero_point,
                                    const ov::element::Type output_type)
     : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type) {
+      m_output_type(output_type),
+      m_batch_dims(batch_dims) {
     set_argument(3, decompression_scale);
     set_argument(4, decompression_zero_point);
     validate_and_infer_types();
@@ -31,7 +32,8 @@ GatherCompressed::GatherCompressed(const ov::Output<Node>& data,
                                    const ov::Output<Node>& decompression_scale,
                                    const ov::element::Type output_type)
     : ov::op::v8::Gather({data, indices, axis, batch_dims}),
-      m_output_type(output_type) {
+      m_output_type(output_type),
+      m_batch_dims(batch_dims) {
     set_argument(3, decompression_scale);
     validate_and_infer_types();
 }
@@ -61,10 +63,10 @@ std::shared_ptr<ov::Node> GatherCompressed::clone_with_new_inputs(const ov::Outp
 void GatherCompressed::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-                          input_size >= 3,
+                          input_size >= 4,
                           "Number of inputs is incorrect. Current value is: ",
                           input_size,
-                          ", expected at least 3.");
+                          ", expected at least 4.");
 
     auto out_shapes = ov::op::shape_infer(this,
                                           std::vector<ov::PartialShape>{get_input_partial_shape(0),
@@ -73,10 +75,6 @@ void GatherCompressed::validate_and_infer_types() {
 
     auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
     set_output_type(0, output_type, out_shapes[0]);
-    std::cout << "get_input_partial_shape(0)=" << get_input_partial_shape(0) << std::endl;
-    std::cout << "get_input_partial_shape(1)=" << get_input_partial_shape(1) << std::endl;
-    std::cout << "get_input_partial_shape(2)=" << get_input_partial_shape(2) << std::endl;
-    std::cout << "out_shapes[0]=" << out_shapes[0] << std::endl;
 }
 
 bool GatherCompressed::visit_attributes(ov::AttributeVisitor& visitor) {

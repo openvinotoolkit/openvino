@@ -33,12 +33,12 @@ protected:
 private:
     void execReference();
 
-    template <typename IN_PRECISION, typename OUT_PRECISION>
+    template <typename IN_TYPE, typename OUT_TYPE>
     void execReference8bit();
 
-    template <typename OUT_PRECISION>
+    template <typename OUT_TYPE>
     void execReferenceU4();
-    template <typename OUT_PRECISION>
+    template <typename OUT_TYPE>
     void execReferenceI4();
 
     bool reverseIndexing = true;
@@ -48,6 +48,8 @@ private:
     static constexpr size_t GATHER_AXIS = 2;
     static constexpr size_t GATHER_SCALE = 3;
     static constexpr size_t GATHER_ZP = 4;
+
+    int m_batchDims = 0;
 };
 
 }   // namespace node

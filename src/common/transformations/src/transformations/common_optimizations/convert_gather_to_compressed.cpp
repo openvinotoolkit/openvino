@@ -70,17 +70,22 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
             return false;
         }
 
-        auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) {
-            auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-            OPENVINO_ASSERT(constant != nullptr);
-            ov::Shape current_shape = constant->get_shape();
-            if (current_shape.size() == 2)
-                return constant;
-            OPENVINO_ASSERT(current_shape.size() == 3);
-
-            auto new_shape = ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
-
-            return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+        auto reshape_const_to_2d = [](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+            auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node);
+            if (convert != nullptr) {
+                return node;
+            } else if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(node) != nullptr) {
+                return node;
+            } else {
+                auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                OPENVINO_ASSERT(constant != nullptr);
+                ov::Shape current_shape = constant->get_shape();
+                if (current_shape.size() == 2)
+                    return constant;
+                OPENVINO_ASSERT(current_shape.size() == 3);
+                auto new_shape = ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+                return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
+            }
         };
 
         bool reshape_to_2d = (pattern_map.count(reshape_m) > 0) ? true : false;

@@ -16,6 +16,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+#define PRINT(X) std::cout << #X << " = " << X << std::endl
+
 bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
@@ -42,10 +44,13 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
                     ",",
                     op->get_output_size(),
                     "] edges!");
+
+    if (ov::is_type<ov::op::internal::GatherCompressed>(op)) {
+        m_batchDims = static_cast<int>(ov::as_type_ptr<ov::op::internal::GatherCompressed>(op)->get_batch_dims());
+    }
 }
 
 void GatherCompression::initSupportedPrimitiveDescriptors() {
-    std::cout << "--->2:GatherCompression::initSupportedPrimitiveDescriptors() --->\n";
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -98,72 +103,72 @@ void GatherCompression::executeDynamicImpl(dnnl::stream strm) {
     execReference();
 }
 
-template <typename OUT_PRECISION>
+template <typename OUT_TYPE>
 void GatherCompression::execReferenceU4() {
     std::cout << "--->5:GatherCompression::execReferenceU4()" << std::endl;
 }
 
-template <typename OUT_PRECISION>
+template <typename OUT_TYPE>
 void GatherCompression::execReferenceI4() {
     std::cout << "--->5:GatherCompression::execReferenceI4()" << std::endl;
-    DEBUG_LOG(getName(), "execReference4bit");
-    auto data_mem_ptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto ind_mem_ptr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    const auto* psrc = data_mem_ptr->getDataAs<uint8_t>();
-    const auto* pidx = ind_mem_ptr->getDataAs<int32_t>();
+    // DEBUG_LOG(getName(), "execReference4bit");
+    // auto data_mem_ptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
+    // auto ind_mem_ptr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
+    // const auto* psrc = data_mem_ptr->getDataAs<uint8_t>();
+    // const auto* pidx = ind_mem_ptr->getDataAs<int32_t>();
 
-    bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
-    const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
-    const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    auto* pdst = getDstDataAtPortAs<float>(0);
+    // bool one_dim_zp = getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getRank() == 1;
+    // const auto* zp = getSrcDataAtPortAs<float_t>(GATHER_ZP);
+    // const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
+    // auto* pdst = getDstDataAtPortAs<float>(0);
 
-    const auto& idxDims = ind_mem_ptr->getStaticDims();
-    const auto batch = idxDims[0];
-    const auto seqLen = idxDims[1];
+    // const auto& idxDims = ind_mem_ptr->getStaticDims();
+    // const auto batch = idxDims[0];
+    // const auto seqLen = idxDims[1];
 
-    auto axisDim = data_mem_ptr->getStaticDims()[0];
-    auto groupDim = data_mem_ptr->getStaticDims().size() == 2 ? 1 : data_mem_ptr->getStaticDims()[1];
-    auto feaDim = data_mem_ptr->getStaticDims().size() == 2 ? data_mem_ptr->getStaticDims()[1] : data_mem_ptr->getStaticDims()[2];
+    // auto axisDim = data_mem_ptr->getStaticDims()[0];
+    // auto groupDim = data_mem_ptr->getStaticDims().size() == 2 ? 1 : data_mem_ptr->getStaticDims()[1];
+    // auto feaDim = data_mem_ptr->getStaticDims().size() == 2 ? data_mem_ptr->getStaticDims()[1] : data_mem_ptr->getStaticDims()[2];
 
-    parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
-        auto dstIdx = b * seqLen + s;
-        auto ii = pidx[dstIdx];
-        if (ii < 0) {
-            if (reverseIndexing)
-                ii += axisDim;
-            else
-                ii = axisDim;
-        }
+    // parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
+    //     auto dstIdx = b * seqLen + s;
+    //     auto ii = pidx[dstIdx];
+    //     if (ii < 0) {
+    //         if (reverseIndexing)
+    //             ii += axisDim;
+    //         else
+    //             ii = axisDim;
+    //     }
 
-        auto* dst = pdst + dstIdx * feaDim * groupDim;
-        auto* src = psrc + ii * feaDim * groupDim / 2;
+    //     auto* dst = pdst + dstIdx * feaDim * groupDim;
+    //     auto* src = psrc + ii * feaDim * groupDim / 2;
 
-        for (size_t g = 0; g < groupDim; g++) {
-            // auto& deq_zp = zp[ii];
-            // auto& deq_scale = scale[ii];
-            auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
-            auto& deq_scale = scale[ii * groupDim + g];
+    //     for (size_t g = 0; g < groupDim; g++) {
+    //         // auto& deq_zp = zp[ii];
+    //         // auto& deq_scale = scale[ii];
+    //         auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
+    //         auto& deq_scale = scale[ii * groupDim + g];
 
-            size_t k = 0;
-            for (; k < feaDim; k += 2) {
-                auto x = src[0];
-                dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
-                dst[1] = ((x >> 4) - deq_zp) * deq_scale;
-                dst += 2;
-                src++;
-            }
-            // Process last one if feaDim is odd
-            for (; k < feaDim; k++) {
-                auto x = src[0];
-                dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
-                dst++;
-                src++;
-            }
-        }
-    });
+    //         size_t k = 0;
+    //         for (; k < feaDim; k += 2) {
+    //             auto x = src[0];
+    //             dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
+    //             dst[1] = ((x >> 4) - deq_zp) * deq_scale;
+    //             dst += 2;
+    //             src++;
+    //         }
+    //         // Process last one if feaDim is odd
+    //         for (; k < feaDim; k++) {
+    //             auto x = src[0];
+    //             dst[0] = ((x & 0x0F) - deq_zp) * deq_scale;
+    //             dst++;
+    //             src++;
+    //         }
+    //     }
+    // });
 }
 
-std::string shape2str(ov::intel_cpu::Shape shape) {
+static std::string shape2str(ov::intel_cpu::Shape shape) {
     std::string str = "[";
     for (auto s : shape.getStaticDims()) {
         str += std::to_string(s) + ",";
@@ -171,121 +176,101 @@ std::string shape2str(ov::intel_cpu::Shape shape) {
     return str + "]";
 }
 
-template <typename IN_PRECISION, typename OUT_PRECISION>
+template <typename IN_TYPE, typename OUT_TYPE>
 void GatherCompression::execReference8bit() {
-    DEBUG_LOG(getName(), "execReference8bit");
-    std::cout << "--->4:GatherCompression::execReference8bit()\n";
-#define PRINT(X) std::cout << #X << " = " << X << std::endl
+    std::cout << "GatherCompression::execReference8bit()\n";
 
-    auto data_mem_ptr = getParentEdgeAt(GATHER_DATA)->getMemoryPtr();
-    auto ind_mem_ptr = getParentEdgeAt(GATHER_INDICES)->getMemoryPtr();
-    auto scale_mem_ptr = getParentEdgeAt(GATHER_SCALE)->getMemoryPtr();
-    const auto* psrc = data_mem_ptr->getDataAs<IN_PRECISION>();
-    PRINT(ind_mem_ptr->getPrecision());
-    PRINT(getChildEdgeAt(0)->getMemoryPtr()->getPrecision());
-    PRINT(shape2str(getChildEdgeAt(0)->getMemoryPtr()->getShape()));
-    const auto* pidx = ind_mem_ptr->getDataAs<int32_t>();
+    const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
+    const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
+    OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
 
+    // PRINT(getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision());
+    // PRINT(getChildEdgeAt(0)->getMemoryPtr()->getPrecision());
+    // PRINT(shape2str(getChildEdgeAt(0)->getMemoryPtr()->getShape()));
+
+    auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
+    // [4,2]
+    const auto& dataDims = dataMemPtr->getStaticDims();
+    // 0, or 1
+    auto axis = (getSrcDataAtPortAs<const int32_t>(GATHER_AXIS))[0];
+    //
+
+    PRINT(shape2str(dataMemPtr->getShape()));
+    PRINT(axis);
+
+    // zp/scale
     bool have_zp = getOriginalInputsNumber() > 4u;
-    auto check_one_dim = [](MemoryPtr mem_ptr, bool& is_const_scale) {
-        const auto& shape = mem_ptr->getStaticDims();
-        if (shape.size() == 1 && shape[0] == 1) {
-            is_const_scale = true;
-            return true;
-        } else if (shape.size() == 3 && shape[1] != 1) {
-            return false;
-        }
-        return true;
-    };
-    bool is_const_zp = false;
-    bool one_dim_zp = have_zp ? check_one_dim(getParentEdgeAt(GATHER_ZP)->getMemoryPtr(), is_const_zp) : true;
-    bool is_const_scale = false;
-    bool one_dim_scale = check_one_dim(scale_mem_ptr, is_const_scale);
-
-    PRINT(have_zp);
-    PRINT(is_const_zp);
-    PRINT(one_dim_zp);
-
-    PRINT(is_const_scale);
-    PRINT(one_dim_scale);
-
-    float_t* zp = nullptr;
-    float_t const_zp = 0.f;
-    zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
+    float const_zp = 0;
+    const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    auto* pdst = getDstDataAtPortAs<OUT_PRECISION>(0);
+    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getPrecision());
 
-    const auto& idxDims = ind_mem_ptr->getStaticDims();
-    const auto batch = idxDims[0];
-    const auto seqLen = idxDims[1];
-
-    PRINT(batch);
-    PRINT(seqLen);
+    auto scale_group_size = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getShape().getElementsCount() /
+                            getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getShape().getElementsCount();
+    PRINT(scale_group_size);
+    auto zp_group_size = 1;
     if (have_zp)
-        PRINT(shape2str(getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape()));
-    PRINT(shape2str(scale_mem_ptr->getShape()));
+        zp_group_size = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getShape().getElementsCount() /
+                        getParentEdgeAt(GATHER_ZP)->getMemoryPtr()->getShape().getElementsCount();
 
-    auto axisDim = data_mem_ptr->getStaticDims()[0];
-    auto groupDim = data_mem_ptr->getStaticDims().size() == 2 ? 1 : data_mem_ptr->getStaticDims()[1];
-    auto feaDim =
-        data_mem_ptr->getStaticDims().size() == 2 ? data_mem_ptr->getStaticDims()[1] : data_mem_ptr->getStaticDims()[2];
+    auto betweenBatchAndAxisSize =
+        std::accumulate(dataDims.begin() + m_batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
 
-    PRINT(shape2str(data_mem_ptr->getShape()));
+    auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
+    const auto& idxDims = idxMemPtr->getStaticDims();
+    auto specIndicesSize =
+        std::accumulate(idxDims.begin() + m_batchDims, idxDims.end(), 1lu, std::multiplies<uint64_t>());
+
+    auto afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
+
+    auto dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
+    auto afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
+    auto specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+
+    auto beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + m_batchDims, 1lu, std::multiplies<Dim>());
+
+    const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
+
+    auto axisDim = dataDims[axis];
     PRINT(axisDim);
-    PRINT(groupDim);
-    PRINT(feaDim);
 
-#if 0
-    parallel_for2d(batch, seqLen, [&](size_t b, size_t s) {
-        auto dstIdx = b * seqLen + s;
-        auto ii = pidx[dstIdx];
+    auto axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
+    auto srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+
+    parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
+        int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
             if (reverseIndexing)
                 ii += axisDim;
             else
                 ii = axisDim;
         }
+        const size_t idx = ii;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        if (idx < static_cast<size_t>(axisDim)) {
+            size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
+                size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
-        auto* src = psrc + ii * feaDim * groupDim;
-        auto* dst = pdst + dstIdx * feaDim * groupDim;
+                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                const IN_TYPE* psrc = &srcData[srcIdx];
+                OUT_TYPE* pdst = &dstData[dstIdx];
 
-        for (size_t g = 0; g < groupDim; g++) {
-            auto& deq_zp = one_dim_zp ? zp[0] : zp[ii * groupDim + g];
-            auto& deq_scale = scale[ii * groupDim + g];
-            for (size_t k = 0; k < feaDim; k++) {
-                dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0]) - deq_zp) * deq_scale);
-                dst++;
-                src++;
+                const uint scale_offset = srcIdx / scale_group_size;
+                auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
+                for (size_t p = 0; p < afterAxisSize; p++) {
+                    pdst[p] = static_cast<OUT_TYPE>((static_cast<float>(psrc[p]) - cur_zp) * scale[scale_offset]);
+                }
+            }
+        } else {
+            for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
+                size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
+                for (size_t p = 0; p < afterAxisSize; p++)
+                    dstData[dstIdx] = 0;
             }
         }
     });
-#else
-    for (size_t b = 0; b < batch; b++) {
-        for (size_t s = 0; s < seqLen; s++) {
-            auto dstIdx = b * seqLen + s;
-            auto ii = pidx[dstIdx];
-            if (ii < 0) {
-                if (reverseIndexing)
-                    ii += axisDim;
-                else
-                    ii = axisDim;
-            }
-
-            auto* src = psrc + ii * feaDim * groupDim;
-            auto* dst = pdst + dstIdx * feaDim * groupDim;
-
-            for (size_t g = 0; g < groupDim; g++) {
-                auto& deq_zp = one_dim_zp ? (have_zp ? zp[ii] : zp[0]) : zp[ii * groupDim + g];
-                auto& deq_scale = one_dim_scale ? scale[ii] : scale[ii * groupDim + g];
-                for (size_t k = 0; k < feaDim; k++) {
-                    // dst[0] = static_cast<OUT_PRECISION>((static_cast<float>(src[0]) - deq_zp) * deq_scale);
-                    dst++;
-                    src++;
-                }
-            }
-        }
-    }
-#endif
 }
 
 void GatherCompression::execReference() {

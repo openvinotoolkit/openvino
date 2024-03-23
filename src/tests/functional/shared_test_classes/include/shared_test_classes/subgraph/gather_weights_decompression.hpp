@@ -61,7 +61,7 @@ struct GWDShapeParams {
 };
 
 using GatherWeightsDecompressionParams = std::tuple<std::string,        // Device name
-                                                    GWDShapeParams,        // input shapes
+                                                    GWDShapeParams,     // input shapes
                                                     ov::element::Type,  // data type
                                                     ov::element::Type,  // output type
                                                     bool,               // decompression subtract
