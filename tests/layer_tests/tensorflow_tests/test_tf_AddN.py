@@ -92,7 +92,9 @@ class TestComplexAddN(CommonTFLayerTest):
             param_imag_2 = tf.compat.v1.placeholder(np.float32, input_shapes[3], 'param_imag_2')
             complex_1 = tf.raw_ops.Complex(real=param_real_1, imag=param_imag_1)
             complex_2 = tf.raw_ops.Complex(real=param_real_2, imag=param_imag_2)
-            tf.raw_ops.AddN(inputs=[complex_1, complex_2], name='complex_AddN')
+            addn = tf.raw_ops.AddN(inputs=[complex_1, complex_2], name='complex_AddN')
+            real = tf.raw_ops.Real(input=addn)
+            imag = tf.raw_ops.Imag(input=addn)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
         return tf_net, None
