@@ -54,9 +54,9 @@ class TestAtan2(PytorchLayerTest):
         
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uin8"])
+    @pytest.mark.parametrize("dtype", [None, "float32", "float64", "int32", "int64", "int8", "uint8"])
     @pytest.mark.parametrize(
-        "start,end,steps", [(0, 1), (0, 0), (1, -5), (1, 10), (-1, -5), (-1, -5), (1.25, -5.5)]
+        "y, x", [(0, 1), (0, 0), (1, -5), (1, 10), (-1, -5), (-1, -5), (1.25, -5.5)]
     )
     @pytest.mark.parametrize("use_out", [False, True])
     def test_linspace_with_out(self, dtype, use_out, y, x, ie_device, precision, ir_version):
