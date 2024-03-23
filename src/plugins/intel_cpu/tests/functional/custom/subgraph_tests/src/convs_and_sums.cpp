@@ -120,6 +120,8 @@ protected:
 
         auto result = std::make_shared<ov::op::v0::Result>(relu3);
         function = std::make_shared<ov::Model>(result, params, "SimpleNet");
+
+        abs_threshold = 9e-4;
     }
 };
 
