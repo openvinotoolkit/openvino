@@ -257,11 +257,11 @@ KERNEL(gemm_tiled_opt)(
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                // TODO
                 #if TILE_N_NOT_DIVISIBLE
                     if (TILE_N_NOT_DIVISIBLE_CALC) {
-                        b_tile[b_load_id][0] = b_ptr[sglid];
-                        b_tile[b_load_id][1] = b_ptr[sglid + 16];
+                        unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                        }
                     } else {
                         b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     }
@@ -346,10 +346,10 @@ KERNEL(gemm_tiled_opt)(
             b_tile = (N > b_raw_global_id) ? VLOAD(0, b_ptr) : 0;
         #else
             const __global INPUT1_TYPE* b_ptr_tmp = b_ptr;
-            // TODO : support vec > 2
-            b_tile[0] = (N > b_raw_global_id) ? VLOAD(0, b_ptr_tmp) : 0;
-            b_ptr_tmp += input1_offset * SIMD_WIDTH;
-            b_tile[1] = (N > b_raw_global_id + SIMD_WIDTH) ? VLOAD(0, b_ptr_tmp) : 0;
+            unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                b_tile[b_elem] = (N > b_raw_global_id + SIMD_WIDTH * b_elem) ? VLOAD(0, b_ptr_tmp) : 0;
+                b_ptr_tmp += input1_offset * SIMD_WIDTH;
+            }
         #endif // B_VEC_SIZE
             b_ptr = b_ptr + input1_offset1 - (input1_offset * sglid);
         }
@@ -395,12 +395,14 @@ KERNEL(gemm_tiled_opt)(
     #else // TILE_K > SIMD_WIDTH
                 #if IS_DYNAMIC && B_VEC_SIZE > 1
                     A_FLOATN a_read_tmp = sub_group_broadcast(a_read, simd_local_id);
-                    // TODO : support B_VEC_SIZE > 1 ?
                     #if TRANSPOSE_INPUT1 == TRANSPOSE_Y_LAST
-                    MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp = {b_tile[0][simd_local_id], b_tile[1][simd_local_id]};
-                    c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile_tmp, c_tile[dot_id]);
+                    MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE) b_tile_tmp;
+                    unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                        b_tile_tmp[b_elem] = b_tile[b_elem][simd_local_id];
+                    }
+                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile_tmp, c_tile[dot_id]);
                     #else
-                    c_tile[dot_id] = mad((MAKE_VECTOR_TYPE(INPUT1_TYPE, B_VEC_SIZE))(a_read_tmp), b_tile[simd_local_id], c_tile[dot_id]);
+                    c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
                     #endif
                 #else
                     c_tile[dot_id] = mad((INPUT0_TYPE)(sub_group_broadcast(a_read, simd_local_id)), b_tile[simd_local_id], c_tile[dot_id]);
@@ -484,10 +486,10 @@ KERNEL(gemm_tiled_opt)(
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
                 #if TILE_N_NOT_DIVISIBLE
-                    //TODO
                     if (TILE_N_NOT_DIVISIBLE_CALC) {
-                        b_tile[b_load_id][0] = b_ptr[sglid];
-                        b_tile[b_load_id][1] = b_ptr[sglid + 16];
+                        unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
+                        }
                     } else {
                         b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     }
@@ -700,23 +702,19 @@ KERNEL(gemm_tiled_opt)(
         #endif // BIAS_TERM
         #if HAS_FUSED_OPS
         FUSED_OPS_VEC;
-        // TODO : support vec > 2
-        if (b_raw_global_id < N) {
-            *d_ptr_tmp = dequantized_out_0[0];
-        }
-        if (b_raw_global_id + SIMD_WIDTH < N) {
-            *(d_ptr_tmp + SIMD_WIDTH) = dequantized_out_0[1];
+        OUTPUT_TYPE_VEC result = FUSED_OPS_RESULT_VEC;
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = result[n_elem];
+            }
         }
         #else
-        if (b_raw_global_id < N) {
-            *d_ptr_tmp = dequantized[0];
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            if (b_raw_global_id + SIMD_WIDTH * n_elem < N) {
+                *(d_ptr_tmp + SIMD_WIDTH * n_elem) = dequantized[n_elem];
+            }
         }
-        if (b_raw_global_id + SIMD_WIDTH < N) {
-            *(d_ptr_tmp + SIMD_WIDTH) = dequantized[1];
-        }
-
         #endif // HAS_FUSED_OPS
-
     #endif // B_VEC_SIZE == 1
 #else // IS_DYNAMIC
     #if TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1

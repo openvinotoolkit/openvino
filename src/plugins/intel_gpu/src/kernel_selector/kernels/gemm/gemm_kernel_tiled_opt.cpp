@@ -104,12 +104,8 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         // In shape agnostic kernel case, the vector size of FusedOpsConfiguration cannot be specified at build time,
         // so the tile sizes must be the same as simd_size
         tuning_data.simd_size = 16;
-//        tuning_data.tile_n_size = tuning_data.simd_size;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-//        auto k_size = params.transpose_input0 ? params.inputs[0].Y().v : params.inputs[0].X().v;
-//        if (k_size == 128) // && also not support indirected input yet && FUSED_OPS_CAN_USE_PRELOAD is not supported && TILE_K == SIMD
-        // no dynamic padding
         if (!params.transpose_input0 && !params.inputs[0].X().pad.is_dynamic && !params.inputs[1].Y().pad.is_dynamic && !params.inputs[1].X().pad.is_dynamic)
             tuning_data.tile_n_size = 32;
         else
