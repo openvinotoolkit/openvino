@@ -181,6 +181,11 @@ CPU& cpu_info() {
     return cpu;
 }
 
+void set_hbm_flag(const bool input_flag) {
+    CPU& cpu = cpu_info();
+    cpu._hbm_enabled = input_flag;
+};
+
 #if defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
@@ -203,6 +208,10 @@ int get_number_of_blocked_cores() {
 int get_current_socket_id() {
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
 
 std::vector<std::vector<int>> get_proc_type_table() {
     return {{-1}};
@@ -264,6 +273,10 @@ bool is_cpu_map_available() {
 int get_current_socket_id() {
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
 
 std::vector<std::vector<int>> get_proc_type_table() {
     CPU& cpu = cpu_info();
@@ -370,10 +383,19 @@ int get_current_socket_id() {
 
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    CPU& cpu = cpu_info();
+    return cpu._hbm_enabled ? (cpu_numa_node == 0 ? cpu._numa_nodes : cpu_numa_node) : cpu_numa_node;
+};
 #    else
 int get_current_socket_id() {
     return 0;
 }
+
+int get_memory_numa_node_id(const int cpu_numa_node) {
+    return cpu_numa_node;
+};
 #    endif
 
 std::vector<std::vector<int>> get_proc_type_table() {

@@ -32,6 +32,7 @@ public:
     std::map<int, int> _numaid_mapping_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
+    bool _hbm_enabled = false;
 };
 
 CPU& cpu_info();
