@@ -138,7 +138,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_softmax = [](const std::shared_ptr<const Node> &n) -> bool {
-        if (n->get_input_size() != 1 || n->get_input_partial_shape(0).rank().is_dynamic())
+        if (n->get_input_size() != 1 || n->is_dynamic())
             return false;
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
@@ -153,6 +153,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
 
     auto is_supported_broadcast_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        if (!ov::is_type<ov::op::util::BroadcastBase>(n) || n->is_dynamic())
+            return false;
         // Broadcast is supported only for MHA tokenization where there are needed and special checks
         if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
             return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;

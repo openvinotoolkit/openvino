@@ -5,6 +5,8 @@
 #include "snippets/pass/align_element_types.hpp"
 
 #include "snippets/pass/propagate_precision.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/rank_normalization.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

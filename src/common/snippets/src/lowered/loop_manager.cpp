@@ -12,6 +12,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
 
+#include "snippets/op/loop.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

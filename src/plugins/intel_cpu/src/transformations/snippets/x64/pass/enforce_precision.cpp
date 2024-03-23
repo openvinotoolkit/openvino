@@ -7,9 +7,11 @@
 #include <memory>
 
 #include "ov_ops/type_relaxed.hpp"
-#include "snippets/itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "snippets/pass/propagate_precision.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/itt.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "transformations/utils/utils.hpp"
 

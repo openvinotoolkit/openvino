@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <list>
 #include <unordered_map>
+#include <mutex>
 
 /**
  * @brief This is yet another implementation of a preemptive cache with LRU eviction policy.

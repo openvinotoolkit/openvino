@@ -203,7 +203,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
-    INTEL_CPU_NODE(Snippet, Type::Subgraph);
+    INTEL_CPU_NODE(Subgraph, Type::Subgraph);
 #endif
 }
 

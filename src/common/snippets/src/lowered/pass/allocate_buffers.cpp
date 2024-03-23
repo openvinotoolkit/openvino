@@ -12,6 +12,9 @@
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 #include "snippets/lowered/pass/normalize_buffer_ids.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

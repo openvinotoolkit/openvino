@@ -5,6 +5,7 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "internal_properties.hpp"
 
 using namespace CPUTestUtils;
 
@@ -89,6 +90,11 @@ protected:
         inType = ov::element::Type(netPrecision);
         outType = ElementType::i32;
         selectedType = makeSelectedTypeStr("ref", inType);
+
+        // Dynamic Subgraph doesn't support all layouts.
+        // Since the test validates layouts for ShapeOf using Eltwise (that supports all layouts in dynamism),
+        // there is no need to tokenize Subgraphs in these tests
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)

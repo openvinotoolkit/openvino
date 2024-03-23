@@ -62,7 +62,7 @@ protected:
     size_t aux_gprs_count() const override { return 1; }
 
     std::shared_ptr<const Xbyak::Label> loop_end_label;
-    size_t loop_id;
+    size_t loop_desc_id;
 };
 
 /* ============================================================== */
@@ -122,7 +122,7 @@ protected:
     size_t aux_gprs_count() const override { return 1; }
 
     std::shared_ptr<Xbyak::Label> loop_end_label;
-    size_t loop_id;
+    size_t loop_desc_id;
 };
 
 /* ============================================================== */

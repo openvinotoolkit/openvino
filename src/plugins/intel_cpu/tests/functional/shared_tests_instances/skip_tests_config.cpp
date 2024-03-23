@@ -254,6 +254,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\(2.1\)_signal_size=\((4.10|5.7)\).*)",
         R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\((2.3|2.0|1.3)\)_signal_size=\(16.8\).*)",
         R"(.*smoke_TestsDFT_2d/DFTLayerTest.Inference/.*TS.*1.120.128.1.2.*Precision=bf16_Axes=\((2.3|2.0|1.3)\)_signal_size=\(16.8\).*)",
+        // Issue: 123274 (Dynamic Softmax aren't supported)
+        R"(smoke_Snippets_(Softmax|AddSoftmax).*\[.*\?.*\].*)",
+        R"(smoke_Snippets_BroadcastSelect_Dynamic.*)",
 #if defined(OPENVINO_ARCH_ARM)
         // Issue: 126177
         R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)"

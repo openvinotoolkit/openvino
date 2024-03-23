@@ -3,11 +3,12 @@
 //
 
 #include "brgemm_cpu.hpp"
+
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/buffer.hpp"
 #include "utils/general_utils.h"
-#include "snippets/utils.hpp"
 
 
 namespace ov {

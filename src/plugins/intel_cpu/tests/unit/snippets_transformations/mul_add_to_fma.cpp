@@ -146,7 +146,7 @@ TEST_P(MulAddToFMATests, MulAddToFMATests) {
                                        std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                        {},
                                        generator,
-                                       8, 256,
+                                       8, 256, 0,
                                        std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>());
     model = subgraph->body_ptr();
     model_ref = snippets_model->getLowered();

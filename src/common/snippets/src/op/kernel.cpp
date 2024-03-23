@@ -13,25 +13,23 @@ namespace op {
 Kernel::Kernel(lowered::LinearIR nested) : Op(), region(std::move(nested)) {}
 
 std::shared_ptr<Kernel> Kernel::make_kernel(const lowered::LinearIR& region) {
-    // TODO: In general the decision should be based on LinearIR.is_dynamic().
-    //       Need to add this condition when full dynamic pipeline support is completed
-    auto is_dynamic_loop = [](const lowered::ExpressionPtr& expr) {
-        return ov::is_type<op::LoopBeginDynamic>(expr->get_node()) || ov::is_type<op::LoopEndDynamic>(expr->get_node());
-    };
-
-    if (std::any_of(region.cbegin(), region.cend(), is_dynamic_loop)) {
+    if (region.is_dynamic()) {
         return std::make_shared<KernelDynamic>(region);
     } else {
-        return std::make_shared<KernelStatic>(region);
+    return std::make_shared<KernelStatic>(region, region.get_lowered_config().get_data_offsets());
     }
 }
 
-KernelStatic::KernelStatic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
+KernelStatic::KernelStatic(lowered::LinearIR nested, std::vector<std::vector<size_t>> data_offsets)
+    : Kernel(std::move(nested)), m_data_offsets(std::move(data_offsets)) {
+    OPENVINO_ASSERT(m_data_offsets.size() == region.get_IO_ops().size(), "Incorrect count of data offsets!");
+    OPENVINO_ASSERT(std::none_of(m_data_offsets.cbegin(), m_data_offsets.cend(), utils::is_dynamic_vdims), "Offsets cannot contain dynamic values!");
+}
 
 KernelDynamic::KernelDynamic(lowered::LinearIR nested) : Kernel(std::move(nested)) {}
 
 std::shared_ptr<Node> KernelStatic::clone_with_new_inputs(const OutputVector& inputs) const {
-    return std::make_shared<KernelStatic>(region);
+    return std::make_shared<KernelStatic>(region, m_data_offsets);
 }
 
 std::shared_ptr<Node> KernelDynamic::clone_with_new_inputs(const OutputVector& inputs) const {

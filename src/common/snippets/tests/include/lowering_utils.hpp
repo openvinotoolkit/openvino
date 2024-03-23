@@ -65,7 +65,7 @@ public:
                                     std::make_shared<ov::snippets::lowered::pass::PassConfig>(),
                                const std::vector<ov::snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
                                const std::shared_ptr<ov::snippets::Generator>& generator = nullptr,
-                               size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256,
+                               size_t min_parallel_work_amount = 8, size_t min_kernel_work_amount = 256, size_t tensor_rank = 0,
                                const std::shared_ptr<IShapeInferSnippetsFactory>& factory = std::make_shared<IShapeInferSnippetsFactory>());
     static std::shared_ptr<ov::snippets::op::Subgraph> getTokenizedSubgraph(const std::shared_ptr<Model>& f);
 };
