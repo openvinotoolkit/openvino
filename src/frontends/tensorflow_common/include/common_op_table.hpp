@@ -31,6 +31,7 @@ OP_T_CONVERTER(translate_unary_op);
 OP_CONVERTER(translate_selu_op);
 OP_T_CONVERTER(translate_binary_op);
 OP_T_CONVERTER(translate_direct_reduce_op);
+OP_T_CONVERTER(translate_prod_op);
 OP_CONVERTER(translate_addv2_op);
 OP_CONVERTER(translate_add_n_op);
 OP_CONVERTER(translate_adjust_contrast_op);
