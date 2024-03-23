@@ -46,7 +46,7 @@ OutputVector translate_atan2(const NodeContext& context) {
     auto result = atan->output(0);
 
     // handle the second condition : x<0 && y>=0
-    auto const_pi = v0::Constant::create(element::f32, Shape{}, {std::atan(1.0)*4});
+    auto const_pi = v0::Constant::create(element::f32, Shape{}, {std::atan(1.0) * 4});
     align_eltwise_input_types(context, x, const_pi, false, true);
     auto is_x_negative = context.mark_node(std::make_shared<v1::Less>(x, const_zero));
     align_eltwise_input_types(context, y, const_zero, false, true);
@@ -83,16 +83,16 @@ OutputVector translate_atan2(const NodeContext& context) {
     result = context.mark_node(std::make_shared<v1::Select>(cond4, pi_div_two, result));
 
     // check whether out tensor is given
-    if(!context.input_is_none(2) && context.get_input_size == 3){
-    out_tensor = context.get_input(2);
-    // dtype is inherited from out tensor in input
+    if(!context.input_is_none(2) && context.get_input_size == 3) {
+        out_tensor = context.get_input(2);
+        // dtype is inherited from out tensor in input
     auto result_out = context.mark_node(std::make_shared<v1::ConvertLike>(result,out_tensor);
 
     return {result_out};
     }
 
     // when out tensor is not in input
-    return{result};
+    return {result};
 }
 }  // namespace op
 }  // namespace pytorch
