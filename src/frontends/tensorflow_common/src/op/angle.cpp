@@ -80,7 +80,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto const_minus_two = create_same_type_const_scalar<int32_t>(x, -2);
     auto pi_div_minus_two = make_shared<v1::Divide>(const_pi, const_minus_two);
     result = make_shared<v1::Select>(cond4, pi_div_two, result);
-    auto result_changed_type = make_shared<v0::Convert>(result, result_type);
+    auto result_changed_type = make_shared<v0::Convert>(result, result_type)->output(0);
 
     set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
     return {result_changed_type};
