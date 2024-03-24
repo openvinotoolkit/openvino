@@ -23,6 +23,13 @@ OutputVector translate_reverse_sequence_op(const NodeContext& node) {
     // retrieve attributes
     auto seq_dim = node.get_attribute<int64_t>("seq_dim");
     auto batch_dim = node.get_attribute<int64_t>("batch_dim", 0);
+    // Handling negative values by adding rank if needed
+    if (seq_dim < 0) {
+        seq_dim += input.get_shape().size();
+    }
+    if (batch_dim < 0) {
+        batch_dim += input.get_shape().size();
+    }
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
     if (complex_type_mark) {
