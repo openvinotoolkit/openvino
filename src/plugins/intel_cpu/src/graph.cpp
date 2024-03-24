@@ -1359,7 +1359,8 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                 ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
                     auto& n = parallelNodes[i];
 
-                    n->toNumaNode(subStreamID);
+                    auto numa_node = get_memory_numa_node_id(subStreamID);
+                    n->toNumaNode(numa_node);
                     if (n->isDynamicNode()) {
                         n->executeDynamic(stream);
                     } else {
