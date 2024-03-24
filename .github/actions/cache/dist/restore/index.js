@@ -33219,7 +33219,7 @@ async function getSortedCacheFiles(path, key = '') {
     .filter(fileName => cache_pattern.test(fileName))
     .map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
+      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
     }))
     .sort((a, b) => b.time - a.time)
     .map(file => file.name)
@@ -33227,7 +33227,7 @@ async function getSortedCacheFiles(path, key = '') {
   core.debug(
     filesSorded.map(fileName => ({
       name: fileName,
-      time: fs.statSync(`${path}/${fileName}`).mtime.getTime()
+      time: fs.statSync(`${path}/${fileName}`).atime.getTime()
     }))
   )
   return filesSorded
