@@ -457,8 +457,8 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
                     IndexType idxValue = indicesPtr[indices_offset];
                     if (idxValue < 0) idxValue += data_dim_size;
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
-                    auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
-                    auto src = updatePtr + indices_offset;
+                    auto dst = &dataPtr[offsets[0] + idxValue * dataBlockND[axis + 1]];
+                    auto src = &updatePtr[indices_offset];
                     kernel_func(dst, src);
                     indices_offset += indicesBlockND[axis + 1];
                 }
