@@ -261,8 +261,6 @@ static std::vector<size_t> getBlockND(const VectorDims& shape) {
     return blockND;
 }
 
-namespace scatter_elements_update {
-
 class ReduceMultiply {
 public:
     template <typename DT>
@@ -394,15 +392,12 @@ struct TensorIterator {
     const size_t m_squashed_axis;
 };
 
-};  // namespace scatter_elements_update
-
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 template <typename DataType, typename func_t>
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                             int axis, const func_t& kernel_func) {
-    using namespace scatter_elements_update;
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     uint8_t *indicesPtr = mem_indices->getDataAs<uint8_t>();
@@ -513,7 +508,6 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 template <typename DataType>
 void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                             int axis, const ReduceMean& kernel_func) {
-    using namespace scatter_elements_update;
     OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
@@ -647,7 +641,6 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 template <typename DT>
 void ScatterUpdate::scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
                         int axis) {
-    using namespace scatter_elements_update;
     switch (reduction_type) {
     case ScatterUpdate::Reduction::NONE :
         scatterElementsUpdate<DT>(dstMemPtr, indicesMemPtr, updateMemPtr, axis, data_assign);
