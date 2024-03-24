@@ -62,7 +62,7 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto node = std::dynamic_pointer_cast<const ov::op::v12::ScatterElementsUpdate>(op);
+    const auto node = ov::as_type_ptr<const ov::op::v12::ScatterElementsUpdate>(op);
     if (node) {
         reduction_type = node->get_reduction();
         use_init_val = node->get_use_init_val();
@@ -684,36 +684,26 @@ void dispatch_IT(const ov::element::Type& indices_precision,
     }
 }
 
-static inline
-void precision_dispatch(const ov::element::Type& data_precision, const ov::element::Type& indices_precision,
-                        const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                        int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
-    switch (data_precision) {
-        case ov::element::f32:
-            dispatch_IT<float>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
-            break;
-        case ov::element::bf16:
-            dispatch_IT<ov::bfloat16>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
-            break;
-        case ov::element::f16:
-            dispatch_IT<ov::float16>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
-            break;
-        case ov::element::i32:
-            dispatch_IT<int32_t>(indices_precision, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
-            break;
-        default:
-            OPENVINO_THROW("Unsupported precision for data and updates ", data_precision);
-            break;
-    }
-}
-
 };  // namespace scatter_elements_update
 
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                        int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type) {
-    scatter_elements_update::precision_dispatch(dataPrec, indicesPrec,
-                                                dstMemPtr, indicesMemPtr, updateMemPtr,
-                                                axis, use_init_val, reduction_type);
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
+    switch (dataPrec) {
+        case ov::element::f32:
+            scatter_elements_update::dispatch_IT<float>(indicesPrec, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::bf16:
+            scatter_elements_update::dispatch_IT<ov::bfloat16>(indicesPrec, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::f16:
+            scatter_elements_update::dispatch_IT<ov::float16>(indicesPrec, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        case ov::element::i32:
+            scatter_elements_update::dispatch_IT<int32_t>(indicesPrec, dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            break;
+        default:
+            OPENVINO_THROW("Unsupported precision for data and updates ", dataPrec);
+            break;
+    }                                                
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
@@ -844,7 +834,7 @@ void ScatterUpdate::execute(dnnl::stream strm) {
             break;
         }
         case ScatterUpdateMode::ScatterElementsUpdate: {
-            scatterElementsUpdate(dstMemPtr, indicesMemPtr, updateMemPtr, axis, use_init_val, reduction_type);
+            scatterElementsUpdate(dstMemPtr, indicesMemPtr, updateMemPtr, axis);
             break;
         }
         default: {
