@@ -675,7 +675,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const Memo
               OV_CASE(ov::element::f32, float),
               OV_CASE(ov::element::i32, int32_t),
               OV_CASE(ov::element::bf16, ov::bfloat16),
-              OV_CASE(ov::element::f16, ov::float16));                                              
+              OV_CASE(ov::element::f16, ov::float16));
 }
 
 void ScatterUpdate::execute(dnnl::stream strm) {
