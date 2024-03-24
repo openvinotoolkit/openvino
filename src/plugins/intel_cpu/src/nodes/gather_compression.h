@@ -29,6 +29,7 @@ public:
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;
     bool needPrepareParams() const override;
+    void prepareParams() override;
 
 private:
     void execReference();
@@ -41,7 +42,31 @@ private:
     template <typename OUT_TYPE>
     void execReferenceI4();
 
+    bool isDataShapeStat = false;
+    bool isIdxShapeStat = false;
+    bool isAxisInputConst = false;
+
     bool reverseIndexing = true;
+
+    uint64_t dataTypeSize = 1lu;
+    static constexpr uint64_t idxTypeSize = sizeof(int);
+
+    int axis = 0;
+    int axisDim = 0;
+    int batchDims = 0;
+    int dataSrcRank = 1;
+    uint64_t specIndicesSize = 0lu;
+    uint64_t beforeBatchSize = 0lu;
+    uint64_t beforeAxisSize = 0lu;
+    uint64_t betweenBatchAndAxisSize = 0lu;
+    uint64_t afterAxisSize = 0lu;
+    uint64_t afterAxisSizeInBytes = 0lu;
+    uint64_t axisAndAfterAxisSizeInBytes = 0lu;
+    uint64_t srcAfterBatchSizeInBytes = 0lu;
+    uint64_t specIdxAndAfterAxSizeB = 0lu;
+    uint64_t totalWork = 0lu;
+
+    std::vector<int> constIndices;
 
     static constexpr size_t GATHER_DATA = 0;
     static constexpr size_t GATHER_INDICES = 1;
@@ -49,7 +74,9 @@ private:
     static constexpr size_t GATHER_SCALE = 3;
     static constexpr size_t GATHER_ZP = 4;
 
-    int m_batchDims = 0;
+    bool have_zp = false;
+    size_t zp_group_size = 1u;
+    size_t scale_group_size = 1u;
 };
 
 }   // namespace node
