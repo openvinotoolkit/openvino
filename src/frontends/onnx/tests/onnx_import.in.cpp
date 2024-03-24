@@ -6337,9 +6337,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
     auto model = convert_model("reduce_min_20.onnx");
 
     // input data shape (1, 1, 4, 4)
-    std::vector<std::vector<bool>> inputs{
-        ov::test::NDArray<bool, 4>({{{{true, true, false, false}, {true, false, false, false}, {true, false, false, false}, {true, true, false, false}}}})
-            .get_vector()};
+    std::vector<std::vector<bool>> inputs{ov::test::NDArray<bool, 4>({{{{true, true, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, false, false, false},
+                                                                        {true, true, false, false}}}})
+                                              .get_vector()};
 
     // output data shape (1,)
     auto expected_output = ov::test::NDArray<uint8_t, 1>({1, 0, 0, 0}).get_vector();
