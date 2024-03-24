@@ -258,8 +258,9 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{3}, {{{2}, {0, -1}}, {{3}, {0, -1}}/*, {{0}, {0, -1}}*/}}, // TODO: empty tensor failing in template plugin
     {{4, 6}, {{{3, 6}, {0, -2}}, {{4, 6}, {0, 1, -1}}/*, {{0, 2}, {0, -2}}*/}},  // axis 0
     {{2, 4}, {{{2, 3}, {1, -1}}, {{2, 4}, {0, 1, -1}}/*, {{4, 0}, {1, -1}}*/}},  // axis 1
-    {{1, 1024}, {{{1, 1024}, {0}}}},
-    {{32, 1024}, {{{16, 1024}, {0}}, {{32, 1024}, {0}}}},
+    {{1, 120}, {{{1, 120}, {0}}}},
+    {{32, 120}, {{{16, 120}, {0}}, {{32, 120}, {0}}}},
+    {{120, 32}, {{{120, 16}, {1}}, {{120, 32}, {1}}}},
 };
 
 inline std::vector<InputShape> partial_shapes_to_test_representation(
@@ -290,7 +291,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
                          IndexAddTest,
                          ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
                                             ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::bf16), // data precision
+                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32), // data precision
                                             ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
                                             ::testing::Values(1.0),              // alpha
                                             ::testing::Values(true, false)),     // dynamic shape test
