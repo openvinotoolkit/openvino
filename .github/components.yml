@@ -34,6 +34,7 @@ CPU:
     - TF_FE
     - ONNX_FE
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -41,6 +42,7 @@ CPU:
 
 GPU:
   build:
+    - AUTO
     - HETERO
     - AUTO_BATCH
     - TEMPLATE
@@ -149,6 +151,7 @@ PyTorch_FE:
 C_API:
   build:
     - CPU
+    - GPU
     - HETERO
     - AUTO_BATCH
     - AUTO

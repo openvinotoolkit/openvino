@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,6 +61,9 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32::Validate(const Params& p) const {
         && !params.HasCompensation()) {
         return false;
     }
+
+    if (!IsSIMDSizeSupported(params.engineInfo, 8))
+        return false;
 
     if (params.groups > 1)
         return false;
