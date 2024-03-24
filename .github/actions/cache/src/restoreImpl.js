@@ -71,7 +71,8 @@ async function restore() {
       core.setOutput('cache-hit', false)
     }
   } catch (error) {
-    core.setFailed(error.message)
+    // do not fail action if cache could not be restored
+    core.warning(error.message)
   }
 }
 
