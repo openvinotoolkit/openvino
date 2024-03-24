@@ -508,7 +508,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 // were used in loops.
 template <typename DataType, typename IndexType>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                            int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, ReduceMean& kernel_func) {
+                            int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, const ReduceMean& kernel_func) {
     OPENVINO_ASSERT(reduction_type == ScatterUpdate::Reduction::MEAN, "The reduction type should be MEAN here.");
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
