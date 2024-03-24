@@ -112,6 +112,7 @@ def main():
     repo = g.get_repo(repo_name)
 
     run = repo.get_workflow_run(int(run_id))
+    logger.debug('Processing run ID %s - %s', run_id, run.name)
     if run.status != 'completed':
         logger.error('Run %s is not completed! Only completed runs should be in the database', run_id)
         raise SystemExit(1)
@@ -144,6 +145,7 @@ def main():
 
     for job in run.jobs():
         job_id = job.id
+        logger.debug('Processing job %s', job.name)
         queued_duration_seconds = 0
         duration_seconds = 0
 
@@ -178,6 +180,7 @@ def main():
         logger.debug('Job query: %s', job_data_query)
         cur.execute(job_data_query)
         for step in job.steps:
+            logger.debug('Processing step %s', step.name)
             duration_seconds_timedelta = step.completed_at - step.started_at
             duration_seconds = round(duration_seconds_timedelta.total_seconds())
 
