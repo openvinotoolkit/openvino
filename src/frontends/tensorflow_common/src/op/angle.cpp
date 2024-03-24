@@ -83,7 +83,7 @@ OutputVector translate_angle_op(const NodeContext& node) {
     auto result_changed_type = make_shared<v0::Convert>(result, result_type);
 
     set_node_name(node.get_name(), result_changed_type.get_node_shared_ptr());
-    {result_changed_type};
+    return {result_changed_type};
 }
 }  // namespace op
 }  // namespace tensorflow
