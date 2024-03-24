@@ -18,6 +18,16 @@ namespace test {
 
 /*
   This test runs a graph that is equivelent to torch.Tensor.index_add_.
+  TorchFE maps it to a compilicated subgraph which could be briefed similar to this -
+ *                       Indices(1D)
+ *                           |
+ *                           |
+ *                  X    Broadcast   Updates
+ *                   \       |         /
+ *                    \      |        /
+ *                  ScatterElementsUpdate
+ *                           |
+ *                         Result
 */
 
 using InputsAndAxis = std::tuple<
