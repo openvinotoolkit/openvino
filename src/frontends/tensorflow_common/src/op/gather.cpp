@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 
@@ -36,12 +37,10 @@ OutputVector translate_gather_op(const NodeContext& node) {
     default_op_checks(node, 2, {"Gather"}, true);
     auto params = node.get_input(0);
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(params.get_node_shared_ptr());
+    auto axis = make_shared<v0::Constant>(element::i64, Shape{}, 0);
 
     if (complex_type_mark) {
         params = complex_type_mark->input_value(0);
-        // Since complex type outputs would have an extra axis for Real & Image, we route the indicies to
-        // be picked from the 2nd dimension instead
-        auto axis = make_shared<v0::Constant>(element::i64, Shape{}, 1);
         auto indices = node.get_input(1);
         auto gather = make_shared<v8::Gather>(params, indices, axis, 0);
         set_node_name(node.get_name(), gather);
@@ -49,7 +48,6 @@ OutputVector translate_gather_op(const NodeContext& node) {
         return {complex_reshape->output(0)};
     }
 
-    auto axis = make_shared<v0::Constant>(element::i64, Shape{}, 0);
     return translate_basic_gather_op(node, axis, 0);
 }
 
@@ -66,35 +64,27 @@ OutputVector translate_gather_v2_op(const NodeContext& node) {
     // GatherV2 has three inputs: data, indices, and axis by which data is sliced
     // batch_dims is an attribute and can vary
     default_op_checks(node, 3, {"GatherV2"}, true);
+    auto params = node.get_input(0);
+    auto indices = node.get_input(1);
     auto axis = node.get_input(2);
     auto batch_dims = node.get_attribute<int64_t>("batch_dims", 0);
-    auto params = node.get_input(0);
 
     auto complex_type_mark = as_type_ptr<ComplexTypeMark>(params.get_node_shared_ptr());
 
     if (complex_type_mark) {
         params = complex_type_mark->input_value(0);
-        auto const_one = create_same_type_const_scalar<float>(axis, 1);
-        auto minus_one = create_same_type_const_scalar<float>(axis, -1);
-
-        if (make_shared<v1::Equal>(axis, minus_one)) {
+        auto zero = create_same_type_const_scalar<float>(axis, 0);
+        if (make_shared<v1::Less>(axis, zero)) {
             auto params_shape = make_shared<v3::ShapeOf>(params, ov::element::i32);
             auto params_rank = make_shared<v3::ShapeOf>(params_shape, ov::element::i32);
             axis = make_shared<v1::Subtract>(params_rank, make_shared<v0::Constant>(ov::element::i32, Shape{}, 1));
-        } else {
-            axis = make_shared<v1::Add>(axis, const_one);
         }
-        // Since complex type outputs would have an extra axis for Real & Image, we route the indicies to
-        // be picked from the 2nd dimension instead
-        auto indices = node.get_input(1);
+
         auto gather = make_shared<v8::Gather>(params, indices, axis, 0);
 
         set_node_name(node.get_name(), gather);
         auto complex_reshape = make_shared<ComplexTypeMark>(gather, complex_type_mark->get_complex_part_type());
         return {complex_reshape->output(0)};
-    } else {
-        auto axis = make_shared<v0::Constant>(element::i64, Shape{}, 0);
-        return translate_basic_gather_op(node, axis, 0);
     }
 
     return translate_basic_gather_op(node, axis, batch_dims);
@@ -111,7 +101,6 @@ OutputVector translate_gather_nd_op(const NodeContext& node) {
     set_node_name(node.get_name(), gather_nd);
     return {gather_nd};
 }
-
 }  // namespace op
 }  // namespace tensorflow
 }  // namespace frontend
