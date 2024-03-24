@@ -438,7 +438,12 @@ inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& strea
  *
  * This property can be used to select model distribution policy between execution units (e.g. between CPU sockets/NUMA
  * nodes or between different GPUs).
- * -- TENSOR_PARALLEL : Split tensor into several parts and distribute them between sockets/devices during model
+ * -- TENSOR_PARALLEL   : Split tensor into several parts and distribute them between sockets/devices during model
+ *                        compilation. At inference time sockets/devices process tensors in parallel and do
+ *                        syncronization at the end ensuring mathematical correctness.
+ * -- PIPELINE_PARALLEL : Split tensor into several parts and disribute them between sockets/devices during model
+ *                        compilation. At inference time sockets/devices process single tensor one by one. And each
+ *                        sockets/devices syncronization at the end ensuring mathematical correctness.
  *                      compilation. At inference time sockets/devices process tensors in parallel and do syncronization
  *                      at the end ensuring mathematical correctness.
  * -- PIPELINE_PARALLEL: Split subgraph into parts and run one part per device in parallel.
