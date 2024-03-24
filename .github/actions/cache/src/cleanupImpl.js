@@ -19,6 +19,11 @@ async function cleanUp() {
       .filter(x => x !== '')
     const maxCacheSize = core.getInput('max-cache-size', { required: false })
 
+    // Minimum time peroid in milliseconds when the files was not used
+    const minAccessTime = 1 * 60 * 60 * 1000 // 1 hour
+    const currentDate = new Date()
+    const minAccessDateAgo = new Date(currentDate - minAccessTime)
+
     core.debug(`cache-path: ${cacheRemotePath}`)
     core.debug(`key: ${key}`)
     core.debug(`restore-keys: ${keysRestore}`)
@@ -41,7 +46,7 @@ async function cleanUp() {
         const filePath = path.join(cacheRemotePath, file)
         const fileStats = fs.statSync(filePath)
 
-        if (fileStats.isFile()) {
+        if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`)
           fs.unlinkSync(filePath)
           totalSize -= fileStats.size
