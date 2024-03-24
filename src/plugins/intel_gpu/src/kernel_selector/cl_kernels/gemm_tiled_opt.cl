@@ -257,17 +257,21 @@ KERNEL(gemm_tiled_opt)(
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                #if TILE_N_NOT_DIVISIBLE
-                    if (TILE_N_NOT_DIVISIBLE_CALC) {
-                        unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
-                            b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
-                        }
-                    } else {
-                        b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                #if B_VEC_SIZE == 1
+                b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+                #else // B_VEC_SIZE == 1
+                    #if TILE_N_NOT_DIVISIBLE
+                if (TILE_N_NOT_DIVISIBLE_CALC) {
+                    unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
+                        b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
                     }
-                #else
+                } else {
                     b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                #endif
+                }
+                    #else // TILE_N_NOT_DIVISIBLE
+                b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
+                    #endif // TILE_N_NOT_DIVISIBLE
+                #endif // B_VEC_SIZE == 1
             #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                 b_ptr += input1_offset;
             }
@@ -485,7 +489,10 @@ KERNEL(gemm_tiled_opt)(
             #if HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
             #else
-                #if TILE_N_NOT_DIVISIBLE
+                #if B_VEC_SIZE == 1
+                    b_tile[b_load_id] = b_raw_global_id > N - 1 ? 0 : b_ptr[sglid];
+                #else // B_VEC_SIZE == 1
+                    #if TILE_N_NOT_DIVISIBLE
                     if (TILE_N_NOT_DIVISIBLE_CALC) {
                         unroll_for (uint b_elem = 0; b_elem < B_VEC_SIZE; ++b_elem) {
                             b_tile[b_load_id][b_elem] = b_ptr[sglid + SIMD_WIDTH * b_elem];
@@ -493,9 +500,10 @@ KERNEL(gemm_tiled_opt)(
                     } else {
                         b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
                     }
-                #else
+                    #else
                     b_tile[b_load_id] = BLOCK_READ_B(b_ptr, 0);
-                #endif // TILE_N_NOT_DIVISIBLE
+                    #endif // TILE_N_NOT_DIVISIBLE
+                #endif // B_VEC_SIZE == 1
             #endif // HAS_DYNAMIC_N_PADDING || INPUT1_HAS_PADDING
                     b_ptr += input1_offset;
                 }
