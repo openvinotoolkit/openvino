@@ -343,6 +343,7 @@ static inline void getCoordinate(VectorDims& coordinate, size_t offset, const Ve
     }
 }
 
+namespace scatter_elements_update {
 struct TensorIterator {
     TensorIterator(const VectorDims& squashed_shape, const int64_t squashed_axis) : m_squashed_shape(squashed_shape), m_squashed_axis(squashed_axis) {
         OPENVINO_ASSERT(m_squashed_shape[m_squashed_axis] == 1);
@@ -391,6 +392,7 @@ struct TensorIterator {
     const VectorDims m_squashed_shape;
     const size_t m_squashed_axis;
 };
+};   // namespace scatter_elements_update
 
 // output[indices[i][j][k]][j][k] = updates[i][j][k] if axis = 0,
 // output[i][indices[i][j][k]][k] = updates[i][j][k] if axis = 1,
@@ -424,7 +426,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        TensorIterator tensorItr(squashed_indices_shape, axis);
+        scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
 
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.
@@ -536,7 +538,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
         splitter(shape_size(squashed_indices_shape), nthr, ithr, start, end);
-        TensorIterator tensorItr(squashed_indices_shape, axis);
+        scatter_elements_update::TensorIterator tensorItr(squashed_indices_shape, axis);
 
         // When *use_init_val* attribute is false, we need to substitute the copied values at target locations with values that
         // will not affect the particular reduction algorithms.

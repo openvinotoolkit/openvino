@@ -406,23 +406,6 @@ struct PlainTensor {
         return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
     }
 
-    template <typename DT, typename IT>
-    DT& at(const std::vector<IT>& index, bool allow_broadcast = false) const {
-        size_t off = 0;
-        auto it = index.begin();
-        for (size_t i = 0; i < m_rank; i++) {
-            size_t coordinate = (it != index.end()) ? (*it++) : 0;
-            if (allow_broadcast && m_dims[i] == 1) {
-                // allow_broadcast only works when the dimension is really 1
-                coordinate = 0;
-            } else {
-                assert(coordinate < m_dims[i]);
-            }
-            off += m_strides[i] * coordinate;
-        }
-        return (reinterpret_cast<DT*>(m_ptr.get() + (off + m_offset) * m_element_size))[0];
-    }
-
     template <typename DT>
     PlainTensor& operator=(const DT& value) {
         // assign every element to value

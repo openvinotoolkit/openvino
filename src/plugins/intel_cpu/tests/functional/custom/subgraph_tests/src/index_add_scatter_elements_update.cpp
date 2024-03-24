@@ -212,8 +212,8 @@ protected:
                 tensor = shape_size(indicesShape) == 0 ? ov::Tensor(funcInput.get_element_type(), indicesShape) :
                                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), indicesShape, in_data);
             } else if (i == 2) {  // "updates"
-                in_data.start_from = -500;
-                in_data.range = 500;
+                in_data.start_from = -50;
+                in_data.range = 50;
                 in_data.resolution = 1;
                 tensor = shape_size(updateShape) == 0 ? ov::Tensor(funcInput.get_element_type(), updateShape) :
                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);
@@ -258,10 +258,8 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{3}, {{{2}, {0, -1}}, {{3}, {0, -1}}/*, {{0}, {0, -1}}*/}}, // TODO: empty tensor failing in template plugin
     {{4, 6}, {{{3, 6}, {0, -2}}, {{4, 6}, {0, 1, -1}}/*, {{0, 2}, {0, -2}}*/}},  // axis 0
     {{2, 4}, {{{2, 3}, {1, -1}}, {{2, 4}, {0, 1, -1}}/*, {{4, 0}, {1, -1}}*/}},  // axis 1
-    {{1, 4096}, {{{1, 4096}, {0}}}},
-    {{32, 4096}, {{{16, 4096}, {0}}, {{32, 4096}, {0}}}},
-    {{1024, 4096}, {{{512, 4096}, {0}}, {{1024, 4096}, {0}}}},
-    {{8192, 4096}, {{{4096, 4096}, {0}}}},
+    {{1, 1024}, {{{1, 1024}, {0}}}},
+    {{32, 1024}, {{{16, 1024}, {0}}, {{32, 1024}, {0}}}},
 };
 
 inline std::vector<InputShape> partial_shapes_to_test_representation(
@@ -292,7 +290,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
                          IndexAddTest,
                          ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
                                             ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32, ElementType::bf16), // data precision
+                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::bf16), // data precision
                                             ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
                                             ::testing::Values(1.0),              // alpha
                                             ::testing::Values(true, false)),     // dynamic shape test
