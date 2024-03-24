@@ -26,7 +26,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | All                                                     | YES                           |                               |
 | AllCandidateSampler                                     | NO                            |                               |
 | AllToAll                                                | NO                            |                               |
-| Angle                                                   | NO                            |                               |
+| Angle                                                   | YES                           |                               |
 | AnonymousHashTable                                      | NO                            |                               |
 | AnonymousIterator                                       | NO                            |                               |
 | AnonymousIteratorV2                                     | NO                            |                               |
