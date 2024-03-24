@@ -27,7 +27,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_angle_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"Angle"}, true);
+    default_op_checks(node, 1, {"Angle"}, true);
     auto complex = node.get_input(0);
     auto result_type = node.get_attribute<ov::element::Type>("Tout");
 
