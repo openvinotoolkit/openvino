@@ -28,6 +28,7 @@ We welcome community contributions to OpenVINO™. Please read the following gui
     -   execute each test binary from the artifacts directory, e.g.  `<source dir>/bin/intel64/Release/ieFuncTests`
 -   When you are done, make sure that your branch is to date with latest state of the branch you want to contribute to (e.g.  `git fetch upstream && git merge upstream/master`), push your branch to your GitHub fork; then create a pull request from your branch to the base branch (see  [https://help.github.com/articles/using-pull-requests](https://help.github.com/articles/using-pull-requests)  for details).
 
+
 ## Making a good pull request
 
 Following these guidelines will increase the likelihood of your pull request being accepted:
