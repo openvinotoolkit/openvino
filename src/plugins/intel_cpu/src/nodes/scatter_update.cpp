@@ -405,7 +405,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
 
     const auto& data_shape = mem_data->getStaticDims();
     const auto& indices_shape = mem_indices->getStaticDims();
-    size_t updates_rank = indices_shape.size();
+    const size_t updates_rank = indices_shape.size();
 
     const int64_t data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
