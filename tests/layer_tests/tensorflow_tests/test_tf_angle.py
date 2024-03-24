@@ -25,8 +25,8 @@ class TestAngle(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
             x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
-            complex = tf.raw_ops.complex(real = x,imag =y)
-            tf.raw_ops.Angle(input = x)
+            complex = tf.raw_ops.Complex(real=x, imag=y)
+            tf.raw_ops.Angle(input=complex)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
