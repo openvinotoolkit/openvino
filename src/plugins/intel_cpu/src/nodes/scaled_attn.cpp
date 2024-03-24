@@ -486,11 +486,14 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                          head_size,
                                          m_cnt);
                 } else {
-                    cpu_convert(&fp32_out.at<float>({b, h, m_start, 0}),
-                                &output_emb.at<T>({b, h, m_start, 0}),
-                                ov::element::f32,
-                                ov::element::bf16,
-                                m_cnt * head_size);
+                    attn_memcpy2d_kernel(&fp32_out.at<float>({b, h, m_start, 0}),
+                                         &output_emb.at<T>({b, h, m_start, 0}),
+                                         ov::element::f32,
+                                         ov::element::bf16,
+                                         0,
+                                         0,
+                                         m_cnt * head_size,
+                                         1);
                 }
             }
         });
