@@ -2,6 +2,7 @@ const core = require('@actions/core')
 const tar = require('tar')
 const fs = require('fs')
 const path = require('path')
+const { humanReadableFileSize } = require('./utils')
 
 /**
  * The main function for the action.
@@ -39,6 +40,10 @@ async function save() {
         sync: true
       },
       ['.']
+    )
+    tarSize = fs.statSync(tarName).size
+    core.info(
+      `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarSize)}`
     )
 
     // remote cache directory may not be created yet

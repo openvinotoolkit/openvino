@@ -33198,6 +33198,7 @@ const core = __nccwpck_require__(2186)
 const tar = __nccwpck_require__(4674)
 const fs = __nccwpck_require__(7147)
 const path = __nccwpck_require__(1017)
+const { humanReadableFileSize } = __nccwpck_require__(1608)
 
 /**
  * The main function for the action.
@@ -33235,6 +33236,10 @@ async function save() {
         sync: true
       },
       ['.']
+    )
+    tarSize = fs.statSync(tarName).size
+    core.info(
+      `Created cache tarball: ${tarName}, size: ${humanReadableFileSize(tarSize)}`
     )
 
     // remote cache directory may not be created yet
