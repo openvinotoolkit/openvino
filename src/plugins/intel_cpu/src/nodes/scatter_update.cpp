@@ -433,7 +433,7 @@ void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indic
             for (size_t worker = start; worker < end; worker++) {
                 auto indices_offset = offsets[1];
                 for (size_t idx = 0; idx < index_dim_size; idx++) {
-                    IndexType idxValue = *(indicesPtr + indices_offset);
+                    IndexType idxValue = indicesPtr[indices_offset];
                     if (idxValue < 0) idxValue += data_dim_size;
                     ASSERT_DEBUG_ONLY(idxValue < data_dim_size && idxValue >= 0, "invalid index value.");
                     auto dst = dataPtr + (offsets[0] + idxValue * dataBlockND[axis + 1]);
