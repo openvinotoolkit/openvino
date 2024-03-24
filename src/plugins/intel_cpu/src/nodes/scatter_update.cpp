@@ -398,7 +398,7 @@ struct TensorIterator {
 // output[i][j][indices[i][j][k]] = updates[i][j][k] if axis = 2.
 template <typename DataType, typename IndexType, typename func_t>
 void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
-                            int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, func_t& kernel_func) {
+                            int axis, const bool use_init_val, const ScatterUpdate::Reduction reduction_type, const func_t& kernel_func) {
     DataType *dataPtr = mem_data->getDataAs<DataType>();
     DataType *updatePtr = mem_updates->getDataAs<DataType>();
     IndexType *indicesPtr = mem_indices->getDataAs<IndexType>();
