@@ -17,6 +17,8 @@ enum class ScatterUpdateMode {
     ScatterElementsUpdate
 };
 
+class ReduceMean;
+
 class ScatterUpdate : public Node {
 public:
     ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
@@ -42,6 +44,29 @@ private:
     void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
     void scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
     inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
+
+    template <typename DataType, typename func_t>
+    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const func_t& kernel_func);
+    template <typename DataType>
+    void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
+                                int axis, const ReduceMean& kernel_func);
+    template <typename DataType>
+    void scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
+
+    struct ScatterElementsUpdateContext {
+        ScatterUpdate* node;
+        MemoryPtr dstMemPtr;
+        MemoryPtr indicesMemPtr;
+        MemoryPtr updateMemPtr;
+        int axis;
+    };
+
+    template<typename DataType>
+    struct ScatterElementsUpdateDispatcher {
+        void operator()(ScatterElementsUpdateContext& ctx) {
+            ctx.node->scatterElementsUpdate_dispatch<DataType>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis);
+        }
+    };
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };
