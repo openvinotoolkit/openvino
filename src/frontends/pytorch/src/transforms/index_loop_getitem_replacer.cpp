@@ -68,20 +68,28 @@ IndexLoopGetitemReplacer::IndexLoopGetitemReplacer() {
                 break;
             }
         }
-        if (!chunk_param)
+        if (!chunk_param) {
+            add_exception_to_fw_node(chunk_op, "aten::chunk: couldn't find corresponding Loop input.");
             return false;
+        }
 
         auto param_targets = chunk_param->get_output_target_inputs(0);
-        if (param_targets.size() != 1)
+        if (param_targets.size() != 1) {
+            add_exception_to_fw_node(chunk_op, "aten::chunk: targets more then one.");
             return false;
+        }
 
         auto getitem = param_targets.begin()->get_node()->shared_from_this();
-        if (!ov::as_type_ptr<v8::Gather>(getitem))
+        if (!ov::as_type_ptr<v8::Gather>(getitem)) {
+            add_exception_to_fw_node(chunk_op, "aten::chunk: target is not getitem.");
             return false;
+        }
 
         auto dim = chunk_op->input_value(2);
-        if (!ov::as_type_ptr<v0::Constant>(dim.get_node_shared_ptr()))
+        if (!ov::as_type_ptr<v0::Constant>(dim.get_node_shared_ptr())) {
+            add_exception_to_fw_node(chunk_op, "aten::chunk: dimension is not constant.");
             return false;
+        }
 
         pass::NodeRegistry rg;
         // connect chunk input directly to loop

@@ -11,15 +11,6 @@ from openvino.runtime import op, Type as OVType, Shape, Tensor
 from openvino.runtime import opset11 as ops
 
 
-def maybe_convert_max_int(value: int):
-    # FIXME: This is a convertion from 64-bit positive max integer value
-    # to 32-bit positive max integer value. Find a better way to handle this.
-    if value == torch.iinfo(torch.int64).max:
-        return torch.iinfo(torch.int32).max
-    else:
-        return value
-
-
 def make_constant(*args, **kwargs):
     return op.Constant(*args, **kwargs)
 
