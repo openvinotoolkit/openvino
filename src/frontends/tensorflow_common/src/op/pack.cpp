@@ -7,6 +7,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "helper_ops/complex_type_mark.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/less.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -26,7 +29,12 @@ OutputVector translate_pack_op(const NodeContext& node) {
     auto axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis);
 
     if (complex_type_mark) {
-        axis_const = make_shared<v0::Constant>(element::i64, Shape{}, axis + 1);
+        auto zero = create_same_type_const_scalar<int32_t>(axis_const, 0);
+        auto less_than_zero = make_shared<v1::Less>(axis, zero);
+        auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
+
+        auto axis_update = make_shared<v1::Select>(less_than_zero, const_one, zero); 
+        auto new_axis = make_shared<v1::Subtract>(axis_const, axis_update);  
     } 
 
     OutputVector concat_inputs;
