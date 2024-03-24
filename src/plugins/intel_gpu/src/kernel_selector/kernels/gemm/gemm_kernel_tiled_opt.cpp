@@ -106,7 +106,7 @@ GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gem
         tuning_data.simd_size = 16;
         tuning_data.tile_k_size = tuning_data.simd_size;
         tuning_data.tile_m_size = tuning_data.simd_size;
-        bool output_ndim_transposed = (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1));
+        bool output_ndim_transposed = (params.output_order.size() > 0 && (params.output_order.back() != (static_cast<int>(params.output_order.size()) - 1)));
         if ((params.transpose_input0 == 0)
             && !params.inputs[0].X().pad.is_dynamic && !params.inputs[1].Y().pad.is_dynamic
             && !params.inputs[1].X().pad.is_dynamic && (!output_ndim_transposed || params.fused_ops.empty())
