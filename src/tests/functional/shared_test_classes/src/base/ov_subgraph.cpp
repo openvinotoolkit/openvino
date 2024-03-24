@@ -328,24 +328,7 @@ void SubgraphBaseTest::generate_inputs(const std::vector<ov::Shape>& targetInput
                 ASSERT_NE(it, inputMap.end());
                 for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                     if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                        auto input_data = it->second(nodePtr, port, param->get_element_type(), *itTargetShape);
-                        inputs.insert({param, input_data});
-
-                        const char* p = std::getenv("DUMP_INPUTS");
-                        if (p) {
-                            std::cout << "========== input " << param->get_friendly_name() << " : [ ";
-                            if (param->get_element_type() == ov::element::f32) {
-                                auto input_ptr = input_data.data<float>();
-                                std::vector<float> actual_vec(input_ptr, input_ptr + shape_size(*itTargetShape));
-                                std::copy(actual_vec.begin(), actual_vec.end(), std::ostream_iterator<float>(std::cout, " "));
-                                std::cout << " ]" << std::endl;
-                            } else if (param->get_element_type() == ov::element::bf16) {
-                                auto input_ptr = input_data.data<ov::bfloat16>();
-                                std::vector<ov::bfloat16> actual_vec(input_ptr, input_ptr + shape_size(*itTargetShape));
-                                std::copy(actual_vec.begin(), actual_vec.end(), std::ostream_iterator<ov::bfloat16>(std::cout, " "));
-                                std::cout << " ]" << std::endl;
-                            }
-                        }
+                        inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
                         break;
                     }
                 }

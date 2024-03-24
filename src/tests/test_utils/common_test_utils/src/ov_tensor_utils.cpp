@@ -437,18 +437,6 @@ void compare(const ov::Tensor& expected, const ov::Tensor& actual, double abs_th
     Error error(abs_threshold, rel_threshold, shape_size_cnt);
     const auto expected_data = expected.data<ExpectedT>();
     const auto actual_data = actual.data<ActualT>();
-    const char* p = std::getenv("DUMP_OUTPUTS");
-    if (p) {
-        std::cout << "========== expected outputs: [ ";
-        std::vector<ExpectedT> expected_vec(expected_data, expected_data + shape_size(expected_shape));
-        std::copy(expected_vec.begin(), expected_vec.end(), std::ostream_iterator<ExpectedT>(std::cout, " "));
-        std::cout << " ]" << std::endl;
-
-        std::cout << "========== actual outputs: [ ";
-        std::vector<ActualT> actual_vec(actual_data, actual_data + shape_size(actual_shape));
-        std::copy(actual_vec.begin(), actual_vec.end(), std::ostream_iterator<ActualT>(std::cout, " "));
-        std::cout << " ]" << std::endl;
-    }
     for (size_t i = 0; i < shape_size_cnt; ++i) {
         double expected_value = expected_data[i];
         double actual_value = actual_data[i];
