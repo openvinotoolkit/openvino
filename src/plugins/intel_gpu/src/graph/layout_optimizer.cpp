@@ -709,7 +709,7 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
                     for (auto& reshape_user : reorder_user->get_users()) {
                         // Meteor Lake showed planar format Convolution without Reorder is better than
                         // blocked format Convolution in case Reorder is larger than [1, 512, 128, 128].
-                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > 33000000) {
+                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > 8300000) {
                             GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
                             return true;
                         }
