@@ -105,6 +105,7 @@ jobs:
         run: cmake --build build --target ncc_all -j8
 
       - name: suggester / Naming Convention
+        if: always()
         uses: reviewdog/action-suggester@v1
         with:
           github_token: ${{ github.token }}
