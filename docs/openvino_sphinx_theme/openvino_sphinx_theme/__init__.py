@@ -17,7 +17,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
 
     def has_github_page():
         doxygen_mapping_file = app.config.doxygen_mapping_file
-        if pagename in doxygen_mapping_file:
+        if os.path.basename(pagename) in doxygen_mapping_file:
             return True
         return False
 
@@ -25,11 +25,6 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         """Return a URL for an "edit this page" link."""
         doc_context = dict()
         doc_context.update(**context)
-
-        # Make sure that doc_path has a path separator only if it exists (to avoid //)
-        doc_path = doc_context.get("doc_path", "")
-        if doc_path and not doc_path.endswith("/"):
-            doc_path = f"{doc_path}/"
 
         # ensure custom URL is checked first, if given
         url_template = doc_context.get("edit_page_url_template")
@@ -47,12 +42,12 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
                        '/edit/{{ github_version }}/{{ file_name }}'
 
         doxygen_mapping_file = app.config.doxygen_mapping_file
-        rst_name = pagename
+        rst_name = os.path.basename(pagename)
         file_name = doxygen_mapping_file[rst_name]
         parent_folder = Path(os.path.dirname(file_name)).parts[0]
         file_name = Path(*Path(file_name).parts[1:]).as_posix()
 
-        doc_context.update(doc_path=doc_path, file_name=file_name)
+        doc_context.update(file_name=file_name)
         try:
             repositories = app.config.repositories
         except AttributeError:
@@ -66,7 +61,6 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
                     raise ExtensionError(f'Missing required value for `{repo}` entry in `repositories`'
                                          f'Ensure {required} all set.')
             if parent_folder == repo:
-
                 doc_context.update(github_user=config['github_user'])
                 doc_context.update(github_repo=config['github_repo'])
                 doc_context.update(github_version=config['github_version'])
