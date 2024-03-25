@@ -16,9 +16,8 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
     """Add a function that jinja can access for returning the edit URL of a page."""
 
     def has_github_page():
-        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
-        name = pagename.rsplit('-')[0]
-        if name in doxygen_mapping_file:
+        doxygen_mapping_file = app.config.doxygen_mapping_file
+        if pagename in doxygen_mapping_file:
             return True
         return False
 
@@ -45,10 +44,10 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
             return jinja2.Template(url_template).render(**doc_context)
 
         url_template = '{{ github_url }}/{{ github_user }}/{{ github_repo }}' \
-                       '/edit/{{ github_version }}/{{ doc_path }}{{ file_name }}'
+                       '/edit/{{ github_version }}/{{ file_name }}'
 
-        doxygen_mapping_file = app.config.html_context.get('doxygen_mapping_file')
-        rst_name = pagename.rsplit('-')[0]
+        doxygen_mapping_file = app.config.doxygen_mapping_file
+        rst_name = pagename
         file_name = doxygen_mapping_file[rst_name]
         parent_folder = Path(os.path.dirname(file_name)).parts[0]
         file_name = Path(*Path(file_name).parts[1:]).as_posix()
@@ -67,6 +66,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
                     raise ExtensionError(f'Missing required value for `{repo}` entry in `repositories`'
                                          f'Ensure {required} all set.')
             if parent_folder == repo:
+                print('\n', True, file_name)
                 doc_context.update(github_user=config['github_user'])
                 doc_context.update(github_repo=config['github_repo'])
                 doc_context.update(github_version=config['github_version'])

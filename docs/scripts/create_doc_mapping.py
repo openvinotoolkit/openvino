@@ -13,7 +13,7 @@ def create_mapping(output_dir: Path, doc_dir_name: str):
         for file in files:
             if file.endswith('.rst'):
                 file_path = os.path.join(root, file)
-                file_path = os.path.relpath(file_path, start=os.path.join(directory, '..', '..'))
+                file_path = os.path.relpath(file_path, start=os.path.join(directory, '..', '..', '..'))
                 file_path = file_path.replace('\\', '/').replace('OpenVINO', 'openvino').replace(' ', '-')
                 file_name_without_extension = os.path.basename(os.path.splitext(file_path)[0])
                 mapping[file_name_without_extension] = file_path

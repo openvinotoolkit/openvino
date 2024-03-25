@@ -116,7 +116,6 @@ html_context = {
     'languages': (('English', '/latest'), ('Chinese', '/cn/latest')),
     'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
     'doxygen_snippet_root': snippet_root,
-    'default_mode': 'light'
 }
 
 repositories = {
@@ -153,7 +152,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = os.path.dirname(os.getcwd()) + '/mapping.json'
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
