@@ -25,6 +25,8 @@ async function save() {
 
     var tarName = `${key}.cache`
     var tarPath = path.join(cacheRemotePath, tarName)
+    var tarNameTmp = `${key}.tmp`
+    var tarPathTmp = path.join(cacheRemotePath, tarNameTmp)
 
     if (fs.existsSync(tarPath)) {
       core.warning(`Cache file ${tarName} already exists`)
@@ -52,8 +54,10 @@ async function save() {
     }
 
     core.info('Copying cache...')
-    fs.copyFileSync(tarName, tarPath)
-    core.info(`${tarName} was copied to ${tarPath}`)
+    fs.copyFileSync(tarName, tarPathTmp)
+    // After copying is done, rename file
+    fs.renameSync(tarPathTmp, tarPath)
+    core.info(`${tarName} copied to ${tarPath}`)
 
     core.setOutput('cache-file', tarName)
     core.setOutput('cache-hit', true)
