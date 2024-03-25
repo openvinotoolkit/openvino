@@ -45,7 +45,9 @@ ROIAlignRotatedParams PrepareTestCaseParams(const PartialShape& inputShape,
                                             const std::string& testcaseName) {
     ROIAlignRotatedParams ret;
 
-    const size_t numOfRois = roisVals.size() / 5;
+    constexpr size_t rois_second_dim_size = 5;  //< By definition of the ROIAlignRotated op
+
+    const size_t numOfRois = roisVals.size() / rois_second_dim_size;
     const size_t channels = static_cast<size_t>(inputShape[1].get_length());
     const element::Type_t elementType = element::from<T>();
 
@@ -76,18 +78,16 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<ROIAlignRotatedParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "iType=" << param.input.get_element_type();
-        result << "_pShape=" << param.inputShape;
-        result << "_efType=" << param.expectedOutput.type;
-        result << "_efShape=" << param.expectedOutput.shape;
-        result << "_cType=" << param.rois.type;
-        result << "_cShape=" << param.rois.shape;
-        result << "_rType=" << param.roiBatchIdxs.type;
-        result << "_rShape=" << param.roiBatchIdxs.shape;
+        result << "type=" << param.input.get_element_type();
+        result << "_inputShape=" << param.inputShape;
         result << "_pooledH=" << param.pooledH;
         result << "_pooledW=" << param.pooledW;
         result << "_spatialScale=" << param.spatialScale;
+        result << "_samplingRatio=" << param.samplingRatio;
         result << "_clockwise=" << param.clockwise;
+        result << "_roisShape=" << param.rois.shape;
+        result << "_roisBatchIdxShape=" << param.roiBatchIdxs.shape;
+        result << "_outputShape=" << param.expectedOutput.shape;
         if (!param.testcaseName.empty()) {
             result << "_=" << param.testcaseName;
         }
@@ -97,9 +97,8 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const ROIAlignRotatedParams& params) {
         const auto featureMap = std::make_shared<op::v0::Parameter>(params.input.get_element_type(), params.inputShape);
-        const auto coords = std::make_shared<op::v0::Constant>(params.rois.type,
-                                                               params.rois.shape,
-                                                               params.rois.data.data());
+        const auto coords =
+            std::make_shared<op::v0::Constant>(params.rois.type, params.rois.shape, params.rois.data.data());
         const auto roisIdx = std::make_shared<op::v0::Constant>(params.roiBatchIdxs.type,
                                                                 params.roiBatchIdxs.shape,
                                                                 params.roiBatchIdxs.data.data());
