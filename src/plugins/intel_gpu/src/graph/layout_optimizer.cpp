@@ -47,15 +47,6 @@
 
 using namespace cldnn;
 
-int get_env(std::string key, int &val);
-int get_env(std::string key, int &val) {
-        if (const auto env_var = std::getenv(key.c_str())) {
-            val = std::atoi(env_var);
-            return true;
-        }
-        return false;
-}
-
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
     for (auto& fo : node.get_fused_primitives()) {
@@ -712,12 +703,13 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
 
     std::function<bool(const program_node&, size_t, size_t)> need_heavy_reorder = [&](const program_node& node, size_t cur_depth, size_t max_depth) {
         if (cur_depth > max_depth) return false;
-        // vae_decoder target list{2097152, 8388608, 16777216, 33554432, 67108864}
         if (node.is_type<reorder>()) {
             for (auto& reorder_user : node.get_users()) {
                 if (reorder_user->is_type<reshape>()) {
                     for (auto& reshape_user : reorder_user->get_users()) {
-                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > 2000000) {
+                        // Meteor Lake showed planar format Convolution without Reorder is better than
+                        // blocked format Convolution in case Reorder is larger than [1, 512, 128, 128].
+                        if (reshape_user->is_type<mvn>() && node.get_output_layout().get_linear_size() > 33000000) {
                             GPU_DEBUG_LOG << node.id() << ": " << node.get_output_layout().to_short_string() << " -> heavy reorder" << std::endl;
                             return true;
                         }
@@ -1835,12 +1827,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
         expected = _forcing_map.at(node.id()).first;
     } else if (node.is_type<convolution>()) {
-        int val = 0;
-        get_env("CONV_TEST", val);
-        if (val)
-            expected = format::bfyx;
-        else
-            expected = get_expected_format(node.as<convolution>());
+        expected = get_expected_format(node.as<convolution>());
     } else if (node.is_type<quantize>()) {
         expected = get_expected_format(node.as<quantize>());
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
