@@ -33169,7 +33169,7 @@ async function cleanUp() {
             if (err) {
               core.warning(`Could not remove file: ${filePath}: ${err}`)
             } else {
-              core.info(`{filePath} removed successfully`)
+              core.info(`${filePath} removed successfully`)
               totalSize -= fileStats.size
             }
           })
