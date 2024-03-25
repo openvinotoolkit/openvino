@@ -21,6 +21,8 @@ samples_type="$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
 samples_build_dir=$HOME/openvino_${samples_type}_samples_build
 sample_install_dir=""
 
+somebadthing
+
 # parse command line options
 while [[ $# -gt 0 ]]
 do
