@@ -13,7 +13,7 @@ const std::vector<bool> get_vs_set{true, false};
 const std::vector<size_t> num_streams{1, 2};
 const std::vector<size_t> num_requests{1, 3, 8, 9, 16, 64};
 const std::vector<size_t> num_batch{1, 4, 8, 16, 32, 64, 128, 256};
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_TEMPLATE,
+INSTANTIATE_TEST_SUITE_P(smoke_TEMPLATE_AutoBatching,
                          AutoBatching_Test,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(get_vs_set),
@@ -22,7 +22,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_TEMPLATE,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_TEMPLATE,
+INSTANTIATE_TEST_SUITE_P(smoke_TEMPLATE_AutoBatching,
                          AutoBatching_Test_DetectionOutput,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_TEMPLATE),
                                             ::testing::ValuesIn(get_vs_set),
@@ -31,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatching_TEMPLATE,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_CPU,
+INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
                          AutoBatching_Test,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::ValuesIn(get_vs_set),
@@ -40,7 +40,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_CPU,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_CPU,
+INSTANTIATE_TEST_SUITE_P(nightly_CPU_AutoBatching,
                          AutoBatching_Test_DetectionOutput,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::ValuesIn(get_vs_set),
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_CPU,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test_DetectionOutput::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_GPU,
+INSTANTIATE_TEST_SUITE_P(nightly_GPU_AutoBatching,
                          AutoBatching_Test,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(get_vs_set),
@@ -58,7 +58,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_GPU,
                                             ::testing::ValuesIn(num_batch)),
                          AutoBatching_Test::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(nightly_AutoBatching_GPU,
+INSTANTIATE_TEST_SUITE_P(nightly_GPU_AutoBatching,
                          AutoBatching_Test_DetectionOutput,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(get_vs_set),
