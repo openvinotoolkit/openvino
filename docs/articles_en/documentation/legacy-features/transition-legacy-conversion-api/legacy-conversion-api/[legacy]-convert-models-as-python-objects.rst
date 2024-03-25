@@ -26,6 +26,7 @@ Example of converting a PyTorch model directly from memory:
    :force:
 
    import torchvision
+   from openvino.tools.mo import convert_model
 
    model = torchvision.models.resnet50(weights='DEFAULT')
    ov_model = convert_model(model)
@@ -43,6 +44,7 @@ Example of using native Python classes to set ``input_shape``, ``mean_values`` a
    :force:
 
    from openvino.runtime import PartialShape, Layout
+   from openvino.tools.mo import convert_model
 
    ov_model = convert_model(model, input_shape=PartialShape([1,3,100,100]), mean_values=[127, 127, 127], layout=Layout("NCHW"))
 
@@ -50,6 +52,9 @@ Example of using strings for setting ``input_shape``, ``mean_values`` and ``layo
 
 .. code-block:: py
    :force:
+
+   from openvino.runtime import Layout
+   from openvino.tools.mo import convert_model
 
    ov_model = convert_model(model, input_shape="[1,3,100,100]", mean_values="[127,127,127]", layout="NCHW")
 
@@ -61,6 +66,8 @@ Example of using a tuple in the ``input`` parameter to cut a model:
 
 .. code-block:: py
    :force:
+
+   from openvino.tools.mo import convert_model
 
    ov_model = convert_model(model, input=("input_name", [3], np.float32))
 
@@ -100,6 +107,9 @@ Example of using lists to set shapes, types and layout for multiple inputs:
 .. code-block:: py
    :force:
 
+   from openvino.runtime import Layout
+   from openvino.tools.mo import convert_model, LayoutMap
+
    ov_model = convert_model(model, input=[("input1", [1,3,100,100], np.float32), ("input2", [1,3,100,100], np.float32)], layout=[Layout("NCHW"), LayoutMap("NCHW", "NHWC")])
 
 ``layout``, ``source_layout`` and ``dest_layout`` accept an ``openvino.runtime.Layout`` object or ``string``.
@@ -126,4 +136,12 @@ Example of using the ``LayoutMap`` class to change the layout of a model input:
    from openvino.tools.mo import convert_model, LayoutMap
 
    ov_model = convert_model(model, layout=LayoutMap("NCHW", "NHWC"))
+
+Example of using the ``save_model`` method to save the converted model to OpenVINO IR:
+
+.. code-block:: py
+   :force:
+
+   import openvino as ov
+   ov.save_model(ov_model, 'model.xml')
 
