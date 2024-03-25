@@ -210,8 +210,7 @@ protected:
         selectedType = makeSelectedTypeStr(selectedType, outType);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inShapeA)};
-        std::shared_ptr<ov::Node> inputB =
-            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeB.get_shape(), {}, true);
+        std::shared_ptr<ov::Node> inputB = ov::test::utils::make_constant(weiConstElemType, inShapeB.get_shape());
         if (weiConstElemType == ElementType::f16) {
             inputB = std::make_shared<ov::op::v0::Convert>(inputB, convertOutType);
             mark_as_decompression(inputB);
@@ -483,8 +482,7 @@ protected:
         for (auto&& shape : {inShapeFC0, inShapeFC1}) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inType, shape));
         }
-        std::shared_ptr<ov::Node> inputWeights =
-            ov::test::utils::deprecated::make_constant<float>(weiConstElemType, inShapeWeights.get_shape(), {}, true);
+        std::shared_ptr<ov::Node> inputWeights = ov::test::utils::make_constant(weiConstElemType, inShapeWeights.get_shape());
         if (weiConstElemType == ElementType::f16) {
             inputWeights = std::make_shared<ov::op::v0::Convert>(inputWeights, convertOutType);
             mark_as_decompression(inputWeights);

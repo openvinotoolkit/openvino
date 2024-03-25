@@ -82,7 +82,7 @@ protected:
         init_input_shapes(shapes);
 
         ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes.front())};
-        auto reshapeData = ov::test::utils::deprecated::make_constant(ElementType::i32, {data.size()}, data);
+        auto reshapeData = std::make_shared<ov::op::v0::Constant>(ElementType::i32, ov::Shape{data.size()}, data);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(params[0], reshapeData, true);
 
         auto tensor = ov::test::utils::create_and_fill_tensor(prc, inputDynamicShapes.back().to_shape());

@@ -18,7 +18,7 @@ protected:
 
         auto type = element::f32;
         auto param = std::make_shared<ov::opset8::Parameter>(type, Shape{1, 32, 64, 32});
-        auto weights = ov::test::utils::deprecated::make_constant(type, Shape{32, 32, 1, 1}, std::vector<float>{}, true);
+        auto weights = ov::test::utils::make_constant(type, Shape{32, 32, 1, 1});
         auto conv = std::make_shared<ov::opset8::Convolution>(param,
                                                               weights,
                                                               Strides{1, 1},
@@ -42,10 +42,10 @@ protected:
             std::make_shared<ov::op::v1::Reshape>(mvn, std::make_shared<ov::op::v3::ShapeOf>(mean), false);
         auto mul = std::make_shared<ov::opset8::Multiply>(
             reshape_after,
-            ov::test::utils::deprecated::make_constant(type, Shape{32, 1, 1}, std::vector<float>{}, true));
+            ov::test::utils::make_constant(type, Shape{32, 1, 1}));
         auto add = std::make_shared<ov::opset8::Add>(
             mul,
-            ov::test::utils::deprecated::make_constant(type, Shape{32, 1, 1}, std::vector<float>{}, true));
+            ov::test::utils::make_constant(type, Shape{32, 1, 1}));
         auto sigmoid = std::make_shared<ov::opset8::Sigmoid>(add);
         auto mul2 = std::make_shared<ov::opset8::Multiply>(conv, sigmoid);
 
