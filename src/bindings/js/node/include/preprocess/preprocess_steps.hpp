@@ -20,5 +20,5 @@ public:
     void set_preprocess_info(ov::preprocess::PreProcessSteps& info);
 
 private:
-    ov::preprocess::PreProcessSteps* _preprocess_info;
+    ov::preprocess::PreProcessSteps* _preprocess_info = nullptr;
 };

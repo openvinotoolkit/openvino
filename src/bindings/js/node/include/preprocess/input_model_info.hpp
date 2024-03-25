@@ -18,5 +18,5 @@ public:
     void set_input_model_info(ov::preprocess::InputModelInfo& info);
 
 private:
-    ov::preprocess::InputModelInfo* _model_info;
+    ov::preprocess::InputModelInfo* _model_info = nullptr;
 };

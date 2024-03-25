@@ -22,5 +22,5 @@ public:
     void set_input_info(ov::preprocess::InputInfo& tensor_name);
 
 private:
-    ov::preprocess::InputInfo* _input_info;
+    ov::preprocess::InputInfo* _input_info = nullptr;
 };

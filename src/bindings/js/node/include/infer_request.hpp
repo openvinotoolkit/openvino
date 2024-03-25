@@ -16,7 +16,7 @@ struct TsfnContext {
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    ov::InferRequest* _ir;
+    ov::InferRequest* _ir = nullptr;
     std::vector<ov::Tensor> _inputs;
     std::map<std::string, ov::Tensor> result;
 };
