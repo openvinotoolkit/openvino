@@ -517,31 +517,35 @@ TEST(pattern, optional_single_in) {
 TEST(pattern, optional_multi_in_cumulative_op) {
     Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
+    auto relu = make_shared<op::v0::Relu>(a);
     auto b = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto c = std::make_shared<op::v1::Add>(a, b);
+    auto c = std::make_shared<op::v1::Add>(relu, b);
 
     TestMatcher n;
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{a,b}), c));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, a}), c));
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{a}), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}, [](const Output<Node>& output){ return false; }), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, relu}), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, relu}, [](const Output<Node>& output){ return true; }), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu}), c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b}), c));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{a,b}), a));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{a,b}), b));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), relu));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), b));
 }
 
 TEST(pattern, optional_multi_in_order_important) {
-    Shape shape{2, 3, 4};
+    Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::f32, shape);
-    auto b = make_shared<op::v0::Constant>(element::i32, ov::Shape{3}, std::vector<int>{2, 0, 1});
-    auto c = std::make_shared<op::v1::Transpose>(a, b);
+    auto relu = make_shared<op::v0::Relu>(a);
+    auto b = make_shared<op::v0::Parameter>(element::f32, shape);
+    auto c = std::make_shared<op::v1::Subtract>(relu, b);
 
     TestMatcher n;
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{a,b}), c));
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{b, a}), c));
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{a}), c));
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{b}), c));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{a,b}), a));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Transpose>(ov::OutputVector{a,b}), b));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu,b}), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{b, relu}), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu}), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{b}), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu, b}), relu));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu, b}), b));
 }
 
 TEST(pattern, optional_multi_in_pattern_matching) {
