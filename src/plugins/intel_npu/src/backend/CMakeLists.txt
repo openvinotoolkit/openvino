@@ -26,10 +26,6 @@ target_compile_definitions(${OBJ_TARGET_NAME}
         IMPLEMENT_OPENVINO_RUNTIME_PLUGIN)
 
 target_include_directories(${OBJ_TARGET_NAME}
-    PRIVATE
-        ${NPU_PLUGIN_SOURCE_DIR}/include
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero/include
-        ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/level-zero-ext
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )

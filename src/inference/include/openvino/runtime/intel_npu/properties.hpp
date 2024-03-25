@@ -49,34 +49,6 @@ enum class LegacyPriority {
     HIGH = 2     //!<  High priority
 };
 
-inline std::ostream& operator<<(std::ostream& os, const LegacyPriority& priority) {
-    switch (priority) {
-    case LegacyPriority::LOW:
-        return os << "MODEL_PRIORITY_LOW";
-    case LegacyPriority::MEDIUM:
-        return os << "MODEL_PRIORITY_MED";
-    case LegacyPriority::HIGH:
-        return os << "MODEL_PRIORITY_HIGH";
-    default:
-        OPENVINO_THROW("Unsupported model priority value");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
-    std::string str;
-    is >> str;
-    if (str == "MODEL_PRIORITY_LOW") {
-        priority = LegacyPriority::LOW;
-    } else if (str == "MODEL_PRIORITY_MED") {
-        priority = LegacyPriority::MEDIUM;
-    } else if (str == "MODEL_PRIORITY_HIGH") {
-        priority = LegacyPriority::HIGH;
-    } else {
-        OPENVINO_THROW("Unsupported model priority: ", str);
-    }
-    return is;
-}
-
 /**
  * @brief Due to driver compatibility constraints, the set of model priority values corresponding to the OpenVINO legacy
  * API is being maintained here.
