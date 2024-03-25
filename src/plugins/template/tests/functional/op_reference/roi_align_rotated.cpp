@@ -18,89 +18,17 @@ namespace {
 constexpr double PI = 3.141592653589793238462643383279;
 
 struct ROIAlignRotatedParams {
-    ROIAlignRotatedParams(const PartialShape& inputShape,
-                          ov::Tensor&& input,
-                          reference_tests::Tensor&& expectedOutput,
-                          reference_tests::Tensor&& rois,
-                          reference_tests::Tensor&& roiBatchIdxs,
-                          const int32_t pooledH,
-                          const int32_t pooledW,
-                          const float spatialScale,
-                          const int32_t samplingRatio,
-                          const bool clockwise,
-                          const std::string& testcaseName)
-        : inputShape(inputShape),
-          input(input),
-          expectedOutput(expectedOutput),
-          rois(rois),
-          roiBatchIdxs(roiBatchIdxs),
-          pooledH(pooledH),
-          pooledW(pooledW),
-          spatialScale(spatialScale),
-          samplingRatio(samplingRatio),
-          clockwise(clockwise),
-          testcaseName(testcaseName) {}
-
-    PartialShape getPartialShape() const {
-        return inputShape;
-    }
-
-    ov::Tensor getFeatureMap() const {
-        return input;
-    }
-
-    reference_tests::Tensor getExpectedFeatureMap() const {
-        return expectedOutput;
-    }
-
-    reference_tests::Tensor getCoords() const {
-        return rois;
-    }
-
-    reference_tests::Tensor getRoiIdx() const {
-        return roiBatchIdxs;
-    }
-
-    int32_t getPooledH() const {
-        return pooledH;
-    }
-
-    int32_t getPooledW() const {
-        return pooledW;
-    }
-
-    float getSpatialScale() const {
-        return spatialScale;
-    }
-
-    int32_t getSamplingRatio() const {
-        return samplingRatio;
-    }
-
-    bool isClockwise() const {
-        return clockwise;
-    }
-
-    std::string getTestcaseName() const {
-        return testcaseName;
-    }
-
-    element::Type getIType() const {
-        return expectedOutput.type;
-    }
-
-private:
     PartialShape inputShape;
-    ov::Tensor input;
-    reference_tests::Tensor expectedOutput;
-    reference_tests::Tensor rois;
-    reference_tests::Tensor roiBatchIdxs;
     int32_t pooledH;
     int32_t pooledW;
     float spatialScale;
     int32_t samplingRatio;
     bool clockwise;
     std::string testcaseName;
+    ov::Tensor input;
+    reference_tests::Tensor rois;
+    reference_tests::Tensor roiBatchIdxs;
+    reference_tests::Tensor expectedOutput;
 };
 
 template <typename T>
@@ -115,28 +43,25 @@ ROIAlignRotatedParams PrepareTestCaseParams(const PartialShape& inputShape,
                                             const std::vector<int32_t>& roiBatchIdx,
                                             const std::vector<T>& expectedValues,
                                             const std::string& testcaseName) {
-    const element::Type_t elementType = element::from<T>();
-
-    ov::Tensor input = CreateTensor(elementType, inputValues);
+    ROIAlignRotatedParams ret;
 
     const size_t numOfRois = roisVals.size() / 5;
     const size_t channels = static_cast<size_t>(inputShape[1].get_length());
-    reference_tests::Tensor rois = reference_tests::Tensor(elementType, {numOfRois, 5}, roisVals);
-    reference_tests::Tensor roiBatchIdxs = reference_tests::Tensor(element::Type_t::i32, {numOfRois}, roiBatchIdx);
-    reference_tests::Tensor expected =
-        reference_tests::Tensor(elementType, {numOfRois, channels, pooledH, pooledW}, expectedValues);
+    const element::Type_t elementType = element::from<T>();
 
-    return ROIAlignRotatedParams(inputShape,
-                                 std::move(input),
-                                 std::move(expected),
-                                 std::move(rois),
-                                 std::move(roiBatchIdxs),
-                                 pooledH,
-                                 pooledW,
-                                 spatialScale,
-                                 samplingRatio,
-                                 clockwise,
-                                 testcaseName);
+    ret.inputShape = inputShape;
+    ret.pooledH = pooledH;
+    ret.pooledW = pooledW;
+    ret.spatialScale = spatialScale;
+    ret.samplingRatio = samplingRatio;
+    ret.clockwise = clockwise;
+    ret.testcaseName = testcaseName;
+    ret.input = CreateTensor(elementType, inputValues);
+    ret.rois = reference_tests::Tensor(elementType, {numOfRois, 5}, roisVals);
+    ret.roiBatchIdxs = reference_tests::Tensor(element::Type_t::i32, {numOfRois}, roiBatchIdx);
+    ret.expectedOutput = reference_tests::Tensor(elementType, {numOfRois, channels, pooledH, pooledW}, expectedValues);
+
+    return ret;
 }
 
 class ReferenceROIAlignRotatedTest : public testing::TestWithParam<ROIAlignRotatedParams>, public CommonReferenceTest {
@@ -144,48 +69,48 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.getFeatureMap()};
-        refOutData = {params.getExpectedFeatureMap().data};
+        inputData = {params.input};
+        refOutData = {params.expectedOutput.data};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<ROIAlignRotatedParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "iType=" << param.getIType();
-        result << "_pShape=" << param.getPartialShape();
-        result << "_efType=" << param.getExpectedFeatureMap().type;
-        result << "_efShape=" << param.getExpectedFeatureMap().shape;
-        result << "_cType=" << param.getCoords().type;
-        result << "_cShape=" << param.getCoords().shape;
-        result << "_rType=" << param.getRoiIdx().type;
-        result << "_rShape=" << param.getRoiIdx().shape;
-        result << "_pooledH=" << param.getPooledH();
-        result << "_pooledW=" << param.getPooledW();
-        result << "_spatialScale=" << param.getSpatialScale();
-        result << "_clockwise=" << param.isClockwise();
-        if (param.getTestcaseName() != "") {
-            result << "_=" << param.getTestcaseName();
+        result << "iType=" << param.input.get_element_type();
+        result << "_pShape=" << param.inputShape;
+        result << "_efType=" << param.expectedOutput.type;
+        result << "_efShape=" << param.expectedOutput.shape;
+        result << "_cType=" << param.rois.type;
+        result << "_cShape=" << param.rois.shape;
+        result << "_rType=" << param.roiBatchIdxs.type;
+        result << "_rShape=" << param.roiBatchIdxs.shape;
+        result << "_pooledH=" << param.pooledH;
+        result << "_pooledW=" << param.pooledW;
+        result << "_spatialScale=" << param.spatialScale;
+        result << "_clockwise=" << param.clockwise;
+        if (!param.testcaseName.empty()) {
+            result << "_=" << param.testcaseName;
         }
         return result.str();
     }
 
 private:
     static std::shared_ptr<Model> CreateFunction(const ROIAlignRotatedParams& params) {
-        const auto featureMap = std::make_shared<op::v0::Parameter>(params.getIType(), params.getPartialShape());
-        const auto coords = std::make_shared<op::v0::Constant>(params.getCoords().type,
-                                                               params.getCoords().shape,
-                                                               params.getCoords().data.data());
-        const auto roisIdx = std::make_shared<op::v0::Constant>(params.getRoiIdx().type,
-                                                                params.getRoiIdx().shape,
-                                                                params.getRoiIdx().data.data());
+        const auto featureMap = std::make_shared<op::v0::Parameter>(params.input.get_element_type(), params.inputShape);
+        const auto coords = std::make_shared<op::v0::Constant>(params.rois.type,
+                                                               params.rois.shape,
+                                                               params.rois.data.data());
+        const auto roisIdx = std::make_shared<op::v0::Constant>(params.roiBatchIdxs.type,
+                                                                params.roiBatchIdxs.shape,
+                                                                params.roiBatchIdxs.data.data());
         const auto roi_align_rot = std::make_shared<op::v14::ROIAlignRotated>(featureMap,
                                                                               coords,
                                                                               roisIdx,
-                                                                              params.getPooledH(),
-                                                                              params.getPooledW(),
-                                                                              params.getSamplingRatio(),
-                                                                              params.getSpatialScale(),
-                                                                              params.isClockwise());
+                                                                              params.pooledH,
+                                                                              params.pooledW,
+                                                                              params.samplingRatio,
+                                                                              params.spatialScale,
+                                                                              params.clockwise);
         auto f = std::make_shared<Model>(NodeVector{roi_align_rot}, ParameterVector{featureMap});
         return f;
     }
