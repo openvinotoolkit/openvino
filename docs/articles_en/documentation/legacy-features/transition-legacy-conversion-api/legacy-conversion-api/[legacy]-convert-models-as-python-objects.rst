@@ -15,7 +15,11 @@ Model conversion API is represented by ``convert_model()`` method in openvino.to
 
 .. note::
 
-   Model conversion can be performed by the ``convert_model()`` method and MO command line tool. The functionality from this article is applicable for ``convert_model()`` only and it is not present in command line tool.
+   Model conversion can be performed only when you install
+   :doc: `the development tools <../../../legacy-features/install-dev-tools>`, which provide
+   both the ``convert_model()`` method and ``mo`` command-line tool.
+   The functionality from this article is applicable for ``convert_model()`` only and it is
+   not present in command-line tool.
 
 
 ``convert_model()`` returns an openvino.runtime.Model object which can be compiled and inferred or serialized to IR.
@@ -137,11 +141,12 @@ Example of using the ``LayoutMap`` class to change the layout of a model input:
 
    ov_model = convert_model(model, layout=LayoutMap("NCHW", "NHWC"))
 
-Example of using the ``save_model`` method to save the converted model to OpenVINO IR:
+Example of using the ``serialize`` method to save the converted model to OpenVINO IR:
 
 .. code-block:: py
    :force:
 
-   import openvino as ov
-   ov.save_model(ov_model, 'model.xml')
+   from openvino.runtime import serialize
+
+   serialize(ov_model, "model.xml")
 

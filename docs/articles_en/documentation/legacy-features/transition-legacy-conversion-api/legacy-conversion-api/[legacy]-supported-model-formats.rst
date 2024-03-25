@@ -65,6 +65,11 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 import torchvision
+                 from openvino.tools.mo import convert_model
+                 core = openvino.Core()
+
                  model = torchvision.models.resnet50(weights='DEFAULT')
                  ov_model = convert_model(model)
                  compiled_model = core.compile_model(ov_model, "AUTO")
@@ -107,6 +112,10 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
+                 from openvino.tools.mo import convert_model
 
                  ov_model = convert_model("saved_model.pb")
                  compiled_model = core.compile_model(ov_model, "AUTO")
@@ -209,6 +218,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+                 from openvino.tools.mo import convert_model
+
                  ov_model = convert_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -229,7 +242,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
-                 ov_model = read_model("<INPUT_MODEL>.tflite")
+                 import openvino
+                 core = openvino.Core()
+
+                 ov_model = core.read_model("<INPUT_MODEL>.tflite")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
             * The ``compile_model()`` method:
@@ -242,6 +258,9 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
 
                  compiled_model = core.compile_model("<INPUT_MODEL>.tflite", "AUTO")
 
@@ -327,6 +346,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+                 from openvino.tools.mo import convert_model
+
                  ov_model = convert_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -347,6 +370,9 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+
                  ov_model = read_model("<INPUT_MODEL>.onnx")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -360,6 +386,9 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
 
                  compiled_model = core.compile_model("<INPUT_MODEL>.onnx", "AUTO")
 
@@ -448,6 +477,10 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+                 from openvino.tools.mo import convert_model
+
                  ov_model = convert_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -467,6 +500,9 @@ Here are code examples of how to use these methods with different model formats:
               .. code-block:: py
                  :force:
 
+                 import openvino
+                 core = openvino.Core()
+
                  ov_model = read_model("<INPUT_MODEL>.pdmodel")
                  compiled_model = core.compile_model(ov_model, "AUTO")
 
@@ -480,6 +516,9 @@ Here are code examples of how to use these methods with different model formats:
 
               .. code-block:: py
                  :force:
+
+                 import openvino
+                 core = openvino.Core()
 
                  compiled_model = core.compile_model("<INPUT_MODEL>.pdmodel", "AUTO")
 
