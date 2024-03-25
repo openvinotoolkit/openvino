@@ -59,7 +59,6 @@ xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported")
 xfail_issue_99954 = xfail_test(reason="Constant Pad - RuntimeError: Shape inference of Reference node with name y failed")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
-xfail_issue_99958 = xfail_test(reason="LogSoftmax - Results mismatch")
 xfail_issue_99960 = xfail_test(reason="MVN - Results mismatch")
 xfail_issue_99961 = xfail_test(reason="Optional has/get element operators are not supported)'")
 xfail_issue_99962 = pytest.mark.skip(reason="ReduceL1/L2 - Unrecognized attribute: axes for operator ReduceL1/L2")
@@ -71,7 +70,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_99972 = xfail_test(reason="Softmax - Results mismatch")
 xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
                                       "'<Node(Split): output_1, output_2, output_3, output_4>'")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")

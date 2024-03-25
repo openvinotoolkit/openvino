@@ -387,8 +387,11 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 
     auto varsplit = makePattern<opset1::VariadicSplit>({gather_sin_cos, -1, {ndims / 2, -1}});
     varsplit->set_output_size(2);
-    auto unsqueeze_sin = makePattern<opset1::Reshape>({varsplit->output(0), {1, -1, 1, 32}});
-    auto unsqueeze_cos = makePattern<opset1::Reshape>({varsplit->output(1), {1, -1, 1, 32}});
+    // Reshape or UnSqueeze should both be support
+    auto unsqueeze_sin = makePattern<opset1::Reshape>({varsplit->output(0), {1, -1, 1, 32}}) |
+                         makePattern<opset1::Unsqueeze>({varsplit->output(0), 2});
+    auto unsqueeze_cos = makePattern<opset1::Reshape>({varsplit->output(1), {1, -1, 1, 32}}) |
+                         makePattern<opset1::Unsqueeze>({varsplit->output(1), 2});
     // repeate cos/sin table
     auto const_idx = makeConst(ov::element::i32, ov::PartialShape::dynamic(), [](const ov::op::v0::Constant& node) {
         const auto& vec = node.get_vector<int32_t>();
@@ -401,9 +404,6 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     });
     auto repeat_interleave_sin = makePattern<opset8::Gather>({unsqueeze_sin, const_idx, 3}, {{"batch_dims", 0}});
     auto repeat_interleave_cos = makePattern<opset8::Gather>({unsqueeze_cos, const_idx, 3}, {{"batch_dims", 0}});
-
-    auto t_cos = makePattern(ov::Rank(4));
-    auto t_sin = makePattern(ov::Rank(4));
 
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 = GenSlice(slice_Slice_965, 1, int32_max, 2, 3);
@@ -418,13 +418,16 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto ShapeOf_169068 = makePattern<opset1::ShapeOf>({stack_1182});
     auto flatten_Slice_1194 = GenSlice(ShapeOf_169068, 0, 3, 1, 0);
     auto flatten_Concat_1197 = makePattern<opset1::Concat>({flatten_Slice_1194, {-1}}, {{"axis", 0}});
+    // If with special zero, no need to use shapeof to get full shape
     auto flatten_Reshape_1198 = makePattern<opset1::Reshape>({stack_1182, flatten_Concat_1197});
+    auto flatten_Reshape_Zero =
+        makePattern<opset1::Reshape>({stack_1182, ov::pass::pattern::any_input()}, {{"special_zero", true}});
 
     // x*cos [B,L,H,ndims]
     auto mul_cos =
         makePattern<opset1::Multiply>({slice_Slice_965, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
     auto mul_sin =
-        makePattern<opset1::Multiply>({flatten_Reshape_1198, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+        makePattern<opset1::Multiply>({flatten_Reshape_1198 | flatten_Reshape_Zero, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
 
     // *cos + *sin
     auto rotary_emb = makePattern<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
@@ -460,15 +463,12 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         auto new_node = std::make_shared<RoPENode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info({pattern_map.at(varsplit).get_node_shared_ptr(),
-                                pattern_map.at(unsqueeze_sin).get_node_shared_ptr(),
-                                pattern_map.at(unsqueeze_cos).get_node_shared_ptr(),
                                 pattern_map.at(repeat_interleave_sin).get_node_shared_ptr(),
                                 pattern_map.at(repeat_interleave_cos).get_node_shared_ptr(),
                                 pattern_map.at(neg_Multiply_1177).get_node_shared_ptr(),
                                 pattern_map.at(Unsqueeze_65524).get_node_shared_ptr(),
                                 pattern_map.at(Unsqueeze_65525).get_node_shared_ptr(),
                                 pattern_map.at(stack_1182).get_node_shared_ptr(),
-                                pattern_map.at(flatten_Concat_1197).get_node_shared_ptr(),
                                 pattern_map.at(mul_cos).get_node_shared_ptr(),
                                 pattern_map.at(mul_sin).get_node_shared_ptr(),
                                 pattern_map.at(rotary_emb).get_node_shared_ptr(),
@@ -476,6 +476,17 @@ ov::intel_cpu::RoPEFusionGPTJ::RoPEFusionGPTJ() {
                                 pattern_map.at(permute_Transpose_1213).get_node_shared_ptr()},
                                 new_node);
         ov::replace_node(old_node, new_node);
+        // shapeof may be moved up from transpose to add,
+        // After RoPE fusion, shapeof must be moved to the data input of RoPE otherwise extra subgraph exists
+        std::shared_ptr<ov::Node> rotary_emb_node = pattern_map.at(rotary_emb).get_node_shared_ptr();
+        auto rotary_emb_out = rotary_emb_node->output(0);
+        if (rotary_emb_out.get_target_inputs().size() == 2) {
+            for (auto& input : rotary_emb_out.get_target_inputs()) {
+                if (ov::is_type<opset1::ShapeOf>(input.get_node())) {
+                    input.replace_source_output(pattern_map.at(view_Reshape));
+                }
+            }
+        }
         return true;
     };
 

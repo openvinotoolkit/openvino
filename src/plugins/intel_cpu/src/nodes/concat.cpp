@@ -164,6 +164,15 @@ void Concat::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
         if (itr->first != LayoutType::nspc) {
             pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+        } else if (canBeInPlace) {
+            // canBeInPlace means all dims before axis are 1, so for nspc layout we only need check sp dimensions in
+            // axis=1 cases here
+            const auto& childDims = outputShapes[0].getDims();
+            if (axis != 1 || std::all_of(childDims.crbegin(), childDims.crend() - 2, [](const Dim dim) {
+                    return 1 == dim;
+                })) {
+                pdIndexesToReuse.push_back(supportedPrimitiveDescriptors.size() - 1);
+            }
         }
     }
 
