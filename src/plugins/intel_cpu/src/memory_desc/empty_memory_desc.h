@@ -14,11 +14,21 @@
 namespace ov {
 namespace intel_cpu {
 
+/**
+ * @brief Represents an empty memory descriptor.
+ *
+ * The main purpose is to create an empty Memory.
+ * Empty Memory is used to generalize passing an optional memory (such as bias)
+ * when both pointer to the memory data and nullptr are valid
+ */
 class EmptyMemoryDesc : public MemoryDesc {
 public:
     EmptyMemoryDesc():
-        MemoryDesc(Shape{0}, Empty)
-    {}
+        MemoryDesc(Shape{0}, Empty) {
+        /* status never changes for an empty memory desc
+         * so "define" beforehand to ensure isDefined() is thread safe */
+        status = MemoryDesc::descStatus::Defined;
+    }
 
     MemoryDescPtr clone() const override {
         return std::make_shared<EmptyMemoryDesc>(*this);
@@ -38,10 +48,10 @@ public:
 
     bool hasLayoutType(LayoutType layoutType) const override {
         return false;
-    };
+    }
 
     std::string serializeFormat() const override {
-        return "undef";
+        return "empty";
     }
 
     size_t getMaxMemSize() const override {
@@ -49,7 +59,7 @@ public:
     }
 
     MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const override {
-        OPENVINO_THROW("Clone an empty memory desc with precision: ", prec, " is prohibited");
+        OPENVINO_THROW("Clone an empty memory desc with any precision (", prec, ") is prohibited");
     }
 
 private:
@@ -69,11 +79,11 @@ private:
         return true;
     }
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override {
-        OPENVINO_THROW("Clone an empty memory desc with new dimensions is prohibited");
+        OPENVINO_THROW("Clone an empty memory desc with any new dimensions is prohibited");
     }
 
     void setPrecision(ov::element::Type prc) override {
-        OPENVINO_THROW("Setting precision for an empty memory desc with new dimensions is prohibited");
+        OPENVINO_THROW("Setting any precision (", prc, ") for an empty memory desc is prohibited");
     }
 };
 
