@@ -34,6 +34,7 @@ jobs:
         uses: reviewdog/action-suggester@v1
         with:
           github_token: ${{ github.token }}
+          tool_name: "clang-format"
           reviewdog_flags: -reporter=github-pr-review
           level: warning
           fail_on_error: true

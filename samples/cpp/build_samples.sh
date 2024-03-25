@@ -18,7 +18,7 @@ usage() {
 }
 
 samples_type="$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
-samples_build_dir="$HOME/openvino_${samples_type}_samples_build"
+samples_build_dir=$HOME/openvino_${samples_type}_samples_build
 sample_install_dir=""
 
 # parse command line options
