@@ -80,9 +80,6 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        abs_threshold = 0.01f;
-        rel_threshold = 0.01f;
-
         constexpr size_t DATA_INPUT_IDX = 0;
         constexpr size_t UPDATES_INPUT_IDX = 1;
 
@@ -98,6 +95,13 @@ protected:
         std::string target_device;
         std::tie(shapes_desc, reduceMode, data_type, indices_type, alpha_value, dynamic) = this->GetParam();
         std::tie(input_shapes, axis) = shapes_desc;
+
+        if (ov::element::bf16 == data_type || ov::element::f16 == data_type) {
+            configuration.insert({ov::hint::inference_precision.name(), data_type});
+            inType = outType = data_type;
+            abs_threshold = 0.01f;
+            rel_threshold = 0.01f;
+        }
 
         init_input_shapes(input_shapes);
 
@@ -289,7 +293,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_IndexAddTest,
                          IndexAddTest,
                          ::testing::Combine(::testing::ValuesIn(combine_shapes(axesShapeInShape)),
                                             ::testing::Values(v12::ScatterElementsUpdate::Reduction::SUM, v12::ScatterElementsUpdate::Reduction::NONE),
-                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32), // data precision
+                                            ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::bf16), // data precision
                                             ::testing::Values(ElementType::i32, ElementType::i64), // indices precision
                                             ::testing::Values(1.0),              // alpha
                                             ::testing::Values(true, false)),     // dynamic shape test
