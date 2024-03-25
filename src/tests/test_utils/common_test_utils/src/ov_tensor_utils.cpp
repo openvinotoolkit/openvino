@@ -259,6 +259,7 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
         fill_data_ptr_real_random_float(static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size(), min, max, seed);
         break;
     default:

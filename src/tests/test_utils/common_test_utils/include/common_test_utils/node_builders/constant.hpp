@@ -72,7 +72,21 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
 
 std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
                                         const ov::Shape& shape,
-                                        const InputGenerateData& in_data = InputGenerateData(1, 9, 1, 1));
+                                        const InputGenerateData& in_data);
+
+// generates random values from 1 to 10. If type is a real type, resolution = 1000
+std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type, const ov::Shape& shape);
+
+template <class T = float>
+std::shared_ptr<ov::Node> make_constant_from_data_or_random(const ov::element::Type& type,
+                                                            const ov::Shape& shape,
+                                                            const std::vector<T>& data) {
+    if (data.empty()) {
+        return make_constant(type, shape);
+    } else {
+        return std::make_shared<ov::op::v0::Constant>(type, shape, data);
+    }
+}
 
 }  // namespace utils
 }  // namespace test
