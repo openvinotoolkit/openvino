@@ -74,7 +74,7 @@ static std::shared_ptr<pattern::op::Label> construct_mean_graph() {
     return mean_label;
 }
 
-class TestGraphRewrite : public ov::pass::GraphRewrite {
+class testGraphRewrite : public ov::pass::GraphRewrite {
 public:
     void construct_multiply_by_one() {
         // pattern #1 : a * 1 = a
@@ -193,7 +193,7 @@ public:
         this->add_matcher(match_pass);
     }
 
-    TestGraphRewrite() : GraphRewrite() {
+    testGraphRewrite() : GraphRewrite() {
         construct_multiply_by_one();
         construct_add_zero();
     }
@@ -209,7 +209,7 @@ static void run_passes(pass::Manager& pass_manager,
 TEST(pattern, graph_rewrite) {
     Shape shape{};
     pass::Manager pass_manager;
-    pass_manager.register_pass<TestGraphRewrite>();
+    pass_manager.register_pass<testGraphRewrite>();
 
     {
         auto a = make_shared<op::v0::Parameter>(element::i32, shape);

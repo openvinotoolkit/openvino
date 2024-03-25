@@ -73,6 +73,7 @@ jobs:
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
+              "*/.git/*"
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
@@ -105,5 +106,6 @@ jobs:
         uses: reviewdog/action-suggester@v1
         with:
           github_token: ${{ github.token }}
+          reviewdog_flags: -reporter=github-pr-review
           level: warning
           fail_on_error: true
