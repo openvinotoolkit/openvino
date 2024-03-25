@@ -55,24 +55,14 @@ protected:
     AttrPtr initPrimitiveAttr() override;
     AttrPtr makePrimitiveAttr(const VectorDims& dims);
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const override;
-    std::shared_ptr<DeconvExecutor> execPtrDeconv = nullptr;
+    std::shared_ptr<DeconvExecutor> execPtrDeconvACL = nullptr;
 
 private:
     using executorPtr = std::shared_ptr<DnnlExecutor>;
     executorPtr execPtr = nullptr;
-
-    class DeconvExecutorDefault : public DnnlExecutor {
+    class DeconvDNNLExecutor : public DnnlExecutor {
         public:
-            DeconvExecutorDefault(const dnnl::convolution_backward_data::primitive_desc& pd,
-                                  const dnnl::memory::desc& inMemDesc,
-                                  const dnnl::memory::desc& weightMemDesc,
-                                  const dnnl::memory::desc& outMemDesc,
-                                  const dnnl::engine& engine);
-    };
-
-    class DeconvExecutorInt8 : public DnnlExecutor {
-        public:
-            DeconvExecutorInt8(const dnnl::deconvolution_forward::primitive_desc& pd,
+            DeconvDNNLExecutor(const dnnl::deconvolution_forward::primitive_desc& pd,
                                const dnnl::memory::desc& inMemDesc,
                                const dnnl::memory::desc& weightMemDesc,
                                const dnnl::memory::desc& outMemDesc,
@@ -92,7 +82,7 @@ private:
     size_t IC = 0;
     size_t OC = 0;
     std::vector<int32_t> lastOutputSpatialDims;
-    VectorDims weiDimsIOHW;
+    VectorDims weiDimsDNNLDeconv {};
     VectorDims expectedBiasDims {};
 
     bool useACL = false;
@@ -117,7 +107,7 @@ private:
     std::string errorPrefix;
 
     //MemoryPtr createWeiBlobAsIO(const VectorDims& dims);
-    void createIOWeightBlob();
+    void createWeiBlobAsIO();
     void updateIOWeightBlob();
     bool weightIsConst = false;
 };
