@@ -83,7 +83,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto block_idx = slot_mapping.ptr<int32_t>(b)[m];
         if (block_idx < 0) return;
         attn_copy(past_k_output.ptr<T2>(block_idx, h, 0),
@@ -101,7 +101,7 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
     size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto block_idx = slot_mapping.ptr<int32_t>(b)[m];
         if (block_idx < 0) return;
         std::memcpy(past_k_output.ptr_v(block_idx, h, 0),
