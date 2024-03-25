@@ -16,22 +16,6 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#define PRINT(X) std::cout << #X << " = " << X << std::endl
-static std::string shape2str(ov::intel_cpu::Shape shape) {
-    std::string str = "[";
-    for (auto s : shape.getStaticDims()) {
-        str += std::to_string(s) + ",";
-    }
-    return str + "]";
-}
-static std::string dims2str(ov::intel_cpu::VectorDims dims) {
-    std::string str = "[";
-    for (auto s : dims) {
-        str += std::to_string(s) + ",";
-    }
-    return str + "]";
-}
-
 bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
@@ -113,10 +97,7 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
 
     scale_group_size =
         getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
-    PRINT(scale_group_size);
-
     dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
-    PRINT(dataTypeSize);
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
@@ -152,7 +133,6 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
         have_zp = true;
         zp_group_size =
             getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
-        PRINT(zp_group_size);
         addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
                               {LayoutType::ncsp, ov::element::i32},
                               {LayoutType::ncsp, ov::element::i32},
@@ -234,7 +214,6 @@ void GatherCompression::executeDynamicImpl(dnnl::stream strm) {
 
 template <typename OUT_TYPE>
 void GatherCompression::execReferenceU4() {
-    std::cout << "--->5:GatherCompression::execReferenceU4()" << std::endl;
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -243,7 +222,6 @@ void GatherCompression::execReferenceU4() {
     float const_zp = 0;
     const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getPrecision());
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
 
@@ -263,9 +241,6 @@ void GatherCompression::execReferenceU4() {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
-                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
-                PRINT(srcIdx);
-                const uint8_t* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
                 const uint scale_offset = srcIdx / scale_group_size;
@@ -299,7 +274,6 @@ void GatherCompression::execReferenceU4() {
 
 template <typename OUT_TYPE>
 void GatherCompression::execReferenceI4() {
-    std::cout << "--->5:GatherCompression::execReferenceI4()" << std::endl;
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -308,7 +282,6 @@ void GatherCompression::execReferenceI4() {
     float const_zp = 0;
     const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getPrecision());
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
 
@@ -328,9 +301,6 @@ void GatherCompression::execReferenceI4() {
                 size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
-                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
-                PRINT(srcIdx);
-                const uint8_t* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
                 const uint scale_offset = srcIdx / scale_group_size;
@@ -379,8 +349,6 @@ void GatherCompression::execReferenceI4() {
 
 template <typename IN_TYPE, typename OUT_TYPE>
 void GatherCompression::execReference8bit() {
-    std::cout << "GatherCompression::execReference8bit()\n";
-
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -389,7 +357,6 @@ void GatherCompression::execReference8bit() {
     float const_zp = 0;
     const auto* zp = have_zp ? getSrcDataAtPortAs<float_t>(GATHER_ZP) : &const_zp;
     const auto* scale = getSrcDataAtPortAs<float_t>(GATHER_SCALE);
-    PRINT(getParentEdgeAt(GATHER_SCALE)->getMemoryPtr()->getPrecision());
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
 
