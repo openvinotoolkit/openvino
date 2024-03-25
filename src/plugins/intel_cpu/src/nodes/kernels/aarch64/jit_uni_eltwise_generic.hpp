@@ -97,10 +97,7 @@ public:
     void generate() override;
 
 private:
-    const Xbyak_aarch64::XReg X_TMP_0 = x10;
-    const Xbyak_aarch64::XReg X_TMP_1 = x11;
-
-    XReg reg_post_op_ptrs = X_TMP_0;
+    XReg reg_post_op_ptrs = x10;
     XReg start_to_offsets = reg_post_op_ptrs;
 
     XReg reg_oc_off = x12;
@@ -126,10 +123,10 @@ private:
     // X10    | ker temporary| R10 | src ptr
     // X11    | ker temporary| R11 | src ptr
     // X12    | ker temporary (abi_not_param1)   | R12 | src ptr
-    // X13    | [not used]   | R13 | src ptr
-    // X14    | [not used]   | R14 | src ptr
-    // X15    | dst          | R15 | temporary
-    // X16    | [not used: IP1]
+    // X13    | temporary    | R13 | src ptr
+    // X14    | temporary    | R14 | src ptr
+    // X15    | temporary    | R15 | temporary
+    // X16    | dst
     // X17    | [not used: IP0]
     // X18    | [not used: Apple: The platforms reserve register x18. Don't use this register.]
 
@@ -138,31 +135,27 @@ private:
     // X20    | src ptr
     // X21    | src ptr
     // X22    | src ptr
-    // X23    | temporary & kernel used (oneDNN: X_TMP_0)
-    // X24    | src ptr
+    // X23    | kernel used (oneDNN: X_TMP_0)
+    // X24    | kernel used (oneDNN: X_TMP_1)
     // X25    | src ptr
     // X26    | src ptr
-    // X27    | temporary
-    // X28    | temporary & kernel used (oneDNN: X_DEFAULT_ADDR)
+    // X27    | src ptr
+    // X28    | kernel used (oneDNN: X_DEFAULT_ADDR)
 
     // X29    | [not used: The Frame Pointer (FP)]
     // X30    | [not used: The Link Register (LR)]
     // X31    | [not used: The Stack Pointer (SP)]
 
     const XReg reg_work_amount = x9;
-    const XReg reg_dst = x15;
+    const XReg reg_dst = x16;
 
     inline XReg get_src_reg(uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
         }
 
-        const uint32_t base = 19;
-        if ((base + idx) == 23) {
-            idx++;
-        }
-
-        return XReg(base + idx);
+        static const std::vector<uint32_t> src_gprs = { 19, 20, 21, 22, 25, 26, 27 };
+        return XReg(src_gprs[idx]);
     }
 
     inline XReg get_aux_gpr(const uint32_t idx) {
@@ -170,12 +163,7 @@ private:
             OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
 
-        if (idx == 0) {
-            return XReg(23);
-        }
-
-        const uint32_t base = 27;
-        return XReg(base + idx - 1);
+        return XReg(13 + idx);
     }
 
     // Vector registers mapping
