@@ -15,7 +15,6 @@ using namespace ov::op;
 
 namespace ov {
 namespace test {
-
 /*
   This test runs a graph that is equivelent to torch.Tensor.index_add_.
   TorchFE maps it to a compilicated subgraph which could be briefed similar to this -
@@ -29,7 +28,6 @@ namespace test {
  *                           |
  *                         Result
 */
-
 using InputsAndAxis = std::tuple<
         std::vector<InputShape>,           // Input, shape of data and updates
         int                                // Axis
@@ -156,10 +154,10 @@ protected:
         auto dim_1d = std::make_shared<v3::Broadcast>(dim, const_one);
         auto slice_end2 =
             std::make_shared<v12::ScatterElementsUpdate>(slice_end,
-                                                                        dim_1d,
-                                                                        const_one,
-                                                                        const_zero,
-                                                                        v12::ScatterElementsUpdate::Reduction::NONE);
+                                                        dim_1d,
+                                                        const_one,
+                                                        const_zero,
+                                                        v12::ScatterElementsUpdate::Reduction::NONE);
         auto new_shape_ = std::make_shared<v8::Slice>(input, slice_start, slice_end2, slice_step, axes);
         auto new_shape = std::make_shared<v3::ShapeOf>(new_shape_, element::i32);
         auto src_ =
@@ -181,8 +179,8 @@ protected:
                                                         src_,
                                                         dim,
                                                         reduceMode);
-
-        function = std::make_shared<ov::Model>(scatter_result->outputs(), ov::ParameterVector{param, indices_param, update_param}, "index_add");
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(scatter_result)};
+        function = std::make_shared<ov::Model>(results, ov::ParameterVector{param, indices_param, update_param}, "index_add");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
