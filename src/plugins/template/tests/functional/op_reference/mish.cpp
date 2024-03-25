@@ -42,6 +42,7 @@ struct MishParams {
 class ReferenceMishLayerTest : public testing::TestWithParam<MishParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
+        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params.dynamicShape, params.inType);
         inputData = {params.inputData};
