@@ -99,7 +99,7 @@ jobs:
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt
 
       - name: CMake configure
-        run: cmake -B build
+        run: cmake -DENABLE_NCC_STYLE=ON -B build
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8
@@ -110,5 +110,5 @@ jobs:
         with:
           github_token: ${{ github.token }}
           reviewdog_flags: -reporter=github-pr-review
-          level: warning
+          level: error
           fail_on_error: true
