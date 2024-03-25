@@ -15,8 +15,9 @@
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace NGraphFunctions {
-namespace Utils {
+namespace ov {
+namespace test {
+namespace utils {
 
 template <ov::element::Type_t dType>
 std::vector<typename ov::element_type_traits<dType>::value_type> inline generateVector(
@@ -104,13 +105,6 @@ std::vector<toType> castVector(const std::vector<fromType>& vec) {
     }
     return resVec;
 }
-
-}  // namespace Utils
-}  // namespace NGraphFunctions
-
-namespace ov {
-namespace test {
-namespace utils {
 
 inline void fill_data(float* data, size_t size, size_t duty_ratio = 10) {
     for (size_t i = 0; i < size; i++) {
