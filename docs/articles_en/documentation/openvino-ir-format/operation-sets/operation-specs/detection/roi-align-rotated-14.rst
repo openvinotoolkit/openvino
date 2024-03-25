@@ -23,7 +23,7 @@ ROIAlignRotated
 3. Divide the box into equal bins. One bin is mapped to single output feature map element.
 4. Inside every bin, calculate regularly spaced sample points, according to the *sampling_ratio* attribute.
 5. To calculate the value of single sample point, calculate further 4 points around each sample point to apply bilinear interpolation.
-6. calculate the average of all sample points in the bin to produce output feature map element.
+6. Calculate the average of all sample points in the bin to produce output feature map element.
 
 The 4 points used for bilinear interpolation are calculated as the closest integer coordinates to the sample point.
 As an example, if the sample point is [2.14, 3.56], then the 4 integer points are [2, 3], [2, 4], [3, 3], [3, 4].
