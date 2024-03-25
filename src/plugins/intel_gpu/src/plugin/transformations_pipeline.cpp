@@ -134,7 +134,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 
 namespace {
 template<typename T>
