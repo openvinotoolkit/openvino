@@ -77,7 +77,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                                 prev_node.as<reorder>().is_simple_reorder() &&
                                 prev_node.get_users().size() == 1 &&
                                 prev_node.get_dependencies().size() == 1 &&
-                                format::is_weights_format(prev_node.get_input_layout().format);
+                                (format::is_weights_format(prev_node.get_input_layout().format) ||
+                                 format::is_simple_data_format(prev_node.get_input_layout().format));
 
             if (can_be_fused) {
                 // Need to update input data_type for correct merging format reorder with precision reorder
