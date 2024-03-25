@@ -38,7 +38,6 @@ from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_fronten
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
-from openvino.frontend.pytorch.module_extension import ModuleExtension
 from openvino.runtime import get_version as get_rt_version
 from openvino.runtime import Type, PartialShape
 
@@ -174,7 +173,11 @@ def prepare_ir(argv: argparse.Namespace):
         moc_front_end.add_extension(TelemetryExtension("ovc", t.send_event, t.send_error, t.send_stack_trace))
         if any_extensions_used(argv):
             for extension in argv.extension:
-                if not isinstance(extension, ModuleExtension):
+                try:
+                    from openvino.frontend.pytorch.module_extension import ModuleExtension
+                    if not isinstance(extension, ModuleExtension):
+                        moc_front_end.add_extension(extension)
+                except:
                     moc_front_end.add_extension(extension)
         ov_model = moc_pipeline(argv, moc_front_end)
         return ov_model
