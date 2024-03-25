@@ -410,7 +410,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         const auto core_type = engConfig.schedulingCoreType;
         return core_type;
     } else if (name == ov::hint::model_distribution_policy) {
-        const auto distribution_policy = engConfig.modelDistributionPolicy;
+        const auto& distribution_policy = engConfig.modelDistributionPolicy;
         return distribution_policy;
     } else if (name == ov::hint::enable_hyper_threading) {
         const bool ht_value = engConfig.enableHyperThreading;
