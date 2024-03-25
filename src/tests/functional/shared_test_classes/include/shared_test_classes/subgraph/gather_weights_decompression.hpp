@@ -4,25 +4,11 @@
 
 #pragma once
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
-
-// my
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "transformations/rt_info/decompression.hpp"
 
 namespace ov {
 namespace test {
-
-using ov::test::InputShape;
 
 /*
  *                        Subtract_const(U8/NF4/U4/I4)
