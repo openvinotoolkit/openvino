@@ -30,7 +30,7 @@ Table of Contents
 * :doc:`Assign <../operation-specs/infrastructure/assign-3>`
 * :doc:`Atan <../operation-specs/arithmetic/atan-1>`
 * :doc:`Atanh <../operation-specs/arithmetic/atanh-3>`
-* :doc:`AvgPool <../operation-specs/pooling/avg-pool-1>`
+* :doc:`AvgPool <../operation-specs/pooling/avg-pool-14>`
 * :doc:`BatchNormInference <../operation-specs/normalization/batch-norm-inference-5>`
 * :doc:`BatchToSpace <../operation-specs/movement/batch-to-space-2>`
 * :doc:`BinaryConvolution <../operation-specs/convolution/binary-convolution-1>`
@@ -49,6 +49,7 @@ Table of Contents
 * :doc:`Constant <../operation-specs/infrastructure/constant-1>`
 * :doc:`Convert <../operation-specs/type/convert-1>`
 * :doc:`ConvertLike <../operation-specs/type/convert-like-1>`
+* :doc:`ConvertPromoteTypes <../operation-specs/type/convert-promote-types-14>`
 * :doc:`Convolution <../operation-specs/convolution/convolution-1>`
 * :doc:`ConvolutionBackpropData <../operation-specs/convolution/convolution-backprop-data-1>`
 * :doc:`Cos <../operation-specs/arithmetic/cos-1>`
@@ -120,7 +121,7 @@ Table of Contents
 * :doc:`LSTMSequence <../operation-specs/sequence/lstm-sequence-1>`
 * :doc:`MatMul <../operation-specs/matrix/matmul-1>`
 * :doc:`MatrixNMS <../operation-specs/sort/matrix-non-max-suppression-8>`
-* :doc:`MaxPool <../operation-specs/pooling/max-pool-8>`
+* :doc:`MaxPool <../operation-specs/pooling/max-pool-14>`
 * :doc:`Maximum <../operation-specs/arithmetic/maximum-1>`
 * :doc:`Minimum <../operation-specs/arithmetic/minimum-1>`
 * :doc:`Mish <../operation-specs/activation/mish-4>`
@@ -205,4 +206,3 @@ Table of Contents
 * :doc:`Unique <../operation-specs/movement/unique-10>`
 * :doc:`Unsqueeze <../operation-specs/shape/unsqueeze-1>`
 * :doc:`VariadicSplit <../operation-specs/movement/variadic-split-1>`
-
