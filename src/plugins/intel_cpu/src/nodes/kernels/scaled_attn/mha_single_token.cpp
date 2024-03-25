@@ -855,7 +855,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     }
 
     _attn = ov::intel_cpu::profilerManagerInstance.startProfile("t1_reduce");
-    parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+    parallel_for3d_dynamic(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto* temp = buf_attn_score.ptr<float>(0, b, pq, h);
         size_t temp_stride = buf_attn_score.stride(0);
         auto* dst = has_out_transpose ? output_emb.ptr<T>(b, pq, h * S) : output_emb.ptr<T>(b, h, pq);
