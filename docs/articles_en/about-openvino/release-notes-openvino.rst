@@ -229,7 +229,7 @@ The following notebooks have been updated or newly added:
 * `Depth estimation with DepthAnything <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/280-depth-anything>`__
 * `Kosmos-2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/281-kosmos2-multimodal-large-language-model>`__
 * `Zero-shot Image Classification with SigLIP <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/282-siglip-zero-shot-image-classification>`__
-* `Personalized image generation with PhotMaker <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/283-photo-maker>`__
+* `Personalized image generation with PhotoMaker <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/283-photo-maker>`__
 * `Voice tone cloning with OpenVoice <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/284-openvoice>`__
 * `Line-level text detection with Surya <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/285-surya-line-level-text-detection>`__
 * `InstantID: Zero-shot Identity-Preserving Generation using OpenVINO <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/286-instant-id>`__
@@ -253,7 +253,7 @@ Known issues
 | *ID* - 132376
 | *Description:*
 |   First-inference latency slow down for LLMs on Intel® Core™ Ultra processors. Up to 10-20%
-    drop may occur due to radical memory optimization for processing ling sequences
+    drop may occur due to radical memory optimization for processing long sequences
     (about 1.5-2 GB reduced memory usage).
 
 | **Component - CPU runtime**
@@ -351,7 +351,7 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Kh
 
 Other names and brands may be claimed as the property of others.
 
-Copyright © 2023, Intel Corporation. All rights reserved.
+Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 
