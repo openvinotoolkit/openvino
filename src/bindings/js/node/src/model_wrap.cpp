@@ -119,7 +119,6 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
     return js_outputs;
 }
 
-
 Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
     if (info.Length() > 0) {
         reportError(info.Env(), "isDynamic() does not accept any arguments.");
