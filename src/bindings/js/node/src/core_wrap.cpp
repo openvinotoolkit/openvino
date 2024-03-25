@@ -17,10 +17,10 @@ void validate_set_property_args(const Napi::CallbackInfo& info) {
     const bool has_params_obj = info[is_device_specified ? 1 : 0];
 
     if (!has_params_obj)
-        throw std::runtime_error("Properties parameter must be an object");
+        OPENVINO_THROW("Properties parameter must be an object");
 
     if (args_length > (is_device_specified ? 2 : 1))
-        throw std::runtime_error("setProperty applies 1 or 2 arguments only");
+        OPENVINO_THROW("setProperty applies 1 or 2 arguments only");
 }
 
 std::tuple<ov::AnyMap, std::string> try_get_set_property_parameters(const Napi::CallbackInfo& info) {
