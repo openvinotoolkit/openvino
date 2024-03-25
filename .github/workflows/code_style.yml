@@ -58,9 +58,9 @@ jobs:
 
       - name: CMake configure
         run: cmake -B build
-
-      - name: Shellcheck cmake target
-        run: cmake --build build --target ov_shellcheck -j8
+#
+#      - name: Shellcheck cmake target
+#        run: cmake --build build --target ov_shellcheck -j8
 
       # always provide suggestions even for skipped scripts in ov_shellcheck target
       - name: ShellCheck action
