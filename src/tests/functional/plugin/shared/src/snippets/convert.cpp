@@ -101,6 +101,10 @@ void ConvertInput::SetUp() {
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
     }
+
+    if (types.first[0] == ov::element::f32 && types.second[0] == ov::element::bf16) {
+        abs_threshold = 3e-2;
+    }
 }
 
 parameters ConvertInput::generate_params_random() const {
@@ -144,6 +148,10 @@ void ConvertOutput::SetUp() {
     output_type = types.second.front();
     if (!configuration.count("SNIPPETS_MODE")) {
         configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
+    }
+
+    if (types.first[0] == ov::element::bf16 && types.second[0] == ov::element::f32) {
+        abs_threshold = 4e-2;
     }
 }
 

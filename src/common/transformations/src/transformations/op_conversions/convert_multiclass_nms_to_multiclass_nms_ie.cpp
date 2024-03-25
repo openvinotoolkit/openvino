@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,17 +60,11 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<ov::op::v0::Convert>(output_1, nms->output(1).get_element_type());
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<ov::op::v0::Convert>(output_2, nms->output(2).get_element_type());
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
-            OPENVINO_SUPPRESS_DEPRECATED_END
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

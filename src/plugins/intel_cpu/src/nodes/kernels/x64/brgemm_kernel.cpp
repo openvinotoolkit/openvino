@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,8 +49,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
     // TODO: support amx_fp16
     bool isAMXSupported = (mayiuse(avx512_core_amx) && ov::element::bf16 == inType);
     bool brgWithAMX = isAMXSupported && !is_f32;
+    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
     // blocking N
-    N_blk = !is_f32 ? 32 : N;
+    N_blk = !is_f32 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
 
     // blocking K
@@ -68,7 +69,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
     }
 
     brgVnniFactor = 4 / weiType.size();
-    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
     // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
     packedBSize = rnd_up(K, vlen / weiType.size()) * rnd_up(N, N_blk) * weiType.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
