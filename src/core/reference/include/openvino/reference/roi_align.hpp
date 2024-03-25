@@ -17,12 +17,36 @@ using ROIPoolingMode = op::v3::ROIAlign::PoolingMode;
 using AlignedMode = op::v9::ROIAlign::AlignedMode;
 
 namespace roi_policy {
+
+// Base class for representing sampling space.
+// Sampling space is defined as aligned bounding box.
 template <typename T>
-struct ROISamplingSpace {
-    T minX;
-    T minY;
-    T height;
-    T width;
+class SamplingSpaceBase {
+public:
+    T get_start_x() const {
+        return start_x;
+    }
+    T get_start_y() const {
+        return start_y;
+    }
+    T get_size_x() const {
+        return size_x;
+    }
+    T get_size_y() const {
+        return size_y;
+    }
+
+protected:
+    SamplingSpaceBase(T start_x_, T start_y_, T size_x_, T size_y_)
+        : start_x(start_x_),
+          start_y(start_y_),
+          size_x(size_x_),
+          size_y(size_y_) {}
+
+    T start_x;
+    T start_y;
+    T size_x;
+    T size_y;
 };
 
 template <typename T>
@@ -34,9 +58,21 @@ struct Point {
 template <typename T>
 class ROIAlignOpDefPolicy {
 public:
+    class ROIAlignSamplingSpace : public SamplingSpaceBase<T> {
+    public:
+        Point<T> transform_sampling_point_to_image_space(const Point<T>& point) const {
+            return point;
+        }
+
+    private:
+        friend class ROIAlignOpDefPolicy<T>;
+        ROIAlignSamplingSpace(T start_x_, T start_y_, T size_x_, T size_y_)
+            : SamplingSpaceBase<T>(start_x_, start_y_, size_x_, size_y_) {}
+    };
+
     ROIAlignOpDefPolicy() : aligned(false), offset_src(0), offset_dst(0) {}
 
-    void Init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool) {
+    void init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool) {
         rois = rois_;
         shape = shape_;
         spatial_scale = spatial_scale_;
@@ -62,10 +98,7 @@ public:
         }
     }
 
-    // Sampling space is always a bounding box - for easy iteration over it.
-    // However,
-    ROISamplingSpace<T> GetSamplingSpaceForIndex(unsigned int index) {
-        // Get ROI`s corners
+    ROIAlignSamplingSpace get_sampling_space_for_index(unsigned int index) {
         T x1 = (rois[coordinate_index({index, 0}, shape)] + offset_src) * spatial_scale + offset_dst;
         T y1 = (rois[coordinate_index({index, 1}, shape)] + offset_src) * spatial_scale + offset_dst;
         T x2 = (rois[coordinate_index({index, 2}, shape)] + offset_src) * spatial_scale + offset_dst;
@@ -79,11 +112,7 @@ public:
             roi_height = std::max(roi_height, static_cast<T>(1.0));
         }
 
-        return {x1, y1, roi_height, roi_width};
-    }
-
-    Point<T> Transform(const Point<T>& point) {
-        return point;
+        return {x1, y1, roi_width, roi_height};
     }
 
 private:
@@ -98,44 +127,66 @@ private:
 template <typename T>
 class ROIAlignRotatedOpDefPolicy {
 public:
+    class ROIAlignRotatedSamplingSpace : public SamplingSpaceBase<T> {
+    public:
+        Point<T> transform_sampling_point_to_image_space(const Point<T>& point) const {
+            float y = point.y * cos_angle - point.x * sin_angle + center_y;
+            float x = point.y * sin_angle + point.x * cos_angle + center_x;
+            return {x, y};
+        }
+
+    private:
+        friend class ROIAlignRotatedOpDefPolicy<T>;
+        ROIAlignRotatedSamplingSpace(T center_x_,
+                                     T center_y_,
+                                     float cos_angle_,
+                                     float sin_angle_,
+                                     T start_x_,
+                                     T start_y_,
+                                     T size_x_,
+                                     T size_y_)
+            : SamplingSpaceBase<T>(start_x_, start_y_, size_x_, size_y_),
+              center_x(center_x_),
+              center_y(center_y_),
+              cos_angle(cos_angle_),
+              sin_angle(sin_angle_) {}
+
+        T center_x;
+        T center_y;
+        float cos_angle;
+        float sin_angle;
+    };
+
     ROIAlignRotatedOpDefPolicy() {}
 
-    void Init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool clockwise_) {
+    void init(const T* rois_, const Shape& shape_, float spatial_scale_, AlignedMode aligned_mode, bool clockwise_) {
         rois = rois_;
         shape = shape_;
         spatial_scale = spatial_scale_;
         clockwise = clockwise_;
 
-        if(aligned_mode != AlignedMode::ASYMMETRIC) {
+        if (aligned_mode != AlignedMode::ASYMMETRIC) {
             OPENVINO_THROW(std::string("ROIAlignRotated: Not supported aligned_mode"));
         }
     }
 
-    // Sampling space is always a bounding box - for easy iteration over it.
-    // However,
-    ROISamplingSpace<T> GetSamplingSpaceForIndex(unsigned int index) {
-        center_x = (rois[coordinate_index({index, 0}, shape)]) * spatial_scale - 0.5f;
-        center_y = (rois[coordinate_index({index, 1}, shape)]) * spatial_scale - 0.5f;
-        const T width = (rois[coordinate_index({index, 2}, shape)] ) * spatial_scale;
-        const T height = (rois[coordinate_index({index, 3}, shape)] ) * spatial_scale;
+    ROIAlignRotatedSamplingSpace get_sampling_space_for_index(unsigned int index) {
+        const T center_x = (rois[coordinate_index({index, 0}, shape)]) * spatial_scale - 0.5f;
+        const T center_y = (rois[coordinate_index({index, 1}, shape)]) * spatial_scale - 0.5f;
+        const T width = (rois[coordinate_index({index, 2}, shape)]) * spatial_scale;
+        const T height = (rois[coordinate_index({index, 3}, shape)]) * spatial_scale;
         T angle = (rois[coordinate_index({index, 4}, shape)]);
 
         if (clockwise) {
             angle = -angle;
         }
-        cos_angle = cos(angle);
-        sin_angle = sin(angle);
+        const float cos_angle = cos(angle);
+        const float sin_angle = sin(angle);
 
-        const T x1 = -width/2.0f;
-        const T y1 = -height/2.0f;
+        const T x1 = -width / 2.0f;
+        const T y1 = -height / 2.0f;
 
-        return {x1, y1, height, width};
-    }
-
-    Point<T> Transform(const Point<T>& point) {
-        float y = point.y * cos_angle - point.x * sin_angle + center_y;
-        float x = point.y * sin_angle + point.x * cos_angle + center_x;
-        return {x, y};
+        return {center_x, center_y, cos_angle, sin_angle, x1, y1, width, height};
     }
 
 private:
@@ -143,13 +194,7 @@ private:
     Shape shape;
     float spatial_scale;
     bool clockwise;
-    float cos_angle;
-    float sin_angle;
-    T center_x;
-    T center_y;
 };
-
-
 };  // namespace roi_policy
 
 template <typename T, template<typename> class TROIPolicy = roi_policy::ROIAlignOpDefPolicy >
@@ -174,16 +219,15 @@ void roi_align(const T* feature_maps,
     auto num_rois = rois_shape[0];
 
     TROIPolicy<T> roi_policy;
-    roi_policy.Init(rois, rois_shape, spatial_scale, aligned_mode, clockwise);
+    roi_policy.init(rois, rois_shape, spatial_scale, aligned_mode, clockwise);
 
     for (unsigned int roi_index = 0; roi_index < num_rois; roi_index++) {
-        // Get ROI`s corners
-        auto roi_sampling_space = roi_policy.GetSamplingSpaceForIndex(roi_index);
+        const auto roi_sampling_space = roi_policy.get_sampling_space_for_index(roi_index);
 
-        T x1 = roi_sampling_space.minX;
-        T y1 = roi_sampling_space.minY;
-        T roi_width = roi_sampling_space.width;
-        T roi_height = roi_sampling_space.height;
+        T x1 = roi_sampling_space.get_start_x();
+        T y1 = roi_sampling_space.get_start_y();
+        T roi_width = roi_sampling_space.get_size_x();
+        T roi_height = roi_sampling_space.get_size_y();
 
         T bin_width = roi_width / pooled_width;
         T bin_height = roi_height / pooled_height;
@@ -216,8 +260,7 @@ void roi_align(const T* feature_maps,
                         T pre_sample_x = x1 + static_cast<T>(x_bin_ind) * bin_width +
                                          sample_distance_x * (static_cast<T>(x_sample_ind) + static_cast<T>(0.5f));
 
-                        // Transform pre_sample_x and pre_sample_ y
-                        auto transformed = roi_policy.Transform({pre_sample_x, pre_sample_y});
+                        const auto transformed = roi_sampling_space.transform_sampling_point_to_image_space({pre_sample_x, pre_sample_y});
 
                         T sample_x = transformed.x;
                         T sample_y = transformed.y;
