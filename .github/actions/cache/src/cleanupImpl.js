@@ -48,8 +48,16 @@ async function cleanUp() {
 
         if (fileStats.isFile() && fileStats.atime < minAccessDateAgo) {
           core.info(`Removing file: ${filePath}`)
-          fs.unlinkSync(filePath)
-          totalSize -= fileStats.size
+          // fs.unlink(filePath)
+          fs.unlink(filePath, err => {
+            if (err) {
+              core.warning(`Could not remove file: ${filePath}: ${err}`)
+            } else {
+              core.info(`{filePath} removed successfully`)
+              totalSize -= fileStats.size
+            }
+          })
+          // totalSize -= fileStats.size
         }
 
         if (totalSize <= maxCacheSizeInBytes) {
