@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -41,6 +41,7 @@ class TestTriuTril(PytorchLayerTest):
     @pytest.mark.parametrize("op", ["triu", "tril"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_trilu(self, input_shape, dtype, diagonal, op, ie_device, precision, ir_version):
         self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, 
         kwargs_to_prepare_input={"shape": input_shape, "dtype": dtype})
@@ -89,6 +90,7 @@ class TestTriuTrilTensor(PytorchLayerTest):
     @pytest.mark.parametrize("op", ["triu", "tril", "triu_", "tril_"])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_trilu(self, input_shape, dtype, diagonal, op, ie_device, precision, ir_version):
         self._test(*self.create_model(op, diagonal), ie_device, precision, ir_version, 
         kwargs_to_prepare_input={"shape": input_shape, "dtype": dtype})

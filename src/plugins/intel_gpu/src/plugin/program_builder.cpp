@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,7 +58,8 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
                                std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                std::shared_ptr<cldnn::ICompilationContext> compilation_context,
                                bool is_inner_program)
-    : m_config(config)
+    : m_model(model)
+    , m_config(config)
     , m_engine(engine)
     , queryMode(false)
     , m_task_executor(task_executor)
@@ -354,6 +355,18 @@ bool ProgramBuilder::requires_new_shape_infer(const std::shared_ptr<ov::Node>& o
     }
 
     return false;
+}
+
+int64_t ProgramBuilder::get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const {
+    return m_model->get_parameter_index(parameter);
+}
+
+int64_t ProgramBuilder::get_result_index(const ov::Output<ov::Node>& value) const {
+    return  m_model->get_result_index(value);
+}
+
+int64_t ProgramBuilder::get_result_index(const ov::Output<const ov::Node>& value) const {
+    return m_model->get_result_index(value);
 }
 
 // TODO: Does it make sense to add such method to ov core?
