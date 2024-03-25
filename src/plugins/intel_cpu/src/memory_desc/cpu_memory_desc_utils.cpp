@@ -103,7 +103,8 @@ std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &des
 }
 
 std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
-    return std::make_shared<EmptyMemoryDesc>();
+    static auto emptyDesc = std::make_shared<EmptyMemoryDesc>();
+    return emptyDesc;
 }
 
 std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
