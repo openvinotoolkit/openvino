@@ -244,7 +244,7 @@ void GatherCompression::execReferenceU4() {
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const uint scale_offset = srcIdx / scale_group_size;
+                const size_t scale_offset = srcIdx / scale_group_size;
                 auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
 
                 size_t p = srcIdx;
@@ -303,7 +303,7 @@ void GatherCompression::execReferenceI4() {
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const uint scale_offset = srcIdx / scale_group_size;
+                const size_t scale_offset = srcIdx / scale_group_size;
                 auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
                 size_t p = srcIdx;
                 size_t dst_idx = 0;
@@ -380,7 +380,7 @@ void GatherCompression::execReference8bit() {
                 const IN_TYPE* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
-                const uint scale_offset = srcIdx / scale_group_size;
+                const size_t scale_offset = srcIdx / scale_group_size;
                 auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
                 for (size_t p = 0; p < afterAxisSize; p++) {
                     pdst[p] = static_cast<OUT_TYPE>((static_cast<float>(psrc[p]) - cur_zp) * scale[scale_offset]);
