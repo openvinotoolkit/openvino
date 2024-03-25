@@ -66,6 +66,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
                     raise ExtensionError(f'Missing required value for `{repo}` entry in `repositories`'
                                          f'Ensure {required} all set.')
             if parent_folder == repo:
+
                 doc_context.update(github_user=config['github_user'])
                 doc_context.update(github_repo=config['github_repo'])
                 doc_context.update(github_version=config['github_version'])
