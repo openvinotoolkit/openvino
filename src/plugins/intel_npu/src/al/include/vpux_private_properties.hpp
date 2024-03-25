@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace ov {
 namespace intel_npu {
@@ -280,6 +280,46 @@ static constexpr ov::Property<int64_t> create_executor{"NPU_CREATE_EXECUTOR"};
  * Available values: enable-partial-workload-management=true/false
  */
 static constexpr ov::Property<std::string> backend_compilation_params{"NPU_BACKEND_COMPILATION_PARAMS"};
+
+/**
+ * @brief Prints a string representation of ov::intel_npu::LegacyPriority to a stream
+ * @param os An output stream to send to
+ * @param priority A prioity value to print to a stream
+ * @return A reference to the `os` stream
+ */
+inline std::ostream& operator<<(std::ostream& os, const LegacyPriority& priority) {
+    switch (priority) {
+    case LegacyPriority::LOW:
+        return os << "MODEL_PRIORITY_LOW";
+    case LegacyPriority::MEDIUM:
+        return os << "MODEL_PRIORITY_MED";
+    case LegacyPriority::HIGH:
+        return os << "MODEL_PRIORITY_HIGH";
+    default:
+        OPENVINO_THROW("Unsupported model priority value");
+    }
+}
+
+/**
+ * @brief Gets value of ov::intel_npu::LegacyPriority from a stream
+ * @param is An input stream to read
+ * @param priority A priority variable to save result
+ * @return A reference to the `is` stream
+ */
+inline std::istream& operator>>(std::istream& is, LegacyPriority& priority) {
+    std::string str;
+    is >> str;
+    if (str == "MODEL_PRIORITY_LOW") {
+        priority = LegacyPriority::LOW;
+    } else if (str == "MODEL_PRIORITY_MED") {
+        priority = LegacyPriority::MEDIUM;
+    } else if (str == "MODEL_PRIORITY_HIGH") {
+        priority = LegacyPriority::HIGH;
+    } else {
+        OPENVINO_THROW("Unsupported model priority: ", str);
+    }
+    return is;
+}
 
 }  // namespace intel_npu
 }  // namespace ov

@@ -17,7 +17,6 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${NPU_PLUGIN_SOURCE_DIR}/include>
 )
 
 if(ENABLE_MLIR_COMPILER)
@@ -43,5 +42,4 @@ endif()
 
 ov_developer_package_export_targets(TARGET npu_al
                                     INSTALL_INCLUDE_DIRECTORIES
-                                        ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                        ${NPU_PLUGIN_SOURCE_DIR}/include)
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/include)
