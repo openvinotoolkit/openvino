@@ -16,7 +16,8 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
+bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+                                             std::string& errorMessage) noexcept {
     try {
         const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
         if (!gather_compression) {
@@ -49,6 +50,9 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
     isDataShapeStat = dataShape.isStatic();
+    if (!isDataShapeStat) {
+        THROW_ERROR("has incorrect isDataShapeStat ", isDataShapeStat, "!");
+    }
     dataSrcRank = dataShape.getRank();
 
     const auto& idxShape = getInputShapeAtPort(GATHER_INDICES);
@@ -69,10 +73,8 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
             axis += dataSrcRank;
         if (axis < 0 || axis >= dataSrcRank || batchDims > axis)
             THROW_ERROR("has incorrect input parameter axis value: ", axis);
-    }
-
-    if (auto indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
-        constIndices = indices->cast_vector<int>();
+    } else {
+        THROW_ERROR("only support const Axis!");
     }
 }
 
@@ -97,7 +99,6 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
 
     scale_group_size =
         getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_SCALE).getElementsCount();
-    dataTypeSize = getOriginalInputPrecisionAtPort(GATHER_DATA).size();
 
     const auto& dataDims = getInputShapeAtPort(GATHER_DATA).getDims();
     if (isAxisInputConst && isDataShapeStat) {
@@ -107,9 +108,8 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
             std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<Dim>());
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<Dim>());
 
-        afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
-        axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
-        srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+        axisAndAfterAxisSize = axisDim * afterAxisSize;
+        srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
     }
     if (isDataShapeStat) {
         beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<Dim>());
@@ -119,7 +119,7 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
         specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<Dim>());
 
         if (isDataShapeStat) {
-            specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSize;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
@@ -181,16 +181,17 @@ void GatherCompression::prepareParams() {
     if (!isDataShapeStat || !isAxisInputConst) {
         const auto& dataDims = dataMemPtr->getStaticDims();
         axisDim = dataDims[axis];
-        beforeBatchSize = std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
-        betweenBatchAndAxisSize = std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
+        beforeBatchSize =
+            std::accumulate(dataDims.begin(), dataDims.begin() + batchDims, 1lu, std::multiplies<uint64_t>());
+        betweenBatchAndAxisSize =
+            std::accumulate(dataDims.begin() + batchDims, dataDims.begin() + axis, 1lu, std::multiplies<uint64_t>());
         afterAxisSize = std::accumulate(dataDims.begin() + axis + 1, dataDims.end(), 1lu, std::multiplies<uint64_t>());
 
-        afterAxisSizeInBytes = afterAxisSize * dataTypeSize;
-        axisAndAfterAxisSizeInBytes = axisDim * afterAxisSizeInBytes;
-        srcAfterBatchSizeInBytes = betweenBatchAndAxisSize * axisAndAfterAxisSizeInBytes;
+        axisAndAfterAxisSize = axisDim * afterAxisSize;
+        srcAfterBatchSize = betweenBatchAndAxisSize * axisAndAfterAxisSize;
 
         if (isIdxShapeStat) {
-            specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+            specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSize;
             totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
         }
     }
@@ -199,7 +200,7 @@ void GatherCompression::prepareParams() {
         const auto& idxDims = idxMemPtr->getStaticDims();
         specIndicesSize = std::accumulate(idxDims.begin() + batchDims, idxDims.end(), 1lu, std::multiplies<uint64_t>());
 
-        specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSizeInBytes;
+        specIdxAndAfterAxSizeB = specIndicesSize * afterAxisSize;
         totalWork = beforeBatchSize * betweenBatchAndAxisSize * specIndicesSize * afterAxisSize;
     }
 }
@@ -234,20 +235,20 @@ void GatherCompression::execReferenceU4() {
                 ii = axisDim;
         }
         const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
                 const uint scale_offset = srcIdx / scale_group_size;
                 auto cur_zp = have_zp ? zp[srcIdx / zp_group_size] : 0;
+
                 size_t p = srcIdx;
                 size_t dst_idx = 0;
-
                 for (; p < srcIdx + afterAxisSize; p++) {
                     if (p % 2 == 0) {
                         auto val = srcData[p >> 1];
@@ -271,7 +272,6 @@ void GatherCompression::execReferenceU4() {
     });
 }
 
-
 template <typename OUT_TYPE>
 void GatherCompression::execReferenceI4() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
@@ -294,11 +294,11 @@ void GatherCompression::execReferenceI4() {
                 ii = axisDim;
         }
         const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
                 OUT_TYPE* pdst = &dstData[dstIdx];
@@ -369,14 +369,14 @@ void GatherCompression::execReference8bit() {
                 ii = axisDim;
         }
         const size_t idx = ii;
-        const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
+        const size_t c2 = dstAfterBatchSize * b + afterAxisSize * j;
         if (idx < static_cast<size_t>(axisDim)) {
-            size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
+            size_t c1 = srcAfterBatchSize * b + afterAxisSize * idx;
             for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
+                size_t srcIdx = c1 + axisAndAfterAxisSize * i;
                 size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
 
-                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
+                // cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSize);
                 const IN_TYPE* psrc = &srcData[srcIdx];
                 OUT_TYPE* pdst = &dstData[dstIdx];
 
@@ -438,6 +438,6 @@ bool GatherCompression::created() const {
     return getType() == Type::GatherCompression;
 }
 
-}   // namespace node
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace node
+}  // namespace intel_cpu
+}  // namespace ov
