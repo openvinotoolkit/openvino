@@ -4,18 +4,44 @@
 
 #pragma once
 
-// #include "openvino/core/node.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
 namespace ov {
 namespace pass {
 namespace pattern {
 namespace op {
+
 /// A submatch on the graph value which contains optional op types defined in constructor.
+/// `Optional` pattern supports multi input operations. In this case the pattern checks all pattern input branches
+/// while a branch will be matched with the graph.
 /// The match is succeed in case of full graphs matching or extended by one of optional type graph or pattern.
 /// Otherwise fails.
-/// Important note: graph can include only one optional op in the end of graph vs pattern.
-/// Optional op can contain only 1 in and 1 out
+/// Important notes:
+///   1. a graph can include only one optional op in the end of graph vs pattern.
+///   2. Operation types should have the same input number
+///   3. Pattern can not be created with empty `inputs`
+//
+//  +------+   +------+                       +------+  +------+      +------+     +------+
+//  | op_0 |   | op_1 |                       | op_0 |  | op_1 |      | op_0 |     | op_1 |
+//  +------+   +------+                       +------+  +------+      +------+     +------+
+//     |           |                              |        |              |            |
+//     V           V                              V        V              |            |
+//  +-------------------+                    +---------------------+      |            |
+//  | optional<op_type> |      =======>>>    | wrap_type<op_types> |      |            |
+//  +-------------------+                    +---------------------+      |            |
+//          |                                        |                    |            |
+//          V                                        +------------------+ | +----------+
+//       +------+                                                       | | |
+//       | op_3 |                                                       V V V
+//       +------+                                                    +--------+
+//                                                                   |   Or   |
+//                                                                   +--------+
+//                                                                        |
+//                                                                        V
+//                                                                   +--------+
+//                                                                   |  op_3  |
+//                                                                   +--------+
+
 class OPENVINO_API Optional : public Pattern {
 public:
     OPENVINO_RTTI("patternOptional");
@@ -25,21 +51,12 @@ public:
     /// \param patterns The pattern to match a graph.
     Optional(
         const std::vector<DiscreteTypeInfo>& type_infos,
-        const Output<Node>& pattern,
+        const OutputVector& inputs = {},
         const pattern::op::ValuePredicate& pred =
             [](const Output<Node>& output) {
                 return true;
             })
-        : Pattern({pattern}, pred),
-          optional_types(type_infos){};
-
-    Optional(
-        const std::vector<DiscreteTypeInfo>& type_infos,
-        const pattern::op::ValuePredicate& pred =
-            [](const Output<Node>& output) {
-                return true;
-            })
-        : Pattern({}, pred),
+        : Pattern(inputs, pred),
           optional_types(type_infos){};
 
     bool match_value(pattern::Matcher* matcher,
@@ -67,24 +84,22 @@ void collect_type_info(std::vector<DiscreteTypeInfo>& type_info_vec) {
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input, const pattern::op::ValuePredicate& pred) {
+std::shared_ptr<Node> optional(const OutputVector& inputs, const pattern::op::ValuePredicate& pred) {
     std::vector<DiscreteTypeInfo> optional_type_info_vec;
     collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec, input, pred);
+    return std::make_shared<op::Optional>(optional_type_info_vec, inputs, pred);
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional(const Output<Node>& input) {
-    return optional<NodeTypes...>(input, [](const Output<Node>& output) {
+std::shared_ptr<Node> optional(const OutputVector& inputs) {
+    return optional<NodeTypes...>(inputs, [](const Output<Node>& output) {
         return true;
     });
 }
 
 template <class... NodeTypes>
-std::shared_ptr<Node> optional() {
-    std::vector<DiscreteTypeInfo> optional_type_info_vec;
-    collect_type_info<NodeTypes...>(optional_type_info_vec);
-    return std::make_shared<op::Optional>(optional_type_info_vec);
+std::shared_ptr<Node> optional(const Output<Node>& input) {
+    return optional<NodeTypes...>(OutputVector{input});
 }
 
 }  // namespace pattern
