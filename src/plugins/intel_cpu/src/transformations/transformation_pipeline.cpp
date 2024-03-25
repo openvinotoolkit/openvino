@@ -293,7 +293,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return !is_decompression_multiply(node);
     }, ov::pass::MarkDequantizationSubgraph);
 
-    CPU_SET_CALLBACK_X64(
+    CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
         [&](const_node_ptr& node) -> bool {
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
