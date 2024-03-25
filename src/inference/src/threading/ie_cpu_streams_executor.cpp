@@ -90,9 +90,13 @@ struct CPUStreamsExecutor::Impl {
                             Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                                 ? custom::info::core_types().back()    // running on Big cores only
                                 : custom::info::core_types().front();  // running on Little cores only
+#    ifdef _WIN32
                         _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                     .set_core_type(selected_core_type)
                                                                     .set_max_concurrency(concurrency)});
+#    else
+                        _taskArena.reset(new custom::task_arena{concurrency});
+#    endif
                     }
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
