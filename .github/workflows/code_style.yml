@@ -9,6 +9,9 @@ jobs:
   clang-format:
     runs-on: ubuntu-20.04
     permissions:
+      contents: read
+      checks: write
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -28,16 +31,18 @@ jobs:
         run: cmake --build build --target clang_format_fix_all -j8
 
       - name: suggester / clang-format
-        if: startsWith(github.event_name, 'pull_request')
         uses: reviewdog/action-suggester@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           level: warning
           fail_on_error: true
 
   ShellCheck:
     runs-on: ubuntu-22.04
     permissions:
+      contents: read
+      checks: write
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +60,7 @@ jobs:
       - name: Shellcheck cmake target
         run: cmake --build build --target ov_shellcheck -j8
 
-      # always provide suggestions even for skipped scripts in ov_shellcheck tagret
+      # always provide suggestions even for skipped scripts in ov_shellcheck target
       - name: ShellCheck action
         if: always()
         uses: reviewdog/action-shellcheck@v1
@@ -70,6 +75,11 @@ jobs:
 
   NamingConventionCheck:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      checks: write
+      issues: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,3 +99,10 @@ jobs:
 
       - name: Naming convention check
         run: cmake --build build --target ncc_all -j8
+
+      - name: suggester / Naming Convention
+        uses: reviewdog/action-suggester@v1
+        with:
+          github_token: ${{ github.token }}
+          level: warning
+          fail_on_error: true
