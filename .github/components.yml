@@ -58,6 +58,7 @@ HETERO:
     - TEMPLATE
     - C_API
     - Python_API
+    - JS_API    
   build:
     - IR_FE
 
@@ -70,6 +71,7 @@ AUTO_BATCH:
     - TEMPLATE
     - C_API
     - Python_API
+    - JS_API    
   build:
     - IR_FE
 
@@ -83,6 +85,7 @@ TEMPLATE:
     - AUTO
     - C_API
     - Python_API
+    - JS_API    
     - NVIDIA
   build:
     - IR_FE
@@ -114,6 +117,7 @@ IR_FE:
 ONNX_FE:
   revalidate:
     - MO
+    - JS_API    
   build:
     - CPU
     - Python_API
@@ -121,6 +125,7 @@ ONNX_FE:
 PDPD_FE:
   revalidate:
     - MO
+    - JS_API    
   build:
     - CPU
     - Python_API
@@ -128,6 +133,7 @@ PDPD_FE:
 TF_FE:
   revalidate:
     - MO
+    - JS_API    
   build:
     - CPU
     - Python_API
@@ -136,6 +142,7 @@ TF_FE:
 TFL_FE:
   revalidate:
     - MO
+    - JS_API    
   build:
     - CPU
     - Python_API
@@ -143,6 +150,7 @@ TFL_FE:
 PyTorch_FE:
   revalidate:
     - MO
+    - JS_API    
   build:
     - CPU
     - Python_API
@@ -180,7 +188,16 @@ JS_API:
     - samples
   build:
     - CPU
+    - HETERO
+    - AUTO_BATCH
+    - TEMPLATE
+    - AUTO
     - IR_FE
+    - ONNX_FE
+    - PDPD_FE
+    - TF_FE
+    - TFL_FE
+    - PyTorch_FE
 
 samples:
   build:
