@@ -42,7 +42,7 @@ class TestStridedSlice(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize('params', test_basic_data)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_strided_slice_basic(self, params, ie_device, precision, ir_version,
                                  temp_dir, use_legacy_frontend):
@@ -219,7 +219,7 @@ class TestComplexStridedSlice(CommonTFLayerTest):
                  end_mask=19, ellipsis_mask=0, new_axis_mask=12, shrink_axis_mask=0),
     ]
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_complex_strided_slice(self, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):

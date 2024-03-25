@@ -38,7 +38,7 @@ class TestStaticRegexReplace(CommonTFLayerTest):
     @pytest.mark.parametrize('pattern', ['(\s)|(-)', '[A-Z]{2,}', '^\s+|\s+$'])
     @pytest.mark.parametrize('rewrite', ['', 'replacement word'])
     @pytest.mark.parametrize('replace_global', [None, True, False])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',

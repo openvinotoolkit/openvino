@@ -97,7 +97,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
         dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
@@ -122,7 +122,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
         dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
@@ -152,7 +152,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -174,7 +174,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -196,7 +196,7 @@ class TestTFEqual(CommonTFLayerTest):
         pytest.param(
             dict(x_shape=[2, 3], y_shape=[2, 3]),
             # Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
@@ -243,7 +243,7 @@ class TestEqualStr(CommonTFLayerTest):
 
     @pytest.mark.parametrize('x_shape', [[], [1], [5]])
     @pytest.mark.parametrize('y_shape', [[], [1], [5]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',

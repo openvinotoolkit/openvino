@@ -55,7 +55,7 @@ class TestCastOp(CommonTFLayerTest):
     test_data = [
         pytest.param(
             dict(input_shape=[2, 3]),     #Simple test
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         dict(input_shape=[2, 3, 3, 4]),   #Simple test with possible nchw/nhwc
     ]
 

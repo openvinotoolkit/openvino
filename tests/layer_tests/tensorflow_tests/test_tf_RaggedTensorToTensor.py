@@ -49,7 +49,7 @@ class TestRaggedTensorToTensor(CommonTFLayerTest):
     @pytest.mark.parametrize('default_value', [-1, 0])
     @pytest.mark.parametrize('row_partition_tensors', [[[0, 1, 6, 8, 15, 20, 21]]])
     @pytest.mark.parametrize('row_partition_types', [["ROW_SPLITS"]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',
@@ -105,7 +105,7 @@ class TestRaggedTensorToTensorRowIds(CommonTFLayerTest):
     @pytest.mark.parametrize('default_value', [-1, 0])
     @pytest.mark.parametrize('row_partition_tensors', [[20, [1, 2, 3, 3, 4, 8, 8, 9, 9, 9]]])
     @pytest.mark.parametrize('row_partition_types', [["FIRST_DIM_SIZE", "VALUE_ROWIDS"]])
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
                                                                                                      'aarch64',

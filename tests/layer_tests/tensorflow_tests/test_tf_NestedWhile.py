@@ -74,7 +74,7 @@ class TestNestedWhile(CommonTFLayerTest):
         self._test(*self.create_simple_while(), ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_nested_while(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_nested_while(), ie_device, precision, ir_version, temp_dir=temp_dir,

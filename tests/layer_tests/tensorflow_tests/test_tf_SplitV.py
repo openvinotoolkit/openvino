@@ -32,7 +32,7 @@ class TestSplitV(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == 'true', reason="Ticket - 113359")
     def test_split_basic(self, params, ie_device, precision, ir_version, temp_dir,

@@ -54,7 +54,7 @@ class TestResize(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("images_shape, images_type, size_value, align_corners, half_pixel_centers, resize_op", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
