@@ -11,8 +11,6 @@
 #include <iomanip>
 #include <map>
 #include <memory>
-#include <openvino/core/except.hpp>
-#include <openvino/runtime/properties.hpp>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -23,6 +21,8 @@
 #include <vector>
 
 #include "npu/utils/logger/logger.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
 

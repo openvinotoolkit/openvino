@@ -4,9 +4,9 @@
 //
 
 #pragma once
-#include <openvino/pass/manager.hpp>
 #include <vector>
 
+#include "openvino/pass/manager.hpp"
 #include "vpux_driver_compiler_adapter.h"
 
 /**

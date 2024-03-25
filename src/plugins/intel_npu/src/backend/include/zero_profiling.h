@@ -10,9 +10,9 @@
 
 #include <climits>
 #include <map>
-#include <openvino/runtime/profiling_info.hpp>
 
 #include "npu/utils/logger/logger.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 #include "vpux/al/config/compiler.hpp"
 
 using intel_npu::Logger;

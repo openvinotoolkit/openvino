@@ -5,13 +5,13 @@
 
 #pragma once
 
-#include <openvino/runtime/internal_properties.hpp>
-#include <openvino/runtime/properties.hpp>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "vpux.hpp"
 #include "vpux_backends.hpp"
 #include "vpux_private_properties.hpp"

@@ -7,8 +7,9 @@
 
 #include <istream>
 #include <mutex>
-#include <openvino/pass/serialize.hpp>
-#include <transformations/op_conversions/convert_interpolate11_downgrade.hpp>
+
+#include "openvino/pass/serialize.hpp"
+#include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace vpux::driverCompilerAdapter {
 
