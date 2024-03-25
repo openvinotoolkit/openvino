@@ -186,7 +186,7 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_and_labels_on_inputs)
 }
 
 TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_inf_bound) {
-    auto out_size_shape = PartialShape{{1, 4}, {5, -1}};  // ShapeOf make 2nd Dim {0, -1}
+    auto out_size_shape = PartialShape{{1, 4}, {5, -1}};
     set_shape_labels(out_size_shape, 10);
 
     const auto output_size = std::make_shared<Parameter>(element::u64, out_size_shape);
@@ -197,7 +197,7 @@ TYPED_TEST_P(PriorBoxClusteredTest, preseve_partial_values_inf_bound) {
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {0, -1}}));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {60, -1}}));
     EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
 }
 
