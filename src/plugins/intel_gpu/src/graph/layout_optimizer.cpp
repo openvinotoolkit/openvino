@@ -937,21 +937,21 @@ static bool is_node_for_onednn(gemm_node const& node) {
 
     auto gemm_prim = node.get_primitive();
 
-    for (size_t idx = 0; idx < gemm_prim->output_order.size(); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->output_order[idx]))
+    for (size_t idx = 0; idx < gemm_prim->output_transpose_order.size(); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->output_transpose_order[idx]))
             return false;
     }
 
     if (gemm_prim->transpose_input0 > 1 || gemm_prim->transpose_input0 > 1)
         return false;
 
-    for (size_t idx = 0; idx < (gemm_prim->input0_order.size() - 2); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->input0_order[idx]))
+    for (size_t idx = 0; idx < (gemm_prim->input0_transpose_order.size() - 2); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->input0_transpose_order[idx]))
             return false;
     }
 
-    for (size_t idx = 0; idx < (gemm_prim->input1_order.size() - 2); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->input1_order[idx]))
+    for (size_t idx = 0; idx < (gemm_prim->input1_transpose_order.size() - 2); idx++) {
+        if (idx != static_cast<size_t>(gemm_prim->input1_transpose_order[idx]))
             return false;
     }
 

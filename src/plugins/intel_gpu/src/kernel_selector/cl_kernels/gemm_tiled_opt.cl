@@ -29,6 +29,9 @@
 #endif // TILE_N > SIMD_WIDTH
 
 inline uint FUNC(get_input0_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BROADCAST_INPUT0
+    DO_BROADCAST_INPUT0
+#endif
 #if INPUT0_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT0, b, f, w, z, y, x);
 #else
@@ -41,6 +44,9 @@ inline uint FUNC(get_input0_index)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint 
 }
 
 inline uint FUNC(get_input1_index_nt)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uint w, uint z, uint y, uint x) {
+#if BROADCAST_INPUT1
+    DO_BROADCAST_INPUT1
+#endif
 #if INPUT1_SIMPLE
     return GET_DATA_INDEX_6D_SAFE(INPUT1, b, f, w, z, y, x);
 #else

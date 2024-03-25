@@ -173,9 +173,13 @@ public:
         params.beta = primitive->beta;
         params.transpose_input0 = primitive->transpose_input0;
         params.transpose_input1 = primitive->transpose_input1;
-        params.input0_order = primitive->input0_order;
-        params.input1_order = primitive->input1_order;
-        params.output_order = primitive->output_order;
+        params.input0_target_shape = primitive->input0_broadcast_target_shape;
+        params.input1_target_shape = primitive->input1_broadcast_target_shape;
+        params.input0_output_pattern = primitive->input0_reshape_pattern;
+        params.input1_output_pattern = primitive->input0_reshape_pattern;
+        params.input0_order = primitive->input0_transpose_order;
+        params.input1_order = primitive->input1_transpose_order;
+        params.output_order = primitive->output_transpose_order;
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;

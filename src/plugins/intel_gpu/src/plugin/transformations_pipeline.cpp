@@ -61,6 +61,7 @@
 #include "plugin/transformations/transpose_matmul_fusion.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/broadcast_reshape_matmul_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
@@ -723,6 +724,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+        if (!device_info.supports_immad)
+            manager.register_pass<ov::intel_gpu::BroadcastReshapeMatmulFusion>();
 
         const size_t zp_pad_size = 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
