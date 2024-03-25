@@ -21,6 +21,8 @@
 #define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
 #endif
 
+#define SUBGROUP_BLOCK_WRITE_BYTE_BOUNDARY 16
+
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL (softmax_gpu_continuous_bfyx)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -46,16 +48,17 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     const uint leftovers = data_set_size-(items_num<<power);
 #endif
 
-    const uint is_odded_data_set_idx = (data_set_idx - ((data_set_idx>>1)<<1)) == 1 ;
-    const uint data_set_bytes_count = (data_set_size * sizeof(INPUT0_TYPE));
-    const uint avaialble_subgroup_block_read = (data_set_bytes_count - ((data_set_bytes_count>>2)<<2)) == 0;
-    const bool convert_leftover_position = (workers_per_data_set > SUB_GROUP_SIZE) && !avaialble_subgroup_block_read && is_odded_data_set_idx;
-
-    const uint leftovers_offset = convert_leftover_position? leftovers : 0;
+    // To use subgroup block write functions, offset should be 16 bytes aligned.
+    // ************************************************************************
+    // | aligned_offset | 16 bytes aligned data offset | actual leftovers
+    // ************************************************************************
+    // leftover = aligned_offset + actual_leftovers
     const uint data_set_offset = data_set_idx * data_set_size;
+    const uint aligned_offset = (workers_per_data_set > SUB_GROUP_SIZE)?
+                    (((SUBGROUP_BLOCK_WRITE_BYTE_BOUNDARY - data_set_offset * sizeof(INPUT0_TYPE) % SUBGROUP_BLOCK_WRITE_BYTE_BOUNDARY) % SUBGROUP_BLOCK_WRITE_BYTE_BOUNDARY) / sizeof(INPUT0_TYPE)) : 0;
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
-    const uint leftover_idx = (data_set_offset + in_data_set_idx) + (convert_leftover_position? 0 : (workers_per_data_set * items_num));
-    const uint data_offset = data_set_offset + subgroup_offset + leftovers_offset;
+    const uint leftover_idx = (data_set_offset + in_data_set_idx) + ((in_data_set_idx < aligned_offset) ? 0 : (workers_per_data_set * items_num));
+    const uint aligned_data_offset = data_set_offset + subgroup_offset + aligned_offset;
 
     INPUT0_TYPE my_chunk[STACK_SIZE];
     INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
@@ -67,9 +70,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     uint i=0;
     if (workers_per_data_set > SUB_GROUP_SIZE)
     {
-        for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
+        unroll_for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
-            BLOCK_TYPE vec_tmp = BLOCK_READ(input, data_offset + i * get_sub_group_size());
+            BLOCK_TYPE vec_tmp = BLOCK_READ(input, aligned_data_offset + i * get_sub_group_size());
 #if SUBGROUP_BLOCK_SIZE == 1
             my_maximum = max(my_maximum, vec_tmp);
             my_chunk[i] = vec_tmp;
@@ -84,9 +87,9 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         }
     }
 
-    for (; i<items_num; i++)
+    unroll_for (; i<items_num; i++)
     {
-        INPUT0_TYPE tmp = input[data_offset + get_sub_group_local_id() + i * get_sub_group_size()];
+        INPUT0_TYPE tmp = input[aligned_data_offset + get_sub_group_local_id() + i * get_sub_group_size()];
         my_maximum = max(my_maximum, tmp);
         my_chunk[i] = tmp;
     }
@@ -104,7 +107,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     barrier(CLK_LOCAL_MEM_FENCE);
     if (in_data_set_idx == 0)
     {
-        for (uint i=1; i<get_num_sub_groups(); ++i)
+        unroll_for (uint i=1; i<get_num_sub_groups(); ++i)
             my_maximum = max(my_maximum, lg_storage[i]);
 
         lg_storage[0] = my_maximum;
@@ -118,7 +121,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     barrier(CLK_LOCAL_MEM_FENCE);
     {
         float tmp_sum = 0.f;
-        for (uint i=0; i<items_num; ++i)
+        unroll_for (uint i=0; i<items_num; ++i)
         {
             INPUT0_TYPE tmp = native_exp(my_chunk[i] - my_maximum);
             tmp_sum += convert_float(tmp);
@@ -143,7 +146,7 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     if (in_data_set_idx == 0)
     {
         float tmp_sum = lg_storage[0];
-        for (uint i=1; i<get_num_sub_groups(); ++i)
+        unroll_for (uint i=1; i<get_num_sub_groups(); ++i)
             tmp_sum += convert_float(lg_storage[i]);
         lg_storage[0] = TO_OUTPUT_TYPE(tmp_sum);
     }
@@ -153,11 +156,10 @@ KERNEL (softmax_gpu_continuous_bfyx)(
 
     // Write outputs
     i=0;
-    const bool avaialble_subgroup_block_write = (data_set_bytes_count - ((data_set_bytes_count>>4)<<4)) == 0;
 #if HAS_FUSED_OPS
-    if (avaialble_subgroup_block_write && (workers_per_data_set > SUB_GROUP_SIZE))
+    if (workers_per_data_set > SUB_GROUP_SIZE)
     {
-        for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
+        unroll_for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
             BLOCK_TYPE vec_tmp;
 #if SUBGROUP_BLOCK_SIZE == 1
@@ -165,21 +167,21 @@ KERNEL (softmax_gpu_continuous_bfyx)(
             FUSED_OPS_MAIN;
             vec_tmp = FUSED_OPS_RESULT_MAIN;
 #else
-            for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
+            unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
             {
                 ACTIVATION_TYPE dequantized = my_chunk[i + j] / my_sum;
                 FUSED_OPS_MAIN;
                 vec_tmp[j] = FUSED_OPS_RESULT_MAIN;
             }
 #endif
-            BLOCK_WRITE(output, data_offset + i * get_sub_group_size(), vec_tmp);
+            BLOCK_WRITE(output, aligned_data_offset + i * get_sub_group_size(), vec_tmp);
         }
     }
-    for (; i<items_num; i++)
+    unroll_for (; i<items_num; i++)
     {
         ACTIVATION_TYPE dequantized = my_chunk[i] / my_sum;
         FUSED_OPS_MAIN;
-        output[data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
+        output[aligned_data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = FUSED_OPS_RESULT_MAIN;
     }
     if (in_data_set_idx < leftovers)
     {
@@ -188,23 +190,23 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[leftover_idx] = FUSED_OPS_RESULT_LEFTOVERS;
     }
 #else
-    if (avaialble_subgroup_block_write && (workers_per_data_set > SUB_GROUP_SIZE))
+    if (workers_per_data_set > SUB_GROUP_SIZE)
     {
-        for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
+        unroll_for (; i<items_num - (items_num % SUBGROUP_BLOCK_SIZE); i+=SUBGROUP_BLOCK_SIZE)
         {
             BLOCK_TYPE vec_tmp;
 #if SUBGROUP_BLOCK_SIZE == 1
             vec_tmp = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
 #else
-            for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
+            unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++)
                 vec_tmp[j] = ACTIVATION(my_chunk[i + j] / my_sum, ACTIVATION_PARAMS);
 #endif
-            BLOCK_WRITE(output, data_offset + i * get_sub_group_size(), vec_tmp);
+            BLOCK_WRITE(output, aligned_data_offset + i * get_sub_group_size(), vec_tmp);
         }
     }
-    for (; i < items_num; i++)
+    unroll_for (; i < items_num; i++)
     {
-        output[data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
+        output[aligned_data_offset + get_sub_group_local_id() + i * get_sub_group_size()] = ACTIVATION(my_chunk[i] / my_sum, ACTIVATION_PARAMS);
     }
     if (in_data_set_idx < leftovers)
         output[leftover_idx] = ACTIVATION(my_chunk[items_num] / my_sum, ACTIVATION_PARAMS);

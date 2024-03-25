@@ -1250,5 +1250,5 @@ static void run_softmax_bfyx_opt(const int64_t b, const int64_t f, const int64_t
 }
 
 TEST(softmax_gpu_bfyx_f16, opt_softmax_bf_axis_3) {
-    run_softmax_bfyx_opt(1, 2, 2, 3083, 3);
+    run_softmax_bfyx_opt(1, 4, 2, 3083, 3);
 }
