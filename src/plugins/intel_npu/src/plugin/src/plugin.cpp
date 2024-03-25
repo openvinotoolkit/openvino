@@ -6,11 +6,11 @@
 #include "plugin.hpp"
 
 #include <fstream>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/parameter.hpp>
 
 #include "compiled_model.hpp"
 #include "device_helpers.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"

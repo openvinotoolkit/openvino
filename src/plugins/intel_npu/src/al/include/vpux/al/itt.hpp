@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <openvino/itt.hpp>
+#include "openvino/itt.hpp"
 
 namespace intel_npu {
 namespace itt {

@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: Apache 2.0
 //
 
-#include <device_helpers.hpp>
-#include <openvino/core/except.hpp>
+#include "device_helpers.hpp"
+
+#include "openvino/core/except.hpp"
 
 bool utils::isVPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type

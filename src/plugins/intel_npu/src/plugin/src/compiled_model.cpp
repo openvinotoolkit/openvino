@@ -6,15 +6,15 @@
 #include "compiled_model.hpp"
 
 #include <fstream>
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/runtime/properties.hpp>
-#include <openvino/runtime/system_conf.hpp>
-#include <openvino/runtime/threading/executor_manager.hpp>
 #include <string_view>
-#include <transformations/utils/utils.hpp>
 
 #include "async_infer_request.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "transformations/utils/utils.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/config/compiler.hpp"
 #include "vpux/al/config/config.hpp"

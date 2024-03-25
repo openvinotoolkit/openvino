@@ -5,10 +5,9 @@
 
 #include "sync_infer_request.hpp"
 
-#include <openvino/runtime/make_tensor.hpp>
-#include <transformations/utils/utils.hpp>
-
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
+#include "transformations/utils/utils.hpp"
 #include "vpux/al/prefix.hpp"
 
 namespace vpux {

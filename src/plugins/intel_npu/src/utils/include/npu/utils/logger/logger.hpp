@@ -10,8 +10,9 @@
 #pragma once
 
 #include <iostream>
-#include <openvino/runtime/properties.hpp>
 #include <sstream>
+
+#include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
 

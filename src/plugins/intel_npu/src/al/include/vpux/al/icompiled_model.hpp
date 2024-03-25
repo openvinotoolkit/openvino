@@ -6,9 +6,9 @@
 #pragma once
 
 #include <memory>
-#include <openvino/runtime/icompiled_model.hpp>
 #include <vector>
 
+#include "openvino/runtime/icompiled_model.hpp"
 #include "vpux/al/config/common.hpp"
 #include "vpux/al/icompiler.hpp"
 

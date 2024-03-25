@@ -5,9 +5,8 @@
 
 #pragma once
 
-#include <openvino/runtime/iinfer_request.hpp>
-#include <openvino/runtime/iplugin.hpp>
-
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "variable_state.hpp"
 #include "vpux/al/icompiled_model.hpp"
 #include "vpux/al/icompiler.hpp"

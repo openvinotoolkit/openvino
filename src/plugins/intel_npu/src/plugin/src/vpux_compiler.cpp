@@ -15,9 +15,10 @@
 #endif
 
 #include <memory>
-#include <openvino/util/file_util.hpp>
-#include <openvino/util/shared_object.hpp>
 #include <string>
+
+#include "openvino/util/file_util.hpp"
+#include "openvino/util/shared_object.hpp"
 
 using namespace vpux;
 

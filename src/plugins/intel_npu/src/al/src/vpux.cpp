@@ -5,8 +5,7 @@
 
 #include "vpux.hpp"
 
-#include <openvino/util/shared_object.hpp>
-
+#include "openvino/util/shared_object.hpp"
 #include "vpux/al/itt.hpp"
 
 namespace vpux {
