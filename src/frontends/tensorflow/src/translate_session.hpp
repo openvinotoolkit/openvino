@@ -11,24 +11,24 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-struct cachedBodyModelSignature {
+struct CachedBodyModelSignature {
     std::string body_name;
     std::vector<ov::PartialShape> input_shapes;
     std::vector<ov::element::Type> input_types;
 
-    bool operator==(const cachedBodyModelSignature& other) const {
+    bool operator==(const CachedBodyModelSignature& other) const {
         return (body_name == other.body_name && input_shapes == other.input_shapes && input_types == other.input_types);
     }
 };
 
-struct cachedBodyModelSignatureHasher {
-    std::size_t operator()(const cachedBodyModelSignature& k) const {
+struct CachedBodyModelSignatureHasher {
+    std::size_t operator()(const CachedBodyModelSignature& k) const {
         return std::hash<std::string>()(k.body_name);
     }
 };
 
 using CachedBodyModelsType =
-    std::unordered_map<cachedBodyModelSignature, std::shared_ptr<const ov::Model>, cachedBodyModelSignatureHasher>;
+    std::unordered_map<CachedBodyModelSignature, std::shared_ptr<const ov::Model>, CachedBodyModelSignatureHasher>;
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, cache of convrted body graph models, operation translators (including
@@ -63,7 +63,7 @@ private:
     // the same topology can be converted with different shapes and types so it will be cached separately
     std::shared_ptr<CachedBodyModelsType> m_cached_body_models;
 
-    void update_cached_body_models(const cachedBodyModelSignature& cached_body_model_signature,
+    void update_cached_body_models(const CachedBodyModelSignature& cached_body_model_signature,
                                    const std::shared_ptr<const ov::Model>& cached_body_model) {
         m_cached_body_models->insert(std::make_pair(cached_body_model_signature, cached_body_model));
     }
