@@ -506,10 +506,10 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
         return ov::Any(value.ToString().Utf8Value());
     } else if (value.IsBigInt()) {
         Napi::BigInt big_value = value.As<Napi::BigInt>();
-        bool isLossless;
-        int64_t big_num = big_value.Int64Value(&isLossless);
+        bool is_lossless;
+        int64_t big_num = big_value.Int64Value(&is_lossless);
 
-        if (!isLossless) {
+        if (!is_lossless) {
             OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
         }
 
