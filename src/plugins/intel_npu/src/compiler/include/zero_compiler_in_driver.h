@@ -1,6 +1,6 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
 //
-// Copyright (C) 2024 Intel Corporation.
-// SPDX-License-Identifier: Apache 2.0
 
 #include <ze_api.h>
 #include <ze_graph_ext.h>
