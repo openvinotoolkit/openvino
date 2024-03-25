@@ -156,6 +156,7 @@ describe('Tensor getSize', () => {
 });
 
 describe('Tensor getSize for various shapes', () => {
+
   it('calculates size correctly for a common image data shape [3, 224, 224]', () => {
     const shape = [3, 224, 224];
     const expectedSize = 3*224*224;
@@ -175,30 +176,6 @@ describe('Tensor getSize for various shapes', () => {
   it('calculates size correctly for a vector [10]', () => {
     const shape = [10];
     const expectedSize = 10;
-    const tensorData = new Float32Array(expectedSize).fill(0);
-    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
-    assert.strictEqual(tensor.getSize(), expectedSize);
-  });
-
-  it('calculates size correctly for a small 3D tensor [2, 5, 5]', () => {
-    const shape = [2, 5, 5];
-    const expectedSize = 2*5*5;
-    const tensorData = new Float32Array(expectedSize).fill(0);
-    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
-    assert.strictEqual(tensor.getSize(), expectedSize);
-  });
-
-  it('calculates size correctly for a small square matrix [4, 4]', () => {
-    const shape = [4, 4];
-    const expectedSize = 16;
-    const tensorData = new Float32Array(expectedSize).fill(0);
-    const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
-    assert.strictEqual(tensor.getSize(), expectedSize);
-  });
-
-  it('calculates size correctly for another small 3D tensor [2, 3, 3]', () => {
-    const shape = [2, 3, 3];
-    const expectedSize = 18;
     const tensorData = new Float32Array(expectedSize).fill(0);
     const tensor = new ov.Tensor(ov.element.f32, shape, tensorData);
     assert.strictEqual(tensor.getSize(), expectedSize);

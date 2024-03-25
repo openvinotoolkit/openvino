@@ -141,10 +141,11 @@ Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value TensorWrap::get_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
     if (info.Length() > 0) {
-        reportError(info.Env(), "getSize() does not accept any arguments.");
-        return info.Env().Null();
+        reportError(env, "getSize() does not accept any arguments.");
+        return env.Undefined();
     }
     const auto size = static_cast<double>(_tensor.get_size());
-    return Napi::Number::New(info.Env(), size);
+    return Napi::Number::New(env, size);
 }
