@@ -21,7 +21,8 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
-                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices)});
+                        InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("getVersions", &CoreWrap::get_versions)});
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
@@ -231,6 +232,25 @@ Napi::Value CoreWrap::get_available_devices(const Napi::CallbackInfo& info) {
 
     return js_devices;
 }
+
+Napi::Value CoreWrap::get_versions(const Napi::CallbackInfo& info) {
+    const auto& devices_map = _core.get_versions(info[0].As<Napi::String>().Utf8Value());
+    Napi::Array js_devices = Napi::Array::New(info.Env(), devices_map.size());
+
+    size_t i = 0;
+    for (const auto& dev : devices_map) {
+        Napi::Object js_device = Napi::Object::New(info.Env());
+        js_device.Set("deviceName", Napi::String::New(info.Env(), dev.first));
+        std::string versionStr = dev.second.buildNumber;
+        versionStr += " ";
+        versionStr += dev.second.description;
+        js_device.Set("version", Napi::String::New(info.Env(), versionStr));
+        js_devices.Set(i++, js_device);
+    }
+
+    return js_devices;
+}
+
 
 Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     if (info.Length() != 2) {
