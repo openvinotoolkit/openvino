@@ -67,11 +67,13 @@ jobs:
         if: always()
         uses: reviewdog/action-shellcheck@v1
         with:
-          level: warning
           reporter: github-pr-review
           check_all_files_with_shebangs: true
           github_token: ${{ github.token }}
           fail_on_error: true
+          path: |
+            samples/cpp/
+            ${{ github.workspace }}
           exclude: |
               "*/thirdparty/*"
               "./temp/*"
