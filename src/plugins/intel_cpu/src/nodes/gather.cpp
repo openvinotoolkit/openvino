@@ -542,7 +542,6 @@ void Gather::execReference() {
     uint8_t* dstData = getDstDataAtPortAs<uint8_t>(0);
 
     const size_t dstAfterBatchSize = betweenBatchAndAxisSize * specIdxAndAfterAxSizeB;
-#if 0
     parallel_for2d(beforeBatchSize, specIndicesSize, [&](const size_t b, const size_t j) {
         int ii = srcIndices[b * specIndicesSize + j];
         if (ii < 0) {
@@ -567,34 +566,6 @@ void Gather::execReference() {
             }
         }
     });
-#else
-    for (size_t b = 0; b < beforeBatchSize; b++) {
-        for (size_t j = 0; j < specIndicesSize; j++) {
-            int ii = srcIndices[b * specIndicesSize + j];
-            if (ii < 0) {
-                if (reverseIndexing)
-                    ii += axisDim;
-                else
-                    ii = axisDim;
-            }
-            const size_t idx = ii;
-            const size_t c2 = dstAfterBatchSize * b + afterAxisSizeInBytes * j;
-            if (idx < static_cast<size_t>(axisDim)) {
-                size_t c1 = srcAfterBatchSizeInBytes * b + afterAxisSizeInBytes * idx;
-                for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                    size_t srcIdx = c1 + axisAndAfterAxisSizeInBytes * i;
-                    size_t dstIdx = c2 + specIdxAndAfterAxSizeB * i;
-
-                    cpu_memcpy(&dstData[dstIdx], &srcData[srcIdx], afterAxisSizeInBytes);
-                }
-            } else {
-                for (size_t i = 0; i < betweenBatchAndAxisSize; i++) {
-                    memset(&dstData[c2 + specIdxAndAfterAxSizeB * i], 0, afterAxisSizeInBytes);
-                }
-            }
-        }
-    }
-#endif
 }
 
 void Gather::exec1DCase() {
