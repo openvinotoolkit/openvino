@@ -25,8 +25,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -502,10 +502,8 @@ TEST(pattern, optional_single_in) {
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), c));
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Relu>(c)));
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Abs>(c)));
-    ASSERT_FALSE(
-        n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Exp>(c)));
-    ASSERT_FALSE(
-        n.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Cos>(d), std::make_shared<op::v0::Abs>(c)));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Abs, op::v0::Relu>(d), std::make_shared<op::v0::Exp>(c)));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v0::Exp, op::v0::Cos>(d), std::make_shared<op::v0::Abs>(c)));
 
     const auto predicate = [](const Output<Node>& output) {
         return false;
@@ -523,9 +521,17 @@ TEST(pattern, optional_multi_in_cumulative_op) {
 
     TestMatcher n;
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), c));
-    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}, [](const Output<Node>& output){ return false; }), c));
+    ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b},
+                                                                  [](const Output<Node>& output) {
+                                                                      return false;
+                                                                  }),
+                         c));
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, relu}), c));
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, relu}, [](const Output<Node>& output){ return true; }), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b, relu},
+                                                                 [](const Output<Node>& output) {
+                                                                     return true;
+                                                                 }),
+                        c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu}), c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{b}), c));
     ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Add>(ov::OutputVector{relu, b}), relu));
@@ -540,7 +546,7 @@ TEST(pattern, optional_multi_in_order_important) {
     auto c = std::make_shared<op::v1::Subtract>(relu, b);
 
     TestMatcher n;
-    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu,b}), c));
+    ASSERT_TRUE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu, b}), c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{b, relu}), c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{relu}), c));
     ASSERT_FALSE(n.match(ov::pass::pattern::optional<op::v1::Subtract>(ov::OutputVector{b}), c));
