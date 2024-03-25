@@ -45,8 +45,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
         THROW_ERROR("brgemm bf16 kernel could only be used above avx512_bf16");
 
     bool isAMXSupported = is_bf16 && mayiuse(avx512_core_amx);
+    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
     // blocking N
-    N_blk = is_bf16 ? 32 : N;
+    N_blk = is_bf16 ? 32 : std::max(N, vlen / inType.size());
     N_tail = N % N_blk;
 
     // blocking K
@@ -55,7 +56,6 @@ BrgemmKernel::BrgemmKernel(size_t M,
     if (isAMXSupported && K_tail) {
         K_tail = rnd_up(K_tail, 2);
     }
-    size_t vlen = cpu_isa_traits<avx512_core>::vlen;
     // copied K must be round up by vlen / inType.size(), otherwise copy B kernel may access wrong memory
     packedBSize = rnd_up(K, vlen / inType.size()) * rnd_up(N, N_blk) * inType.size();
     size_t brg0BaseIdx = std::numeric_limits<size_t>::max();
