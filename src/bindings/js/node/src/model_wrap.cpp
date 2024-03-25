@@ -120,10 +120,11 @@ Napi::Value ModelWrap::get_outputs(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
     if (info.Length() > 0) {
-        reportError(info.Env(), "isDynamic() does not accept any arguments.");
-        return info.Env().Null();
+        reportError(env, "isDynamic() does not accept any arguments.");
+        return env.Null();
     }
-    bool result = _model->is_dynamic();
-    return Napi::Boolean::New(info.Env(), result);
+    const auto result = _model->is_dynamic();
+    return Napi::Boolean::New(env, result);
 }
