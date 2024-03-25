@@ -506,8 +506,12 @@ ov::Any js_to_any(const Napi::CallbackInfo& info, Napi::Value value) {
         return ov::Any(value.ToString().Utf8Value());
     } else if (value.IsBigInt()) {
         Napi::BigInt big_value = value.As<Napi::BigInt>();
-        bool loses;
-        int64_t big_num = big_value.Int64Value(&loses);
+        bool isLossless;
+        int64_t big_num = big_value.Int64Value(&isLossless);
+
+        if (!isLossless) {
+            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
+        }
 
         return ov::Any(big_num);
     } else if (value.IsNumber()) {
