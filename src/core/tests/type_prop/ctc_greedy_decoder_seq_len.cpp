@@ -5,7 +5,6 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace std;
@@ -144,12 +143,12 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_dynamic_ranks2) {
     EXPECT_TRUE(op->get_output_partial_shape(1).same_scheme(out_shape2));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_all) {
+TEST(type_prop, ctc_greedy_decoder_seq_len_interval_symboled_dims_all) {
     PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
-    set_shape_labels(logits_shape, 10);
-    set_shape_labels(seq_len_shape, 20);
+    auto l_symbols = set_shape_symbols(logits_shape);
+    auto s_symbols = set_shape_symbols(seq_len_shape);
 
     auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
     auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
@@ -158,19 +157,19 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_all) {
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {10, 100}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(l_symbols[0], l_symbols[1]));
 
     // Output 1
     EXPECT_EQ(op->get_output_element_type(1), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{{4, 6}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(20));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), ElementsAre(l_symbols[0]));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in0) {
+TEST(type_prop, ctc_greedy_decoder_seq_len_interval_symboled_dims_in0) {
     PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
-    set_shape_labels(logits_shape, 10);
+    auto symbols = set_shape_symbols(logits_shape);
 
     auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
     auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
@@ -179,19 +178,19 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in0) {
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {10, 100}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], symbols[1]));
 
     // Output 1
     EXPECT_EQ(op->get_output_element_type(1), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{{4, 6}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(10));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), ElementsAre(symbols[0]));
 }
 
-TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in1) {
+TEST(type_prop, ctc_greedy_decoder_seq_len_interval_symboled_dims_in1) {
     PartialShape logits_shape{{2, 6}, {10, 100}, {600, 1200}};
     PartialShape seq_len_shape{{4, 8}};
 
-    set_shape_labels(seq_len_shape, 20);
+    auto symbols = set_shape_symbols(seq_len_shape);
 
     auto logits_param = make_shared<op::v0::Parameter>(element::f32, logits_shape);
     auto seq_len_param = make_shared<op::v0::Parameter>(element::f32, seq_len_shape);
@@ -200,12 +199,12 @@ TEST(type_prop, ctc_greedy_decoder_seq_len_interval_labeled_dims_in1) {
     // Output 0
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {10, 100}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr));
 
     // Output 1
     EXPECT_EQ(op->get_output_element_type(1), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{{4, 6}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(1)), ElementsAre(20));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(1)), ElementsAre(symbols[0]));
 }
 
 TEST(type_prop, ctc_greedy_decoder_seq_len_incorrect_rank) {

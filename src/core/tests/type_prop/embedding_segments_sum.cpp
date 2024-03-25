@@ -460,9 +460,9 @@ TEST(type_prop, ess_num_segment_const) {
 
 TEST(type_prop, ess_num_segment_interval_label_propagation) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
-    set_shape_labels(emb_shape, 10);
+    auto emb_symbols = set_shape_symbols(emb_shape);
     auto num_segm_shape = PartialShape{{6, 8}};
-    set_shape_labels(num_segm_shape, 20);
+    auto num_segm_symbols = set_shape_symbols(num_segm_shape);
 
     auto num_segments = make_shared<ov::op::v0::Parameter>(element::i64, num_segm_shape);
     auto shape_of = make_shared<op::v3::ShapeOf>(num_segments);
@@ -475,5 +475,6 @@ TEST(type_prop, ess_num_segment_interval_label_propagation) {
     auto op = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table, indices, segment_ids, num_segm_squeeze);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(num_segm_symbols[0], emb_symbols[1], emb_symbols[2]));
 }

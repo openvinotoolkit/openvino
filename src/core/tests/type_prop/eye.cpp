@@ -7,7 +7,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "eye_shape_inference.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;
@@ -40,9 +39,8 @@ TEST(type_prop, eye_batch_shape_constant) {
 }
 
 TEST(type_prop, eye_rows_param) {
-    constexpr label_t row_label = 2;
     auto rows_dim = Dimension{0, 1};
-    DimensionTracker::set_label(rows_dim, row_label);
+    rows_dim.set_symbol(std::make_shared<Symbol>());
 
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{rows_dim});
     auto num_columns = op::v0::Constant::create(element::i64, Shape{}, {10});
@@ -52,13 +50,12 @@ TEST(type_prop, eye_rows_param) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 10}));
-    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(eye->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, eye_rows_const) {
-    constexpr label_t columns_label = 2;
     auto columns_dim = Dimension{0, 1};
-    DimensionTracker::set_label(columns_dim, columns_label);
+    columns_dim.set_symbol(std::make_shared<Symbol>());
 
     auto num_rows = op::v0::Constant::create(element::i64, Shape{}, {10});
     auto num_columns = make_shared<op::v0::Parameter>(element::i64, PartialShape{columns_dim});
@@ -68,13 +65,12 @@ TEST(type_prop, eye_rows_const) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({10, Dimension::dynamic()}));
-    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(eye->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, eye_batch_shape_const) {
-    constexpr label_t batch_label = 2;
     auto batch_dim = Dimension{2};
-    DimensionTracker::set_label(batch_dim, batch_label);
+    batch_dim.set_symbol(std::make_shared<Symbol>());
 
     auto num_rows = make_shared<op::v0::Parameter>(element::i64, PartialShape{1});
     auto num_columns = num_rows;
@@ -85,7 +81,7 @@ TEST(type_prop, eye_batch_shape_const) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f32);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({2, 3, Dimension::dynamic(), Dimension::dynamic()}));
-    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(eye->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, eye_batch_shape_params) {
@@ -102,7 +98,7 @@ TEST(type_prop, eye_batch_shape_params) {
 
 TEST(type_prop, eye_batch_shape_shape_of) {
     auto batch_shape = PartialShape{{1, 10}, {10, 25}};
-    set_shape_labels(batch_shape, 10);
+    auto symbols = set_shape_symbols(batch_shape);
 
     auto num_rows = Constant::create(element::i64, Shape{}, {10});
     auto num_columns = num_rows;
@@ -114,7 +110,8 @@ TEST(type_prop, eye_batch_shape_shape_of) {
 
     EXPECT_EQ(eye->get_output_element_type(0), element::f64);
     EXPECT_EQ(eye->get_output_partial_shape(0), PartialShape({{1, 10}, {10, 25}, 10, 10}));
-    EXPECT_THAT(get_shape_labels(eye->get_output_partial_shape(0)), ElementsAre(10, 11, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(eye->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST(type_prop, eye_invalid_num_rows_value) {
@@ -336,7 +333,7 @@ TEST_F(TypePropEyeV9Test, eye_batch_shape_param_other_ins_const) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, -1, -1, 5, 6}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropEyeV9Test, default_ctor) {
@@ -353,7 +350,7 @@ TEST_F(TypePropEyeV9Test, default_ctor) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::i32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({3, 1, 2, 2, 16}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
@@ -374,20 +371,20 @@ TEST_F(TypePropEyeV9Test, default_ctor_no_arguments) {
     EXPECT_EQ(output_shapes.front(), PartialShape({2, 4, 1, 8, 5}));
 }
 
-TEST_F(TypePropEyeV9Test, preserve_partial_values_and_labels) {
+TEST_F(TypePropEyeV9Test, preserve_partial_values_and_symbols) {
     auto rows_shape = PartialShape{{2, 5}};
-    set_shape_labels(rows_shape, 30);
+    auto rows_symbols = set_shape_symbols(rows_shape);
     auto rows = std::make_shared<Parameter>(element::i64, rows_shape);
     auto num_rows = make_shared<ShapeOf>(rows);
 
     auto columns_shape = PartialShape{{1, 3}};
-    set_shape_labels(columns_shape, 40);
+    auto col_symbols = set_shape_symbols(columns_shape);
     auto columns = std::make_shared<Parameter>(element::i64, columns_shape);
     auto shape_of_columns = make_shared<ShapeOf>(columns);
     auto num_columns = std::make_shared<Squeeze>(shape_of_columns, Constant::create(element::i64, Shape{}, {0}));
 
     auto batch_shape = PartialShape{{1, 10}, {10, 25}};
-    set_shape_labels(batch_shape, 10);
+    auto batch_symbol = set_shape_symbols(batch_shape);
 
     auto diagonal_index = make_shared<Parameter>(element::i64, PartialShape{1});
     auto batch = make_shared<ShapeOf>(make_shared<Parameter>(element::i64, batch_shape));
@@ -395,5 +392,6 @@ TEST_F(TypePropEyeV9Test, preserve_partial_values_and_labels) {
     auto op = make_op(num_rows, num_columns, diagonal_index, batch, element::i32);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 10}, {10, 25}, {2, 5}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 11, 30, 40));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(batch_symbol[0], batch_symbol[1], rows_symbols[0], col_symbols[0]));
 }

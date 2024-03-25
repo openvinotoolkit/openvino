@@ -4,31 +4,30 @@
 
 #include "transformations/symbolic_transformations/utils.hpp"
 
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/core/node.hpp"
 #include "transformations/utils/utils.hpp"
 
-bool ov::symbol::util::get_labels(const ov::PartialShape& shape, ov::TensorLabel& labels) {
+bool ov::symbol::util::get_symbols(const ov::PartialShape& shape, ov::TensorSymbol& symbols) {
     if (shape.rank().is_dynamic())
         return false;
-    labels.clear();
-    labels.reserve(shape.size());
+    symbols.clear();
+    symbols.reserve(shape.size());
     for (const auto& d : shape)
-        labels.push_back((d.is_dynamic() ? ov::DimensionTracker::get_label(d) : ov::no_label));
+        symbols.push_back((d.is_dynamic() ? d.get_symbol() : nullptr));
     return true;
 }
 
-bool ov::symbol::util::get_labels(const ov::Output<ov::Node>& output, ov::TensorLabel& labels) {
+bool ov::symbol::util::get_symbols(const ov::Output<ov::Node>& output, ov::TensorSymbol& symbols) {
     const auto& tensor = output.get_tensor();
-    labels = tensor.get_value_label();
-    return !labels.empty();
+    symbols = tensor.get_value_symbol();
+    return !symbols.empty();
 }
 
-bool ov::symbol::util::are_unique_and_equal_labels(const ov::TensorLabel& lhs, const ov::TensorLabel& rhs) {
+bool ov::symbol::util::are_unique_and_equal_symbols(const ov::TensorSymbol& lhs, const ov::TensorSymbol& rhs) {
     if (rhs.size() != lhs.size() || rhs.empty())
         return false;
     for (size_t i = 0; i < lhs.size(); ++i)
-        if (lhs[i] != rhs[i] || lhs[i] == ov::no_label)
+        if (!symbol::are_equal(lhs[i], rhs[i]))
             return false;
     return true;
 }
@@ -36,15 +35,5 @@ bool ov::symbol::util::are_unique_and_equal_labels(const ov::TensorLabel& lhs, c
 bool ov::symbol::util::dims_are_equal(const ov::Dimension& lhs, const ov::Dimension& rhs) {
     if (lhs.is_static() && lhs == rhs)
         return true;
-    auto lhs_label = ov::DimensionTracker::get_label(lhs);
-    auto rhs_label = ov::DimensionTracker::get_label(rhs);
-    if (lhs_label == ov::no_label || rhs_label == ov::no_label)
-        return false;
-    if (lhs_label == rhs_label)
-        return true;
-    if (auto table_l = ov::DimensionTracker::get_table_of_equivalence(lhs))
-        return table_l->are_equal(lhs, rhs);
-    if (auto table_r = ov::DimensionTracker::get_table_of_equivalence(rhs))
-        return table_r->are_equal(lhs, rhs);
-    return false;
+    return symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
 }

@@ -64,7 +64,7 @@ public:
 
     bool evaluate_lower(TensorVector& output_values) const override;
     bool evaluate_upper(TensorVector& output_values) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
 protected:
     PadMode m_pad_mode{PadMode::CONSTANT};

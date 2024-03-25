@@ -82,14 +82,14 @@ TEST_F(TypePropBucketizeV3Test, dynamic_buckets) {
 
 TEST_F(TypePropBucketizeV3Test, interval_dimensions) {
     auto data_shape = PartialShape{{10, 30}, {12, -1}, -1, {0, 30}};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     auto data = make_shared<Parameter>(element::f16, data_shape);
     auto buckets = make_shared<Parameter>(element::f32, PartialShape{{2, 4}});
     auto bucketize = make_op(data, buckets);
 
     EXPECT_EQ(bucketize->get_element_type(), element::i64);
     EXPECT_EQ(bucketize->get_output_partial_shape(0), data_shape);
-    EXPECT_THAT(get_shape_labels(bucketize->get_output_partial_shape(0)), ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(bucketize->get_output_partial_shape(0)), symbols);
 }
 
 TEST_F(TypePropBucketizeV3Test, invalid_data_element_type) {

@@ -18,7 +18,7 @@ class TypePropCTCLossV4Test : public TypePropOpTest<op::v4::CTCLoss> {};
 TEST_F(TypePropCTCLossV4Test, with_blank_index) {
     // create inputs
     auto logits_shape = PartialShape{10, 120, 28};
-    set_shape_labels(logits_shape, 10);
+    auto symbols = set_shape_symbols(logits_shape);
 
     auto logits = make_shared<Parameter>(element::f32, logits_shape);
     auto logit_length = make_shared<Parameter>(element::i32, Shape{10});
@@ -32,7 +32,7 @@ TEST_F(TypePropCTCLossV4Test, with_blank_index) {
     // check type and shape infer
     EXPECT_EQ(ctc_loss->get_element_type(), element::f32);
     EXPECT_EQ(ctc_loss->get_output_partial_shape(0), PartialShape({10}));
-    EXPECT_THAT(get_shape_labels(ctc_loss->get_output_partial_shape(0)), ElementsAre(10));
+    EXPECT_THAT(get_shape_symbols(ctc_loss->get_output_partial_shape(0)), ElementsAre(symbols[0]));
 }
 
 TEST_F(TypePropCTCLossV4Test, no_blank_index) {
@@ -41,7 +41,7 @@ TEST_F(TypePropCTCLossV4Test, no_blank_index) {
     auto logit_length = make_shared<Parameter>(element::i32, Shape{10});
 
     auto labels_shape = PartialShape{10, 120};
-    set_shape_labels(labels_shape, 20);
+    auto symbols = set_shape_symbols(labels_shape);
     auto labels = make_shared<Parameter>(element::i32, labels_shape);
     auto label_length = make_shared<Parameter>(element::i32, Shape{10});
 
@@ -51,7 +51,7 @@ TEST_F(TypePropCTCLossV4Test, no_blank_index) {
     // check type and shape infer
     EXPECT_EQ(ctc_loss->get_element_type(), element::f32);
     EXPECT_EQ(ctc_loss->get_output_partial_shape(0), PartialShape({10}));
-    EXPECT_THAT(get_shape_labels(ctc_loss->get_output_partial_shape(0)), ElementsAre(20));
+    EXPECT_THAT(get_shape_symbols(ctc_loss->get_output_partial_shape(0)), ElementsAre(symbols[0]));
 }
 
 TEST_F(TypePropCTCLossV4Test, output_type_f64) {
@@ -61,7 +61,7 @@ TEST_F(TypePropCTCLossV4Test, output_type_f64) {
     auto labels = make_shared<Parameter>(element::i32, Shape{10, 120});
 
     auto label_len_shape = PartialShape{10};
-    set_shape_labels(label_len_shape, 30);
+    auto symbols = set_shape_symbols(label_len_shape);
     auto label_length = make_shared<Parameter>(element::i32, label_len_shape);
     auto blank_index = make_shared<Parameter>(element::i32, Shape{});
 
@@ -71,7 +71,7 @@ TEST_F(TypePropCTCLossV4Test, output_type_f64) {
     // check type and shape infer
     EXPECT_EQ(ctc_loss->get_element_type(), element::f64);
     EXPECT_EQ(ctc_loss->get_output_partial_shape(0), PartialShape({10}));
-    EXPECT_THAT(get_shape_labels(ctc_loss->get_output_partial_shape(0)), ElementsAre(30));
+    EXPECT_THAT(get_shape_symbols(ctc_loss->get_output_partial_shape(0)), ElementsAre(symbols[0]));
 }
 
 TEST_F(TypePropCTCLossV4Test, non_default_parameters) {
@@ -111,9 +111,9 @@ TEST_F(TypePropCTCLossV4Test, partly_dynamic_input) {
     auto logits_shape = PartialShape{{2, 20}, {100, 130}, 28};
     auto logits_len_shape = PartialShape{{5, 10}};
     auto labels_shape = PartialShape{-1, 120};
-    set_shape_labels(logits_shape, 10);
-    set_shape_labels(logits_len_shape, 20);
-    set_shape_labels(labels_shape, 30);
+    auto symbols = set_shape_symbols(logits_shape);
+    set_shape_symbols(logits_len_shape);
+    set_shape_symbols(labels_shape);
 
     auto logits = make_shared<Parameter>(element::f32, logits_shape);
     auto logit_length = make_shared<Parameter>(element::i32, logits_len_shape);
@@ -127,7 +127,7 @@ TEST_F(TypePropCTCLossV4Test, partly_dynamic_input) {
     // check type and shape infer
     EXPECT_EQ(ctc_loss->get_element_type(), element::f32);
     EXPECT_EQ(ctc_loss->get_output_partial_shape(0), PartialShape({{5, 10}}));
-    EXPECT_THAT(get_shape_labels(ctc_loss->get_output_partial_shape(0)), ElementsAre(30));
+    EXPECT_THAT(get_shape_symbols(ctc_loss->get_output_partial_shape(0)), ElementsAre(symbols[0]));
 }
 
 TEST_F(TypePropCTCLossV4Test, fail_inputs_dim) {
@@ -227,9 +227,9 @@ TEST_F(TypePropCTCLossV4Test, default_ctor) {
     auto logits_shape = PartialShape{{2, 20}, {100, 130}, 28};
     auto logits_len_shape = PartialShape{{5, 10}};
     auto labels_shape = PartialShape{-1, 120};
-    set_shape_labels(logits_shape, 10);
-    set_shape_labels(logits_len_shape, 20);
-    set_shape_labels(labels_shape, 30);
+    auto symbols = set_shape_symbols(logits_shape);
+    set_shape_symbols(logits_len_shape);
+    set_shape_symbols(labels_shape);
 
     auto logits = make_shared<Parameter>(element::f32, logits_shape);
     auto logit_length = make_shared<Parameter>(element::i32, logits_len_shape);
@@ -245,5 +245,5 @@ TEST_F(TypePropCTCLossV4Test, default_ctor) {
     // check type and shape infer
     EXPECT_EQ(ctc_loss->get_element_type(), element::f32);
     EXPECT_EQ(ctc_loss->get_output_partial_shape(0), PartialShape({{5, 10}}));
-    EXPECT_THAT(get_shape_labels(ctc_loss->get_output_partial_shape(0)), ElementsAre(30));
+    EXPECT_THAT(get_shape_symbols(ctc_loss->get_output_partial_shape(0)), ElementsAre(symbols[0]));
 }

@@ -149,7 +149,7 @@ TEST_F(TypePropPSROIPoolingV0, invalid_output_dim_in_bilinear_mode) {
 
 TEST_F(TypePropPSROIPoolingV0, features_dynamic_rank) {
     auto coords_shape = PartialShape{150, 5};
-    set_shape_labels(coords_shape, 20);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -157,13 +157,12 @@ TEST_F(TypePropPSROIPoolingV0, features_dynamic_rank) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({150, 2, 6, 6}));  // 4d
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, rois_dynamic_rank) {
     auto feat_shape = PartialShape{1, 72, 4, 5};
-    set_shape_labels(feat_shape, 10);
+    set_shape_symbols(feat_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
     const auto coords = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
@@ -171,12 +170,12 @@ TEST_F(TypePropPSROIPoolingV0, rois_dynamic_rank) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 2, 6, 6}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, dynamic_num_boxes) {
     auto coords_shape = PartialShape{{Dimension::dynamic(), 5}};
-    set_shape_labels(coords_shape, 20);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, PartialShape::dynamic());
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -184,15 +183,14 @@ TEST_F(TypePropPSROIPoolingV0, dynamic_num_boxes) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 2, 6, 6}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, feat_static_rank_dynamic_shape) {
     auto feat_shape = PartialShape::dynamic(4);
     auto coords_shape = PartialShape{{Dimension::dynamic(), 5}};
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(coords_shape, 20);
+    set_shape_symbols(feat_shape);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -200,15 +198,14 @@ TEST_F(TypePropPSROIPoolingV0, feat_static_rank_dynamic_shape) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 2, 6, 6}));  // 4d
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, feat_and_rois_static_rank_dynamic_shape) {
     auto feat_shape = PartialShape::dynamic(4);
     auto coords_shape = PartialShape::dynamic(2);
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(coords_shape, 20);
+    set_shape_symbols(feat_shape);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -216,15 +213,14 @@ TEST_F(TypePropPSROIPoolingV0, feat_and_rois_static_rank_dynamic_shape) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({-1, 2, 6, 6}));  // 4d
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, feat_and_rois_interval_shapes) {
     auto feat_shape = PartialShape{{1, 2}, {10, 100}, {10, 20}, {30, 90}};
     auto coords_shape = PartialShape{{3, 10}, {1, 5}};
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(coords_shape, 20);
+    set_shape_symbols(feat_shape);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -232,15 +228,14 @@ TEST_F(TypePropPSROIPoolingV0, feat_and_rois_interval_shapes) {
 
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 10}, 2, 6, 6}));  // 4d
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropPSROIPoolingV0, default_ctor) {
     auto feat_shape = PartialShape{2, {10, 100}, 10, 10};
     auto coords_shape = PartialShape{{3, 10}, {1, 5}};
-    set_shape_labels(feat_shape, 10);
-    set_shape_labels(coords_shape, 20);
+    set_shape_symbols(feat_shape);
+    auto symbols = set_shape_symbols(coords_shape);
 
     const auto inputs = std::make_shared<Parameter>(element::f16, feat_shape);
     const auto coords = std::make_shared<Parameter>(element::f16, coords_shape);
@@ -260,6 +255,5 @@ TEST_F(TypePropPSROIPoolingV0, default_ctor) {
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_element_type(), element::f16);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{3, 10}, 2, 6, 6}));  // 4d
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(20, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }

@@ -26,7 +26,6 @@
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "openvino/core/deprecated.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -674,10 +673,10 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
 
             if (shape.size()) {
                 for (size_t s = 0; s < shape.size(); s++) {
-                    if (ov::DimensionTracker::get_label(shape[s])) {
+                    if (const auto& symbol = shape[s].get_symbol()) {
                         batched_inputs.insert(std::make_pair(input_id, s));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << input->get_friendly_name()
-                                      << " with index " << input_id
+                                      << " with index " << symbol
                                       << "[" << s << "]" << std::endl;
                     }
                 }

@@ -31,7 +31,7 @@ public:
     bool evaluate_upper(TensorVector& outputs) const override;
     bool has_evaluate() const override;
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 };
 }  // namespace v0
 }  // namespace op

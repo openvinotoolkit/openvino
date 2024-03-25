@@ -82,11 +82,11 @@ bool Tile::evaluate_upper(TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Tile::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(v0_Tile_evaluate_label);
-    OPENVINO_ASSERT(output_labels.size() == 1);
+bool Tile::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(v0_Tile_evaluate_symbol);
+    OPENVINO_ASSERT(output_symbols.size() == 1);
 
-    return get_input_tensor(1).has_and_set_bound() && ov::util::default_label_evaluator(this, output_labels);
+    return get_input_tensor(1).has_and_set_bound() && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 }  // namespace v0
 }  // namespace op

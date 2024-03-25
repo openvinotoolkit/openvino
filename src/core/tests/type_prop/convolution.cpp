@@ -35,8 +35,8 @@ TEST(type_prop, convolution_v1_partial_rank) {
 TEST(type_prop, convolution_v1_partial_auto_padding_same) {
     ov::PartialShape data_batch_shape{1, 1, 5, 5};
     ov::PartialShape filters_shape{1, 1, 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto d_symbols = set_shape_symbols(data_batch_shape);
+    auto f_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -50,7 +50,8 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same) {
         make_shared<ov::op::v1::Convolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     EXPECT_EQ(conv->get_output_partial_shape(0), (ov::PartialShape{1, 1, 5, 5}));
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{1, 1}));
     EXPECT_EQ(conv->get_pads_end(), (ov::CoordinateDiff{1, 1}));
 }
@@ -58,8 +59,8 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same) {
 TEST(type_prop, convolution_v1_partial_auto_padding_same_nc_dims_dynamic_same_lower) {
     ov::PartialShape data_batch_shape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), 5, 5};
     ov::PartialShape filters_shape{1, 1, 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto d_symbols = set_shape_symbols(data_batch_shape);
+    auto f_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{1, 1};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -73,7 +74,8 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same_nc_dims_dynamic_same_lo
         make_shared<ov::op::v1::Convolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     EXPECT_EQ(conv->get_output_partial_shape(0), ov::PartialShape({ov::Dimension::dynamic(), 1, 5, 5}));
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{1, 1}));
     EXPECT_EQ(conv->get_pads_end(), (ov::CoordinateDiff{1, 1}));
 }
@@ -101,8 +103,8 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same_nc_dims_dynamic_same_up
 TEST(type_prop, convolution_v1_partial_auto_padding_same_spatial_dims_dynamic) {
     ov::PartialShape data_batch_shape{1, 1, ov::Dimension::dynamic(), {3, 5}};
     ov::PartialShape filters_shape{1, 1, 3, 3};
-    set_shape_labels(data_batch_shape, 10);
-    set_shape_labels(filters_shape, 20);
+    auto d_symbols = set_shape_symbols(data_batch_shape);
+    auto f_symbols = set_shape_symbols(filters_shape);
     ov::Strides strides{2, 2};
     ov::CoordinateDiff pads_begin{0, 0};
     ov::CoordinateDiff pads_end{0, 0};
@@ -116,7 +118,8 @@ TEST(type_prop, convolution_v1_partial_auto_padding_same_spatial_dims_dynamic) {
         make_shared<ov::op::v1::Convolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     EXPECT_EQ(conv->get_output_partial_shape(0), ov::PartialShape({1, 1, ov::Dimension::dynamic(), {2, 3}}));
-    EXPECT_THAT(get_shape_labels(conv->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(conv->get_output_partial_shape(0)),
+                ElementsAre(d_symbols[0], f_symbols[0], nullptr, nullptr));
     EXPECT_EQ(conv->get_pads_begin(), (ov::CoordinateDiff{0, 0}));
     EXPECT_EQ(conv->get_pads_end(), (ov::CoordinateDiff{0, 0}));
 }

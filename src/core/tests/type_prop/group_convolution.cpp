@@ -16,8 +16,8 @@ using namespace testing;
 TEST(type_prop, group_convolution_auto_padding_same_lower) {
     PartialShape data_batch_pshape{1, 4, 5, 5};
     PartialShape filters_pshape{2, 1, 2, 3, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto data_symbols = set_shape_symbols(data_batch_pshape);
+    auto filter_symbols = set_shape_symbols(filters_pshape);
     element::Type_t et = element::f32;
     Strides strides{1, 1};
     CoordinateDiff pads_begin{0, 0};
@@ -31,8 +31,8 @@ TEST(type_prop, group_convolution_auto_padding_same_lower) {
     auto groupConv =
         make_shared<op::v1::GroupConvolution>(data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    EXPECT_THAT(get_shape_labels(groupConv->get_output_partial_shape(0)),
-                ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(groupConv->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], filter_symbols[0], nullptr, nullptr));
     ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, 2, 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
@@ -83,8 +83,8 @@ TEST(type_prop, group_convolution_auto_padding_same_lower_spatial_dims_static) {
 TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static) {
     PartialShape data_batch_pshape{1, Dimension::dynamic(), 5, 5};
     PartialShape filters_pshape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 2, 2};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto data_symbols = set_shape_symbols(data_batch_pshape);
+    auto filter_symbols = set_shape_symbols(filters_pshape);
     const element::Type_t et = element::f32;
     const auto auto_pad = op::PadType::SAME_UPPER;
 
@@ -98,8 +98,8 @@ TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static) {
                                                            Strides{},
                                                            auto_pad);
 
-    EXPECT_THAT(get_shape_labels(groupConv->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(groupConv->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], nullptr, nullptr, nullptr));
     ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({1, Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
@@ -108,8 +108,8 @@ TEST(type_prop, group_convolution_auto_padding_same_upper_spatial_dims_static) {
 TEST(type_prop, group_convolution_static_ranks_filters_groups_dyn) {
     PartialShape data_batch_pshape{Dimension::dynamic(), 4, 5, 5};
     PartialShape filters_pshape{Dimension::dynamic(), 1, 2, 3, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto data_symbols = set_shape_symbols(data_batch_pshape);
+    auto filter_symbols = set_shape_symbols(filters_pshape);
 
     const element::Type_t et = element::f32;
     const auto auto_pad = op::PadType::SAME_LOWER;
@@ -123,8 +123,8 @@ TEST(type_prop, group_convolution_static_ranks_filters_groups_dyn) {
                                                            CoordinateDiff{},
                                                            Strides{},
                                                            auto_pad);
-    EXPECT_THAT(get_shape_labels(groupConv->get_output_partial_shape(0)),
-                ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(groupConv->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], filter_symbols[0], nullptr, nullptr));
     ASSERT_EQ(groupConv->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 2, 5, 5}));
     ASSERT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(groupConv->get_pads_end(), (CoordinateDiff{1, 1}));
@@ -513,8 +513,8 @@ TEST(type_prop, group_convolution_invalid_conv_param_spatial_dims) {
 TEST(type_prop, group_convolution_interval_shapes) {
     PartialShape data_batch_pshape{{1, 3}, {2, 6}, {1, 5}, {3, 10}, {20, 100}};
     PartialShape filters_pshape{{2, 3}, {1, 3}, {2, 3}, 3, 3, 3};
-    set_shape_labels(data_batch_pshape, 10);
-    set_shape_labels(filters_pshape, 20);
+    auto data_symbols = set_shape_symbols(data_batch_pshape);
+    set_shape_symbols(filters_pshape);
 
     const element::Type_t et = element::f32;
     const auto auto_pad = op::PadType::EXPLICIT;
@@ -528,8 +528,8 @@ TEST(type_prop, group_convolution_interval_shapes) {
                                                            CoordinateDiff{},
                                                            Strides{},
                                                            auto_pad);
-    EXPECT_THAT(get_shape_labels(groupConv->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(groupConv->get_output_partial_shape(0)),
+                ElementsAre(data_symbols[0], nullptr, nullptr, nullptr, nullptr));
     EXPECT_EQ(groupConv->get_output_partial_shape(0), PartialShape({{1, 3}, {2, 9}, {1, 3}, {1, 8}, {18, 98}}));
     EXPECT_EQ(groupConv->get_pads_begin(), (CoordinateDiff{0, 0, 0}));
     EXPECT_EQ(groupConv->get_pads_end(), (CoordinateDiff{0, 0, 0}));

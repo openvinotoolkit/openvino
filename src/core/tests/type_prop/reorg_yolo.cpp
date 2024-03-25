@@ -52,9 +52,9 @@ TEST_F(TypePropReorgYoloTest, stride_2_dynamic_shape) {
     EXPECT_EQ(reorg_yolo->get_output_partial_shape(0), expected_shape);
 }
 
-TEST_F(TypePropReorgYoloTest, stride_2_interval_shape_with_labels) {
+TEST_F(TypePropReorgYoloTest, stride_2_interval_shape_with_symbols) {
     auto in_shape = PartialShape{{1, 4}, {3, 9}, {16, 32}, {16, 32}};
-    set_shape_labels(in_shape, 10);
+    auto symbols = set_shape_symbols(in_shape);
 
     size_t stride = 2;
     auto data_param = std::make_shared<Parameter>(element::f32, in_shape);
@@ -64,8 +64,8 @@ TEST_F(TypePropReorgYoloTest, stride_2_interval_shape_with_labels) {
     const auto expected_shape = PartialShape{{1, 4}, {12, 36}, {8, 16}, {8, 16}};
 
     EXPECT_EQ(reorg_yolo->get_output_partial_shape(0), expected_shape);
-    EXPECT_THAT(get_shape_labels(reorg_yolo->get_output_partial_shape(0)),
-                ElementsAre(10, no_label, no_label, no_label));
+    EXPECT_THAT(get_shape_symbols(reorg_yolo->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST_F(TypePropReorgYoloTest, stride_2_batch_2) {
