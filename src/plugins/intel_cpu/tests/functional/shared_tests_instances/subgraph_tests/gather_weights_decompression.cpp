@@ -16,7 +16,7 @@ TEST_P(GatherWeightsDecompression, CompareWithRefs) {
     check_results();
 
     CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
-    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "GatherCompression", 1);
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "GatherCompressed", 1);
 }
 
 const std::vector<ov::element::Type> output_precisions = {ov::element::f32, ov::element::f16};

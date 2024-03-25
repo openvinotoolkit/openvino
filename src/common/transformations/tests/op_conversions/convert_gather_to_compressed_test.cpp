@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_gather_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
 #include <memory>
 

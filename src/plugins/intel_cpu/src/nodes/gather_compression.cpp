@@ -16,12 +16,12 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
+bool GatherCompressed::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
         const auto gather_compression = std::dynamic_pointer_cast<const ov::op::internal::GatherCompressed>(op);
         if (!gather_compression) {
-            errorMessage = "Only GatherCompression operation is supported";
+            errorMessage = "Only GatherCompressed operation is supported";
             return false;
         }
     } catch (...) {
@@ -30,7 +30,7 @@ bool GatherCompression::isSupportedOperation(const std::shared_ptr<const ov::Nod
     return true;
 }
 
-GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+GatherCompressed::GatherCompressed(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
@@ -78,7 +78,7 @@ GatherCompression::GatherCompression(const std::shared_ptr<ov::Node>& op, const 
     }
 }
 
-void GatherCompression::initSupportedPrimitiveDescriptors() {
+void GatherCompressed::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -150,7 +150,7 @@ void GatherCompression::initSupportedPrimitiveDescriptors() {
     }
 }
 
-bool GatherCompression::needPrepareParams() const {
+bool GatherCompressed::needPrepareParams() const {
     if (isInPlace()) {
         return false;
     }
@@ -160,7 +160,7 @@ bool GatherCompression::needPrepareParams() const {
     return result;
 }
 
-void GatherCompression::prepareParams() {
+void GatherCompressed::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
     if (!dataMemPtr || !dataMemPtr->isAllocated())
         THROW_ERROR(" has not allocated input data memory.");
@@ -205,16 +205,16 @@ void GatherCompression::prepareParams() {
     }
 }
 
-void GatherCompression::execute(dnnl::stream strm) {
+void GatherCompressed::execute(dnnl::stream strm) {
     execReference();
 }
 
-void GatherCompression::executeDynamicImpl(dnnl::stream strm) {
+void GatherCompressed::executeDynamicImpl(dnnl::stream strm) {
     execReference();
 }
 
 template <typename OUT_TYPE>
-void GatherCompression::execReferenceU4() {
+void GatherCompressed::execReferenceU4() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -273,7 +273,7 @@ void GatherCompression::execReferenceU4() {
 }
 
 template <typename OUT_TYPE>
-void GatherCompression::execReferenceI4() {
+void GatherCompressed::execReferenceI4() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const uint8_t* srcData = getSrcDataAtPortAs<const uint8_t>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -348,7 +348,7 @@ void GatherCompression::execReferenceI4() {
 }
 
 template <typename IN_TYPE, typename OUT_TYPE>
-void GatherCompression::execReference8bit() {
+void GatherCompressed::execReference8bit() {
     const int32_t* srcIndices = getSrcDataAtPortAs<const int32_t>(GATHER_INDICES);
     const IN_TYPE* srcData = getSrcDataAtPortAs<const IN_TYPE>(GATHER_DATA);
     OUT_TYPE* dstData = getDstDataAtPortAs<OUT_TYPE>(0);
@@ -396,7 +396,7 @@ void GatherCompression::execReference8bit() {
     });
 }
 
-void GatherCompression::execReference() {
+void GatherCompressed::execReference() {
     auto in_precison = getParentEdgeAt(GATHER_DATA)->getMemoryPtr()->getPrecision();
     auto out_precision = getChildEdgeAt(0)->getMemoryPtr()->getPrecision();
 
@@ -434,8 +434,8 @@ void GatherCompression::execReference() {
                 out_precision);
 }
 
-bool GatherCompression::created() const {
-    return getType() == Type::GatherCompression;
+bool GatherCompressed::created() const {
+    return getType() == Type::GatherCompressed;
 }
 
 }  // namespace node

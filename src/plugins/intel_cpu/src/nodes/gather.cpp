@@ -20,8 +20,6 @@
 #include "shape_inference/custom/gather.hpp"
 #include "utils/ngraph_utils.hpp"
 
-#undef OPENVINO_ARCH_X86_64
-
 using namespace dnnl::impl::cpu;
 
 #define THROW_ERROR(...) OPENVINO_THROW(getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)

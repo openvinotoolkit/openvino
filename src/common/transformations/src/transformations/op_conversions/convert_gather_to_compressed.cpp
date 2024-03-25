@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/convert_gather_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
 
 #include <memory>
 
@@ -37,7 +37,6 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
     auto dicts_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<ov::op::v0::Convert>({dicts_m});
 
-    // auto sub_const_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto sub_const_m = ov::pass::pattern::any_input();  // const or const+convert
     auto subtract_m = wrap_type<ov::op::v1::Subtract>({convert_m, sub_const_m});
 

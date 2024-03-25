@@ -15,9 +15,9 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class GatherCompression : public Node {
+class GatherCompressed : public Node {
 public:
-    GatherCompression(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
+    GatherCompressed(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
