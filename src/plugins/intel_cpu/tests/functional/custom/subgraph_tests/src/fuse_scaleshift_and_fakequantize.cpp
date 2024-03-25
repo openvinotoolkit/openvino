@@ -70,6 +70,9 @@ protected:
                                                                 quantizeIntervals[3]);
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(quantize)};
         function = std::make_shared<ov::Model>(results, ov::ParameterVector{param}, "FuseScaleShiftAndQuantize");
+        if (inputPrecision == element::f32) {
+            abs_threshold = 2e-7;
+        }
     }
 };
 
