@@ -87,7 +87,6 @@
 #include "transformations/init_node_info.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
-#include "transformations/utils.hpp"
 
 // LPT transformations
 #include "low_precision/add.hpp"
@@ -119,6 +118,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/rope_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/convert_gather_compression.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -165,13 +165,8 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) const {
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr) {
-            if (ov::is_type<ov::opset1::MatMul>(consumer)) {
-                return true;
-            }
-            if (is_gather_with_compressed_weights(consumer)) {
-                return true;
-            }
+        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+            return true;
         }
     }
     return false;
@@ -283,6 +278,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager;
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ConvertToGatherCompression);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
