@@ -164,7 +164,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
         }
 
         ov::element::Type outPrecision = getOriginalOutputPrecisionAtPort(0);
-        if (!one_of(outPrecision, ov::element::f32, ov::element::f16)) {
+        if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             THROW_ERROR("has unsupported out precision: ", outPrecision);
         }
         scale_group_size =
@@ -819,9 +819,22 @@ void Gather::execWeightsCompressed() {
         default:
             break;
         }
+    } else if (out_precision == ov::element::bf16) {
+        switch (in_precison) {
+        case ov::element::u8:
+            return execWeightsCompressed8bit<uint8_t, bfloat16>();
+        case ov::element::i8:
+            return execWeightsCompressed8bit<int8_t, bfloat16>();
+        case ov::element::u4:
+            return execWeightsCompressedU4<bfloat16>();
+        case ov::element::i4:
+            return execWeightsCompressedI4<bfloat16>();
+        default:
+            break;
+        }
     }
 
-    THROW_ERROR("only support in precision(u4/i4/u8/i8), out precision(f32/f16), in_precison=",
+    THROW_ERROR("only support in precision(u4/i4/u8/i8), out precision(f32/f16/bf16), in_precison=",
                 in_precison,
                 ", out_precision=",
                 out_precision);
