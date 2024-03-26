@@ -225,9 +225,9 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
     if (convert->input(0).get_element_type().is_real() &&
         convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
         ov::NodeVector new_ops;
-        #define CREATE_OP(NAME, TYPE, ...) \
-            const auto& NAME = std::make_shared<TYPE>(__VA_ARGS__); \
-            new_ops.push_back(NAME);
+#define CREATE_OP(NAME, TYPE, ...)                          \
+    const auto& NAME = std::make_shared<TYPE>(__VA_ARGS__); \
+    new_ops.push_back(NAME);
 
         const auto& in_prec = convert->get_input_element_type(0);
         auto data = convert->input_value(0).get_node_shared_ptr();
@@ -247,7 +247,7 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
         new_convert->set_friendly_name(convert->get_friendly_name());
         ov::copy_runtime_info(convert, new_ops);
         ov::replace_node(convert, new_convert);
-        #undef CREATE_OP
+#undef CREATE_OP
 
         return true;
     } else {
