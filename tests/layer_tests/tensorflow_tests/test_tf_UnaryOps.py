@@ -182,7 +182,7 @@ class TestUnaryOps(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
-    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit_tf_fe),
+    test_data = [pytest.param(dict(shape=[10, 12]), marks=pytest.mark.precommit),
                  dict(shape=[8, 10, 12]),
                  dict(shape=[6, 8, 10, 12]),
                  dict(shape=[4, 6, 8, 10, 12])]
@@ -235,7 +235,7 @@ class TestUnaryOps(CommonTFLayerTest):
                        reason="tensorflow_addons package is not available for Python 3.11 and higher")
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir, op_type,
+    def test_unary_op_mish(self, params, ie_device, precision, ir_version, temp_dir,
                            use_legacy_frontend):
         """
         TODO: Move to `test_unary_op()` once tensorflow_addons package is available for Python 3.11
