@@ -21,14 +21,12 @@ InOutTypes getTypeConfiguration(const MemoryDescArgs& descriptors, const TypeMap
     });
 
     for (const auto& entry : mapping) {
-        if (!entry.enabled())
-            continue;
-
-        const auto& pattern = entry.mask();
+        const auto& pattern = entry.first;
         if (!match(pattern, types))
             continue;
 
-        return entry.translate(types);
+        const auto& translator = entry.second;
+        return translator(types);
     }
 
     OPENVINO_THROW("Failed to create a type configuration for the provided memory descriptors");
