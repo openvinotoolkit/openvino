@@ -50,6 +50,8 @@ class TestStringLower(CommonTFLayerTest):
                        reason='Ticket - 126314, 132699')
     def test_string_lower(self, input_shape, encoding, strings_dictionary, ie_device, precision, ir_version, temp_dir,
                           use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("operation extension is not supported on GPU")
         self._test(*self.create_string_lower_net(input_shape=input_shape, encoding=encoding,
                                                  strings_dictionary=strings_dictionary),
                    ie_device, precision, ir_version, temp_dir=temp_dir,

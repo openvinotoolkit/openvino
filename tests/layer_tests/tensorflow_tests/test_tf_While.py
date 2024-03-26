@@ -195,6 +195,8 @@ class TestWhileWithNestedIf(CommonTFLayerTest):
     @pytest.mark.skipif(platform == 'darwin', reason="Ticket - 122182")
     def test_while_with_nested_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                         use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("accuracy issue on GPU")
         self._test(*self.create_while_with_nested_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)

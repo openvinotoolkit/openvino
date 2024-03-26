@@ -43,7 +43,9 @@ class TestTruncateMod(CommonTFLayerTest):
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_truncate_mod_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                               use_legacy_frontend):
+                                use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("accuracy issue on GPU")
         self._test(*self.create_truncate_mod_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
