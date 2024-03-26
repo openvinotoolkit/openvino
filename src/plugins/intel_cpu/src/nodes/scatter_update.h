@@ -100,8 +100,6 @@ private:
     template <typename DataType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                                 int axis, const scatter_elements_update::ReduceMean& kernel_func);
-    template <typename DataType>
-    inline void scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis);
 
     struct ScatterElementsUpdateContext {
         ScatterUpdate* node;
@@ -115,16 +113,20 @@ private:
     template<typename DataType>
     struct ScatterElementsUpdateDispatcher {
         void operator()(ScatterElementsUpdateContext& ctx) {
-            ctx.node->scatterElementsUpdate_dispatch<DataType>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis);
+            ctx.node->scatterElementsUpdate_dispatch<DataType>(ctx);
         }
     };
 
     template<typename PT>
     struct ScatterElementsUpdateDispatcher_reduce {
         void operator()(ScatterElementsUpdateContext& ctx) {
-            ctx.node->scatterElementsUpdate<typename PT::first_type>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis, static_cast<const typename PT::second_type&>(*ctx.reduce));
+            ctx.node->scatterElementsUpdate<typename PT::first_type>(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr, ctx.axis,
+                                                                    static_cast<const typename PT::second_type&>(*ctx.reduce));
         }
     };
+
+    template <typename DataType>
+    inline void scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     enum { DATA_ID, INDICES_ID, UPDATE_ID, AXIS_ID };

@@ -597,8 +597,28 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data, const Memor
 }
 
 template <typename DT>
-void ScatterUpdate::scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr,
-                        int axis) {
+void ScatterUpdate::scatterElementsUpdate_dispatch(ScatterElementsUpdateContext& ctx) {
+    using namespace scatter_elements_update;
+    using DT_NONE = std::pair<DT, decltype(data_assign)>;
+    using DT_SUM = std::pair<DT, decltype(reduce_add)>;
+    using DT_MAX = std::pair<DT, decltype(reduce_maximum)>;
+    using DT_MIN = std::pair<DT, decltype(reduce_minimum)>;
+    using DT_MUL = std::pair<DT, decltype(reduce_multiply)>;
+    using DT_MEAN = std::pair<DT, decltype(reduce_mean)>;
+    OV_SWITCH(intel_cpu,
+              ScatterElementsUpdateDispatcher_reduce,
+              ctx,
+              reduction_type,
+              OV_CASE(ScatterUpdate::Reduction::NONE, DT_NONE),
+              OV_CASE(ScatterUpdate::Reduction::SUM,  DT_SUM),
+              OV_CASE(ScatterUpdate::Reduction::MAX,  DT_MAX),
+              OV_CASE(ScatterUpdate::Reduction::MIN,  DT_MIN),
+              OV_CASE(ScatterUpdate::Reduction::PROD, DT_MUL),
+              OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN)
+              );
+}
+
+void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
     using namespace scatter_elements_update;
     ReduceBase* reduce;
     switch (reduction_type)
@@ -625,28 +645,7 @@ void ScatterUpdate::scatterElementsUpdate_dispatch(const MemoryPtr& dstMemPtr, c
         OPENVINO_THROW("unsupported reduce");
         break;
     }
-    using DT_NONE = std::pair<DT, decltype(data_assign)>;
-    using DT_SUM = std::pair<DT, decltype(reduce_add)>;
-    using DT_MAX = std::pair<DT, decltype(reduce_maximum)>;
-    using DT_MIN = std::pair<DT, decltype(reduce_minimum)>;
-    using DT_MUL = std::pair<DT, decltype(reduce_multiply)>;
-    using DT_MEAN = std::pair<DT, decltype(reduce_mean)>;
     ScatterElementsUpdateContext ctx{this, dstMemPtr, indicesMemPtr, updateMemPtr, axis, reduce};
-    OV_SWITCH(intel_cpu,
-              ScatterElementsUpdateDispatcher_reduce,
-              ctx,
-              reduction_type,
-              OV_CASE(ScatterUpdate::Reduction::NONE, DT_NONE),
-              OV_CASE(ScatterUpdate::Reduction::SUM,  DT_SUM),
-              OV_CASE(ScatterUpdate::Reduction::MAX,  DT_MAX),
-              OV_CASE(ScatterUpdate::Reduction::MIN,  DT_MIN),
-              OV_CASE(ScatterUpdate::Reduction::PROD, DT_MUL),
-              OV_CASE(ScatterUpdate::Reduction::MEAN, DT_MEAN)
-              );
-}
-
-void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr& indicesMemPtr, const MemoryPtr& updateMemPtr, int axis) {
-    ScatterElementsUpdateContext ctx{this, dstMemPtr, indicesMemPtr, updateMemPtr, axis};
     OV_SWITCH(intel_cpu,
               ScatterElementsUpdateDispatcher,
               ctx,
