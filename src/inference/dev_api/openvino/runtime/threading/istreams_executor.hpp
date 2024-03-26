@@ -207,7 +207,7 @@ public:
         }
         StreamsMode get_sub_stream_mode() const {
             const auto proc_type_table = get_proc_type_table();
-            int sockets = proc_type_table.size() > 1 ? proc_type_table.size() - 1 : 1;
+            int sockets = proc_type_table.size() > 1 ? static_cast<int>(proc_type_table.size()) - 1 : 1;
             return _sub_streams > 0 ? StreamsMode::SUB_STREAMS_FOR_SOCKET
                                     : (_streams <= sockets ? StreamsMode::LATENCY : StreamsMode::THROUGHPUT);
         }
