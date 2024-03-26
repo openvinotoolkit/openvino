@@ -62,6 +62,8 @@ jobs:
           PGPASSWORD: ${{ secrets.METRICS_DATABASE_PASSWORD }}
           PGDATABASE: ${{ secrets.METRICS_DATABASE_NAME }}
           PGPORT: 5432
+          # LOGLEVEL: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+          LOGLEVEL: DEBUG
         run: |
           python3 .github/scripts/collect_github_metrics.py \
           --run-id ${{ github.event.workflow_run.id }} \

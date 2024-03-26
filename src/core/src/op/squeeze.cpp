@@ -100,8 +100,8 @@ bool Squeeze::evaluate_upper(TensorVector& output_values) const {
     return validate::axes_has_and_set_bound(*this) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Squeeze::evaluate_label(TensorLabelVector& output_labels) const {
-    return validate::axes_has_and_set_bound(*this) && ov::util::default_label_evaluator(this, output_labels);
+bool Squeeze::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return validate::axes_has_and_set_bound(*this) && ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {
