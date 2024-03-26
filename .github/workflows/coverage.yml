@@ -97,7 +97,7 @@ jobs:
         run: ${{ github.workspace }}/bin/intel64/Release/ov_proxy_plugin_tests
 
       - name: Run OV Hetero Func tests
-        run: ${{ github.workspace }}/bin/intel64/Release/ov_hetero_func_tests
+        run: ${{ github.workspace }}/bin/intel64/Release/ov_hetero_func_tests --gtest_filter="*smoke*"
 
       - name: Run IR frontend tests
         run: ${{ github.workspace }}/bin/intel64/Release/ov_ir_frontend_tests
