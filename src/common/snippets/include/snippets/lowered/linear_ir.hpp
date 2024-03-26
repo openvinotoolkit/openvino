@@ -223,34 +223,6 @@ public:
      */
     exprIt replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr);
 
-    /**
-     * @brief Get zero to several consecutive child shape infer exprs(such as reshape, rankNormalization) from start_expr.
-     * @param start_expr Collect from start_expr.
-     * @return shape infer expression consumers as a sequence.
-     */
-    static std::vector<ExpressionPtr> get_child_shape_infer_expr_seq(const ExpressionPtr& start_expr);
-
-    /**
-     * @brief Get zero to several consecutive parent shape infer exprs(such as reshape, rankNormalization) from start_expr.
-     * @param start_expr Collect from start_expr.
-     * @return shape infer expression sources as a sequence.
-     */
-    static std::vector<ExpressionPtr> get_parent_shape_infer_expr_seq(const ExpressionPtr& start_expr);
-
-    /**
-     * @brief Get last child shape infer op from start_expr in a sequence. If no shape infer op is connect to start_expr, return start_expr.
-     * @param start_expr Search from start_expr.
-     * @return last child shape infer expr
-     */
-    static ExpressionPtr get_last_child_shape_infer_expr(const ExpressionPtr& start_expr);
-
-    /**
-     * @brief Get last parent shape infer op from start_expr in a sequence. If no shape infer op is connect to start_expr, return start_expr.
-     * @param start_expr Search from start_expr.
-     * @return last parent shape infer expr
-     */
-    static ExpressionPtr get_last_parent_shape_infer_expr(const ExpressionPtr& start_expr);
-
 private:
     std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
 

@@ -490,6 +490,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             [this](const_node_ptr &node) -> bool {
                 // This is a callback from snippets. If GroupNorm node is appropriate for snippets execution with higher perf,
                 // then it will not be decomposed to mvn+reshape+eltwises, support it with snippets instead.
+                // CVS-134277 to fully enable GN as snippets.
                 if (node->is_dynamic() || inferencePrecision != element::f32)
                     return false;
                 const auto group_norm = ov::as_type_ptr<const ov::op::v12::GroupNormalization>(node);

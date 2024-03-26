@@ -5,9 +5,9 @@
 #include "snippets/lowered/pass/assign_registers.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
@@ -82,20 +82,16 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                 manually_assigned_gprs[out_connector] = io_expr->get_index();
                 // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
                 // shape infer ops sequence after input
-                auto shape_infer_consumers = LinearIR::get_child_shape_infer_expr_seq(io_expr);
-                if (!shape_infer_consumers.empty()) {
-                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_expr->get_index();
-                    }
+                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(io_expr);
+                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                    manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_expr->get_index();
                 }
             } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
                 manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
                 // shape infer ops sequence before result
-                auto shape_infer_sources = LinearIR::get_parent_shape_infer_expr_seq(io_expr);
-                if (!shape_infer_sources.empty()) {
-                    for (const auto& parent_shape_infer_expr : shape_infer_sources) {
-                        manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                    }
+                const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(io_expr);
+                for (const auto& parent_shape_infer_expr : shape_infer_sources) {
+                    manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
                 }
             } else {
                 OPENVINO_THROW("Unsupported io_type detected");
@@ -108,13 +104,11 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
                         static_cast<Reg>(num_results + num_parameters + buffer_id);
                 // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
                 // child shape info ops share the same memory as IntermediateMemoryBuffer.
-                auto shape_infer_consumers = LinearIR::get_child_shape_infer_expr_seq(expr);
-                if (!shape_infer_consumers.empty()) {
-                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                        manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
-                            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                            static_cast<Reg>(num_results + num_parameters + buffer_id);
-                    }
+                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
+                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                    manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
+                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
+                        static_cast<Reg>(num_results + num_parameters + buffer_id);
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =

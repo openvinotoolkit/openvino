@@ -148,19 +148,17 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
         const auto port_idx = entry_port->get_index();
         const auto node = expr->get_node();
         auto parent_expr_output = expr->get_input_port_connector(port_idx)->get_source();
-
-        const auto& first_parent_expr = parent_expr_output.get_expr();
+        auto parent_expr = parent_expr_output.get_expr();
         bool has_shape_infer_parent = false;
         auto top_shape_infer_expr = expr;
         // parent before shape infer ops is used to determine if buffer needed according loopInfo
-        auto shape_infer_parents = LinearIR::get_parent_shape_infer_expr_seq(first_parent_expr);
+        const auto& shape_infer_parents = utils::get_first_parent_shape_infer_expr_seq(parent_expr);
         if (!shape_infer_parents.empty()) {
             parent_expr_output = shape_infer_parents.back()->get_input_port_connector(0)->get_source();
             has_shape_infer_parent = true;
             top_shape_infer_expr = shape_infer_parents.back();
+            parent_expr = parent_expr_output.get_expr();
         }
-
-        const auto& parent_expr = parent_expr_output.get_expr();
         const auto& parent_port = parent_expr_output.get_index();
         const auto& parent = parent_expr->get_node();
         if (ov::is_type<op::Buffer>(parent) ||

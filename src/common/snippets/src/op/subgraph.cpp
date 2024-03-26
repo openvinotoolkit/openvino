@@ -87,38 +87,6 @@ auto Subgraph::is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool {
            ov::is_type<snippets::op::RankNormalization>(op);
 }
 
-auto Subgraph::get_last_child_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> std::shared_ptr<ov::Node> {
-    auto last_op = op;
-    if (last_op->get_output_size() == 0)
-        return last_op;
-    auto consumers = last_op->get_output_target_inputs(0);
-    auto first_child = consumers.begin()->get_node()->shared_from_this();
-    while (op::Subgraph::is_shape_infer_op(first_child)) {
-        OPENVINO_ASSERT(consumers.size() == 1, "Shape infer ops are supposed to be the only consumer.");
-        last_op = first_child;
-        if (last_op->get_output_size() == 0)
-            break;
-        consumers = last_op->get_output_target_inputs(0);
-        first_child = consumers.begin()->get_node()->shared_from_this();
-    }
-    return last_op;
-}
-
-auto Subgraph::get_last_parent_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> std::shared_ptr<ov::Node> {
-    auto last_op = op;
-    if (last_op->get_input_size() == 0)
-        return last_op;
-    auto first_parent = last_op->get_input_node_shared_ptr(0);
-    while (op::Subgraph::is_shape_infer_op(first_parent)) {
-        last_op = first_parent;
-        if (last_op->get_input_size() == 0)
-            break;
-        first_parent = last_op->get_input_node_shared_ptr(0);
-        OPENVINO_ASSERT(first_parent->get_output_size() == 1, "Shape infer ops are supposed to be the only consumer.");
-    }
-    return last_op;
-}
-
 void Subgraph::init_config() {
     auto update = [](bool& flag, bool status) { flag = flag || status; };
     const auto ops = body_ptr()->get_ops();
@@ -353,7 +321,8 @@ VectorDims Subgraph::infer_master_shape() {
         OPENVINO_ASSERT(!output_dims.empty(), "Can't calculate master_shape before the first shape inference");
     } else {
         for (const auto& res : body_ptr()->get_results()) {
-            auto res_input = get_last_parent_shape_infer_op(res)->input(0);
+            const auto& shape_infer_leaf = utils::get_leaf_node_of_first_parent_shape_infer_seq(res);
+            const auto& res_input = shape_infer_leaf ? shape_infer_leaf->input(0) : res->input(0);
             OPENVINO_ASSERT(res_input.get_partial_shape().is_static(), "Result have dynamic shape in static pipeline");
             // We need to account to the shape's layout stored in Output<Node> rt_info
             const auto& planar_shape = utils::get_preordered_pshape(res_input.get_source_output());
