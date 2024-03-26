@@ -84,6 +84,9 @@ class TestLookupTableFindOps(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_lookup_table_find(self, hash_table_type, keys_shape, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        if ie_device == 'GPU':
+            pytest.skip("operation extesion is not supported on GPU or "
+                        "No layout format available for gather:LookupTableFind issue")
         if params['keys_type'] == str and params['values_type'] == np.int64:
             if platform.system() in ('Darwin') or platform.machine() in ['arm', 'armv7l',
                                                                          'aarch64',
